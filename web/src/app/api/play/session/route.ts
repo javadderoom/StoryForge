@@ -6,8 +6,8 @@ import { PlaythroughSession, PlayerState } from '@/lib/types/gameplay';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const storyId = body.storyId || obsidianCitadelStory.id;
-    const story = storyId === ghaleSiahsangStory.id ? ghaleSiahsangStory : obsidianCitadelStory;
+    const storyId = body.storyId || ghaleSiahsangStory.id;
+    const story = storyId === obsidianCitadelStory.id ? obsidianCitadelStory : ghaleSiahsangStory;
 
     // Initialize player state from story RPG definitions
     const initialStats: Record<string, number> = {};

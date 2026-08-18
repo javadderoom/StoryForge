@@ -51,10 +51,10 @@ export class GeminiAdapter {
       const parsed = JSON.parse(text);
 
       return {
-        narrative: parsed.narrative || 'The scene unfolds quietly before you.',
+        narrative: parsed.narrative || 'صحنه به آرامی در برابرت ورق می‌خورد...',
         choices: (parsed.choices || []).map((c: any, index: number) => ({
           id: c.id || `choice_${index + 1}`,
-          text: c.text || 'Continue forward.',
+          text: c.text || 'ادامه مسیر...',
           style: c.style || 'tactical',
           riskLevel: c.riskLevel || 'medium',
         })),
@@ -62,43 +62,36 @@ export class GeminiAdapter {
       };
     } catch (error) {
       console.error('Gemini API generation error:', error);
-      // Return safe graceful fallback
       return this.generateMockScene(prompt);
     }
   }
 
   /**
-   * Mock fallback generator used when no GEMINI_API_KEY is configured.
+   * Mock fallback generator in Persian default.
    */
   private generateMockScene(prompt: GenerationPromptPayload): GeneratedSceneResponse {
     return {
       narrative:
-        'The cold stone walls hum with a faint vibration as the torchlight gutters in a sudden draft. Every breath leaves a pale cloud in the subterranean chill. You can hear the steady rhythmic pacing of the sentry beyond the threshold, his iron boots scraping against the gravel floor.',
+        'دیوارهای سنگی کهن با لرزشی خفیف در تاریکی سوسو می‌زنند و شعله مشعل‌ها در گذر ناگهانی باد می‌رقصد. هر بازدم، ابری از بخار سرد در سیاه‌چال پدید می‌آورد. صدای منظم گام‌های نگهبان از پشت درگاه چوبی به گوش می‌رسد؛ چکمه‌های آهنی‌اش روی سنگ‌ریزه‌ها کشیده می‌شوند.',
       choices: [
         {
           id: 'choice_1',
-          text: 'Hold your breath and press against the shadowy stone alcove.',
+          text: 'نفست را در سینه حبس کن و در فرورفتگی تاریک دیوار سنگی پناه بگیر.',
           style: 'defensive',
           riskLevel: 'low',
         },
         {
           id: 'choice_2',
-          text: 'Quietly slip the iron lockpick into the cell door mechanism.',
+          text: 'به آرامی میله قفل‌گشایی را داخل مکانیزم در چوبی بلغزان.',
           style: 'agile',
           riskLevel: 'medium',
-        },
-        {
-          id: 'choice_3',
-          text: 'Kick the heavy wooden door open and charge the guard.',
-          style: 'aggressive',
-          riskLevel: 'high',
         },
       ],
       extractedMemories: [
         {
           category: 'player',
           importance: 6,
-          summary: 'Player navigated the subterranean cell block.',
+          summary: 'بازیکن مسیر راهروی سیاه‌چال را مخفیانه زیر نظر گرفت.',
         },
       ],
     };

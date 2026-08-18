@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Shield, Sword, Sparkles, RefreshCw, Send, Sliders, Globe } from 'lucide-react';
+import { Shield, Sparkles, RefreshCw, Send, Sliders } from 'lucide-react';
 
 export default function Home() {
-  const [selectedStoryId, setSelectedStoryId] = useState<string>('obsidian_citadel');
+  const [selectedStoryId, setSelectedStoryId] = useState<string>('ghale_siahsang');
   const [session, setSession] = useState<any>(null);
   const [currentBeat, setCurrentBeat] = useState<any>(null);
   const [playerState, setPlayerState] = useState<any>(null);
@@ -14,7 +14,7 @@ export default function Home() {
   const [lastOutcome, setLastOutcome] = useState<any>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const isRtl = storyMeta?.language === 'fa';
+  const isRtl = storyMeta?.language !== 'en';
 
   useEffect(() => {
     startNewGame(selectedStoryId);
@@ -103,7 +103,7 @@ export default function Home() {
           </div>
           <div>
             <h1 className="font-bold text-sm tracking-tight text-zinc-100">
-              {storyMeta?.title || 'StoryForge'}
+              {storyMeta?.title || 'قلعه سیاه‌سنگ'}
             </h1>
             <p className="text-[11px] text-zinc-400">
               {isRtl ? 'رمان تعاملی نقش‌آفرینی' : 'Interactive Dark RPG Novel'}
@@ -115,6 +115,16 @@ export default function Home() {
         <div className="flex items-center gap-2.5">
           <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-0.5 text-xs">
             <button
+              onClick={() => setSelectedStoryId('ghale_siahsang')}
+              className={`px-2.5 py-1 rounded-md transition-all ${
+                selectedStoryId === 'ghale_siahsang'
+                  ? 'bg-zinc-800 text-amber-400 font-semibold shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              فارسی (پیش‌فرض)
+            </button>
+            <button
               onClick={() => setSelectedStoryId('obsidian_citadel')}
               className={`px-2.5 py-1 rounded-md transition-all ${
                 selectedStoryId === 'obsidian_citadel'
@@ -123,16 +133,6 @@ export default function Home() {
               }`}
             >
               English
-            </button>
-            <button
-              onClick={() => setSelectedStoryId('ghale_siahsang')}
-              className={`px-2.5 py-1 rounded-md transition-all ${
-                selectedStoryId === 'ghale_siahsang'
-                  ? 'bg-zinc-800 text-amber-400 font-semibold shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              فارسی
             </button>
           </div>
 
@@ -165,13 +165,15 @@ export default function Home() {
             {lastOutcome && (
               <div className="mb-6 p-3 rounded-xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between text-xs animate-in fade-in slide-in-from-top-2">
                 <span className="text-zinc-400">
-                  {isRtl ? 'تاس و مهارت: ' : 'Check: '}
+                  {isRtl ? 'تاس و بررسی: ' : 'Check: '}
                   <strong className="text-zinc-200">
-                    {isRtl ? `تاس ${lastOutcome.diceRoll} (مجموع ${lastOutcome.totalScore} در برابر دشواری ${lastOutcome.difficultyClass})` : `Roll ${lastOutcome.diceRoll} (Total ${lastOutcome.totalScore} vs DC ${lastOutcome.difficultyClass})`}
+                    {isRtl
+                      ? `تاس ${lastOutcome.diceRoll} (مجموع ${lastOutcome.totalScore} در برابر دشواری ${lastOutcome.difficultyClass})`
+                      : `Roll ${lastOutcome.diceRoll} (Total ${lastOutcome.totalScore} vs DC ${lastOutcome.difficultyClass})`}
                   </strong>
                 </span>
                 <span
-                  className={`font-bold uppercase text-[10px] px-2 py-0.5 rounded ${
+                  className={`font-bold uppercase text-[10px] px-2.5 py-0.5 rounded ${
                     lastOutcome.outcome.includes('success')
                       ? 'bg-emerald-500/20 text-emerald-300'
                       : 'bg-rose-500/20 text-rose-300'
@@ -211,33 +213,19 @@ export default function Home() {
                   <span>{isRtl ? 'چه تصمیمی می‌گیری؟' : 'What will you do?'}</span>
                 </h3>
 
+                {/* Clean, Literary Choices without risk tags */}
                 <div className="space-y-2.5">
-                  {currentBeat.choices.map((choice: any, idx: number) => {
-                    const isHigh = choice.riskLevel === 'high';
-                    const isMedium = choice.riskLevel === 'medium';
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => handleChoice(choice)}
-                        className="w-full text-left p-4 rounded-2xl bg-zinc-900/80 hover:bg-zinc-800/90 border border-zinc-800 hover:border-amber-500/40 transition-all flex items-center justify-between group cursor-pointer"
-                      >
-                        <span className="text-sm text-zinc-200 group-hover:text-amber-200 transition-colors pr-4">
-                          {choice.text}
-                        </span>
-                        <span
-                          className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded shrink-0 ${
-                            isHigh
-                              ? 'bg-rose-500/15 text-rose-400 border border-rose-500/20'
-                              : isMedium
-                              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
-                              : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                          }`}
-                        >
-                          {choice.riskLevel} {isRtl ? 'ریسک' : 'Risk'}
-                        </span>
-                      </button>
-                    );
-                  })}
+                  {currentBeat.choices.map((choice: any, idx: number) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleChoice(choice)}
+                      className="w-full text-start p-4 rounded-2xl bg-zinc-900/80 hover:bg-zinc-800/90 border border-zinc-800 hover:border-amber-500/40 transition-all group cursor-pointer"
+                    >
+                      <span className="text-sm text-zinc-200 group-hover:text-amber-200 transition-colors leading-relaxed block">
+                        {choice.text}
+                      </span>
+                    </button>
+                  ))}
                 </div>
 
                 {/* Free Text Input */}
@@ -248,7 +236,7 @@ export default function Home() {
                     onChange={(e) => setFreeTextAction(e.target.value)}
                     placeholder={
                       isRtl
-                        ? 'یا هر عمل دلخواهی را بنویسید (مثلاً: نگاه کردن به زیر تخت)...'
+                        ? 'یا هر عمل دلخواهی را بنویسید (مثلاً: نگاه کردن به زیر نیمکت)...'
                         : 'Or type any custom action (e.g. examine the iron lock)...'
                     }
                     className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/30 transition-all"

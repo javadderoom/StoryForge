@@ -17,8 +17,8 @@ class GameSessionState {
   GameSessionState({
     this.isLoading = false,
     this.errorMessage,
-    this.storyId = 'obsidian_citadel',
-    this.storyTitle = 'The Obsidian Citadel',
+    this.storyId = 'ghale_siahsang',
+    this.storyTitle = 'قلعه سیاه‌سنگ',
     this.currentNarrative = '',
     this.choices = const [],
     this.playerState,

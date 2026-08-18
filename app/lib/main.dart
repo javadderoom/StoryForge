@@ -17,9 +17,15 @@ class StoryForgeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'StoryForge',
+      title: 'قلعه سیاه‌سنگ',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkVoid,
+      builder: (context, child) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: const ReaderScreen(),
     );
   }

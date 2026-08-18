@@ -13,23 +13,23 @@ class AppTheme {
       surface: Color(0xFF141522),
     ),
     textTheme: TextTheme(
-      bodyLarge: GoogleFonts.merriweather(
+      bodyLarge: GoogleFonts.vazirmatn(
         fontSize: 18,
-        height: 1.8,
+        height: 1.85,
         color: const Color(0xFFE4E4E7),
       ),
-      bodyMedium: GoogleFonts.merriweather(
+      bodyMedium: GoogleFonts.vazirmatn(
         fontSize: 16,
-        height: 1.7,
+        height: 1.75,
         color: const Color(0xFFD4D4D8),
       ),
-      titleLarge: GoogleFonts.cinzel(
-        fontSize: 22,
+      titleLarge: GoogleFonts.vazirmatn(
+        fontSize: 20,
         fontWeight: FontWeight.bold,
         color: const Color(0xFFF59E0B),
-        letterSpacing: 1.2,
+        letterSpacing: 0.5,
       ),
-      titleMedium: GoogleFonts.inter(
+      titleMedium: GoogleFonts.vazirmatn(
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: const Color(0xFFF4F4F5),
@@ -47,13 +47,13 @@ class AppTheme {
       surface: Color(0xFFEBE0C8),
     ),
     textTheme: TextTheme(
-      bodyLarge: GoogleFonts.merriweather(
+      bodyLarge: GoogleFonts.vazirmatn(
         fontSize: 18,
-        height: 1.8,
+        height: 1.85,
         color: const Color(0xFF292524),
       ),
-      titleLarge: GoogleFonts.cinzel(
-        fontSize: 22,
+      titleLarge: GoogleFonts.vazirmatn(
+        fontSize: 20,
         fontWeight: FontWeight.bold,
         color: const Color(0xFF78350F),
       ),
