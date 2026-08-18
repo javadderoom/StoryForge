@@ -199,7 +199,7 @@ export default function Home() {
                   <p className="text-sm font-medium">{isRtl ? 'داستان در حال شکل‌گیری است...' : 'The narrative unfolds...'}</p>
                 </div>
               ) : (
-                <p className="text-base md:text-lg leading-relaxed text-zinc-200 font-serif whitespace-pre-line tracking-wide">
+                <p className="text-base md:text-lg leading-relaxed text-zinc-200 whitespace-pre-line tracking-wide">
                   {currentBeat?.narrative}
                 </p>
               )}
