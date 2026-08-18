@@ -1,0 +1,167 @@
+import { StoryManifest } from '@/lib/types';
+
+export const ghaleSiahsangStory: StoryManifest = {
+  id: 'ghale_siahsang',
+  title: 'قلعه سیاه‌سنگ',
+  tagline: 'در سایه دژ باستانی، انتخاب‌هایت سرنوشت را رقم می‌زنند.',
+  synopsis:
+    'در اعماق کهن دژ آتشفشانی سیاه‌سنگ بیدار می‌شوی؛ جایی که صدای چکمه‌های زره‌پوش نگهبانان روی سنگ‌های سرد پژواک می‌کند. سیصد سال از نابودی آخرین اژدهایان می‌گذرد، اما در تالار تاج‌وتخت نیرویی به مراتب تاریک‌تر در حال بیداری است.',
+  genres: ['dark_fantasy', 'mystery_noir'],
+  language: 'fa',
+  coverImageUrl: '/covers/ghale_siahsang.webp',
+  author: 'استودیو استوری‌فورج',
+  version: '1.1.0',
+  rpgSystem: {
+    hasCombat: true,
+    diceType: 'd20',
+    stats: [
+      { id: 'might', name: 'قدرت بدنی', description: 'توان فیزیکی، استقامت و مبارزه تن‌به‌تن', baseValue: 12 },
+      { id: 'agility', name: 'چابکی', description: 'سرعت واکنش، مخفی‌کاری، تعادل و حرکات آکروباتیک', baseValue: 14 },
+      { id: 'cunning', name: 'هوش و ذکاوت', description: 'دقت دیداری، فریب، قفل‌گشایی و خرد خیابانی', baseValue: 10 },
+      { id: 'arcana', name: 'دانش کهن', description: 'آشنایی با نمادهای باستانی و آثار ممنوعه', baseValue: 8 },
+    ],
+    resources: [
+      { id: 'hp', name: 'سلامتی (HP)', current: 100, max: 100, min: 0, color: '#ef4444' },
+      { id: 'stamina', name: 'انرژی (Stamina)', current: 50, max: 50, min: 0, color: '#3b82f6' },
+      { id: 'gold', name: 'سکه‌های طلا', current: 30, max: 9999, min: 0, color: '#eab308' },
+    ],
+    skills: [
+      { id: 'blade_mastery', name: 'مهارت در شمشیرزنی', description: 'ضربات دقیق با تیغه', linkedStatId: 'might', tier: 1, bonusModifier: 2 },
+      { id: 'shadow_step', name: 'گام‌های بی‌صدا', description: 'حرکت مخفیانه در تاریکی', linkedStatId: 'agility', tier: 1, bonusModifier: 2 },
+    ],
+    startingInventory: [
+      { id: 'iron_dagger', name: 'خنجر فولادی چکمه', description: 'خنجری تیز با تیغه باریک که در درز چکمه پنهان شده.', type: 'weapon', quantity: 1, statModifiers: { agility: 1 } },
+      { id: 'lockpick_set', name: 'ابزار قفل‌گشایی', description: 'دو میله باریک برنجی در غلاف چرمی.', type: 'quest_item', quantity: 1, statModifiers: { cunning: 1 } },
+    ],
+    inventoryCapacity: 10,
+  },
+  worldBible: {
+    worldId: 'realm_of_valoria_fa',
+    worldName: 'قلمروهای فروپاشیده والوریا',
+    summary: 'سرزمینی قرون‌وسطایی که زیر یوغ گارد نقره‌ای اداره می‌شود. هرگونه جادوی باستانی ممنوع و کفرآمیز شمرده می‌شود.',
+    themeNotes: 'تاریک، رازآلود، واقع‌گرایانه با فضاسازی سنگ‌های مرطوب، دود مشعل‌ها و دوراهی‌های اخلاقی سنگین.',
+    laws: [
+      {
+        id: 'law_dragons_extinct_fa',
+        rule: 'اژدهایان ۳۰۰ سال پیش در پاکسازی بزرگ منقرض شدند.',
+        description: 'هیچ اژدهای زنده‌ای در دنیا وجود ندارد. هرگونه ادعایی نشانه جنون یا ارتداد تلقی می‌شود.',
+        category: 'creatures',
+        isImmutable: true,
+      },
+      {
+        id: 'law_blood_magic_fa',
+        rule: 'جادو نیازمند قربانی خون است و در سراسر امپراتوری اکیداً ممنوع می‌باشد.',
+        description: 'استفاده از افسون‌ها مجازات اعدام در محل به دست گارد نقره‌ای دارد.',
+        category: 'magic',
+        isImmutable: true,
+      },
+    ],
+    factions: [
+      {
+        id: 'silver_guard_fa',
+        name: 'گارد نقره‌ای',
+        description: 'نیروهای نظامی نخبه تحت فرمان صدراعظم بزرگ.',
+        alignment: 'نظم‌گرای سرکوبگر',
+        territoryIds: ['loc_citadel_upper_fa', 'loc_guard_hallway_fa'],
+        rivalFactionIds: ['shadow_veil_fa'],
+        alliedFactionIds: [],
+        publicGoals: 'برقراری نظم امپراتوری و سرکوب جادوگران خون.',
+      },
+      {
+        id: 'shadow_veil_fa',
+        name: 'نقاب نجوایان',
+        description: 'شبکه شورشیان و قاچاقچیان زیرزمینی در دخمه‌های کهن قلعه.',
+        alignment: 'بی‌طرف آشوب‌گرا',
+        territoryIds: ['loc_subterranean_canals_fa'],
+        rivalFactionIds: ['silver_guard_fa'],
+        alliedFactionIds: [],
+        publicGoals: 'بقا و تجارت قاچاق از مسیرهای مخفی فاضلاب کهن.',
+      },
+    ],
+    locations: [
+      {
+        id: 'loc_dungeon_cell_fa',
+        name: 'سیاه‌چال شماره ۴',
+        description: 'سیاه‌چالی سرد که مستقیماً در دل سنگ‌های بازالتی آتشفشان تراشیده شده است.',
+        region: 'بخش زیرین قلعه',
+        dangerLevel: 2,
+        connectedLocationIds: ['loc_guard_hallway_fa'],
+        atmosphere: 'سرد، تاریک، بوی نم و خاکستر.',
+      },
+      {
+        id: 'loc_guard_hallway_fa',
+        name: 'راهروی سنگین نگهبانی',
+        description: 'راهروی مشعل‌دار با کف سنگفرش سنگی که نگهبانان گارد نقره‌ای در آن گشت می‌زنند.',
+        region: 'بخش زیرین قلعه',
+        dangerLevel: 3,
+        connectedLocationIds: ['loc_dungeon_cell_fa', 'loc_subterranean_canals_fa'],
+        atmosphere: 'نور لرزان مشعل‌ها، بوی چرم و برق تیغه‌ها.',
+      },
+      {
+        id: 'loc_subterranean_canals_fa',
+        name: 'آبراهه‌های نجوایان',
+        description: 'فاضلاب کهن و غرقاب شده که با خزه‌های درخشان روشن شده است.',
+        region: 'اعماق زیرزمینی',
+        dangerLevel: 3,
+        connectedLocationIds: ['loc_guard_hallway_fa'],
+        atmosphere: 'آب راکد سیاه، بازتاب نجواهای گمشده و بوی رطوبت سنگین.',
+      },
+    ],
+    timeline: [],
+    npcs: [
+      {
+        id: 'npc_captain_rolan_fa',
+        name: 'کاپیتان رولان',
+        title: 'فرمانده دیده‌بان‌های سیاه‌چال',
+        currentLocationId: 'loc_guard_hallway_fa',
+        personalityTraits: ['شرافتمند', 'خسته از جنگ', 'منضبط'],
+        speechStyle: 'صدایی خشن و کم‌حرف. تک‌تک حرکات مخاطب را زیر نظر می‌گیرد.',
+        goals: ['محافظت از سربازانش', 'کشف حقیقت درباره فساد صدراعظم'],
+        secrets: [
+          {
+            id: 'secret_rolan_doubt_fa',
+            description: 'رولان مدارکی یافته که نشان می‌دهد صدراعظم زندانیان بی‌گناه را پاپوش دوخته است.',
+            requiredTrustLevel: 20,
+            revealed: false,
+          },
+        ],
+        initialTrust: 0,
+      },
+    ],
+  },
+  initialSceneId: 'scene_chapter1_fa',
+  initialStoryBeats: [
+    {
+      sceneId: 'scene_chapter1_fa',
+      locationId: 'loc_dungeon_cell_fa',
+      narrativeText:
+        'سرمای سنگ‌های بازالتی به تنت نفوذ می‌کند، پیش از آنکه چشمانت به نور لرزان مشعل از پشت میله‌های آهنی عادت کنند. بوی مس و خاکستر مرطوب فضا را پر کرده است.\n\nاز راهروی روبه‌رو، صدای سنگین گام‌های چکمه‌پوش متوقف می‌شود. کلیدی برنجی در قفل کهنه می‌چرخد. انگشتانت را به آرامی به درز چکمه‌ات می‌رسانی؛ خنجر فولادی هنوز سر جایش است.',
+      choices: [
+        {
+          id: 'choice_fa_1',
+          text: 'در گوشه تاریک پشت چارچوب در چوبی پنهان شو.',
+          style: 'defensive',
+          riskLevel: 'low',
+          targetDC: 10,
+          requiredStatId: 'agility',
+        },
+        {
+          id: 'choice_fa_2',
+          text: 'آرام به سمت نور مشعل برو و بپرس چه کسی نزدیک می‌شود.',
+          style: 'diplomatic',
+          riskLevel: 'medium',
+          targetDC: 12,
+          requiredStatId: 'cunning',
+        },
+        {
+          id: 'choice_fa_3',
+          text: 'خنجر مخفی‌ات را بکش و در لحظه باز شدن در، برای شبیخون آماده شو.',
+          style: 'aggressive',
+          riskLevel: 'high',
+          targetDC: 14,
+          requiredStatId: 'might',
+        },
+      ],
+    },
+  ],
+};

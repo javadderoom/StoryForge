@@ -3,15 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "tsx --test src/lib/engines/game/GameEngine.test.ts src/lib/engines/validator/ActionValidator.test.ts src/lib/engines/memory/MemoryEngine.test.ts"
   },
   "dependencies": {
-    "@google/genai": "^0.1.1",
+    "@google/genai": "^2.17.1",
+    "@tailwindcss/oxide-win32-x64-msvc": "^4.3.3",
     "clsx": "^2.1.1",
+    "lightningcss-win32-x64-msvc": "^1.33.0",
     "lucide-react": "^0.475.0",
     "next": "16.3.1",
     "react": "19.2.8",
@@ -27,6 +29,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5",
     "vitest": "^3.0.5"
   }
