@@ -365,7 +365,7 @@
     "semantic_hash": ""
   },
   "app/ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift": {
-    "mtime": 1787084051.6732671,
+    "mtime": 1787133919.3096294,
     "ast_hash": "c3ca67f6d9d27f78ca451a7112e4c386",
     "semantic_hash": ""
   },
@@ -460,8 +460,8 @@
     "semantic_hash": ""
   },
   "app/lib/ui/screens/reader_screen.dart": {
-    "mtime": 1787082159.659763,
-    "ast_hash": "2565f8b24416e819e573996be1eff670",
+    "mtime": 1787133622.0127444,
+    "ast_hash": "366d1de756adf0089e295167aae5197c",
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/choice_pill.dart": {
@@ -470,8 +470,8 @@
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/rpg_hud_drawer.dart": {
-    "mtime": 1787082147.137959,
-    "ast_hash": "f894b3db42d36563d3c2a2f212903079",
+    "mtime": 1787133631.0471098,
+    "ast_hash": "bdebad14cd8040042d901e68d823e922",
     "semantic_hash": ""
   },
   "app/test/widget_test.dart": {
@@ -540,18 +540,18 @@
     "semantic_hash": ""
   },
   "web/next-env.d.ts": {
-    "mtime": 1787082660.4610982,
-    "ast_hash": "aa94238a90e7d04b7a47ecc3145ba6a0",
+    "mtime": 1787134418.3961139,
+    "ast_hash": "8195d2c60ce847a459ae9d308d6a5724",
     "semantic_hash": ""
   },
   "web/next.config.ts": {
-    "mtime": 1787078147.8591855,
-    "ast_hash": "9b77af189a21a7a64e4bd7a426f64176",
+    "mtime": 1787133379.2451801,
+    "ast_hash": "72a8634f7ba75f7ce7371a91d932c922",
     "semantic_hash": ""
   },
   "web/package.json": {
-    "mtime": 1787083091.469037,
-    "ast_hash": "ef815f26e0ffacb5d06433dbc27085ba",
+    "mtime": 1787084583.3908033,
+    "ast_hash": "efbed29079c5a1bfa00ce88e200a25f8",
     "semantic_hash": ""
   },
   "web/postcss.config.mjs": {
@@ -560,33 +560,33 @@
     "semantic_hash": ""
   },
   "web/src/app/api/play/action/route.ts": {
-    "mtime": 1787082338.802574,
-    "ast_hash": "c5431f90614ac2aa505e23cb3c42ceef",
+    "mtime": 1787133605.3295434,
+    "ast_hash": "c3415d368b300d616e299dacfa895ac2",
     "semantic_hash": ""
   },
   "web/src/app/api/play/session/route.ts": {
-    "mtime": 1787083925.1721992,
-    "ast_hash": "680ef58bd408d5fd4539e2a974f64798",
+    "mtime": 1787133388.277651,
+    "ast_hash": "f3bea40c54d860e95f5c8ba04a4259fe",
     "semantic_hash": ""
   },
   "web/src/app/api/play/stories/route.ts": {
-    "mtime": 1787082314.8616562,
-    "ast_hash": "e7aed9da5012fb6188e39bc344fb5c5e",
+    "mtime": 1787133612.6351438,
+    "ast_hash": "dcc890f3264f946371c8179b4b1e6f3c",
     "semantic_hash": ""
   },
   "web/src/app/layout.tsx": {
-    "mtime": 1787082848.4483707,
-    "ast_hash": "e936b6a2b7ea4d8fd1d066ccd4928b16",
+    "mtime": 1787132913.942176,
+    "ast_hash": "5089d4816240c1b39ee433cc95a0a10d",
     "semantic_hash": ""
   },
   "web/src/app/page.tsx": {
-    "mtime": 1787083903.7497058,
-    "ast_hash": "970e706868dd6fd134d31a340f576103",
+    "mtime": 1787084533.282846,
+    "ast_hash": "95e60539f4602c2c810437454d892bca",
     "semantic_hash": ""
   },
   "web/src/app/studio/page.tsx": {
-    "mtime": 1787081473.5623767,
-    "ast_hash": "e1e48c1b96d4c23f4f48c332d4ef4122",
+    "mtime": 1787134320.9369905,
+    "ast_hash": "3c8c3d1c4c155043d437901a5a61f948",
     "semantic_hash": ""
   },
   "web/src/content/stories/ghale_siahsang.ts": {
@@ -1087,6 +1087,41 @@
   "web/public/window.svg": {
     "mtime": 1787078147.8340914,
     "ast_hash": "a2760511c65806022ad20adf74370ff3",
+    "semantic_hash": ""
+  },
+  "web/src/lib/cors.ts": {
+    "mtime": 1787133371.1624782,
+    "ast_hash": "621c048afbbe0f7663abe7c85cc2aaee",
+    "semantic_hash": ""
+  },
+  "web/src/app/studio/layout.tsx": {
+    "mtime": 1787134562.1904724,
+    "ast_hash": "2e5af3c2abee421bbd2eb3f10e9155cc",
+    "semantic_hash": ""
+  },
+  "web/src/app/studio/npcs/page.tsx": {
+    "mtime": 1787134296.219773,
+    "ast_hash": "7143fa9f321f10d3f183b99d7cabad9f",
+    "semantic_hash": ""
+  },
+  "web/src/app/studio/rpg/page.tsx": {
+    "mtime": 1787134284.7997825,
+    "ast_hash": "5c4d52f41af515b85cc484838f944ef5",
+    "semantic_hash": ""
+  },
+  "web/src/app/studio/sandbox/page.tsx": {
+    "mtime": 1787134308.3521605,
+    "ast_hash": "9fd80bcb36d5e7716f594ddb86d44942",
+    "semantic_hash": ""
+  },
+  "web/src/app/studio/world/page.tsx": {
+    "mtime": 1787134270.242742,
+    "ast_hash": "811b10a3a6b92959c5ad969d825594dc",
+    "semantic_hash": ""
+  },
+  "web/src/lib/context/StudioStoryContext.tsx": {
+    "mtime": 1787134238.398716,
+    "ast_hash": "9e24b7fc66053e2b9e1c608ef1faab3d",
     "semantic_hash": ""
   }
 }

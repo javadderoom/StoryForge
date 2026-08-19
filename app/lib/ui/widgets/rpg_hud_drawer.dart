@@ -4,8 +4,43 @@ import '../../models/game_state.dart';
 
 class RpgHudDrawer extends StatelessWidget {
   final PlayerState? playerState;
+  final bool isPersian;
 
-  const RpgHudDrawer({super.key, required this.playerState});
+  const RpgHudDrawer({
+    super.key,
+    required this.playerState,
+    this.isPersian = true,
+  });
+
+  String _formatResourceName(String key) {
+    if (!isPersian) return key.toUpperCase();
+    switch (key.toLowerCase()) {
+      case 'hp':
+        return 'سلامت (HP)';
+      case 'stamina':
+        return 'استقامت (Stamina)';
+      case 'gold':
+        return 'سکه طلا (Gold)';
+      default:
+        return key;
+    }
+  }
+
+  String _formatStatName(String key) {
+    if (!isPersian) return key.toUpperCase();
+    switch (key.toLowerCase()) {
+      case 'might':
+        return 'قدرت';
+      case 'agility':
+        return 'چابکی';
+      case 'cunning':
+        return 'زیرکی';
+      case 'arcana':
+        return 'جادو';
+      default:
+        return key;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,13 +57,19 @@ class RpgHudDrawer extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'CHARACTER DOSSIER',
-                    style: GoogleFonts.cinzel(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFFF59E0B),
-                      letterSpacing: 1.5,
-                    ),
+                    isPersian ? 'پرونده و مشخصات' : 'CHARACTER DOSSIER',
+                    style: isPersian
+                        ? GoogleFonts.vazirmatn(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFFF59E0B),
+                          )
+                        : GoogleFonts.cinzel(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFFF59E0B),
+                            letterSpacing: 1.5,
+                          ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white60),
@@ -46,13 +87,19 @@ class RpgHudDrawer extends StatelessWidget {
                     children: [
                       // Resources (HP, Stamina, Gold)
                       Text(
-                        'VITALS & POOLS',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF71717A),
-                          letterSpacing: 1.2,
-                        ),
+                        isPersian ? 'حیات و منابع' : 'VITALS & POOLS',
+                        style: isPersian
+                            ? GoogleFonts.vazirmatn(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF9CA3AF),
+                              )
+                            : GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF71717A),
+                                letterSpacing: 1.2,
+                              ),
                       ),
                       const SizedBox(height: 10),
                       for (final entry in playerState!.resources.entries) ...[
@@ -70,8 +117,8 @@ class RpgHudDrawer extends StatelessWidget {
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      entry.key.toUpperCase(),
-                                      style: const TextStyle(
+                                      _formatResourceName(entry.key),
+                                      style: GoogleFonts.vazirmatn(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
                                         color: Colors.white,
@@ -105,13 +152,19 @@ class RpgHudDrawer extends StatelessWidget {
 
                       const SizedBox(height: 16),
                       Text(
-                        'ATTRIBUTES',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF71717A),
-                          letterSpacing: 1.2,
-                        ),
+                        isPersian ? 'ویژگی‌های اصلی' : 'ATTRIBUTES',
+                        style: isPersian
+                            ? GoogleFonts.vazirmatn(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF9CA3AF),
+                              )
+                            : GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF71717A),
+                                letterSpacing: 1.2,
+                              ),
                       ),
                       const SizedBox(height: 8),
                       GridView.count(
@@ -133,8 +186,8 @@ class RpgHudDrawer extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  s.key.toUpperCase(),
-                                  style: const TextStyle(fontSize: 11, color: Colors.white70),
+                                  _formatStatName(s.key),
+                                  style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white70),
                                 ),
                                 Text(
                                   '${s.value}',
@@ -152,13 +205,21 @@ class RpgHudDrawer extends StatelessWidget {
 
                       const SizedBox(height: 24),
                       Text(
-                        'INVENTORY PACK (${playerState!.inventory.length})',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF71717A),
-                          letterSpacing: 1.2,
-                        ),
+                        isPersian
+                            ? 'کوله و تجهیزات (${playerState!.inventory.length})'
+                            : 'INVENTORY PACK (${playerState!.inventory.length})',
+                        style: isPersian
+                            ? GoogleFonts.vazirmatn(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF9CA3AF),
+                              )
+                            : GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF71717A),
+                                letterSpacing: 1.2,
+                              ),
                       ),
                       const SizedBox(height: 8),
                       for (final item in playerState!.inventory) ...[
@@ -175,7 +236,7 @@ class RpgHudDrawer extends StatelessWidget {
                             children: [
                               Text(
                                 item.name,
-                                style: const TextStyle(fontSize: 13, color: Colors.white),
+                                style: GoogleFonts.vazirmatn(fontSize: 13, color: Colors.white),
                               ),
                               Text(
                                 'x${item.quantity}',

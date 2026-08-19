@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { obsidianCitadelStory } from '@/content/stories/obsidian_citadel';
 import { ghaleSiahsangStory } from '@/content/stories/ghale_siahsang';
 import { PlaythroughSession, PlayerState } from '@/lib/types/gameplay';
+import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
+
+export async function OPTIONS() {
+  return handleCorsPreflight();
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -64,27 +69,32 @@ export async function POST(req: NextRequest) {
       updatedAt: Date.now(),
     };
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        session,
-        story: {
-          id: story.id,
-          title: story.title,
-          language: story.language,
-          rpgSystem: story.rpgSystem,
-        },
-        currentBeat: {
-          narrative: initialBeat.narrativeText,
-          choices: initialBeat.choices,
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          session,
+          story: {
+            id: story.id,
+            title: story.title,
+            language: story.language,
+            rpgSystem: story.rpgSystem,
+          },
+          currentBeat: {
+            narrative: initialBeat.narrativeText,
+            choices: initialBeat.choices,
+          },
         },
       },
-    });
+      {
+        headers: corsHeaders,
+      }
+    );
   } catch (error: any) {
     console.error('Session creation error:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to initialize session' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

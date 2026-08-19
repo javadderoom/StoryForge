@@ -7,14 +7,19 @@ import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { PlayerState, ActionStyle, RiskLevel, TurnBeat } from '@/lib/types/gameplay';
 import { WorkingContextEnvelope, MemoryCategory } from '@/lib/types/memory';
+import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
 
 const geminiAdapter = new GeminiAdapter();
+
+export async function OPTIONS() {
+  return handleCorsPreflight();
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      storyId = obsidianCitadelStory.id,
+      storyId = ghaleSiahsangStory.id,
       playerActionText,
       actionStyle = 'free_text' as ActionStyle,
       riskLevel = 'medium' as RiskLevel,
@@ -30,7 +35,7 @@ export async function POST(req: NextRequest) {
     if (!playerActionText || typeof playerActionText !== 'string') {
       return NextResponse.json(
         { success: false, error: 'playerActionText is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -43,12 +48,15 @@ export async function POST(req: NextRequest) {
     );
 
     if (!validation.isValid) {
-      return NextResponse.json({
-        success: false,
-        rejectionReason: validation.rejectionReason,
-        suggestedAction: validation.suggestedAction,
-        isGuardrailViolation: true,
-      });
+      return NextResponse.json(
+        {
+          success: false,
+          rejectionReason: validation.rejectionReason,
+          suggestedAction: validation.suggestedAction,
+          isGuardrailViolation: true,
+        },
+        { headers: corsHeaders }
+      );
     }
 
     // 2. Deterministic Game Engine Check Resolution
@@ -126,19 +134,22 @@ export async function POST(req: NextRequest) {
       timestamp: Date.now(),
     };
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        beat: newBeat,
-        resolution,
-        updatedPlayerState,
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          beat: newBeat,
+          resolution,
+          updatedPlayerState,
+        },
       },
-    });
+      { headers: corsHeaders }
+    );
   } catch (error: any) {
     console.error('Turn action processing error:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to process turn' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
