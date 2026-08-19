@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { obsidianCitadelStory } from '@/content/stories/obsidian_citadel';
-import { ghaleSiahsangStory } from '@/content/stories/ghale_siahsang';
+import { StoryRepository } from '@/lib/db/repositories/storyRepository';
+import { SessionRepository } from '@/lib/db/repositories/sessionRepository';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import { GameEngine } from '@/lib/engines/game/GameEngine';
 import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      storyId = ghaleSiahsangStory.id,
+      storyId = 'ghale_siahsang',
+      sessionId,
       playerActionText,
       actionStyle = 'free_text' as ActionStyle,
       riskLevel = 'medium' as RiskLevel,
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
       turnNumber = 2,
     } = body;
 
-    const story = storyId === ghaleSiahsangStory.id ? ghaleSiahsangStory : obsidianCitadelStory;
+    const story = await StoryRepository.getStoryById(storyId);
     const playerState: PlayerState = incomingPlayerState;
 
     if (!playerActionText || typeof playerActionText !== 'string') {
@@ -81,11 +82,23 @@ export async function POST(req: NextRequest) {
     // 4. Assemble AI Prompt Context Envelope
     const currentLocation =
       story.worldBible.locations.find((l) => l.id === updatedPlayerState.currentLocationId) ||
-      story.worldBible.locations[0];
+      story.worldBible.locations[0] || {
+        id: 'loc_default',
+        name: 'Citadel',
+        description: 'Dark fortress',
+      };
 
     const activeNPCs = story.worldBible.npcs.filter(
       (npc) => npc.currentLocationId === updatedPlayerState.currentLocationId
     );
+
+    const relevantMemories = [
+      {
+        category: 'player' as MemoryCategory,
+        importance: 8,
+        summary: `Player performed action "${playerActionText}" with outcome ${resolution.outcome}`,
+      },
+    ];
 
     const contextEnvelope: WorkingContextEnvelope = {
       storyTitle: story.title,
@@ -98,13 +111,7 @@ export async function POST(req: NextRequest) {
         knownSecrets: updatedPlayerState.relationships[npc.id]?.knownSecrets || [],
         speechStyle: npc.speechStyle,
       })),
-      relevantMemories: [
-        {
-          category: 'player' as MemoryCategory,
-          importance: 8,
-          summary: `Player performed action "${playerActionText}" with outcome ${resolution.outcome}`,
-        },
-      ],
+      relevantMemories,
       playerStatus: {
         stats: updatedPlayerState.stats,
         resources: updatedPlayerState.resources,
@@ -119,7 +126,7 @@ export async function POST(req: NextRequest) {
       languageDirective: story.language,
     };
 
-    // 5. Build prompt and generate prose with Gemini 3.7
+    // 5. Build prompt and generate prose with Gemini
     const promptPayload = PromptAssembler.buildNarrativePrompt(contextEnvelope);
     const aiResponse = await geminiAdapter.generateScene(promptPayload);
 
@@ -133,6 +140,17 @@ export async function POST(req: NextRequest) {
       presentedChoices: aiResponse.choices,
       timestamp: Date.now(),
     };
+
+    // 6. Persist Turn Record to Database if sessionId provided
+    if (sessionId) {
+      await SessionRepository.recordTurn({
+        sessionId,
+        beat: newBeat,
+        resolution,
+        updatedPlayerState,
+        memories: relevantMemories,
+      });
+    }
 
     return NextResponse.json(
       {

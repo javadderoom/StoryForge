@@ -365,7 +365,7 @@
     "semantic_hash": ""
   },
   "app/ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift": {
-    "mtime": 1787133919.3096294,
+    "mtime": 1787135981.4291158,
     "ast_hash": "c3ca67f6d9d27f78ca451a7112e4c386",
     "semantic_hash": ""
   },
@@ -550,8 +550,8 @@
     "semantic_hash": ""
   },
   "web/package.json": {
-    "mtime": 1787084583.3908033,
-    "ast_hash": "efbed29079c5a1bfa00ce88e200a25f8",
+    "mtime": 1787135451.4270568,
+    "ast_hash": "18fdf875f53654fed49017bcc09ef3a9",
     "semantic_hash": ""
   },
   "web/postcss.config.mjs": {
@@ -560,18 +560,18 @@
     "semantic_hash": ""
   },
   "web/src/app/api/play/action/route.ts": {
-    "mtime": 1787133605.3295434,
-    "ast_hash": "c3415d368b300d616e299dacfa895ac2",
+    "mtime": 1787135423.507771,
+    "ast_hash": "f3c9089623402a836a6377cdf6fa68e5",
     "semantic_hash": ""
   },
   "web/src/app/api/play/session/route.ts": {
-    "mtime": 1787133388.277651,
-    "ast_hash": "f3bea40c54d860e95f5c8ba04a4259fe",
+    "mtime": 1787135414.8576105,
+    "ast_hash": "045cdb1f2896864d8a417dafe7118c5b",
     "semantic_hash": ""
   },
   "web/src/app/api/play/stories/route.ts": {
-    "mtime": 1787133612.6351438,
-    "ast_hash": "dcc890f3264f946371c8179b4b1e6f3c",
+    "mtime": 1787135406.309166,
+    "ast_hash": "169490393022dba27145b2cedc353707",
     "semantic_hash": ""
   },
   "web/src/app/layout.tsx": {
@@ -1122,6 +1122,51 @@
   "web/src/lib/context/StudioStoryContext.tsx": {
     "mtime": 1787134238.398716,
     "ast_hash": "9e24b7fc66053e2b9e1c608ef1faab3d",
+    "semantic_hash": ""
+  },
+  "web/prisma.config.ts": {
+    "mtime": 1787135259.2710726,
+    "ast_hash": "985db64cdb02fab61ed12d8af34836ea",
+    "semantic_hash": ""
+  },
+  "web/prisma/migrations/20260819102756_init/migration.sql": {
+    "mtime": 1787135276.183768,
+    "ast_hash": "8542f54279dcf8569687f223e0a30ca2",
+    "semantic_hash": ""
+  },
+  "web/prisma/seed.ts": {
+    "mtime": 1787135353.309129,
+    "ast_hash": "49142238aff5216f46fb92d3cc6fa3d4",
+    "semantic_hash": ""
+  },
+  "web/src/app/api/studio/stories/route.ts": {
+    "mtime": 1787135431.2957342,
+    "ast_hash": "6955862119c47094af9f1647a5de6bf1",
+    "semantic_hash": ""
+  },
+  "web/src/lib/db/client.ts": {
+    "mtime": 1787135346.201318,
+    "ast_hash": "66a71637198b05831f7d649a3f06ea18",
+    "semantic_hash": ""
+  },
+  "web/src/lib/db/repositories/sessionRepository.ts": {
+    "mtime": 1787135396.2854354,
+    "ast_hash": "8823bc7bdbf777f439f2d94b2174fa79",
+    "semantic_hash": ""
+  },
+  "web/src/lib/db/repositories/storyRepository.test.ts": {
+    "mtime": 1787135599.9579139,
+    "ast_hash": "5a3f53f06019535ad7d8afa69478b63f",
+    "semantic_hash": ""
+  },
+  "web/src/lib/db/repositories/storyRepository.ts": {
+    "mtime": 1787135589.722542,
+    "ast_hash": "f54b3ada53b7d2641c9651acad300faa",
+    "semantic_hash": ""
+  },
+  "docker-compose.yml": {
+    "mtime": 1787135101.3743365,
+    "ast_hash": "f2fc9434a7acb34d4e250b1555753bbc",
     "semantic_hash": ""
   }
 }

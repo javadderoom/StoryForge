@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { obsidianCitadelStory } from '@/content/stories/obsidian_citadel';
-import { ghaleSiahsangStory } from '@/content/stories/ghale_siahsang';
+import { StoryRepository } from '@/lib/db/repositories/storyRepository';
+import { SessionRepository } from '@/lib/db/repositories/sessionRepository';
 import { PlaythroughSession, PlayerState } from '@/lib/types/gameplay';
 import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
 
@@ -11,8 +11,8 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const storyId = body.storyId || ghaleSiahsangStory.id;
-    const story = storyId === obsidianCitadelStory.id ? obsidianCitadelStory : ghaleSiahsangStory;
+    const storyId = body.storyId || 'ghale_siahsang';
+    const story = await StoryRepository.getStoryById(storyId);
 
     // Initialize player state from story RPG definitions
     const initialStats: Record<string, number> = {};
@@ -34,18 +34,23 @@ export async function POST(req: NextRequest) {
       };
     }
 
+    const initialBeat = story.initialStoryBeats[0] || {
+      sceneId: 'scene_start',
+      locationId: 'loc_start',
+      narrativeText: 'Your journey begins...',
+      choices: [],
+    };
+
     const playerState: PlayerState = {
       stats: initialStats,
       resources: initialResources,
       inventory: JSON.parse(JSON.stringify(story.rpgSystem.startingInventory)),
-      discoveredLocationIds: [story.initialStoryBeats[0]?.locationId || 'loc_start'],
+      discoveredLocationIds: [initialBeat.locationId || 'loc_start'],
       relationships: initialRelationships,
       activeQuestIds: ['quest_prologue'],
       completedQuestIds: [],
-      currentLocationId: story.initialStoryBeats[0]?.locationId || 'loc_start',
+      currentLocationId: initialBeat.locationId || 'loc_start',
     };
-
-    const initialBeat = story.initialStoryBeats[0];
 
     const session: PlaythroughSession = {
       sessionId: `sess_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
@@ -68,6 +73,9 @@ export async function POST(req: NextRequest) {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
+
+    // Persist session into PostgreSQL
+    await SessionRepository.createSession(session);
 
     return NextResponse.json(
       {
