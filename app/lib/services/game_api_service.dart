@@ -63,21 +63,7 @@ class GameApiService {
         'statId': statId,
         'targetDC': targetDC,
         'forcedDiceRoll': forcedDiceRoll,
-        'playerState': {
-          'stats': playerState.stats,
-          'resources': playerState.resources,
-          'inventory': playerState.inventory.map((i) => {
-            'id': i.id,
-            'name': i.name,
-            'type': i.type,
-            'quantity': i.quantity,
-          }).toList(),
-          'currentLocationId': playerState.currentLocationId,
-          'discoveredLocationIds': [playerState.currentLocationId],
-          'relationships': {},
-          'activeQuestIds': [],
-          'completedQuestIds': [],
-        },
+        'playerState': playerState.toJson(),
         'turnNumber': turnNumber,
       }),
     );

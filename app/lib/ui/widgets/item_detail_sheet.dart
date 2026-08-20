@@ -371,7 +371,7 @@ class ItemDetailSheet extends ConsumerWidget {
                   },
                 ),
               ),
-            ] else if (item.grip == WeaponGrip.oneHanded) ...[
+            ] else if (item.grip == WeaponGrip.oneHanded || (item.type == 'weapon' && item.grip == null)) ...[
               // 1-Handed weapon: Can equip Main Hand or Off-Hand (Dual Wield)
               Row(
                 children: [

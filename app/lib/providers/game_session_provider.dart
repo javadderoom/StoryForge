@@ -133,7 +133,13 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
           );
         } else {
           final beatData = result['data']['beat'];
-          final updatedPlayer = PlayerState.fromJson(result['data']['updatedPlayerState']);
+          final rawPlayer = result['data']['updatedPlayerState'];
+          var updatedPlayer = PlayerState.fromJson(rawPlayer);
+          if ((rawPlayer['equipment'] == null || updatedPlayer.equipment.allEquippedIds.isEmpty) &&
+              state.playerState != null &&
+              state.playerState!.equipment.allEquippedIds.isNotEmpty) {
+            updatedPlayer = updatedPlayer.copyWith(equipment: state.playerState!.equipment);
+          }
           final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? [];
 
           state = state.copyWith(
@@ -169,7 +175,13 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
 
     final data = state.pendingTurnData!;
     final beatData = data['beat'];
-    final updatedPlayer = PlayerState.fromJson(data['updatedPlayerState']);
+    final rawPlayer = data['updatedPlayerState'];
+    var updatedPlayer = PlayerState.fromJson(rawPlayer);
+    if ((rawPlayer['equipment'] == null || updatedPlayer.equipment.allEquippedIds.isEmpty) &&
+        state.playerState != null &&
+        state.playerState!.equipment.allEquippedIds.isNotEmpty) {
+      updatedPlayer = updatedPlayer.copyWith(equipment: state.playerState!.equipment);
+    }
     final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? [];
 
     state = state.copyWith(

@@ -46,12 +46,15 @@ class GameItem {
     }
 
     WeaponGrip? parseGrip(String? val) {
-      switch (val?.toLowerCase()) {
-        case 'two_handed':
+      if (val == null) return null;
+      final normalized = val.toLowerCase().replaceAll('_', '').replaceAll('-', '');
+      switch (normalized) {
+        case 'twohanded':
           return WeaponGrip.twoHanded;
-        case 'off_hand_only':
+        case 'offhandonly':
+        case 'offhand':
           return WeaponGrip.offHandOnly;
-        case 'one_handed':
+        case 'onehanded':
           return WeaponGrip.oneHanded;
         default:
           return null;
@@ -76,13 +79,26 @@ class GameItem {
     );
   }
 
+  String? get gripSnakeCase {
+    switch (grip) {
+      case WeaponGrip.oneHanded:
+        return 'one_handed';
+      case WeaponGrip.twoHanded:
+        return 'two_handed';
+      case WeaponGrip.offHandOnly:
+        return 'off_hand_only';
+      case null:
+        return null;
+    }
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
         'description': description,
         'type': type,
         'rarity': rarity.name,
-        'grip': grip?.name,
+        'grip': gripSnakeCase,
         'quantity': quantity,
         'statModifiers': statModifiers,
         'healValue': healValue,
@@ -246,4 +262,16 @@ class PlayerState {
       currentLocationId: json['currentLocationId'] ?? '',
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'stats': stats,
+        'resources': resources,
+        'inventory': inventory.map((i) => i.toJson()).toList(),
+        'equipment': equipment.toJson(),
+        'currentLocationId': currentLocationId,
+        'discoveredLocationIds': [currentLocationId],
+        'relationships': {},
+        'activeQuestIds': [],
+        'completedQuestIds': [],
+      };
 }
