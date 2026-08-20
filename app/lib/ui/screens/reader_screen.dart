@@ -16,6 +16,7 @@ import '../widgets/rpg_hud_drawer.dart';
 import '../widgets/reader_settings_sheet.dart';
 import '../widgets/story_cover_image.dart';
 import 'story_catalog_screen.dart';
+import 'compendium_screen.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({super.key});
@@ -201,10 +202,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               },
             ),
 
-            // 3D Animated Realm Relic Badge (Tapping opens Character Sheet)
+            // 3D Animated Realm Relic Badge (Tapping opens Full Compendium)
             RealmRelicBadge(
               theme: theme,
-              onTap: () => _scaffoldKey.currentState?.openEndDrawer(),
+              onTap: () => CompendiumScreen.open(context),
             ),
             const SizedBox(width: 6),
           ],

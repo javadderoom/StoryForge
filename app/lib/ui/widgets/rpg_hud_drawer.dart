@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/utils/persian_numbers.dart';
 import '../../models/game_state.dart';
 import '../../providers/game_session_provider.dart';
+import '../screens/compendium_screen.dart';
 import 'item_detail_sheet.dart';
 
 class RpgHudDrawer extends ConsumerStatefulWidget {
@@ -178,6 +179,14 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                           ),
                         ],
                       ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.fullscreen_rounded, color: Color(0xFFF59E0B)),
+                      tooltip: widget.isPersian ? 'دفترچه تمام‌صفحه' : 'Full Compendium',
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        CompendiumScreen.open(context);
+                      },
                     ),
                     IconButton(
                       icon: const Icon(Icons.close_rounded, color: Colors.white60),

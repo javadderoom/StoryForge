@@ -1,16 +1,16 @@
 # Graph Report - StoryForge  (2026-08-21)
 
 ## Corpus Check
-- 239 files · ~489,690 words
+- 241 files · ~493,480 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4346 nodes · 8833 edges · 214 communities (198 shown, 16 thin omitted)
+- 4392 nodes · 8892 edges · 218 communities (202 shown, 16 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 110 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `70c5095d`
+- Built from commit: `bddd05de`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -213,9 +213,13 @@
 - [[_COMMUNITY_Community 208|Community 208]]
 - [[_COMMUNITY_Community 209|Community 209]]
 - [[_COMMUNITY_Community 210|Community 210]]
+- [[_COMMUNITY_Community 211|Community 211]]
 - [[_COMMUNITY_Community 212|Community 212]]
+- [[_COMMUNITY_Community 213|Community 213]]
 - [[_COMMUNITY_Community 214|Community 214]]
 - [[_COMMUNITY_Community 215|Community 215]]
+- [[_COMMUNITY_Community 216|Community 216]]
+- [[_COMMUNITY_Community 217|Community 217]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `constructor()` - 74 edges
@@ -244,11 +248,11 @@
 ## Import Cycles
 - None detected.
 
-## Communities (214 total, 16 thin omitted)
+## Communities (218 total, 16 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.03
-Nodes (89): acceptedDomAlreadyClean(), averageRgb01(), buildAnnotationsForCapture(), buildInsertPlaceholderSnapshotFromDom(), buildPickedAnchorSnapshot(), buildPinElement(), captureAndEmit(), captureChromeNodes() (+81 more)
+Nodes (106): addManualContextText(), applyGlobalBarLabelState(), applyPlaceholderDimensions(), attachSteerFocusDebug(), averageRgb01(), beginEditPin(), buildAnnotationsForCapture(), buildInsertPlaceholderSnapshotFromDom() (+98 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.09
@@ -263,8 +267,8 @@ Cohesion: 0.06
 Nodes (65): addBrowserFindings(), addVisualContrastFindings(), addVisualContrastResult(), analyzeVisualContrast(), analyzeVisualContrastCandidate(), blendRgba(), browserDesignSystemConfig(), browserFindingsFromMap() (+57 more)
 
 ### Community 4 - "Community 4"
-Cohesion: 0.15
-Nodes (13): kv(), makeBasis(), makeRotationFromQuaternion(), multiplyQuaternions(), _onChangeCallback(), order(), reorder(), setFromQuaternion() (+5 more)
+Cohesion: 0.07
+Nodes (34): applyAxisAngle(), applyEuler(), applyQuaternion(), convertLinearToSRGB(), convertSRGBToLinear(), copyLinearToSRGB(), copySRGBToLinear(), dt() (+26 more)
 
 ### Community 5 - "Community 5"
 Cohesion: 0.07
@@ -335,24 +339,24 @@ Cohesion: 0.05
 Nodes (38): 10. Development Roadmap & Milestones, 1. Executive Summary & Core Philosophy, 2.1 The Reading Flow, 2.2 The 3-Style Choice System, 2.3 Free-Text Actions & Plausibility, 2.4 Narrative Combat (No Turn-Based Grid), 2. Product & User Experience (UX), 3. System Architecture (+30 more)
 
 ### Community 22 - "Community 22"
-Cohesion: 0.07
-Nodes (56): add(), addLayerUpdate(), an(), assignFinalMaterial(), assignTexture(), clearGroups(), clone(), createNodeAttachment() (+48 more)
+Cohesion: 0.06
+Nodes (68): add(), addLayerUpdate(), an(), assignFinalMaterial(), assignTexture(), bA(), bind(), clone() (+60 more)
 
 ### Community 23 - "Community 23"
 Cohesion: 0.13
 Nodes (35): buildSvelteComponentCssAuthoring(), shouldUseSvelteComponentInjection(), argVal(), buildInsertWrapperLines(), computeInsertLine(), INSERT_POSITIONS, insertCli(), isInsertPosition() (+27 more)
 
 ### Community 24 - "Community 24"
-Cohesion: 0.09
-Nodes (41): actionLabel(), applyConfigureBarChrome(), bindConfigureCountPillTooltip(), bindConfigureInlineControlHover(), buildConfigureActionControl(), buildConfigureCountControl(), buildConfigureRow(), buildConfigureSubmitButton() (+33 more)
+Cohesion: 0.06
+Nodes (61): actionLabel(), applyConfigureBarChrome(), attachSteerFocusGuard(), barPaletteForTheme(), bindConfigureCountPillTooltip(), bindConfigureInlineControlHover(), brandMarkSvg(), buildConfigureActionControl() (+53 more)
 
 ### Community 25 - "Community 25"
-Cohesion: 0.09
-Nodes (37): attachSteerFocusGuard(), barPaletteForTheme(), brandMarkSvg(), buildDesignHeader(), buildParamsPanel(), buildSteerProcessingDots(), connectSSE(), cursorForInsertAxis() (+29 more)
+Cohesion: 0.14
+Nodes (15): cursorForInsertAxis(), ensureInsertLine(), handleMouseMove(), hideHighlightTagTooltip(), layoutFlowChildren(), loadDetectScript(), onDetectMessage(), requestDetectScan() (+7 more)
 
 ### Community 26 - "Community 26"
-Cohesion: 0.07
-Nodes (50): activeElementDeep(), applyGlobalBarLabelState(), armPageChatForTyping(), attachSteerFocusDebug(), clearSteerAwaitTimer(), collapsePageChat(), configureVoiceContext(), expandPageChat() (+42 more)
+Cohesion: 0.12
+Nodes (33): activeElementDeep(), armPageChatForTyping(), clearSteerAwaitTimer(), collapsePageChat(), expandPageChat(), focusConfigureInput(), focusPageChatInput(), focusSteerChat() (+25 more)
 
 ### Community 27 - "Community 27"
 Cohesion: 0.12
@@ -376,7 +380,7 @@ Nodes (30): acceptCli(), argVal(), buildCarbonizeReplacement(), decodeHtmlAttr()
 
 ### Community 32 - "Community 32"
 Cohesion: 0.01
-Nodes (85): aD(), _addNodeRef(), Af(), _allocateTargets(), BD(), Bi(), ceil(), Ci() (+77 more)
+Nodes (88): aD(), _addNodeRef(), Af(), _allocateTargets(), BD(), Bi(), ceil(), Ci() (+80 more)
 
 ### Community 33 - "Community 33"
 Cohesion: 0.06
@@ -403,8 +407,8 @@ Cohesion: 0.07
 Nodes (27): Accessibility Considerations, Anti-reflexes worth defending against, Assess Current Typography, Classic Typography Principles, Establish Hierarchy, Fix Readability, Fluid Type, Font Selection (+19 more)
 
 ### Community 39 - "Community 39"
-Cohesion: 0.10
-Nodes (28): buildCollapsible(), buildColorModels(), buildRadiiModels(), buildTypographyModels(), cssSafe(), escapeHtml(), fontStack(), groupByKind() (+20 more)
+Cohesion: 0.09
+Nodes (32): buildCollapsible(), buildColorModels(), buildDesignHeader(), buildRadiiModels(), buildTypographyModels(), cssSafe(), escapeHtml(), fetchDesignSystem() (+24 more)
 
 ### Community 40 - "Community 40"
 Cohesion: 0.14
@@ -427,8 +431,8 @@ Cohesion: 0.08
 Nodes (24): Component translation rules, Narrative mapping, Pitfalls, Scan mode (approach C: auto-extract, then confirm descriptive language), Schema, Seed mode, Step 1: Confirm seed mode, Step 1: Find the design assets (+16 more)
 
 ### Community 45 - "Community 45"
-Cohesion: 0.12
-Nodes (21): applyPlaceholderDimensions(), beginEditPin(), buildPlaceholderResizeHandles(), cancelEditingPin(), clampPlaceholderSize(), cursorForPlaceholderEdge(), finalizeEditingPin(), localCoords() (+13 more)
+Cohesion: 0.08
+Nodes (25): ../../core/engine/rpg_engine.dart, _buildAttributesGrid, _buildEquipmentPaperdoll, _buildEquipmentSlotCard, _buildFilterChip, _buildHeroSheetTab, _buildInventoryTab, _buildNpcCard (+17 more)
 
 ### Community 46 - "Community 46"
 Cohesion: 0.09
@@ -455,8 +459,8 @@ Cohesion: 0.22
 Nodes (15): createLiveSessionStore(), completeCli(), completeThroughServer(), parseArgs(), readServerInfo(), collectManualApplyFiles(), manualApplyReplyCommand(), manualApplyResumeHint() (+7 more)
 
 ### Community 52 - "Community 52"
-Cohesion: 0.05
-Nodes (43): ItemRarity, allEquippedIds, armor, CheckResolution, consequenceSummary, copyWith, currentLocationId, description (+35 more)
+Cohesion: 0.04
+Nodes (51): ItemRarity, activeQuestIds, allEquippedIds, armor, CheckResolution, completedQuestIds, consequenceSummary, copyWith (+43 more)
 
 ### Community 53 - "Community 53"
 Cohesion: 0.10
@@ -471,16 +475,16 @@ Cohesion: 0.10
 Nodes (19): compilerOptions, allowJs, esModuleInterop, incremental, isolatedModules, jsx, lib, module (+11 more)
 
 ### Community 56 - "Community 56"
-Cohesion: 0.12
-Nodes (17): item_detail_sheet.dart, PlayerState?, _buildCategoryChip, _buildEquipmentGrid, _buildEquipmentSlot, _buildInventoryItemTile, _buildSectionHeader, createState (+9 more)
+Cohesion: 0.11
+Nodes (18): item_detail_sheet.dart, PlayerState?, ../screens/compendium_screen.dart, _buildCategoryChip, _buildEquipmentGrid, _buildEquipmentSlot, _buildInventoryItemTile, _buildSectionHeader (+10 more)
 
 ### Community 57 - "Community 57"
 Cohesion: 0.11
 Nodes (18): Appropriate to Context, Assess Delight Opportunities, Celebration Moments, Compound Over Time, Delight Amplifies, Never Blocks, Delight Principles, Delight Techniques, Easter Eggs & Hidden Delights (+10 more)
 
 ### Community 58 - "Community 58"
-Cohesion: 0.07
-Nodes (27): Map, applyPendingTurn, choices, copyWith, currentNarrative, equipItem, errorMessage, GameSessionNotifier (+19 more)
+Cohesion: 0.08
+Nodes (26): Map, applyPendingTurn, choices, copyWith, currentNarrative, equipItem, errorMessage, GameSessionNotifier (+18 more)
 
 ### Community 59 - "Community 59"
 Cohesion: 0.33
@@ -491,8 +495,8 @@ Cohesion: 0.11
 Nodes (17): CSS Anchor Positioning, Destructive Actions: Undo > Confirm, Dropdown & Overlay Positioning, Fixed Positioning Fallback, Focus Rings: Do Them Right, Form Design: The Non-Obvious, Gesture Discoverability, Interaction Design (+9 more)
 
 ### Community 61 - "Community 61"
-Cohesion: 0.07
-Nodes (29): CheckResolution?, GlobalKey, three_d20_dice_view.dart, actionText, build, _buildStatBox, createState, _getConsequenceSummary (+21 more)
+Cohesion: 0.10
+Nodes (19): GlobalKey, StatelessWidget, ChoicePill, actionText, build, _buildStatBox, diceKey, DiceRollOverlay (+11 more)
 
 ### Community 62 - "Community 62"
 Cohesion: 0.20
@@ -512,7 +516,7 @@ Nodes (15): Anti-Goals, Brief Structure, Constraints, Content & Data, Design Dir
 
 ### Community 66 - "Community 66"
 Cohesion: 0.12
-Nodes (17): package:flutter/services.dart, package:webview_flutter/webview_flutter.dart, WebViewController, build, _controller, createState, didUpdateWidget, initState (+9 more)
+Nodes (16): package:webview_flutter/webview_flutter.dart, WebViewController, build, _controller, createState, didUpdateWidget, initState, _isModelLoaded (+8 more)
 
 ### Community 67 - "Community 67"
 Cohesion: 0.15
@@ -595,8 +599,8 @@ Cohesion: 0.11
 Nodes (11): canCreateInsert(), clampPlaceholderSize(), computeInsertPosition(), groupSiblingRows(), hitSiblingInsertGap(), horizontalOverlap(), insertCreateDisabledReason(), insertLineCoords() (+3 more)
 
 ### Community 87 - "Community 87"
-Cohesion: 0.05
-Nodes (74): addGroup(), addScalar(), addVectors(), applyAxisAngle(), applyBoneTransform(), applyEuler(), applyMatrix3(), applyMatrix4() (+66 more)
+Cohesion: 0.07
+Nodes (61): addScalar(), addVectors(), applyBoneTransform(), applyMatrix3(), applyMatrix4(), applyNormalMatrix(), center(), clearGroups() (+53 more)
 
 ### Community 88 - "Community 88"
 Cohesion: 0.18
@@ -635,8 +639,8 @@ Cohesion: 0.18
 Nodes (10): background_color, description, display, icons, name, orientation, prefer_related_applications, short_name (+2 more)
 
 ### Community 97 - "Community 97"
-Cohesion: 0.09
-Nodes (31): applyOriginalAttrsToSvelteAnchor(), applyPlaceholderSizingStyles(), applySvelteComponentVariantStyle(), buildSvelteExpressionTextMap(), buildSveltePropValuesFromLiveElement(), collectTextNodes(), commitAcceptedSvelteComponentToDom(), createInsertPlaceholder() (+23 more)
+Cohesion: 0.08
+Nodes (33): applyOriginalAttrsToSvelteAnchor(), applyPlaceholderSizingStyles(), applySvelteComponentVariantStyle(), buildSvelteExpressionTextMap(), buildSveltePropValuesFromLiveElement(), collectTextNodes(), commitAcceptedSvelteComponentToDom(), createInsertPlaceholder() (+25 more)
 
 ### Community 98 - "Community 98"
 Cohesion: 0.20
@@ -663,8 +667,8 @@ Cohesion: 0.36
 Nodes (9): addRules(), applyInlineIgnores(), getSet(), hasDirectives(), isInlineIgnored(), normalizeRule(), parseInlineIgnores(), parseRuleList() (+1 more)
 
 ### Community 104 - "Community 104"
-Cohesion: 0.07
-Nodes (29): dart:convert, dart:math, calculateEquipmentModifier, detectTacticalModifier, getStatModifier, inferStatId, resolveActionCheck, RpgEngine (+21 more)
+Cohesion: 0.06
+Nodes (30): CheckResolution?, dart:convert, dart:math, calculateEquipmentModifier, detectTacticalModifier, getStatModifier, inferStatId, resolveActionCheck (+22 more)
 
 ### Community 105 - "Community 105"
 Cohesion: 0.25
@@ -731,12 +735,12 @@ Cohesion: 0.29
 Nodes (6): Constraints, Failure modes, Flow, $impeccable hooks, Intentional findings, Routing
 
 ### Community 121 - "Community 121"
-Cohesion: 0.05
-Nodes (38): AnimationController, ../../core/theme/realm_theme.dart, CustomPainter, RealmTheme, _AtmospherePainter, build, child, _controller (+30 more)
+Cohesion: 0.07
+Nodes (28): CustomPainter, _AtmospherePainter, build, child, _controller, createState, didUpdateWidget, dispose (+20 more)
 
 ### Community 122 - "Community 122"
 Cohesion: 0.05
-Nodes (53): abort(), addEventListener(), constructor(), D7(), deleteAttribute(), E6(), extractUrlBase(), f7() (+45 more)
+Nodes (50): abort(), addEventListener(), constructor(), D7(), deleteAttribute(), E6(), extractUrlBase(), fD() (+42 more)
 
 ### Community 123 - "Community 123"
 Cohesion: 0.33
@@ -763,8 +767,8 @@ Cohesion: 0.25
 Nodes (7): 1. Core Architecture (Feature-First), 2. State Management (Riverpod), 3. Reader Typography & UX Principles, 4. Choice & Action Interface, 5. Modern Dart & Widget Construction Idioms, Flutter Architecture & Best Practices for StoryForge, Null-Aware Collection Elements (Dart 3.8+)
 
 ### Community 129 - "Community 129"
-Cohesion: 0.07
-Nodes (30): Animation, ChoiceOption, ../../models/choice_option.dart, package:flutter/material.dart, package:google_fonts/google_fonts.dart, static final ThemeData, AppTheme, darkVoid (+22 more)
+Cohesion: 0.05
+Nodes (41): Animation, AnimationController, ChoiceOption, ../../core/theme/realm_theme.dart, ../../models/choice_option.dart, package:flutter/material.dart, package:google_fonts/google_fonts.dart, static final ThemeData (+33 more)
 
 ### Community 130 - "Community 130"
 Cohesion: 0.40
@@ -800,7 +804,7 @@ Nodes (4): Debugging Animations, Frame-by-frame inspection, Slow motion testing,
 
 ### Community 139 - "Community 139"
 Cohesion: 0.50
-Nodes (3): 🏛️ Core Engines Overview, 📖 Master Plan & Architecture, StoryForge — Interactive RPG Novel
+Nodes (3): 🏛️ Core Engines Overview, 📖 Documentation & Architecture, StoryForge — Interactive RPG Novel
 
 ### Community 140 - "Community 140"
 Cohesion: 0.50
@@ -835,8 +839,8 @@ Cohesion: 0.33
 Nodes (5): buf, faceNormals, json, jsonLen, verts
 
 ### Community 175 - "Community 175"
-Cohesion: 0.08
-Nodes (39): Ai(), As(), b6(), Bs(), c5(), convertLinearToSRGB(), convertSRGBToLinear(), copyLinearToSRGB() (+31 more)
+Cohesion: 0.10
+Nodes (31): Ai(), As(), b6(), Bs(), c5(), copySampleValue_(), Cs(), Ds() (+23 more)
 
 ### Community 176 - "Community 176"
 Cohesion: 0.10
@@ -915,20 +919,20 @@ Cohesion: 0.09
 Nodes (21): 1. `خطا در ارتباط با سرور` (Server Connection Error), 2. Database Connection Refused (`P1001`), 3. Android Emulator Network Cleartext, 4. Git Push Timeout (`HTTP 408`), Backend Unit Tests (Deterministic Game Engine & Action Validator), Flutter Static Analysis, 🔗 Key Backend & Studio URLs:, Option A: Web Browser (Chrome) (+13 more)
 
 ### Community 195 - "Community 195"
-Cohesion: 0.08
-Nodes (36): bA(), bind(), Bt(), calculateInverses(), _createAnimationTracks(), _createCubicSplineTrackInterpolant(), dv(), expandByVector() (+28 more)
+Cohesion: 0.12
+Nodes (24): addGroup(), Bt(), calculateInverses(), expandByVector(), fromJSON(), hA(), init(), loadAccessor() (+16 more)
 
 ### Community 196 - "Community 196"
-Cohesion: 0.08
-Nodes (23): BoxFit, double?, StatelessWidget, Widget?, ChoicePill, DiceRollOverlay, borderRadius, build (+15 more)
+Cohesion: 0.10
+Nodes (19): BoxFit, double?, Widget?, borderRadius, build, _buildAssetFallback, _buildFallbackPlaceholder, _buildImageContent (+11 more)
 
 ### Community 197 - "Community 197"
 Cohesion: 0.31
 Nodes (11): getCritiqueDir(), kebab(), listSnapshotsForSlug(), main(), nowFilenameStamp(), parseFrontmatter(), readLatestSnapshot(), readTrend() (+3 more)
 
 ### Community 198 - "Community 198"
-Cohesion: 0.09
-Nodes (32): addManualContextText(), applyEditing(), buildLocatorForLeaf(), canRestoreManualEditElement(), collectManualContextPieces(), contextElementForManualEdit(), copyEditContainerContext(), copyEditLeafContext() (+24 more)
+Cohesion: 0.10
+Nodes (28): applyEditing(), buildLocatorForLeaf(), canRestoreManualEditElement(), copyEditContainerContext(), copyEditLeafContext(), directMixedTextRestoreNodes(), documentRefClassSuffix(), documentRefForElement() (+20 more)
 
 ### Community 200 - "Community 200"
 Cohesion: 0.22
@@ -952,7 +956,7 @@ Nodes (9): determinantAffine(), extractBasis(), extractRotation(), getArea(), id
 
 ### Community 205 - "Community 205"
 Cohesion: 0.04
-Nodes (57): ConsumerState, ConsumerStatefulWidget, ConsumerWidget, ../../core/engine/rpg_engine.dart, core/theme/app_theme.dart, build, main, StoryForgeApp (+49 more)
+Nodes (60): compendium_screen.dart, ConsumerState, ConsumerStatefulWidget, ConsumerWidget, core/theme/app_theme.dart, build, main, StoryForgeApp (+52 more)
 
 ### Community 206 - "Community 206"
 Cohesion: 0.29
@@ -963,8 +967,8 @@ Cohesion: 0.50
 Nodes (3): Object, PersianNumberExtension, toPersianDigits
 
 ### Community 208 - "Community 208"
-Cohesion: 0.09
-Nodes (28): state, ../../services/game_api_service.dart, SingleTickerProviderStateMixin, StatefulWidget, story_cover_image.dart, ValueChanged, AtmosphereCanvas, _AtmosphereCanvasState (+20 more)
+Cohesion: 0.10
+Nodes (26): state, ../../services/game_api_service.dart, SingleTickerProviderStateMixin, StatefulWidget, story_cover_image.dart, ValueChanged, AtmosphereCanvas, _AtmosphereCanvasState (+18 more)
 
 ### Community 209 - "Community 209"
 Cohesion: 0.67
@@ -974,9 +978,17 @@ Nodes (4): postSerializedFindings(), renderBrowserFindings(), scanResultMeta(), 
 Cohesion: 0.12
 Nodes (15): ../../core/utils/persian_numbers.dart, GameItem, package:flutter_riverpod/flutter_riverpod.dart, package:flutter_test/flutter_test.dart, package:storyforge/main.dart, rpg_toast.dart, main, _getRarityColor (+7 more)
 
+### Community 211 - "Community 211"
+Cohesion: 0.12
+Nodes (16): package:flutter/services.dart, three_d20_dice_view.dart, actionText, build, _buildStatBox, createState, DiceRollDialog, _DiceRollDialogState (+8 more)
+
 ### Community 212 - "Community 212"
 Cohesion: 0.14
 Nodes (20): applyParamDefaults(), applyParamValue(), closedClipPath(), getVisibleVariantEl(), hideParamsPanel(), openTunePopover(), parseVariantParams(), pickVariantContent() (+12 more)
+
+### Community 213 - "Community 213"
+Cohesion: 0.21
+Nodes (13): configureVoiceContext(), finishVoiceSession(), isEmbeddedPreviewBrowser(), releaseVoiceEngine(), startVoice(), steerSpeechRecognitionCtor(), steerVoiceContext(), steerVoiceErrorMessage() (+5 more)
 
 ### Community 214 - "Community 214"
 Cohesion: 0.29
@@ -986,25 +998,33 @@ Nodes (7): checkLayout(), checkPageLayout(), isCardLike(), isCardLikeDOM(), isCa
 Cohesion: 0.40
 Nodes (5): checkElementHeroEyebrow(), checkElementHeroEyebrowDOM(), checkHeroEyebrow(), isAccentColor(), resolveVarRefs()
 
+### Community 216 - "Community 216"
+Cohesion: 0.25
+Nodes (7): 1. 📜 Full-Page RPG Character & Realm Compendium, 2. 🎭 Interactive Character Creation & Archetypes, 3. ⚔️ High-Stakes Tactical Combat Mode, 4. 🔊 Ambient Soundscapes & Physical Audio Feedback, 5. 🏛️ StoryForge Web Authoring Studio Suite, 🗺️ High-Level Feature Roadmap, StoryForge — Feature Roadmap & Architecture Milestones
+
+### Community 217 - "Community 217"
+Cohesion: 0.36
+Nodes (8): acceptedDomAlreadyClean(), ensureAcceptedDomClean(), findAcceptedRuntimeWrappers(), markSessionHandled(), maybeCompleteAcceptedSession(), reloadAfterMissingAcceptedDom(), restoreAcceptedDomFromSnapshot(), scheduleAcceptCleanup()
+
 ## Knowledge Gaps
-- **1239 isolated node(s):** `COMMON_DEV_PORTS`, `SCANNABLE_EXT`, `SOURCE_DIRS`, `PRODUCT_NAMES`, `DESIGN_NAMES` (+1234 more)
+- **1275 isolated node(s):** `COMMON_DEV_PORTS`, `SCANNABLE_EXT`, `SOURCE_DIRS`, `PRODUCT_NAMES`, `DESIGN_NAMES` (+1270 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **16 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `add()` connect `Community 22` to `Community 32`, `Community 0`, `Community 195`, `Community 102`, `Community 40`, `Community 9`, `Community 11`, `Community 115`, `Community 87`, `Community 122`?**
-  _High betweenness centrality (0.279) - this node is a cross-community bridge._
+- **Why does `add()` connect `Community 22` to `Community 32`, `Community 0`, `Community 195`, `Community 4`, `Community 102`, `Community 40`, `Community 9`, `Community 11`, `Community 115`, `Community 87`, `Community 122`?**
+  _High betweenness centrality (0.275) - this node is a cross-community bridge._
 - **Why does `confirm()` connect `Community 36` to `Community 5`?**
-  _High betweenness centrality (0.176) - this node is a cross-community bridge._
-- **Why does `state` connect `Community 208` to `Community 56`, `Community 66`, `Community 20`, `Community 93`?**
-  _High betweenness centrality (0.149) - this node is a cross-community bridge._
+  _High betweenness centrality (0.169) - this node is a cross-community bridge._
+- **Why does `state` connect `Community 208` to `Community 66`, `Community 211`, `Community 20`, `Community 56`, `Community 93`?**
+  _High betweenness centrality (0.152) - this node is a cross-community bridge._
 - **Are the 7 inferred relationships involving `constructor()` (e.g. with `rs()` and `_()`) actually correct?**
   _`constructor()` has 7 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 6 inferred relationships involving `add()` (e.g. with `expandScanTargets()` and `normalizeScanTargets()`) actually correct?**
   _`add()` has 6 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `COMMON_DEV_PORTS`, `SCANNABLE_EXT`, `SOURCE_DIRS` to the rest of the system?**
-  _1240 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1276 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.030303030303030304 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.02718996062992126 - nodes in this community are weakly interconnected._

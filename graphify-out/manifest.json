@@ -360,7 +360,7 @@
     "semantic_hash": ""
   },
   "app/ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift": {
-    "mtime": 1787260232.3910382,
+    "mtime": 1787263890.1503222,
     "ast_hash": "c3ca67f6d9d27f78ca451a7112e4c386",
     "semantic_hash": ""
   },
@@ -435,8 +435,8 @@
     "semantic_hash": ""
   },
   "app/lib/models/game_state.dart": {
-    "mtime": 1787256776.120437,
-    "ast_hash": "bf1ba2a6665f9ad1661eba9cdb5085be",
+    "mtime": 1787263614.5253415,
+    "ast_hash": "9a07ac251a41217fa98611777384104c",
     "semantic_hash": ""
   },
   "app/lib/models/story.dart": {
@@ -455,8 +455,8 @@
     "semantic_hash": ""
   },
   "app/lib/ui/screens/reader_screen.dart": {
-    "mtime": 1787260198.7638695,
-    "ast_hash": "532e1e9a2c52521c38d7f1b680be12b4",
+    "mtime": 1787263690.002963,
+    "ast_hash": "407539883dea1dce46e14a4440aaddf5",
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/choice_pill.dart": {
@@ -465,8 +465,8 @@
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/rpg_hud_drawer.dart": {
-    "mtime": 1787255886.5458777,
-    "ast_hash": "4f8eaaee7a4809e443c3e75c0c6011a5",
+    "mtime": 1787263724.666262,
+    "ast_hash": "627e1528953554e53504946b3b2411f6",
     "semantic_hash": ""
   },
   "app/test/widget_test.dart": {
@@ -854,14 +854,9 @@
     "ast_hash": "637776aa6f7496d069afe7520c845c8a",
     "semantic_hash": ""
   },
-  "MASTER_PLAN.md": {
-    "mtime": 1787077306.4263918,
-    "ast_hash": "1e5340ef949c5b179e52231e192efff2",
-    "semantic_hash": ""
-  },
   "README.md": {
-    "mtime": 1787067977.0117157,
-    "ast_hash": "143040f2d47ba2b0777e81861d7144be",
+    "mtime": 1787262905.8086565,
+    "ast_hash": "fcdb54e2cef9a2fe2ad06762cf8cd480",
     "semantic_hash": ""
   },
   "app/README.md": {
@@ -1437,6 +1432,21 @@
   "app/lib/providers/dice_overlay_provider.dart": {
     "mtime": 1787259425.8267527,
     "ast_hash": "ad8301d3b42e810125523cab7cd1d231",
+    "semantic_hash": ""
+  },
+  "app/lib/ui/screens/compendium_screen.dart": {
+    "mtime": 1787263878.4310453,
+    "ast_hash": "30ecabdfc7dc9f897378606074e5af1d",
+    "semantic_hash": ""
+  },
+  "docs/MASTER_PLAN.md": {
+    "mtime": 1787077306.4263918,
+    "ast_hash": "1e5340ef949c5b179e52231e192efff2",
+    "semantic_hash": ""
+  },
+  "docs/roadmap.md": {
+    "mtime": 1787262889.8526335,
+    "ast_hash": "b40bbc546e070eec8f03f0c9090eb88c",
     "semantic_hash": ""
   }
 }

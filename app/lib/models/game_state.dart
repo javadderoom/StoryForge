@@ -202,12 +202,42 @@ class CheckResolution {
   }
 }
 
+class NpcRelationship {
+  final int trust; // -100 to 100
+  final List<String> knownSecrets;
+  final List<String> notes;
+
+  const NpcRelationship({
+    this.trust = 0,
+    this.knownSecrets = const [],
+    this.notes = const [],
+  });
+
+  factory NpcRelationship.fromJson(Map<String, dynamic> json) {
+    return NpcRelationship(
+      trust: (json['trust'] as num?)?.toInt() ?? 0,
+      knownSecrets: (json['knownSecrets'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+      notes: (json['notes'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'trust': trust,
+        'knownSecrets': knownSecrets,
+        'notes': notes,
+      };
+}
+
 class PlayerState {
   final Map<String, int> stats;
   final Map<String, int> resources;
   final List<GameItem> inventory;
   final PlayerEquipment equipment;
   final String currentLocationId;
+  final List<String> discoveredLocationIds;
+  final Map<String, NpcRelationship> relationships;
+  final List<String> activeQuestIds;
+  final List<String> completedQuestIds;
 
   PlayerState({
     required this.stats,
@@ -215,6 +245,10 @@ class PlayerState {
     required this.inventory,
     this.equipment = const PlayerEquipment(),
     required this.currentLocationId,
+    this.discoveredLocationIds = const [],
+    this.relationships = const {},
+    this.activeQuestIds = const [],
+    this.completedQuestIds = const [],
   });
 
   GameItem? getItem(String itemId) {
@@ -245,6 +279,10 @@ class PlayerState {
     List<GameItem>? inventory,
     PlayerEquipment? equipment,
     String? currentLocationId,
+    List<String>? discoveredLocationIds,
+    Map<String, NpcRelationship>? relationships,
+    List<String>? activeQuestIds,
+    List<String>? completedQuestIds,
   }) {
     return PlayerState(
       stats: stats ?? this.stats,
@@ -252,6 +290,10 @@ class PlayerState {
       inventory: inventory ?? this.inventory,
       equipment: equipment ?? this.equipment,
       currentLocationId: currentLocationId ?? this.currentLocationId,
+      discoveredLocationIds: discoveredLocationIds ?? this.discoveredLocationIds,
+      relationships: relationships ?? this.relationships,
+      activeQuestIds: activeQuestIds ?? this.activeQuestIds,
+      completedQuestIds: completedQuestIds ?? this.completedQuestIds,
     );
   }
 
@@ -260,6 +302,10 @@ class PlayerState {
     final rawRes = json['resources'] as Map<String, dynamic>? ?? {};
     final rawInv = json['inventory'] as List<dynamic>? ?? [];
     final rawEq = json['equipment'] as Map<String, dynamic>? ?? {};
+    final rawLocs = json['discoveredLocationIds'] as List<dynamic>? ?? [];
+    final rawRel = json['relationships'] as Map<String, dynamic>? ?? {};
+    final rawActiveQuests = json['activeQuestIds'] as List<dynamic>? ?? [];
+    final rawCompQuests = json['completedQuestIds'] as List<dynamic>? ?? [];
 
     return PlayerState(
       stats: rawStats.map((k, v) => MapEntry(k, (v as num).toInt())),
@@ -267,6 +313,10 @@ class PlayerState {
       inventory: rawInv.map((i) => GameItem.fromJson(i)).toList(),
       equipment: PlayerEquipment.fromJson(rawEq),
       currentLocationId: json['currentLocationId'] ?? '',
+      discoveredLocationIds: rawLocs.map((e) => e.toString()).toList(),
+      relationships: rawRel.map((k, v) => MapEntry(k, NpcRelationship.fromJson(v as Map<String, dynamic>))),
+      activeQuestIds: rawActiveQuests.map((e) => e.toString()).toList(),
+      completedQuestIds: rawCompQuests.map((e) => e.toString()).toList(),
     );
   }
 
@@ -276,9 +326,9 @@ class PlayerState {
         'inventory': inventory.map((i) => i.toJson()).toList(),
         'equipment': equipment.toJson(),
         'currentLocationId': currentLocationId,
-        'discoveredLocationIds': [currentLocationId],
-        'relationships': {},
-        'activeQuestIds': [],
-        'completedQuestIds': [],
+        'discoveredLocationIds': discoveredLocationIds,
+        'relationships': relationships.map((k, v) => MapEntry(k, v.toJson())),
+        'activeQuestIds': activeQuestIds,
+        'completedQuestIds': completedQuestIds,
       };
 }

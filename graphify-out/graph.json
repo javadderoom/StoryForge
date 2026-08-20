@@ -10020,7 +10020,7 @@
       "source_location": "L263",
       "_origin": "ast",
       "id": "scripts_live_browser_inithighlight",
-      "community": 25,
+      "community": 24,
       "norm_label": "inithighlight()"
     },
     {
@@ -10030,7 +10030,7 @@
       "source_location": "L290",
       "_origin": "ast",
       "id": "scripts_live_browser_shouldshowhighlighttagtooltip",
-      "community": 0,
+      "community": 25,
       "norm_label": "shouldshowhighlighttagtooltip()"
     },
     {
@@ -10040,7 +10040,7 @@
       "source_location": "L295",
       "_origin": "ast",
       "id": "scripts_live_browser_hidehighlighttagtooltip",
-      "community": 0,
+      "community": 25,
       "norm_label": "hidehighlighttagtooltip()"
     },
     {
@@ -10050,7 +10050,7 @@
       "source_location": "L301",
       "_origin": "ast",
       "id": "scripts_live_browser_showhighlight",
-      "community": 0,
+      "community": 25,
       "norm_label": "showhighlight()"
     },
     {
@@ -10070,7 +10070,7 @@
       "source_location": "L373",
       "_origin": "ast",
       "id": "scripts_live_browser_initannotoverlay",
-      "community": 25,
+      "community": 24,
       "norm_label": "initannotoverlay()"
     },
     {
@@ -10080,7 +10080,7 @@
       "source_location": "L441",
       "_origin": "ast",
       "id": "scripts_live_browser_updateclearchip",
-      "community": 45,
+      "community": 0,
       "norm_label": "updateclearchip()"
     },
     {
@@ -10110,7 +10110,7 @@
       "source_location": "L465",
       "_origin": "ast",
       "id": "scripts_live_browser_positionannotoverlay",
-      "community": 45,
+      "community": 0,
       "norm_label": "positionannotoverlay()"
     },
     {
@@ -10130,7 +10130,7 @@
       "source_location": "L489",
       "_origin": "ast",
       "id": "scripts_live_browser_redrawstrokes",
-      "community": 45,
+      "community": 0,
       "norm_label": "redrawstrokes()"
     },
     {
@@ -10140,7 +10140,7 @@
       "source_location": "L517",
       "_origin": "ast",
       "id": "scripts_live_browser_localcoords",
-      "community": 45,
+      "community": 0,
       "norm_label": "localcoords()"
     },
     {
@@ -10150,7 +10150,7 @@
       "source_location": "L522",
       "_origin": "ast",
       "id": "scripts_live_browser_onannotdown",
-      "community": 45,
+      "community": 0,
       "norm_label": "onannotdown()"
     },
     {
@@ -10160,7 +10160,7 @@
       "source_location": "L600",
       "_origin": "ast",
       "id": "scripts_live_browser_onannotmove",
-      "community": 45,
+      "community": 0,
       "norm_label": "onannotmove()"
     },
     {
@@ -10180,7 +10180,7 @@
       "source_location": "L666",
       "_origin": "ast",
       "id": "scripts_live_browser_onannotup",
-      "community": 45,
+      "community": 0,
       "norm_label": "onannotup()"
     },
     {
@@ -10190,7 +10190,7 @@
       "source_location": "L709",
       "_origin": "ast",
       "id": "scripts_live_browser_renderallpins",
-      "community": 45,
+      "community": 0,
       "norm_label": "renderallpins()"
     },
     {
@@ -10210,7 +10210,7 @@
       "source_location": "L754",
       "_origin": "ast",
       "id": "scripts_live_browser_begineditpin",
-      "community": 45,
+      "community": 0,
       "norm_label": "begineditpin()"
     },
     {
@@ -10220,7 +10220,7 @@
       "source_location": "L787",
       "_origin": "ast",
       "id": "scripts_live_browser_onannotinputkey",
-      "community": 45,
+      "community": 0,
       "norm_label": "onannotinputkey()"
     },
     {
@@ -10230,7 +10230,7 @@
       "source_location": "L800",
       "_origin": "ast",
       "id": "scripts_live_browser_finalizeeditingpin",
-      "community": 45,
+      "community": 0,
       "norm_label": "finalizeeditingpin()"
     },
     {
@@ -10240,7 +10240,7 @@
       "source_location": "L810",
       "_origin": "ast",
       "id": "scripts_live_browser_canceleditingpin",
-      "community": 45,
+      "community": 0,
       "norm_label": "canceleditingpin()"
     },
     {
@@ -10290,7 +10290,7 @@
       "source_location": "L943",
       "_origin": "ast",
       "id": "scripts_live_browser_contextelementformanualedit",
-      "community": 198,
+      "community": 0,
       "norm_label": "contextelementformanualedit()"
     },
     {
@@ -10300,7 +10300,7 @@
       "source_location": "L967",
       "_origin": "ast",
       "id": "scripts_live_browser_isusefulmanualeditcontext",
-      "community": 198,
+      "community": 0,
       "norm_label": "isusefulmanualeditcontext()"
     },
     {
@@ -10310,7 +10310,7 @@
       "source_location": "L973",
       "_origin": "ast",
       "id": "scripts_live_browser_collectmanualcontextpieces",
-      "community": 198,
+      "community": 0,
       "norm_label": "collectmanualcontextpieces()"
     },
     {
@@ -10320,7 +10320,7 @@
       "source_location": "L992",
       "_origin": "ast",
       "id": "scripts_live_browser_addmanualcontexttext",
-      "community": 198,
+      "community": 0,
       "norm_label": "addmanualcontexttext()"
     },
     {
@@ -10350,7 +10350,7 @@
       "source_location": "L1024",
       "_origin": "ast",
       "id": "scripts_live_browser_initbar",
-      "community": 25,
+      "community": 24,
       "norm_label": "initbar()"
     },
     {
@@ -10670,7 +10670,7 @@
       "source_location": "L1604",
       "_origin": "ast",
       "id": "scripts_live_browser_detectinsertaxisfromstyle",
-      "community": 0,
+      "community": 97,
       "norm_label": "detectinsertaxisfromstyle()"
     },
     {
@@ -10680,7 +10680,7 @@
       "source_location": "L1623",
       "_origin": "ast",
       "id": "scripts_live_browser_detectinsertaxis",
-      "community": 0,
+      "community": 97,
       "norm_label": "detectinsertaxis()"
     },
     {
@@ -10690,7 +10690,7 @@
       "source_location": "L1634",
       "_origin": "ast",
       "id": "scripts_live_browser_layoutflowchildren",
-      "community": 0,
+      "community": 25,
       "norm_label": "layoutflowchildren()"
     },
     {
@@ -10780,7 +10780,7 @@
       "source_location": "L1774",
       "_origin": "ast",
       "id": "scripts_live_browser_placeholderwidthisimplicit",
-      "community": 45,
+      "community": 0,
       "norm_label": "placeholderwidthisimplicit()"
     },
     {
@@ -10800,7 +10800,7 @@
       "source_location": "L1795",
       "_origin": "ast",
       "id": "scripts_live_browser_materializeplaceholderwidth",
-      "community": 45,
+      "community": 0,
       "norm_label": "materializeplaceholderwidth()"
     },
     {
@@ -10810,7 +10810,7 @@
       "source_location": "L1807",
       "_origin": "ast",
       "id": "scripts_live_browser_cancreateinsert",
-      "community": 24,
+      "community": 0,
       "norm_label": "cancreateinsert()"
     },
     {
@@ -10820,7 +10820,7 @@
       "source_location": "L1816",
       "_origin": "ast",
       "id": "scripts_live_browser_insertcreatedisabledreason",
-      "community": 24,
+      "community": 0,
       "norm_label": "insertcreatedisabledreason()"
     },
     {
@@ -10830,7 +10830,7 @@
       "source_location": "L1821",
       "_origin": "ast",
       "id": "scripts_live_browser_clampplaceholdersize",
-      "community": 45,
+      "community": 0,
       "norm_label": "clampplaceholdersize()"
     },
     {
@@ -10840,7 +10840,7 @@
       "source_location": "L1829",
       "_origin": "ast",
       "id": "scripts_live_browser_cursorforplaceholderedge",
-      "community": 45,
+      "community": 0,
       "norm_label": "cursorforplaceholderedge()"
     },
     {
@@ -10850,7 +10850,7 @@
       "source_location": "L1835",
       "_origin": "ast",
       "id": "scripts_live_browser_resizeplaceholderfromedge",
-      "community": 45,
+      "community": 0,
       "norm_label": "resizeplaceholderfromedge()"
     },
     {
@@ -10860,7 +10860,7 @@
       "source_location": "L1862",
       "_origin": "ast",
       "id": "scripts_live_browser_ensureinsertline",
-      "community": 0,
+      "community": 25,
       "norm_label": "ensureinsertline()"
     },
     {
@@ -10870,7 +10870,7 @@
       "source_location": "L1880",
       "_origin": "ast",
       "id": "scripts_live_browser_showinsertline",
-      "community": 0,
+      "community": 25,
       "norm_label": "showinsertline()"
     },
     {
@@ -10990,7 +10990,7 @@
       "source_location": "L2081",
       "_origin": "ast",
       "id": "scripts_live_browser_applyplaceholderdimensions",
-      "community": 45,
+      "community": 0,
       "norm_label": "applyplaceholderdimensions()"
     },
     {
@@ -11010,7 +11010,7 @@
       "source_location": "L2098",
       "_origin": "ast",
       "id": "scripts_live_browser_buildplaceholderresizehandles",
-      "community": 45,
+      "community": 0,
       "norm_label": "buildplaceholderresizehandles()"
     },
     {
@@ -11020,7 +11020,7 @@
       "source_location": "L2128",
       "_origin": "ast",
       "id": "scripts_live_browser_syncplaceholderresizehandles",
-      "community": 45,
+      "community": 0,
       "norm_label": "syncplaceholderresizehandles()"
     },
     {
@@ -11030,7 +11030,7 @@
       "source_location": "L2139",
       "_origin": "ast",
       "id": "scripts_live_browser_startplaceholderedgeresize",
-      "community": 45,
+      "community": 0,
       "norm_label": "startplaceholderedgeresize()"
     },
     {
@@ -11090,7 +11090,7 @@
       "source_location": "L2250",
       "_origin": "ast",
       "id": "scripts_live_browser_hideinsertcreatetooltip",
-      "community": 24,
+      "community": 0,
       "norm_label": "hideinsertcreatetooltip()"
     },
     {
@@ -11100,7 +11100,7 @@
       "source_location": "L2255",
       "_origin": "ast",
       "id": "scripts_live_browser_insertcreategatestate",
-      "community": 24,
+      "community": 0,
       "norm_label": "insertcreategatestate()"
     },
     {
@@ -11110,7 +11110,7 @@
       "source_location": "L2263",
       "_origin": "ast",
       "id": "scripts_live_browser_syncinsertcreatebutton",
-      "community": 24,
+      "community": 0,
       "norm_label": "syncinsertcreatebutton()"
     },
     {
@@ -11230,7 +11230,7 @@
       "source_location": "L2770",
       "_origin": "ast",
       "id": "scripts_live_browser_initactionpicker",
-      "community": 25,
+      "community": 24,
       "norm_label": "initactionpicker()"
     },
     {
@@ -11240,7 +11240,7 @@
       "source_location": "L2844",
       "_origin": "ast",
       "id": "scripts_live_browser_toggleactionpicker",
-      "community": 25,
+      "community": 24,
       "norm_label": "toggleactionpicker()"
     },
     {
@@ -11280,7 +11280,7 @@
       "source_location": "L2940",
       "_origin": "ast",
       "id": "scripts_live_browser_initparamspanel",
-      "community": 25,
+      "community": 24,
       "norm_label": "initparamspanel()"
     },
     {
@@ -11350,7 +11350,7 @@
       "source_location": "L3058",
       "_origin": "ast",
       "id": "scripts_live_browser_formatrangevalue",
-      "community": 25,
+      "community": 24,
       "norm_label": "formatrangevalue()"
     },
     {
@@ -11360,7 +11360,7 @@
       "source_location": "L3065",
       "_origin": "ast",
       "id": "scripts_live_browser_buildparamspanel",
-      "community": 25,
+      "community": 24,
       "norm_label": "buildparamspanel()"
     },
     {
@@ -12130,7 +12130,7 @@
       "source_location": "L4484",
       "_origin": "ast",
       "id": "scripts_live_browser_initeditbadge",
-      "community": 25,
+      "community": 24,
       "norm_label": "initeditbadge()"
     },
     {
@@ -12840,7 +12840,7 @@
       "source_location": "L6077",
       "_origin": "ast",
       "id": "scripts_live_browser_connectsse",
-      "community": 25,
+      "community": 24,
       "norm_label": "connectsse()"
     },
     {
@@ -12910,7 +12910,7 @@
       "source_location": "L6296",
       "_origin": "ast",
       "id": "scripts_live_browser_handlemousemove",
-      "community": 0,
+      "community": 25,
       "norm_label": "handlemousemove()"
     },
     {
@@ -13270,7 +13270,7 @@
       "source_location": "L7510",
       "_origin": "ast",
       "id": "scripts_live_browser_maybecompleteacceptedsession",
-      "community": 0,
+      "community": 217,
       "norm_label": "maybecompleteacceptedsession()"
     },
     {
@@ -13280,7 +13280,7 @@
       "source_location": "L7529",
       "_origin": "ast",
       "id": "scripts_live_browser_scheduleacceptcleanup",
-      "community": 0,
+      "community": 217,
       "norm_label": "scheduleacceptcleanup()"
     },
     {
@@ -13310,7 +13310,7 @@
       "source_location": "L7564",
       "_origin": "ast",
       "id": "scripts_live_browser_accepteddomalreadyclean",
-      "community": 0,
+      "community": 217,
       "norm_label": "accepteddomalreadyclean()"
     },
     {
@@ -13320,7 +13320,7 @@
       "source_location": "L7571",
       "_origin": "ast",
       "id": "scripts_live_browser_ensureaccepteddomclean",
-      "community": 0,
+      "community": 217,
       "norm_label": "ensureaccepteddomclean()"
     },
     {
@@ -13330,7 +13330,7 @@
       "source_location": "L7597",
       "_origin": "ast",
       "id": "scripts_live_browser_findacceptedruntimewrappers",
-      "community": 0,
+      "community": 217,
       "norm_label": "findacceptedruntimewrappers()"
     },
     {
@@ -13340,7 +13340,7 @@
       "source_location": "L7605",
       "_origin": "ast",
       "id": "scripts_live_browser_restoreaccepteddomfromsnapshot",
-      "community": 0,
+      "community": 217,
       "norm_label": "restoreaccepteddomfromsnapshot()"
     },
     {
@@ -13350,7 +13350,7 @@
       "source_location": "L7627",
       "_origin": "ast",
       "id": "scripts_live_browser_reloadaftermissingaccepteddom",
-      "community": 0,
+      "community": 217,
       "norm_label": "reloadaftermissingaccepteddom()"
     },
     {
@@ -13530,7 +13530,7 @@
       "source_location": "L7853",
       "_origin": "ast",
       "id": "scripts_live_browser_marksessionhandled",
-      "community": 0,
+      "community": 217,
       "norm_label": "marksessionhandled()"
     },
     {
@@ -13640,7 +13640,7 @@
       "source_location": "L8224",
       "_origin": "ast",
       "id": "scripts_live_browser_detectpagetheme",
-      "community": 25,
+      "community": 24,
       "norm_label": "detectpagetheme()"
     },
     {
@@ -13650,7 +13650,7 @@
       "source_location": "L8262",
       "_origin": "ast",
       "id": "scripts_live_browser_barpalettefortheme",
-      "community": 25,
+      "community": 24,
       "norm_label": "barpalettefortheme()"
     },
     {
@@ -13660,7 +13660,7 @@
       "source_location": "L8291",
       "_origin": "ast",
       "id": "scripts_live_browser_pagechatpalette",
-      "community": 25,
+      "community": 24,
       "norm_label": "pagechatpalette()"
     },
     {
@@ -13670,7 +13670,7 @@
       "source_location": "L8295",
       "_origin": "ast",
       "id": "scripts_live_browser_globalbarmodetoggles",
-      "community": 26,
+      "community": 0,
       "norm_label": "globalbarmodetoggles()"
     },
     {
@@ -13680,7 +13680,7 @@
       "source_location": "L8304",
       "_origin": "ast",
       "id": "scripts_live_browser_applyglobalbarlabelstate",
-      "community": 26,
+      "community": 0,
       "norm_label": "applyglobalbarlabelstate()"
     },
     {
@@ -13840,7 +13840,7 @@
       "source_location": "L8446",
       "_origin": "ast",
       "id": "scripts_live_browser_attachsteerfocusguard",
-      "community": 25,
+      "community": 24,
       "norm_label": "attachsteerfocusguard()"
     },
     {
@@ -13860,7 +13860,7 @@
       "source_location": "L8490",
       "_origin": "ast",
       "id": "scripts_live_browser_steerfocusdebugenabled",
-      "community": 26,
+      "community": 0,
       "norm_label": "steerfocusdebugenabled()"
     },
     {
@@ -13880,7 +13880,7 @@
       "source_location": "L8507",
       "_origin": "ast",
       "id": "scripts_live_browser_attachsteerfocusdebug",
-      "community": 26,
+      "community": 0,
       "norm_label": "attachsteerfocusdebug()"
     },
     {
@@ -13930,7 +13930,7 @@
       "source_location": "L8612",
       "_origin": "ast",
       "id": "scripts_live_browser_buildsteerprocessingdots",
-      "community": 25,
+      "community": 24,
       "norm_label": "buildsteerprocessingdots()"
     },
     {
@@ -14020,7 +14020,7 @@
       "source_location": "L8778",
       "_origin": "ast",
       "id": "scripts_live_browser_steerspeechrecognitionctor",
-      "community": 26,
+      "community": 213,
       "norm_label": "steerspeechrecognitionctor()"
     },
     {
@@ -14030,7 +14030,7 @@
       "source_location": "L8782",
       "_origin": "ast",
       "id": "scripts_live_browser_isembeddedpreviewbrowser",
-      "community": 26,
+      "community": 213,
       "norm_label": "isembeddedpreviewbrowser()"
     },
     {
@@ -14040,7 +14040,7 @@
       "source_location": "L8791",
       "_origin": "ast",
       "id": "scripts_live_browser_steervoiceunavailablemessage",
-      "community": 26,
+      "community": 213,
       "norm_label": "steervoiceunavailablemessage()"
     },
     {
@@ -14050,7 +14050,7 @@
       "source_location": "L8795",
       "_origin": "ast",
       "id": "scripts_live_browser_steervoiceerrormessage",
-      "community": 26,
+      "community": 213,
       "norm_label": "steervoiceerrormessage()"
     },
     {
@@ -14060,7 +14060,7 @@
       "source_location": "L8817",
       "_origin": "ast",
       "id": "scripts_live_browser_syncvoiceui",
-      "community": 26,
+      "community": 213,
       "norm_label": "syncvoiceui()"
     },
     {
@@ -14070,7 +14070,7 @@
       "source_location": "L8842",
       "_origin": "ast",
       "id": "scripts_live_browser_releasevoiceengine",
-      "community": 26,
+      "community": 213,
       "norm_label": "releasevoiceengine()"
     },
     {
@@ -14080,7 +14080,7 @@
       "source_location": "L8857",
       "_origin": "ast",
       "id": "scripts_live_browser_stopvoice",
-      "community": 26,
+      "community": 213,
       "norm_label": "stopvoice()"
     },
     {
@@ -14090,7 +14090,7 @@
       "source_location": "L8864",
       "_origin": "ast",
       "id": "scripts_live_browser_finishvoicesession",
-      "community": 26,
+      "community": 213,
       "norm_label": "finishvoicesession()"
     },
     {
@@ -14100,7 +14100,7 @@
       "source_location": "L8878",
       "_origin": "ast",
       "id": "scripts_live_browser_startvoice",
-      "community": 26,
+      "community": 213,
       "norm_label": "startvoice()"
     },
     {
@@ -14110,7 +14110,7 @@
       "source_location": "L8952",
       "_origin": "ast",
       "id": "scripts_live_browser_steervoicecontext",
-      "community": 26,
+      "community": 213,
       "norm_label": "steervoicecontext()"
     },
     {
@@ -14120,7 +14120,7 @@
       "source_location": "L8963",
       "_origin": "ast",
       "id": "scripts_live_browser_configurevoicecontext",
-      "community": 26,
+      "community": 213,
       "norm_label": "configurevoicecontext()"
     },
     {
@@ -14130,7 +14130,7 @@
       "source_location": "L8975",
       "_origin": "ast",
       "id": "scripts_live_browser_togglesteervoice",
-      "community": 26,
+      "community": 213,
       "norm_label": "togglesteervoice()"
     },
     {
@@ -14140,7 +14140,7 @@
       "source_location": "L8984",
       "_origin": "ast",
       "id": "scripts_live_browser_toggleconfigurevoice",
-      "community": 26,
+      "community": 213,
       "norm_label": "toggleconfigurevoice()"
     },
     {
@@ -14190,7 +14190,7 @@
       "source_location": "L9068",
       "_origin": "ast",
       "id": "scripts_live_browser_initpagechat",
-      "community": 25,
+      "community": 24,
       "norm_label": "initpagechat()"
     },
     {
@@ -14200,7 +14200,7 @@
       "source_location": "L9225",
       "_origin": "ast",
       "id": "scripts_live_browser_brandmarksvg",
-      "community": 25,
+      "community": 24,
       "norm_label": "brandmarksvg()"
     },
     {
@@ -14210,7 +14210,7 @@
       "source_location": "L9232",
       "_origin": "ast",
       "id": "scripts_live_browser_syncagentpollingui",
-      "community": 25,
+      "community": 24,
       "norm_label": "syncagentpollingui()"
     },
     {
@@ -14220,7 +14220,7 @@
       "source_location": "L9252",
       "_origin": "ast",
       "id": "scripts_live_browser_ensureagentpolltooltip",
-      "community": 25,
+      "community": 24,
       "norm_label": "ensureagentpolltooltip()"
     },
     {
@@ -14230,7 +14230,7 @@
       "source_location": "L9281",
       "_origin": "ast",
       "id": "scripts_live_browser_showagentpolltooltip",
-      "community": 25,
+      "community": 24,
       "norm_label": "showagentpolltooltip()"
     },
     {
@@ -14280,7 +14280,7 @@
       "source_location": "L9324",
       "_origin": "ast",
       "id": "scripts_live_browser_initglobalbar",
-      "community": 25,
+      "community": 24,
       "norm_label": "initglobalbar()"
     },
     {
@@ -14370,7 +14370,7 @@
       "source_location": "L10017",
       "_origin": "ast",
       "id": "scripts_live_browser_loaddesignprefs",
-      "community": 25,
+      "community": 24,
       "norm_label": "loaddesignprefs()"
     },
     {
@@ -14390,7 +14390,7 @@
       "source_location": "L10040",
       "_origin": "ast",
       "id": "scripts_live_browser_initdesignpanel",
-      "community": 25,
+      "community": 24,
       "norm_label": "initdesignpanel()"
     },
     {
@@ -14400,7 +14400,7 @@
       "source_location": "L10090",
       "_origin": "ast",
       "id": "scripts_live_browser_designpanelcss",
-      "community": 25,
+      "community": 24,
       "norm_label": "designpanelcss()"
     },
     {
@@ -14410,7 +14410,7 @@
       "source_location": "L10365",
       "_origin": "ast",
       "id": "scripts_live_browser_renderdesignchrome",
-      "community": 25,
+      "community": 39,
       "norm_label": "renderdesignchrome()"
     },
     {
@@ -14420,7 +14420,7 @@
       "source_location": "L10384",
       "_origin": "ast",
       "id": "scripts_live_browser_builddesignheader",
-      "community": 25,
+      "community": 39,
       "norm_label": "builddesignheader()"
     },
     {
@@ -14430,7 +14430,7 @@
       "source_location": "L10423",
       "_origin": "ast",
       "id": "scripts_live_browser_toggledesignpanel",
-      "community": 25,
+      "community": 39,
       "norm_label": "toggledesignpanel()"
     },
     {
@@ -14440,7 +14440,7 @@
       "source_location": "L10433",
       "_origin": "ast",
       "id": "scripts_live_browser_fetchdesignsystem",
-      "community": 25,
+      "community": 39,
       "norm_label": "fetchdesignsystem()"
     },
     {
@@ -14790,7 +14790,7 @@
       "source_location": "L11126",
       "_origin": "ast",
       "id": "scripts_live_browser_init",
-      "community": 25,
+      "community": 24,
       "norm_label": "init()"
     },
     {
@@ -20320,7 +20320,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_f6",
-      "community": 195,
+      "community": 22,
       "norm_label": "f6()"
     },
     {
@@ -20350,7 +20350,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_ba",
-      "community": 195,
+      "community": 22,
       "norm_label": "ba()"
     },
     {
@@ -20360,7 +20360,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_qe",
-      "community": 87,
+      "community": 4,
       "norm_label": "qe()"
     },
     {
@@ -20420,7 +20420,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_sp",
-      "community": 122,
+      "community": 22,
       "norm_label": "sp()"
     },
     {
@@ -21210,7 +21210,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_setfromaxisangle",
-      "community": 87,
+      "community": 4,
       "norm_label": "setfromaxisangle()"
     },
     {
@@ -21280,7 +21280,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_premultiply",
-      "community": 87,
+      "community": 4,
       "norm_label": "premultiply()"
     },
     {
@@ -21320,7 +21320,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_tojson",
-      "community": 122,
+      "community": 22,
       "norm_label": "tojson()"
     },
     {
@@ -21370,7 +21370,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_applyeuler",
-      "community": 87,
+      "community": 4,
       "norm_label": "applyeuler()"
     },
     {
@@ -21380,7 +21380,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_applyaxisangle",
-      "community": 87,
+      "community": 4,
       "norm_label": "applyaxisangle()"
     },
     {
@@ -21410,7 +21410,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_applyquaternion",
-      "community": 87,
+      "community": 4,
       "norm_label": "applyquaternion()"
     },
     {
@@ -21670,7 +21670,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_scale",
-      "community": 87,
+      "community": 4,
       "norm_label": "scale()"
     },
     {
@@ -21680,7 +21680,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_rotate",
-      "community": 87,
+      "community": 4,
       "norm_label": "rotate()"
     },
     {
@@ -21690,7 +21690,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_translate",
-      "community": 87,
+      "community": 4,
       "norm_label": "translate()"
     },
     {
@@ -21710,7 +21710,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_makerotation",
-      "community": 87,
+      "community": 4,
       "norm_label": "makerotation()"
     },
     {
@@ -21720,7 +21720,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_makescale",
-      "community": 87,
+      "community": 4,
       "norm_label": "makescale()"
     },
     {
@@ -21730,7 +21730,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_dt",
-      "community": 175,
+      "community": 4,
       "norm_label": "dt()"
     },
     {
@@ -21740,7 +21740,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_fp",
-      "community": 175,
+      "community": 4,
       "norm_label": "fp()"
     },
     {
@@ -21750,7 +21750,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_v6",
-      "community": 175,
+      "community": 4,
       "norm_label": "v6()"
     },
     {
@@ -22330,7 +22330,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_setrotationfromaxisangle",
-      "community": 87,
+      "community": 4,
       "norm_label": "setrotationfromaxisangle()"
     },
     {
@@ -22380,7 +22380,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_rotateonworldaxis",
-      "community": 87,
+      "community": 4,
       "norm_label": "rotateonworldaxis()"
     },
     {
@@ -22790,7 +22790,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_copysrgbtolinear",
-      "community": 175,
+      "community": 4,
       "norm_label": "copysrgbtolinear()"
     },
     {
@@ -22800,7 +22800,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_copylineartosrgb",
-      "community": 175,
+      "community": 4,
       "norm_label": "copylineartosrgb()"
     },
     {
@@ -22810,7 +22810,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_convertsrgbtolinear",
-      "community": 175,
+      "community": 4,
       "norm_label": "convertsrgbtolinear()"
     },
     {
@@ -22820,7 +22820,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_convertlineartosrgb",
-      "community": 175,
+      "community": 4,
       "norm_label": "convertlineartosrgb()"
     },
     {
@@ -23420,7 +23420,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_getindex",
-      "community": 22,
+      "community": 87,
       "norm_label": "getindex()"
     },
     {
@@ -23500,7 +23500,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_addgroup",
-      "community": 87,
+      "community": 195,
       "norm_label": "addgroup()"
     },
     {
@@ -23510,7 +23510,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_cleargroups",
-      "community": 22,
+      "community": 87,
       "norm_label": "cleargroups()"
     },
     {
@@ -23590,7 +23590,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_tononindexed",
-      "community": 87,
+      "community": 195,
       "norm_label": "tononindexed()"
     },
     {
@@ -23780,7 +23780,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_bind",
-      "community": 195,
+      "community": 22,
       "norm_label": "bind()"
     },
     {
@@ -23850,7 +23850,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "d20_3d_bundle_getbonebyname",
-      "community": 195,
+      "community": 122,
       "norm_label": "getbonebyname()"
     },
     {
@@ -24170,7 +24170,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "d20_3d_bundle_p",
-      "community": 122,
+      "community": 22,
       "norm_label": "_p()"
     },
     {
@@ -24320,7 +24320,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "d20_3d_bundle_shift",
-      "community": 195,
+      "community": 22,
       "norm_label": "shift()"
     },
     {
@@ -24760,7 +24760,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "d20_3d_bundle_getvalue",
-      "community": 195,
+      "community": 22,
       "norm_label": "getvalue()"
     },
     {
@@ -24820,7 +24820,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "d20_3d_bundle_findnode",
-      "community": 195,
+      "community": 122,
       "norm_label": "findnode()"
     },
     {
@@ -25010,7 +25010,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "d20_3d_bundle_getvalue_unbound",
-      "community": 195,
+      "community": 22,
       "norm_label": "_getvalue_unbound()"
     },
     {
@@ -25500,7 +25500,7 @@
       "source_location": "L4006",
       "_origin": "ast",
       "id": "d20_3d_bundle_hs",
-      "community": 175,
+      "community": 22,
       "norm_label": "hs()"
     },
     {
@@ -25630,7 +25630,7 @@
       "source_location": "L4006",
       "_origin": "ast",
       "id": "d20_3d_bundle_ld",
-      "community": 32,
+      "community": 122,
       "norm_label": "ld()"
     },
     {
@@ -25640,7 +25640,7 @@
       "source_location": "L4006",
       "_origin": "ast",
       "id": "d20_3d_bundle_pi",
-      "community": 32,
+      "community": 122,
       "norm_label": "pi()"
     },
     {
@@ -25940,7 +25940,7 @@
       "source_location": "L4057",
       "_origin": "ast",
       "id": "d20_3d_bundle_ei",
-      "community": 87,
+      "community": 4,
       "norm_label": "ei()"
     },
     {
@@ -26110,7 +26110,7 @@
       "source_location": "L4108",
       "_origin": "ast",
       "id": "d20_3d_bundle_ev",
-      "community": 22,
+      "community": 87,
       "norm_label": "ev()"
     },
     {
@@ -26290,7 +26290,7 @@
       "source_location": "L4108",
       "_origin": "ast",
       "id": "d20_3d_bundle_loadtexture",
-      "community": 122,
+      "community": 22,
       "norm_label": "loadtexture()"
     },
     {
@@ -26410,7 +26410,7 @@
       "source_location": "L4108",
       "_origin": "ast",
       "id": "d20_3d_bundle_dv",
-      "community": 195,
+      "community": 32,
       "norm_label": "dv()"
     },
     {
@@ -26420,7 +26420,7 @@
       "source_location": "L4108",
       "_origin": "ast",
       "id": "d20_3d_bundle_f7",
-      "community": 122,
+      "community": 22,
       "norm_label": "f7()"
     },
     {
@@ -26520,7 +26520,7 @@
       "source_location": "L4108",
       "_origin": "ast",
       "id": "d20_3d_bundle_loadtextureimage",
-      "community": 122,
+      "community": 22,
       "norm_label": "loadtextureimage()"
     },
     {
@@ -26530,7 +26530,7 @@
       "source_location": "L4108",
       "_origin": "ast",
       "id": "d20_3d_bundle_loadimagesource",
-      "community": 122,
+      "community": 22,
       "norm_label": "loadimagesource()"
     },
     {
@@ -26620,7 +26620,7 @@
       "source_location": "L4108",
       "_origin": "ast",
       "id": "d20_3d_bundle_loadanimation",
-      "community": 195,
+      "community": 32,
       "norm_label": "loadanimation()"
     },
     {
@@ -26630,7 +26630,7 @@
       "source_location": "L4108",
       "_origin": "ast",
       "id": "d20_3d_bundle_loadnode",
-      "community": 195,
+      "community": 22,
       "norm_label": "loadnode()"
     },
     {
@@ -26660,7 +26660,7 @@
       "source_location": "L4108",
       "_origin": "ast",
       "id": "d20_3d_bundle_createanimationtracks",
-      "community": 195,
+      "community": 32,
       "norm_label": "_createanimationtracks()"
     },
     {
@@ -26670,7 +26670,7 @@
       "source_location": "L4108",
       "_origin": "ast",
       "id": "d20_3d_bundle_getarrayfromaccessor",
-      "community": 195,
+      "community": 32,
       "norm_label": "_getarrayfromaccessor()"
     },
     {
@@ -26680,7 +26680,7 @@
       "source_location": "L4108",
       "_origin": "ast",
       "id": "d20_3d_bundle_createcubicsplinetrackinterpolant",
-      "community": 195,
+      "community": 32,
       "norm_label": "_createcubicsplinetrackinterpolant()"
     },
     {
@@ -27282,7 +27282,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "theme_realm_theme_realmtheme",
-      "community": 121,
+      "community": 129,
       "norm_label": "realmtheme"
     },
     {
@@ -27856,6 +27856,16 @@
       "norm_label": "checkresolution"
     },
     {
+      "label": "NpcRelationship",
+      "file_type": "code",
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "models_game_state_npcrelationship",
+      "community": 52,
+      "norm_label": "npcrelationship"
+    },
+    {
       "label": "PlayerState",
       "file_type": "code",
       "source_file": "app/lib/models/game_state.dart",
@@ -28126,6 +28136,36 @@
       "norm_label": "statid"
     },
     {
+      "label": "trust",
+      "file_type": "code",
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "models_game_state_trust",
+      "community": 52,
+      "norm_label": "trust"
+    },
+    {
+      "label": "knownSecrets",
+      "file_type": "code",
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "models_game_state_knownsecrets",
+      "community": 52,
+      "norm_label": "knownsecrets"
+    },
+    {
+      "label": "notes",
+      "file_type": "code",
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "models_game_state_notes",
+      "community": 52,
+      "norm_label": "notes"
+    },
+    {
       "label": "stats",
       "file_type": "code",
       "source_file": "app/lib/models/game_state.dart",
@@ -28184,6 +28224,46 @@
       "id": "models_game_state_currentlocationid",
       "community": 52,
       "norm_label": "currentlocationid"
+    },
+    {
+      "label": "discoveredLocationIds",
+      "file_type": "code",
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "models_game_state_discoveredlocationids",
+      "community": 52,
+      "norm_label": "discoveredlocationids"
+    },
+    {
+      "label": "relationships",
+      "file_type": "code",
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "models_game_state_relationships",
+      "community": 52,
+      "norm_label": "relationships"
+    },
+    {
+      "label": "activeQuestIds",
+      "file_type": "code",
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "models_game_state_activequestids",
+      "community": 52,
+      "norm_label": "activequestids"
+    },
+    {
+      "label": "completedQuestIds",
+      "file_type": "code",
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "models_game_state_completedquestids",
+      "community": 52,
+      "norm_label": "completedquestids"
     },
     {
       "label": "fromJson",
@@ -28402,7 +28482,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "statenotifier",
-      "community": 58,
+      "community": 104,
       "norm_label": "statenotifier"
     },
     {
@@ -28442,7 +28522,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "checkresolution",
-      "community": 61,
+      "community": 104,
       "norm_label": "checkresolution?"
     },
     {
@@ -28482,7 +28562,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "voidcallback",
-      "community": 104,
+      "community": 129,
       "norm_label": "voidcallback"
     },
     {
@@ -28926,6 +29006,346 @@
       "norm_label": "../../models/story.dart"
     },
     {
+      "label": "compendium_screen.dart",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen",
+      "community": 45,
+      "norm_label": "compendium_screen.dart"
+    },
+    {
+      "label": "CompendiumScreen",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_compendiumscreen",
+      "community": 205,
+      "norm_label": "compendiumscreen"
+    },
+    {
+      "label": "ConsumerStatefulWidget",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "consumerstatefulwidget",
+      "community": 205,
+      "norm_label": "consumerstatefulwidget"
+    },
+    {
+      "label": "_CompendiumScreenState",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_compendiumscreenstate",
+      "community": 205,
+      "norm_label": "_compendiumscreenstate"
+    },
+    {
+      "label": "ConsumerState",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "consumerstate",
+      "community": 205,
+      "norm_label": "consumerstate"
+    },
+    {
+      "label": "SingleTickerProviderStateMixin",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "singletickerproviderstatemixin",
+      "community": 208,
+      "norm_label": "singletickerproviderstatemixin"
+    },
+    {
+      "label": "initialTabIndex",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_initialtabindex",
+      "community": 45,
+      "norm_label": "initialtabindex"
+    },
+    {
+      "label": "_tabController",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_tabcontroller",
+      "community": 45,
+      "norm_label": "_tabcontroller"
+    },
+    {
+      "label": "_inventoryCategoryFilter",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_inventorycategoryfilter",
+      "community": 45,
+      "norm_label": "_inventorycategoryfilter"
+    },
+    {
+      "label": "open",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_open",
+      "community": 45,
+      "norm_label": "open"
+    },
+    {
+      "label": "createState",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_createstate",
+      "community": 45,
+      "norm_label": "createstate"
+    },
+    {
+      "label": "initState",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_initstate",
+      "community": 45,
+      "norm_label": "initstate"
+    },
+    {
+      "label": "dispose",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_dispose",
+      "community": 45,
+      "norm_label": "dispose"
+    },
+    {
+      "label": "_formatStatName",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_formatstatname",
+      "community": 45,
+      "norm_label": "_formatstatname"
+    },
+    {
+      "label": "_formatResourceName",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_formatresourcename",
+      "community": 45,
+      "norm_label": "_formatresourcename"
+    },
+    {
+      "label": "_getResourceColor",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_getresourcecolor",
+      "community": 45,
+      "norm_label": "_getresourcecolor"
+    },
+    {
+      "label": "_getRarityColor",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_getraritycolor",
+      "community": 45,
+      "norm_label": "_getraritycolor"
+    },
+    {
+      "label": "build",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_build",
+      "community": 205,
+      "norm_label": "build"
+    },
+    {
+      "label": "_buildHeroSheetTab",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_buildherosheettab",
+      "community": 45,
+      "norm_label": "_buildherosheettab"
+    },
+    {
+      "label": "_buildResourceBar",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_buildresourcebar",
+      "community": 45,
+      "norm_label": "_buildresourcebar"
+    },
+    {
+      "label": "_buildEquipmentPaperdoll",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_buildequipmentpaperdoll",
+      "community": 45,
+      "norm_label": "_buildequipmentpaperdoll"
+    },
+    {
+      "label": "_buildEquipmentSlotCard",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_buildequipmentslotcard",
+      "community": 45,
+      "norm_label": "_buildequipmentslotcard"
+    },
+    {
+      "label": "_buildAttributesGrid",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_buildattributesgrid",
+      "community": 45,
+      "norm_label": "_buildattributesgrid"
+    },
+    {
+      "label": "_buildInventoryTab",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_buildinventorytab",
+      "community": 45,
+      "norm_label": "_buildinventorytab"
+    },
+    {
+      "label": "_buildFilterChip",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_buildfilterchip",
+      "community": 45,
+      "norm_label": "_buildfilterchip"
+    },
+    {
+      "label": "_buildNpcDossierTab",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_buildnpcdossiertab",
+      "community": 45,
+      "norm_label": "_buildnpcdossiertab"
+    },
+    {
+      "label": "_buildNpcCard",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_buildnpccard",
+      "community": 45,
+      "norm_label": "_buildnpccard"
+    },
+    {
+      "label": "_buildQuestJournalTab",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_buildquestjournaltab",
+      "community": 45,
+      "norm_label": "_buildquestjournaltab"
+    },
+    {
+      "label": "_buildQuestCard",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_buildquestcard",
+      "community": 45,
+      "norm_label": "_buildquestcard"
+    },
+    {
+      "label": "_buildWorldCodexTab",
+      "file_type": "code",
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_buildworldcodextab",
+      "community": 45,
+      "norm_label": "_buildworldcodextab"
+    },
+    {
+      "label": "../../core/engine/rpg_engine.dart",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "core_engine_rpg_engine_dart",
+      "community": 45,
+      "norm_label": "../../core/engine/rpg_engine.dart"
+    },
+    {
+      "label": "../../core/theme/realm_theme.dart",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "core_theme_realm_theme_dart",
+      "community": 129,
+      "norm_label": "../../core/theme/realm_theme.dart"
+    },
+    {
+      "label": "../../core/utils/persian_numbers.dart",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "core_utils_persian_numbers_dart",
+      "community": 210,
+      "norm_label": "../../core/utils/persian_numbers.dart"
+    },
+    {
+      "label": "../widgets/item_detail_sheet.dart",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "widgets_item_detail_sheet_dart",
+      "community": 45,
+      "norm_label": "../widgets/item_detail_sheet.dart"
+    },
+    {
       "label": "reader_screen.dart",
       "file_type": "code",
       "source_file": "app/lib/ui/screens/reader_screen.dart",
@@ -28946,16 +29366,6 @@
       "norm_label": "readerscreen"
     },
     {
-      "label": "ConsumerStatefulWidget",
-      "file_type": "code",
-      "source_file": null,
-      "source_location": null,
-      "_origin": "ast",
-      "id": "consumerstatefulwidget",
-      "community": 205,
-      "norm_label": "consumerstatefulwidget"
-    },
-    {
       "label": "_ReaderScreenState",
       "file_type": "code",
       "source_file": "app/lib/ui/screens/reader_screen.dart",
@@ -28964,16 +29374,6 @@
       "id": "screens_reader_screen_readerscreenstate",
       "community": 205,
       "norm_label": "_readerscreenstate"
-    },
-    {
-      "label": "ConsumerState",
-      "file_type": "code",
-      "source_file": null,
-      "source_location": null,
-      "_origin": "ast",
-      "id": "consumerstate",
-      "community": 205,
-      "norm_label": "consumerstate"
     },
     {
       "label": "_freeTextController",
@@ -29156,36 +29556,6 @@
       "norm_label": "_buildnarrativescribeloader"
     },
     {
-      "label": "../../core/engine/rpg_engine.dart",
-      "file_type": "code",
-      "source_file": null,
-      "source_location": null,
-      "_origin": "ast",
-      "id": "core_engine_rpg_engine_dart",
-      "community": 205,
-      "norm_label": "../../core/engine/rpg_engine.dart"
-    },
-    {
-      "label": "../../core/theme/realm_theme.dart",
-      "file_type": "code",
-      "source_file": null,
-      "source_location": null,
-      "_origin": "ast",
-      "id": "core_theme_realm_theme_dart",
-      "community": 121,
-      "norm_label": "../../core/theme/realm_theme.dart"
-    },
-    {
-      "label": "../../core/utils/persian_numbers.dart",
-      "file_type": "code",
-      "source_file": null,
-      "source_location": null,
-      "_origin": "ast",
-      "id": "core_utils_persian_numbers_dart",
-      "community": 210,
-      "norm_label": "../../core/utils/persian_numbers.dart"
-    },
-    {
       "label": "../widgets/atmosphere_canvas.dart",
       "file_type": "code",
       "source_file": null,
@@ -29254,6 +29624,16 @@
       "id": "story_catalog_screen_dart",
       "community": 205,
       "norm_label": "story_catalog_screen.dart"
+    },
+    {
+      "label": "compendium_screen.dart",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "compendium_screen_dart",
+      "community": 205,
+      "norm_label": "compendium_screen.dart"
     },
     {
       "label": "ScaffoldState",
@@ -29446,16 +29826,6 @@
       "norm_label": "_atmospherecanvasstate"
     },
     {
-      "label": "SingleTickerProviderStateMixin",
-      "file_type": "code",
-      "source_file": null,
-      "source_location": null,
-      "_origin": "ast",
-      "id": "singletickerproviderstatemixin",
-      "community": 208,
-      "norm_label": "singletickerproviderstatemixin"
-    },
-    {
       "label": "_Particle",
       "file_type": "code",
       "source_file": "app/lib/ui/widgets/atmosphere_canvas.dart",
@@ -29552,7 +29922,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "animationcontroller",
-      "community": 121,
+      "community": 129,
       "norm_label": "animationcontroller"
     },
     {
@@ -29782,7 +30152,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_choice_pill_choicepill",
-      "community": 196,
+      "community": 61,
       "norm_label": "choicepill"
     },
     {
@@ -29792,7 +30162,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "statelesswidget",
-      "community": 196,
+      "community": 61,
       "norm_label": "statelesswidget"
     },
     {
@@ -29842,7 +30212,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_dialog",
-      "community": 61,
+      "community": 211,
       "norm_label": "dice_roll_dialog.dart"
     },
     {
@@ -29852,7 +30222,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_dialog_dicerolldialog",
-      "community": 208,
+      "community": 211,
       "norm_label": "dicerolldialog"
     },
     {
@@ -29862,7 +30232,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_dialog_dicerolldialogstate",
-      "community": 208,
+      "community": 211,
       "norm_label": "_dicerolldialogstate"
     },
     {
@@ -29872,7 +30242,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_dialog_resolution",
-      "community": 61,
+      "community": 211,
       "norm_label": "resolution"
     },
     {
@@ -29882,7 +30252,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_dialog_actiontext",
-      "community": 61,
+      "community": 211,
       "norm_label": "actiontext"
     },
     {
@@ -29892,7 +30262,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_dialog_ispersian",
-      "community": 61,
+      "community": 211,
       "norm_label": "ispersian"
     },
     {
@@ -29902,7 +30272,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_dialog_isrolling",
-      "community": 61,
+      "community": 211,
       "norm_label": "_isrolling"
     },
     {
@@ -29912,7 +30282,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_dialog_show",
-      "community": 61,
+      "community": 211,
       "norm_label": "show"
     },
     {
@@ -29922,7 +30292,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_dialog_createstate",
-      "community": 61,
+      "community": 211,
       "norm_label": "createstate"
     },
     {
@@ -29932,7 +30302,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_dialog_initstate",
-      "community": 61,
+      "community": 211,
       "norm_label": "initstate"
     },
     {
@@ -29942,7 +30312,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_dialog_getoutcomecolor",
-      "community": 61,
+      "community": 211,
       "norm_label": "_getoutcomecolor"
     },
     {
@@ -29952,7 +30322,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_dialog_getoutcomelabel",
-      "community": 61,
+      "community": 211,
       "norm_label": "_getoutcomelabel"
     },
     {
@@ -29962,7 +30332,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_dialog_getconsequencesummary",
-      "community": 61,
+      "community": 211,
       "norm_label": "_getconsequencesummary"
     },
     {
@@ -29972,7 +30342,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_dialog_build",
-      "community": 61,
+      "community": 211,
       "norm_label": "build"
     },
     {
@@ -29982,7 +30352,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_dialog_buildstatbox",
-      "community": 61,
+      "community": 211,
       "norm_label": "_buildstatbox"
     },
     {
@@ -29992,7 +30362,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "package_flutter_services_dart",
-      "community": 66,
+      "community": 211,
       "norm_label": "package:flutter/services.dart"
     },
     {
@@ -30002,7 +30372,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "three_d20_dice_view_dart",
-      "community": 61,
+      "community": 211,
       "norm_label": "three_d20_dice_view.dart"
     },
     {
@@ -30022,7 +30392,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_dice_roll_overlay_dicerolloverlay",
-      "community": 196,
+      "community": 61,
       "norm_label": "dicerolloverlay"
     },
     {
@@ -30532,7 +30902,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_realm_relic_badge",
-      "community": 121,
+      "community": 129,
       "norm_label": "realm_relic_badge.dart"
     },
     {
@@ -30562,7 +30932,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_realm_relic_badge_theme",
-      "community": 121,
+      "community": 129,
       "norm_label": "theme"
     },
     {
@@ -30572,7 +30942,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_realm_relic_badge_ontap",
-      "community": 121,
+      "community": 129,
       "norm_label": "ontap"
     },
     {
@@ -30582,7 +30952,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_realm_relic_badge_controller",
-      "community": 121,
+      "community": 129,
       "norm_label": "_controller"
     },
     {
@@ -30592,7 +30962,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_realm_relic_badge_createstate",
-      "community": 121,
+      "community": 129,
       "norm_label": "createstate"
     },
     {
@@ -30602,7 +30972,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_realm_relic_badge_initstate",
-      "community": 121,
+      "community": 129,
       "norm_label": "initstate"
     },
     {
@@ -30612,7 +30982,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_realm_relic_badge_dispose",
-      "community": 121,
+      "community": 129,
       "norm_label": "dispose"
     },
     {
@@ -30622,7 +30992,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_realm_relic_badge_build",
-      "community": 121,
+      "community": 129,
       "norm_label": "build"
     },
     {
@@ -30794,6 +31164,16 @@
       "id": "widgets_rpg_hud_drawer_buildinventoryitemtile",
       "community": 56,
       "norm_label": "_buildinventoryitemtile"
+    },
+    {
+      "label": "../screens/compendium_screen.dart",
+      "file_type": "code",
+      "source_file": null,
+      "source_location": null,
+      "_origin": "ast",
+      "id": "screens_compendium_screen_dart",
+      "community": 56,
+      "norm_label": "../screens/compendium_screen.dart"
     },
     {
       "label": "item_detail_sheet.dart",
@@ -31212,7 +31592,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_story_cover_image_storycoverimage",
-      "community": 196,
+      "community": 61,
       "norm_label": "storycoverimage"
     },
     {
@@ -42706,396 +43086,6 @@
       "norm_label": "workflow: graphify"
     },
     {
-      "label": "MASTER_PLAN.md",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "master_plan",
-      "community": 21,
-      "norm_label": "master_plan.md"
-    },
-    {
-      "label": "StoryForge \u2014 Interactive RPG Novel",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "master_plan_storyforge_interactive_rpg_novel",
-      "community": 21,
-      "norm_label": "storyforge \u2014 interactive rpg novel"
-    },
-    {
-      "label": "Master Plan & Technical Specification",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L2",
-      "_origin": "ast",
-      "id": "master_plan_master_plan_technical_specification",
-      "community": 21,
-      "norm_label": "master plan & technical specification"
-    },
-    {
-      "label": "Table of Contents",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L12",
-      "_origin": "ast",
-      "id": "master_plan_table_of_contents",
-      "community": 21,
-      "norm_label": "table of contents"
-    },
-    {
-      "label": "1. Executive Summary & Core Philosophy",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L30",
-      "_origin": "ast",
-      "id": "master_plan_1_executive_summary_core_philosophy",
-      "community": 21,
-      "norm_label": "1. executive summary & core philosophy"
-    },
-    {
-      "label": "The 7 Pillars of StoryForge:",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L38",
-      "_origin": "ast",
-      "id": "master_plan_the_7_pillars_of_storyforge",
-      "community": 21,
-      "norm_label": "the 7 pillars of storyforge:"
-    },
-    {
-      "label": "2. Product & User Experience (UX)",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L50",
-      "_origin": "ast",
-      "id": "master_plan_2_product_user_experience_ux",
-      "community": 21,
-      "norm_label": "2. product & user experience (ux)"
-    },
-    {
-      "label": "2.1 The Reading Flow",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L52",
-      "_origin": "ast",
-      "id": "master_plan_2_1_the_reading_flow",
-      "community": 21,
-      "norm_label": "2.1 the reading flow"
-    },
-    {
-      "label": "2.2 The 3-Style Choice System",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L57",
-      "_origin": "ast",
-      "id": "master_plan_2_2_the_3_style_choice_system",
-      "community": 21,
-      "norm_label": "2.2 the 3-style choice system"
-    },
-    {
-      "label": "2.3 Free-Text Actions & Plausibility",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L66",
-      "_origin": "ast",
-      "id": "master_plan_2_3_free_text_actions_plausibility",
-      "community": 21,
-      "norm_label": "2.3 free-text actions & plausibility"
-    },
-    {
-      "label": "2.4 Narrative Combat (No Turn-Based Grid)",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L71",
-      "_origin": "ast",
-      "id": "master_plan_2_4_narrative_combat_no_turn_based_grid",
-      "community": 21,
-      "norm_label": "2.4 narrative combat (no turn-based grid)"
-    },
-    {
-      "label": "3. System Architecture",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L77",
-      "_origin": "ast",
-      "id": "master_plan_3_system_architecture",
-      "community": 21,
-      "norm_label": "3. system architecture"
-    },
-    {
-      "label": "4. StoryForge Studio (Authoring & World-Building Admin Suite)",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L122",
-      "_origin": "ast",
-      "id": "master_plan_4_storyforge_studio_authoring_world_building_admin_suite",
-      "community": 21,
-      "norm_label": "4. storyforge studio (authoring & world-building admin suite)"
-    },
-    {
-      "label": "4.1 World Bible & Lore Graph Editor",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L135",
-      "_origin": "ast",
-      "id": "master_plan_4_1_world_bible_lore_graph_editor",
-      "community": 21,
-      "norm_label": "4.1 world bible & lore graph editor"
-    },
-    {
-      "label": "4.2 RPG Ruleset & Stat Schema Designer",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L140",
-      "_origin": "ast",
-      "id": "master_plan_4_2_rpg_ruleset_stat_schema_designer",
-      "community": 21,
-      "norm_label": "4.2 rpg ruleset & stat schema designer"
-    },
-    {
-      "label": "4.3 NPC Dossier & Relationship Manager",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L146",
-      "_origin": "ast",
-      "id": "master_plan_4_3_npc_dossier_relationship_manager",
-      "community": 21,
-      "norm_label": "4.3 npc dossier & relationship manager"
-    },
-    {
-      "label": "4.4 Story & Scene Director",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L151",
-      "_origin": "ast",
-      "id": "master_plan_4_4_story_scene_director",
-      "community": 21,
-      "norm_label": "4.4 story & scene director"
-    },
-    {
-      "label": "4.5 AI Simulation Sandbox & Prompt Inspector",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L155",
-      "_origin": "ast",
-      "id": "master_plan_4_5_ai_simulation_sandbox_prompt_inspector",
-      "community": 21,
-      "norm_label": "4.5 ai simulation sandbox & prompt inspector"
-    },
-    {
-      "label": "4.6 Live Playtest & Memory Inspector",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L160",
-      "_origin": "ast",
-      "id": "master_plan_4_6_live_playtest_memory_inspector",
-      "community": 21,
-      "norm_label": "4.6 live playtest & memory inspector"
-    },
-    {
-      "label": "5. The 4 Core Engines",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L166",
-      "_origin": "ast",
-      "id": "master_plan_5_the_4_core_engines",
-      "community": 21,
-      "norm_label": "5. the 4 core engines"
-    },
-    {
-      "label": "5.1 World Engine & World Bible",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L168",
-      "_origin": "ast",
-      "id": "master_plan_5_1_world_engine_world_bible",
-      "community": 21,
-      "norm_label": "5.1 world engine & world bible"
-    },
-    {
-      "label": "5.2 Game Engine & Deterministic Mechanics",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L174",
-      "_origin": "ast",
-      "id": "master_plan_5_2_game_engine_deterministic_mechanics",
-      "community": 21,
-      "norm_label": "5.2 game engine & deterministic mechanics"
-    },
-    {
-      "label": "5.3 Action Validation Layer",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L186",
-      "_origin": "ast",
-      "id": "master_plan_5_3_action_validation_layer",
-      "community": 21,
-      "norm_label": "5.3 action validation layer"
-    },
-    {
-      "label": "5.4 Multi-Tier Hierarchical Memory System",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L200",
-      "_origin": "ast",
-      "id": "master_plan_5_4_multi_tier_hierarchical_memory_system",
-      "community": 21,
-      "norm_label": "5.4 multi-tier hierarchical memory system"
-    },
-    {
-      "label": "Memory Importance Scoring (0 to 10 Scale):",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L218",
-      "_origin": "ast",
-      "id": "master_plan_memory_importance_scoring_0_to_10_scale",
-      "community": 21,
-      "norm_label": "memory importance scoring (0 to 10 scale):"
-    },
-    {
-      "label": "6. AI Narrative Director & Prompt Assembly",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L226",
-      "_origin": "ast",
-      "id": "master_plan_6_ai_narrative_director_prompt_assembly",
-      "community": 21,
-      "norm_label": "6. ai narrative director & prompt assembly"
-    },
-    {
-      "label": "7. Data Schemas & Definitions",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L261",
-      "_origin": "ast",
-      "id": "master_plan_7_data_schemas_definitions",
-      "community": 21,
-      "norm_label": "7. data schemas & definitions"
-    },
-    {
-      "label": "7.1 Story Manifest (`story.json`)",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L263",
-      "_origin": "ast",
-      "id": "master_plan_7_1_story_manifest_story_json",
-      "community": 21,
-      "norm_label": "7.1 story manifest (`story.json`)"
-    },
-    {
-      "label": "7.2 Playthrough Session State",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L287",
-      "_origin": "ast",
-      "id": "master_plan_7_2_playthrough_session_state",
-      "community": 21,
-      "norm_label": "7.2 playthrough session state"
-    },
-    {
-      "label": "8. Client Architecture (Flutter Reader App)",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L310",
-      "_origin": "ast",
-      "id": "master_plan_8_client_architecture_flutter_reader_app",
-      "community": 21,
-      "norm_label": "8. client architecture (flutter reader app)"
-    },
-    {
-      "label": "8.1 Key UI Modules",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L312",
-      "_origin": "ast",
-      "id": "master_plan_8_1_key_ui_modules",
-      "community": 21,
-      "norm_label": "8.1 key ui modules"
-    },
-    {
-      "label": "9. Project Directory Structure",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L327",
-      "_origin": "ast",
-      "id": "master_plan_9_project_directory_structure",
-      "community": 21,
-      "norm_label": "9. project directory structure"
-    },
-    {
-      "label": "10. Development Roadmap & Milestones",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L385",
-      "_origin": "ast",
-      "id": "master_plan_10_development_roadmap_milestones",
-      "community": 21,
-      "norm_label": "10. development roadmap & milestones"
-    },
-    {
-      "label": "Phase 1: Domain Foundation & Deterministic Mechanics",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L387",
-      "_origin": "ast",
-      "id": "master_plan_phase_1_domain_foundation_deterministic_mechanics",
-      "community": 21,
-      "norm_label": "phase 1: domain foundation & deterministic mechanics"
-    },
-    {
-      "label": "Phase 2: StoryForge Studio (Admin & World-Building Suite)",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L392",
-      "_origin": "ast",
-      "id": "master_plan_phase_2_storyforge_studio_admin_world_building_suite",
-      "community": 21,
-      "norm_label": "phase 2: storyforge studio (admin & world-building suite)"
-    },
-    {
-      "label": "Phase 3: Memory Hierarchy, Guardrails & AI Pipeline",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L398",
-      "_origin": "ast",
-      "id": "master_plan_phase_3_memory_hierarchy_guardrails_ai_pipeline",
-      "community": 21,
-      "norm_label": "phase 3: memory hierarchy, guardrails & ai pipeline"
-    },
-    {
-      "label": "Phase 4: Backend API & Persistence",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L403",
-      "_origin": "ast",
-      "id": "master_plan_phase_4_backend_api_persistence",
-      "community": 21,
-      "norm_label": "phase 4: backend api & persistence"
-    },
-    {
-      "label": "Phase 5: Flutter Reader Client",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L408",
-      "_origin": "ast",
-      "id": "master_plan_phase_5_flutter_reader_client",
-      "community": 21,
-      "norm_label": "phase 5: flutter reader client"
-    },
-    {
-      "label": "Phase 6: Pilot Stories & End-to-End Polish",
-      "file_type": "document",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L413",
-      "_origin": "ast",
-      "id": "master_plan_phase_6_pilot_stories_end_to_end_polish",
-      "community": 21,
-      "norm_label": "phase 6: pilot stories & end-to-end polish"
-    },
-    {
       "label": "README.md",
       "file_type": "document",
       "source_file": "README.md",
@@ -43116,20 +43106,20 @@
       "norm_label": "storyforge \u2014 interactive rpg novel"
     },
     {
-      "label": "\ud83d\udcd6 Master Plan & Architecture",
+      "label": "\ud83d\udcd6 Documentation & Architecture",
       "file_type": "document",
       "source_file": "README.md",
       "source_location": "L9",
       "_origin": "ast",
-      "id": "readme_master_plan_architecture",
+      "id": "readme_documentation_architecture",
       "community": 139,
-      "norm_label": "\ud83d\udcd6 master plan & architecture"
+      "norm_label": "\ud83d\udcd6 documentation & architecture"
     },
     {
       "label": "\ud83c\udfdb\ufe0f Core Engines Overview",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L17",
+      "source_location": "L16",
       "_origin": "ast",
       "id": "readme_core_engines_overview",
       "community": 139,
@@ -43184,6 +43174,476 @@
       "id": "launchimage_imageset_readme_launch_screen_assets",
       "community": 151,
       "norm_label": "launch screen assets"
+    },
+    {
+      "label": "MASTER_PLAN.md",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_master_plan",
+      "community": 21,
+      "norm_label": "master_plan.md"
+    },
+    {
+      "label": "StoryForge \u2014 Interactive RPG Novel",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_master_plan_storyforge_interactive_rpg_novel",
+      "community": 21,
+      "norm_label": "storyforge \u2014 interactive rpg novel"
+    },
+    {
+      "label": "Master Plan & Technical Specification",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L2",
+      "_origin": "ast",
+      "id": "docs_master_plan_master_plan_technical_specification",
+      "community": 21,
+      "norm_label": "master plan & technical specification"
+    },
+    {
+      "label": "Table of Contents",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L12",
+      "_origin": "ast",
+      "id": "docs_master_plan_table_of_contents",
+      "community": 21,
+      "norm_label": "table of contents"
+    },
+    {
+      "label": "1. Executive Summary & Core Philosophy",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L30",
+      "_origin": "ast",
+      "id": "docs_master_plan_1_executive_summary_core_philosophy",
+      "community": 21,
+      "norm_label": "1. executive summary & core philosophy"
+    },
+    {
+      "label": "The 7 Pillars of StoryForge:",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L38",
+      "_origin": "ast",
+      "id": "docs_master_plan_the_7_pillars_of_storyforge",
+      "community": 21,
+      "norm_label": "the 7 pillars of storyforge:"
+    },
+    {
+      "label": "2. Product & User Experience (UX)",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L50",
+      "_origin": "ast",
+      "id": "docs_master_plan_2_product_user_experience_ux",
+      "community": 21,
+      "norm_label": "2. product & user experience (ux)"
+    },
+    {
+      "label": "2.1 The Reading Flow",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L52",
+      "_origin": "ast",
+      "id": "docs_master_plan_2_1_the_reading_flow",
+      "community": 21,
+      "norm_label": "2.1 the reading flow"
+    },
+    {
+      "label": "2.2 The 3-Style Choice System",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L57",
+      "_origin": "ast",
+      "id": "docs_master_plan_2_2_the_3_style_choice_system",
+      "community": 21,
+      "norm_label": "2.2 the 3-style choice system"
+    },
+    {
+      "label": "2.3 Free-Text Actions & Plausibility",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L66",
+      "_origin": "ast",
+      "id": "docs_master_plan_2_3_free_text_actions_plausibility",
+      "community": 21,
+      "norm_label": "2.3 free-text actions & plausibility"
+    },
+    {
+      "label": "2.4 Narrative Combat (No Turn-Based Grid)",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L71",
+      "_origin": "ast",
+      "id": "docs_master_plan_2_4_narrative_combat_no_turn_based_grid",
+      "community": 21,
+      "norm_label": "2.4 narrative combat (no turn-based grid)"
+    },
+    {
+      "label": "3. System Architecture",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L77",
+      "_origin": "ast",
+      "id": "docs_master_plan_3_system_architecture",
+      "community": 21,
+      "norm_label": "3. system architecture"
+    },
+    {
+      "label": "4. StoryForge Studio (Authoring & World-Building Admin Suite)",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L122",
+      "_origin": "ast",
+      "id": "docs_master_plan_4_storyforge_studio_authoring_world_building_admin_suite",
+      "community": 21,
+      "norm_label": "4. storyforge studio (authoring & world-building admin suite)"
+    },
+    {
+      "label": "4.1 World Bible & Lore Graph Editor",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L135",
+      "_origin": "ast",
+      "id": "docs_master_plan_4_1_world_bible_lore_graph_editor",
+      "community": 21,
+      "norm_label": "4.1 world bible & lore graph editor"
+    },
+    {
+      "label": "4.2 RPG Ruleset & Stat Schema Designer",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L140",
+      "_origin": "ast",
+      "id": "docs_master_plan_4_2_rpg_ruleset_stat_schema_designer",
+      "community": 21,
+      "norm_label": "4.2 rpg ruleset & stat schema designer"
+    },
+    {
+      "label": "4.3 NPC Dossier & Relationship Manager",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L146",
+      "_origin": "ast",
+      "id": "docs_master_plan_4_3_npc_dossier_relationship_manager",
+      "community": 21,
+      "norm_label": "4.3 npc dossier & relationship manager"
+    },
+    {
+      "label": "4.4 Story & Scene Director",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L151",
+      "_origin": "ast",
+      "id": "docs_master_plan_4_4_story_scene_director",
+      "community": 21,
+      "norm_label": "4.4 story & scene director"
+    },
+    {
+      "label": "4.5 AI Simulation Sandbox & Prompt Inspector",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L155",
+      "_origin": "ast",
+      "id": "docs_master_plan_4_5_ai_simulation_sandbox_prompt_inspector",
+      "community": 21,
+      "norm_label": "4.5 ai simulation sandbox & prompt inspector"
+    },
+    {
+      "label": "4.6 Live Playtest & Memory Inspector",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L160",
+      "_origin": "ast",
+      "id": "docs_master_plan_4_6_live_playtest_memory_inspector",
+      "community": 21,
+      "norm_label": "4.6 live playtest & memory inspector"
+    },
+    {
+      "label": "5. The 4 Core Engines",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L166",
+      "_origin": "ast",
+      "id": "docs_master_plan_5_the_4_core_engines",
+      "community": 21,
+      "norm_label": "5. the 4 core engines"
+    },
+    {
+      "label": "5.1 World Engine & World Bible",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L168",
+      "_origin": "ast",
+      "id": "docs_master_plan_5_1_world_engine_world_bible",
+      "community": 21,
+      "norm_label": "5.1 world engine & world bible"
+    },
+    {
+      "label": "5.2 Game Engine & Deterministic Mechanics",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L174",
+      "_origin": "ast",
+      "id": "docs_master_plan_5_2_game_engine_deterministic_mechanics",
+      "community": 21,
+      "norm_label": "5.2 game engine & deterministic mechanics"
+    },
+    {
+      "label": "5.3 Action Validation Layer",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L186",
+      "_origin": "ast",
+      "id": "docs_master_plan_5_3_action_validation_layer",
+      "community": 21,
+      "norm_label": "5.3 action validation layer"
+    },
+    {
+      "label": "5.4 Multi-Tier Hierarchical Memory System",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L200",
+      "_origin": "ast",
+      "id": "docs_master_plan_5_4_multi_tier_hierarchical_memory_system",
+      "community": 21,
+      "norm_label": "5.4 multi-tier hierarchical memory system"
+    },
+    {
+      "label": "Memory Importance Scoring (0 to 10 Scale):",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L218",
+      "_origin": "ast",
+      "id": "docs_master_plan_memory_importance_scoring_0_to_10_scale",
+      "community": 21,
+      "norm_label": "memory importance scoring (0 to 10 scale):"
+    },
+    {
+      "label": "6. AI Narrative Director & Prompt Assembly",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L226",
+      "_origin": "ast",
+      "id": "docs_master_plan_6_ai_narrative_director_prompt_assembly",
+      "community": 21,
+      "norm_label": "6. ai narrative director & prompt assembly"
+    },
+    {
+      "label": "7. Data Schemas & Definitions",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L261",
+      "_origin": "ast",
+      "id": "docs_master_plan_7_data_schemas_definitions",
+      "community": 21,
+      "norm_label": "7. data schemas & definitions"
+    },
+    {
+      "label": "7.1 Story Manifest (`story.json`)",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L263",
+      "_origin": "ast",
+      "id": "docs_master_plan_7_1_story_manifest_story_json",
+      "community": 21,
+      "norm_label": "7.1 story manifest (`story.json`)"
+    },
+    {
+      "label": "7.2 Playthrough Session State",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L287",
+      "_origin": "ast",
+      "id": "docs_master_plan_7_2_playthrough_session_state",
+      "community": 21,
+      "norm_label": "7.2 playthrough session state"
+    },
+    {
+      "label": "8. Client Architecture (Flutter Reader App)",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L310",
+      "_origin": "ast",
+      "id": "docs_master_plan_8_client_architecture_flutter_reader_app",
+      "community": 21,
+      "norm_label": "8. client architecture (flutter reader app)"
+    },
+    {
+      "label": "8.1 Key UI Modules",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L312",
+      "_origin": "ast",
+      "id": "docs_master_plan_8_1_key_ui_modules",
+      "community": 21,
+      "norm_label": "8.1 key ui modules"
+    },
+    {
+      "label": "9. Project Directory Structure",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L327",
+      "_origin": "ast",
+      "id": "docs_master_plan_9_project_directory_structure",
+      "community": 21,
+      "norm_label": "9. project directory structure"
+    },
+    {
+      "label": "10. Development Roadmap & Milestones",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L385",
+      "_origin": "ast",
+      "id": "docs_master_plan_10_development_roadmap_milestones",
+      "community": 21,
+      "norm_label": "10. development roadmap & milestones"
+    },
+    {
+      "label": "Phase 1: Domain Foundation & Deterministic Mechanics",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L387",
+      "_origin": "ast",
+      "id": "docs_master_plan_phase_1_domain_foundation_deterministic_mechanics",
+      "community": 21,
+      "norm_label": "phase 1: domain foundation & deterministic mechanics"
+    },
+    {
+      "label": "Phase 2: StoryForge Studio (Admin & World-Building Suite)",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L392",
+      "_origin": "ast",
+      "id": "docs_master_plan_phase_2_storyforge_studio_admin_world_building_suite",
+      "community": 21,
+      "norm_label": "phase 2: storyforge studio (admin & world-building suite)"
+    },
+    {
+      "label": "Phase 3: Memory Hierarchy, Guardrails & AI Pipeline",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L398",
+      "_origin": "ast",
+      "id": "docs_master_plan_phase_3_memory_hierarchy_guardrails_ai_pipeline",
+      "community": 21,
+      "norm_label": "phase 3: memory hierarchy, guardrails & ai pipeline"
+    },
+    {
+      "label": "Phase 4: Backend API & Persistence",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L403",
+      "_origin": "ast",
+      "id": "docs_master_plan_phase_4_backend_api_persistence",
+      "community": 21,
+      "norm_label": "phase 4: backend api & persistence"
+    },
+    {
+      "label": "Phase 5: Flutter Reader Client",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L408",
+      "_origin": "ast",
+      "id": "docs_master_plan_phase_5_flutter_reader_client",
+      "community": 21,
+      "norm_label": "phase 5: flutter reader client"
+    },
+    {
+      "label": "Phase 6: Pilot Stories & End-to-End Polish",
+      "file_type": "document",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L413",
+      "_origin": "ast",
+      "id": "docs_master_plan_phase_6_pilot_stories_end_to_end_polish",
+      "community": 21,
+      "norm_label": "phase 6: pilot stories & end-to-end polish"
+    },
+    {
+      "label": "roadmap.md",
+      "file_type": "document",
+      "source_file": "docs/roadmap.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_roadmap",
+      "community": 216,
+      "norm_label": "roadmap.md"
+    },
+    {
+      "label": "StoryForge \u2014 Feature Roadmap & Architecture Milestones",
+      "file_type": "document",
+      "source_file": "docs/roadmap.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_roadmap_storyforge_feature_roadmap_architecture_milestones",
+      "community": 216,
+      "norm_label": "storyforge \u2014 feature roadmap & architecture milestones"
+    },
+    {
+      "label": "\ud83d\uddfa\ufe0f High-Level Feature Roadmap",
+      "file_type": "document",
+      "source_file": "docs/roadmap.md",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "docs_roadmap_high_level_feature_roadmap",
+      "community": 216,
+      "norm_label": "\ud83d\uddfa\ufe0f high-level feature roadmap"
+    },
+    {
+      "label": "1. \ud83d\udcdc Full-Page RPG Character & Realm Compendium",
+      "file_type": "document",
+      "source_file": "docs/roadmap.md",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "docs_roadmap_1_full_page_rpg_character_realm_compendium",
+      "community": 216,
+      "norm_label": "1. \ud83d\udcdc full-page rpg character & realm compendium"
+    },
+    {
+      "label": "2. \ud83c\udfad Interactive Character Creation & Archetypes",
+      "file_type": "document",
+      "source_file": "docs/roadmap.md",
+      "source_location": "L19",
+      "_origin": "ast",
+      "id": "docs_roadmap_2_interactive_character_creation_archetypes",
+      "community": 216,
+      "norm_label": "2. \ud83c\udfad interactive character creation & archetypes"
+    },
+    {
+      "label": "3. \u2694\ufe0f High-Stakes Tactical Combat Mode",
+      "file_type": "document",
+      "source_file": "docs/roadmap.md",
+      "source_location": "L26",
+      "_origin": "ast",
+      "id": "docs_roadmap_3_high_stakes_tactical_combat_mode",
+      "community": 216,
+      "norm_label": "3. \u2694\ufe0f high-stakes tactical combat mode"
+    },
+    {
+      "label": "4. \ud83d\udd0a Ambient Soundscapes & Physical Audio Feedback",
+      "file_type": "document",
+      "source_file": "docs/roadmap.md",
+      "source_location": "L33",
+      "_origin": "ast",
+      "id": "docs_roadmap_4_ambient_soundscapes_physical_audio_feedback",
+      "community": 216,
+      "norm_label": "4. \ud83d\udd0a ambient soundscapes & physical audio feedback"
+    },
+    {
+      "label": "5. \ud83c\udfdb\ufe0f StoryForge Web Authoring Studio Suite",
+      "file_type": "document",
+      "source_file": "docs/roadmap.md",
+      "source_location": "L39",
+      "_origin": "ast",
+      "id": "docs_roadmap_5_storyforge_web_authoring_studio_suite",
+      "community": 216,
+      "norm_label": "5. \ud83c\udfdb\ufe0f storyforge web authoring studio suite"
     },
     {
       "label": "run.md",
@@ -116925,6 +117385,16 @@
       "relation": "imports",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "models_game_state_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source_file": "app/lib/ui/screens/reader_screen.dart",
       "source_location": null,
       "weight": 1.0,
@@ -117050,6 +117520,16 @@
       "source_location": null,
       "weight": 1.0,
       "source": "lib_main",
+      "target": "package_flutter_material_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
       "target": "package_flutter_material_dart"
     },
     {
@@ -117211,6 +117691,16 @@
       "weight": 1.0,
       "source": "widgets_three_d_choice_card",
       "target": "package_flutter_material_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "package_google_fonts_google_fonts_dart"
     },
     {
       "relation": "imports",
@@ -117967,6 +118457,16 @@
       "relation": "imports",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "package_flutter_riverpod_flutter_riverpod_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source_file": "app/lib/ui/screens/reader_screen.dart",
       "source_location": null,
       "weight": 1.0,
@@ -118022,6 +118522,16 @@
       "weight": 1.0,
       "source": "screens_reader_screen",
       "target": "providers_dice_overlay_provider_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "providers_game_session_provider_dart"
     },
     {
       "relation": "imports",
@@ -118195,6 +118705,16 @@
       "source_location": null,
       "weight": 1.0,
       "source": "models_game_state",
+      "target": "models_game_state_activequestids"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "models_game_state",
       "target": "models_game_state_allequippedids"
     },
     {
@@ -118216,6 +118736,16 @@
       "weight": 1.0,
       "source": "models_game_state",
       "target": "models_game_state_checkresolution"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "models_game_state",
+      "target": "models_game_state_completedquestids"
     },
     {
       "relation": "defines",
@@ -118276,6 +118806,16 @@
       "weight": 1.0,
       "source": "models_game_state",
       "target": "models_game_state_difficultyclass"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "models_game_state",
+      "target": "models_game_state_discoveredlocationids"
     },
     {
       "relation": "defines",
@@ -118405,6 +118945,16 @@
       "source_location": null,
       "weight": 1.0,
       "source": "models_game_state",
+      "target": "models_game_state_knownsecrets"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "models_game_state",
       "target": "models_game_state_mainhand"
     },
     {
@@ -118416,6 +118966,26 @@
       "weight": 1.0,
       "source": "models_game_state",
       "target": "models_game_state_name"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "models_game_state",
+      "target": "models_game_state_notes"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "models_game_state",
+      "target": "models_game_state_npcrelationship"
     },
     {
       "relation": "defines",
@@ -118476,6 +119046,16 @@
       "weight": 1.0,
       "source": "models_game_state",
       "target": "models_game_state_rarity"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "models_game_state",
+      "target": "models_game_state_relationships"
     },
     {
       "relation": "defines",
@@ -118566,6 +119146,16 @@
       "weight": 1.0,
       "source": "models_game_state",
       "target": "models_game_state_totalscore"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/models/game_state.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "models_game_state",
+      "target": "models_game_state_trust"
     },
     {
       "relation": "defines",
@@ -119391,6 +119981,28 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "context": "riverpod_reference",
+      "source": "screens_compendium_screen_build",
+      "target": "providers_game_session_provider_gamesessionprovider"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "context": "riverpod_reference",
+      "source": "screens_compendium_screen_compendiumscreenstate",
+      "target": "providers_game_session_provider_gamesessionprovider"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source_file": "app/lib/ui/screens/reader_screen.dart",
       "source_location": null,
       "weight": 1.0,
@@ -119663,6 +120275,458 @@
       "relation": "imports",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "core_engine_rpg_engine_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "core_theme_realm_theme_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "core_utils_persian_numbers_dart"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_build"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_buildattributesgrid"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_buildequipmentpaperdoll"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_buildequipmentslotcard"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_buildfilterchip"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_buildherosheettab"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_buildinventorytab"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_buildnpccard"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_buildnpcdossiertab"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_buildquestcard"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_buildquestjournaltab"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_buildresourcebar"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_buildworldcodextab"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_compendiumscreen"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_compendiumscreenstate"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_createstate"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_dispose"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_formatresourcename"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_formatstatname"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_getraritycolor"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_getresourcecolor"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_initialtabindex"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_initstate"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_inventorycategoryfilter"
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_open"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "context": "variable_type",
+      "source": "screens_compendium_screen",
+      "target": "screens_compendium_screen_tabcontroller"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "context": "type_lookup",
+      "source": "screens_compendium_screen",
+      "target": "widgets_atmosphere_canvas_color"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen",
+      "target": "widgets_item_detail_sheet_dart"
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen_compendiumscreen",
+      "target": "consumerstatefulwidget"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen_compendiumscreenstate",
+      "target": "screens_compendium_screen_compendiumscreen"
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/reader_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_reader_screen_readerscreen",
+      "target": "consumerstatefulwidget"
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/story_catalog_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_story_catalog_screen_storycatalogscreen",
+      "target": "consumerstatefulwidget"
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/widgets/rpg_hud_drawer.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "widgets_rpg_hud_drawer_rpghuddrawer",
+      "target": "consumerstatefulwidget"
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen_compendiumscreenstate",
+      "target": "consumerstate"
+    },
+    {
+      "relation": "mixes_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/compendium_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_compendium_screen_compendiumscreenstate",
+      "target": "singletickerproviderstatemixin"
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/reader_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_reader_screen_readerscreenstate",
+      "target": "consumerstate"
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/story_catalog_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_story_catalog_screen_storycatalogscreenstate",
+      "target": "consumerstate"
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/widgets/rpg_hud_drawer.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "widgets_rpg_hud_drawer_rpghuddrawerstate",
+      "target": "consumerstate"
+    },
+    {
+      "relation": "mixes_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/widgets/atmosphere_canvas.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "widgets_atmosphere_canvas_atmospherecanvasstate",
+      "target": "singletickerproviderstatemixin"
+    },
+    {
+      "relation": "mixes_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/widgets/realm_relic_badge.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "widgets_realm_relic_badge_realmrelicbadgestate",
+      "target": "singletickerproviderstatemixin"
+    },
+    {
+      "relation": "mixes_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/widgets/rpg_toast.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "widgets_rpg_toast_rpgtoastwidgetstate",
+      "target": "singletickerproviderstatemixin"
+    },
+    {
+      "relation": "mixes_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/widgets/three_d_choice_card.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "widgets_three_d_choice_card_threedchoicecardstate",
+      "target": "singletickerproviderstatemixin"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source_file": "app/lib/ui/screens/reader_screen.dart",
       "source_location": null,
       "weight": 1.0,
@@ -119683,11 +120747,101 @@
       "relation": "imports",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
+      "source_file": "app/lib/ui/widgets/atmosphere_canvas.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "widgets_atmosphere_canvas",
+      "target": "core_theme_realm_theme_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/widgets/reader_settings_sheet.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "widgets_reader_settings_sheet",
+      "target": "core_theme_realm_theme_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/widgets/realm_relic_badge.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "widgets_realm_relic_badge",
+      "target": "core_theme_realm_theme_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/widgets/three_d_choice_card.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "widgets_three_d_choice_card",
+      "target": "core_theme_realm_theme_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source_file": "app/lib/ui/screens/reader_screen.dart",
       "source_location": null,
       "weight": 1.0,
       "source": "screens_reader_screen",
       "target": "core_utils_persian_numbers_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/widgets/dice_roll_overlay.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "widgets_dice_roll_overlay",
+      "target": "core_utils_persian_numbers_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/widgets/item_detail_sheet.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "widgets_item_detail_sheet",
+      "target": "core_utils_persian_numbers_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/widgets/rpg_hud_drawer.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "widgets_rpg_hud_drawer",
+      "target": "core_utils_persian_numbers_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/widgets/three_d_choice_card.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "widgets_three_d_choice_card",
+      "target": "core_utils_persian_numbers_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/screens/reader_screen.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "screens_reader_screen",
+      "target": "compendium_screen_dart"
     },
     {
       "relation": "references",
@@ -119994,16 +121148,6 @@
       "target": "widgets_three_d_choice_card_dart"
     },
     {
-      "relation": "inherits",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/screens/reader_screen.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "screens_reader_screen_readerscreen",
-      "target": "consumerstatefulwidget"
-    },
-    {
       "relation": "references",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
@@ -120012,56 +121156,6 @@
       "weight": 1.0,
       "source": "screens_reader_screen_readerscreenstate",
       "target": "screens_reader_screen_readerscreen"
-    },
-    {
-      "relation": "inherits",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/screens/story_catalog_screen.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "screens_story_catalog_screen_storycatalogscreen",
-      "target": "consumerstatefulwidget"
-    },
-    {
-      "relation": "inherits",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/widgets/rpg_hud_drawer.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "widgets_rpg_hud_drawer_rpghuddrawer",
-      "target": "consumerstatefulwidget"
-    },
-    {
-      "relation": "inherits",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/screens/reader_screen.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "screens_reader_screen_readerscreenstate",
-      "target": "consumerstate"
-    },
-    {
-      "relation": "inherits",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/screens/story_catalog_screen.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "screens_story_catalog_screen_storycatalogscreenstate",
-      "target": "consumerstate"
-    },
-    {
-      "relation": "inherits",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/widgets/rpg_hud_drawer.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "widgets_rpg_hud_drawer_rpghuddrawerstate",
-      "target": "consumerstate"
     },
     {
       "relation": "references",
@@ -120073,86 +121167,6 @@
       "context": "variable_type",
       "source": "widgets_dice_roll_overlay",
       "target": "globalkey"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/widgets/atmosphere_canvas.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "widgets_atmosphere_canvas",
-      "target": "core_theme_realm_theme_dart"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/widgets/reader_settings_sheet.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "widgets_reader_settings_sheet",
-      "target": "core_theme_realm_theme_dart"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/widgets/realm_relic_badge.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "widgets_realm_relic_badge",
-      "target": "core_theme_realm_theme_dart"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/widgets/three_d_choice_card.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "widgets_three_d_choice_card",
-      "target": "core_theme_realm_theme_dart"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/widgets/dice_roll_overlay.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "widgets_dice_roll_overlay",
-      "target": "core_utils_persian_numbers_dart"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/widgets/item_detail_sheet.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "widgets_item_detail_sheet",
-      "target": "core_utils_persian_numbers_dart"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/widgets/rpg_hud_drawer.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "widgets_rpg_hud_drawer",
-      "target": "core_utils_persian_numbers_dart"
-    },
-    {
-      "relation": "imports",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/widgets/three_d_choice_card.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "widgets_three_d_choice_card",
-      "target": "core_utils_persian_numbers_dart"
     },
     {
       "relation": "imports",
@@ -120728,46 +121742,6 @@
       "weight": 1.0,
       "source": "widgets_three_d_choice_card_threedchoicecard",
       "target": "statefulwidget"
-    },
-    {
-      "relation": "mixes_in",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/widgets/atmosphere_canvas.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "widgets_atmosphere_canvas_atmospherecanvasstate",
-      "target": "singletickerproviderstatemixin"
-    },
-    {
-      "relation": "mixes_in",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/widgets/realm_relic_badge.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "widgets_realm_relic_badge_realmrelicbadgestate",
-      "target": "singletickerproviderstatemixin"
-    },
-    {
-      "relation": "mixes_in",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/widgets/rpg_toast.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "widgets_rpg_toast_rpgtoastwidgetstate",
-      "target": "singletickerproviderstatemixin"
-    },
-    {
-      "relation": "mixes_in",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "app/lib/ui/widgets/three_d_choice_card.dart",
-      "source_location": null,
-      "weight": 1.0,
-      "source": "widgets_three_d_choice_card_threedchoicecardstate",
-      "target": "singletickerproviderstatemixin"
     },
     {
       "relation": "inherits",
@@ -121798,6 +122772,16 @@
       "weight": 1.0,
       "source": "widgets_rpg_hud_drawer",
       "target": "item_detail_sheet_dart"
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/lib/ui/widgets/rpg_hud_drawer.dart",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "widgets_rpg_hud_drawer",
+      "target": "screens_compendium_screen_dart"
     },
     {
       "relation": "defines",
@@ -135796,386 +136780,6 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L1",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan",
-      "target": "master_plan_storyforge_interactive_rpg_novel"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L385",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_storyforge_interactive_rpg_novel",
-      "target": "master_plan_10_development_roadmap_milestones"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L30",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_storyforge_interactive_rpg_novel",
-      "target": "master_plan_1_executive_summary_core_philosophy"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L50",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_storyforge_interactive_rpg_novel",
-      "target": "master_plan_2_product_user_experience_ux"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L77",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_storyforge_interactive_rpg_novel",
-      "target": "master_plan_3_system_architecture"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L122",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_storyforge_interactive_rpg_novel",
-      "target": "master_plan_4_storyforge_studio_authoring_world_building_admin_suite"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L166",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_storyforge_interactive_rpg_novel",
-      "target": "master_plan_5_the_4_core_engines"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L226",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_storyforge_interactive_rpg_novel",
-      "target": "master_plan_6_ai_narrative_director_prompt_assembly"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L261",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_storyforge_interactive_rpg_novel",
-      "target": "master_plan_7_data_schemas_definitions"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L310",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_storyforge_interactive_rpg_novel",
-      "target": "master_plan_8_client_architecture_flutter_reader_app"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L327",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_storyforge_interactive_rpg_novel",
-      "target": "master_plan_9_project_directory_structure"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L2",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_storyforge_interactive_rpg_novel",
-      "target": "master_plan_master_plan_technical_specification"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L12",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_storyforge_interactive_rpg_novel",
-      "target": "master_plan_table_of_contents"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L38",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_1_executive_summary_core_philosophy",
-      "target": "master_plan_the_7_pillars_of_storyforge"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L52",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_2_product_user_experience_ux",
-      "target": "master_plan_2_1_the_reading_flow"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L57",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_2_product_user_experience_ux",
-      "target": "master_plan_2_2_the_3_style_choice_system"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L66",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_2_product_user_experience_ux",
-      "target": "master_plan_2_3_free_text_actions_plausibility"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L71",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_2_product_user_experience_ux",
-      "target": "master_plan_2_4_narrative_combat_no_turn_based_grid"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L135",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_4_storyforge_studio_authoring_world_building_admin_suite",
-      "target": "master_plan_4_1_world_bible_lore_graph_editor"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L140",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_4_storyforge_studio_authoring_world_building_admin_suite",
-      "target": "master_plan_4_2_rpg_ruleset_stat_schema_designer"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L146",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_4_storyforge_studio_authoring_world_building_admin_suite",
-      "target": "master_plan_4_3_npc_dossier_relationship_manager"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L151",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_4_storyforge_studio_authoring_world_building_admin_suite",
-      "target": "master_plan_4_4_story_scene_director"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L155",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_4_storyforge_studio_authoring_world_building_admin_suite",
-      "target": "master_plan_4_5_ai_simulation_sandbox_prompt_inspector"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L160",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_4_storyforge_studio_authoring_world_building_admin_suite",
-      "target": "master_plan_4_6_live_playtest_memory_inspector"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L168",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_5_the_4_core_engines",
-      "target": "master_plan_5_1_world_engine_world_bible"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L174",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_5_the_4_core_engines",
-      "target": "master_plan_5_2_game_engine_deterministic_mechanics"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L186",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_5_the_4_core_engines",
-      "target": "master_plan_5_3_action_validation_layer"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L200",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_5_the_4_core_engines",
-      "target": "master_plan_5_4_multi_tier_hierarchical_memory_system"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L218",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_5_4_multi_tier_hierarchical_memory_system",
-      "target": "master_plan_memory_importance_scoring_0_to_10_scale"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L263",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_7_data_schemas_definitions",
-      "target": "master_plan_7_1_story_manifest_story_json"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L287",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_7_data_schemas_definitions",
-      "target": "master_plan_7_2_playthrough_session_state"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L312",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_8_client_architecture_flutter_reader_app",
-      "target": "master_plan_8_1_key_ui_modules"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L387",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_10_development_roadmap_milestones",
-      "target": "master_plan_phase_1_domain_foundation_deterministic_mechanics"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L392",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_10_development_roadmap_milestones",
-      "target": "master_plan_phase_2_storyforge_studio_admin_world_building_suite"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L398",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_10_development_roadmap_milestones",
-      "target": "master_plan_phase_3_memory_hierarchy_guardrails_ai_pipeline"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L403",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_10_development_roadmap_milestones",
-      "target": "master_plan_phase_4_backend_api_persistence"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L408",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_10_development_roadmap_milestones",
-      "target": "master_plan_phase_5_flutter_reader_client"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "MASTER_PLAN.md",
-      "source_location": "L413",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "master_plan_10_development_roadmap_milestones",
-      "target": "master_plan_phase_6_pilot_stories_end_to_end_polish"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
       "source_file": "README.md",
       "source_location": "L1",
       "weight": 1.0,
@@ -136199,9 +136803,9 @@
       "source_file": "README.md",
       "source_location": "L9",
       "weight": 1.0,
-      "confidence_score": 1.0,
       "source": "readme_storyforge_interactive_rpg_novel",
-      "target": "readme_master_plan_architecture"
+      "target": "readme_documentation_architecture",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -136232,6 +136836,456 @@
       "confidence_score": 1.0,
       "source": "launchimage_imageset_readme",
       "target": "launchimage_imageset_readme_launch_screen_assets"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "docs_master_plan",
+      "target": "docs_master_plan_storyforge_interactive_rpg_novel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L385",
+      "weight": 1.0,
+      "source": "docs_master_plan_storyforge_interactive_rpg_novel",
+      "target": "docs_master_plan_10_development_roadmap_milestones",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "docs_master_plan_storyforge_interactive_rpg_novel",
+      "target": "docs_master_plan_1_executive_summary_core_philosophy",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L50",
+      "weight": 1.0,
+      "source": "docs_master_plan_storyforge_interactive_rpg_novel",
+      "target": "docs_master_plan_2_product_user_experience_ux",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L77",
+      "weight": 1.0,
+      "source": "docs_master_plan_storyforge_interactive_rpg_novel",
+      "target": "docs_master_plan_3_system_architecture",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L122",
+      "weight": 1.0,
+      "source": "docs_master_plan_storyforge_interactive_rpg_novel",
+      "target": "docs_master_plan_4_storyforge_studio_authoring_world_building_admin_suite",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L166",
+      "weight": 1.0,
+      "source": "docs_master_plan_storyforge_interactive_rpg_novel",
+      "target": "docs_master_plan_5_the_4_core_engines",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L226",
+      "weight": 1.0,
+      "source": "docs_master_plan_storyforge_interactive_rpg_novel",
+      "target": "docs_master_plan_6_ai_narrative_director_prompt_assembly",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L261",
+      "weight": 1.0,
+      "source": "docs_master_plan_storyforge_interactive_rpg_novel",
+      "target": "docs_master_plan_7_data_schemas_definitions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L310",
+      "weight": 1.0,
+      "source": "docs_master_plan_storyforge_interactive_rpg_novel",
+      "target": "docs_master_plan_8_client_architecture_flutter_reader_app",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L327",
+      "weight": 1.0,
+      "source": "docs_master_plan_storyforge_interactive_rpg_novel",
+      "target": "docs_master_plan_9_project_directory_structure",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "docs_master_plan_storyforge_interactive_rpg_novel",
+      "target": "docs_master_plan_master_plan_technical_specification",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "docs_master_plan_storyforge_interactive_rpg_novel",
+      "target": "docs_master_plan_table_of_contents",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L38",
+      "weight": 1.0,
+      "source": "docs_master_plan_1_executive_summary_core_philosophy",
+      "target": "docs_master_plan_the_7_pillars_of_storyforge",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L52",
+      "weight": 1.0,
+      "source": "docs_master_plan_2_product_user_experience_ux",
+      "target": "docs_master_plan_2_1_the_reading_flow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L57",
+      "weight": 1.0,
+      "source": "docs_master_plan_2_product_user_experience_ux",
+      "target": "docs_master_plan_2_2_the_3_style_choice_system",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L66",
+      "weight": 1.0,
+      "source": "docs_master_plan_2_product_user_experience_ux",
+      "target": "docs_master_plan_2_3_free_text_actions_plausibility",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L71",
+      "weight": 1.0,
+      "source": "docs_master_plan_2_product_user_experience_ux",
+      "target": "docs_master_plan_2_4_narrative_combat_no_turn_based_grid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L135",
+      "weight": 1.0,
+      "source": "docs_master_plan_4_storyforge_studio_authoring_world_building_admin_suite",
+      "target": "docs_master_plan_4_1_world_bible_lore_graph_editor",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L140",
+      "weight": 1.0,
+      "source": "docs_master_plan_4_storyforge_studio_authoring_world_building_admin_suite",
+      "target": "docs_master_plan_4_2_rpg_ruleset_stat_schema_designer",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L146",
+      "weight": 1.0,
+      "source": "docs_master_plan_4_storyforge_studio_authoring_world_building_admin_suite",
+      "target": "docs_master_plan_4_3_npc_dossier_relationship_manager",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L151",
+      "weight": 1.0,
+      "source": "docs_master_plan_4_storyforge_studio_authoring_world_building_admin_suite",
+      "target": "docs_master_plan_4_4_story_scene_director",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L155",
+      "weight": 1.0,
+      "source": "docs_master_plan_4_storyforge_studio_authoring_world_building_admin_suite",
+      "target": "docs_master_plan_4_5_ai_simulation_sandbox_prompt_inspector",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L160",
+      "weight": 1.0,
+      "source": "docs_master_plan_4_storyforge_studio_authoring_world_building_admin_suite",
+      "target": "docs_master_plan_4_6_live_playtest_memory_inspector",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L168",
+      "weight": 1.0,
+      "source": "docs_master_plan_5_the_4_core_engines",
+      "target": "docs_master_plan_5_1_world_engine_world_bible",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L174",
+      "weight": 1.0,
+      "source": "docs_master_plan_5_the_4_core_engines",
+      "target": "docs_master_plan_5_2_game_engine_deterministic_mechanics",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L186",
+      "weight": 1.0,
+      "source": "docs_master_plan_5_the_4_core_engines",
+      "target": "docs_master_plan_5_3_action_validation_layer",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L200",
+      "weight": 1.0,
+      "source": "docs_master_plan_5_the_4_core_engines",
+      "target": "docs_master_plan_5_4_multi_tier_hierarchical_memory_system",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L218",
+      "weight": 1.0,
+      "source": "docs_master_plan_5_4_multi_tier_hierarchical_memory_system",
+      "target": "docs_master_plan_memory_importance_scoring_0_to_10_scale",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L263",
+      "weight": 1.0,
+      "source": "docs_master_plan_7_data_schemas_definitions",
+      "target": "docs_master_plan_7_1_story_manifest_story_json",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L287",
+      "weight": 1.0,
+      "source": "docs_master_plan_7_data_schemas_definitions",
+      "target": "docs_master_plan_7_2_playthrough_session_state",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L312",
+      "weight": 1.0,
+      "source": "docs_master_plan_8_client_architecture_flutter_reader_app",
+      "target": "docs_master_plan_8_1_key_ui_modules",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L387",
+      "weight": 1.0,
+      "source": "docs_master_plan_10_development_roadmap_milestones",
+      "target": "docs_master_plan_phase_1_domain_foundation_deterministic_mechanics",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L392",
+      "weight": 1.0,
+      "source": "docs_master_plan_10_development_roadmap_milestones",
+      "target": "docs_master_plan_phase_2_storyforge_studio_admin_world_building_suite",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L398",
+      "weight": 1.0,
+      "source": "docs_master_plan_10_development_roadmap_milestones",
+      "target": "docs_master_plan_phase_3_memory_hierarchy_guardrails_ai_pipeline",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L403",
+      "weight": 1.0,
+      "source": "docs_master_plan_10_development_roadmap_milestones",
+      "target": "docs_master_plan_phase_4_backend_api_persistence",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L408",
+      "weight": 1.0,
+      "source": "docs_master_plan_10_development_roadmap_milestones",
+      "target": "docs_master_plan_phase_5_flutter_reader_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/MASTER_PLAN.md",
+      "source_location": "L413",
+      "weight": 1.0,
+      "source": "docs_master_plan_10_development_roadmap_milestones",
+      "target": "docs_master_plan_phase_6_pilot_stories_end_to_end_polish",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/roadmap.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "docs_roadmap",
+      "target": "docs_roadmap_storyforge_feature_roadmap_architecture_milestones",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/roadmap.md",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "docs_roadmap_storyforge_feature_roadmap_architecture_milestones",
+      "target": "docs_roadmap_high_level_feature_roadmap",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/roadmap.md",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "docs_roadmap_high_level_feature_roadmap",
+      "target": "docs_roadmap_1_full_page_rpg_character_realm_compendium",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/roadmap.md",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "docs_roadmap_high_level_feature_roadmap",
+      "target": "docs_roadmap_2_interactive_character_creation_archetypes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/roadmap.md",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "docs_roadmap_high_level_feature_roadmap",
+      "target": "docs_roadmap_3_high_stakes_tactical_combat_mode",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/roadmap.md",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "docs_roadmap_high_level_feature_roadmap",
+      "target": "docs_roadmap_4_ambient_soundscapes_physical_audio_feedback",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/roadmap.md",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "docs_roadmap_high_level_feature_roadmap",
+      "target": "docs_roadmap_5_storyforge_web_authoring_studio_suite",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -136485,5 +137539,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "70c5095dbadc5efe5c3d7de7655f1026191584b8"
+  "built_at_commit": "bddd05de48a4d3961edebe305c0b58a5f900fc68"
 }
