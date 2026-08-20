@@ -29,10 +29,18 @@ export interface ChoiceOption {
   targetDC?: number; // Difficulty Class (if mechanical check is needed)
 }
 
+export interface PlayerEquipment {
+  mainHand?: string; // 1H or 2H Weapon
+  offHand?: string;  // 1H Weapon or Shield (null if mainHand is 2H)
+  armor?: string;    // Body Armor / Robes
+  relic?: string;    // Amulet / Talisman / Ring
+}
+
 export interface PlayerState {
   stats: Record<string, number>; // e.g. { might: 14, agility: 12 }
   resources: Record<string, number>; // e.g. { hp: 85, stamina: 40, gold: 120 }
   inventory: GameItem[];
+  equipment: PlayerEquipment;
   equippedWeaponId?: string;
   equippedArmorId?: string;
   discoveredLocationIds: string[];

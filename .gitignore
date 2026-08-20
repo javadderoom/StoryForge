@@ -53,6 +53,8 @@ app/android/app/release/
 app/android/app/debug/
 *.keystore
 *.jks
+*.jar
+!app/android/gradle/wrapper/gradle-wrapper.jar
 
 # iOS Specific
 app/ios/Pods/

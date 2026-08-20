@@ -1,11 +1,20 @@
-import { prisma } from '../client';
-import { PlaythroughSession, TurnBeat, CheckResolution, PlayerState } from '@/lib/types/gameplay';
+const isDatabaseActive = process.env.ENABLE_DB === 'true';
+
+const inMemorySessions = new Map<string, any>();
 
 export class SessionRepository {
   /**
    * Persists a newly created playthrough session along with its opening turn
    */
   static async createSession(session: PlaythroughSession) {
+    if (!isDatabaseActive) {
+      inMemorySessions.set(session.sessionId, {
+        ...session,
+        turns: session.history || [],
+        memories: [],
+      });
+      return session;
+    }
     try {
       const initialBeat = session.history[0];
 
@@ -48,6 +57,9 @@ export class SessionRepository {
    * Retrieves a session by its sessionId including recent turns and memories
    */
   static async getSession(sessionId: string) {
+    if (!isDatabaseActive) {
+      return inMemorySessions.get(sessionId) || null;
+    }
     try {
       const session = await prisma.playthroughSession.findUnique({
         where: { sessionId },
@@ -84,6 +96,34 @@ export class SessionRepository {
     updatedPlayerState: PlayerState;
     memories?: Array<{ category: string; importance: number; summary: string }>;
   }) {
+    if (!isDatabaseActive) {
+      const existing = inMemorySessions.get(sessionId) || {};
+      const turns = existing.turns || [];
+      const mems = existing.memories || [];
+      const newTurn = {
+        sessionId,
+        turnNumber: beat.turnNumber,
+        sceneId: beat.sceneId,
+        playerActionText: beat.playerActionText,
+        actionStyle: beat.actionStyle,
+        narrativeProse: beat.narrativeProse,
+        presentedChoices: beat.presentedChoices,
+        resolution,
+      };
+      turns.push(newTurn);
+      for (const m of memories) {
+        mems.push({ ...m, turnNumber: beat.turnNumber });
+      }
+      inMemorySessions.set(sessionId, {
+        ...existing,
+        currentSceneId: beat.sceneId,
+        turnCount: beat.turnNumber,
+        playerState: updatedPlayerState,
+        turns,
+        memories: mems,
+      });
+      return newTurn;
+    }
     try {
       return await prisma.$transaction(async (tx) => {
         // 1. Update playthrough session state

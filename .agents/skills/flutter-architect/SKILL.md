@@ -46,3 +46,29 @@ lib/
 - **Risk Indicators**: Clear visual distinctions (🛡 Low / 🤸 Medium / ⚔️ High).
 - **Free-Text Actions**: Real-time validation status indicator (checking against inventory/lore).
 - **Dice Roll Visuals**: Subtle, smooth 2D/3D roll animation with haptic feedback on critical checks.
+
+## 5. Modern Dart & Widget Construction Idioms
+
+### Null-Aware Collection Elements (Dart 3.8+)
+When building widget trees with optional/nullable children in `Column`, `Row`, or `Stack`, use null-aware collection elements (`?element`) instead of pattern-matching or explicit null checks:
+
+```dart
+// ✅ Recommended (Clean, idiomatic Dart 3.8+)
+Stack(
+  children: [
+    _buildBackground(),
+    if (showOverlay) _buildOverlay(),
+    ?overlayChild, // Automatically omitted if null; non-null if present
+  ],
+)
+
+// ❌ Avoid (Triggers 'use_null_aware_elements' lint)
+Stack(
+  children: [
+    _buildBackground(),
+    if (overlayChild case final child?) child,
+    if (overlayChild != null) overlayChild!,
+  ],
+)
+```
+

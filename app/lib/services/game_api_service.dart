@@ -50,6 +50,7 @@ class GameApiService {
     required int turnNumber,
     String? statId,
     int? targetDC,
+    int? forcedDiceRoll,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/play/action'),
@@ -61,6 +62,7 @@ class GameApiService {
         'riskLevel': riskLevel,
         'statId': statId,
         'targetDC': targetDC,
+        'forcedDiceRoll': forcedDiceRoll,
         'playerState': {
           'stats': playerState.stats,
           'resources': playerState.resources,

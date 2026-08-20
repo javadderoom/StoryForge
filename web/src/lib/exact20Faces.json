@@ -1,0 +1,302 @@
+[
+  {
+    "faceId": 1,
+    "normal": [
+      0.8952,
+      0.275,
+      0.3508
+    ],
+    "up": [
+      -0.256,
+      0.9615,
+      -0.1003
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 1
+  },
+  {
+    "faceId": 2,
+    "normal": [
+      -0.673,
+      0.696,
+      -0.2502
+    ],
+    "up": [
+      0.6524,
+      0.718,
+      0.2425
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 2
+  },
+  {
+    "faceId": 3,
+    "normal": [
+      -0.5671,
+      0.2902,
+      0.7708
+    ],
+    "up": [
+      0.1719,
+      0.957,
+      -0.2337
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 3
+  },
+  {
+    "faceId": 4,
+    "normal": [
+      -0.5587,
+      -0.7454,
+      0.3638
+    ],
+    "up": [
+      -0.6246,
+      0.6667,
+      0.4067
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 4
+  },
+  {
+    "faceId": 5,
+    "normal": [
+      -0.2763,
+      -0.5626,
+      0.7792
+    ],
+    "up": [
+      -0.188,
+      0.8267,
+      0.5302
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 5
+  },
+  {
+    "faceId": 6,
+    "normal": [
+      0.7067,
+      -0.7011,
+      0.0946
+    ],
+    "up": [
+      0.6949,
+      0.713,
+      0.093
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 6
+  },
+  {
+    "faceId": 7,
+    "normal": [
+      -0.9575,
+      -0.1649,
+      -0.2368
+    ],
+    "up": [
+      -0.1601,
+      0.9863,
+      -0.0396
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 7
+  },
+  {
+    "faceId": 8,
+    "normal": [
+      0.0697,
+      0.9952,
+      0.0683
+    ],
+    "up": [
+      0.9976,
+      -0.0696,
+      -0.0048
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 8
+  },
+  {
+    "faceId": 9,
+    "normal": [
+      0.4718,
+      0.3409,
+      -0.8132
+    ],
+    "up": [
+      -0.1711,
+      0.9401,
+      0.2948
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 9
+  },
+  {
+    "faceId": 10,
+    "normal": [
+      0.6693,
+      0.6989,
+      -0.2521
+    ],
+    "up": [
+      -0.6541,
+      0.7152,
+      0.2464
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 10
+  },
+  {
+    "faceId": 11,
+    "normal": [
+      0.9418,
+      -0.2548,
+      -0.2195
+    ],
+    "up": [
+      0.2481,
+      0.967,
+      -0.0578
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 11
+  },
+  {
+    "faceId": 12,
+    "normal": [
+      0.473,
+      -0.1538,
+      -0.8675
+    ],
+    "up": [
+      0.0736,
+      0.9881,
+      -0.135
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 12
+  },
+  {
+    "faceId": 13,
+    "normal": [
+      -0.9689,
+      0.235,
+      0.0769
+    ],
+    "up": [
+      0.2343,
+      0.972,
+      -0.0186
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 13
+  },
+  {
+    "faceId": 14,
+    "normal": [
+      0.0332,
+      0.9617,
+      0.272
+    ],
+    "up": [
+      0.9994,
+      -0.0319,
+      -0.009
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 14
+  },
+  {
+    "faceId": 15,
+    "normal": [
+      -0.2251,
+      0.5291,
+      -0.8181
+    ],
+    "up": [
+      0.1403,
+      0.8485,
+      0.5102
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 15
+  },
+  {
+    "faceId": 16,
+    "normal": [
+      -0.3018,
+      -0.3476,
+      0.8878
+    ],
+    "up": [
+      -0.1119,
+      0.9377,
+      0.3291
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 16
+  },
+  {
+    "faceId": 17,
+    "normal": [
+      0.8728,
+      0.4277,
+      0.2353
+    ],
+    "up": [
+      -0.4129,
+      0.9039,
+      -0.1113
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 17
+  },
+  {
+    "faceId": 18,
+    "normal": [
+      -0.9257,
+      0.3732,
+      0.0614
+    ],
+    "up": [
+      0.3724,
+      0.9277,
+      -0.0247
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 18
+  },
+  {
+    "faceId": 19,
+    "normal": [
+      0.5572,
+      -0.8302,
+      0.0152
+    ],
+    "up": [
+      0.8299,
+      0.5574,
+      0.0226
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 19
+  },
+  {
+    "faceId": 20,
+    "normal": [
+      -0.917,
+      -0.3632,
+      -0.1653
+    ],
+    "up": [
+      -0.3574,
+      0.9317,
+      -0.0644
+    ],
+    "angleOffset": 0,
+    "assignedNumber": 20
+  }
+]

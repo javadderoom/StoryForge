@@ -20,8 +20,10 @@
     "next": "16.3.1",
     "pg": "^8.23.0",
     "react": "19.2.8",
+    "react-3d-dice": "^0.1.0",
     "react-dom": "19.2.8",
     "tailwind-merge": "^3.0.1",
+    "three": "^0.185.1",
     "zod": "^3.24.2"
   },
   "devDependencies": {
@@ -30,6 +32,7 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.185.4",
     "agentation": "^3.0.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",

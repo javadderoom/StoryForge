@@ -1,7 +1,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Shield, Sparkles, RefreshCw, Send, Sliders } from 'lucide-react';
+import {
+  Shield,
+  Sparkles,
+  RefreshCw,
+  Send,
+  Sliders,
+  Palette,
+  BookOpen,
+  Dices,
+  Layers,
+} from 'lucide-react';
+import { DiceRollModal } from '@/components/DiceRollModal';
+import {
+  ReaderSettingsModal,
+  ReaderTheme,
+  FontSize,
+  LineHeight,
+} from '@/components/ReaderSettingsModal';
+import { StoryCatalogModal } from '@/components/StoryCatalogModal';
 
 export default function Home() {
   const [selectedStoryId, setSelectedStoryId] = useState<string>('ghale_siahsang');
@@ -13,6 +31,15 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [lastOutcome, setLastOutcome] = useState<any>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Modals & Reader Customization State
+  const [isDiceModalOpen, setIsDiceModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [lastActionText, setLastActionText] = useState('');
+  const [theme, setTheme] = useState<ReaderTheme>('charcoal');
+  const [fontSize, setFontSize] = useState<FontSize>('base');
+  const [lineHeight, setLineHeight] = useState<LineHeight>('relaxed');
 
   const isRtl = storyMeta?.language !== 'en';
 
@@ -48,6 +75,7 @@ export default function Home() {
     if (loading) return;
     setLoading(true);
     setErrorMessage(null);
+    setLastActionText(choice.text);
 
     try {
       const res = await fetch('/api/play/action', {
@@ -55,6 +83,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           storyId: selectedStoryId,
+          sessionId: session?.sessionId,
           playerActionText: choice.text,
           actionStyle: choice.style || 'tactical',
           riskLevel: choice.riskLevel || 'medium',
@@ -76,6 +105,11 @@ export default function Home() {
         setPlayerState(json.data.updatedPlayerState);
         setLastOutcome(json.data.resolution);
         setFreeTextAction('');
+
+        // Trigger interactive dice modal if check occurred
+        if (json.data.resolution) {
+          setIsDiceModalOpen(true);
+        }
       }
     } catch (e: any) {
       setErrorMessage(e.message);
@@ -90,20 +124,80 @@ export default function Home() {
     handleChoice({ text: freeTextAction, style: 'free_text', riskLevel: 'medium' });
   };
 
+  // Theme styling helpers
+  const themeStyles: Record<
+    ReaderTheme,
+    { bg: string; cardBg: string; border: string; text: string; headerBg: string }
+  > = {
+    charcoal: {
+      bg: '#0d0e14',
+      cardBg: '#141522',
+      border: 'border-zinc-800/90',
+      text: 'text-zinc-200',
+      headerBg: 'bg-[#12131c]/90',
+    },
+    oled: {
+      bg: '#050608',
+      cardBg: '#090a0f',
+      border: 'border-zinc-900',
+      text: 'text-zinc-300',
+      headerBg: 'bg-[#050608]/95',
+    },
+    sepia: {
+      bg: '#18130e',
+      cardBg: '#211a14',
+      border: 'border-[#382a1d]',
+      text: 'text-[#d6c4b2]',
+      headerBg: 'bg-[#1e1712]/95',
+    },
+    midnight: {
+      bg: '#080c16',
+      cardBg: '#0f1628',
+      border: 'border-indigo-950/80',
+      text: 'text-indigo-100',
+      headerBg: 'bg-[#0a0f1e]/90',
+    },
+  };
+
+  const currentThemeStyle = themeStyles[theme];
+
+  const fontSizeClass: Record<FontSize, string> = {
+    sm: 'text-sm md:text-base',
+    base: 'text-base md:text-lg',
+    lg: 'text-lg md:text-xl',
+    xl: 'text-xl md:text-2xl',
+  };
+
+  const lineHeightClass: Record<LineHeight, string> = {
+    normal: 'leading-normal',
+    relaxed: 'leading-relaxed',
+    loose: 'leading-loose',
+  };
+
   return (
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
-      className="min-h-screen bg-[#0d0e14] text-zinc-100 flex flex-col font-sans selection:bg-amber-500/30 selection:text-amber-200"
+      style={{ backgroundColor: currentThemeStyle.bg }}
+      className={`min-h-screen flex flex-col font-sans transition-colors duration-300 selection:bg-amber-500/30 selection:text-amber-200 ${currentThemeStyle.text}`}
     >
-      {/* Top Bar */}
-      <header className="border-b border-zinc-800/80 bg-[#12131c]/90 backdrop-blur-md px-6 py-3.5 flex items-center justify-between sticky top-0 z-50">
+      {/* Top Bar Navigation */}
+      <header
+        className={`border-b ${currentThemeStyle.border} ${currentThemeStyle.headerBg} backdrop-blur-md px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-40 transition-colors duration-300`}
+      >
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-amber-500 to-rose-600 flex items-center justify-center font-bold text-white shadow-md shadow-amber-500/20">
             ⚡
           </div>
           <div>
-            <h1 className="font-bold text-sm tracking-tight text-zinc-100">
-              {storyMeta?.title || 'قلعه سیاه‌سنگ'}
+            <h1 className="font-bold text-sm tracking-tight text-zinc-100 flex items-center gap-2">
+              <span>{storyMeta?.title || 'قلعه سیاه‌سنگ'}</span>
+              <button
+                onClick={() => setIsCatalogOpen(true)}
+                className="text-[10px] text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-full transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <BookOpen className="w-2.5 h-2.5" />
+                <span>{isRtl ? 'تغییر داستان' : 'Library'}</span>
+              </button>
             </h1>
             <p className="text-[11px] text-zinc-400">
               {isRtl ? 'رمان تعاملی نقش‌آفرینی' : 'Interactive Dark RPG Novel'}
@@ -111,69 +205,81 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Story Selector & Actions */}
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-0.5 text-xs">
-            <button
-              onClick={() => setSelectedStoryId('ghale_siahsang')}
-              className={`px-2.5 py-1 rounded-md transition-all ${
-                selectedStoryId === 'ghale_siahsang'
-                  ? 'bg-zinc-800 text-amber-400 font-semibold shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              فارسی (پیش‌فرض)
-            </button>
-            <button
-              onClick={() => setSelectedStoryId('obsidian_citadel')}
-              className={`px-2.5 py-1 rounded-md transition-all ${
-                selectedStoryId === 'obsidian_citadel'
-                  ? 'bg-zinc-800 text-amber-400 font-semibold shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              English
-            </button>
-          </div>
+        {/* Action Controls & Story Switcher */}
+        <div className="flex items-center gap-2">
+          {/* Reader Atmosphere Button */}
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-xs text-zinc-300 border border-zinc-700/60 transition-all cursor-pointer"
+            title={isRtl ? 'تنظیمات ظاهر' : 'Reader Atmosphere'}
+          >
+            <Palette className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">{isRtl ? 'پوسته و قلم' : 'Theme'}</span>
+          </button>
 
+          {/* Quick Dice Roll Re-inspect */}
+          {lastOutcome && (
+            <button
+              onClick={() => setIsDiceModalOpen(true)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-xs text-amber-400 border border-amber-500/30 transition-all cursor-pointer"
+              title={isRtl ? 'مشاهده پرتاب تاس' : 'View Dice Roll'}
+            >
+              <Dices className="w-3.5 h-3.5" />
+              <span className="font-mono font-bold">{lastOutcome.diceRoll}</span>
+            </button>
+          )}
+
+          {/* Restart Button */}
           <button
             onClick={() => startNewGame(selectedStoryId)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 transition-all cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-xs text-zinc-300 border border-zinc-700/60 transition-all cursor-pointer"
+            title={isRtl ? 'شروع مجدد' : 'Restart Adventure'}
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>{isRtl ? 'شروع مجدد' : 'Restart'}</span>
+            <span className="hidden sm:inline">{isRtl ? 'شروع مجدد' : 'Restart'}</span>
           </button>
+
+          {/* Studio Link */}
           <a
             href="/studio"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-rose-600 text-white text-xs font-semibold shadow-md shadow-amber-500/20 hover:from-amber-400 hover:to-rose-500 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-rose-600 text-white text-xs font-semibold shadow-md shadow-amber-500/20 hover:from-amber-400 hover:to-rose-500 transition-all"
           >
             <Sliders className="w-3.5 h-3.5" />
-            <span>{isRtl ? 'استودیو سازنده' : 'Open Studio'}</span>
+            <span className="hidden sm:inline">{isRtl ? 'استودیو' : 'Studio'}</span>
           </a>
         </div>
       </header>
 
       {/* Main Container */}
-      <div className="flex-1 max-w-5xl w-full mx-auto p-6 grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+      <div className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
         {/* Reader Viewport (Main Column) */}
         <div className="md:col-span-8 space-y-6">
           {/* E-Reader Book Card */}
-          <div className="bg-[#141522] border border-zinc-800/90 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+          <div
+            style={{ backgroundColor: currentThemeStyle.cardBg }}
+            className={`border ${currentThemeStyle.border} rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden transition-colors duration-300`}
+          >
             <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
-            {/* Last Dice Resolution Pill */}
+            {/* Last Dice Resolution Quick Banner */}
             {lastOutcome && (
-              <div className="mb-6 p-3 rounded-xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between text-xs animate-in fade-in slide-in-from-top-2">
-                <span className="text-zinc-400">
-                  {isRtl ? 'تاس و بررسی: ' : 'Check: '}
-                  <strong className="text-zinc-200">
-                    {isRtl
-                      ? `تاس ${lastOutcome.diceRoll} (مجموع ${lastOutcome.totalScore} در برابر دشواری ${lastOutcome.difficultyClass})`
-                      : `Roll ${lastOutcome.diceRoll} (Total ${lastOutcome.totalScore} vs DC ${lastOutcome.difficultyClass})`}
-                  </strong>
+              <div
+                onClick={() => setIsDiceModalOpen(true)}
+                className="mb-6 p-3 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between text-xs cursor-pointer hover:border-amber-500/40 transition-all animate-in fade-in slide-in-from-top-2"
+              >
+                <span className="text-zinc-400 flex items-center gap-2">
+                  <Dices className="w-4 h-4 text-amber-400" />
+                  <span>
+                    {isRtl ? 'بررسی تاس:' : 'Check:'}{' '}
+                    <strong className="text-zinc-200">
+                      {isRtl
+                        ? `تاس ${lastOutcome.diceRoll} (مجموع ${lastOutcome.totalScore} vs DC ${lastOutcome.difficultyClass})`
+                        : `Roll ${lastOutcome.diceRoll} (Total ${lastOutcome.totalScore} vs DC ${lastOutcome.difficultyClass})`}
+                    </strong>
+                  </span>
                 </span>
                 <span
-                  className={`font-bold uppercase text-[10px] px-2.5 py-0.5 rounded ${
+                  className={`font-bold uppercase text-[10px] px-2.5 py-0.5 rounded-full ${
                     lastOutcome.outcome.includes('success')
                       ? 'bg-emerald-500/20 text-emerald-300'
                       : 'bg-rose-500/20 text-rose-300'
@@ -194,12 +300,16 @@ export default function Home() {
             {/* Novel Prose */}
             <div className="prose prose-invert max-w-none">
               {loading ? (
-                <div className="py-12 flex flex-col items-center justify-center text-amber-400/80 animate-pulse space-y-2">
+                <div className="py-16 flex flex-col items-center justify-center text-amber-400/80 animate-pulse space-y-3">
                   <Sparkles className="w-8 h-8 animate-spin" />
-                  <p className="text-sm font-medium">{isRtl ? 'داستان در حال شکل‌گیری است...' : 'The narrative unfolds...'}</p>
+                  <p className="text-sm font-medium">
+                    {isRtl ? 'داستان در حال شکل‌گیری است...' : 'The narrative unfolds...'}
+                  </p>
                 </div>
               ) : (
-                <p className="text-base md:text-lg leading-relaxed text-zinc-200 whitespace-pre-line tracking-wide">
+                <p
+                  className={`${fontSizeClass[fontSize]} ${lineHeightClass[lineHeight]} whitespace-pre-line tracking-wide transition-all`}
+                >
                   {currentBeat?.narrative}
                 </p>
               )}
@@ -213,7 +323,7 @@ export default function Home() {
                   <span>{isRtl ? 'چه تصمیمی می‌گیری؟' : 'What will you do?'}</span>
                 </h3>
 
-                {/* Clean, Literary Choices without risk tags */}
+                {/* Literary Choices without risk tags */}
                 <div className="space-y-2.5">
                   {currentBeat.choices.map((choice: any, idx: number) => (
                     <button
@@ -236,15 +346,15 @@ export default function Home() {
                     onChange={(e) => setFreeTextAction(e.target.value)}
                     placeholder={
                       isRtl
-                        ? 'یا هر عمل دلخواهی را بنویسید (مثلاً: نگاه کردن به زیر نیمکت)...'
-                        : 'Or type any custom action (e.g. examine the iron lock)...'
+                        ? 'یا هر عمل دلخواهی را بنویسید (مثلاً: جستجوی زیر نیمکت)...'
+                        : 'Or type any custom action (e.g. search under the wooden bench)...'
                     }
                     className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/30 transition-all"
                   />
                   <button
                     type="submit"
                     disabled={!freeTextAction.trim()}
-                    className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                    className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>{isRtl ? 'انجام بده' : 'Act'}</span>
@@ -257,7 +367,10 @@ export default function Home() {
 
         {/* Discreet RPG Drawer / HUD (Right Column) */}
         <div className="md:col-span-4 space-y-6">
-          <div className="bg-[#141522] border border-zinc-800/90 rounded-3xl p-6 shadow-xl space-y-6">
+          <div
+            style={{ backgroundColor: currentThemeStyle.cardBg }}
+            className={`border ${currentThemeStyle.border} rounded-3xl p-6 shadow-xl space-y-6 transition-colors duration-300`}
+          >
             <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
               <Shield className="w-4 h-4 text-amber-400" />
               <span>{isRtl ? 'مشخصات شخصیت' : 'Character Status'}</span>
@@ -329,6 +442,40 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Interactive Dice Roll Resolution Modal */}
+      <DiceRollModal
+        isOpen={isDiceModalOpen}
+        resolution={lastOutcome}
+        actionText={lastActionText}
+        isPersian={isRtl}
+        onClose={() => setIsDiceModalOpen(false)}
+      />
+
+      {/* Reader Atmosphere & Typography Modal */}
+      <ReaderSettingsModal
+        isOpen={isSettingsOpen}
+        theme={theme}
+        fontSize={fontSize}
+        lineHeight={lineHeight}
+        isPersian={isRtl}
+        onThemeChange={setTheme}
+        onFontSizeChange={setFontSize}
+        onLineHeightChange={setLineHeight}
+        onClose={() => setIsSettingsOpen(false)}
+      />
+
+      {/* Story Catalog & Library Modal */}
+      <StoryCatalogModal
+        isOpen={isCatalogOpen}
+        activeStoryId={selectedStoryId}
+        isPersian={isRtl}
+        onSelectStory={(storyId) => {
+          setSelectedStoryId(storyId);
+          startNewGame(storyId);
+        }}
+        onClose={() => setIsCatalogOpen(false)}
+      />
     </div>
   );
 }

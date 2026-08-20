@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
       targetDC,
       playerState: incomingPlayerState,
       turnNumber = 2,
+      forcedDiceRoll,
     } = body;
 
     const story = await StoryRepository.getStoryById(storyId);
@@ -69,6 +70,7 @@ export async function POST(req: NextRequest) {
         statId,
         riskLevel,
         targetDC,
+        forcedDiceRoll: typeof forcedDiceRoll === 'number' ? forcedDiceRoll : undefined,
       }
     );
 

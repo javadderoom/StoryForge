@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
-import 'ui/screens/reader_screen.dart';
+import 'ui/screens/story_catalog_screen.dart';
 
 void main() {
   runApp(
@@ -17,7 +17,7 @@ class StoryForgeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'قلعه سیاه‌سنگ',
+      title: 'StoryForge',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkVoid,
       builder: (context, child) {
@@ -26,7 +26,7 @@ class StoryForgeApp extends StatelessWidget {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      home: const ReaderScreen(),
+      home: const StoryCatalogScreen(),
     );
   }
 }

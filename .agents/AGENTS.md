@@ -31,3 +31,16 @@ For every user request, analyze the required cognitive effort. At the very top o
 
 ## UI Components
 - **Confirm Dialogs**: NEVER use the native browser `window.confirm`. ALWAYS use the custom `notify.confirm` dialog powered by the `Toaster` component (e.g., `import { notify } from '@/lib/notify'`).
+
+## Large File Downloads (> 30MB)
+- Whenever a dependency, SDK component, engine binary, 3D asset, or archive is larger than **30 MB**, **DO NOT** let tools or background tasks silently attempt slow downloads that may stall or timeout.
+- **ALWAYS** provide the direct download URL(s) to the user so they can download it directly using a browser or download manager (e.g. IDM), specify the filename, and provide instructions on where to place it.
+
+## RTL Text & Number/Symbol Formatting Rules
+- **Special Care for Signs & Symbols in RTL**: In Right-to-Left (RTL) contexts (Persian/Arabic), numbers with adjacent symbols like `+`, `-`, `%`, `$`, or equations (`+2`, `-1`, `50%`, `14 + 2 = 16 vs 12`) can suffer from Unicode BiDi reordering bugs (e.g., `+2` displaying as `2+` or equations reversing order).
+- **Enforce LTR Containers / LRM for Math & Metrics**: Always wrap numbers, signed modifiers, equations, and stat breakdowns in an explicit `Directionality(textDirection: TextDirection.ltr, child: ...)` widget or prepend the Unicode Left-to-Right Mark (`\u200E`) so that symbols and signs stay in their proper, readable positions.
+
+## Choice Options UI Rule
+- **NO Difficulty / Risk Badges on Choices**: NEVER display difficulty levels, risk indicators (e.g., `'خطرناک'`, `'متوسط'`, `'ایمن'`, `'high'`, `'medium'`, `'low'`, `'safe'`), or DC target badges (e.g., `'DC 12'`) on choice buttons or cards in the UI. Choices must ONLY display the clean literary narrative text of the action.
+
+

@@ -22,16 +22,25 @@ class StorySummary {
   });
 
   factory StorySummary.fromJson(Map<String, dynamic> json) {
+    List<String> parseList(dynamic val) {
+      if (val is List) {
+        return val.map((e) => e.toString()).toList();
+      } else if (val is String) {
+        return val.split(' ').where((s) => s.isNotEmpty).toList();
+      }
+      return [];
+    }
+
     return StorySummary(
       id: json['id'] ?? '',
       title: json['title'] ?? '',
       tagline: json['tagline'] ?? '',
       synopsis: json['synopsis'] ?? '',
-      genres: List<String>.from(json['genres'] ?? []),
+      genres: parseList(json['genres']),
       language: json['language'] ?? 'en',
       coverImageUrl: json['coverImageUrl'] ?? '',
       author: json['author'] ?? '',
-      statsPreview: List<String>.from(json['statsPreview'] ?? []),
+      statsPreview: parseList(json['statsPreview']),
     );
   }
 }

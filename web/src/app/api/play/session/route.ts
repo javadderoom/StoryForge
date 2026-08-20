@@ -10,8 +10,8 @@ export async function OPTIONS() {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const storyId = body.storyId || 'ghale_siahsang';
+    const body = await req.json().catch(() => ({}));
+    const storyId = body?.storyId || 'ghale_siahsang';
     const story = await StoryRepository.getStoryById(storyId);
 
     // Initialize player state from story RPG definitions
@@ -45,6 +45,9 @@ export async function POST(req: NextRequest) {
       stats: initialStats,
       resources: initialResources,
       inventory: JSON.parse(JSON.stringify(story.rpgSystem.startingInventory)),
+      equipment: {
+        mainHand: 'iron_dagger',
+      },
       discoveredLocationIds: [initialBeat.locationId || 'loc_start'],
       relationships: initialRelationships,
       activeQuestIds: ['quest_prologue'],

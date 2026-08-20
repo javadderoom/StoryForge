@@ -27,13 +27,20 @@ export interface SkillDefinition {
   bonusModifier: number; // +2, +4
 }
 
+export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+export type WeaponGrip = 'one_handed' | 'two_handed' | 'off_hand_only';
+
 export interface GameItem {
   id: string;
   name: string;
   description: string;
-  type: 'weapon' | 'armor' | 'consumable' | 'quest_item' | 'valuable' | 'document';
+  type: 'weapon' | 'armor' | 'shield' | 'consumable' | 'quest_item' | 'valuable' | 'document' | 'relic';
   quantity: number;
-  statModifiers?: Record<string, number>; // e.g. { might: 2 }
+  rarity?: ItemRarity;
+  grip?: WeaponGrip; // For weapons and shields
+  statModifiers?: Record<string, number>; // e.g. { might: 2, agility: 1 }
+  healValue?: number; // Instant HP restoration
+  staminaValue?: number; // Instant Stamina restoration
   valueInGold?: number;
   isConsumable?: boolean;
 }
@@ -70,9 +77,13 @@ export const GameItemSchema = z.object({
   id: z.string(),
   name: z.string().min(2),
   description: z.string(),
-  type: z.enum(['weapon', 'armor', 'consumable', 'quest_item', 'valuable', 'document']),
+  type: z.enum(['weapon', 'armor', 'shield', 'consumable', 'quest_item', 'valuable', 'document', 'relic']),
   quantity: z.number().int().min(1).default(1),
+  rarity: z.enum(['common', 'uncommon', 'rare', 'epic', 'legendary']).optional(),
+  grip: z.enum(['one_handed', 'two_handed', 'off_hand_only']).optional(),
   statModifiers: z.record(z.string(), z.number()).optional(),
+  healValue: z.number().optional(),
+  staminaValue: z.number().optional(),
   valueInGold: z.number().optional(),
   isConsumable: z.boolean().optional(),
 });

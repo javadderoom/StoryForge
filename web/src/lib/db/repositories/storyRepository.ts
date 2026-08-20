@@ -3,11 +3,39 @@ import { StoryManifest, Genre } from '@/lib/types';
 import { ghaleSiahsangStory } from '@/content/stories/ghale_siahsang';
 import { obsidianCitadelStory } from '@/content/stories/obsidian_citadel';
 
+const isDatabaseActive = process.env.ENABLE_DB === 'true';
+
 export class StoryRepository {
   /**
    * Fetches all stories for library catalog
    */
   static async getAllStories() {
+    if (!isDatabaseActive) {
+      return [
+        {
+          id: ghaleSiahsangStory.id,
+          title: ghaleSiahsangStory.title,
+          tagline: ghaleSiahsangStory.tagline,
+          synopsis: ghaleSiahsangStory.synopsis,
+          genres: ghaleSiahsangStory.genres,
+          language: ghaleSiahsangStory.language,
+          coverImageUrl: ghaleSiahsangStory.coverImageUrl,
+          author: ghaleSiahsangStory.author,
+          statsPreview: ghaleSiahsangStory.rpgSystem.stats.map((s) => s.name),
+        },
+        {
+          id: obsidianCitadelStory.id,
+          title: obsidianCitadelStory.title,
+          tagline: obsidianCitadelStory.tagline,
+          synopsis: obsidianCitadelStory.synopsis,
+          genres: obsidianCitadelStory.genres,
+          language: obsidianCitadelStory.language,
+          coverImageUrl: obsidianCitadelStory.coverImageUrl,
+          author: obsidianCitadelStory.author,
+          statsPreview: obsidianCitadelStory.rpgSystem.stats.map((s) => s.name),
+        },
+      ];
+    }
     try {
       const stories = await prisma.story.findMany({
         include: {
@@ -87,6 +115,9 @@ export class StoryRepository {
    * Fetches full StoryManifest by ID with fallback
    */
   static async getStoryById(storyId: string): Promise<StoryManifest> {
+    if (!isDatabaseActive) {
+      return storyId === obsidianCitadelStory.id ? obsidianCitadelStory : ghaleSiahsangStory;
+    }
     try {
       const story = await prisma.story.findUnique({
         where: { id: storyId },

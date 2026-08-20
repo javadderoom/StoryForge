@@ -13,17 +13,19 @@ class GameSessionState {
   final PlayerState? playerState;
   final CheckResolution? lastResolution;
   final int turnNumber;
+  final Map<String, dynamic>? pendingTurnData;
 
   GameSessionState({
     this.isLoading = false,
     this.errorMessage,
-    this.storyId = 'ghale_siahsang',
-    this.storyTitle = 'قلعه سیاه‌سنگ',
+    this.storyId = '',
+    this.storyTitle = '',
     this.currentNarrative = '',
     this.choices = const [],
     this.playerState,
     this.lastResolution,
     this.turnNumber = 1,
+    this.pendingTurnData,
   });
 
   GameSessionState copyWith({
@@ -36,6 +38,8 @@ class GameSessionState {
     PlayerState? playerState,
     CheckResolution? lastResolution,
     int? turnNumber,
+    Map<String, dynamic>? pendingTurnData,
+    bool clearPendingTurn = false,
   }) {
     return GameSessionState(
       isLoading: isLoading ?? this.isLoading,
@@ -47,6 +51,7 @@ class GameSessionState {
       playerState: playerState ?? this.playerState,
       lastResolution: lastResolution ?? this.lastResolution,
       turnNumber: turnNumber ?? this.turnNumber,
+      pendingTurnData: clearPendingTurn ? null : (pendingTurnData ?? this.pendingTurnData),
     );
   }
 }
@@ -55,7 +60,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
   GameSessionNotifier() : super(GameSessionState());
 
   Future<void> startStory(String storyId) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true, errorMessage: null, clearPendingTurn: true);
     try {
       final data = await GameApiService.startSession(storyId);
       final sessionData = data['session'];
@@ -71,6 +76,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
         playerState: playerState,
         turnNumber: 1,
+        clearPendingTurn: true,
       );
     } catch (e) {
       state = state.copyWith(
@@ -80,10 +86,20 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     }
   }
 
-  Future<void> submitAction(ChoiceOption choice) async {
-    if (state.playerState == null || state.isLoading) return;
+  /// Submits an action with an optional client-determined dice roll.
+  /// If [holdNarrativeUpdate] is true, the new scene is held in pendingTurnData
+  /// until [applyPendingTurn] is called, preventing spoilers while the dice rolls.
+  Future<CheckResolution?> submitAction(
+    ChoiceOption choice, {
+    int? forcedDiceRoll,
+    bool holdNarrativeUpdate = false,
+  }) async {
+    if (state.playerState == null) return null;
 
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    if (!holdNarrativeUpdate) {
+      state = state.copyWith(isLoading: true, errorMessage: null);
+    }
+
     try {
       final result = await GameApiService.sendAction(
         storyId: state.storyId,
@@ -94,6 +110,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         turnNumber: state.turnNumber + 1,
         statId: choice.requiredStatId,
         targetDC: choice.targetDC,
+        forcedDiceRoll: forcedDiceRoll,
       );
 
       if (result['isGuardrailViolation'] == true) {
@@ -101,35 +118,194 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
           isLoading: false,
           errorMessage: result['rejectionReason'] ?? 'Action blocked by World Laws',
         );
-        return;
+        return null;
       }
 
       if (result['success'] == true) {
-        final beatData = result['data']['beat'];
         final resData = result['data']['resolution'];
-        final updatedPlayer = PlayerState.fromJson(result['data']['updatedPlayerState']);
-        final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? [];
+        final resolution = resData != null ? CheckResolution.fromJson(resData) : null;
 
-        state = state.copyWith(
-          isLoading: false,
-          currentNarrative: beatData['narrativeProse'] ?? '',
-          choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
-          playerState: updatedPlayer,
-          lastResolution: resData != null ? CheckResolution.fromJson(resData) : null,
-          turnNumber: state.turnNumber + 1,
-        );
+        if (holdNarrativeUpdate) {
+          // Store in pending data so the background screen doesn't reveal the next scene
+          state = state.copyWith(
+            pendingTurnData: result['data'],
+            lastResolution: resolution,
+          );
+        } else {
+          final beatData = result['data']['beat'];
+          final updatedPlayer = PlayerState.fromJson(result['data']['updatedPlayerState']);
+          final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? [];
+
+          state = state.copyWith(
+            isLoading: false,
+            currentNarrative: beatData['narrativeProse'] ?? '',
+            choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
+            playerState: updatedPlayer,
+            lastResolution: resolution,
+            turnNumber: state.turnNumber + 1,
+            clearPendingTurn: true,
+          );
+        }
+        return resolution;
       } else {
         state = state.copyWith(
           isLoading: false,
           errorMessage: result['error'] ?? 'Turn failed',
         );
+        return null;
       }
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         errorMessage: e.toString(),
       );
+      return null;
     }
+  }
+
+  /// Reveals the pending scene once the dice roll is complete and the user continues.
+  void applyPendingTurn() {
+    if (state.pendingTurnData == null) return;
+
+    final data = state.pendingTurnData!;
+    final beatData = data['beat'];
+    final updatedPlayer = PlayerState.fromJson(data['updatedPlayerState']);
+    final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? [];
+
+    state = state.copyWith(
+      isLoading: false,
+      currentNarrative: beatData['narrativeProse'] ?? '',
+      choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
+      playerState: updatedPlayer,
+      turnNumber: state.turnNumber + 1,
+      clearPendingTurn: true,
+    );
+  }
+
+  /// Equips an item into the appropriate equipment slot
+  void equipItem(String itemId, {String? targetSlot}) {
+    if (state.playerState == null) return;
+    final item = state.playerState!.getItem(itemId);
+    if (item == null) return;
+
+    var currentEq = state.playerState!.equipment;
+
+    if (item.grip == WeaponGrip.offHandOnly || item.type == 'shield') {
+      // 1. Shield / Off-Hand item -> Always equips to Off-Hand slot
+      final mainItem = currentEq.mainHand != null ? state.playerState!.getItem(currentEq.mainHand!) : null;
+      final clearMain = mainItem?.grip == WeaponGrip.twoHanded;
+
+      currentEq = currentEq.copyWith(
+        offHand: itemId,
+        clearMainHand: clearMain,
+      );
+    } else if (item.grip == WeaponGrip.twoHanded) {
+      // 2. 2-Handed weapon -> Occupies Main Hand and frees Off-Hand
+      currentEq = currentEq.copyWith(
+        mainHand: itemId,
+        clearOffHand: true,
+      );
+    } else if (item.grip == WeaponGrip.oneHanded || item.type == 'weapon') {
+      // 3. 1-Handed weapon -> Can equip in Main Hand or Off-Hand (Dual Wield)
+      final slot = targetSlot ?? 'mainHand';
+      final mainItem = currentEq.mainHand != null ? state.playerState!.getItem(currentEq.mainHand!) : null;
+      final was2Handed = mainItem?.grip == WeaponGrip.twoHanded;
+
+      if (slot == 'offHand') {
+        currentEq = currentEq.copyWith(
+          offHand: itemId,
+          clearMainHand: was2Handed,
+        );
+      } else {
+        currentEq = currentEq.copyWith(
+          mainHand: itemId,
+        );
+      }
+    } else if (item.type == 'armor') {
+      // 4. Body Armor -> Equips to Armor slot
+      currentEq = currentEq.copyWith(armor: itemId);
+    } else if (item.type == 'relic') {
+      // 5. Relic / Amulet -> Equips to Relic slot
+      currentEq = currentEq.copyWith(relic: itemId);
+    }
+
+    state = state.copyWith(
+      playerState: state.playerState!.copyWith(equipment: currentEq),
+    );
+  }
+
+  /// Unequips an item from the specified slot
+  void unequipItem(String slot) {
+    if (state.playerState == null) return;
+    var currentEq = state.playerState!.equipment;
+
+    switch (slot) {
+      case 'mainHand':
+        currentEq = currentEq.copyWith(clearMainHand: true);
+        break;
+      case 'offHand':
+        currentEq = currentEq.copyWith(clearOffHand: true);
+        break;
+      case 'armor':
+        currentEq = currentEq.copyWith(clearArmor: true);
+        break;
+      case 'relic':
+        currentEq = currentEq.copyWith(clearRelic: true);
+        break;
+    }
+
+    state = state.copyWith(
+      playerState: state.playerState!.copyWith(equipment: currentEq),
+    );
+  }
+
+  /// Uses a consumable item (e.g. healing potion)
+  void useConsumable(String itemId) {
+    if (state.playerState == null) return;
+    final item = state.playerState!.getItem(itemId);
+    if (item == null || !item.isConsumable) return;
+
+    final resources = Map<String, int>.from(state.playerState!.resources);
+
+    if (item.healValue != null && item.healValue! > 0) {
+      final currentHp = resources['hp'] ?? 100;
+      resources['hp'] = (currentHp + item.healValue!).clamp(0, 100);
+    }
+    if (item.staminaValue != null && item.staminaValue! > 0) {
+      final currentStamina = resources['stamina'] ?? 50;
+      resources['stamina'] = (currentStamina + item.staminaValue!).clamp(0, 50);
+    }
+
+    // Decrement item quantity or remove from inventory
+    final newInv = <GameItem>[];
+    for (final invItem in state.playerState!.inventory) {
+      if (invItem.id == itemId) {
+        if (invItem.quantity > 1) {
+          newInv.add(GameItem(
+            id: invItem.id,
+            name: invItem.name,
+            description: invItem.description,
+            type: invItem.type,
+            rarity: invItem.rarity,
+            grip: invItem.grip,
+            quantity: invItem.quantity - 1,
+            statModifiers: invItem.statModifiers,
+            healValue: invItem.healValue,
+            staminaValue: invItem.staminaValue,
+            isConsumable: invItem.isConsumable,
+          ));
+        }
+      } else {
+        newInv.add(invItem);
+      }
+    }
+
+    state = state.copyWith(
+      playerState: state.playerState!.copyWith(
+        resources: resources,
+        inventory: newInv,
+      ),
+    );
   }
 }
 
