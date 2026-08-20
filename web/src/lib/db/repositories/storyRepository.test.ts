@@ -31,6 +31,7 @@ describe('StoryForge Database Repositories', () => {
       stats: { might: 12, agility: 14, cunning: 10, arcana: 8 },
       resources: { hp: 100, stamina: 50, gold: 30 },
       inventory: [],
+      equipment: {},
       discoveredLocationIds: ['loc_dungeon_cell'],
       relationships: {},
       activeQuestIds: ['quest_test'],

@@ -42,6 +42,7 @@ describe('ActionValidator - Lore & Inventory Guardrails', () => {
     inventory: [
       { id: 'iron_key', name: 'Iron Key', description: '', type: 'quest_item', quantity: 1 },
     ],
+    equipment: {},
     discoveredLocationIds: [],
     relationships: {},
     activeQuestIds: [],

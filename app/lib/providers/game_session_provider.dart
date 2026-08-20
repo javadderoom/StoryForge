@@ -59,8 +59,16 @@ class GameSessionState {
 class GameSessionNotifier extends StateNotifier<GameSessionState> {
   GameSessionNotifier() : super(GameSessionState());
 
-  Future<void> startStory(String storyId) async {
-    state = state.copyWith(isLoading: true, errorMessage: null, clearPendingTurn: true);
+  Future<void> startStory(String storyId, {String? title}) async {
+    // Immediately reset state to a clean loading session so ReaderScreen instantly displays the loading portal
+    state = GameSessionState(
+      isLoading: true,
+      storyId: storyId,
+      storyTitle: title ?? (storyId == 'ghale_siahsang' ? 'قلعه سیاه‌سنگ' : 'The Obsidian Citadel'),
+      currentNarrative: '',
+      choices: const [],
+      turnNumber: 1,
+    );
     try {
       final data = await GameApiService.startSession(storyId);
       final sessionData = data['session'];
@@ -71,7 +79,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       state = state.copyWith(
         isLoading: false,
         storyId: storyId,
-        storyTitle: data['story']['title'] ?? 'StoryForge',
+        storyTitle: data['story']['title'] ?? (title ?? (storyId == 'ghale_siahsang' ? 'قلعه سیاه‌سنگ' : 'The Obsidian Citadel')),
         currentNarrative: currentBeat['narrative'] ?? '',
         choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
         playerState: playerState,
@@ -272,20 +280,45 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
   }
 
   /// Uses a consumable item (e.g. healing potion)
-  void useConsumable(String itemId) {
-    if (state.playerState == null) return;
+  ItemUseResult useConsumable(String itemId) {
+    if (state.playerState == null) {
+      return ItemUseResult(success: false);
+    }
     final item = state.playerState!.getItem(itemId);
-    if (item == null || !item.isConsumable) return;
+    if (item == null) {
+      return ItemUseResult(success: false);
+    }
+    final isConsumableItem = item.isConsumable ||
+        item.healValue != null ||
+        item.staminaValue != null ||
+        item.type == 'consumable' ||
+        item.type == 'potion';
+    if (!isConsumableItem) {
+      return ItemUseResult(success: false);
+    }
 
     final resources = Map<String, int>.from(state.playerState!.resources);
+    final prevHp = resources['hp'] ?? 100;
+    final prevStamina = resources['stamina'] ?? 50;
 
+    // Check if player is already at full capacity
+    final isHealingOnly = item.healValue != null && (item.staminaValue == null || item.staminaValue == 0);
+    if (isHealingOnly && prevHp >= 100) {
+      return ItemUseResult(
+        success: false,
+        isFull: true,
+        previousHp: prevHp,
+        newHp: prevHp,
+      );
+    }
+
+    int newHp = prevHp;
     if (item.healValue != null && item.healValue! > 0) {
-      final currentHp = resources['hp'] ?? 100;
-      resources['hp'] = (currentHp + item.healValue!).clamp(0, 100);
+      newHp = (prevHp + item.healValue!).clamp(0, 100);
+      resources['hp'] = newHp;
     }
     if (item.staminaValue != null && item.staminaValue! > 0) {
-      final currentStamina = resources['stamina'] ?? 50;
-      resources['stamina'] = (currentStamina + item.staminaValue!).clamp(0, 50);
+      resources['stamina'] = (prevStamina + item.staminaValue!).clamp(0, 50);
     }
 
     // Decrement item quantity or remove from inventory
@@ -318,7 +351,30 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         inventory: newInv,
       ),
     );
+
+    return ItemUseResult(
+      success: true,
+      previousHp: prevHp,
+      newHp: newHp,
+      healedAmount: newHp - prevHp,
+    );
   }
+}
+
+class ItemUseResult {
+  final bool success;
+  final bool isFull;
+  final int previousHp;
+  final int newHp;
+  final int healedAmount;
+
+  ItemUseResult({
+    required this.success,
+    this.isFull = false,
+    this.previousHp = 0,
+    this.newHp = 0,
+    this.healedAmount = 0,
+  });
 }
 
 final gameSessionProvider = StateNotifierProvider<GameSessionNotifier, GameSessionState>((ref) {

@@ -63,6 +63,8 @@ export class GeminiAdapter {
           text: c.text || defaultChoiceText,
           style: c.style || 'tactical',
           riskLevel: c.riskLevel || 'medium',
+          targetDC: typeof c.targetDC === 'number' ? c.targetDC : (typeof c.target_dc === 'number' ? c.target_dc : (c.riskLevel === 'high' ? 14 : c.riskLevel === 'low' ? 10 : 12)),
+          requiredStatId: c.requiredStatId || c.required_stat_id || c.statId || c.stat_id,
         })),
         extractedMemories: parsed.extractedMemories || [],
       };
@@ -86,25 +88,31 @@ export class GeminiAdapter {
             text: 'Hold your breath and press your spine deep into the shadow of the basalt alcove.',
             style: 'defensive',
             riskLevel: 'low',
+            targetDC: 10,
+            requiredStatId: 'agility',
           },
           {
             id: 'choice_en_2',
             text: 'Carefully slip your brass lockpick into the tumblers of the ironwood door.',
-            style: 'agile',
+            style: 'tactical',
             riskLevel: 'medium',
+            targetDC: 12,
+            requiredStatId: 'cunning',
           },
           {
             id: 'choice_en_3',
             text: 'Draw your notched boot blade and prepare to ambush whoever breaches the threshold.',
             style: 'aggressive',
             riskLevel: 'high',
+            targetDC: 14,
+            requiredStatId: 'might',
           },
         ],
         extractedMemories: [
           {
-            category: 'player',
+            category: 'character',
             importance: 6,
-            summary: 'Player surveilled the lower dungeon corridor unseen.',
+            summary: 'Heard heavy armored footsteps halting outside dungeon door',
           },
         ],
       };
@@ -112,25 +120,31 @@ export class GeminiAdapter {
 
     return {
       narrative:
-        'دیوارهای سنگی کهن با لرزشی خفیف در تاریکی سوسو می‌زنند و شعله مشعل‌ها در گذر ناگهانی باد می‌رقصد. هر بازدم، ابری از بخار سرد در سیاه‌چال پدید می‌آورد. صدای منظم گام‌های نگهبان از پشت درگاه چوبی به گوش می‌رسد؛ چکمه‌های آهنی‌اش روی سنگ‌ریزه‌ها کشیده می‌شوند.',
+        'سرمای سنگ‌های بازالتی دژ به استخوانت می‌رسد؛ نوری لرزان از زیر درگاه چوبی کهن به داخل می‌تابد. از پشت در، صدای چرخش کلید در قفل به گوش می‌رسد و سایه‌ای سنگین پشت میله‌های پنجره کوچک بالایی پدیدار می‌شود.',
       choices: [
         {
           id: 'choice_fa_1',
-          text: 'نفست را در سینه حبس کن و در فرورفتگی تاریک دیوار سنگی پناه بگیر.',
+          text: 'نَفَسَت را در سینه حبس کن و در فرورفتگی تاریک دیوار سنگی پناه بگیر.',
           style: 'defensive',
           riskLevel: 'low',
+          targetDC: 10,
+          requiredStatId: 'agility',
         },
         {
           id: 'choice_fa_2',
           text: 'به آرامی میله قفل‌گشایی را داخل مکانیزم در چوبی بلغزان.',
-          style: 'agile',
+          style: 'tactical',
           riskLevel: 'medium',
+          targetDC: 12,
+          requiredStatId: 'cunning',
         },
         {
           id: 'choice_fa_3',
           text: 'خنجر چکمه‌ات را بیرون بکش و برای شبیخون در آستانه درگاه آماده شو.',
           style: 'aggressive',
           riskLevel: 'high',
+          targetDC: 14,
+          requiredStatId: 'might',
         },
       ],
       extractedMemories: [

@@ -118,18 +118,6 @@ class _ThreeDChoiceCardState extends State<ThreeDChoiceCard>
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: widget.theme.primaryAccent.withValues(alpha: _isPressed ? 0.2 : 0.08),
-                blurRadius: 16,
-                offset: Offset(_rotY * 20, -_rotX * 20 + 4),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.45),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),

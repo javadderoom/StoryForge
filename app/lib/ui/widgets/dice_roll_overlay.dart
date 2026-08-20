@@ -10,7 +10,7 @@ class DiceRollOverlay extends StatelessWidget {
   final bool isVisible;
   final bool isRolling;
   final bool isPersian;
-  final GlobalKey<ThreeD20DiceViewState> diceKey;
+  final GlobalKey<ThreeD20DiceViewState>? diceKey;
   final VoidCallback onContinue;
   final VoidCallback onRollComplete;
 
@@ -21,7 +21,7 @@ class DiceRollOverlay extends StatelessWidget {
     required this.isVisible,
     required this.isRolling,
     required this.isPersian,
-    required this.diceKey,
+    this.diceKey,
     required this.onContinue,
     required this.onRollComplete,
   });
@@ -152,9 +152,11 @@ class DiceRollOverlay extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                     // Header
                     Text(
                       isPersian ? 'پرتاب تاس و بررسی مهارت' : 'D20 SKILL CHECK',
@@ -220,11 +222,12 @@ class DiceRollOverlay extends StatelessWidget {
                               ),
                               const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
                               _buildStatBox(
-                                isPersian ? 'اصلاحگر' : 'Mod',
+                                _formatStatLabel(resolution!.statId),
                                 (resolution!.statModifier >= 0
                                         ? '+${resolution!.statModifier}'
                                         : '${resolution!.statModifier}')
                                     .toPersianDigits(enable: isPersian),
+                                color: const Color(0xFF60A5FA),
                               ),
                               const Text('=', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
                               _buildStatBox(
@@ -302,7 +305,56 @@ class DiceRollOverlay extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ),
+  );
+}
+
+  String _formatStatLabel(String? statId) {
+    if (statId == null || statId.isEmpty) {
+      return isPersian ? 'اصلاحگر' : 'Mod';
+    }
+    if (!isPersian) {
+      return statId
+          .replaceAll('_', ' ')
+          .split(' ')
+          .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+          .join(' ');
+    }
+    switch (statId.toLowerCase().replaceAll(' ', '_')) {
+      case 'might':
+      case 'strength':
+        return 'قدرت';
+      case 'agility':
+      case 'dexterity':
+      case 'speed':
+        return 'چابکی';
+      case 'cunning':
+      case 'wit':
+        return 'ذکاوت';
+      case 'arcana':
+      case 'magic':
+      case 'sorcery':
+        return 'دانش کهن';
+      case 'charm':
+      case 'charisma':
+        return 'جذابیت';
+      case 'empathy':
+        return 'همدلی';
+      case 'passion':
+        return 'شور و اشتیاق';
+      case 'deduction':
+        return 'استنتاج';
+      case 'perception':
+      case 'observation':
+        return 'دقت و بینش';
+      case 'hacking':
+      case 'tech':
+        return 'نفوذ سایبری';
+      case 'cyberware':
+        return 'افزونه‌های سایبری';
+      default:
+        return statId.replaceAll('_', ' ');
+    }
   }
 
   Widget _buildStatBox(String label, String value, {Color color = Colors.white}) {

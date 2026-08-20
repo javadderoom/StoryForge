@@ -6,11 +6,10 @@ An AI-powered interactive RPG novel platform where readers make high-stakes choi
 
 ---
 
-## 📖 Master Plan & Architecture
+## 📖 Documentation & Architecture
 
-The complete system architecture, data models, memory engine, validation pipeline, and development roadmap are documented in:
-
-👉 **[MASTER_PLAN.md](file:///g:/Code/StoryForge/MASTER_PLAN.md)**
+* 🚀 **[Run Guide (Local Setup)](file:///g:/Code/StoryForge/docs/run.md)**
+* 🗺️ **[Feature Roadmap & Milestones](file:///g:/Code/StoryForge/docs/roadmap.md)**
 
 ---
 

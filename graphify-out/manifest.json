@@ -360,7 +360,7 @@
     "semantic_hash": ""
   },
   "app/ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift": {
-    "mtime": 1787220887.8332095,
+    "mtime": 1787260232.3910382,
     "ast_hash": "c3ca67f6d9d27f78ca451a7112e4c386",
     "semantic_hash": ""
   },
@@ -425,8 +425,8 @@
     "semantic_hash": ""
   },
   "app/lib/main.dart": {
-    "mtime": 1787214360.2831113,
-    "ast_hash": "9d451afdb2000414a0cba4101982df7a",
+    "mtime": 1787259457.748458,
+    "ast_hash": "a9ca6d91fb42f96a6fac83401c141fd0",
     "semantic_hash": ""
   },
   "app/lib/models/choice_option.dart": {
@@ -435,8 +435,8 @@
     "semantic_hash": ""
   },
   "app/lib/models/game_state.dart": {
-    "mtime": 1787218549.348151,
-    "ast_hash": "f62ac2507f1b37034b0da8719b7481fa",
+    "mtime": 1787256776.120437,
+    "ast_hash": "bf1ba2a6665f9ad1661eba9cdb5085be",
     "semantic_hash": ""
   },
   "app/lib/models/story.dart": {
@@ -445,28 +445,28 @@
     "semantic_hash": ""
   },
   "app/lib/providers/game_session_provider.dart": {
-    "mtime": 1787219631.6350565,
-    "ast_hash": "f3409e9141a4d1ade159b461bc90d589",
+    "mtime": 1787257491.4584074,
+    "ast_hash": "df2069bd5fb0fd2437c77d0303cbcea5",
     "semantic_hash": ""
   },
   "app/lib/services/game_api_service.dart": {
-    "mtime": 1787209339.599571,
-    "ast_hash": "ff2c7b3eff11020f9f3dbca5062b7dd5",
+    "mtime": 1787230505.4871368,
+    "ast_hash": "299c975fb57c359d6ffc9a8fa92ead5c",
     "semantic_hash": ""
   },
   "app/lib/ui/screens/reader_screen.dart": {
-    "mtime": 1787219285.24906,
-    "ast_hash": "cadfd3ca08cd8e5a59f8ecef618821d7",
+    "mtime": 1787260198.7638695,
+    "ast_hash": "532e1e9a2c52521c38d7f1b680be12b4",
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/choice_pill.dart": {
-    "mtime": 1787083952.5864477,
-    "ast_hash": "cc281a703214b49a64ba05459c6a8df8",
+    "mtime": 1787243638.1859574,
+    "ast_hash": "6e8d100aac4943f782f6cb0a37442983",
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/rpg_hud_drawer.dart": {
-    "mtime": 1787218492.3198557,
-    "ast_hash": "5897599c1c84110b34afb74e96e5f427",
+    "mtime": 1787255886.5458777,
+    "ast_hash": "4f8eaaee7a4809e443c3e75c0c6011a5",
     "semantic_hash": ""
   },
   "app/test/widget_test.dart": {
@@ -535,7 +535,7 @@
     "semantic_hash": ""
   },
   "web/next-env.d.ts": {
-    "mtime": 1787207477.4688299,
+    "mtime": 1787231134.758433,
     "ast_hash": "aa94238a90e7d04b7a47ecc3145ba6a0",
     "semantic_hash": ""
   },
@@ -595,13 +595,13 @@
     "semantic_hash": ""
   },
   "web/src/lib/engines/game/GameEngine.test.ts": {
-    "mtime": 1787080669.4511898,
-    "ast_hash": "eec47caf2ea66258d496d804aa7a2044",
+    "mtime": 1787252929.2934604,
+    "ast_hash": "3d844d22c9c38d4701af68eaa54eb9cb",
     "semantic_hash": ""
   },
   "web/src/lib/engines/game/GameEngine.ts": {
-    "mtime": 1787079886.488437,
-    "ast_hash": "6065fe02372973771723099d9d2a7e97",
+    "mtime": 1787255838.6749105,
+    "ast_hash": "bec346339385dd3a653242d6f13060b7",
     "semantic_hash": ""
   },
   "web/src/lib/engines/memory/MemoryEngine.test.ts": {
@@ -615,13 +615,13 @@
     "semantic_hash": ""
   },
   "web/src/lib/engines/narrative/PromptAssembler.ts": {
-    "mtime": 1787220356.1733222,
-    "ast_hash": "9a66c7df5f798df7e6acb5e5e4c01fce",
+    "mtime": 1787247076.0333314,
+    "ast_hash": "44cfdd1fe08006858f15a8f2e94a4d3f",
     "semantic_hash": ""
   },
   "web/src/lib/engines/validator/ActionValidator.test.ts": {
-    "mtime": 1787080946.2681012,
-    "ast_hash": "95a8e070df7f68128f48bb09be8aaf81",
+    "mtime": 1787252941.8438644,
+    "ast_hash": "7db22ff4b2ae0d570516278f2d99c576",
     "semantic_hash": ""
   },
   "web/src/lib/engines/validator/ActionValidator.ts": {
@@ -630,8 +630,8 @@
     "semantic_hash": ""
   },
   "web/src/lib/providers/GeminiAdapter.ts": {
-    "mtime": 1787220407.2901888,
-    "ast_hash": "d3b0daed74ef8670db1ea53a3e077ddc",
+    "mtime": 1787247001.6928315,
+    "ast_hash": "90e6a7bbdfa93ad6747a016bfdc2f131",
     "semantic_hash": ""
   },
   "web/src/lib/types/gameplay.ts": {
@@ -650,8 +650,8 @@
     "semantic_hash": ""
   },
   "web/src/lib/types/rpg.ts": {
-    "mtime": 1787218139.927523,
-    "ast_hash": "94556be5caf21748734021599ee5d6d9",
+    "mtime": 1787221739.5740993,
+    "ast_hash": "5b9e80cbb2df87e33059c22f9a4e33b6",
     "semantic_hash": ""
   },
   "web/src/lib/types/story.ts": {
@@ -690,8 +690,8 @@
     "semantic_hash": ""
   },
   ".agents/skills/flutter-architect/SKILL.md": {
-    "mtime": 1787077729.5153253,
-    "ast_hash": "188e68d926c55460f61d3c098341d34d",
+    "mtime": 1787227350.6652787,
+    "ast_hash": "94204753788750f5f0d18f9986b02a71",
     "semantic_hash": ""
   },
   ".agents/skills/impeccable/SKILL.md": {
@@ -880,8 +880,8 @@
     "semantic_hash": ""
   },
   "app/pubspec.yaml": {
-    "mtime": 1787160082.1978557,
-    "ast_hash": "584b880e7ac84efb3f652e95574bad7c",
+    "mtime": 1787225097.674358,
+    "ast_hash": "642e88011c24bf6907446150455e8d39",
     "semantic_hash": ""
   },
   "app/web/index.html": {
@@ -1150,8 +1150,8 @@
     "semantic_hash": ""
   },
   "web/src/lib/db/repositories/storyRepository.test.ts": {
-    "mtime": 1787135599.9579139,
-    "ast_hash": "5a3f53f06019535ad7d8afa69478b63f",
+    "mtime": 1787252952.270326,
+    "ast_hash": "2f2a5f86e9c7b09bed0be25d276212e2",
     "semantic_hash": ""
   },
   "web/src/lib/db/repositories/storyRepository.ts": {
@@ -1185,13 +1185,13 @@
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/reader_settings_sheet.dart": {
-    "mtime": 1787213464.0476964,
-    "ast_hash": "15ccb8a52f91bb6aeacba5051a6892c6",
+    "mtime": 1787245256.9777327,
+    "ast_hash": "60a3da0a225463f31786eb41f2ae315a",
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/story_catalog_dialog.dart": {
-    "mtime": 1787137194.4427898,
-    "ast_hash": "58ce0e54e412b004cd99f7b3146d6c9b",
+    "mtime": 1787226495.7640269,
+    "ast_hash": "997fe18a389739754b72c2d8cefe7061",
     "semantic_hash": ""
   },
   "web/src/components/ThreeD20Dice.tsx": {
@@ -1345,8 +1345,8 @@
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/dice_roll_overlay.dart": {
-    "mtime": 1787219066.852867,
-    "ast_hash": "acce28b55b37825c4a29c00c832d4b36",
+    "mtime": 1787259443.8664935,
+    "ast_hash": "315389dd7b8925d13dbfba5978fbfbc0",
     "semantic_hash": ""
   },
   "app/lib/core/utils/persian_numbers.dart": {
@@ -1355,8 +1355,8 @@
     "semantic_hash": ""
   },
   "app/lib/ui/screens/story_catalog_screen.dart": {
-    "mtime": 1787215951.7196348,
-    "ast_hash": "2b558e9548f90bfa5796b2deacc213cb",
+    "mtime": 1787258817.553301,
+    "ast_hash": "5d149639d51d61f6a6bd145aac0d1860",
     "semantic_hash": ""
   },
   "app/lib/core/theme/realm_theme.dart": {
@@ -1365,8 +1365,8 @@
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/atmosphere_canvas.dart": {
-    "mtime": 1787218796.983585,
-    "ast_hash": "b53a54db2f684553145444b732790be3",
+    "mtime": 1787244546.4907534,
+    "ast_hash": "d5b5f37deef6a7db5bcbc4fe35592e1f",
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/realm_relic_badge.dart": {
@@ -1375,13 +1375,68 @@
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/three_d_choice_card.dart": {
-    "mtime": 1787216930.9238622,
-    "ast_hash": "3920647dbc63fdd700b51cd3a2b64716",
+    "mtime": 1787243627.7148564,
+    "ast_hash": "3e5cdbac9ee1927fdf3af74faf2b8768",
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/item_detail_sheet.dart": {
-    "mtime": 1787219849.1826205,
-    "ast_hash": "b132c126666d9dc016da12acd2b3e6db",
+    "mtime": 1787255906.03201,
+    "ast_hash": "87fc8f437681c8da24026e70d7ec39d1",
+    "semantic_hash": ""
+  },
+  "app/lib/core/engine/rpg_engine.dart": {
+    "mtime": 1787256866.2415738,
+    "ast_hash": "2d1a93d2bc48aed74083c46f4743fc44",
+    "semantic_hash": ""
+  },
+  "app/lib/ui/widgets/story_cover_image.dart": {
+    "mtime": 1787226854.916151,
+    "ast_hash": "7e3d97caed43ce0277a2e03509342bb0",
+    "semantic_hash": ""
+  },
+  "docs/run.md": {
+    "mtime": 1787243174.2144496,
+    "ast_hash": "51b4e2c476614065f09ee7a766bfb0b6",
+    "semantic_hash": ""
+  },
+  "app/assets/covers/ghale_siahsang.webp": {
+    "mtime": 1787222399.6276023,
+    "ast_hash": "5529d0d5f0070f156e54a76392f2e3a0",
+    "semantic_hash": ""
+  },
+  "app/assets/covers/obsidian_citadel.webp": {
+    "mtime": 1787222399.6276023,
+    "ast_hash": "5529d0d5f0070f156e54a76392f2e3a0",
+    "semantic_hash": ""
+  },
+  "web/public/covers/ghale_siahsang.jpg": {
+    "mtime": 1787222399.6276023,
+    "ast_hash": "5529d0d5f0070f156e54a76392f2e3a0",
+    "semantic_hash": ""
+  },
+  "web/public/covers/ghale_siahsang.webp": {
+    "mtime": 1787222399.6276023,
+    "ast_hash": "5529d0d5f0070f156e54a76392f2e3a0",
+    "semantic_hash": ""
+  },
+  "web/public/covers/obsidian_citadel.jpg": {
+    "mtime": 1787222399.6276023,
+    "ast_hash": "5529d0d5f0070f156e54a76392f2e3a0",
+    "semantic_hash": ""
+  },
+  "web/public/covers/obsidian_citadel.webp": {
+    "mtime": 1787222399.6276023,
+    "ast_hash": "5529d0d5f0070f156e54a76392f2e3a0",
+    "semantic_hash": ""
+  },
+  "app/lib/ui/widgets/rpg_toast.dart": {
+    "mtime": 1787254254.466288,
+    "ast_hash": "155bf0e5cb0ddf19ef19890a8f44721f",
+    "semantic_hash": ""
+  },
+  "app/lib/providers/dice_overlay_provider.dart": {
+    "mtime": 1787259425.8267527,
+    "ast_hash": "ad8301d3b42e810125523cab7cd1d231",
     "semantic_hash": ""
   }
 }

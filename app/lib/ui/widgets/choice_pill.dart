@@ -26,13 +26,6 @@ class ChoicePill extends StatelessWidget {
             color: const Color(0xFF27272A),
             width: 1,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Text(
           choice.text,

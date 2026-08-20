@@ -1,19 +1,18 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/engine/rpg_engine.dart';
 import '../../core/theme/realm_theme.dart';
 import '../../core/utils/persian_numbers.dart';
 import '../../providers/game_session_provider.dart';
+import '../../providers/dice_overlay_provider.dart';
 import '../../models/game_state.dart';
 import '../../models/choice_option.dart';
 import '../widgets/atmosphere_canvas.dart';
 import '../widgets/three_d_choice_card.dart';
 import '../widgets/realm_relic_badge.dart';
 import '../widgets/rpg_hud_drawer.dart';
-import '../widgets/dice_roll_overlay.dart';
-import '../widgets/three_d20_dice_view.dart';
 import '../widgets/reader_settings_sheet.dart';
 import '../widgets/story_cover_image.dart';
 import 'story_catalog_screen.dart';
@@ -28,23 +27,26 @@ class ReaderScreen extends ConsumerStatefulWidget {
 class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   final TextEditingController _freeTextController = TextEditingController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  final GlobalKey<ThreeD20DiceViewState> _diceKey = GlobalKey<ThreeD20DiceViewState>();
 
   // Atmosphere & Realm Theme State
   RealmPreset? _customRealmPreset;
   bool _enableParticles = true;
   double _fontSize = 16.0;
   double _lineHeight = 1.95;
-  String _lastActionText = '';
-
-  // Persistent 3D Dice Overlay State
-  bool _isDiceOverlayVisible = false;
-  bool _isDiceRolling = false;
-  CheckResolution? _currentDiceResolution;
+  bool _isInitialPortalComplete = false;
 
   @override
   void initState() {
     super.initState();
+    // Allow a smooth cinematic transition window for initial realm loading & 3D dice warm-up
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (mounted) {
+        setState(() {
+          _isInitialPortalComplete = true;
+        });
+      }
+    });
+
     Future.microtask(() {
       final session = ref.read(gameSessionProvider);
       if (session.currentNarrative.isEmpty && !session.isLoading) {
@@ -68,71 +70,48 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   }
 
   void _handleAction(ChoiceOption choice) async {
-    _lastActionText = choice.text;
     final session = ref.read(gameSessionProvider);
     final isPersian = session.storyId == 'ghale_siahsang';
 
-    // 1. Roll D20 on device for every single action in the interactive story
+    // 1. Roll D20 on device for instant feedback
     final rolledD20 = Random().nextInt(20) + 1;
-    final statVal = (choice.requiredStatId != null && session.playerState != null)
-        ? session.playerState!.getEffectiveStat(choice.requiredStatId!)
-        : 10;
-    final statMod = ((statVal - 10) / 2).floor();
-    final total = rolledD20 + statMod;
-    final dc = choice.targetDC ??
-        (choice.riskLevel == 'high'
-            ? 14
-            : choice.riskLevel == 'low'
-                ? 10
-                : 12);
-    final outcome = (rolledD20 == 20)
-        ? 'critical_success'
-        : (rolledD20 == 1)
-            ? 'critical_failure'
-            : (total >= dc)
-                ? 'success'
-                : 'failure';
 
-    final resolution = CheckResolution(
-      diceRoll: rolledD20,
-      statModifier: statMod,
-      totalScore: total,
-      difficultyClass: dc,
-      outcome: outcome,
-      consequenceSummary: outcome.contains('success')
-          ? (isPersian
-              ? 'موفقیت‌آمیز: هدف مورد نظر با موفقیت انجام شد.'
-              : 'Clear success: objective accomplished as intended.')
-          : (isPersian
-              ? 'تلاش ناموفق بود: مانعی غیرمنتظره پدیدار شد یا فرصت از دست رفت.'
-              : 'The attempt failed: unexpected obstacle arose or opportunity lost.'),
-    );
+    // 2. Deterministically resolve action check via RpgEngine (exact parity with backend GameEngine)
+    final resolution = session.playerState != null
+        ? RpgEngine.resolveActionCheck(
+            actionText: choice.text,
+            playerState: session.playerState!,
+            requiredStatId: choice.requiredStatId,
+            targetDC: choice.targetDC,
+            riskLevel: choice.riskLevel,
+            forcedDiceRoll: rolledD20,
+            isPersian: isPersian,
+          )
+        : CheckResolution(
+            outcome: (rolledD20 >= 12) ? 'success' : 'failure',
+            diceRoll: rolledD20,
+            statModifier: 0,
+            totalScore: rolledD20,
+            difficultyClass: choice.targetDC ?? 12,
+            consequenceSummary: '',
+          );
 
-    // 2. Start server narrative generation in the background with holdNarrativeUpdate: true
+    // 3. Start server narrative generation in the background with holdNarrativeUpdate: true
     ref.read(gameSessionProvider.notifier).submitAction(
       choice,
       forcedDiceRoll: rolledD20,
       holdNarrativeUpdate: true,
     );
 
-    // 3. Immediately show the persistent 3D Dice Roll Overlay and trigger roll
-    setState(() {
-      _currentDiceResolution = resolution;
-      _isDiceRolling = true;
-      _isDiceOverlayVisible = true;
-    });
-
-    _diceKey.currentState?.roll(rolledD20);
-
-    // Settle roll after animation
-    Future.delayed(const Duration(milliseconds: 1400), () {
-      if (mounted && _isDiceOverlayVisible) {
-        setState(() {
-          _isDiceRolling = false;
-        });
-        HapticFeedback.heavyImpact();
-      }
-    });
+    // 4. Trigger pre-warmed Root 3D Dice Overlay
+    ref.read(diceOverlayProvider.notifier).showRoll(
+      resolution: resolution,
+      actionText: choice.text,
+      isPersian: isPersian,
+      onContinue: () {
+        ref.read(gameSessionProvider.notifier).applyPendingTurn();
+      },
+    );
   }
 
   void _handleCustomAction() {
@@ -167,7 +146,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           isPersian: isPersian,
         ),
         appBar: AppBar(
-          backgroundColor: theme.cardBg.withValues(alpha: 0.95),
+          backgroundColor: theme.bgGradientStart,
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white70, size: 18),
@@ -235,16 +214,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           enableParticles: _enableParticles,
           isDanger: isLowHp,
           child: SafeArea(
-            child: Stack(
-              children: [
-                // Main Reader Scroll View
-                session.isLoading && session.currentNarrative.isEmpty
-                    ? Center(
-                        child: CircularProgressIndicator(color: theme.primaryAccent),
-                      )
-                    : SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                        child: Column(
+            // Main Reader Scroll View with smooth cross-fade
+            child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 400),
+                  child: session.currentNarrative.isEmpty ||
+                          (session.isLoading && session.playerState == null) ||
+                          !_isInitialPortalComplete
+                      ? _buildInitialRealmLoader(theme, isPersian)
+                      : SingleChildScrollView(
+                          key: const ValueKey('reader_content'),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                          child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Atmospheric Story Cover Banner
@@ -362,11 +342,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                             if (session.lastResolution != null) ...[
                               GestureDetector(
                                 onTap: () {
-                                  setState(() {
-                                    _currentDiceResolution = session.lastResolution;
-                                    _isDiceRolling = false;
-                                    _isDiceOverlayVisible = true;
-                                  });
+                                  ref.read(diceOverlayProvider.notifier).showRoll(
+                                    resolution: session.lastResolution!,
+                                    actionText: isPersian ? 'بررسی مهارت قبلی' : 'Previous Skill Check',
+                                    isPersian: isPersian,
+                                    onContinue: () {},
+                                  );
+                                  ref.read(diceOverlayProvider.notifier).finishRoll();
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -537,29 +519,31 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                   ),
                                 ],
                               ),
-                              child: session.isLoading
-                                  ? Center(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(32.0),
-                                        child: CircularProgressIndicator(color: theme.primaryAccent),
-                                      ),
-                                    )
-                                  : Text(
-                                      session.currentNarrative,
-                                      style: isPersian
-                                          ? GoogleFonts.vazirmatn(
-                                              fontSize: _fontSize,
-                                              height: _lineHeight,
-                                              color: const Color(0xFFE4E4E7),
-                                              fontWeight: FontWeight.w400,
-                                            )
-                                          : GoogleFonts.merriweather(
-                                              fontSize: _fontSize + 1,
-                                              height: _lineHeight,
-                                              color: const Color(0xFFE4E4E7),
-                                              letterSpacing: 0.2,
-                                            ),
-                                    ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    session.currentNarrative,
+                                    style: isPersian
+                                        ? GoogleFonts.vazirmatn(
+                                            fontSize: _fontSize,
+                                            height: _lineHeight,
+                                            color: const Color(0xFFE4E4E7),
+                                            fontWeight: FontWeight.w400,
+                                          )
+                                        : GoogleFonts.merriweather(
+                                            fontSize: _fontSize + 1,
+                                            height: _lineHeight,
+                                            color: const Color(0xFFE4E4E7),
+                                            letterSpacing: 0.2,
+                                          ),
+                                  ),
+                                  if (session.isLoading) ...[
+                                    const SizedBox(height: 20),
+                                    _buildNarrativeScribeLoader(theme, isPersian),
+                                  ],
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 24),
 
@@ -641,33 +625,154 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                           ],
                         ),
                       ),
-
-                // Persistent 3D D20 Dice Overlay (WebGL never disposed / zero crashes)
-                DiceRollOverlay(
-                  diceKey: _diceKey,
-                  isVisible: _isDiceOverlayVisible,
-                  isRolling: _isDiceRolling,
-                  resolution: _currentDiceResolution,
-                  actionText: _lastActionText,
-                  isPersian: isPersian,
-                  onRollComplete: () {
-                    if (mounted) {
-                      setState(() {
-                        _isDiceRolling = false;
-                      });
-                    }
-                  },
-                  onContinue: () {
-                    setState(() {
-                      _isDiceOverlayVisible = false;
-                    });
-                    ref.read(gameSessionProvider.notifier).applyPendingTurn();
-                  },
-                ),
-              ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildInitialRealmLoader(RealmTheme theme, bool isPersian) {
+    final session = ref.watch(gameSessionProvider);
+
+    if (session.errorMessage != null && session.currentNarrative.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444), size: 48),
+              const SizedBox(height: 16),
+              Text(
+                isPersian ? 'خطا در احضار داستان' : 'Failed to Load Adventure',
+                style: GoogleFonts.vazirmatn(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                session.errorMessage!,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white60),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.primaryAccent,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: Text(
+                  isPersian ? 'تلاش مجدد' : 'Try Again',
+                  style: GoogleFonts.vazirmatn(fontWeight: FontWeight.bold),
+                ),
+                onPressed: () {
+                  final storyToStart = session.storyId.isEmpty ? 'ghale_siahsang' : session.storyId;
+                  ref.read(gameSessionProvider.notifier).startStory(storyToStart);
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Center(
+      key: const ValueKey('realm_loader'),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+              color: theme.primaryAccent.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+              border: Border.all(color: theme.primaryAccent.withValues(alpha: 0.6), width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: theme.primaryAccent.withValues(alpha: 0.35),
+                  blurRadius: 30,
+                  spreadRadius: 4,
+                ),
+              ],
+            ),
+            child: Center(
+              child: SizedBox(
+                width: 38,
+                height: 38,
+                child: CircularProgressIndicator(
+                  color: theme.primaryAccent,
+                  strokeWidth: 2.5,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            isPersian ? 'در حال احضار سرگذشت...' : 'Weaving the Chronicle...',
+            style: isPersian
+                ? GoogleFonts.vazirmatn(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  )
+                : GoogleFonts.cinzel(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1.2,
+                  ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isPersian ? 'جهان داستان و مسیر سرنوشت در حال شکل‌گیری است' : 'The realm and its ancient laws are aligning',
+            style: GoogleFonts.vazirmatn(
+              fontSize: 12,
+              color: Colors.white54,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNarrativeScribeLoader(RealmTheme theme, bool isPersian) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: theme.primaryAccent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.primaryAccent.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              color: theme.primaryAccent,
+              strokeWidth: 2.0,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Text(
+            isPersian
+                ? 'راوی در حال نگارش پیامد تصمیم شماست...'
+                : 'The chronicle unfolds as fate responds...',
+            style: GoogleFonts.vazirmatn(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: Colors.white70,
+            ),
+          ),
+        ],
       ),
     );
   }

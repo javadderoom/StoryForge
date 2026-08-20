@@ -75,6 +75,86 @@ export class GameEngine {
   }
 
   /**
+   * Dynamically infers the most relevant Stat ID from action text and active RPG system.
+   */
+  public static inferStatId(
+    actionText: string,
+    rpgSystem: RPGSystemSchema,
+    riskLevel?: string
+  ): string {
+    const lower = actionText.toLowerCase();
+
+    // 1. Direct match: check if any stat ID, stat Name, or skill is mentioned
+    for (const stat of rpgSystem.stats) {
+      if (
+        lower.includes(stat.id.toLowerCase()) ||
+        (stat.name && lower.includes(stat.name.toLowerCase()))
+      ) {
+        return stat.id;
+      }
+    }
+
+    for (const skill of rpgSystem.skills) {
+      if (
+        lower.includes(skill.id.toLowerCase()) ||
+        (skill.name && lower.includes(skill.name.toLowerCase()))
+      ) {
+        if (rpgSystem.stats.some((s) => s.id === skill.linkedStatId)) {
+          return skill.linkedStatId;
+        }
+      }
+    }
+
+    // 2. Genre-agnostic keyword clusters matched strictly against active stats
+    const availableStatIds = rpgSystem.stats.map((s) => s.id.toLowerCase());
+
+    const keywordMappings: { keywords: RegExp; targetIds: string[] }[] = [
+      // Physical force / melee / violence
+      {
+        keywords: /حمله|خنجر|شمشیر|مشت|زور|ضرب|strike|hit|attack|force|slash|might|break|fight|shoot|punch/,
+        targetIds: ['might', 'strength', 'power', 'combat', 'athletics', 'force'],
+      },
+      // Speed / stealth / finesse / evasion
+      {
+        keywords: /پنهان|مخفی|فرار|چابک|sneak|hide|dodge|jump|run|agility|slip|flee|escape|acrobatics|stealth/,
+        targetIds: ['agility', 'dexterity', 'speed', 'stealth', 'reflexes', 'finesse'],
+      },
+      // Wit / perception / investigation / mechanics / tech / lockpicking
+      {
+        keywords: /قفل|تله|کلید|lock|pick|trap|cunning|معما|دقت|examine|investigate|mechanism|hack|code|analyze|wit|search/,
+        targetIds: ['cunning', 'wit', 'intellect', 'perception', 'hacking', 'tech', 'investigation', 'logic'],
+      },
+      // Magic / occult / essence / arcane / science
+      {
+        keywords: /افسون|جادو|ورد|طلسم|magic|spell|arcana|relic|curse|occult|channel|ritual|cyberware/,
+        targetIds: ['arcana', 'magic', 'occult', 'spirit', 'sorcery', 'cyberware', 'mysticism'],
+      },
+      // Social / charm / empathy / deception / romance / diplomacy
+      {
+        keywords: /عشق|نگاه|همدلی|فریب|مذاکره|صحبت|لبخند|charm|persuade|talk|romance|empathy|deceive|lie|intimidate|diplomacy|passion|kiss|hug|confess/,
+        targetIds: ['charm', 'empathy', 'passion', 'presence', 'charisma', 'persuasion', 'diplomacy', 'wit'],
+      },
+    ];
+
+    for (const mapping of keywordMappings) {
+      if (mapping.keywords.test(lower)) {
+        const matchedStatId = mapping.targetIds.find((id) => availableStatIds.includes(id));
+        if (matchedStatId) return matchedStatId;
+      }
+    }
+
+    // 3. Fallback to available stats in this story
+    if (rpgSystem.stats.length > 0) {
+      if (riskLevel === 'high' && rpgSystem.stats.length > 1) {
+        return rpgSystem.stats[0].id;
+      }
+      return rpgSystem.stats[rpgSystem.stats.length > 1 ? 1 : 0].id;
+    }
+
+    return 'might';
+  }
+
+  /**
    * Resolves a skill / stat check with deterministic outcome calculations.
    */
   public static resolveActionCheck(
@@ -86,10 +166,13 @@ export class GameEngine {
     const diceType = rpgSystem.diceType || 'd20';
     const { roll, isNatMax, isNatMin } = this.rollDice(diceType, options.forcedDiceRoll);
 
+    // Determine effective stat ID (dynamically infer from actionText and rpgSystem if omitted)
+    const effectiveStatId = options.statId || this.inferStatId(actionText, rpgSystem, options.riskLevel);
+
     // Calculate stat bonus
     let statModifier = 0;
-    if (options.statId && playerState.stats[options.statId] !== undefined) {
-      statModifier = this.getStatModifier(playerState.stats[options.statId]);
+    if (effectiveStatId && playerState.stats[effectiveStatId] !== undefined) {
+      statModifier = this.getStatModifier(playerState.stats[effectiveStatId]);
     }
 
     // Calculate skill bonus
@@ -101,17 +184,59 @@ export class GameEngine {
       }
     }
 
-    // Equipment modifier (if any equipped items modify this stat)
+    // Equipment & Inventory Tool modifier (equipped gear + relevant tools like lockpick_set)
     let equipmentModifier = 0;
-    if (options.statId) {
+    if (effectiveStatId) {
+      const equippedIds = playerState.equipment
+        ? [
+            playerState.equipment.mainHand,
+            playerState.equipment.offHand,
+            playerState.equipment.armor,
+            playerState.equipment.relic,
+          ].filter(Boolean)
+        : [];
+
       for (const item of playerState.inventory) {
-        if (item.statModifiers && item.statModifiers[options.statId]) {
-          equipmentModifier += item.statModifiers[options.statId];
+        // Apply if item is actively equipped OR is a relevant tool (like lockpick_set for cunning)
+        const isEquipped = equippedIds.includes(item.id);
+        const isRelevantTool = item.type === 'quest_item';
+
+        if ((isEquipped || isRelevantTool) && item.statModifiers && item.statModifiers[effectiveStatId]) {
+          equipmentModifier += item.statModifiers[effectiveStatId];
         }
       }
     }
 
-    const envMod = options.environmentalModifier || 0;
+    // Check for tactical consumable or potion triggers in actionText
+    let itemTacticalEnvMod = 0;
+    const lowerAction = actionText.toLowerCase();
+    const itemsRemovedIds: string[] = [];
+    const initialResourceChanges: Record<string, number> = {};
+
+    // Smoke pellet / distraction trigger
+    if (/smoke|pellet|دود|مه|استتار/.test(lowerAction)) {
+      const smokeItem = playerState.inventory.find(
+        (i) => i.id === 'smoke_pellet' || i.name.toLowerCase().includes('smoke') || i.name.includes('دود')
+      );
+      if (smokeItem && smokeItem.quantity > 0) {
+        itemTacticalEnvMod += 4; // Grant +4 environmental tactical advantage
+        itemsRemovedIds.push(smokeItem.id);
+      }
+    }
+
+    // Healing potion / tincture trigger
+    if (/drink|potion|tincture|معجون|نوشیدن|درمان/.test(lowerAction)) {
+      const potionItem = playerState.inventory.find(
+        (i) => (i.healValue && i.healValue > 0) || i.id.includes('potion') || i.id.includes('tincture') || i.name.includes('معجون')
+      );
+      if (potionItem && potionItem.quantity > 0) {
+        const healAmt = potionItem.healValue || 30;
+        initialResourceChanges.hp = (initialResourceChanges.hp || 0) + healAmt;
+        itemsRemovedIds.push(potionItem.id);
+      }
+    }
+
+    const envMod = (options.environmentalModifier || 0) + itemTacticalEnvMod;
     const totalScore = roll + statModifier + skillBonus + equipmentModifier + envMod;
 
     // Default DC based on risk level if not explicitly provided
@@ -126,12 +251,17 @@ export class GameEngine {
 
     let outcome: DiceOutcome;
     let consequenceSummary: string;
-    const stateDiff: StateMutationDiff = {};
+    const stateDiff: StateMutationDiff = {
+      itemsRemovedIds: itemsRemovedIds.length > 0 ? itemsRemovedIds : undefined,
+    };
+    if (Object.keys(initialResourceChanges).length > 0) {
+      stateDiff.resourceChanges = { ...initialResourceChanges };
+    }
 
     if (isNatMin) {
       outcome = 'critical_failure';
       consequenceSummary = 'Disaster strikes: complete failure with severe complications or damage.';
-      stateDiff.resourceChanges = { hp: -15 };
+      stateDiff.resourceChanges = { ...(stateDiff.resourceChanges || {}), hp: (stateDiff.resourceChanges?.hp || 0) - 15 };
     } else if (isNatMax) {
       outcome = 'critical_success';
       consequenceSummary = 'Flawless execution: effortless success with bonus insight or tactical advantage.';
@@ -144,16 +274,20 @@ export class GameEngine {
     } else if (totalScore >= baseDC - 3) {
       outcome = 'mixed_success';
       consequenceSummary = 'Mixed success: goal achieved, but with cost, minor injury, or alert raised.';
-      stateDiff.resourceChanges = { hp: -5, stamina: -10 };
+      stateDiff.resourceChanges = {
+        ...(stateDiff.resourceChanges || {}),
+        hp: (stateDiff.resourceChanges?.hp || 0) - 5,
+        stamina: (stateDiff.resourceChanges?.stamina || 0) - 10,
+      };
     } else {
       outcome = 'failure';
       consequenceSummary = 'The attempt failed: unexpected obstacle arose or opportunity lost.';
-      stateDiff.resourceChanges = { hp: -10 };
+      stateDiff.resourceChanges = { ...(stateDiff.resourceChanges || {}), hp: (stateDiff.resourceChanges?.hp || 0) - 10 };
     }
 
     return {
       actionDescription: actionText,
-      statId: options.statId,
+      statId: effectiveStatId,
       statModifier: statModifier + skillBonus + equipmentModifier,
       diceRoll: roll,
       diceType,
@@ -190,6 +324,7 @@ export class GameEngine {
         const current = updated.resources[resourceId] !== undefined ? updated.resources[resourceId] : 100;
         let maxVal = 100;
         let minVal = 0;
+        let minFloor = 0;
 
         if (rpgSystem) {
           const resDef = rpgSystem.resources.find((r) => r.id === resourceId);
@@ -215,9 +350,18 @@ export class GameEngine {
       }
     }
 
-    // 4. Apply Inventory Removals
+    // 4. Apply Inventory Removals (decrement quantity by 1 if stacked)
     if (diff.itemsRemovedIds && diff.itemsRemovedIds.length > 0) {
-      updated.inventory = updated.inventory.filter((item) => !diff.itemsRemovedIds!.includes(item.id));
+      for (const removeId of diff.itemsRemovedIds) {
+        const itemIndex = updated.inventory.findIndex((i) => i.id === removeId);
+        if (itemIndex >= 0) {
+          if (updated.inventory[itemIndex].quantity > 1) {
+            updated.inventory[itemIndex].quantity -= 1;
+          } else {
+            updated.inventory.splice(itemIndex, 1);
+          }
+        }
+      }
     }
 
     // 5. Apply Location Change

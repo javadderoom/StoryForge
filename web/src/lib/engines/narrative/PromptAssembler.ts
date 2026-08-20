@@ -31,8 +31,8 @@ You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "Visceral, atmospheric next scene prose in English...",
   "choices": [
-    { "id": "choice_1", "text": "First choice description in English...", "style": "defensive", "riskLevel": "low" },
-    { "id": "choice_2", "text": "Second choice description in English...", "style": "tactical", "riskLevel": "medium" }
+    { "id": "choice_1", "text": "First choice description in English...", "style": "defensive", "riskLevel": "low", "targetDC": 10, "requiredStatId": "agility" },
+    { "id": "choice_2", "text": "Second choice description in English...", "style": "tactical", "riskLevel": "medium", "targetDC": 12, "requiredStatId": "cunning" }
   ],
   "extractedMemories": [
     { "category": "character", "importance": 7, "summary": "Key discovery about a character in English..." }
@@ -47,15 +47,15 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 1. All game mechanics (dice rolls, stats, and consequences) are ALREADY pre-resolved deterministically.
 2. You MUST strictly depict the pre-calculated outcome. Do NOT contradict or alter the mechanical result.
 3. Keep the prose focused (between 200 and 350 words). Maintain narrative momentum and visceral tension.
-4. Provide 2 to 4 natural, contextual next choices for the reader.
+4. Provide 2 to 4 natural, contextual next choices for the reader. Each choice MUST include the most appropriate stat ('might', 'agility', 'cunning', 'arcana') and target DC (9-16).
 
 [OUTPUT FORMAT]
 You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "متن ادبی و فضاسازی صحنه بعدی...",
   "choices": [
-    { "id": "choice_1", "text": "متن تصمیم اول...", "style": "defensive", "riskLevel": "low" },
-    { "id": "choice_2", "text": "متن تصمیم دوم...", "style": "tactical", "riskLevel": "medium" }
+    { "id": "choice_1", "text": "متن تصمیم اول...", "style": "defensive", "riskLevel": "low", "targetDC": 10, "requiredStatId": "agility" },
+    { "id": "choice_2", "text": "متن تصمیم دوم...", "style": "tactical", "riskLevel": "medium", "targetDC": 12, "requiredStatId": "cunning" }
   ],
   "extractedMemories": [
     { "category": "character", "importance": 7, "summary": "کشف رازی مهم در مورد شخصیت..." }

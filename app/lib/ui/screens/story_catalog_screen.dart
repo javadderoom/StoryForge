@@ -18,6 +18,7 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
   List<StorySummary> _stories = [];
   bool _isLoading = true;
   String? _errorMessage;
+  String? _startingStoryId;
 
   @override
   void initState() {
@@ -110,15 +111,48 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
           ],
         ),
         body: _isLoading
-            ? const Center(
+            ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(color: Color(0xFFF59E0B)),
-                    SizedBox(height: 16),
+                    Container(
+                      width: 68,
+                      height: 68,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5), width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                            blurRadius: 25,
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: CircularProgressIndicator(
+                            color: Color(0xFFF59E0B),
+                            strokeWidth: 2.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
                     Text(
-                      'در حال بارگذاری تالار داستان‌ها...',
-                      style: TextStyle(color: Colors.white60, fontSize: 13),
+                      isPersian ? 'در حال بارگذاری تالار سرگذشت‌ها...' : 'Loading Adventure Catalog...',
+                      style: GoogleFonts.vazirmatn(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      isPersian ? 'احضار جهان‌ها و قوانین کهن' : 'Summoning worlds & ancient lore',
+                      style: GoogleFonts.vazirmatn(fontSize: 11, color: Colors.white54),
                     ),
                   ],
                 ),
@@ -446,29 +480,62 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       elevation: isActive ? 0 : 4,
                     ),
-                    onPressed: () {
-                      if (!isActive) {
-                        ref.read(gameSessionProvider.notifier).startStory(story.id);
-                      }
-                      if (Navigator.canPop(context)) {
-                        Navigator.of(context).pop();
-                      } else {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const ReaderScreen(),
+                    onPressed: _startingStoryId != null
+                        ? null
+                        : () async {
+                            setState(() {
+                              _startingStoryId = story.id;
+                            });
+                            if (!isActive) {
+                              ref.read(gameSessionProvider.notifier).startStory(story.id, title: story.title);
+                            }
+                            if (Navigator.canPop(context)) {
+                              Navigator.of(context).pop();
+                            } else {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => const ReaderScreen(),
+                                ),
+                              );
+                              if (mounted) {
+                                setState(() {
+                                  _startingStoryId = null;
+                                });
+                              }
+                            }
+                          },
+                    child: _startingStoryId == story.id
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                isPersian ? 'در حال ورود به قلمرو...' : 'Entering Realm...',
+                                style: GoogleFonts.vazirmatn(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            isActive
+                                ? (isPersian ? 'ادامه خوانش همین داستان' : 'Continue Current Adventure')
+                                : (isPersian ? 'آغاز این ماجراجویی' : 'Start This Adventure'),
+                            style: GoogleFonts.vazirmatn(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        );
-                      }
-                    },
-                    child: Text(
-                      isActive
-                          ? (isPersian ? 'ادامه خوانش همین داستان' : 'Continue Current Adventure')
-                          : (isPersian ? 'آغاز این ماجراجویی' : 'Start This Adventure'),
-                      style: GoogleFonts.vazirmatn(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
                   ),
                 ),
               ],

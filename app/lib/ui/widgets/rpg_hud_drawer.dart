@@ -1,25 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/utils/persian_numbers.dart';
 import '../../models/game_state.dart';
+import '../../providers/game_session_provider.dart';
 import 'item_detail_sheet.dart';
 
-class RpgHudDrawer extends StatefulWidget {
+class RpgHudDrawer extends ConsumerStatefulWidget {
   final PlayerState? playerState;
   final bool isPersian;
 
   const RpgHudDrawer({
     super.key,
-    required this.playerState,
+    this.playerState,
     this.isPersian = true,
   });
 
   @override
-  State<RpgHudDrawer> createState() => _RpgHudDrawerState();
+  ConsumerState<RpgHudDrawer> createState() => _RpgHudDrawerState();
 }
 
-class _RpgHudDrawerState extends State<RpgHudDrawer> {
+class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
   String _selectedCategory = 'all'; // all, gear, consumable, misc
 
   String _formatResourceName(String key) {
@@ -37,18 +39,47 @@ class _RpgHudDrawerState extends State<RpgHudDrawer> {
   }
 
   String _formatStatName(String key) {
-    if (!widget.isPersian) return key.toUpperCase();
-    switch (key.toLowerCase()) {
+    if (!widget.isPersian) {
+      return key
+          .replaceAll('_', ' ')
+          .split(' ')
+          .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+          .join(' ');
+    }
+    switch (key.toLowerCase().replaceAll(' ', '_')) {
       case 'might':
+      case 'strength':
         return 'قدرت';
       case 'agility':
+      case 'dexterity':
+      case 'speed':
         return 'چابکی';
       case 'cunning':
+      case 'wit':
         return 'ذکاوت';
       case 'arcana':
+      case 'magic':
+      case 'sorcery':
         return 'دانش کهن';
+      case 'charm':
+      case 'charisma':
+        return 'جذابیت';
+      case 'empathy':
+        return 'همدلی';
+      case 'passion':
+        return 'شور و اشتیاق';
+      case 'deduction':
+        return 'استنتاج';
+      case 'perception':
+      case 'observation':
+        return 'دقت و بینش';
+      case 'hacking':
+      case 'tech':
+        return 'نفوذ سایبری';
+      case 'cyberware':
+        return 'افزونه‌های سایبری';
       default:
-        return key;
+        return key.replaceAll('_', ' ');
     }
   }
 
@@ -70,17 +101,34 @@ class _RpgHudDrawerState extends State<RpgHudDrawer> {
   List<GameItem> _getFilteredItems(List<GameItem> items) {
     if (_selectedCategory == 'all') return items;
     if (_selectedCategory == 'gear') {
-      return items.where((i) => i.type == 'weapon' || i.type == 'armor' || i.type == 'relic' || i.grip != null).toList();
+      return items
+          .where((i) =>
+              i.type == 'weapon' ||
+              i.type == 'armor' ||
+              i.type == 'shield' ||
+              i.type == 'relic' ||
+              i.grip != null)
+          .toList();
     }
     if (_selectedCategory == 'consumable') {
       return items.where((i) => i.isConsumable || i.type == 'consumable').toList();
     }
-    return items.where((i) => !i.isConsumable && i.type != 'weapon' && i.type != 'armor' && i.type != 'relic').toList();
+    return items
+        .where((i) =>
+            !i.isConsumable &&
+            i.type != 'consumable' &&
+            i.type != 'weapon' &&
+            i.type != 'armor' &&
+            i.type != 'shield' &&
+            i.type != 'relic' &&
+            i.grip == null)
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final player = widget.playerState;
+    final session = ref.watch(gameSessionProvider);
+    final player = session.playerState ?? widget.playerState;
 
     return Directionality(
       textDirection: widget.isPersian ? TextDirection.rtl : TextDirection.ltr,
@@ -96,34 +144,40 @@ class _RpgHudDrawerState extends State<RpgHudDrawer> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                            ),
+                            child: const Icon(Icons.shield_outlined, color: Color(0xFFF59E0B), size: 18),
                           ),
-                          child: const Icon(Icons.shield_outlined, color: Color(0xFFF59E0B), size: 18),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          widget.isPersian ? 'پرونده و تجهیزات' : 'CHARACTER DOSSIER',
-                          style: widget.isPersian
-                              ? GoogleFonts.vazirmatn(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFFF59E0B),
-                                )
-                              : GoogleFonts.cinzel(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFFF59E0B),
-                                  letterSpacing: 1.5,
-                                ),
-                        ),
-                      ],
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              widget.isPersian ? 'پرونده و تجهیزات' : 'CHARACTER DOSSIER',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: widget.isPersian
+                                  ? GoogleFonts.vazirmatn(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFFF59E0B),
+                                    )
+                                  : GoogleFonts.cinzel(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFFF59E0B),
+                                      letterSpacing: 1.5,
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close_rounded, color: Colors.white60),
@@ -520,87 +574,132 @@ class _RpgHudDrawerState extends State<RpgHudDrawer> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
+      child: Material(
         color: const Color(0xFF131525),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isEquipped ? const Color(0xFFF59E0B).withValues(alpha: 0.5) : const Color(0xFF1E2235),
-          width: isEquipped ? 1.3 : 1.0,
-        ),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-        onTap: () {
-          HapticFeedback.selectionClick();
-          ItemDetailSheet.show(context, item: item, isPersian: widget.isPersian);
-        },
-        leading: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: rarityColor.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: rarityColor.withValues(alpha: 0.5)),
-          ),
-          child: Icon(
-            item.type == 'weapon'
-                ? Icons.hardware
-                : item.type == 'armor' || item.grip == WeaponGrip.offHandOnly
-                    ? Icons.shield_outlined
-                    : item.type == 'relic'
-                        ? Icons.auto_awesome
-                        : item.isConsumable
-                            ? Icons.local_drink
-                            : Icons.vpn_key_outlined,
-            color: rarityColor,
-            size: 18,
-          ),
-        ),
-        title: Text(
-          item.name,
-          style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
-        ),
-        subtitle: Row(
-          children: [
-            if (isEquipped) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  widget.isPersian ? 'مجهز شده' : 'EQUIPPED',
-                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFFF59E0B)),
-                ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            ItemDetailSheet.show(context, item: item, isPersian: widget.isPersian);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isEquipped ? const Color(0xFFF59E0B).withValues(alpha: 0.5) : const Color(0xFF1E2235),
+                width: isEquipped ? 1.3 : 1.0,
               ),
-              const SizedBox(width: 6),
-            ],
-            if (item.statModifiers.isNotEmpty)
-              Text(
-                item.statModifiers.entries
-                    .map((e) => '+${e.value.toPersianDigits(enable: widget.isPersian)} ${_formatStatName(e.key)}')
-                    .join(' '),
-                style: GoogleFonts.vazirmatn(fontSize: 10, color: const Color(0xFF60A5FA)),
-              )
-            else if (item.healValue != null)
-              Text(
-                '+${item.healValue!.toPersianDigits(enable: widget.isPersian)} HP',
-                style: GoogleFonts.vazirmatn(fontSize: 10, color: const Color(0xFF34D399)),
-              ),
-          ],
-        ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E2235),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Directionality(
-            textDirection: TextDirection.ltr,
-            child: Text(
-              'x${item.quantity.toPersianDigits(enable: widget.isPersian)}',
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white70),
+            ),
+            child: Row(
+              children: [
+                // Leading Icon Box
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: rarityColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: rarityColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Icon(
+                    item.type == 'weapon'
+                        ? Icons.hardware
+                        : item.type == 'shield' || item.type == 'armor' || item.grip == WeaponGrip.offHandOnly
+                            ? Icons.shield_outlined
+                            : item.type == 'relic'
+                                ? Icons.auto_awesome
+                                : item.isConsumable
+                                    ? Icons.local_drink
+                                    : Icons.vpn_key_outlined,
+                    color: rarityColor,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Item Details (Title + Badges/Stats)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        item.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.vazirmatn(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          if (isEquipped) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF59E0B).withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                widget.isPersian ? 'مجهز شده' : 'EQUIPPED',
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFF59E0B),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          if (item.statModifiers.isNotEmpty)
+                            Expanded(
+                              child: Text(
+                                item.statModifiers.entries
+                                    .map((e) =>
+                                        '+${e.value.toPersianDigits(enable: widget.isPersian)} ${_formatStatName(e.key)}')
+                                    .join(' '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.vazirmatn(fontSize: 10, color: const Color(0xFF60A5FA)),
+                              ),
+                            )
+                          else if (item.healValue != null)
+                            Expanded(
+                              child: Text(
+                                '+${item.healValue!.toPersianDigits(enable: widget.isPersian)} HP',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.vazirmatn(fontSize: 10, color: const Color(0xFF34D399)),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Quantity Pill
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E2235),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Text(
+                      'x${item.quantity.toPersianDigits(enable: widget.isPersian)}',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white70),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

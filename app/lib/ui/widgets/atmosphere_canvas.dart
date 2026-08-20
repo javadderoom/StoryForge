@@ -77,14 +77,7 @@ class _AtmosphereCanvasState extends State<AtmosphereCanvas>
     return AnimatedContainer(
       duration: const Duration(milliseconds: 500),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            widget.theme.bgGradientStart,
-            widget.theme.bgGradientEnd,
-          ],
-        ),
+        color: widget.theme.bgGradientStart,
       ),
       child: Stack(
         fit: StackFit.expand,

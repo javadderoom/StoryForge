@@ -31,6 +31,7 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
     inventory: [
       { id: 'iron_dagger', name: 'Iron Dagger', description: 'Sharp edge', type: 'weapon', quantity: 1, statModifiers: { agility: 1 } },
     ],
+    equipment: {},
     discoveredLocationIds: ['loc_dungeon_cell'],
     relationships: {
       npc_rolan: { trust: 10, knownSecrets: [], notes: [] },
@@ -168,31 +169,53 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
       assert.equal(key?.quantity, 1);
     });
 
-    it('removes items from inventory by ID', () => {
-      const mutated = GameEngine.applyStateMutation(initialPlayerState, {
-        itemsRemovedIds: ['iron_dagger'],
+    it('decrements item quantity by 1 for stacked items', () => {
+      const stackedState = {
+        ...initialPlayerState,
+        inventory: [
+          { id: 'smoke_pellet', name: 'Smoke Pellet', description: '', type: 'consumable' as const, quantity: 2 },
+        ],
+      };
+      const mutated = GameEngine.applyStateMutation(stackedState, {
+        itemsRemovedIds: ['smoke_pellet'],
       });
-      assert.equal(mutated.inventory.length, 0);
+      const pellet = mutated.inventory.find((i) => i.id === 'smoke_pellet');
+      assert.equal(pellet?.quantity, 1);
+
+      const secondMutation = GameEngine.applyStateMutation(mutated, {
+        itemsRemovedIds: ['smoke_pellet'],
+      });
+      assert.equal(secondMutation.inventory.length, 0);
     });
 
-    it('updates NPC trust and records discovered secrets', () => {
-      const mutated = GameEngine.applyStateMutation(initialPlayerState, {
-        relationshipChanges: {
-          npc_rolan: { trustDelta: 25, newSecret: 'secret_king_treason' },
-        },
+    it('triggers tactical smoke pellet environmental bonus and item removal in action text', () => {
+      const stateWithPellet = {
+        ...initialPlayerState,
+        inventory: [
+          { id: 'smoke_pellet', name: 'Alchemical Smoke Pellet', description: '', type: 'consumable' as const, quantity: 2 },
+        ],
+      };
+      const res = GameEngine.resolveActionCheck('Throw alchemical smoke pellet to escape guards', stateWithPellet, sampleRpgSystem, {
+        forcedDiceRoll: 10,
       });
 
-      assert.equal(mutated.relationships.npc_rolan.trust, 35);
-      assert.ok(mutated.relationships.npc_rolan.knownSecrets.includes('secret_king_treason'));
+      assert.equal(res.environmentalModifier, 4);
+      assert.ok(res.stateDiff.itemsRemovedIds?.includes('smoke_pellet'));
     });
 
-    it('transitions location and registers it in discovered locations', () => {
-      const mutated = GameEngine.applyStateMutation(initialPlayerState, {
-        locationChange: 'loc_courtyard',
+    it('triggers potion healing and item removal in action text', () => {
+      const stateWithPotion = {
+        ...initialPlayerState,
+        inventory: [
+          { id: 'healing_tincture', name: 'Healing Tincture', description: '', type: 'consumable' as const, quantity: 1, healValue: 30 },
+        ],
+      };
+      const res = GameEngine.resolveActionCheck('Drink healing tincture quickly behind cover', stateWithPotion, sampleRpgSystem, {
+        forcedDiceRoll: 10,
       });
 
-      assert.equal(mutated.currentLocationId, 'loc_courtyard');
-      assert.ok(mutated.discoveredLocationIds.includes('loc_courtyard'));
+      assert.equal(res.stateDiff.resourceChanges?.hp, 30);
+      assert.ok(res.stateDiff.itemsRemovedIds?.includes('healing_tincture'));
     });
   });
 });

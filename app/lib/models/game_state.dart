@@ -75,7 +75,11 @@ class GameItem {
       statModifiers: mods,
       healValue: json['healValue'],
       staminaValue: json['staminaValue'],
-      isConsumable: json['isConsumable'] ?? (json['type'] == 'consumable'),
+      isConsumable: json['isConsumable'] ??
+          (json['type'] == 'consumable' ||
+              json['type'] == 'potion' ||
+              json['healValue'] != null ||
+              json['staminaValue'] != null),
     );
   }
 
@@ -173,6 +177,7 @@ class CheckResolution {
   final int totalScore;
   final int difficultyClass;
   final String consequenceSummary;
+  final String? statId;
 
   CheckResolution({
     required this.outcome,
@@ -181,6 +186,7 @@ class CheckResolution {
     required this.totalScore,
     required this.difficultyClass,
     required this.consequenceSummary,
+    this.statId,
   });
 
   factory CheckResolution.fromJson(Map<String, dynamic> json) {
@@ -191,6 +197,7 @@ class CheckResolution {
       totalScore: json['totalScore'] ?? 10,
       difficultyClass: json['difficultyClass'] ?? 10,
       consequenceSummary: json['consequenceSummary'] ?? '',
+      statId: json['statId'],
     );
   }
 }

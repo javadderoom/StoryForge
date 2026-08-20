@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/utils/persian_numbers.dart';
 import '../../models/game_state.dart';
 import '../../providers/game_session_provider.dart';
+import 'rpg_toast.dart';
 
 class ItemDetailSheet extends ConsumerWidget {
   final GameItem item;
@@ -70,53 +71,59 @@ class ItemDetailSheet extends ConsumerWidget {
       if (item.grip == WeaponGrip.twoHanded) {
         return Icons.hardware;
       }
-      return Icons.shield_outlined;
+      return Icons.pan_tool_outlined;
     }
-    if (item.type == 'armor' || item.grip == WeaponGrip.offHandOnly) {
+    if (item.type == 'shield' || item.type == 'armor' || item.grip == WeaponGrip.offHandOnly) {
       return Icons.shield_rounded;
     }
     if (item.type == 'relic') {
       return Icons.auto_awesome;
     }
-    if (item.isConsumable || item.type == 'consumable') {
+    if (item.healValue != null || item.staminaValue != null) {
       return Icons.local_drink_outlined;
+    }
+    if (item.isConsumable || item.type == 'consumable') {
+      return Icons.flash_on_outlined;
     }
     return Icons.vpn_key_outlined;
   }
 
   String _getTypeLabel(GameItem item) {
     if (!isPersian) {
+      if (item.type == 'shield' || item.grip == WeaponGrip.offHandOnly) return 'Shield / Off-Hand';
       if (item.grip == WeaponGrip.twoHanded) return 'Two-Handed Weapon';
-      if (item.grip == WeaponGrip.oneHanded) return 'One-Handed Weapon';
-      if (item.grip == WeaponGrip.offHandOnly) return 'Shield / Off-Hand';
+      if (item.grip == WeaponGrip.oneHanded || item.type == 'weapon') return 'One-Handed Weapon';
       if (item.type == 'armor') return 'Armor';
       if (item.type == 'relic') return 'Ancient Relic';
-      if (item.isConsumable) return 'Consumable';
+      if (item.healValue != null || item.staminaValue != null) return 'Restorative Potion';
+      if (item.isConsumable || item.type == 'consumable') return 'Tactical Consumable';
       return 'Quest Item';
     }
 
+    if (item.type == 'shield' || item.grip == WeaponGrip.offHandOnly) return 'سپر و دست فرعی';
     if (item.grip == WeaponGrip.twoHanded) return 'سلاح دو دست';
-    if (item.grip == WeaponGrip.oneHanded) return 'سلاح یک‌دست';
-    if (item.grip == WeaponGrip.offHandOnly) return 'سپر و دست فرعی';
+    if (item.grip == WeaponGrip.oneHanded || item.type == 'weapon') return 'سلاح یک‌دست';
     if (item.type == 'armor') return 'زره و بالاپوش';
     if (item.type == 'relic') return 'اثر جادویی باستانی';
-    if (item.isConsumable) return 'معجون مصرفی';
+    if (item.healValue != null || item.staminaValue != null) return 'معجون حیات';
+    if (item.isConsumable || item.type == 'consumable') return 'ابزار تاکتیکی مصرفی';
     return 'شیء ماجراجویی';
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(gameSessionProvider);
+    final activeItem = session.playerState?.getItem(item.id) ?? item;
     final equipment = session.playerState?.equipment ?? const PlayerEquipment();
-    final isEquipped = equipment.isEquipped(item.id);
-    final rarityColor = _getRarityColor(item.rarity);
+    final isEquipped = equipment.isEquipped(activeItem.id);
+    final rarityColor = _getRarityColor(activeItem.rarity);
 
     // Determine currently equipped slot
     String? currentSlot;
-    if (equipment.mainHand == item.id) currentSlot = 'mainHand';
-    if (equipment.offHand == item.id) currentSlot = 'offHand';
-    if (equipment.armor == item.id) currentSlot = 'armor';
-    if (equipment.relic == item.id) currentSlot = 'relic';
+    if (equipment.mainHand == activeItem.id) currentSlot = 'mainHand';
+    if (equipment.offHand == activeItem.id) currentSlot = 'offHand';
+    if (equipment.armor == activeItem.id) currentSlot = 'armor';
+    if (equipment.relic == activeItem.id) currentSlot = 'relic';
 
     return Directionality(
       textDirection: isPersian ? TextDirection.rtl : TextDirection.ltr,
@@ -134,10 +141,12 @@ class ItemDetailSheet extends ConsumerWidget {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Top Handle Bar
             Center(
               child: Container(
@@ -171,7 +180,7 @@ class ItemDetailSheet extends ConsumerWidget {
                     ],
                   ),
                   child: Icon(
-                    _getTypeIcon(item),
+                    _getTypeIcon(activeItem),
                     color: rarityColor,
                     size: 28,
                   ),
@@ -184,7 +193,7 @@ class ItemDetailSheet extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        item.name,
+                        activeItem.name,
                         style: isPersian
                             ? GoogleFonts.vazirmatn(
                                 fontSize: 18,
@@ -207,7 +216,7 @@ class ItemDetailSheet extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              _getRarityTitle(item.rarity),
+                              _getRarityTitle(activeItem.rarity),
                               style: GoogleFonts.vazirmatn(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -217,7 +226,7 @@ class ItemDetailSheet extends ConsumerWidget {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            _getTypeLabel(item),
+                            _getTypeLabel(activeItem),
                             style: GoogleFonts.vazirmatn(
                               fontSize: 12,
                               color: Colors.white60,
@@ -233,12 +242,12 @@ class ItemDetailSheet extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // Stat Modifiers & Healing Effects Badges
-            if (item.statModifiers.isNotEmpty || item.healValue != null || item.staminaValue != null) ...[
+            if (activeItem.statModifiers.isNotEmpty || activeItem.healValue != null || activeItem.staminaValue != null) ...[
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final entry in item.statModifiers.entries)
+                  for (final entry in activeItem.statModifiers.entries)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
@@ -271,7 +280,7 @@ class ItemDetailSheet extends ConsumerWidget {
                         ],
                       ),
                     ),
-                  if (item.healValue != null)
+                  if (activeItem.healValue != null)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
@@ -287,7 +296,7 @@ class ItemDetailSheet extends ConsumerWidget {
                           Directionality(
                             textDirection: TextDirection.ltr,
                             child: Text(
-                              '+${item.healValue!.toPersianDigits(enable: isPersian)} HP',
+                              '+${activeItem.healValue!.toPersianDigits(enable: isPersian)} HP',
                               style: GoogleFonts.vazirmatn(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -313,7 +322,7 @@ class ItemDetailSheet extends ConsumerWidget {
                 border: Border.all(color: Colors.white10),
               ),
               child: Text(
-                item.description,
+                activeItem.description,
                 style: GoogleFonts.vazirmatn(
                   fontSize: 13.5,
                   color: Colors.white70,
@@ -348,30 +357,92 @@ class ItemDetailSheet extends ConsumerWidget {
                   },
                 ),
               ),
-            ] else if (item.isConsumable) ...[
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
-                    foregroundColor: Colors.black,
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ] else if (activeItem.isConsumable ||
+                activeItem.type == 'consumable' ||
+                activeItem.type == 'potion' ||
+                activeItem.healValue != null ||
+                activeItem.staminaValue != null) ...[
+              if (activeItem.healValue != null || activeItem.staminaValue != null) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.black,
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: const Icon(Icons.local_drink, size: 18),
+                    label: Text(
+                      isPersian
+                          ? 'نوشیدن معجون (+${activeItem.healValue ?? 30} سلامتی)'
+                          : 'Drink Potion (+${activeItem.healValue ?? 30} HP)',
+                      style: GoogleFonts.vazirmatn(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () {
+                      HapticFeedback.heavyImpact();
+                      final result = ref.read(gameSessionProvider.notifier).useConsumable(activeItem.id);
+                      Navigator.of(context).pop();
+
+                      if (result.isFull) {
+                        RpgToast.show(
+                          context,
+                          type: RpgToastType.warning,
+                          isPersian: isPersian,
+                          title: isPersian ? 'سلامتی شما پر است' : 'Already at Full Health',
+                          subtitle: isPersian
+                              ? 'میزان سلامت ${result.previousHp.toPersianDigits(enable: isPersian)} از ۱۰۰ است. معجون ذخیره ماند.'
+                              : 'Health is ${result.previousHp}/100. Potion was preserved.',
+                        );
+                      } else if (result.success) {
+                        RpgToast.show(
+                          context,
+                          type: RpgToastType.success,
+                          isPersian: isPersian,
+                          title: isPersian ? 'سلامتی بازیابی شد!' : 'Health Restored!',
+                          subtitle: isPersian
+                              ? '+${result.healedAmount.toPersianDigits(enable: isPersian)} سلامت (${result.previousHp.toPersianDigits(enable: isPersian)} ← ${result.newHp.toPersianDigits(enable: isPersian)})'
+                              : '+${result.healedAmount} HP (${result.previousHp} → ${result.newHp})',
+                        );
+                      }
+                    },
                   ),
-                  icon: const Icon(Icons.local_drink, size: 18),
-                  label: Text(
-                    isPersian ? 'نوشیدن و بازیابی' : 'Consume Potion',
-                    style: GoogleFonts.vazirmatn(fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                  onPressed: () {
-                    HapticFeedback.heavyImpact();
-                    ref.read(gameSessionProvider.notifier).useConsumable(item.id);
-                    Navigator.of(context).pop();
-                  },
                 ),
-              ),
-            ] else if (item.grip == WeaponGrip.oneHanded || (item.type == 'weapon' && item.grip == null)) ...[
+              ] else ...[
+                // Tactical Consumable (like Smoke Pellet)
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                      foregroundColor: Colors.white,
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: const Icon(Icons.flash_on_rounded, size: 18),
+                    label: Text(
+                      isPersian ? 'استفاده در روایت داستان' : 'Deploy in Story Action',
+                      style: GoogleFonts.vazirmatn(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () {
+                      HapticFeedback.mediumImpact();
+                      Navigator.of(context).pop();
+                      RpgToast.show(
+                        context,
+                        type: RpgToastType.info,
+                        isPersian: isPersian,
+                        title: isPersian ? 'استفاده در روایت داستان' : 'Deploy in Story Action',
+                        subtitle: isPersian
+                            ? 'در کادر اقدام بنویسید: «استفاده از ${activeItem.name}»'
+                            : 'Type in the action bar: "Deploy ${activeItem.name}"',
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ] else if (activeItem.grip == WeaponGrip.oneHanded || (activeItem.type == 'weapon' && activeItem.grip == null)) ...[
               // 1-Handed weapon: Can equip Main Hand or Off-Hand (Dual Wield)
               Row(
                 children: [
@@ -391,7 +462,7 @@ class ItemDetailSheet extends ConsumerWidget {
                         ),
                         onPressed: () {
                           HapticFeedback.mediumImpact();
-                          ref.read(gameSessionProvider.notifier).equipItem(item.id, targetSlot: 'mainHand');
+                          ref.read(gameSessionProvider.notifier).equipItem(activeItem.id, targetSlot: 'mainHand');
                           Navigator.of(context).pop();
                         },
                       ),
@@ -414,7 +485,7 @@ class ItemDetailSheet extends ConsumerWidget {
                         ),
                         onPressed: () {
                           HapticFeedback.mediumImpact();
-                          ref.read(gameSessionProvider.notifier).equipItem(item.id, targetSlot: 'offHand');
+                          ref.read(gameSessionProvider.notifier).equipItem(activeItem.id, targetSlot: 'offHand');
                           Navigator.of(context).pop();
                         },
                       ),
@@ -422,7 +493,7 @@ class ItemDetailSheet extends ConsumerWidget {
                   ),
                 ],
               ),
-            ] else if (item.grip == WeaponGrip.twoHanded) ...[
+            ] else if (activeItem.grip == WeaponGrip.twoHanded) ...[
               // 2-Handed Weapon: Occupies both hands
               SizedBox(
                 width: double.infinity,
@@ -440,12 +511,12 @@ class ItemDetailSheet extends ConsumerWidget {
                   ),
                   onPressed: () {
                     HapticFeedback.mediumImpact();
-                    ref.read(gameSessionProvider.notifier).equipItem(item.id);
+                    ref.read(gameSessionProvider.notifier).equipItem(activeItem.id);
                     Navigator.of(context).pop();
                   },
                 ),
               ),
-            ] else if (item.grip == WeaponGrip.offHandOnly || item.type == 'shield') ...[
+            ] else if (activeItem.grip == WeaponGrip.offHandOnly || activeItem.type == 'shield') ...[
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -462,12 +533,12 @@ class ItemDetailSheet extends ConsumerWidget {
                   ),
                   onPressed: () {
                     HapticFeedback.mediumImpact();
-                    ref.read(gameSessionProvider.notifier).equipItem(item.id);
+                    ref.read(gameSessionProvider.notifier).equipItem(activeItem.id);
                     Navigator.of(context).pop();
                   },
                 ),
               ),
-            ] else if (item.type == 'armor' || item.type == 'relic') ...[
+            ] else if (activeItem.type == 'armor' || activeItem.type == 'relic') ...[
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -484,7 +555,7 @@ class ItemDetailSheet extends ConsumerWidget {
                   ),
                   onPressed: () {
                     HapticFeedback.mediumImpact();
-                    ref.read(gameSessionProvider.notifier).equipItem(item.id);
+                    ref.read(gameSessionProvider.notifier).equipItem(activeItem.id);
                     Navigator.of(context).pop();
                   },
                 ),
@@ -493,22 +564,52 @@ class ItemDetailSheet extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   String _getStatName(String statId) {
-    if (!isPersian) return statId.toUpperCase();
-    switch (statId.toLowerCase()) {
+    if (!isPersian) {
+      return statId
+          .replaceAll('_', ' ')
+          .split(' ')
+          .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+          .join(' ');
+    }
+    switch (statId.toLowerCase().replaceAll(' ', '_')) {
       case 'might':
+      case 'strength':
         return 'قدرت';
       case 'agility':
+      case 'dexterity':
+      case 'speed':
         return 'چابکی';
       case 'cunning':
+      case 'wit':
         return 'ذکاوت';
       case 'arcana':
+      case 'magic':
+      case 'sorcery':
         return 'دانش کهن';
+      case 'charm':
+      case 'charisma':
+        return 'جذابیت';
+      case 'empathy':
+        return 'همدلی';
+      case 'passion':
+        return 'شور و اشتیاق';
+      case 'deduction':
+        return 'استنتاج';
+      case 'perception':
+      case 'observation':
+        return 'دقت و بینش';
+      case 'hacking':
+      case 'tech':
+        return 'نفوذ سایبری';
+      case 'cyberware':
+        return 'افزونه‌های سایبری';
       default:
-        return statId;
+        return statId.replaceAll('_', ' ');
     }
   }
 }
