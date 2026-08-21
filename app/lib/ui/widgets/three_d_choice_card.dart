@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/realm_theme.dart';
 import '../../models/choice_option.dart';
+import '../../services/audio_service.dart';
 
 class ThreeDChoiceCard extends StatefulWidget {
   final ChoiceOption choice;
@@ -106,6 +107,7 @@ class _ThreeDChoiceCardState extends State<ThreeDChoiceCard>
       },
       onTap: () {
         HapticFeedback.mediumImpact();
+        AudioService().playSfx(SfxType.buttonClick);
         widget.onTap();
       },
       child: Transform(

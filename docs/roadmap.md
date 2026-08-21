@@ -23,20 +23,20 @@ This document outlines the upcoming feature roadmap and planned capabilities for
 
 ---
 
-### 3. ⚔️ High-Stakes Tactical Combat Mode
-* **Encounter Mode**: Dedicated turn-based encounter interface for boss battles and combat beats.
-* **Maneuver Options**: Offensive strikes, defensive parries, spellcasting, and tactical item consumption.
-* **Dynamic Enemy AI**: Enemy intent indicators, armor/health tracking, and deterministic dice resolution.
-
----
-
-### 4. 🔊 Ambient Soundscapes & Physical Audio Feedback
+### 3. 🔊 Ambient Soundscapes & Physical Audio Feedback
 * **Adaptive Soundscapes**: Dynamic background audio that shifts based on scene atmosphere (howling wind in the citadel, bustling tavern, dripping catacombs).
 * **Tactile Audio**: Crisp sound effects for D20 dice rolling, critical hits, potion consumption, and parchment page turns.
 
 ---
 
-### 5. 🏛️ StoryForge Web Authoring Studio Suite
+### 4. 🏛️ StoryForge Web Authoring Studio Suite
 * **Visual World Bible Editor**: Graph-based node editor for locations, NPCs, factions, and immutable world laws.
 * **Branching Story Beats**: Visual scene tree showing possible story paths, choice branches, and DC checkpoints.
 * **AI Director Sandbox**: Test narrative prompts, verify action guardrails, and calibrate Gemini responses in real-time.
+
+---
+
+### 5. ⚔️ High-Stakes Tactical Combat Mode (Deferred / Future Milestone)
+* **Encounter Mode**: Dedicated turn-based encounter interface for boss battles and combat beats.
+* **Maneuver Options**: Offensive strikes, defensive parries, spellcasting, and tactical item consumption.
+* **Dynamic Enemy AI**: Enemy intent indicators, armor/health tracking, and deterministic dice resolution.

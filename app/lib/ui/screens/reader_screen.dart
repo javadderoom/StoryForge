@@ -7,6 +7,8 @@ import '../../core/theme/realm_theme.dart';
 import '../../core/utils/persian_numbers.dart';
 import '../../providers/game_session_provider.dart';
 import '../../providers/dice_overlay_provider.dart';
+import '../../providers/audio_provider.dart';
+import '../../services/audio_service.dart';
 import '../../models/game_state.dart';
 import '../../models/choice_option.dart';
 import '../widgets/atmosphere_canvas.dart';
@@ -182,6 +184,25 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   ),
           ),
           actions: [
+            // Audio Mute/Unmute Quick Action
+            Consumer(
+              builder: (context, ref, _) {
+                final audioState = ref.watch(audioProvider);
+                final isMuted = audioState.isAmbientMuted;
+                return IconButton(
+                  icon: Icon(
+                    isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                    color: isMuted ? Colors.white38 : theme.primaryAccent,
+                    size: 20,
+                  ),
+                  tooltip: isPersian ? 'صدا و موسیقی اتمسفر' : 'Audio & Soundscapes',
+                  onPressed: () {
+                    ref.read(audioProvider.notifier).toggleAmbientMute();
+                  },
+                );
+              },
+            ),
+
             // Atmosphere Settings
             IconButton(
               icon: const Icon(Icons.palette_outlined, color: Colors.white70, size: 20),
@@ -205,7 +226,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             // 3D Animated Realm Relic Badge (Tapping opens Full Compendium)
             RealmRelicBadge(
               theme: theme,
-              onTap: () => CompendiumScreen.open(context),
+              onTap: () {
+                ref.read(audioProvider.notifier).playSfx(SfxType.pageTurn);
+                CompendiumScreen.open(context);
+              },
             ),
             const SizedBox(width: 6),
           ],

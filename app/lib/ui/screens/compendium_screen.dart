@@ -6,6 +6,8 @@ import '../../core/theme/realm_theme.dart';
 import '../../core/utils/persian_numbers.dart';
 import '../../models/game_state.dart';
 import '../../providers/game_session_provider.dart';
+import '../../providers/audio_provider.dart';
+import '../../services/audio_service.dart';
 import '../widgets/item_detail_sheet.dart';
 
 /// Full-Page RPG Character, Inventory, Quest & Realm Compendium Screen
@@ -42,6 +44,11 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
       vsync: this,
       initialIndex: widget.initialTabIndex,
     );
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        ref.read(audioProvider.notifier).playSfx(SfxType.pageTurn);
+      }
+    });
   }
 
   @override
@@ -138,6 +145,22 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
         return const Color(0xFF10B981); // Emerald
       case ItemRarity.common:
         return const Color(0xFF9CA3AF); // Silver Grey
+    }
+  }
+
+  String _getRarityTitle(ItemRarity rarity, bool isPersian) {
+    if (!isPersian) return rarity.name.toUpperCase();
+    switch (rarity) {
+      case ItemRarity.uncommon:
+        return 'کمیاب';
+      case ItemRarity.rare:
+        return 'بسیار نایاب';
+      case ItemRarity.epic:
+        return 'حماسی';
+      case ItemRarity.legendary:
+        return 'افسانه‌ای';
+      case ItemRarity.common:
+        return 'معمولی';
     }
   }
 
@@ -424,13 +447,21 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                 textDirection: TextDirection.ltr,
                 child: Text(
                   isGold
-                      ? '$value G'
-                      : '$value / $maxVal',
-                  style: GoogleFonts.cinzel(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
+                      ? (isPersian ? '${value.toPersianDigits()} سکه' : '$value G')
+                      : (isPersian
+                          ? '${value.toPersianDigits()} / ${maxVal.toPersianDigits()}'
+                          : '$value / $maxVal'),
+                  style: isPersian
+                      ? GoogleFonts.vazirmatn(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        )
+                      : GoogleFonts.cinzel(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
                 ),
               ),
             ],
@@ -621,12 +652,18 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                   Directionality(
                     textDirection: TextDirection.ltr,
                     child: Text(
-                      '$totalVal',
-                      style: GoogleFonts.cinzel(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFFF59E0B),
-                      ),
+                      totalVal.toPersianDigits(enable: isPersian),
+                      style: isPersian
+                          ? GoogleFonts.vazirmatn(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFFF59E0B),
+                            )
+                          : GoogleFonts.cinzel(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFFF59E0B),
+                            ),
                     ),
                   ),
                   Directionality(
@@ -640,8 +677,8 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        mod >= 0 ? '+$mod' : '$mod',
-                        style: TextStyle(
+                        mod >= 0 ? '+${mod.toPersianDigits(enable: isPersian)}' : mod.toPersianDigits(enable: isPersian),
+                        style: GoogleFonts.vazirmatn(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: mod >= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444),
@@ -653,10 +690,12 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
               ),
               if (diff > 0)
                 Directionality(
-                  textDirection: TextDirection.ltr,
+                  textDirection: isPersian ? TextDirection.rtl : TextDirection.ltr,
                   child: Text(
-                    '(Base $baseVal + Eq $diff)',
-                    style: const TextStyle(fontSize: 9.5, color: Colors.white38),
+                    isPersian
+                        ? '(پایه ${baseVal.toPersianDigits()} + تجهیز ${diff.toPersianDigits()})'
+                        : '(Base $baseVal + Eq $diff)',
+                    style: GoogleFonts.vazirmatn(fontSize: 9.5, color: Colors.white38),
                   ),
                 ),
             ],
@@ -672,10 +711,18 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
   Widget _buildInventoryTab(PlayerState player, RealmTheme theme, bool isPersian) {
     final filtered = player.inventory.where((item) {
       if (_inventoryCategoryFilter == 'all') return true;
-      if (_inventoryCategoryFilter == 'weapon') return item.type == 'weapon';
-      if (_inventoryCategoryFilter == 'armor') return item.type == 'armor';
-      if (_inventoryCategoryFilter == 'consumable') return item.isConsumable;
-      if (_inventoryCategoryFilter == 'quest') return item.type == 'quest_item';
+      if (_inventoryCategoryFilter == 'weapon') {
+        return item.type == 'weapon' || item.grip == WeaponGrip.oneHanded || item.grip == WeaponGrip.twoHanded;
+      }
+      if (_inventoryCategoryFilter == 'armor') {
+        return item.type == 'armor' || item.type == 'shield' || item.grip == WeaponGrip.offHandOnly;
+      }
+      if (_inventoryCategoryFilter == 'consumable') {
+        return item.isConsumable || item.type == 'consumable' || item.healValue != null || item.staminaValue != null;
+      }
+      if (_inventoryCategoryFilter == 'quest') {
+        return item.type == 'quest_item' || item.type == 'relic' || (!item.isConsumable && item.type != 'weapon' && item.type != 'armor' && item.type != 'shield');
+      }
       return true;
     }).toList();
 
@@ -692,11 +739,11 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                 const SizedBox(width: 8),
                 _buildFilterChip('weapon', isPersian ? 'سلاح‌ها' : 'Weapons'),
                 const SizedBox(width: 8),
-                _buildFilterChip('armor', isPersian ? 'زره‌ها' : 'Armor'),
+                _buildFilterChip('armor', isPersian ? 'زره و سپر' : 'Armor & Shields'),
                 const SizedBox(width: 8),
                 _buildFilterChip('consumable', isPersian ? 'نوشیدنی و مصرفی' : 'Consumables'),
                 const SizedBox(width: 8),
-                _buildFilterChip('quest', isPersian ? 'یادگار ماموریت' : 'Quest Relics'),
+                _buildFilterChip('quest', isPersian ? 'یادگار و اشیاء' : 'Relics & Quest'),
               ],
             ),
           ),
@@ -761,9 +808,9 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
-                                    item.rarity.name.toUpperCase(),
-                                    style: TextStyle(
-                                      fontSize: 9,
+                                    _getRarityTitle(item.rarity, isPersian),
+                                    style: GoogleFonts.vazirmatn(
+                                      fontSize: 9.5,
                                       fontWeight: FontWeight.bold,
                                       color: rarityColor,
                                     ),
@@ -778,7 +825,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                                     ),
                                     child: Text(
                                       isPersian ? 'مجهز' : 'EQUIPPED',
-                                      style: const TextStyle(
+                                      style: GoogleFonts.vazirmatn(
                                         fontSize: 9,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.black,
@@ -789,8 +836,10 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                                   Directionality(
                                     textDirection: TextDirection.ltr,
                                     child: Text(
-                                      'x${item.quantity}',
-                                      style: const TextStyle(
+                                      isPersian
+                                          ? '${item.quantity.toPersianDigits()}×'
+                                          : 'x${item.quantity}',
+                                      style: GoogleFonts.vazirmatn(
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white70,
@@ -852,6 +901,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
       selected: isSelected,
       onSelected: (val) {
         if (val) {
+          ref.read(audioProvider.notifier).playSfx(SfxType.buttonClick);
           setState(() {
             _inventoryCategoryFilter = key;
           });
@@ -983,8 +1033,10 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
               Directionality(
                 textDirection: TextDirection.ltr,
                 child: Text(
-                  trust >= 0 ? '+$trust' : '$trust',
-                  style: GoogleFonts.cinzel(fontSize: 16, fontWeight: FontWeight.bold, color: statusColor),
+                  trust >= 0
+                      ? '+${trust.toPersianDigits(enable: isPersian)}'
+                      : trust.toPersianDigits(enable: isPersian),
+                  style: GoogleFonts.vazirmatn(fontSize: 15, fontWeight: FontWeight.bold, color: statusColor),
                 ),
               ),
             ],
@@ -1044,7 +1096,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                     style: GoogleFonts.vazirmatn(fontSize: 11, color: Colors.white60),
                   ),
                   Text(
-                    isPersian ? 'نوبت ${session.turnNumber}'.toPersianDigits() : 'Turn #${session.turnNumber}',
+                    isPersian ? 'نوبت ${session.turnNumber.toPersianDigits()}' : 'Turn #${session.turnNumber}',
                     style: GoogleFonts.vazirmatn(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFFF59E0B)),
                   ),
                 ],
@@ -1058,8 +1110,10 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    'Turn ${session.turnNumber}',
-                    style: GoogleFonts.cinzel(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFFF59E0B)),
+                    isPersian
+                        ? 'نوبت ${session.turnNumber.toPersianDigits()}'
+                        : 'Turn ${session.turnNumber}',
+                    style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFFF59E0B)),
                   ),
                 ),
               ),

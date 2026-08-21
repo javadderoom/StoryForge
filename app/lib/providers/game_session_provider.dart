@@ -3,6 +3,8 @@ import '../models/game_state.dart';
 import '../models/choice_option.dart';
 import '../models/character_creation.dart';
 import '../services/game_api_service.dart';
+import '../services/audio_service.dart';
+import 'audio_provider.dart';
 
 class GameSessionState {
   final bool isLoading;
@@ -95,6 +97,9 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         turnNumber: 1,
         clearPendingTurn: true,
       );
+
+      // Trigger location ambient audio
+      ref.read(audioProvider.notifier).updateLocationAmbient(playerState.currentLocationId);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -209,6 +214,10 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       turnNumber: state.turnNumber + 1,
       clearPendingTurn: true,
     );
+
+    // Audio feedback on turn progress
+    ref.read(audioProvider.notifier).playSfx(SfxType.pageTurn);
+    ref.read(audioProvider.notifier).updateLocationAmbient(updatedPlayer.currentLocationId);
   }
 
   /// Equips an item into the appropriate equipment slot
@@ -216,6 +225,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     if (state.playerState == null) return;
     final item = state.playerState!.getItem(itemId);
     if (item == null) return;
+
+    ref.read(audioProvider.notifier).playSfx(SfxType.equipGear);
 
     var currentEq = state.playerState!.equipment;
 
@@ -266,6 +277,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
   /// Unequips an item from the specified slot
   void unequipItem(String slot) {
     if (state.playerState == null) return;
+    ref.read(audioProvider.notifier).playSfx(SfxType.equipGear);
     var currentEq = state.playerState!.equipment;
 
     switch (slot) {
@@ -320,6 +332,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         newHp: prevHp,
       );
     }
+
+    ref.read(audioProvider.notifier).playSfx(SfxType.potionDrink);
 
     int newHp = prevHp;
     if (item.healValue != null && item.healValue! > 0) {

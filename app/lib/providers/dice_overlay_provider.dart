@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/game_state.dart';
+import '../services/audio_service.dart';
+import 'audio_provider.dart';
 
 class DiceOverlayState {
   final bool isVisible;
@@ -49,6 +51,7 @@ class DiceOverlayNotifier extends Notifier<DiceOverlayState> {
     required bool isPersian,
     required VoidCallback onContinue,
   }) {
+    ref.read(audioProvider.notifier).playSfx(SfxType.diceRoll);
     state = DiceOverlayState(
       isVisible: true,
       isRolling: true,
@@ -60,6 +63,14 @@ class DiceOverlayNotifier extends Notifier<DiceOverlayState> {
   }
 
   void finishRoll() {
+    final res = state.resolution;
+    if (res != null) {
+      if (res.isSuccess) {
+        ref.read(audioProvider.notifier).playSfx(SfxType.diceSuccess);
+      } else {
+        ref.read(audioProvider.notifier).playSfx(SfxType.diceFail);
+      }
+    }
     state = state.copyWith(isRolling: false);
   }
 

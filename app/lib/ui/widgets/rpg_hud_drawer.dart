@@ -239,7 +239,7 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                                           isGold
                                               ? entry.value.toPersianDigits(enable: widget.isPersian)
                                               : '${entry.value.toPersianDigits(enable: widget.isPersian)} / ${maxVal.toPersianDigits(enable: widget.isPersian)}',
-                                          style: TextStyle(
+                                          style: GoogleFonts.vazirmatn(
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
                                             color: color,
@@ -324,10 +324,10 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                                           const SizedBox(width: 3),
                                           Text(
                                             '(+${bonus.toPersianDigits(enable: widget.isPersian)})',
-                                            style: const TextStyle(
-                                              fontSize: 10,
+                                            style: GoogleFonts.vazirmatn(
+                                              fontSize: 11,
                                               fontWeight: FontWeight.bold,
-                                              color: Color(0xFF10B981),
+                                              color: const Color(0xFF10B981),
                                             ),
                                           ),
                                         ],
@@ -656,10 +656,10 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                               ),
                               child: Text(
                                 widget.isPersian ? 'مجهز شده' : 'EQUIPPED',
-                                style: const TextStyle(
+                                style: GoogleFonts.vazirmatn(
                                   fontSize: 9,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFFF59E0B),
+                                  color: const Color(0xFFF59E0B),
                                 ),
                               ),
                             ),
@@ -671,7 +671,7 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                                 item.statModifiers.entries
                                     .map((e) =>
                                         '+${e.value.toPersianDigits(enable: widget.isPersian)} ${_formatStatName(e.key)}')
-                                    .join(' '),
+                                    .join('، '),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.vazirmatn(fontSize: 10, color: const Color(0xFF60A5FA)),
@@ -680,7 +680,9 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                           else if (item.healValue != null)
                             Expanded(
                               child: Text(
-                                '+${item.healValue!.toPersianDigits(enable: widget.isPersian)} HP',
+                                widget.isPersian
+                                    ? '+${item.healValue!.toPersianDigits(enable: widget.isPersian)} سلامت'
+                                    : '+${item.healValue!} HP',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.vazirmatn(fontSize: 10, color: const Color(0xFF34D399)),
@@ -703,8 +705,14 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                   child: Directionality(
                     textDirection: TextDirection.ltr,
                     child: Text(
-                      'x${item.quantity.toPersianDigits(enable: widget.isPersian)}',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white70),
+                      widget.isPersian
+                          ? '${item.quantity.toPersianDigits(enable: widget.isPersian)}×'
+                          : 'x${item.quantity}',
+                      style: GoogleFonts.vazirmatn(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white70,
+                      ),
                     ),
                   ),
                 ),

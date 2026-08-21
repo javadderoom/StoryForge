@@ -340,8 +340,8 @@
     "semantic_hash": ""
   },
   "app/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java": {
-    "mtime": 1787160206.8346696,
-    "ast_hash": "ddcf275365babb4e07d36cf055aac86b",
+    "mtime": 1787306906.8971791,
+    "ast_hash": "f1740f82eb43f65005226ccc5fb7b99f",
     "semantic_hash": ""
   },
   "app/android/build.gradle.kts": {
@@ -360,7 +360,7 @@
     "semantic_hash": ""
   },
   "app/ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift": {
-    "mtime": 1787303217.8762686,
+    "mtime": 1787308024.049549,
     "ast_hash": "c3ca67f6d9d27f78ca451a7112e4c386",
     "semantic_hash": ""
   },
@@ -405,8 +405,8 @@
     "semantic_hash": ""
   },
   "app/ios/Runner/GeneratedPluginRegistrant.m": {
-    "mtime": 1787160206.8435168,
-    "ast_hash": "61025738c6d7e39f5fc88f02c88dc1c8",
+    "mtime": 1787306906.9118998,
+    "ast_hash": "e527d6453ddbe9c73fe5e5759c3df057",
     "semantic_hash": ""
   },
   "app/ios/Runner/Runner-Bridging-Header.h": {
@@ -435,8 +435,8 @@
     "semantic_hash": ""
   },
   "app/lib/models/game_state.dart": {
-    "mtime": 1787300491.7133653,
-    "ast_hash": "e792a3f37e9f0b51a48e4947273f34a9",
+    "mtime": 1787307969.2056882,
+    "ast_hash": "2fdbcc6561750a9247d71b7457f0812a",
     "semantic_hash": ""
   },
   "app/lib/models/story.dart": {
@@ -445,8 +445,8 @@
     "semantic_hash": ""
   },
   "app/lib/providers/game_session_provider.dart": {
-    "mtime": 1787301812.8965461,
-    "ast_hash": "06c34498d6a06113722bfda34fabccd3",
+    "mtime": 1787307081.5527031,
+    "ast_hash": "93e2494d8b89f2d32cbb5a46ab8b1c93",
     "semantic_hash": ""
   },
   "app/lib/services/game_api_service.dart": {
@@ -455,8 +455,8 @@
     "semantic_hash": ""
   },
   "app/lib/ui/screens/reader_screen.dart": {
-    "mtime": 1787263690.002963,
-    "ast_hash": "407539883dea1dce46e14a4440aaddf5",
+    "mtime": 1787307836.2465324,
+    "ast_hash": "2dde6c1f4fdcccfd0ab63066274def74",
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/choice_pill.dart": {
@@ -465,8 +465,8 @@
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/rpg_hud_drawer.dart": {
-    "mtime": 1787263724.666262,
-    "ast_hash": "627e1528953554e53504946b3b2411f6",
+    "mtime": 1787304249.6477182,
+    "ast_hash": "3c3d497d6ed3e9a2ef9612120ff86410",
     "semantic_hash": ""
   },
   "app/test/widget_test.dart": {
@@ -480,8 +480,8 @@
     "semantic_hash": ""
   },
   "app/windows/flutter/generated_plugin_registrant.cc": {
-    "mtime": 1787160206.8366745,
-    "ast_hash": "a8f91348d8d9090f22ec69d597c41e1f",
+    "mtime": 1787306906.9031935,
+    "ast_hash": "aea8053902126fa024f86ccf8de879d3",
     "semantic_hash": ""
   },
   "app/windows/flutter/generated_plugin_registrant.h": {
@@ -875,8 +875,8 @@
     "semantic_hash": ""
   },
   "app/pubspec.yaml": {
-    "mtime": 1787301706.6140475,
-    "ast_hash": "c6d7b73eb8a5ec35583829c9159c03d6",
+    "mtime": 1787306766.4431303,
+    "ast_hash": "1d2585dc84db2da7b855d4e9f22c20de",
     "semantic_hash": ""
   },
   "app/web/index.html": {
@@ -1370,13 +1370,13 @@
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/three_d_choice_card.dart": {
-    "mtime": 1787243627.7148564,
-    "ast_hash": "3e5cdbac9ee1927fdf3af74faf2b8768",
+    "mtime": 1787307132.8197322,
+    "ast_hash": "2059ade72cd86cad5094289d713dcd45",
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/item_detail_sheet.dart": {
-    "mtime": 1787255906.03201,
-    "ast_hash": "87fc8f437681c8da24026e70d7ec39d1",
+    "mtime": 1787304290.3386557,
+    "ast_hash": "cdb46442469e96c4eca10c82e3015d3f",
     "semantic_hash": ""
   },
   "app/lib/core/engine/rpg_engine.dart": {
@@ -1430,13 +1430,13 @@
     "semantic_hash": ""
   },
   "app/lib/providers/dice_overlay_provider.dart": {
-    "mtime": 1787301792.4640129,
-    "ast_hash": "656b4fd62a2b14e93f50ac99e51484f1",
+    "mtime": 1787307987.3248017,
+    "ast_hash": "e6beaa843dfc137031f8257991b7d449",
     "semantic_hash": ""
   },
   "app/lib/ui/screens/compendium_screen.dart": {
-    "mtime": 1787300704.6902847,
-    "ast_hash": "01832067930efdacbedd86ce7440b859",
+    "mtime": 1787307871.4032955,
+    "ast_hash": "059fcc77a6cac52c4ab77c875888a373",
     "semantic_hash": ""
   },
   "docs/MASTER_PLAN.md": {
@@ -1445,8 +1445,8 @@
     "semantic_hash": ""
   },
   "docs/roadmap.md": {
-    "mtime": 1787262889.8526335,
-    "ast_hash": "b40bbc546e070eec8f03f0c9090eb88c",
+    "mtime": 1787306271.2635505,
+    "ast_hash": "640c8bb63bfbea4cb638af0d099aa7c4",
     "semantic_hash": ""
   },
   "app/lib/models/character_creation.dart": {
@@ -1462,6 +1462,66 @@
   "web/prisma/migrations/20260821120300_add_archetypes_and_backgrounds_to_rpg_system/migration.sql": {
     "mtime": 1787301267.2445698,
     "ast_hash": "7efdda6e0bcda35b599725250a0b8e39",
+    "semantic_hash": ""
+  },
+  "app/lib/providers/audio_provider.dart": {
+    "mtime": 1787306994.50384,
+    "ast_hash": "21a036f633530c8ea73f45ee680614ac",
+    "semantic_hash": ""
+  },
+  "app/lib/services/audio_service.dart": {
+    "mtime": 1787306986.2274675,
+    "ast_hash": "01f96e69377f134a788d2b37e40ec344",
+    "semantic_hash": ""
+  },
+  "app/assets/audio/ambient/ambient_citadel_wind.wav": {
+    "mtime": 1787306960.372975,
+    "ast_hash": "ef374576aa1328e0c2caaf1a3a61d954",
+    "semantic_hash": ""
+  },
+  "app/assets/audio/ambient/ambient_crypt_drone.wav": {
+    "mtime": 1787306960.9298825,
+    "ast_hash": "1cb8570964c2b151f4dcdb24f95479b8",
+    "semantic_hash": ""
+  },
+  "app/assets/audio/ambient/ambient_dungeon_drips.wav": {
+    "mtime": 1787306960.605024,
+    "ast_hash": "825b5837701cad60b2ae2fc751f26600",
+    "semantic_hash": ""
+  },
+  "app/assets/audio/sfx/button_click.wav": {
+    "mtime": 1787306959.8567333,
+    "ast_hash": "611e5c65bcf887ac153f68457cc097e4",
+    "semantic_hash": ""
+  },
+  "app/assets/audio/sfx/dice_roll.wav": {
+    "mtime": 1787306959.910678,
+    "ast_hash": "4d1c4279a3d6ed094b4683fba551544c",
+    "semantic_hash": ""
+  },
+  "app/assets/audio/sfx/dice_settle_fail.wav": {
+    "mtime": 1787306960.0447679,
+    "ast_hash": "35d22bad18460f2d647bb7704ffdb2e7",
+    "semantic_hash": ""
+  },
+  "app/assets/audio/sfx/dice_settle_success.wav": {
+    "mtime": 1787306960.0064564,
+    "ast_hash": "330c0d7b88f30d54431e13490640392e",
+    "semantic_hash": ""
+  },
+  "app/assets/audio/sfx/equip_gear.wav": {
+    "mtime": 1787306960.095842,
+    "ast_hash": "d23c90653a418961f02e9ad85cbdfcec",
+    "semantic_hash": ""
+  },
+  "app/assets/audio/sfx/page_turn.wav": {
+    "mtime": 1787306959.8727436,
+    "ast_hash": "17294101ac3e10403104dd90dfc8e233",
+    "semantic_hash": ""
+  },
+  "app/assets/audio/sfx/potion_drink.wav": {
+    "mtime": 1787306960.0747883,
+    "ast_hash": "96355d84878b95323a1a7920639af53e",
     "semantic_hash": ""
   }
 }

@@ -200,6 +200,8 @@ class CheckResolution {
       statId: json['statId'],
     );
   }
+
+  bool get isSuccess => outcome.toLowerCase().contains('success');
 }
 
 class NpcRelationship {

@@ -296,7 +296,7 @@ class ItemDetailSheet extends ConsumerWidget {
                           Directionality(
                             textDirection: TextDirection.ltr,
                             child: Text(
-                              '+${activeItem.healValue!.toPersianDigits(enable: isPersian)} HP',
+                              '+${activeItem.healValue!.toPersianDigits(enable: isPersian)} ${isPersian ? 'سلامت' : 'HP'}',
                               style: GoogleFonts.vazirmatn(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -376,7 +376,7 @@ class ItemDetailSheet extends ConsumerWidget {
                     icon: const Icon(Icons.local_drink, size: 18),
                     label: Text(
                       isPersian
-                          ? 'نوشیدن معجون (+${activeItem.healValue ?? 30} سلامتی)'
+                          ? 'نوشیدن معجون (+${(activeItem.healValue ?? 30).toPersianDigits(enable: isPersian)} سلامت)'
                           : 'Drink Potion (+${activeItem.healValue ?? 30} HP)',
                       style: GoogleFonts.vazirmatn(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
@@ -392,7 +392,7 @@ class ItemDetailSheet extends ConsumerWidget {
                           isPersian: isPersian,
                           title: isPersian ? 'سلامتی شما پر است' : 'Already at Full Health',
                           subtitle: isPersian
-                              ? 'میزان سلامت ${result.previousHp.toPersianDigits(enable: isPersian)} از ۱۰۰ است. معجون ذخیره ماند.'
+                              ? 'میزان سلامت ${result.previousHp.toPersianDigits(enable: isPersian)} از ${100.toPersianDigits(enable: isPersian)} است. معجون ذخیره ماند.'
                               : 'Health is ${result.previousHp}/100. Potion was preserved.',
                         );
                       } else if (result.success) {
