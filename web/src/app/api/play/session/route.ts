@@ -14,10 +14,77 @@ export async function POST(req: NextRequest) {
     const storyId = body?.storyId || 'ghale_siahsang';
     const story = await StoryRepository.getStoryById(storyId);
 
+    const characterSetup = body?.characterSetup;
+
     // Initialize player state from story RPG definitions
     const initialStats: Record<string, number> = {};
     for (const stat of story.rpgSystem.stats) {
       initialStats[stat.id] = stat.baseValue;
+    }
+
+    let archetypeName: string | undefined;
+    let backgroundName: string | undefined;
+    const traits: string[] = [];
+    let startingEquipment: any = {
+      mainHand: 'iron_dagger',
+    };
+    const startingInventory = JSON.parse(JSON.stringify(story.rpgSystem.startingInventory));
+
+    // 1. Apply Archetype if selected
+    if (characterSetup?.archetypeId && story.rpgSystem.archetypes) {
+      const arch = story.rpgSystem.archetypes.find((a) => a.id === characterSetup.archetypeId);
+      if (arch) {
+        archetypeName = arch.name;
+        if (arch.statBonuses) {
+          for (const [sKey, bonus] of Object.entries(arch.statBonuses)) {
+            initialStats[sKey] = (initialStats[sKey] || 10) + bonus;
+          }
+        }
+        if (arch.startingEquipment) {
+          startingEquipment = { ...startingEquipment, ...arch.startingEquipment };
+        }
+        if (arch.bonusItems) {
+          for (const bItem of arch.bonusItems) {
+            const existing = startingInventory.find((i: any) => i.id === bItem.id);
+            if (existing) {
+              existing.quantity += bItem.quantity || 1;
+            } else {
+              startingInventory.push(JSON.parse(JSON.stringify(bItem)));
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Apply Custom Allocated Stats if explicitly customized
+    if (characterSetup?.allocatedStats) {
+      for (const [sKey, val] of Object.entries(characterSetup.allocatedStats)) {
+        if (typeof val === 'number') {
+          initialStats[sKey] = val;
+        }
+      }
+    }
+
+    // 3. Apply Background Origin if selected
+    if (characterSetup?.backgroundId && story.rpgSystem.backgrounds) {
+      const bg = story.rpgSystem.backgrounds.find((b) => b.id === characterSetup.backgroundId);
+      if (bg) {
+        backgroundName = bg.name;
+        if (bg.trait) traits.push(bg.trait);
+        if (bg.statBonuses) {
+          for (const [sKey, bonus] of Object.entries(bg.statBonuses)) {
+            initialStats[sKey] = (initialStats[sKey] || 10) + bonus;
+          }
+        }
+      }
+    }
+
+    // Enforce weapon grip rule: A two-handed weapon occupies both hands and cannot have an off-hand item equipped
+    if (startingEquipment.mainHand) {
+      const mainHandItem = startingInventory.find((i: any) => i.id === startingEquipment.mainHand);
+      if (mainHandItem?.grip === 'two_handed') {
+        delete startingEquipment.offHand;
+      }
     }
 
     const initialResources: Record<string, number> = {};
@@ -42,12 +109,16 @@ export async function POST(req: NextRequest) {
     };
 
     const playerState: PlayerState = {
+      characterName: characterSetup?.characterName || undefined,
+      archetypeId: characterSetup?.archetypeId || undefined,
+      archetypeName,
+      backgroundId: characterSetup?.backgroundId || undefined,
+      backgroundName,
+      traits: traits.length > 0 ? traits : undefined,
       stats: initialStats,
       resources: initialResources,
-      inventory: JSON.parse(JSON.stringify(story.rpgSystem.startingInventory)),
-      equipment: {
-        mainHand: 'iron_dagger',
-      },
+      inventory: startingInventory,
+      equipment: startingEquipment,
       discoveredLocationIds: [initialBeat.locationId || 'loc_start'],
       relationships: initialRelationships,
       activeQuestIds: ['quest_prologue'],

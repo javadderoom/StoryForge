@@ -23,16 +23,20 @@ class ThreeD20DiceView extends StatefulWidget {
 }
 
 class ThreeD20DiceViewState extends State<ThreeD20DiceView> {
-  late final WebViewController _controller;
+  late final WebViewController? _controller;
   bool _isModelLoaded = false;
 
   void roll(int targetNum) {
-    _controller.runJavaScript('if (window.rollDice) window.rollDice($targetNum);');
+    _controller?.runJavaScript('if (window.rollDice) window.rollDice($targetNum);');
   }
 
   @override
   void initState() {
     super.initState();
+    if (WebViewPlatform.instance == null) {
+      _controller = null;
+      return;
+    }
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.transparent)
@@ -47,7 +51,7 @@ class ThreeD20DiceViewState extends State<ThreeD20DiceView> {
               if (widget.isRolling) {
                 _triggerRoll(widget.resultNumber);
               } else {
-                _controller.runJavaScript(
+                _controller?.runJavaScript(
                   'if (window.setTargetNumber) window.setTargetNumber(${widget.resultNumber});',
                 );
               }
@@ -60,11 +64,11 @@ class ThreeD20DiceViewState extends State<ThreeD20DiceView> {
         },
       );
 
-    _controller.loadFlutterAsset('assets/d20_3d/index.html');
+    _controller!.loadFlutterAsset('assets/d20_3d/index.html');
   }
 
   void _triggerRoll(int targetNum) {
-    _controller.runJavaScript('if (window.rollDice) window.rollDice($targetNum);');
+    _controller?.runJavaScript('if (window.rollDice) window.rollDice($targetNum);');
   }
 
   @override
@@ -89,7 +93,9 @@ class ThreeD20DiceViewState extends State<ThreeD20DiceView> {
             child: AnimatedOpacity(
               opacity: _isModelLoaded ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 150),
-              child: WebViewWidget(controller: _controller),
+              child: _controller != null
+                  ? WebViewWidget(controller: _controller)
+                  : const SizedBox.shrink(),
             ),
           ),
           if (!_isModelLoaded)

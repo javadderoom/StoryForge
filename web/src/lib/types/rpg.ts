@@ -45,6 +45,39 @@ export interface GameItem {
   isConsumable?: boolean;
 }
 
+export interface ArchetypeDefinition {
+  id: string;
+  name: string;
+  tagline: string;
+  description: string;
+  iconName?: string;
+  statBonuses: Record<string, number>; // e.g. { agility: 2, cunning: 1 }
+  startingEquipment?: {
+    mainHand?: string;
+    offHand?: string;
+    armor?: string;
+    relic?: string;
+  };
+  bonusItems?: GameItem[];
+}
+
+export interface BackgroundOriginDefinition {
+  id: string;
+  name: string;
+  description: string;
+  trait: string;
+  narrativePromptHook?: string;
+  statBonuses?: Record<string, number>;
+  bonusItems?: GameItem[];
+}
+
+export interface CharacterSetupPayload {
+  archetypeId?: string;
+  backgroundId?: string;
+  allocatedStats?: Record<string, number>;
+  characterName?: string;
+}
+
 export interface RPGSystemSchema {
   hasCombat: boolean;
   diceType: 'd20' | '2d6' | 'd100';
@@ -53,6 +86,8 @@ export interface RPGSystemSchema {
   skills: SkillDefinition[];
   startingInventory: GameItem[];
   inventoryCapacity: number; // Max slots
+  archetypes?: ArchetypeDefinition[];
+  backgrounds?: BackgroundOriginDefinition[];
 }
 
 export const StatDefinitionSchema = z.object({

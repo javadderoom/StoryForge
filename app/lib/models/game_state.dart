@@ -229,6 +229,12 @@ class NpcRelationship {
 }
 
 class PlayerState {
+  final String? characterName;
+  final String? archetypeId;
+  final String? archetypeName;
+  final String? backgroundId;
+  final String? backgroundName;
+  final List<String> traits;
   final Map<String, int> stats;
   final Map<String, int> resources;
   final List<GameItem> inventory;
@@ -240,6 +246,12 @@ class PlayerState {
   final List<String> completedQuestIds;
 
   PlayerState({
+    this.characterName,
+    this.archetypeId,
+    this.archetypeName,
+    this.backgroundId,
+    this.backgroundName,
+    this.traits = const [],
     required this.stats,
     required this.resources,
     required this.inventory,
@@ -274,6 +286,12 @@ class PlayerState {
   }
 
   PlayerState copyWith({
+    String? characterName,
+    String? archetypeId,
+    String? archetypeName,
+    String? backgroundId,
+    String? backgroundName,
+    List<String>? traits,
     Map<String, int>? stats,
     Map<String, int>? resources,
     List<GameItem>? inventory,
@@ -285,6 +303,12 @@ class PlayerState {
     List<String>? completedQuestIds,
   }) {
     return PlayerState(
+      characterName: characterName ?? this.characterName,
+      archetypeId: archetypeId ?? this.archetypeId,
+      archetypeName: archetypeName ?? this.archetypeName,
+      backgroundId: backgroundId ?? this.backgroundId,
+      backgroundName: backgroundName ?? this.backgroundName,
+      traits: traits ?? this.traits,
       stats: stats ?? this.stats,
       resources: resources ?? this.resources,
       inventory: inventory ?? this.inventory,
@@ -306,8 +330,15 @@ class PlayerState {
     final rawRel = json['relationships'] as Map<String, dynamic>? ?? {};
     final rawActiveQuests = json['activeQuestIds'] as List<dynamic>? ?? [];
     final rawCompQuests = json['completedQuestIds'] as List<dynamic>? ?? [];
+    final rawTraits = json['traits'] as List<dynamic>? ?? [];
 
     return PlayerState(
+      characterName: json['characterName'],
+      archetypeId: json['archetypeId'],
+      archetypeName: json['archetypeName'],
+      backgroundId: json['backgroundId'],
+      backgroundName: json['backgroundName'],
+      traits: rawTraits.map((e) => e.toString()).toList(),
       stats: rawStats.map((k, v) => MapEntry(k, (v as num).toInt())),
       resources: rawRes.map((k, v) => MapEntry(k, (v as num).toInt())),
       inventory: rawInv.map((i) => GameItem.fromJson(i)).toList(),
@@ -321,6 +352,12 @@ class PlayerState {
   }
 
   Map<String, dynamic> toJson() => {
+        if (characterName != null) 'characterName': characterName,
+        if (archetypeId != null) 'archetypeId': archetypeId,
+        if (archetypeName != null) 'archetypeName': archetypeName,
+        if (backgroundId != null) 'backgroundId': backgroundId,
+        if (backgroundName != null) 'backgroundName': backgroundName,
+        'traits': traits,
         'stats': stats,
         'resources': resources,
         'inventory': inventory.map((i) => i.toJson()).toList(),

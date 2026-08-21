@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/game_state.dart';
 import '../models/choice_option.dart';
+import '../models/character_creation.dart';
 import '../services/game_api_service.dart';
 
 class GameSessionState {
@@ -56,10 +57,15 @@ class GameSessionState {
   }
 }
 
-class GameSessionNotifier extends StateNotifier<GameSessionState> {
-  GameSessionNotifier() : super(GameSessionState());
+class GameSessionNotifier extends Notifier<GameSessionState> {
+  @override
+  GameSessionState build() => GameSessionState();
 
-  Future<void> startStory(String storyId, {String? title}) async {
+  Future<void> startStory(
+    String storyId, {
+    String? title,
+    CharacterSetupPayload? characterSetup,
+  }) async {
     // Immediately reset state to a clean loading session so ReaderScreen instantly displays the loading portal
     state = GameSessionState(
       isLoading: true,
@@ -70,7 +76,10 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       turnNumber: 1,
     );
     try {
-      final data = await GameApiService.startSession(storyId);
+      final data = await GameApiService.startSession(
+        storyId,
+        characterSetup: characterSetup,
+      );
       final sessionData = data['session'];
       final playerState = PlayerState.fromJson(sessionData['playerState']);
       final currentBeat = data['currentBeat'];
@@ -314,11 +323,11 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
 
     int newHp = prevHp;
     if (item.healValue != null && item.healValue! > 0) {
-      newHp = (prevHp + item.healValue!).clamp(0, 100);
+      newHp = (prevHp + item.healValue!).clamp(0, 100).toInt();
       resources['hp'] = newHp;
     }
     if (item.staminaValue != null && item.staminaValue! > 0) {
-      resources['stamina'] = (prevStamina + item.staminaValue!).clamp(0, 50);
+      resources['stamina'] = (prevStamina + item.staminaValue!).clamp(0, 50).toInt();
     }
 
     // Decrement item quantity or remove from inventory
@@ -377,6 +386,4 @@ class ItemUseResult {
   });
 }
 
-final gameSessionProvider = StateNotifierProvider<GameSessionNotifier, GameSessionState>((ref) {
-  return GameSessionNotifier();
-});
+final gameSessionProvider = NotifierProvider<GameSessionNotifier, GameSessionState>(GameSessionNotifier.new);

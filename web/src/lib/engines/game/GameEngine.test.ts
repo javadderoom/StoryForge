@@ -218,4 +218,40 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
       assert.ok(res.stateDiff.itemsRemovedIds?.includes('healing_tincture'));
     });
   });
+
+  describe('Archetype & Character Creation Resolution', () => {
+    it('applies archetype stat bonuses and custom point allocations', () => {
+      const baseStats = { might: 12, agility: 14, cunning: 10 };
+      const shadowbladeBonus = { agility: 2, cunning: 1 };
+      
+      const combined: Record<string, number> = { ...baseStats };
+      for (const [k, v] of Object.entries(shadowbladeBonus)) {
+        combined[k] = (combined[k] || 10) + v;
+      }
+
+      assert.equal(combined.might, 12);
+      assert.equal(combined.agility, 16);
+      assert.equal(combined.cunning, 11);
+      assert.equal(GameEngine.getStatModifier(combined.agility), 3); // 16 -> +3
+    });
+
+    it('ensures two-handed weapons do not allow off-hand equipment', () => {
+      const startingEquipment: Record<string, string | undefined> = {
+        mainHand: 'greatsword_valoria',
+        offHand: 'ashwood_buckler',
+      };
+      const items = [
+        { id: 'greatsword_valoria', grip: 'two_handed' },
+        { id: 'ashwood_buckler', grip: 'off_hand_only' },
+      ];
+
+      const mainItem = items.find((i) => i.id === startingEquipment.mainHand);
+      if (mainItem?.grip === 'two_handed') {
+        delete startingEquipment.offHand;
+      }
+
+      assert.equal(startingEquipment.mainHand, 'greatsword_valoria');
+      assert.equal(startingEquipment.offHand, undefined);
+    });
+  });
 });

@@ -36,6 +36,98 @@ export const obsidianCitadelStory: StoryManifest = {
       { id: 'smoke_pellet', name: 'Alchemical Smoke Pellet', description: 'Creates an instantaneous blinding cloud of grey fog.', type: 'consumable', quantity: 2, isConsumable: true },
     ],
     inventoryCapacity: 10,
+    archetypes: [
+      {
+        id: 'shadowblade',
+        name: 'Shadowblade',
+        tagline: 'Master of silent infiltration, lockpicking and lethal surprise strikes',
+        description: 'Born in the citadel shadows; your footsteps make no sound and your blade strikes before you are ever seen.',
+        iconName: 'colorize',
+        statBonuses: { agility: 2, cunning: 1 },
+        startingEquipment: {
+          mainHand: 'iron_dagger',
+        },
+        bonusItems: [
+          { id: 'smoke_pellet', name: 'Alchemical Smoke Pellet', description: 'Blinding cloud of dense fog.', type: 'consumable', quantity: 2, isConsumable: true },
+        ],
+      },
+      {
+        id: 'iron_vanguard',
+        name: 'Iron Vanguard',
+        tagline: 'Stalwart frontline defender with heavy steel and unyielding resolve',
+        description: 'Hardened in brutal skirmishes; your broadsword and iron discipline form an impenetrable wall against dungeon terrors.',
+        iconName: 'shield',
+        statBonuses: { might: 3 },
+        startingEquipment: {
+          mainHand: 'iron_dagger',
+        },
+        bonusItems: [
+          { id: 'healing_tincture', name: 'Highland Herbal Tincture', description: 'Bitter herbal brew that restores 30 HP instantly.', type: 'consumable', quantity: 1, healValue: 30, isConsumable: true },
+        ],
+      },
+      {
+        id: 'arcane_scholar',
+        name: 'Arcane Scholar',
+        tagline: 'Seeker of forbidden blood glyphs, ancient ciphers and occult truths',
+        description: 'Having deciphered forbidden Valorian manuscripts, your keen intellect and arcane insight open doors that steel cannot budge.',
+        iconName: 'auto_awesome',
+        statBonuses: { arcana: 2, cunning: 1 },
+        startingEquipment: {
+          mainHand: 'iron_dagger',
+        },
+        bonusItems: [
+          { id: 'healing_tincture', name: 'Highland Herbal Tincture', description: 'Restores 30 HP instantly.', type: 'consumable', quantity: 1, healValue: 30, isConsumable: true },
+        ],
+      },
+      {
+        id: 'silver_diplomat',
+        name: 'Silver Diplomat',
+        tagline: 'Master of deceit, persuasion, court intrigue and high-stakes negotiation',
+        description: 'Sharp-tongued and observant; in the citadel labyrinth of lies, your words cut deeper than any blade.',
+        iconName: 'record_voice_over',
+        statBonuses: { cunning: 2, agility: 1 },
+        startingEquipment: {
+          mainHand: 'iron_dagger',
+        },
+        bonusItems: [
+          { id: 'lockpick_set', name: 'Thieves Lockpicks', description: 'Slender brass picks wrapped in leather.', type: 'quest_item', quantity: 1, statModifiers: { cunning: 1 } },
+        ],
+      },
+    ],
+    backgrounds: [
+      {
+        id: 'citadel_outcast',
+        name: 'Citadel Outcast',
+        description: 'Once a servant in the keep until an uncovered secret had you cast into the oubliette.',
+        trait: 'Intimate knowledge of secret escape conduits and sewer grates.',
+        narrativePromptHook: 'The protagonist was once cast out from the citadel dungeons and intimately knows secret escape shafts.',
+        statBonuses: { agility: 1 },
+      },
+      {
+        id: 'guild_infiltrator',
+        name: 'Guild Infiltrator',
+        description: 'A skilled operative hired to retrieve the lost map of the Lower Vaults.',
+        trait: 'Acute sense for detecting mechanical tripwires and hidden levers.',
+        narrativePromptHook: 'The protagonist is a covert guild agent possessing acute senses for traps and hidden levers.',
+        statBonuses: { cunning: 1 },
+      },
+      {
+        id: 'noble_exile',
+        name: 'Exiled Noble',
+        description: 'Scion of a disgraced noble house carrying an heirloom crest sewn into your sleeve.',
+        trait: 'Natural authority recognized by highborn guards and fluency in court etiquette.',
+        narrativePromptHook: 'The protagonist is of noble blood, recognized by highborn guards and versed in court etiquette.',
+        statBonuses: { might: 1 },
+      },
+      {
+        id: 'temple_acolyte',
+        name: 'Temple Acolyte',
+        description: 'A devotee sent to safeguard the final relic before the Silver Guard desecrates it.',
+        trait: 'Sixth sense for detecting eldritch runes, cursed wards, and restless spirits.',
+        narrativePromptHook: 'The protagonist has mystical monastic instincts and intuitively senses eldritch relics and cursed wards.',
+        statBonuses: { arcana: 1 },
+      },
+    ],
   },
   worldBible: {
     worldId: 'realm_of_valoria',

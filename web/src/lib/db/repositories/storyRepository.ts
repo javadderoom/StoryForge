@@ -22,6 +22,9 @@ export class StoryRepository {
           coverImageUrl: ghaleSiahsangStory.coverImageUrl,
           author: ghaleSiahsangStory.author,
           statsPreview: ghaleSiahsangStory.rpgSystem.stats.map((s) => s.name),
+          stats: ghaleSiahsangStory.rpgSystem.stats,
+          archetypes: ghaleSiahsangStory.rpgSystem.archetypes,
+          backgrounds: ghaleSiahsangStory.rpgSystem.backgrounds,
         },
         {
           id: obsidianCitadelStory.id,
@@ -33,6 +36,9 @@ export class StoryRepository {
           coverImageUrl: obsidianCitadelStory.coverImageUrl,
           author: obsidianCitadelStory.author,
           statsPreview: obsidianCitadelStory.rpgSystem.stats.map((s) => s.name),
+          stats: obsidianCitadelStory.rpgSystem.stats,
+          archetypes: obsidianCitadelStory.rpgSystem.archetypes,
+          backgrounds: obsidianCitadelStory.rpgSystem.backgrounds,
         },
       ];
     }
@@ -56,6 +62,9 @@ export class StoryRepository {
             coverImageUrl: ghaleSiahsangStory.coverImageUrl,
             author: ghaleSiahsangStory.author,
             statsPreview: ghaleSiahsangStory.rpgSystem.stats.map((s) => s.name),
+            stats: ghaleSiahsangStory.rpgSystem.stats,
+            archetypes: ghaleSiahsangStory.rpgSystem.archetypes,
+            backgrounds: ghaleSiahsangStory.rpgSystem.backgrounds,
           },
           {
             id: obsidianCitadelStory.id,
@@ -67,6 +76,9 @@ export class StoryRepository {
             coverImageUrl: obsidianCitadelStory.coverImageUrl,
             author: obsidianCitadelStory.author,
             statsPreview: obsidianCitadelStory.rpgSystem.stats.map((s) => s.name),
+            stats: obsidianCitadelStory.rpgSystem.stats,
+            archetypes: obsidianCitadelStory.rpgSystem.archetypes,
+            backgrounds: obsidianCitadelStory.rpgSystem.backgrounds,
           },
         ];
       }
@@ -81,6 +93,9 @@ export class StoryRepository {
         coverImageUrl: s.coverImageUrl || undefined,
         author: s.author,
         statsPreview: ((s.rpgSystem?.stats as any[]) || []).map((stat) => stat.name || stat.id),
+        stats: s.rpgSystem?.stats || [],
+        archetypes: s.rpgSystem?.archetypes || [],
+        backgrounds: s.rpgSystem?.backgrounds || [],
       }));
     } catch (e) {
       console.warn('Database error in getAllStories, falling back to static manifests:', e);
@@ -95,6 +110,9 @@ export class StoryRepository {
           coverImageUrl: ghaleSiahsangStory.coverImageUrl,
           author: ghaleSiahsangStory.author,
           statsPreview: ghaleSiahsangStory.rpgSystem.stats.map((s) => s.name),
+          stats: ghaleSiahsangStory.rpgSystem.stats,
+          archetypes: ghaleSiahsangStory.rpgSystem.archetypes,
+          backgrounds: ghaleSiahsangStory.rpgSystem.backgrounds,
         },
         {
           id: obsidianCitadelStory.id,
@@ -106,6 +124,9 @@ export class StoryRepository {
           coverImageUrl: obsidianCitadelStory.coverImageUrl,
           author: obsidianCitadelStory.author,
           statsPreview: obsidianCitadelStory.rpgSystem.stats.map((s) => s.name),
+          stats: obsidianCitadelStory.rpgSystem.stats,
+          archetypes: obsidianCitadelStory.rpgSystem.archetypes,
+          backgrounds: obsidianCitadelStory.rpgSystem.backgrounds,
         },
       ];
     }
@@ -167,6 +188,8 @@ export class StoryRepository {
           resources: story.rpgSystem.resources as any,
           skills: story.rpgSystem.skills as any,
           startingInventory: story.rpgSystem.startingInventory as any,
+          archetypes: (story.rpgSystem.archetypes as any) || [],
+          backgrounds: (story.rpgSystem.backgrounds as any) || [],
         },
         initialStoryBeats,
       };
@@ -239,6 +262,8 @@ export class StoryRepository {
           resources: manifest.rpgSystem.resources as any,
           skills: manifest.rpgSystem.skills as any,
           startingInventory: manifest.rpgSystem.startingInventory as any,
+          archetypes: (manifest.rpgSystem.archetypes || []) as any,
+          backgrounds: (manifest.rpgSystem.backgrounds || []) as any,
         },
         create: {
           storyId: manifest.id,
@@ -249,6 +274,8 @@ export class StoryRepository {
           resources: manifest.rpgSystem.resources as any,
           skills: manifest.rpgSystem.skills as any,
           startingInventory: manifest.rpgSystem.startingInventory as any,
+          archetypes: (manifest.rpgSystem.archetypes || []) as any,
+          backgrounds: (manifest.rpgSystem.backgrounds || []) as any,
         },
       });
 

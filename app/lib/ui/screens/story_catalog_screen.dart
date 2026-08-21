@@ -6,6 +6,7 @@ import '../../providers/game_session_provider.dart';
 import '../../services/game_api_service.dart';
 import '../widgets/story_cover_image.dart';
 import 'reader_screen.dart';
+import 'character_creation_screen.dart';
 
 class StoryCatalogScreen extends ConsumerStatefulWidget {
   const StoryCatalogScreen({super.key});
@@ -483,25 +484,16 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
                     onPressed: _startingStoryId != null
                         ? null
                         : () async {
-                            setState(() {
-                              _startingStoryId = story.id;
-                            });
-                            if (!isActive) {
-                              ref.read(gameSessionProvider.notifier).startStory(story.id, title: story.title);
-                            }
-                            if (Navigator.canPop(context)) {
-                              Navigator.of(context).pop();
-                            } else {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) => const ReaderScreen(),
-                                ),
-                              );
-                              if (mounted) {
-                                setState(() {
-                                  _startingStoryId = null;
-                                });
+                            if (isActive) {
+                              if (Navigator.canPop(context)) {
+                                Navigator.of(context).pop();
+                              } else {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (context) => const ReaderScreen()),
+                                );
                               }
+                            } else {
+                              CharacterCreationScreen.open(context, story: story);
                             }
                           },
                     child: _startingStoryId == story.id

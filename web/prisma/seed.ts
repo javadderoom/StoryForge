@@ -66,6 +66,8 @@ async function seedStory(manifest: StoryManifest) {
       resources: manifest.rpgSystem.resources as any,
       skills: manifest.rpgSystem.skills as any,
       startingInventory: manifest.rpgSystem.startingInventory as any,
+      archetypes: (manifest.rpgSystem.archetypes || []) as any,
+      backgrounds: (manifest.rpgSystem.backgrounds || []) as any,
     },
     create: {
       storyId: manifest.id,
@@ -76,6 +78,8 @@ async function seedStory(manifest: StoryManifest) {
       resources: manifest.rpgSystem.resources as any,
       skills: manifest.rpgSystem.skills as any,
       startingInventory: manifest.rpgSystem.startingInventory as any,
+      archetypes: (manifest.rpgSystem.archetypes || []) as any,
+      backgrounds: (manifest.rpgSystem.backgrounds || []) as any,
     },
   });
 

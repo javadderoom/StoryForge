@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/story.dart';
 import '../models/game_state.dart';
+import '../models/character_creation.dart';
 
 class GameApiService {
   static String get baseUrl {
@@ -25,12 +26,18 @@ class GameApiService {
     throw Exception('Failed to load stories catalog');
   }
 
-  /// Starts a new session for a given story
-  static Future<Map<String, dynamic>> startSession(String storyId) async {
+  /// Starts a new session for a given story with optional custom character setup
+  static Future<Map<String, dynamic>> startSession(
+    String storyId, {
+    CharacterSetupPayload? characterSetup,
+  }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/play/session'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'storyId': storyId}),
+      body: jsonEncode({
+        'storyId': storyId,
+        if (characterSetup != null) 'characterSetup': characterSetup.toJson(),
+      }),
     );
 
     if (response.statusCode == 200) {

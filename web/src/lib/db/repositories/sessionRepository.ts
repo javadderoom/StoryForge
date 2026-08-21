@@ -1,3 +1,6 @@
+import { prisma } from '../client';
+import { PlaythroughSession, TurnBeat, CheckResolution, PlayerState } from '@/lib/types/gameplay';
+
 const isDatabaseActive = process.env.ENABLE_DB === 'true';
 
 const inMemorySessions = new Map<string, any>();

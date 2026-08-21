@@ -39,8 +39,9 @@ class DiceOverlayState {
   }
 }
 
-class DiceOverlayNotifier extends StateNotifier<DiceOverlayState> {
-  DiceOverlayNotifier() : super(const DiceOverlayState());
+class DiceOverlayNotifier extends Notifier<DiceOverlayState> {
+  @override
+  DiceOverlayState build() => const DiceOverlayState();
 
   void showRoll({
     required CheckResolution resolution,
@@ -67,6 +68,4 @@ class DiceOverlayNotifier extends StateNotifier<DiceOverlayState> {
   }
 }
 
-final diceOverlayProvider = StateNotifierProvider<DiceOverlayNotifier, DiceOverlayState>((ref) {
-  return DiceOverlayNotifier();
-});
+final diceOverlayProvider = NotifierProvider<DiceOverlayNotifier, DiceOverlayState>(DiceOverlayNotifier.new);

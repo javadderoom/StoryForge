@@ -37,6 +37,12 @@ export interface PlayerEquipment {
 }
 
 export interface PlayerState {
+  characterName?: string;
+  archetypeId?: string;
+  archetypeName?: string;
+  backgroundId?: string;
+  backgroundName?: string;
+  traits?: string[];
   stats: Record<string, number>; // e.g. { might: 14, agility: 12 }
   resources: Record<string, number>; // e.g. { hp: 85, stamina: 40, gold: 120 }
   inventory: GameItem[];

@@ -301,18 +301,50 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isPersian ? 'ماجراجوی سیاه‌سنگ' : 'Obsidian Adventurer',
+                      player.characterName?.isNotEmpty == true
+                          ? player.characterName!
+                          : (player.archetypeName?.isNotEmpty == true
+                              ? player.archetypeName!
+                              : (isPersian ? 'ماجراجوی سیاه‌سنگ' : 'Obsidian Adventurer')),
                       style: GoogleFonts.vazirmatn(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      isPersian ? 'سرنوشت‌ساز و جوینده حقایق باستانی' : 'Seeker of Forgotten Truths',
-                      style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white60),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        if (player.archetypeName != null) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              player.archetypeName!,
+                              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFFF59E0B)),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        if (player.backgroundName != null)
+                          Text(
+                            player.backgroundName!,
+                            style: GoogleFonts.vazirmatn(fontSize: 11.5, color: Colors.white70),
+                          ),
+                      ],
                     ),
+                    if (player.traits.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '✨ ${player.traits.first}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.vazirmatn(fontSize: 10.5, color: const Color(0xFF818CF8)),
+                      ),
+                    ],
                   ],
                 ),
               ),

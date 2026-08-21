@@ -360,7 +360,7 @@
     "semantic_hash": ""
   },
   "app/ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift": {
-    "mtime": 1787263890.1503222,
+    "mtime": 1787303217.8762686,
     "ast_hash": "c3ca67f6d9d27f78ca451a7112e4c386",
     "semantic_hash": ""
   },
@@ -435,23 +435,23 @@
     "semantic_hash": ""
   },
   "app/lib/models/game_state.dart": {
-    "mtime": 1787263614.5253415,
-    "ast_hash": "9a07ac251a41217fa98611777384104c",
+    "mtime": 1787300491.7133653,
+    "ast_hash": "e792a3f37e9f0b51a48e4947273f34a9",
     "semantic_hash": ""
   },
   "app/lib/models/story.dart": {
-    "mtime": 1787212770.5722523,
-    "ast_hash": "414ce3a6e2e707d79401678b6e1a2c25",
+    "mtime": 1787300580.747011,
+    "ast_hash": "67eba1163866b44e2ba2159b6918e203",
     "semantic_hash": ""
   },
   "app/lib/providers/game_session_provider.dart": {
-    "mtime": 1787257491.4584074,
-    "ast_hash": "df2069bd5fb0fd2437c77d0303cbcea5",
+    "mtime": 1787301812.8965461,
+    "ast_hash": "06c34498d6a06113722bfda34fabccd3",
     "semantic_hash": ""
   },
   "app/lib/services/game_api_service.dart": {
-    "mtime": 1787230505.4871368,
-    "ast_hash": "299c975fb57c359d6ffc9a8fa92ead5c",
+    "mtime": 1787300809.4091983,
+    "ast_hash": "f329bc45d3ed6bdc28e2dea8f857aef6",
     "semantic_hash": ""
   },
   "app/lib/ui/screens/reader_screen.dart": {
@@ -560,8 +560,8 @@
     "semantic_hash": ""
   },
   "web/src/app/api/play/session/route.ts": {
-    "mtime": 1787218225.1365683,
-    "ast_hash": "2b756efe59cb85f8f9fddd1905d10b94",
+    "mtime": 1787303126.3297594,
+    "ast_hash": "cad002632b6a57c8db5eca98c13a8ca0",
     "semantic_hash": ""
   },
   "web/src/app/api/play/stories/route.ts": {
@@ -585,18 +585,18 @@
     "semantic_hash": ""
   },
   "web/src/content/stories/ghale_siahsang.ts": {
-    "mtime": 1787219588.233601,
-    "ast_hash": "e92c0328d2e6f2e03185f3d90199476f",
+    "mtime": 1787303103.2680776,
+    "ast_hash": "e12c4f5d98e648ce0370ae99b453dacf",
     "semantic_hash": ""
   },
   "web/src/content/stories/obsidian_citadel.ts": {
-    "mtime": 1787083640.0516646,
-    "ast_hash": "8c10000faf164ad86e936be3145d4f69",
+    "mtime": 1787299861.8382776,
+    "ast_hash": "9c677379f649fa0261789f4ea95ff0c7",
     "semantic_hash": ""
   },
   "web/src/lib/engines/game/GameEngine.test.ts": {
-    "mtime": 1787252929.2934604,
-    "ast_hash": "3d844d22c9c38d4701af68eaa54eb9cb",
+    "mtime": 1787303153.7624,
+    "ast_hash": "802ee7996fc1d28222dd0b952b5fd093",
     "semantic_hash": ""
   },
   "web/src/lib/engines/game/GameEngine.ts": {
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "web/src/lib/types/gameplay.ts": {
-    "mtime": 1787218181.5219438,
-    "ast_hash": "db2331c1c689bd1c891b57c777e5e214",
+    "mtime": 1787299814.1857276,
+    "ast_hash": "0edbb0934c0e319cfa4ecf25fe9dfe0b",
     "semantic_hash": ""
   },
   "web/src/lib/types/index.ts": {
@@ -650,8 +650,8 @@
     "semantic_hash": ""
   },
   "web/src/lib/types/rpg.ts": {
-    "mtime": 1787221739.5740993,
-    "ast_hash": "5b9e80cbb2df87e33059c22f9a4e33b6",
+    "mtime": 1787299800.5587182,
+    "ast_hash": "b4670855e18f6342a86d98141fc7af30",
     "semantic_hash": ""
   },
   "web/src/lib/types/story.ts": {
@@ -875,8 +875,8 @@
     "semantic_hash": ""
   },
   "app/pubspec.yaml": {
-    "mtime": 1787225097.674358,
-    "ast_hash": "642e88011c24bf6907446150455e8d39",
+    "mtime": 1787301706.6140475,
+    "ast_hash": "c6d7b73eb8a5ec35583829c9159c03d6",
     "semantic_hash": ""
   },
   "app/web/index.html": {
@@ -1125,8 +1125,8 @@
     "semantic_hash": ""
   },
   "web/prisma/seed.ts": {
-    "mtime": 1787135353.309129,
-    "ast_hash": "49142238aff5216f46fb92d3cc6fa3d4",
+    "mtime": 1787301295.5764813,
+    "ast_hash": "797e7e6d16b378c60bc1ae63a6b4ec8f",
     "semantic_hash": ""
   },
   "web/src/app/api/studio/stories/route.ts": {
@@ -1140,8 +1140,8 @@
     "semantic_hash": ""
   },
   "web/src/lib/db/repositories/sessionRepository.ts": {
-    "mtime": 1787207742.7198024,
-    "ast_hash": "b9f265d10b02630169aff10b6f7c7b42",
+    "mtime": 1787301338.961087,
+    "ast_hash": "238f4da4f680bf96f64848e74f610ef2",
     "semantic_hash": ""
   },
   "web/src/lib/db/repositories/storyRepository.test.ts": {
@@ -1150,8 +1150,8 @@
     "semantic_hash": ""
   },
   "web/src/lib/db/repositories/storyRepository.ts": {
-    "mtime": 1787207707.5191214,
-    "ast_hash": "397f273f0854a19887de919642012903",
+    "mtime": 1787301288.880982,
+    "ast_hash": "d4f4ee4c1dc4553b34ac5a2d11e45e80",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -1300,8 +1300,8 @@
     "semantic_hash": ""
   },
   "app/lib/ui/widgets/three_d20_dice_view.dart": {
-    "mtime": 1787211639.4026356,
-    "ast_hash": "15c243f546e640b55b7fcdc910104c70",
+    "mtime": 1787301890.5775084,
+    "ast_hash": "9228a036442812d4e74b7a3905d62917",
     "semantic_hash": ""
   },
   "app/assets/d20_3d/bundle.js": {
@@ -1350,8 +1350,8 @@
     "semantic_hash": ""
   },
   "app/lib/ui/screens/story_catalog_screen.dart": {
-    "mtime": 1787258817.553301,
-    "ast_hash": "5d149639d51d61f6a6bd145aac0d1860",
+    "mtime": 1787300678.6734796,
+    "ast_hash": "768dd3b72a3285940f358fccf8033bc4",
     "semantic_hash": ""
   },
   "app/lib/core/theme/realm_theme.dart": {
@@ -1430,13 +1430,13 @@
     "semantic_hash": ""
   },
   "app/lib/providers/dice_overlay_provider.dart": {
-    "mtime": 1787259425.8267527,
-    "ast_hash": "ad8301d3b42e810125523cab7cd1d231",
+    "mtime": 1787301792.4640129,
+    "ast_hash": "656b4fd62a2b14e93f50ac99e51484f1",
     "semantic_hash": ""
   },
   "app/lib/ui/screens/compendium_screen.dart": {
-    "mtime": 1787263878.4310453,
-    "ast_hash": "30ecabdfc7dc9f897378606074e5af1d",
+    "mtime": 1787300704.6902847,
+    "ast_hash": "01832067930efdacbedd86ce7440b859",
     "semantic_hash": ""
   },
   "docs/MASTER_PLAN.md": {
@@ -1447,6 +1447,21 @@
   "docs/roadmap.md": {
     "mtime": 1787262889.8526335,
     "ast_hash": "b40bbc546e070eec8f03f0c9090eb88c",
+    "semantic_hash": ""
+  },
+  "app/lib/models/character_creation.dart": {
+    "mtime": 1787300476.5041184,
+    "ast_hash": "af2d137d903df0658229208010d02132",
+    "semantic_hash": ""
+  },
+  "app/lib/ui/screens/character_creation_screen.dart": {
+    "mtime": 1787300840.4418411,
+    "ast_hash": "5a0ac9948109aa9a131200d576851ca1",
+    "semantic_hash": ""
+  },
+  "web/prisma/migrations/20260821120300_add_archetypes_and_backgrounds_to_rpg_system/migration.sql": {
+    "mtime": 1787301267.2445698,
+    "ast_hash": "7efdda6e0bcda35b599725250a0b8e39",
     "semantic_hash": ""
   }
 }

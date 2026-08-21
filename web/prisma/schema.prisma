@@ -53,6 +53,8 @@ model RpgSystem {
   resources          Json     @default("[]")
   skills             Json     @default("[]")
   startingInventory  Json     @default("[]")
+  archetypes         Json     @default("[]")
+  backgrounds        Json     @default("[]")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
