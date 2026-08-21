@@ -355,12 +355,12 @@
     "semantic_hash": ""
   },
   "app/android/settings.gradle.kts": {
-    "mtime": 1787206970.1617846,
-    "ast_hash": "2b40ba710ab95edf1b74deed23ade042",
+    "mtime": 1787310736.0147114,
+    "ast_hash": "d7d24f35bfc232d5623acd8e263bf52f",
     "semantic_hash": ""
   },
   "app/ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift": {
-    "mtime": 1787308024.049549,
+    "mtime": 1787314037.7016027,
     "ast_hash": "c3ca67f6d9d27f78ca451a7112e4c386",
     "semantic_hash": ""
   },
@@ -1085,8 +1085,8 @@
     "semantic_hash": ""
   },
   "web/src/app/studio/layout.tsx": {
-    "mtime": 1787134562.1904724,
-    "ast_hash": "2e5af3c2abee421bbd2eb3f10e9155cc",
+    "mtime": 1787317689.1135826,
+    "ast_hash": "3bbba2fd4404f3c44dddf91dcbf69f45",
     "semantic_hash": ""
   },
   "web/src/app/studio/npcs/page.tsx": {
@@ -1100,8 +1100,8 @@
     "semantic_hash": ""
   },
   "web/src/app/studio/sandbox/page.tsx": {
-    "mtime": 1787134308.3521605,
-    "ast_hash": "9fd80bcb36d5e7716f594ddb86d44942",
+    "mtime": 1787317865.4729264,
+    "ast_hash": "6689d4f1161364dc6bf006708895df7e",
     "semantic_hash": ""
   },
   "web/src/app/studio/world/page.tsx": {
@@ -1522,6 +1522,31 @@
   "app/assets/audio/sfx/potion_drink.wav": {
     "mtime": 1787306960.0747883,
     "ast_hash": "96355d84878b95323a1a7920639af53e",
+    "semantic_hash": ""
+  },
+  "web/src/app/api/studio/story/route.ts": {
+    "mtime": 1787317773.2125492,
+    "ast_hash": "49669bb00b48b91429001ff57f869eb1",
+    "semantic_hash": ""
+  },
+  "web/src/app/studio/beats/page.tsx": {
+    "mtime": 1787317589.3812685,
+    "ast_hash": "fdd1fbbcda86bcf9efa29045f0367d36",
+    "semantic_hash": ""
+  },
+  "web/src/app/studio/lore-graph/page.tsx": {
+    "mtime": 1787317500.764898,
+    "ast_hash": "837d547bef8f722ae4977b83a7c40662",
+    "semantic_hash": ""
+  },
+  "web/src/components/studio/LoreGraphCanvas.tsx": {
+    "mtime": 1787317461.3693943,
+    "ast_hash": "cbc2be5efa747abc5a1724efca3302fd",
+    "semantic_hash": ""
+  },
+  "web/src/components/studio/StoryTreeCanvas.tsx": {
+    "mtime": 1787317553.8013084,
+    "ast_hash": "df90d980c8204d7ca65ef1f68aaa0aaf",
     "semantic_hash": ""
   }
 }

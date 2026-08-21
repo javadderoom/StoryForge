@@ -14,6 +14,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Scroll,
+  Share2,
+  GitBranch,
 } from 'lucide-react';
 
 function StudioShell({ children }: { children: React.ReactNode }) {
@@ -27,6 +29,20 @@ function StudioShell({ children }: { children: React.ReactNode }) {
       shortLabel: isPersian ? 'جهان' : 'World',
       icon: BookOpen,
       count: story.worldBible.laws.length,
+    },
+    {
+      href: '/studio/lore-graph',
+      label: isPersian ? 'گراف شبکه جهان' : 'Lore Graph',
+      shortLabel: isPersian ? 'گراف' : 'Graph',
+      icon: Share2,
+      isSpecial: true,
+    },
+    {
+      href: '/studio/beats',
+      label: isPersian ? 'درخت سناریو و شاخه‌ها' : 'Story Beats Tree',
+      shortLabel: isPersian ? 'سناریو' : 'Beats',
+      icon: GitBranch,
+      count: story.initialStoryBeats?.length || 1,
     },
     {
       href: '/studio/rpg',

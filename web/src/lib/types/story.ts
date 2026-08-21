@@ -37,6 +37,7 @@ export interface StoryManifest {
       riskLevel: 'low' | 'medium' | 'high';
       targetDC?: number;
       requiredStatId?: string;
+      targetSceneId?: string;
     }>;
   }>;
 }

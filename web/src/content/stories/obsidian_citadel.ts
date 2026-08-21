@@ -284,33 +284,104 @@ export const obsidianCitadelStory: StoryManifest = {
       sceneId: 'scene_chapter1_awakening',
       locationId: 'loc_dungeon_cell',
       narrativeText:
-        'The cold stone bites into your back before your eyes even adjust to the dim glow of torchlight through the iron bars. The air tastes of copper and damp ash.\n\nFrom the corridor beyond your cell, heavy armored boots come to a halt. A key scrapes against the bronze lock. You slip your fingers down to the seam of your boot—the concealed iron blade is still there.',
+        'The cold stone bites into your back before your eyes even adjust to the dim glow of torchlight through the iron bars. Heavy armored boots halt outside and a key turns in the bronze lock.',
       choices: [
         {
           id: 'choice_1',
-          text: 'Conceal yourself in the shadowy corner behind the heavy wooden door frame.',
+          text: 'Conceal yourself in the shadowy corner behind the door.',
           style: 'defensive',
           riskLevel: 'low',
           targetDC: 10,
           requiredStatId: 'agility',
+          targetSceneId: 'scene_stealth_hallway',
         },
         {
           id: 'choice_2',
-          text: 'Step forward calmly into the torchlight and demand to know who approaches.',
+          text: 'Step forward into the light and parley with Captain Rolan.',
           style: 'diplomatic',
           riskLevel: 'medium',
           targetDC: 12,
           requiredStatId: 'cunning',
+          targetSceneId: 'scene_parley_rolan',
         },
         {
           id: 'choice_3',
-          text: 'Draw your hidden boot knife and prepare an ambush strike the moment the door swings open.',
+          text: 'Draw your hidden knife and ambush the sentry as the door opens.',
           style: 'aggressive',
           riskLevel: 'high',
           targetDC: 14,
           requiredStatId: 'might',
+          targetSceneId: 'scene_sentry_skirmish',
+        },
+      ],
+    },
+    {
+      sceneId: 'scene_stealth_hallway',
+      locationId: 'loc_guard_hallway',
+      narrativeText:
+        'You slip past the distracted guard into the damp corridor. A vaulted staircase descends into the subterranean canals.',
+      choices: [
+        {
+          id: 'choice_stealth_1',
+          text: 'Descend into the canal waterways.',
+          style: 'agile',
+          riskLevel: 'low',
+          targetDC: 10,
+          requiredStatId: 'agility',
+          targetSceneId: 'scene_canal_escape',
+        },
+      ],
+    },
+    {
+      sceneId: 'scene_parley_rolan',
+      locationId: 'loc_guard_hallway',
+      narrativeText:
+        'Captain Rolan lowers his blade as you reveal the noble seal of House Valoria. He offers safe passage toward the underground canals.',
+      choices: [
+        {
+          id: 'choice_parley_1',
+          text: 'Accept Rolan\'s escort toward the canal gates.',
+          style: 'diplomatic',
+          riskLevel: 'medium',
+          targetDC: 12,
+          requiredStatId: 'cunning',
+          targetSceneId: 'scene_canal_escape',
+        },
+      ],
+    },
+    {
+      sceneId: 'scene_sentry_skirmish',
+      locationId: 'loc_dungeon_cell',
+      narrativeText:
+        'Your strike knocks the armored guard to the floor. Alarms echo down the hall—you grab the keys and sprint for the canal passage!',
+      choices: [
+        {
+          id: 'choice_skirmish_1',
+          text: 'Sprint down the stairs to the canal boats.',
+          style: 'aggressive',
+          riskLevel: 'high',
+          targetDC: 12,
+          requiredStatId: 'might',
+          targetSceneId: 'scene_canal_escape',
+        },
+      ],
+    },
+    {
+      sceneId: 'scene_canal_escape',
+      locationId: 'loc_subterranean_canals',
+      narrativeText:
+        'Lady Maeve maneuvers her smuggler barge alongside the stone jetty, offering escape into the misty river outside the citadel.',
+      choices: [
+        {
+          id: 'choice_escape_1',
+          text: 'Board the barge and escape into the mist.',
+          style: 'diplomatic',
+          riskLevel: 'low',
+          targetDC: 10,
+          requiredStatId: 'cunning',
         },
       ],
     },
   ],
 };
+
