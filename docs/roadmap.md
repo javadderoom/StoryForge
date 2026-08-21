@@ -33,10 +33,29 @@ This document outlines the upcoming feature roadmap and planned capabilities for
 * **Visual World Bible Editor**: Graph-based node editor for locations, NPCs, factions, and immutable world laws.
 * **Branching Story Beats**: Visual scene tree showing possible story paths, choice branches, and DC checkpoints.
 * **AI Director Sandbox**: Test narrative prompts, verify action guardrails, and calibrate Gemini responses in real-time.
+* **World Ontology & Custom Type Registry**: Dynamic taxonomy manager for custom relation types, place biomes, law classifications, and NPC roles.
 
 ---
 
-### 5. ⚔️ High-Stakes Tactical Combat Mode (Deferred / Future Milestone)
+### 5. 🌍 Deep World-Building & Lore Engine (New Target Goals)
+* **⏳ Historical Eras & Interactive Timeline (`/studio/timeline`)**:
+  * Visual chronological timeline editor for world history, ancient wars, cosmic catastrophes, and historical schisms.
+  * Era-based lore injection into AI prompts and history/arcana skill check resolutions.
+* **⚔️ Mythic Relics & Ancient Artifacts Catalog**:
+  * Structured registry for legendary weapons, arcane tomes, and cursed relics with origin lore, attunement rules, and location/vault holders.
+* **🐉 Bestiary & Native Flora/Fauna Catalog**:
+  * Regional monster and creature dossiers with habitat locations, behavioral tactics, elemental weaknesses, and alchemical loot.
+* **🔮 Pantheons, Deities & Faith Systems**:
+  * Modeling cosmic deities, religious dogmas, sacred taboos, divine blessings, and heretical cults that influence faction standing and NPC morals.
+* **👥 NPC-to-NPC Interpersonal Relationship Web**:
+  * Visualizing and tracking direct character-to-character bonds (*Blood Debt, Master & Apprentice, Secret Romance, Blood Feud, Blackmail*) to power dramatic narrative betrayal and alliance mechanics.
+* **🪄 AI World-Building Co-Pilot (Genesis Generator)**:
+  * In-studio AI brainstorming assistant for generating coherent factions, location atmospheres, plot secrets, and conflict hooks with a single click.
+
+---
+
+### 6. ⚔️ High-Stakes Tactical Combat Mode (Deferred / Future Milestone)
 * **Encounter Mode**: Dedicated turn-based encounter interface for boss battles and combat beats.
 * **Maneuver Options**: Offensive strikes, defensive parries, spellcasting, and tactical item consumption.
 * **Dynamic Enemy AI**: Enemy intent indicators, armor/health tracking, and deterministic dice resolution.
+

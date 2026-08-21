@@ -5,7 +5,7 @@ import { StoryManifest } from '@/lib/types';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const manifest: StoryManifest = body.storyManifest;
+    const manifest: StoryManifest = body.storyManifest || body.manifest || body;
 
     if (!manifest || !manifest.id) {
       return NextResponse.json(

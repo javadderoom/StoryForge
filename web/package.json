@@ -7,7 +7,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/lib/engines/game/GameEngine.test.ts src/lib/engines/validator/ActionValidator.test.ts src/lib/engines/memory/MemoryEngine.test.ts src/lib/db/repositories/storyRepository.test.ts"
+    "test": "tsx --test src/lib/engines/game/GameEngine.test.ts src/lib/engines/validator/ActionValidator.test.ts src/lib/engines/memory/MemoryEngine.test.ts src/lib/db/repositories/storyRepository.test.ts src/content/stories/StoryManifestIntegrity.test.ts src/lib/types/WorldBibleSchema.test.ts src/app/api/studio/generate/StudioGenerate.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.17.1",

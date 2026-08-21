@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { WorldBible, WorldLocation, NPCDossier, Faction, WorldLaw } from '@/lib/types';
+import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import {
   MapPin,
   User,
@@ -14,9 +15,17 @@ import {
   Globe,
   Heart,
   Lock,
+  Plus,
+  Trash2,
+  Link2,
+  Sparkles,
+  Award,
+  Skull,
+  Sun,
 } from 'lucide-react';
+import { WorldArtifact, WorldCreature, WorldDeity } from '@/lib/types';
 
-export type NodeType = 'location' | 'npc' | 'faction' | 'law';
+export type NodeType = 'location' | 'npc' | 'faction' | 'law' | 'artifact' | 'creature' | 'deity';
 
 export interface GraphNode {
   id: string;
@@ -25,7 +34,7 @@ export interface GraphNode {
   type: NodeType;
   x: number;
   y: number;
-  data: WorldLocation | NPCDossier | Faction | WorldLaw;
+  data: WorldLocation | NPCDossier | Faction | WorldLaw | WorldArtifact | WorldCreature | WorldDeity;
 }
 
 export interface GraphEdge {
@@ -42,10 +51,16 @@ interface LoreGraphCanvasProps {
 }
 
 export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanvasProps) {
+  const { addRelation, deleteRelation } = useStudioStory();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 40, y: 30 });
+
+  // Relation creation state
+  const [isAddingLink, setIsAddingLink] = useState(false);
+  const [newLinkTargetId, setNewLinkTargetId] = useState('');
+  const [newLinkType, setNewLinkType] = useState<'path' | 'residence' | 'territory' | 'rival' | 'ally'>('path');
 
   // Dragging state
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
@@ -58,6 +73,9 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
     npc: true,
     faction: true,
     law: true,
+    artifact: true,
+    creature: true,
+    deity: true,
   });
 
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -73,6 +91,8 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
     const laws = worldBible.laws || [];
 
     // 1. Factions (Top Row: Y = 90)
+    const seenRivals = new Set<string>();
+    const seenAllies = new Set<string>();
     factions.forEach((fac, idx) => {
       const x = 240 + idx * 360;
       const y = 90;
@@ -97,11 +117,28 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
         });
       });
 
+      // Faction alliances (Treaty Allies)
+      (fac.alliedFactionIds || []).forEach((aId) => {
+        const edgeKey = [fac.id, aId].sort().join('--');
+        if (!seenAllies.has(edgeKey)) {
+          seenAllies.add(edgeKey);
+          edgesList.push({
+            id: `edge-fac-ally-${edgeKey}`,
+            source: fac.id,
+            target: aId,
+            label: isPersian ? 'هم‌پیمان رسمی' : 'Treaty Ally',
+            color: '#10B981', // Emerald Green
+          });
+        }
+      });
+
       // Faction rivalries
       (fac.rivalFactionIds || []).forEach((rId) => {
-        if (fac.id < rId) {
+        const edgeKey = [fac.id, rId].sort().join('--');
+        if (!seenRivals.has(edgeKey)) {
+          seenRivals.add(edgeKey);
           edgesList.push({
-            id: `edge-fac-rival-${fac.id}-${rId}`,
+            id: `edge-fac-rival-${edgeKey}`,
             source: fac.id,
             target: rId,
             label: isPersian ? 'دشمن خونی' : 'Rival Enemy',
@@ -112,6 +149,7 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
     });
 
     // 2. Locations (Middle Row: Y = 280)
+    const seenPaths = new Set<string>();
     locs.forEach((loc, idx) => {
       const x = 160 + idx * 300;
       const y = 280;
@@ -127,9 +165,11 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
 
       // Location Paths
       (loc.connectedLocationIds || []).forEach((tId) => {
-        if (loc.id < tId) {
+        const edgeKey = [loc.id, tId].sort().join('--');
+        if (!seenPaths.has(edgeKey)) {
+          seenPaths.add(edgeKey);
           edgesList.push({
-            id: `edge-loc-path-${loc.id}-${tId}`,
+            id: `edge-loc-path-${edgeKey}`,
             source: loc.id,
             target: tId,
             label: isPersian ? 'مسیر پیوسته' : 'Connected Path',
@@ -176,7 +216,7 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
       }
     });
 
-    // 4. Laws (Bottom Row: Y = 620)
+    // 4. Laws (Bottom Row: Y = 620 - Global Standalone World Laws)
     laws.forEach((law, idx) => {
       const x = 220 + idx * 380;
       const y = 620;
@@ -189,17 +229,120 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
         y,
         data: law,
       });
+    });
 
-      // Connect law to location or faction
-      if (locs.length > idx) {
+    // 5. Mythic Relics & Artifacts (Y = 360 - Stationed with Holders)
+    const artifacts = worldBible.artifacts || [];
+    artifacts.forEach((art, idx) => {
+      const x = 280 + idx * 380;
+      const y = 370;
+      nodesList.push({
+        id: art.id,
+        label: art.name,
+        sublabel: isPersian ? `عتیقه ${art.rarity}` : `${art.rarity} Relic`,
+        type: 'artifact',
+        x,
+        y,
+        data: art,
+      });
+
+      if (art.currentHolderId && art.currentHolderId !== 'unknown') {
         edgesList.push({
-          id: `edge-law-loc-${law.id}-${locs[idx].id}`,
-          source: law.id,
-          target: locs[idx].id,
-          label: isPersian ? 'قانون حاکم' : 'Governs',
-          color: '#FB7185', // Rose
+          id: `edge-art-holder-${art.id}-${art.currentHolderId}`,
+          source: art.id,
+          target: art.currentHolderId,
+          label: isPersian ? 'مقر نگهداری' : 'Held At',
+          color: '#F59E0B', // Amber
         });
       }
+    });
+
+    // 6. Bestiary Creatures (Y = 490 - Stationed at Habitat Locations)
+    const creatures = worldBible.bestiary || [];
+    creatures.forEach((c, idx) => {
+      const x = 200 + idx * 360;
+      const y = 490;
+      nodesList.push({
+        id: c.id,
+        label: c.name,
+        sublabel: isPersian ? `هیولا (خطر ${c.dangerLevel})` : `${c.speciesCategory} (D:${c.dangerLevel})`,
+        type: 'creature',
+        x,
+        y,
+        data: c,
+      });
+
+      (c.habitatLocationIds || []).forEach((locId) => {
+        edgesList.push({
+          id: `edge-creature-habitat-${c.id}-${locId}`,
+          source: c.id,
+          target: locId,
+          label: isPersian ? 'زیستگاه' : 'Habitat',
+          color: '#F43F5E', // Rose
+        });
+      });
+    });
+
+    // 7. Pantheons & Deities (Y = 20 - Celestial Orbit)
+    const religions = worldBible.religions || [];
+    religions.forEach((d, idx) => {
+      const x = 320 + idx * 400;
+      const y = 20;
+      nodesList.push({
+        id: d.id,
+        label: d.name,
+        sublabel: isPersian ? `ایزد ${d.domain}` : `${d.domain} Deity`,
+        type: 'deity',
+        x,
+        y,
+        data: d,
+      });
+
+      (d.affiliatedFactionIds || []).forEach((fId) => {
+        edgesList.push({
+          id: `edge-deity-fac-${d.id}-${fId}`,
+          source: d.id,
+          target: fId,
+          label: isPersian ? 'آیین جناح' : 'Patron Of',
+          color: '#F59E0B', // Gold
+        });
+      });
+
+      (d.holyLocationIds || []).forEach((lId) => {
+        edgesList.push({
+          id: `edge-deity-loc-${d.id}-${lId}`,
+          source: d.id,
+          target: lId,
+          label: isPersian ? 'معبد مقدس' : 'Holy Site',
+          color: '#A855F7', // Purple
+        });
+      });
+    });
+
+    // 8. Interpersonal Drama Bonds (NPC Chords)
+    const dramaBonds = worldBible.dramaBonds || [];
+    dramaBonds.forEach((bond) => {
+      const color = bond.affinity < 0 ? '#F43F5E' : bond.affinity > 0 ? '#10B981' : '#A855F7';
+      edgesList.push({
+        id: `edge-drama-${bond.id}`,
+        source: bond.sourceNpcId,
+        target: bond.targetNpcId,
+        label: `${bond.relationTypeId} (${bond.affinity > 0 ? `+${bond.affinity}` : bond.affinity})`,
+        color,
+      });
+    });
+
+    // 9. Custom Lore Relations (Author Defined)
+    const relTypeMap = new Map((worldBible.ontology?.relationTypes || []).map((r) => [r.id, r]));
+    (worldBible.customRelations || []).forEach((cRel) => {
+      const relMeta = relTypeMap.get(cRel.relationTypeId);
+      edgesList.push({
+        id: `edge-custom-${cRel.id}`,
+        source: cRel.sourceId,
+        target: cRel.targetId,
+        label: cRel.customLabel || relMeta?.name || cRel.relationTypeId,
+        color: relMeta?.color || '#38BDF8',
+      });
     });
 
     return { initialNodes: nodesList, initialEdges: edgesList };
@@ -208,9 +351,15 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
   const [nodes, setNodes] = useState<GraphNode[]>(initialNodes);
   const edges = initialEdges;
 
-  // Update when story changes
+  // Update when story changes while preserving custom dragged positions
   React.useEffect(() => {
-    setNodes(initialNodes);
+    setNodes((prevNodes) => {
+      const posMap = new Map(prevNodes.map((n) => [n.id, { x: n.x, y: n.y }]));
+      return initialNodes.map((n) => {
+        const existingPos = posMap.get(n.id);
+        return existingPos ? { ...n, x: existingPos.x, y: existingPos.y } : n;
+      });
+    });
   }, [initialNodes]);
 
   // Filters
@@ -242,6 +391,21 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
     if (!selectedNodeId) return null;
     return nodes.find((n) => n.id === selectedNodeId) || null;
   }, [selectedNodeId, nodes]);
+
+  const candidateNodes = useMemo(
+    () => nodes.filter((n) => n.id !== selectedNodeId),
+    [nodes, selectedNodeId]
+  );
+
+  const handleCreateRelation = () => {
+    if (!selectedNodeId || !newLinkTargetId) return;
+    addRelation({
+      sourceId: selectedNodeId,
+      targetId: newLinkTargetId,
+      relationType: newLinkType,
+    });
+    setIsAddingLink(false);
+  };
 
   // Mouse Handlers for Pan & Drag
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
@@ -317,6 +481,30 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
           glow: 'shadow-rose-500/20',
           text: 'text-rose-400',
         };
+      case 'artifact':
+        return {
+          bg: 'bg-amber-950/90',
+          border: 'border-amber-400',
+          badge: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+          glow: 'shadow-amber-500/30 ring-1 ring-amber-400/40',
+          text: 'text-amber-300',
+        };
+      case 'creature':
+        return {
+          bg: 'bg-rose-950/90',
+          border: 'border-rose-500',
+          badge: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+          glow: 'shadow-rose-500/30 ring-1 ring-rose-500/30',
+          text: 'text-rose-400',
+        };
+      case 'deity':
+        return {
+          bg: 'bg-amber-950/90',
+          border: 'border-amber-400',
+          badge: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+          glow: 'shadow-amber-500/40 ring-1 ring-amber-300/40',
+          text: 'text-amber-300',
+        };
     }
   };
 
@@ -330,6 +518,12 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
         return <Users className="w-4 h-4 text-purple-400" />;
       case 'law':
         return <Shield className="w-4 h-4 text-rose-400" />;
+      case 'artifact':
+        return <Sparkles className="w-4 h-4 text-amber-300" />;
+      case 'creature':
+        return <Skull className="w-4 h-4 text-rose-400" />;
+      case 'deity':
+        return <Sun className="w-4 h-4 text-amber-300" />;
     }
   };
 
@@ -344,6 +538,9 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
     npcs: isPersian ? 'شخصیت‌ها' : 'NPCs',
     factions: isPersian ? 'جناح‌ها' : 'Factions',
     laws: isPersian ? 'قوانین جهان' : 'World Laws',
+    artifacts: isPersian ? 'عتیقه‌ها' : 'Relics',
+    creatures: isPersian ? 'هیولاها' : 'Bestiary',
+    deities: isPersian ? 'ایزدان و ادیان' : 'Pantheon',
     connections: isPersian ? 'پیوندهای شبکه:' : 'Active Links:',
     trust: isPersian ? 'اعتماد اولیه:' : 'Initial Trust:',
     speech: isPersian ? 'دستورالعمل گفتار:' : 'Speech Style:',
@@ -396,7 +593,7 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
 
           {/* Filter Pills */}
           <div className="flex items-center gap-1.5 bg-zinc-900/90 border border-zinc-700/80 rounded-2xl p-1.5 shadow-xl backdrop-blur-md pointer-events-auto">
-            {(['faction', 'location', 'npc', 'law'] as NodeType[]).map((type) => {
+            {(['faction', 'location', 'npc', 'artifact', 'creature', 'deity', 'law'] as NodeType[]).map((type) => {
               const active = visibleTypes[type];
               const styles = getNodeStyles(type);
               return (
@@ -417,6 +614,12 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
                       ? t.npcs
                       : type === 'faction'
                       ? t.factions
+                      : type === 'artifact'
+                      ? t.artifacts
+                      : type === 'creature'
+                      ? t.creatures
+                      : type === 'deity'
+                      ? t.deities
                       : t.laws}
                   </span>
                 </button>
@@ -641,23 +844,19 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
         </div>
 
         {/* Bottom Legend */}
-        <div className="absolute bottom-4 left-4 z-20 flex flex-wrap items-center gap-3 bg-zinc-900/90 border border-zinc-800/80 rounded-2xl px-4 py-2 text-[11px] text-zinc-400 backdrop-blur-md pointer-events-auto shadow-lg">
+        <div className="absolute bottom-4 left-4 z-20 flex flex-wrap items-center gap-3 bg-zinc-900/90 border border-zinc-800/80 rounded-2xl px-4 py-2 text-[11px] text-zinc-400 backdrop-blur-md pointer-events-auto shadow-lg max-w-2xl">
           <span className="font-bold text-zinc-300">{t.legend}</span>
-          <span className="flex items-center gap-1.5 text-sky-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block" /> {t.path}
-          </span>
-          <span className="flex items-center gap-1.5 text-amber-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" /> {t.residence}
-          </span>
-          <span className="flex items-center gap-1.5 text-purple-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block" /> {t.territory}
-          </span>
-          <span className="flex items-center gap-1.5 text-red-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" /> {t.rival}
-          </span>
-          <span className="flex items-center gap-1.5 text-rose-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block" /> {t.law}
-          </span>
+          {(worldBible.ontology?.relationTypes || [
+            { id: 'path', name: t.path, color: '#38BDF8' },
+            { id: 'residence', name: t.residence, color: '#F59E0B' },
+            { id: 'faction_ally', name: isPersian ? 'هم‌پیمان رسمی' : 'Treaty Ally', color: '#10B981' },
+            { id: 'territory', name: t.territory, color: '#A855F7' },
+            { id: 'rival', name: t.rival, color: '#EF4444' },
+          ]).map((rt) => (
+            <span key={rt.id} className="flex items-center gap-1.5" style={{ color: rt.color }}>
+              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: rt.color }} /> {rt.name}
+            </span>
+          ))}
         </div>
       </div>
 
@@ -682,11 +881,94 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
               )}
             </div>
 
-            {/* Connected Links List */}
-            <div>
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-2">
-                {t.connections}
-              </span>
+            {/* Connected Links List & Relation Editor */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                  {t.connections} ({edges.filter((e) => e.source === selectedNode.id || e.target === selectedNode.id).length})
+                </span>
+                <button
+                  onClick={() => {
+                    setIsAddingLink(!isAddingLink);
+                    setNewLinkTargetId(candidateNodes[0]?.id || '');
+                  }}
+                  className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{isPersian ? '+ پیوند جدید' : '+ Add Link'}</span>
+                </button>
+              </div>
+
+              {/* Add Relation Form */}
+              {isAddingLink && (
+                <div className="p-3.5 rounded-2xl bg-zinc-950 border border-amber-500/40 space-y-3 animate-fadeIn">
+                  <span className="text-xs font-bold text-amber-300 block">
+                    {isPersian ? 'ایجاد پیوند با موجودیت دیگر:' : 'Establish Link with Entity:'}
+                  </span>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-zinc-400 block mb-1">
+                      {isPersian ? 'موجودیت مقصد:' : 'Target Entity:'}
+                    </label>
+                    <select
+                      value={newLinkTargetId}
+                      onChange={(e) => setNewLinkTargetId(e.target.value)}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                    >
+                      {candidateNodes.map((n) => (
+                        <option key={n.id} value={n.id}>
+                          [{n.type.toUpperCase()}] {n.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-zinc-400 block mb-1">
+                      {isPersian ? 'نوع پیوند:' : 'Relation Type:'}
+                    </label>
+                    <select
+                      value={newLinkType}
+                      onChange={(e) =>
+                        setNewLinkType(
+                          e.target.value as any
+                        )
+                      }
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                    >
+                      {(worldBible.ontology?.relationTypes || [
+                        { id: 'path', name: isPersian ? 'مسیر ارتباطی (بین ۲ مکان)' : 'Travel Path (Location <-> Location)' },
+                        { id: 'residence', name: isPersian ? 'محل استقرار (شخصیت در مکان)' : 'Stationed At (NPC -> Location)' },
+                        { id: 'ally', name: isPersian ? 'عضو ارشد جناح (شخصیت در جناح)' : 'Faction Member (NPC -> Faction)' },
+                        { id: 'faction_ally', name: isPersian ? 'هم‌پیمان رسمی (بین ۲ جناح)' : 'Treaty Alliance (Faction <-> Faction)' },
+                        { id: 'territory', name: isPersian ? 'قلمرو حاکمیت (جناح در مکان)' : 'Territory (Faction -> Location)' },
+                        { id: 'rival', name: isPersian ? 'دشمن خونی (جناح علیه جناح)' : 'Rivalry (Faction <-> Faction)' },
+                      ]).map((rt) => (
+                        <option key={rt.id} value={rt.id}>
+                          {rt.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => setIsAddingLink(false)}
+                      className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 text-xs font-bold transition-colors"
+                    >
+                      {isPersian ? 'انصراف' : 'Cancel'}
+                    </button>
+                    <button
+                      onClick={handleCreateRelation}
+                      className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 transition-all"
+                    >
+                      {isPersian ? 'ثبت پیوند' : 'Create Link'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Active Links List */}
               <div className="space-y-1.5">
                 {edges
                   .filter((e) => e.source === selectedNode.id || e.target === selectedNode.id)
@@ -696,22 +978,38 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
                     return (
                       <div
                         key={e.id}
-                        onClick={() => setSelectedNodeId(otherId)}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-300 cursor-pointer hover:border-zinc-600 transition-all"
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-300 hover:border-zinc-700 transition-all gap-2"
                       >
-                        <span className="truncate max-w-[140px] font-medium text-zinc-200">
-                          {otherNode?.label || otherId}
-                        </span>
-                        <span
-                          className="text-[10px] font-bold px-2 py-0.5 rounded-lg border font-mono"
-                          style={{
-                            color: e.color,
-                            backgroundColor: `${e.color}15`,
-                            borderColor: `${e.color}40`,
-                          }}
+                        <div
+                          onClick={() => setSelectedNodeId(otherId)}
+                          className="flex items-center gap-2 cursor-pointer truncate flex-1"
                         >
-                          {e.label}
-                        </span>
+                          <span className="truncate max-w-[130px] font-medium text-zinc-200 hover:text-amber-400">
+                            {otherNode?.label || otherId}
+                          </span>
+                          <span
+                            className="text-[9.5px] font-bold px-2 py-0.5 rounded-lg border font-mono shrink-0"
+                            style={{
+                              color: e.color,
+                              backgroundColor: `${e.color}15`,
+                              borderColor: `${e.color}40`,
+                            }}
+                          >
+                            {e.label}
+                          </span>
+                        </div>
+
+                        {/* Delete Relation Button */}
+                        <button
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            deleteRelation(e.source, e.target, e.label);
+                          }}
+                          title={isPersian ? 'حذف پیوند' : 'Delete Link'}
+                          className="p-1 text-zinc-500 hover:text-rose-400 transition-colors rounded-lg hover:bg-rose-500/10 shrink-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     );
                   })}
@@ -816,6 +1114,72 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
                   </p>
                   <p className="text-zinc-400 text-[11px] leading-relaxed">
                     {(selectedNode.data as WorldLaw).description}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {selectedNode.type === 'artifact' && (
+              <div className="space-y-4 text-xs text-zinc-300">
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/30">
+                      {(selectedNode.data as WorldArtifact).rarity}
+                    </span>
+                    <span className="text-[10.5px] font-mono text-zinc-400">
+                      {(selectedNode.data as WorldArtifact).originEra}
+                    </span>
+                  </div>
+                  <p className="text-zinc-300 leading-relaxed mb-2">
+                    {(selectedNode.data as WorldArtifact).description}
+                  </p>
+                  {(selectedNode.data as WorldArtifact).curseOrCost && (
+                    <div className="p-2 rounded-xl bg-red-950/40 border border-red-500/30 text-red-300 text-[11px] mt-2">
+                      <span className="font-bold text-red-400">{isPersian ? 'نفرین: ' : 'Curse: '}</span>
+                      {(selectedNode.data as WorldArtifact).curseOrCost}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {selectedNode.type === 'creature' && (
+              <div className="space-y-4 text-xs text-zinc-300">
+                <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-rose-500/20 border border-rose-500/30">
+                      {(selectedNode.data as WorldCreature).speciesCategory}
+                    </span>
+                    <span className="text-xs font-mono font-bold text-rose-400">
+                      ★ {(selectedNode.data as WorldCreature).dangerLevel} / 5
+                    </span>
+                  </div>
+                  <p className="text-zinc-300 leading-relaxed mb-2">
+                    {(selectedNode.data as WorldCreature).loreDescription}
+                  </p>
+                  <div className="p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800 text-[11px] text-zinc-300">
+                    <span className="font-bold text-amber-400 block mb-1">
+                      {isPersian ? 'تاکتیک نبرد:' : 'Tactics:'}
+                    </span>
+                    {(selectedNode.data as WorldCreature).behavioralTactics}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {selectedNode.type === 'deity' && (
+              <div className="space-y-4 text-xs text-zinc-300">
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/30">
+                      {(selectedNode.data as WorldDeity).domain}
+                    </span>
+                    <span className="text-[10.5px] text-zinc-400">
+                      {(selectedNode.data as WorldDeity).sacredSymbol}
+                    </span>
+                  </div>
+                  <p className="text-zinc-300 italic mb-2">
+                    &ldquo;{(selectedNode.data as WorldDeity).coreDogma}&rdquo;
                   </p>
                 </div>
               </div>

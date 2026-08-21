@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { StudioStoryProvider, useStudioStory } from '@/lib/context/StudioStoryContext';
+import { Toaster } from '@/lib/notify';
 import {
   BookOpen,
   Sword,
@@ -16,11 +17,31 @@ import {
   Scroll,
   Share2,
   GitBranch,
+  Download,
+  RotateCcw,
+  CheckCircle2,
+  CloudUpload,
+  Tag,
+  Clock,
+  Skull,
+  Sun,
 } from 'lucide-react';
 
 function StudioShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isPersian, isRtl, story, toggleLanguage } = useStudioStory();
+  const {
+    isPersian,
+    isRtl,
+    story,
+    toggleLanguage,
+    hasLocalDraft,
+    lastSaved,
+    isSyncing,
+    lastServerSynced,
+    saveToServer,
+    exportStoryJson,
+    resetToDefault,
+  } = useStudioStory();
 
   const navItems = [
     {
@@ -36,6 +57,43 @@ function StudioShell({ children }: { children: React.ReactNode }) {
       shortLabel: isPersian ? 'گراف' : 'Graph',
       icon: Share2,
       isSpecial: true,
+    },
+    {
+      href: '/studio/timeline',
+      label: isPersian ? 'گاه‌شمار تاریخی' : 'Chronicle & Eras',
+      shortLabel: isPersian ? 'تاریخ' : 'Timeline',
+      icon: Clock,
+      count: story.worldBible.timeline?.length || 0,
+    },
+    {
+      href: '/studio/artifacts',
+      label: isPersian ? 'خزانه عتیقه‌ها' : 'Mythic Relics',
+      shortLabel: isPersian ? 'عتیقه‌ها' : 'Relics',
+      icon: Sparkles,
+      count: story.worldBible.artifacts?.length || 0,
+    },
+    {
+      href: '/studio/bestiary',
+      label: isPersian ? 'دانشنامه موجودات' : 'Bestiary',
+      shortLabel: isPersian ? 'هیولاها' : 'Bestiary',
+      icon: Skull,
+      count: story.worldBible.bestiary?.length || 0,
+    },
+    {
+      href: '/studio/religions',
+      label: isPersian ? 'پانتئون و ادیان' : 'Pantheons & Faith',
+      shortLabel: isPersian ? 'ادیان' : 'Faith',
+      icon: Sun,
+      count: story.worldBible.religions?.length || 0,
+    },
+    {
+      href: '/studio/types',
+      label: isPersian ? 'گونه‌ها و هستی‌شناسی' : 'Taxonomy & Types',
+      shortLabel: isPersian ? 'گونه‌ها' : 'Types',
+      icon: Tag,
+      count:
+        (story.worldBible.ontology?.relationTypes?.length || 0) +
+        (story.worldBible.ontology?.placeCategories?.length || 0),
     },
     {
       href: '/studio/beats',
@@ -74,6 +132,8 @@ function StudioShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#090a0f] text-zinc-100 flex flex-col md:flex-row antialiased selection:bg-amber-500/30 selection:text-amber-200">
+      <Toaster />
+
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-72 bg-[#0c0d14] border-r border-zinc-800/80 p-5 shrink-0 justify-between sticky top-0 h-screen z-40">
         <div>
@@ -87,18 +147,18 @@ function StudioShell({ children }: { children: React.ReactNode }) {
                 {isPersian ? 'استودیو داستان‌ساز' : 'StoryForge Studio'}
               </h1>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
-                {isPersian ? 'نسخه ۱.۰ نویسندگی' : 'V1.0 Authoring Suite'}
+                {isPersian ? 'محیط نویسندگی تعاملی' : 'Interactive Authoring'}
               </span>
             </div>
           </div>
 
           {/* Story Selector & Language Switch */}
-          <div className="mt-5 p-3 rounded-2xl bg-zinc-900/70 border border-zinc-800/80 space-y-2">
+          <div className="mt-4 p-3.5 rounded-2xl bg-zinc-900/70 border border-zinc-800/80 space-y-2.5">
             <div className="flex items-center justify-between text-xs text-zinc-400">
               <span className="font-medium">{isPersian ? 'داستان فعال:' : 'Active Story:'}</span>
               <button
                 onClick={toggleLanguage}
-                className="flex items-center gap-1 text-[11px] bg-zinc-800 hover:bg-zinc-700 text-amber-400 px-2 py-0.5 rounded-lg border border-zinc-700/80 transition-all font-semibold"
+                className="flex items-center gap-1 text-[11px] bg-zinc-800 hover:bg-zinc-700 text-amber-400 px-2.5 py-1 rounded-lg border border-zinc-700/80 transition-all font-semibold cursor-pointer"
               >
                 <Languages className="w-3 h-3" />
                 {isPersian ? 'English' : 'فارسی'}
@@ -106,10 +166,60 @@ function StudioShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="text-sm font-bold text-zinc-200 truncate">{story.title}</div>
             <div className="text-[11px] text-zinc-500 truncate">{story.tagline}</div>
+
+            {/* Local & Server Sync Status */}
+            <div className="pt-2 border-t border-zinc-800/60 space-y-2 text-[10px]">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                  {isSyncing ? (
+                    <span className="flex items-center gap-1 text-amber-400">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                      {isPersian ? 'در حال ارسال به سرور...' : 'Syncing to Server...'}
+                    </span>
+                  ) : lastServerSynced ? (
+                    <span className="flex items-center gap-1 text-emerald-400">
+                      <CheckCircle2 className="w-3 h-3" />
+                      {isPersian ? 'همگام با پایگاه‌داده' : 'Synced to DB'}
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-zinc-400">
+                      <CheckCircle2 className="w-3 h-3 text-zinc-500" />
+                      {hasLocalDraft
+                        ? isPersian
+                          ? 'پیش‌نویس ذخیره شد'
+                          : 'Draft Auto-Saved'
+                        : isPersian
+                        ? 'نسخه پایه'
+                        : 'Canonical Default'}
+                    </span>
+                  )}
+                </span>
+                {hasLocalDraft && (
+                  <button
+                    onClick={resetToDefault}
+                    className="text-zinc-500 hover:text-rose-400 flex items-center gap-1 transition-colors cursor-pointer"
+                    title={isPersian ? 'بازنشانی به حالت پیش‌فرض' : 'Reset to Default'}
+                  >
+                    <RotateCcw className="w-2.5 h-2.5" />
+                    {isPersian ? 'بازنشانی' : 'Reset'}
+                  </button>
+                )}
+              </div>
+
+              {/* Save to Server Button */}
+              <button
+                onClick={() => saveToServer()}
+                disabled={isSyncing}
+                className="w-full py-1.5 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-amber-400 hover:text-amber-300 font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+              >
+                <CloudUpload className="w-3 h-3" />
+                <span>{isPersian ? 'ذخیره در سرور (Postgres)' : 'Save to DB Server'}</span>
+              </button>
+            </div>
           </div>
 
           {/* Navigation Links */}
-          <nav className="mt-6 space-y-1.5">
+          <nav className="mt-5 space-y-1.5">
             <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-3 mb-2">
               {isPersian ? 'بخش‌های استودیو' : 'Studio Modules'}
             </div>
@@ -151,7 +261,14 @@ function StudioShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Footer Actions */}
-        <div className="pt-4 border-t border-zinc-800/80 space-y-3">
+        <div className="pt-4 border-t border-zinc-800/80 space-y-2.5">
+          <button
+            onClick={exportStoryJson}
+            className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/20 transition-all cursor-pointer shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5" />
+            {isPersian ? 'خروجی فایل داستان (JSON)' : 'Export Story JSON'}
+          </button>
           <Link
             href="/"
             className="flex items-center justify-center gap-2 w-full py-2 px-3 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs font-semibold border border-zinc-800 transition-all"
@@ -178,6 +295,13 @@ function StudioShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={exportStoryJson}
+              className="p-1.5 bg-zinc-800 text-amber-400 rounded-lg border border-zinc-700"
+              title="Export JSON"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+            <button
               onClick={toggleLanguage}
               className="flex items-center gap-1 text-xs bg-zinc-800 text-amber-400 px-2.5 py-1 rounded-lg border border-zinc-700"
             >
@@ -200,7 +324,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      {/* Mobile Floating Bottom Navigation Bar (Styled after user reference image) */}
+      {/* Mobile Floating Bottom Navigation Bar */}
       <nav className="md:hidden fixed bottom-3 left-4 right-4 z-50">
         <div className="bg-[#10121c]/95 border border-zinc-800/90 backdrop-blur-2xl rounded-3xl py-2 px-1 shadow-2xl shadow-black relative grid grid-cols-5 items-center">
           {/* Tab 1: World Bible */}
@@ -226,7 +350,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
             }`}
           >
             <Sword className="w-4 h-4 shrink-0" />
-            <span className="text-[10px] truncate max-w-[65px] text-center">{navItems[1].shortLabel}</span>
+            <span className="text-[10px] truncate max-w-[65px] text-center">{navItems[3].shortLabel}</span>
           </Link>
 
           {/* Center Column Spacer for Grid */}
@@ -255,20 +379,20 @@ function StudioShell({ children }: { children: React.ReactNode }) {
             }`}
           >
             <User className="w-4 h-4 shrink-0" />
-            <span className="text-[10px] truncate max-w-[65px] text-center">{navItems[2].shortLabel}</span>
+            <span className="text-[10px] truncate max-w-[65px] text-center">{navItems[4].shortLabel}</span>
           </Link>
 
-          {/* Tab 4: AI Sandbox */}
+          {/* Tab 4: Beats */}
           <Link
-            href="/studio/sandbox"
+            href="/studio/beats"
             className={`flex flex-col items-center justify-center gap-1 py-1 transition-all ${
-              isCurrentActive('/studio/sandbox')
+              isCurrentActive('/studio/beats')
                 ? 'text-amber-400 font-semibold'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Sparkles className="w-4 h-4 shrink-0" />
-            <span className="text-[10px] truncate max-w-[65px] text-center">{navItems[3].shortLabel}</span>
+            <GitBranch className="w-4 h-4 shrink-0" />
+            <span className="text-[10px] truncate max-w-[65px] text-center">{navItems[2].shortLabel}</span>
           </Link>
         </div>
       </nav>

@@ -205,81 +205,90 @@ export class StoryRepository {
    * Saves or updates a StoryManifest in the database
    */
   static async saveStory(manifest: StoryManifest) {
-    return prisma.$transaction(async (tx) => {
-      const story = await tx.story.upsert({
-        where: { id: manifest.id },
-        update: {
-          title: manifest.title,
-          tagline: manifest.tagline,
-          synopsis: manifest.synopsis,
-          genres: manifest.genres,
-          language: manifest.language,
-          coverImageUrl: manifest.coverImageUrl,
-          author: manifest.author,
-        },
-        create: {
-          id: manifest.id,
-          title: manifest.title,
-          tagline: manifest.tagline,
-          synopsis: manifest.synopsis,
-          genres: manifest.genres,
-          language: manifest.language,
-          coverImageUrl: manifest.coverImageUrl,
-          author: manifest.author,
-        },
-      });
+    if (!isDatabaseActive) {
+      return { id: manifest.id, title: manifest.title, isMock: true };
+    }
 
-      await tx.worldBible.upsert({
-        where: { storyId: manifest.id },
-        update: {
-          worldName: manifest.worldBible.worldName,
-          summary: manifest.worldBible.summary,
-          themeNotes: manifest.worldBible.themeNotes,
-          laws: manifest.worldBible.laws as any,
-          factions: manifest.worldBible.factions as any,
-          locations: manifest.worldBible.locations as any,
-          npcs: manifest.worldBible.npcs as any,
-        },
-        create: {
-          storyId: manifest.id,
-          worldName: manifest.worldBible.worldName,
-          summary: manifest.worldBible.summary,
-          themeNotes: manifest.worldBible.themeNotes,
-          laws: manifest.worldBible.laws as any,
-          factions: manifest.worldBible.factions as any,
-          locations: manifest.worldBible.locations as any,
-          npcs: manifest.worldBible.npcs as any,
-        },
-      });
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const story = await tx.story.upsert({
+          where: { id: manifest.id },
+          update: {
+            title: manifest.title,
+            tagline: manifest.tagline,
+            synopsis: manifest.synopsis,
+            genres: manifest.genres,
+            language: manifest.language,
+            coverImageUrl: manifest.coverImageUrl,
+            author: manifest.author,
+          },
+          create: {
+            id: manifest.id,
+            title: manifest.title,
+            tagline: manifest.tagline,
+            synopsis: manifest.synopsis,
+            genres: manifest.genres,
+            language: manifest.language,
+            coverImageUrl: manifest.coverImageUrl,
+            author: manifest.author,
+          },
+        });
 
-      await tx.rpgSystem.upsert({
-        where: { storyId: manifest.id },
-        update: {
-          hasCombat: manifest.rpgSystem.hasCombat,
-          diceType: manifest.rpgSystem.diceType,
-          inventoryCapacity: manifest.rpgSystem.inventoryCapacity,
-          stats: manifest.rpgSystem.stats as any,
-          resources: manifest.rpgSystem.resources as any,
-          skills: manifest.rpgSystem.skills as any,
-          startingInventory: manifest.rpgSystem.startingInventory as any,
-          archetypes: (manifest.rpgSystem.archetypes || []) as any,
-          backgrounds: (manifest.rpgSystem.backgrounds || []) as any,
-        },
-        create: {
-          storyId: manifest.id,
-          hasCombat: manifest.rpgSystem.hasCombat,
-          diceType: manifest.rpgSystem.diceType,
-          inventoryCapacity: manifest.rpgSystem.inventoryCapacity,
-          stats: manifest.rpgSystem.stats as any,
-          resources: manifest.rpgSystem.resources as any,
-          skills: manifest.rpgSystem.skills as any,
-          startingInventory: manifest.rpgSystem.startingInventory as any,
-          archetypes: (manifest.rpgSystem.archetypes || []) as any,
-          backgrounds: (manifest.rpgSystem.backgrounds || []) as any,
-        },
-      });
+        await tx.worldBible.upsert({
+          where: { storyId: manifest.id },
+          update: {
+            worldName: manifest.worldBible.worldName,
+            summary: manifest.worldBible.summary,
+            themeNotes: manifest.worldBible.themeNotes,
+            laws: (manifest.worldBible.laws || []) as any,
+            factions: (manifest.worldBible.factions || []) as any,
+            locations: (manifest.worldBible.locations || []) as any,
+            npcs: (manifest.worldBible.npcs || []) as any,
+          },
+          create: {
+            storyId: manifest.id,
+            worldName: manifest.worldBible.worldName,
+            summary: manifest.worldBible.summary,
+            themeNotes: manifest.worldBible.themeNotes,
+            laws: (manifest.worldBible.laws || []) as any,
+            factions: (manifest.worldBible.factions || []) as any,
+            locations: (manifest.worldBible.locations || []) as any,
+            npcs: (manifest.worldBible.npcs || []) as any,
+          },
+        });
 
-      return story;
-    });
+        await tx.rpgSystem.upsert({
+          where: { storyId: manifest.id },
+          update: {
+            hasCombat: manifest.rpgSystem.hasCombat,
+            diceType: manifest.rpgSystem.diceType,
+            inventoryCapacity: manifest.rpgSystem.inventoryCapacity,
+            stats: (manifest.rpgSystem.stats || []) as any,
+            resources: (manifest.rpgSystem.resources || []) as any,
+            skills: (manifest.rpgSystem.skills || []) as any,
+            startingInventory: (manifest.rpgSystem.startingInventory || []) as any,
+            archetypes: (manifest.rpgSystem.archetypes || []) as any,
+            backgrounds: (manifest.rpgSystem.backgrounds || []) as any,
+          },
+          create: {
+            storyId: manifest.id,
+            hasCombat: manifest.rpgSystem.hasCombat,
+            diceType: manifest.rpgSystem.diceType,
+            inventoryCapacity: manifest.rpgSystem.inventoryCapacity,
+            stats: (manifest.rpgSystem.stats || []) as any,
+            resources: (manifest.rpgSystem.resources || []) as any,
+            skills: (manifest.rpgSystem.skills || []) as any,
+            startingInventory: (manifest.rpgSystem.startingInventory || []) as any,
+            archetypes: (manifest.rpgSystem.archetypes || []) as any,
+            backgrounds: (manifest.rpgSystem.backgrounds || []) as any,
+          },
+        });
+
+        return story;
+      });
+    } catch (e) {
+      console.warn('Database save encountered an issue, story preserved in memory & local storage:', e);
+      return { id: manifest.id, title: manifest.title, error: String(e) };
+    }
   }
 }

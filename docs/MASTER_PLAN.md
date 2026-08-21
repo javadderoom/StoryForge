@@ -415,3 +415,12 @@ StoryForge/
 - [ ] Author Pilot Story 2 using StoryForge Studio: *Neon Requiem* (Cyberpunk Detective).
 - [ ] Stress-test continuity, memory recall across 25+ turns, and anti-hallucination guardrails.
 
+### Phase 7: Deep World-Building & Lore Engine (Evolution Goals)
+- [ ] **Interactive Timeline & Epoch Builder (`/studio/timeline`)**: Visual historical timeline tracking world eras, schisms, wars, and cosmic catastrophes with lore context injection.
+- [ ] **Mythic Artifacts & Relics Catalog**: Structured registry for legendary items, arcane relics, and cursed tomes with origin history, attunement costs, and vault holders.
+- [ ] **Bestiary & Native Flora/Fauna**: Detailed creature catalog with habitat locations, behavioral combat tactics, elemental weaknesses, and harvestable alchemy loot.
+- [ ] **Pantheons, Deities & Faith Systems**: Cosmic deities, religious dogmas, sacred taboos, and divine blessings that shape NPC loyalties and faction standing.
+- [ ] **Interpersonal NPC Drama Web**: Visualizing and tracking character-to-character bonds (*Blood Debt, Master & Apprentice, Secret Romance, Blood Feud, Blackmail*).
+- [ ] **AI World-Building Co-Pilot (Genesis Generator)**: In-studio generative assistant for generating coherent factions, location atmospheres, and plot secrets in one click.
+
+

@@ -545,8 +545,8 @@
     "semantic_hash": ""
   },
   "web/package.json": {
-    "mtime": 1787138589.613057,
-    "ast_hash": "b82a1801d66bebe3875aa71ed7a4d64f",
+    "mtime": 1787343481.8295429,
+    "ast_hash": "009bbc5f236286fbd64d904f1a57a959",
     "semantic_hash": ""
   },
   "web/postcss.config.mjs": {
@@ -585,13 +585,13 @@
     "semantic_hash": ""
   },
   "web/src/content/stories/ghale_siahsang.ts": {
-    "mtime": 1787303103.2680776,
-    "ast_hash": "e12c4f5d98e648ce0370ae99b453dacf",
+    "mtime": 1787343982.5556054,
+    "ast_hash": "3381ac75d6802714c9bf0e74f2e06dd8",
     "semantic_hash": ""
   },
   "web/src/content/stories/obsidian_citadel.ts": {
-    "mtime": 1787299861.8382776,
-    "ast_hash": "9c677379f649fa0261789f4ea95ff0c7",
+    "mtime": 1787341914.234627,
+    "ast_hash": "5db8c3c2a1f0400767279c342c88bcf4",
     "semantic_hash": ""
   },
   "web/src/lib/engines/game/GameEngine.test.ts": {
@@ -655,13 +655,13 @@
     "semantic_hash": ""
   },
   "web/src/lib/types/story.ts": {
-    "mtime": 1787079813.4356544,
-    "ast_hash": "1cc9c825cf1290bb28346e95373521fd",
+    "mtime": 1787321698.0087714,
+    "ast_hash": "933017abe5d583080166d7a491c71754",
     "semantic_hash": ""
   },
   "web/src/lib/types/world.ts": {
-    "mtime": 1787079418.1297534,
-    "ast_hash": "d3620f5cfb154e833764d5b6256f8fbf",
+    "mtime": 1787343365.7799933,
+    "ast_hash": "e27c1db7c6ee38700e6a41771e356cb3",
     "semantic_hash": ""
   },
   "web/tsconfig.json": {
@@ -1085,18 +1085,18 @@
     "semantic_hash": ""
   },
   "web/src/app/studio/layout.tsx": {
-    "mtime": 1787317689.1135826,
-    "ast_hash": "3bbba2fd4404f3c44dddf91dcbf69f45",
+    "mtime": 1787341490.252598,
+    "ast_hash": "8960d48688ec5bd09a71a05d7b328509",
     "semantic_hash": ""
   },
   "web/src/app/studio/npcs/page.tsx": {
-    "mtime": 1787134296.219773,
-    "ast_hash": "7143fa9f321f10d3f183b99d7cabad9f",
+    "mtime": 1787342225.7258568,
+    "ast_hash": "818d16ef7bc36ec50e5eeec79eb9142a",
     "semantic_hash": ""
   },
   "web/src/app/studio/rpg/page.tsx": {
-    "mtime": 1787134284.7997825,
-    "ast_hash": "5c4d52f41af515b85cc484838f944ef5",
+    "mtime": 1787324008.5106144,
+    "ast_hash": "8b0db9b6126385f04b49e6f9cc1bb7f1",
     "semantic_hash": ""
   },
   "web/src/app/studio/sandbox/page.tsx": {
@@ -1105,13 +1105,13 @@
     "semantic_hash": ""
   },
   "web/src/app/studio/world/page.tsx": {
-    "mtime": 1787134270.242742,
-    "ast_hash": "811b10a3a6b92959c5ad969d825594dc",
+    "mtime": 1787323977.983053,
+    "ast_hash": "41a0fad4bf90858ebc129a256cf57f30",
     "semantic_hash": ""
   },
   "web/src/lib/context/StudioStoryContext.tsx": {
-    "mtime": 1787134238.398716,
-    "ast_hash": "9e24b7fc66053e2b9e1c608ef1faab3d",
+    "mtime": 1787342064.2799554,
+    "ast_hash": "0a99425567aaf40cfc300a6e4cbbf7ae",
     "semantic_hash": ""
   },
   "web/prisma.config.ts": {
@@ -1150,8 +1150,8 @@
     "semantic_hash": ""
   },
   "web/src/lib/db/repositories/storyRepository.ts": {
-    "mtime": 1787301288.880982,
-    "ast_hash": "d4f4ee4c1dc4553b34ac5a2d11e45e80",
+    "mtime": 1787329564.087773,
+    "ast_hash": "3da901b0e0f19b011780938178661cbb",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -1440,13 +1440,13 @@
     "semantic_hash": ""
   },
   "docs/MASTER_PLAN.md": {
-    "mtime": 1787077306.4263918,
-    "ast_hash": "1e5340ef949c5b179e52231e192efff2",
+    "mtime": 1787334065.3502538,
+    "ast_hash": "642b5ec2467b99982ec8c6fef3dfbf84",
     "semantic_hash": ""
   },
   "docs/roadmap.md": {
-    "mtime": 1787306271.2635505,
-    "ast_hash": "640c8bb63bfbea4cb638af0d099aa7c4",
+    "mtime": 1787334033.8995552,
+    "ast_hash": "e5da435296dde86cec75d144fcdb122e",
     "semantic_hash": ""
   },
   "app/lib/models/character_creation.dart": {
@@ -1525,8 +1525,8 @@
     "semantic_hash": ""
   },
   "web/src/app/api/studio/story/route.ts": {
-    "mtime": 1787317773.2125492,
-    "ast_hash": "49669bb00b48b91429001ff57f869eb1",
+    "mtime": 1787329073.9712112,
+    "ast_hash": "ba8eca73d1292341846b38c456b3acff",
     "semantic_hash": ""
   },
   "web/src/app/studio/beats/page.tsx": {
@@ -1540,13 +1540,63 @@
     "semantic_hash": ""
   },
   "web/src/components/studio/LoreGraphCanvas.tsx": {
-    "mtime": 1787317461.3693943,
-    "ast_hash": "cbc2be5efa747abc5a1724efca3302fd",
+    "mtime": 1787342270.244986,
+    "ast_hash": "2bf0b467b8b593cae208cd5dce6e21d7",
     "semantic_hash": ""
   },
   "web/src/components/studio/StoryTreeCanvas.tsx": {
-    "mtime": 1787317553.8013084,
-    "ast_hash": "df90d980c8204d7ca65ef1f68aaa0aaf",
+    "mtime": 1787320756.0672712,
+    "ast_hash": "ac67829033268194451a11d94c52b12a",
+    "semantic_hash": ""
+  },
+  "web/src/app/api/studio/generate/route.ts": {
+    "mtime": 1787344119.2187483,
+    "ast_hash": "9b8c3cf6b5440ee2025ee0344c519212",
+    "semantic_hash": ""
+  },
+  "web/src/app/studio/artifacts/page.tsx": {
+    "mtime": 1787342596.9527836,
+    "ast_hash": "5dcdb7e1c733bfe2e8da3a91e83e492c",
+    "semantic_hash": ""
+  },
+  "web/src/app/studio/bestiary/page.tsx": {
+    "mtime": 1787342642.543275,
+    "ast_hash": "86e593fb422ec1d297a21252f32ac1cf",
+    "semantic_hash": ""
+  },
+  "web/src/app/studio/religions/page.tsx": {
+    "mtime": 1787342685.255469,
+    "ast_hash": "c1e1c3f5c4b28d1f7b6d0085f3965f11",
+    "semantic_hash": ""
+  },
+  "web/src/app/studio/timeline/page.tsx": {
+    "mtime": 1787342528.943057,
+    "ast_hash": "7e29d3a02892d409d924292954194813",
+    "semantic_hash": ""
+  },
+  "web/src/app/studio/types/page.tsx": {
+    "mtime": 1787331303.0198805,
+    "ast_hash": "f55b6c9913ad8492d24a3fe21ecbc28a",
+    "semantic_hash": ""
+  },
+  "web/src/lib/notify.tsx": {
+    "mtime": 1787323834.3508592,
+    "ast_hash": "a81ab58f10bb4a4f117ccc774f1670c6",
+    "semantic_hash": ""
+  },
+  "web/src/app/api/studio/generate/StudioGenerate.test.ts": {
+    "mtime": 1787343435.174033,
+    "ast_hash": "88807a575f9a7a193e12cabbbdb346d6",
+    "semantic_hash": ""
+  },
+  "web/src/content/stories/StoryManifestIntegrity.test.ts": {
+    "mtime": 1787343388.049795,
+    "ast_hash": "7aa84f76b9b4f305a6739786fbd91cbd",
+    "semantic_hash": ""
+  },
+  "web/src/lib/types/WorldBibleSchema.test.ts": {
+    "mtime": 1787343411.9143631,
+    "ast_hash": "9dd4d97b8aea3fd09a9543e6874dbba4",
     "semantic_hash": ""
   }
 }
