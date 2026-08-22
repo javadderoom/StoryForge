@@ -51,6 +51,17 @@ export interface WorkingContextEnvelope {
   };
   recentSceneSnippets: string[];
   languageDirective: 'en' | 'fa';
+  // Expanded world grounding (all optional; rendered only when present)
+  authoredSystemPrompt?: string;
+  worldSummary?: string;
+  themeNotes?: string;
+  factions?: string[];
+  timeline?: string[];
+  artifacts?: string[];
+  bestiary?: string[];
+  religions?: string[];
+  dramaBonds?: string[];
+  ontologySummary?: string;
 }
 
 export const MemoryEntrySchema = z.object({

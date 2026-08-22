@@ -150,7 +150,11 @@ export function StoryTreeCanvas({ story, isPersian = false }: StoryTreeCanvasPro
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  // Re-calculate layout when story changes
+  // Re-seed beats + layout from the story when it changes.
+  // Intentional setState-in-effect: re-derives from `story` on change, but beats
+  // are also mutated by tree edits and positions by drag, so a pure useMemo
+  // derivation is impractical.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (story.initialStoryBeats && story.initialStoryBeats.length > 0) {
       const loadedBeats = story.initialStoryBeats as StoryBeatNode[];
@@ -159,6 +163,7 @@ export function StoryTreeCanvas({ story, isPersian = false }: StoryTreeCanvasPro
       setNodePositions(calculateTreeLayout(loadedBeats));
     }
   }, [story]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const selectedBeat = useMemo(
     () => beats.find((b) => b.sceneId === selectedSceneId) || beats[0],

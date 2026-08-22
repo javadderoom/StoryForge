@@ -1,13 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { StoryManifestSchema } from '../../lib/types/story';
-import { ghaleSiahsangStory } from './ghale_siahsang';
-import { obsidianCitadelStory } from './obsidian_citadel';
+import { getEmptyStoryManifest } from '../../lib/storyFactory';
 
-describe('StoryManifestIntegrity - Canonical Stories & Cross-Reference Guardrails', () => {
+describe('StoryManifestIntegrity - Default Story Factory', () => {
   const stories = [
-    { name: 'Ghale Siahsang (Persian)', manifest: ghaleSiahsangStory },
-    { name: 'Obsidian Citadel (English)', manifest: obsidianCitadelStory },
+    { name: 'Empty Manifest (Persian)', manifest: getEmptyStoryManifest('fa') },
+    { name: 'Empty Manifest (English)', manifest: getEmptyStoryManifest('en') },
   ];
 
   stories.forEach(({ name, manifest }) => {
@@ -132,8 +131,8 @@ describe('StoryManifestIntegrity - Canonical Stories & Cross-Reference Guardrail
         assert.ok(manifest.rpgSystem.stats.length >= 3, 'RPG system must define at least 3 stats');
         assert.ok(manifest.rpgSystem.resources.length >= 2, 'RPG system must define at least 2 resources');
 
-        const hpResource = manifest.rpgSystem.resources.find((r) => r.id === 'hp');
-        assert.ok(hpResource, 'RPG system must include hp resource');
+        const hpResource = manifest.rpgSystem.resources.find((r) => r.id === 'hp' || r.id === 'health');
+        assert.ok(hpResource, 'RPG system must include a health/hp resource');
         assert.ok(hpResource.max > 0, 'HP max must be positive');
       });
     });

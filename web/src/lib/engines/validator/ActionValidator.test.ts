@@ -94,3 +94,84 @@ describe('ActionValidator - Lore & Inventory Guardrails', () => {
     assert.equal(res.normalizedAction, 'I duck behind the stone bench and draw my knife');
   });
 });
+
+describe('ActionValidator - Knowledge Boundary Guardrail', () => {
+  const worldBible: WorldBible = {
+    worldId: 'world_valoria',
+    worldName: 'Valoria',
+    summary: 'A dark realm',
+    themeNotes: 'Gritty',
+    laws: [],
+    factions: [],
+    locations: [],
+    timeline: [],
+    npcs: [
+      {
+        id: 'npc_baroness',
+        name: 'Baroness Vey',
+        title: 'Ruler',
+        currentLocationId: 'loc_court',
+        personalityTraits: ['cunning'],
+        speechStyle: 'Speaks softly',
+        goals: ['Hold power'],
+        secrets: [
+          {
+            id: 'secret_poison',
+            description: 'The baroness poisoned the royal wine to seize the throne.',
+            requiredTrustLevel: 80,
+            revealed: false,
+          },
+        ],
+        initialTrust: 0,
+      },
+    ],
+  };
+
+  const rpgSystem: RPGSystemSchema = {
+    hasCombat: true,
+    diceType: 'd20',
+    stats: [{ id: 'might', name: 'Might', description: '', baseValue: 12 }],
+    resources: [],
+    skills: [],
+    startingInventory: [],
+    inventoryCapacity: 10,
+  };
+
+  const playerState: PlayerState = {
+    stats: { might: 12 },
+    resources: {},
+    inventory: [],
+    equipment: {},
+    discoveredLocationIds: [],
+    relationships: {}, // baroness secret not discovered
+    activeQuestIds: [],
+    completedQuestIds: [],
+    currentLocationId: 'loc_court',
+  };
+
+  it('blocks actions that rely on an undiscovered NPC secret', () => {
+    const res = ActionValidator.validateAction(
+      'I confront the baroness about how she poisoned the royal wine',
+      playerState,
+      worldBible,
+      rpgSystem
+    );
+    assert.equal(res.isValid, false);
+    assert.equal(res.isGuardrailViolation, true);
+    assert.ok(res.rejectionReason?.toLowerCase().includes('secret'));
+  });
+
+  it('allows the same action once the secret is discovered', () => {
+    const discovered: PlayerState = {
+      ...playerState,
+      relationships: { npc_baroness: { trust: 85, knownSecrets: ['secret_poison'], notes: [] } },
+    };
+    const res = ActionValidator.validateAction(
+      'I confront the baroness about how she poisoned the royal wine',
+      discovered,
+      worldBible,
+      rpgSystem
+    );
+    assert.equal(res.isValid, true);
+  });
+});

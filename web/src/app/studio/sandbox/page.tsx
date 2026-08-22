@@ -66,6 +66,10 @@ export default function AiSandboxPage() {
     statsControl: isPersian ? 'ویژگی‌های تستی قهرمان:' : 'Hero Mock Attributes:',
   };
 
+  // Synchronize sandbox defaults with the active story / locale.
+  // Intentional setState-in-effect: resets sandbox inputs only when `story.id`
+  // or `isPersian` changes, not on every commit.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (isPersian) {
       setTestAction('من تلاش میکنم که در چوبی را با جادو باز کنم');
@@ -74,6 +78,7 @@ export default function AiSandboxPage() {
     }
     setSandboxResult(null);
   }, [story.id, isPersian]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleTestSandbox = async () => {
     setLoading(true);

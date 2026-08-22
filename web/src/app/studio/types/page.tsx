@@ -11,14 +11,10 @@ import {
   Plus,
   Trash2,
   Edit2,
-  Check,
   X,
-  Palette,
   Sparkles,
   Layers,
   ArrowRight,
-  Shield,
-  Zap,
 } from 'lucide-react';
 import { CustomRelationType, CustomPlaceCategory, CustomLawCategory, CustomNPCRole } from '@/lib/types';
 import { notify } from '@/lib/notify';
@@ -36,17 +32,23 @@ const QUICK_COLORS = [
   '#FB7185', // Rose
 ];
 
+type EntityCategory = 'location' | 'npc' | 'faction' | 'law' | 'any';
+
 export default function TypesStudioPage() {
   const {
     story,
     isPersian,
     addCustomRelationType,
+    editCustomRelationType,
     deleteCustomRelationType,
     addPlaceCategory,
+    editPlaceCategory,
     deletePlaceCategory,
     addLawCategory,
+    editLawCategory,
     deleteLawCategory,
     addNpcRole,
+    editNpcRole,
     deleteNpcRole,
   } = useStudioStory();
 
@@ -54,6 +56,7 @@ export default function TypesStudioPage() {
 
   // Form states
   const [showAddRelation, setShowAddRelation] = useState(false);
+  const [editingRel, setEditingRel] = useState<CustomRelationType | null>(null);
   const [newRelName, setNewRelName] = useState('');
   const [newRelId, setNewRelId] = useState('');
   const [newRelDesc, setNewRelDesc] = useState('');
@@ -63,6 +66,7 @@ export default function TypesStudioPage() {
   const [newRelDirected, setNewRelDirected] = useState(true);
 
   const [showAddPlace, setShowAddPlace] = useState(false);
+  const [editingPlace, setEditingPlace] = useState<CustomPlaceCategory | null>(null);
   const [newPlaceName, setNewPlaceName] = useState('');
   const [newPlaceId, setNewPlaceId] = useState('');
   const [newPlaceDesc, setNewPlaceDesc] = useState('');
@@ -70,12 +74,14 @@ export default function TypesStudioPage() {
   const [newPlaceDanger, setNewPlaceDanger] = useState<1 | 2 | 3 | 4 | 5>(3);
 
   const [showAddLaw, setShowAddLaw] = useState(false);
+  const [editingLaw, setEditingLaw] = useState<CustomLawCategory | null>(null);
   const [newLawName, setNewLawName] = useState('');
   const [newLawId, setNewLawId] = useState('');
   const [newLawDesc, setNewLawDesc] = useState('');
   const [newLawColor, setNewLawColor] = useState('#A855F7');
 
   const [showAddRole, setShowAddRole] = useState(false);
+  const [editingRole, setEditingRole] = useState<CustomNPCRole | null>(null);
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleId, setNewRoleId] = useState('');
   const [newRoleDesc, setNewRoleDesc] = useState('');
@@ -88,14 +94,77 @@ export default function TypesStudioPage() {
     npcRoles: [],
   };
 
+  // How many world entities reference a given type (used to warn before deletion)
+  const relationUsage = (id: string) =>
+    (story.worldBible.customRelations ?? []).filter((r) => r.relationTypeId === id).length;
+  const placeUsage = (id: string) => story.worldBible.locations.filter((l) => l.category === id).length;
+  const lawUsage = (id: string) => story.worldBible.laws.filter((l) => l.category === id).length;
+  const roleUsage = (id: string) => story.worldBible.npcs.filter((n) => n.role === id).length;
+
+  const confirmDelete = async (opts: {
+    name: string;
+    title: string;
+    isDefault?: boolean;
+    used: number;
+    onConfirm: () => void;
+  }) => {
+    const def = opts.isDefault
+      ? isPersian
+        ? ' (این یک نوع پیش‌فرضِ بذر شده است)'
+        : ' (This is a seeded default type)'
+      : '';
+    const use = opts.used > 0
+      ? isPersian
+        ? ` توجه: ${opts.used} مورد از این نوع استفاده می‌کنند.`
+        : ` Note: ${opts.used} item(s) currently reference this type.`
+      : '';
+    const conf = await notify.confirm({
+      title: opts.title,
+      message:
+        (isPersian ? `آیا از حذف "${opts.name}" مطمئن هستید؟` : `Are you sure you want to remove "${opts.name}"?`) +
+        def +
+        use,
+      confirmText: isPersian ? 'بله، حذف شود' : 'Delete',
+      cancelText: isPersian ? 'انصراف' : 'Cancel',
+      isDestructive: true,
+    });
+    if (conf) opts.onConfirm();
+  };
+
+  const resetRelForm = () => {
+    setNewRelName('');
+    setNewRelId('');
+    setNewRelDesc('');
+    setNewRelSource('any');
+    setNewRelTarget('any');
+    setNewRelColor('#38BDF8');
+    setNewRelDirected(true);
+    setEditingRel(null);
+  };
+  const openRelAdd = () => {
+    resetRelForm();
+    setShowAddRelation(true);
+  };
+  const openRelEdit = (rel: CustomRelationType) => {
+    setNewRelName(rel.name);
+    setNewRelId(rel.id);
+    setNewRelDesc(rel.description);
+    setNewRelSource(rel.sourceCategory);
+    setNewRelTarget(rel.targetCategory);
+    setNewRelColor(rel.color);
+    setNewRelDirected(rel.isDirected);
+    setEditingRel(rel);
+    setShowAddRelation(true);
+  };
+
   const handleCreateRelation = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRelName.trim()) {
       notify.error(isPersian ? 'نام پیوند الزامی است' : 'Relation name is required');
       return;
     }
-    const finalId = newRelId.trim() || `rel_${Date.now().toString(36)}`;
-    addCustomRelationType({
+    const finalId = editingRel ? editingRel.id : newRelId.trim() || `rel_${Date.now().toString(36)}`;
+    const payload: CustomRelationType = {
       id: finalId,
       name: newRelName.trim(),
       description: newRelDesc.trim(),
@@ -103,11 +172,33 @@ export default function TypesStudioPage() {
       targetCategory: newRelTarget,
       color: newRelColor,
       isDirected: newRelDirected,
-    });
-    setNewRelName('');
-    setNewRelId('');
-    setNewRelDesc('');
+    };
+    if (editingRel) editCustomRelationType(editingRel.id, payload);
+    else addCustomRelationType(payload);
     setShowAddRelation(false);
+    resetRelForm();
+  };
+
+  const resetPlaceForm = () => {
+    setNewPlaceName('');
+    setNewPlaceId('');
+    setNewPlaceDesc('');
+    setNewPlaceColor('#6366F1');
+    setNewPlaceDanger(3);
+    setEditingPlace(null);
+  };
+  const openPlaceAdd = () => {
+    resetPlaceForm();
+    setShowAddPlace(true);
+  };
+  const openPlaceEdit = (cat: CustomPlaceCategory) => {
+    setNewPlaceName(cat.name);
+    setNewPlaceId(cat.id);
+    setNewPlaceDesc(cat.description);
+    setNewPlaceColor(cat.color);
+    setNewPlaceDanger(cat.defaultDangerLevel || 3);
+    setEditingPlace(cat);
+    setShowAddPlace(true);
   };
 
   const handleCreatePlace = (e: React.FormEvent) => {
@@ -116,18 +207,38 @@ export default function TypesStudioPage() {
       notify.error(isPersian ? 'نام دسته‌بندی مکان الزامی است' : 'Place category name is required');
       return;
     }
-    const finalId = newPlaceId.trim() || `place_${Date.now().toString(36)}`;
-    addPlaceCategory({
+    const finalId = editingPlace ? editingPlace.id : newPlaceId.trim() || `place_${Date.now().toString(36)}`;
+    const payload: CustomPlaceCategory = {
       id: finalId,
       name: newPlaceName.trim(),
       description: newPlaceDesc.trim(),
       color: newPlaceColor,
       defaultDangerLevel: newPlaceDanger,
-    });
-    setNewPlaceName('');
-    setNewPlaceId('');
-    setNewPlaceDesc('');
+    };
+    if (editingPlace) editPlaceCategory(editingPlace.id, payload);
+    else addPlaceCategory(payload);
     setShowAddPlace(false);
+    resetPlaceForm();
+  };
+
+  const resetLawForm = () => {
+    setNewLawName('');
+    setNewLawId('');
+    setNewLawDesc('');
+    setNewLawColor('#A855F7');
+    setEditingLaw(null);
+  };
+  const openLawAdd = () => {
+    resetLawForm();
+    setShowAddLaw(true);
+  };
+  const openLawEdit = (lawCat: CustomLawCategory) => {
+    setNewLawName(lawCat.name);
+    setNewLawId(lawCat.id);
+    setNewLawDesc(lawCat.description);
+    setNewLawColor(lawCat.color);
+    setEditingLaw(lawCat);
+    setShowAddLaw(true);
   };
 
   const handleCreateLaw = (e: React.FormEvent) => {
@@ -136,17 +247,37 @@ export default function TypesStudioPage() {
       notify.error(isPersian ? 'نام دسته‌بندی قانون الزامی است' : 'Law category name is required');
       return;
     }
-    const finalId = newLawId.trim() || `law_${Date.now().toString(36)}`;
-    addLawCategory({
+    const finalId = editingLaw ? editingLaw.id : newLawId.trim() || `law_${Date.now().toString(36)}`;
+    const payload: CustomLawCategory = {
       id: finalId,
       name: newLawName.trim(),
       description: newLawDesc.trim(),
       color: newLawColor,
-    });
-    setNewLawName('');
-    setNewLawId('');
-    setNewLawDesc('');
+    };
+    if (editingLaw) editLawCategory(editingLaw.id, payload);
+    else addLawCategory(payload);
     setShowAddLaw(false);
+    resetLawForm();
+  };
+
+  const resetRoleForm = () => {
+    setNewRoleName('');
+    setNewRoleId('');
+    setNewRoleDesc('');
+    setNewRoleColor('#F59E0B');
+    setEditingRole(null);
+  };
+  const openRoleAdd = () => {
+    resetRoleForm();
+    setShowAddRole(true);
+  };
+  const openRoleEdit = (role: CustomNPCRole) => {
+    setNewRoleName(role.name);
+    setNewRoleId(role.id);
+    setNewRoleDesc(role.description);
+    setNewRoleColor(role.color);
+    setEditingRole(role);
+    setShowAddRole(true);
   };
 
   const handleCreateRole = (e: React.FormEvent) => {
@@ -155,17 +286,17 @@ export default function TypesStudioPage() {
       notify.error(isPersian ? 'نام نقش الزامی است' : 'Role name is required');
       return;
     }
-    const finalId = newRoleId.trim() || `role_${Date.now().toString(36)}`;
-    addNpcRole({
+    const finalId = editingRole ? editingRole.id : newRoleId.trim() || `role_${Date.now().toString(36)}`;
+    const payload: CustomNPCRole = {
       id: finalId,
       name: newRoleName.trim(),
       description: newRoleDesc.trim(),
       color: newRoleColor,
-    });
-    setNewRoleName('');
-    setNewRoleId('');
-    setNewRoleDesc('');
+    };
+    if (editingRole) editNpcRole(editingRole.id, payload);
+    else addNpcRole(payload);
     setShowAddRole(false);
+    resetRoleForm();
   };
 
   return (
@@ -269,7 +400,7 @@ export default function TypesStudioPage() {
               <span>{isPersian ? 'انواع پیوند و اتصالات بین موجودیت‌ها' : 'Entity Relation Taxonomy'}</span>
             </h3>
             <button
-              onClick={() => setShowAddRelation(true)}
+              onClick={openRelAdd}
               className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition-all"
             >
               <Plus className="w-4 h-4" />
@@ -286,11 +417,20 @@ export default function TypesStudioPage() {
               <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                 <span className="text-sm font-bold text-amber-400 flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
-                  {isPersian ? 'تعریف نوع پیوند سفارشی جدید' : 'New Custom Relation Type'}
+                  {editingRel
+                    ? isPersian
+                      ? 'ویرایش نوع پیوند'
+                      : 'Edit Relation Type'
+                    : isPersian
+                      ? 'تعریف نوع پیوند سفارشی جدید'
+                      : 'New Custom Relation Type'}
                 </span>
                 <button
                   type="button"
-                  onClick={() => setShowAddRelation(false)}
+                  onClick={() => {
+                    setShowAddRelation(false);
+                    resetRelForm();
+                  }}
                   className="text-zinc-500 hover:text-zinc-300"
                 >
                   <X className="w-5 h-5" />
@@ -315,13 +455,19 @@ export default function TypesStudioPage() {
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
                     {isPersian ? 'شناسه یکتا (اختیاری):' : 'Unique ID (Optional):'}
                   </label>
-                  <input
-                    type="text"
-                    value={newRelId}
-                    onChange={(e) => setNewRelId(e.target.value)}
-                    placeholder="e.g. blood_debt, mentor_apprentice"
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-400"
-                  />
+                  {editingRel ? (
+                    <div className="w-full bg-zinc-800/60 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-400 font-mono">
+                      {editingRel.id}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={newRelId}
+                      onChange={(e) => setNewRelId(e.target.value)}
+                      placeholder="e.g. blood_debt, mentor_apprentice"
+                      className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-400"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -345,7 +491,7 @@ export default function TypesStudioPage() {
                   </label>
                   <select
                     value={newRelSource}
-                    onChange={(e) => setNewRelSource(e.target.value as any)}
+                    onChange={(e) => setNewRelSource(e.target.value as EntityCategory)}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                   >
                     <option value="any">{isPersian ? 'هر موجودیتی (Any)' : 'Any Entity'}</option>
@@ -362,7 +508,7 @@ export default function TypesStudioPage() {
                   </label>
                   <select
                     value={newRelTarget}
-                    onChange={(e) => setNewRelTarget(e.target.value as any)}
+                    onChange={(e) => setNewRelTarget(e.target.value as EntityCategory)}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                   >
                     <option value="any">{isPersian ? 'هر موجودیتی (Any)' : 'Any Entity'}</option>
@@ -427,25 +573,30 @@ export default function TypesStudioPage() {
                       <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: rel.color }} />
                       {rel.name}
                     </span>
-                    {!rel.isDefault && (
-                      <button
-                        onClick={async () => {
-                          const conf = await notify.confirm({
-                            title: isPersian ? 'حذف نوع پیوند' : 'Delete Relation Type',
-                            message: isPersian
-                              ? `آیا از حذف نوع پیوند "${rel.name}" مطمئن هستید؟`
-                              : `Are you sure you want to remove relation type "${rel.name}"?`,
-                            confirmText: isPersian ? 'بله، حذف شود' : 'Delete',
-                            cancelText: isPersian ? 'انصراف' : 'Cancel',
-                            isDestructive: true,
-                          });
-                          if (conf) deleteCustomRelationType(rel.id);
-                        }}
-                        className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => openRelEdit(rel)}
+                      className="text-zinc-500 hover:text-amber-400 p-1 transition-colors"
+                      title={isPersian ? 'ویرایش' : 'Edit'}
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        confirmDelete({
+                          name: rel.name,
+                          title: isPersian ? 'حذف نوع پیوند' : 'Delete Relation Type',
+                          isDefault: rel.isDefault,
+                          used: relationUsage(rel.id),
+                          onConfirm: () => deleteCustomRelationType(rel.id),
+                        })
+                      }
+                      className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
+                      title={isPersian ? 'حذف' : 'Delete'}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                   <p className="text-xs text-zinc-300 leading-relaxed min-h-[36px] mb-3">{rel.description}</p>
                 </div>
@@ -473,7 +624,7 @@ export default function TypesStudioPage() {
               <span>{isPersian ? 'دسته‌بندی‌ها و زیست‌بوم‌های جغرافیایی' : 'Place Categories & Biomes'}</span>
             </h3>
             <button
-              onClick={() => setShowAddPlace(true)}
+              onClick={openPlaceAdd}
               className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition-all"
             >
               <Plus className="w-4 h-4" />
@@ -490,11 +641,20 @@ export default function TypesStudioPage() {
               <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                 <span className="text-sm font-bold text-amber-400 flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
-                  {isPersian ? 'ثبت زیست‌بوم یا دسته مکانی جدید' : 'New Place Category / Biome'}
+                  {editingPlace
+                    ? isPersian
+                      ? 'ویرایش دسته مکان'
+                      : 'Edit Place Category'
+                    : isPersian
+                      ? 'ثبت زیست‌بوم یا دسته مکانی جدید'
+                      : 'New Place Category / Biome'}
                 </span>
                 <button
                   type="button"
-                  onClick={() => setShowAddPlace(false)}
+                  onClick={() => {
+                    setShowAddPlace(false);
+                    resetPlaceForm();
+                  }}
                   className="text-zinc-500 hover:text-zinc-300"
                 >
                   <X className="w-5 h-5" />
@@ -519,13 +679,19 @@ export default function TypesStudioPage() {
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
                     {isPersian ? 'شناسه یکتا (اختیاری):' : 'Unique ID (Optional):'}
                   </label>
-                  <input
-                    type="text"
-                    value={newPlaceId}
-                    onChange={(e) => setNewPlaceId(e.target.value)}
-                    placeholder="e.g. crystal_caverns, trading_port"
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-400"
-                  />
+                  {editingPlace ? (
+                    <div className="w-full bg-zinc-800/60 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-400 font-mono">
+                      {editingPlace.id}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={newPlaceId}
+                      onChange={(e) => setNewPlaceId(e.target.value)}
+                      placeholder="e.g. crystal_caverns, trading_port"
+                      className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-400"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -549,7 +715,7 @@ export default function TypesStudioPage() {
                   </label>
                   <select
                     value={newPlaceDanger}
-                    onChange={(e) => setNewPlaceDanger(Number(e.target.value) as any)}
+                    onChange={(e) => setNewPlaceDanger(Number(e.target.value) as 1 | 2 | 3 | 4 | 5)}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                   >
                     <option value={1}>1 - {isPersian ? 'بسیار امن (Safe)' : 'Safe'}</option>
@@ -614,25 +780,30 @@ export default function TypesStudioPage() {
                       <MapPin className="w-3.5 h-3.5" />
                       {cat.name}
                     </span>
-                    {!cat.isDefault && (
-                      <button
-                        onClick={async () => {
-                          const conf = await notify.confirm({
-                            title: isPersian ? 'حذف دسته مکان' : 'Delete Place Category',
-                            message: isPersian
-                              ? `آیا از حذف دسته مکان "${cat.name}" مطمئن هستید؟`
-                              : `Are you sure you want to remove place category "${cat.name}"?`,
-                            confirmText: isPersian ? 'بله، حذف شود' : 'Delete',
-                            cancelText: isPersian ? 'انصراف' : 'Cancel',
-                            isDestructive: true,
-                          });
-                          if (conf) deletePlaceCategory(cat.id);
-                        }}
-                        className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => openPlaceEdit(cat)}
+                      className="text-zinc-500 hover:text-amber-400 p-1 transition-colors"
+                      title={isPersian ? 'ویرایش' : 'Edit'}
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        confirmDelete({
+                          name: cat.name,
+                          title: isPersian ? 'حذف دسته مکان' : 'Delete Place Category',
+                          isDefault: cat.isDefault,
+                          used: placeUsage(cat.id),
+                          onConfirm: () => deletePlaceCategory(cat.id),
+                        })
+                      }
+                      className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
+                      title={isPersian ? 'حذف' : 'Delete'}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                   <p className="text-xs text-zinc-300 leading-relaxed min-h-[36px] mb-3">{cat.description}</p>
                 </div>
@@ -658,7 +829,7 @@ export default function TypesStudioPage() {
               <span>{isPersian ? 'دسته‌بندی قوانین ثابت جهان' : 'Immutable World Law Categories'}</span>
             </h3>
             <button
-              onClick={() => setShowAddLaw(true)}
+              onClick={openLawAdd}
               className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition-all"
             >
               <Plus className="w-4 h-4" />
@@ -675,11 +846,20 @@ export default function TypesStudioPage() {
               <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                 <span className="text-sm font-bold text-amber-400 flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
-                  {isPersian ? 'دسته‌بندی قانون جدید' : 'New World Law Category'}
+                  {editingLaw
+                    ? isPersian
+                      ? 'ویرایش دسته قانون'
+                      : 'Edit Law Category'
+                    : isPersian
+                      ? 'دسته‌بندی قانون جدید'
+                      : 'New World Law Category'}
                 </span>
                 <button
                   type="button"
-                  onClick={() => setShowAddLaw(false)}
+                  onClick={() => {
+                    setShowAddLaw(false);
+                    resetLawForm();
+                  }}
                   className="text-zinc-500 hover:text-zinc-300"
                 >
                   <X className="w-5 h-5" />
@@ -704,13 +884,19 @@ export default function TypesStudioPage() {
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
                     {isPersian ? 'شناسه یکتا (اختیاری):' : 'Unique ID (Optional):'}
                   </label>
-                  <input
-                    type="text"
-                    value={newLawId}
-                    onChange={(e) => setNewLawId(e.target.value)}
-                    placeholder="e.g. curses, astrology"
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-400"
-                  />
+                  {editingLaw ? (
+                    <div className="w-full bg-zinc-800/60 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-400 font-mono">
+                      {editingLaw.id}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={newLawId}
+                      onChange={(e) => setNewLawId(e.target.value)}
+                      placeholder="e.g. curses, astrology"
+                      className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-400"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -761,25 +947,30 @@ export default function TypesStudioPage() {
                       <Scale className="w-3.5 h-3.5" />
                       {lawCat.name}
                     </span>
-                    {!lawCat.isDefault && (
-                      <button
-                        onClick={async () => {
-                          const conf = await notify.confirm({
-                            title: isPersian ? 'حذف دسته قانون' : 'Delete Law Category',
-                            message: isPersian
-                              ? `آیا از حذف دسته قانون "${lawCat.name}" مطمئن هستید؟`
-                              : `Are you sure you want to remove law category "${lawCat.name}"?`,
-                            confirmText: isPersian ? 'بله، حذف شود' : 'Delete',
-                            cancelText: isPersian ? 'انصراف' : 'Cancel',
-                            isDestructive: true,
-                          });
-                          if (conf) deleteLawCategory(lawCat.id);
-                        }}
-                        className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => openLawEdit(lawCat)}
+                      className="text-zinc-500 hover:text-amber-400 p-1 transition-colors"
+                      title={isPersian ? 'ویرایش' : 'Edit'}
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        confirmDelete({
+                          name: lawCat.name,
+                          title: isPersian ? 'حذف دسته قانون' : 'Delete Law Category',
+                          isDefault: lawCat.isDefault,
+                          used: lawUsage(lawCat.id),
+                          onConfirm: () => deleteLawCategory(lawCat.id),
+                        })
+                      }
+                      className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
+                      title={isPersian ? 'حذف' : 'Delete'}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                   <p className="text-xs text-zinc-300 leading-relaxed min-h-[36px] mb-3">{lawCat.description}</p>
                 </div>
@@ -802,7 +993,7 @@ export default function TypesStudioPage() {
               <span>{isPersian ? 'نقش‌ها و پیشه‌های اجتماعی شخصیت‌ها' : 'NPC Roles & Social Archetypes'}</span>
             </h3>
             <button
-              onClick={() => setShowAddRole(true)}
+              onClick={openRoleAdd}
               className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition-all"
             >
               <Plus className="w-4 h-4" />
@@ -819,11 +1010,20 @@ export default function TypesStudioPage() {
               <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                 <span className="text-sm font-bold text-amber-400 flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
-                  {isPersian ? 'تعریف نقش شخصیتی جدید' : 'New NPC Social Role'}
+                  {editingRole
+                    ? isPersian
+                      ? 'ویرایش نقش شخصیتی'
+                      : 'Edit NPC Role'
+                    : isPersian
+                      ? 'تعریف نقش شخصیتی جدید'
+                      : 'New NPC Social Role'}
                 </span>
                 <button
                   type="button"
-                  onClick={() => setShowAddRole(false)}
+                  onClick={() => {
+                    setShowAddRole(false);
+                    resetRoleForm();
+                  }}
                   className="text-zinc-500 hover:text-zinc-300"
                 >
                   <X className="w-5 h-5" />
@@ -848,13 +1048,19 @@ export default function TypesStudioPage() {
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
                     {isPersian ? 'شناسه یکتا (اختیاری):' : 'Unique ID (Optional):'}
                   </label>
-                  <input
-                    type="text"
-                    value={newRoleId}
-                    onChange={(e) => setNewRoleId(e.target.value)}
-                    placeholder="e.g. inquisitor, court_mage"
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-400"
-                  />
+                  {editingRole ? (
+                    <div className="w-full bg-zinc-800/60 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-400 font-mono">
+                      {editingRole.id}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={newRoleId}
+                      onChange={(e) => setNewRoleId(e.target.value)}
+                      placeholder="e.g. inquisitor, court_mage"
+                      className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-400"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -905,25 +1111,30 @@ export default function TypesStudioPage() {
                       <Users className="w-3.5 h-3.5" />
                       {role.name}
                     </span>
-                    {!role.isDefault && (
-                      <button
-                        onClick={async () => {
-                          const conf = await notify.confirm({
-                            title: isPersian ? 'حذف نقش شخصیتی' : 'Delete NPC Role',
-                            message: isPersian
-                              ? `آیا از حذف نقش "${role.name}" مطمئن هستید؟`
-                              : `Are you sure you want to remove role "${role.name}"?`,
-                            confirmText: isPersian ? 'بله، حذف شود' : 'Delete',
-                            cancelText: isPersian ? 'انصراف' : 'Cancel',
-                            isDestructive: true,
-                          });
-                          if (conf) deleteNpcRole(role.id);
-                        }}
-                        className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => openRoleEdit(role)}
+                      className="text-zinc-500 hover:text-amber-400 p-1 transition-colors"
+                      title={isPersian ? 'ویرایش' : 'Edit'}
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        confirmDelete({
+                          name: role.name,
+                          title: isPersian ? 'حذف نقش شخصیتی' : 'Delete NPC Role',
+                          isDefault: role.isDefault,
+                          used: roleUsage(role.id),
+                          onConfirm: () => deleteNpcRole(role.id),
+                        })
+                      }
+                      className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
+                      title={isPersian ? 'حذف' : 'Delete'}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                   <p className="text-xs text-zinc-300 leading-relaxed min-h-[36px] mb-3">{role.description}</p>
                 </div>

@@ -32,6 +32,10 @@ export function StoryCatalogModal({
   const [stories, setStories] = useState<StorySummary[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Fetch the playable catalog when the modal opens.
+  // Intentional setState-in-effect: triggers an async fetch (loading + data) on open,
+  // which cannot be expressed as a pure render-time derivation.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isOpen) return;
 
@@ -46,6 +50,7 @@ export function StoryCatalogModal({
       .catch((e) => console.error('Failed to load catalog:', e))
       .finally(() => setLoading(false));
   }, [isOpen]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!isOpen) return null;
 
@@ -80,6 +85,15 @@ export function StoryCatalogModal({
               <Sparkles className="w-6 h-6 animate-spin" />
               <p className="text-xs font-medium">
                 {isPersian ? 'در حال بارگذاری کتابخانه...' : 'Loading worlds...'}
+              </p>
+            </div>
+          ) : stories.length === 0 ? (
+            <div className="py-12 flex flex-col items-center justify-center text-center text-zinc-500">
+              <BookOpen className="w-10 h-10 mb-3 opacity-30" />
+              <p className="text-sm">
+                {isPersian
+                  ? 'هنوز داستانی منتشر نشده است. از استودیو داستانی بسازید و آن را منتشر کنید.'
+                  : 'No published stories yet. Create one in the Studio and publish it.'}
               </p>
             </div>
           ) : (

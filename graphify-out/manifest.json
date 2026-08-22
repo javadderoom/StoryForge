@@ -580,8 +580,8 @@
     "semantic_hash": ""
   },
   "web/src/app/studio/page.tsx": {
-    "mtime": 1787134320.9369905,
-    "ast_hash": "3c8c3d1c4c155043d437901a5a61f948",
+    "mtime": 1787348362.3556163,
+    "ast_hash": "fc5f479d75c836a7e368aa245e884282",
     "semantic_hash": ""
   },
   "web/src/content/stories/ghale_siahsang.ts": {
@@ -660,8 +660,8 @@
     "semantic_hash": ""
   },
   "web/src/lib/types/world.ts": {
-    "mtime": 1787343365.7799933,
-    "ast_hash": "e27c1db7c6ee38700e6a41771e356cb3",
+    "mtime": 1787345922.9975648,
+    "ast_hash": "6bdf11ec07339902d4874e5b8bef5537",
     "semantic_hash": ""
   },
   "web/tsconfig.json": {
@@ -1085,8 +1085,8 @@
     "semantic_hash": ""
   },
   "web/src/app/studio/layout.tsx": {
-    "mtime": 1787341490.252598,
-    "ast_hash": "8960d48688ec5bd09a71a05d7b328509",
+    "mtime": 1787394056.4388652,
+    "ast_hash": "6356b8eca7f4e7eaafbd722158636551",
     "semantic_hash": ""
   },
   "web/src/app/studio/npcs/page.tsx": {
@@ -1105,13 +1105,13 @@
     "semantic_hash": ""
   },
   "web/src/app/studio/world/page.tsx": {
-    "mtime": 1787323977.983053,
-    "ast_hash": "41a0fad4bf90858ebc129a256cf57f30",
+    "mtime": 1787346410.4196966,
+    "ast_hash": "e4b1de04d7928e85cf8bd992e1705113",
     "semantic_hash": ""
   },
   "web/src/lib/context/StudioStoryContext.tsx": {
-    "mtime": 1787342064.2799554,
-    "ast_hash": "0a99425567aaf40cfc300a6e4cbbf7ae",
+    "mtime": 1787348212.8300905,
+    "ast_hash": "c4b97f64f62105caaf79262c0dd9ab90",
     "semantic_hash": ""
   },
   "web/prisma.config.ts": {
@@ -1530,8 +1530,8 @@
     "semantic_hash": ""
   },
   "web/src/app/studio/beats/page.tsx": {
-    "mtime": 1787317589.3812685,
-    "ast_hash": "fdd1fbbcda86bcf9efa29045f0367d36",
+    "mtime": 1787346483.4911404,
+    "ast_hash": "cf83720e3a561e4e672b30678da46df1",
     "semantic_hash": ""
   },
   "web/src/app/studio/lore-graph/page.tsx": {
@@ -1550,8 +1550,8 @@
     "semantic_hash": ""
   },
   "web/src/app/api/studio/generate/route.ts": {
-    "mtime": 1787344119.2187483,
-    "ast_hash": "9b8c3cf6b5440ee2025ee0344c519212",
+    "mtime": 1787346942.2913268,
+    "ast_hash": "f90067bf7235eaff4f6aae59268a944e",
     "semantic_hash": ""
   },
   "web/src/app/studio/artifacts/page.tsx": {
@@ -1585,8 +1585,8 @@
     "semantic_hash": ""
   },
   "web/src/app/api/studio/generate/StudioGenerate.test.ts": {
-    "mtime": 1787343435.174033,
-    "ast_hash": "88807a575f9a7a193e12cabbbdb346d6",
+    "mtime": 1787346532.0812578,
+    "ast_hash": "5fbf28cdf0d2fcaacd5b64b17a007b96",
     "semantic_hash": ""
   },
   "web/src/content/stories/StoryManifestIntegrity.test.ts": {
@@ -1597,6 +1597,16 @@
   "web/src/lib/types/WorldBibleSchema.test.ts": {
     "mtime": 1787343411.9143631,
     "ast_hash": "9dd4d97b8aea3fd09a9543e6874dbba4",
+    "semantic_hash": ""
+  },
+  "web/src/lib/ai/geminiClient.ts": {
+    "mtime": 1787346046.4555364,
+    "ast_hash": "507c82213c3c683a7d32b0ffe97cb7b4",
+    "semantic_hash": ""
+  },
+  "web/src/app/studio/stories/page.tsx": {
+    "mtime": 1787394295.3390014,
+    "ast_hash": "2492fb61253161849828195ad2732546",
     "semantic_hash": ""
   }
 }

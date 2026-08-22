@@ -40,11 +40,40 @@ export async function GET(req: NextRequest) {
     }
 
     const story = await StoryRepository.getStoryById(storyId);
+    if (!story) {
+      return NextResponse.json(
+        { success: false, error: 'Story not found' },
+        { status: 404 }
+      );
+    }
     return NextResponse.json({ success: true, data: story });
   } catch (error: any) {
     console.error('Error fetching story manifest in studio:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to fetch story manifest' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const storyId = searchParams.get('storyId');
+
+    if (!storyId) {
+      return NextResponse.json(
+        { success: false, error: 'storyId is required' },
+        { status: 400 }
+      );
+    }
+
+    const result = await StoryRepository.deleteStory(storyId);
+    return NextResponse.json({ success: true, data: result });
+  } catch (error: any) {
+    console.error('Error deleting story manifest in studio:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to delete story manifest' },
       { status: 500 }
     );
   }

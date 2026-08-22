@@ -1,87 +1,25 @@
 import { prisma } from '../client';
-import { StoryManifest, Genre } from '@/lib/types';
-import { ghaleSiahsangStory } from '@/content/stories/ghale_siahsang';
-import { obsidianCitadelStory } from '@/content/stories/obsidian_citadel';
+import { StoryManifest } from '@/lib/types';
 
 const isDatabaseActive = process.env.ENABLE_DB === 'true';
 
 export class StoryRepository {
   /**
-   * Fetches all stories for library catalog
+   * Fetches stories for the library catalog.
+   * `publishedOnly` restricts to stories marked published (used by the player-facing Library).
    */
-  static async getAllStories() {
+  static async getAllStories(publishedOnly = false) {
     if (!isDatabaseActive) {
-      return [
-        {
-          id: ghaleSiahsangStory.id,
-          title: ghaleSiahsangStory.title,
-          tagline: ghaleSiahsangStory.tagline,
-          synopsis: ghaleSiahsangStory.synopsis,
-          genres: ghaleSiahsangStory.genres,
-          language: ghaleSiahsangStory.language,
-          coverImageUrl: ghaleSiahsangStory.coverImageUrl,
-          author: ghaleSiahsangStory.author,
-          statsPreview: ghaleSiahsangStory.rpgSystem.stats.map((s) => s.name),
-          stats: ghaleSiahsangStory.rpgSystem.stats,
-          archetypes: ghaleSiahsangStory.rpgSystem.archetypes,
-          backgrounds: ghaleSiahsangStory.rpgSystem.backgrounds,
-        },
-        {
-          id: obsidianCitadelStory.id,
-          title: obsidianCitadelStory.title,
-          tagline: obsidianCitadelStory.tagline,
-          synopsis: obsidianCitadelStory.synopsis,
-          genres: obsidianCitadelStory.genres,
-          language: obsidianCitadelStory.language,
-          coverImageUrl: obsidianCitadelStory.coverImageUrl,
-          author: obsidianCitadelStory.author,
-          statsPreview: obsidianCitadelStory.rpgSystem.stats.map((s) => s.name),
-          stats: obsidianCitadelStory.rpgSystem.stats,
-          archetypes: obsidianCitadelStory.rpgSystem.archetypes,
-          backgrounds: obsidianCitadelStory.rpgSystem.backgrounds,
-        },
-      ];
+      return [];
     }
     try {
       const stories = await prisma.story.findMany({
+        where: publishedOnly ? { published: true } : {},
         include: {
           rpgSystem: true,
         },
         orderBy: { createdAt: 'asc' },
       });
-
-      if (!stories || stories.length === 0) {
-        return [
-          {
-            id: ghaleSiahsangStory.id,
-            title: ghaleSiahsangStory.title,
-            tagline: ghaleSiahsangStory.tagline,
-            synopsis: ghaleSiahsangStory.synopsis,
-            genres: ghaleSiahsangStory.genres,
-            language: ghaleSiahsangStory.language,
-            coverImageUrl: ghaleSiahsangStory.coverImageUrl,
-            author: ghaleSiahsangStory.author,
-            statsPreview: ghaleSiahsangStory.rpgSystem.stats.map((s) => s.name),
-            stats: ghaleSiahsangStory.rpgSystem.stats,
-            archetypes: ghaleSiahsangStory.rpgSystem.archetypes,
-            backgrounds: ghaleSiahsangStory.rpgSystem.backgrounds,
-          },
-          {
-            id: obsidianCitadelStory.id,
-            title: obsidianCitadelStory.title,
-            tagline: obsidianCitadelStory.tagline,
-            synopsis: obsidianCitadelStory.synopsis,
-            genres: obsidianCitadelStory.genres,
-            language: obsidianCitadelStory.language,
-            coverImageUrl: obsidianCitadelStory.coverImageUrl,
-            author: obsidianCitadelStory.author,
-            statsPreview: obsidianCitadelStory.rpgSystem.stats.map((s) => s.name),
-            stats: obsidianCitadelStory.rpgSystem.stats,
-            archetypes: obsidianCitadelStory.rpgSystem.archetypes,
-            backgrounds: obsidianCitadelStory.rpgSystem.backgrounds,
-          },
-        ];
-      }
 
       return stories.map((s) => ({
         id: s.id,
@@ -92,52 +30,24 @@ export class StoryRepository {
         language: s.language,
         coverImageUrl: s.coverImageUrl || undefined,
         author: s.author,
+        published: s.published,
         statsPreview: ((s.rpgSystem?.stats as any[]) || []).map((stat) => stat.name || stat.id),
         stats: s.rpgSystem?.stats || [],
         archetypes: s.rpgSystem?.archetypes || [],
         backgrounds: s.rpgSystem?.backgrounds || [],
       }));
     } catch (e) {
-      console.warn('Database error in getAllStories, falling back to static manifests:', e);
-      return [
-        {
-          id: ghaleSiahsangStory.id,
-          title: ghaleSiahsangStory.title,
-          tagline: ghaleSiahsangStory.tagline,
-          synopsis: ghaleSiahsangStory.synopsis,
-          genres: ghaleSiahsangStory.genres,
-          language: ghaleSiahsangStory.language,
-          coverImageUrl: ghaleSiahsangStory.coverImageUrl,
-          author: ghaleSiahsangStory.author,
-          statsPreview: ghaleSiahsangStory.rpgSystem.stats.map((s) => s.name),
-          stats: ghaleSiahsangStory.rpgSystem.stats,
-          archetypes: ghaleSiahsangStory.rpgSystem.archetypes,
-          backgrounds: ghaleSiahsangStory.rpgSystem.backgrounds,
-        },
-        {
-          id: obsidianCitadelStory.id,
-          title: obsidianCitadelStory.title,
-          tagline: obsidianCitadelStory.tagline,
-          synopsis: obsidianCitadelStory.synopsis,
-          genres: obsidianCitadelStory.genres,
-          language: obsidianCitadelStory.language,
-          coverImageUrl: obsidianCitadelStory.coverImageUrl,
-          author: obsidianCitadelStory.author,
-          statsPreview: obsidianCitadelStory.rpgSystem.stats.map((s) => s.name),
-          stats: obsidianCitadelStory.rpgSystem.stats,
-          archetypes: obsidianCitadelStory.rpgSystem.archetypes,
-          backgrounds: obsidianCitadelStory.rpgSystem.backgrounds,
-        },
-      ];
+      console.warn('Database error in getAllStories:', e);
+      return [];
     }
   }
 
   /**
-   * Fetches full StoryManifest by ID with fallback
+   * Fetches the full StoryManifest by ID. Returns null when not found.
    */
-  static async getStoryById(storyId: string): Promise<StoryManifest> {
+  static async getStoryById(storyId: string): Promise<StoryManifest | null> {
     if (!isDatabaseActive) {
-      return storyId === obsidianCitadelStory.id ? obsidianCitadelStory : ghaleSiahsangStory;
+      return null;
     }
     try {
       const story = await prisma.story.findUnique({
@@ -148,56 +58,25 @@ export class StoryRepository {
         },
       });
 
-      if (!story || !story.worldBible || !story.rpgSystem) {
-        return storyId === obsidianCitadelStory.id ? obsidianCitadelStory : ghaleSiahsangStory;
+      if (!story || !story.manifest) {
+        return null;
       }
 
-      const initialStoryBeats =
-        story.id === obsidianCitadelStory.id
-          ? obsidianCitadelStory.initialStoryBeats
-          : ghaleSiahsangStory.initialStoryBeats;
-
-      // Reconstruct StoryManifest from DB
-      const manifest: StoryManifest = {
-        id: story.id,
-        title: story.title,
-        tagline: story.tagline,
-        synopsis: story.synopsis,
-        genres: story.genres as Genre[],
-        language: story.language as 'en' | 'fa',
-        coverImageUrl: story.coverImageUrl || '',
-        author: story.author,
-        version: '1.0.0',
-        initialSceneId: initialStoryBeats[0]?.sceneId || 'scene_start',
-        worldBible: {
-          worldId: story.worldBible.id,
-          worldName: story.worldBible.worldName,
-          summary: story.worldBible.summary,
-          themeNotes: story.worldBible.themeNotes,
-          laws: story.worldBible.laws as any,
-          factions: story.worldBible.factions as any,
-          locations: story.worldBible.locations as any,
-          npcs: story.worldBible.npcs as any,
-          timeline: [],
-        },
-        rpgSystem: {
-          hasCombat: story.rpgSystem.hasCombat,
-          diceType: story.rpgSystem.diceType as 'd20',
-          inventoryCapacity: story.rpgSystem.inventoryCapacity,
-          stats: story.rpgSystem.stats as any,
-          resources: story.rpgSystem.resources as any,
-          skills: story.rpgSystem.skills as any,
-          startingInventory: story.rpgSystem.startingInventory as any,
-          archetypes: (story.rpgSystem.archetypes as any) || [],
-          backgrounds: (story.rpgSystem.backgrounds as any) || [],
-        },
-        initialStoryBeats,
-      };
-
+      const manifest = story.manifest as unknown as StoryManifest;
+      if (!manifest.worldBible) {
+        manifest.worldBible = {} as any;
+      }
+      if (!manifest.worldBible.ontology) {
+        manifest.worldBible.ontology = {
+          entityTypes: [],
+          relationTypes: [],
+          customRelationTypes: [],
+        } as any;
+      }
       return manifest;
     } catch (e) {
-      console.warn(`Database fetch error for story ${storyId}, falling back to static:`, e);
-      return storyId === obsidianCitadelStory.id ? obsidianCitadelStory : ghaleSiahsangStory;
+      console.warn(`Database fetch error for story ${storyId}:`, e);
+      return null;
     }
   }
 
@@ -221,6 +100,8 @@ export class StoryRepository {
             language: manifest.language,
             coverImageUrl: manifest.coverImageUrl,
             author: manifest.author,
+            published: manifest.published ?? false,
+            manifest: manifest as any,
           },
           create: {
             id: manifest.id,
@@ -231,6 +112,8 @@ export class StoryRepository {
             language: manifest.language,
             coverImageUrl: manifest.coverImageUrl,
             author: manifest.author,
+            published: manifest.published ?? false,
+            manifest: manifest as any,
           },
         });
 
@@ -289,6 +172,24 @@ export class StoryRepository {
     } catch (e) {
       console.warn('Database save encountered an issue, story preserved in memory & local storage:', e);
       return { id: manifest.id, title: manifest.title, error: String(e) };
+    }
+  }
+
+  /**
+   * Deletes a story (and its related rows via cascade) from the database.
+   */
+  static async deleteStory(storyId: string) {
+    if (!isDatabaseActive) {
+      return { success: false, isMock: true };
+    }
+    try {
+      await prisma.story.delete({
+        where: { id: storyId },
+      });
+      return { success: true };
+    } catch (e) {
+      console.warn('Database delete encountered an issue:', e);
+      return { success: false, error: String(e) };
     }
   }
 }

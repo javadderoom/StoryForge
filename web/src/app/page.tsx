@@ -21,8 +21,16 @@ import {
 } from '@/components/ReaderSettingsModal';
 import { StoryCatalogModal } from '@/components/StoryCatalogModal';
 
+const PLAY_SELECTED_STORY_KEY = 'storyforge_play_selected_story_v1';
+
 export default function Home() {
-  const [selectedStoryId, setSelectedStoryId] = useState<string>('ghale_siahsang');
+  const [selectedStoryId, setSelectedStoryId] = useState<string>(() => {
+    try {
+      return localStorage.getItem(PLAY_SELECTED_STORY_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
   const [session, setSession] = useState<any>(null);
   const [currentBeat, setCurrentBeat] = useState<any>(null);
   const [playerState, setPlayerState] = useState<any>(null);
@@ -41,7 +49,16 @@ export default function Home() {
   const [fontSize, setFontSize] = useState<FontSize>('base');
   const [lineHeight, setLineHeight] = useState<LineHeight>('relaxed');
 
-  const isRtl = storyMeta?.language !== 'en';
+  const isRtl = (storyMeta?.language ?? 'en') !== 'en';
+
+  // Persist the active play-story selection across refreshes
+  useEffect(() => {
+    try {
+      localStorage.setItem(PLAY_SELECTED_STORY_KEY, selectedStoryId);
+    } catch {
+      // Ignore
+    }
+  }, [selectedStoryId]);
 
   useEffect(() => {
     startNewGame(selectedStoryId);
@@ -190,7 +207,7 @@ export default function Home() {
           </div>
           <div>
             <h1 className="font-bold text-sm tracking-tight text-zinc-100 flex items-center gap-2">
-              <span>{storyMeta?.title || 'قلعه سیاه‌سنگ'}</span>
+              <span>{storyMeta?.title || (isRtl ? 'بدون داستان' : 'No Story Selected')}</span>
               <button
                 onClick={() => setIsCatalogOpen(true)}
                 className="text-[10px] text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-full transition-all flex items-center gap-1 cursor-pointer"
@@ -250,8 +267,27 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Container */}
-      <div className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+      {(!selectedStoryId || !storyMeta) && !loading ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-4 py-24">
+          <BookOpen className="w-16 h-16 text-zinc-700 mb-5" />
+          <h2 className="text-xl font-bold text-zinc-200">
+            {isRtl ? 'هیچ داستانی انتخاب نشده' : 'No story selected'}
+          </h2>
+          <p className="text-sm text-zinc-400 mt-2 max-w-sm">
+            {isRtl
+              ? 'از کتابخانه داستانی انتخاب کنید یا داستان جدیدی در استودیو بسازید.'
+              : 'Pick a story from the library, or build a new one in the Studio.'}
+          </p>
+          <button
+            onClick={() => setIsCatalogOpen(true)}
+            className="mt-6 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-sm font-bold transition-all cursor-pointer"
+          >
+            <BookOpen className="w-4 h-4" />
+            {isRtl ? 'باز کردن کتابخانه' : 'Open Library'}
+          </button>
+        </div>
+      ) : (
+        <div className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
         {/* Reader Viewport (Main Column) */}
         <div className="md:col-span-8 space-y-6">
           {/* E-Reader Book Card */}
@@ -442,6 +478,7 @@ export default function Home() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Interactive Dice Roll Resolution Modal */}
       <DiceRollModal

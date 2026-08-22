@@ -3,29 +3,50 @@ import assert from 'node:assert';
 import { StoryRepository } from './storyRepository';
 import { SessionRepository } from './sessionRepository';
 import { PlaythroughSession, PlayerState } from '@/lib/types/gameplay';
+import { getEmptyStoryManifest } from '../../storyFactory';
 
 describe('StoryForge Database Repositories', () => {
-  it('should retrieve seeded stories from database', async () => {
-    const stories = await StoryRepository.getAllStories();
-    assert.ok(stories.length >= 2, 'Should have at least 2 seeded stories');
+  it('should save and retrieve a story by ID with WorldBible and RpgSystem', async () => {
+    const manifest = getEmptyStoryManifest('en');
+    await StoryRepository.saveStory(manifest);
 
-    const ghale = stories.find((s) => s.id === 'ghale_siahsang');
-    assert.ok(ghale, 'ghale_siahsang story should exist');
-    assert.strictEqual(ghale.language, 'fa');
+    const fetched = await StoryRepository.getStoryById(manifest.id);
+    assert.ok(fetched, 'Saved story should be retrievable by ID');
+    assert.strictEqual(fetched?.id, manifest.id);
+    assert.ok(fetched?.worldBible.laws.length >= 0, 'WorldBible should be present');
+    assert.ok(fetched?.rpgSystem.stats.length > 0, 'RpgSystem stats should be populated');
 
-    const citadel = stories.find((s) => s.id === 'obsidian_citadel');
-    assert.ok(citadel, 'obsidian_citadel story should exist');
-    assert.strictEqual(citadel.language, 'en');
+    // Cleanup
+    await StoryRepository.deleteStory(manifest.id);
   });
 
-  it('should retrieve full StoryManifest by ID with WorldBible and RpgSystem', async () => {
-    const manifest = await StoryRepository.getStoryById('ghale_siahsang');
-    assert.strictEqual(manifest.id, 'ghale_siahsang');
-    assert.ok(manifest.worldBible.laws.length > 0, 'WorldBible laws should be populated');
-    assert.ok(manifest.rpgSystem.stats.length > 0, 'RpgSystem stats should be populated');
+  it('should return null for a non-existent story', async () => {
+    const manifest = await StoryRepository.getStoryById('does_not_exist_12345');
+    assert.strictEqual(manifest, null);
+  });
+
+  it('should distinguish published from draft stories in getAllStories', async () => {
+    const draft = getEmptyStoryManifest('fa');
+    draft.published = false;
+    await StoryRepository.saveStory(draft);
+
+    const all = await StoryRepository.getAllStories();
+    assert.ok(all.some((s) => s.id === draft.id), 'Draft should appear in unfiltered list');
+
+    const publishedOnly = await StoryRepository.getAllStories(true);
+    assert.ok(
+      !publishedOnly.some((s) => s.id === draft.id),
+      'Draft should NOT appear in published-only list'
+    );
+
+    // Cleanup
+    await StoryRepository.deleteStory(draft.id);
   });
 
   it('should persist playthrough session and record turns', async () => {
+    const story = getEmptyStoryManifest('en');
+    await StoryRepository.saveStory(story);
+
     const testSessionId = `test_sess_${Date.now()}`;
     const mockPlayerState: PlayerState = {
       stats: { might: 12, agility: 14, cunning: 10, arcana: 8 },
@@ -42,7 +63,7 @@ describe('StoryForge Database Repositories', () => {
     const session: PlaythroughSession = {
       sessionId: testSessionId,
       userId: 'test_player',
-      storyId: 'ghale_siahsang',
+      storyId: story.id,
       currentSceneId: 'scene_prologue',
       turnCount: 1,
       playerState: mockPlayerState,
@@ -111,5 +132,8 @@ describe('StoryForge Database Repositories', () => {
     const updatedSession = await SessionRepository.getSession(testSessionId);
     assert.strictEqual(updatedSession?.turns.length, 2);
     assert.strictEqual(updatedSession?.memories.length, 1);
+
+    // Cleanup
+    await StoryRepository.deleteStory(story.id);
   });
 });

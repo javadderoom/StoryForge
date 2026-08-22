@@ -17,6 +17,8 @@ model Story {
   author        String   @default("StoryForge")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  published     Boolean  @default(false)
+  manifest      Json     @default("{}")
 
   worldBible    WorldBible?
   rpgSystem     RpgSystem?

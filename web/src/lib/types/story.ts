@@ -18,11 +18,12 @@ export interface StoryManifest {
   title: string;
   tagline: string;
   synopsis: string;
-  genres: Genre[];
+  genres: string[];
   language: 'en' | 'fa';
   coverImageUrl: string;
   author: string;
   version: string;
+  published?: boolean;
   rpgSystem: RPGSystemSchema;
   worldBible: WorldBible;
   initialSceneId: string;
@@ -47,11 +48,12 @@ export const StoryManifestSchema = z.object({
   title: z.string().min(2),
   tagline: z.string(),
   synopsis: z.string().min(10),
-  genres: z.array(z.string()).min(1),
+  genres: z.array(z.string()).default([]),
   language: z.enum(['en', 'fa']).default('en'),
   coverImageUrl: z.string(),
   author: z.string().default('StoryForge'),
   version: z.string().default('1.0.0'),
+  published: z.boolean().optional().default(false),
   rpgSystem: RPGSystemSchemaValidator,
   worldBible: WorldBibleSchema,
   initialSceneId: z.string(),

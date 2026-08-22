@@ -11,8 +11,20 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const storyId = body?.storyId || 'ghale_siahsang';
+    const storyId = body?.storyId;
+    if (!storyId) {
+      return NextResponse.json(
+        { success: false, error: 'storyId is required' },
+        { status: 400, headers: corsHeaders }
+      );
+    }
     const story = await StoryRepository.getStoryById(storyId);
+    if (!story) {
+      return NextResponse.json(
+        { success: false, error: 'Story not found' },
+        { status: 404, headers: corsHeaders }
+      );
+    }
 
     const characterSetup = body?.characterSetup;
 

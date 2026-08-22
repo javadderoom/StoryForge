@@ -175,6 +175,7 @@ export interface WorldBible {
   worldName: string;
   summary: string;
   themeNotes: string; // Overarching artistic guidelines for the AI
+  aiSystemPrompt?: string; // Master AI System Prompt editable by author
   laws: WorldLaw[];
   factions: Faction[];
   locations: WorldLocation[];
@@ -367,6 +368,7 @@ export const WorldBibleSchema = z.object({
   worldName: z.string().min(2),
   summary: z.string(),
   themeNotes: z.string(),
+  aiSystemPrompt: z.string().optional(),
   laws: z.array(WorldLawSchema).default([]),
   factions: z.array(FactionSchema).default([]),
   locations: z.array(WorldLocationSchema).default([]),

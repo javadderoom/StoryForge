@@ -1,80 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { generateStructuredJson } from '@/lib/ai/geminiClient';
 
 interface GenerateRequest {
   type:
+    | 'world'
     | 'location'
     | 'npc'
     | 'artifact'
     | 'creature'
     | 'deity'
     | 'timeline_event'
-    | 'world_law';
+    | 'world_law'
+    | 'scene';
   prompt?: string;
   themeContext?: string;
+  customSystemPrompt?: string;
+  taskType?: 'world' | 'scene' | 'default';
   isPersian?: boolean;
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body: GenerateRequest = await req.json();
-    const { type, prompt = '', themeContext = '', isPersian = true } = body;
+    const {
+      type,
+      prompt = '',
+      themeContext = '',
+      customSystemPrompt,
+      taskType = (type === 'world' ? 'world' : 'scene'),
+      isPersian = true,
+    } = body;
 
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    if (apiKey) {
-      try {
-        const systemPrompt = `You are the World-Building Co-Pilot for StoryForge, an advanced Interactive Fiction RPG engine.
+    // Use custom system prompt from UI if provided, otherwise default to context-rich prompt
+    const systemPrompt =
+      customSystemPrompt?.trim() ||
+      `You are the Master World-Building & Narrative AI Co-Pilot for StoryForge, an advanced Interactive Fiction RPG engine.
 Generate a high-quality JSON object for a ${type} within a dark fantasy / grim-arcane setting.
-${isPersian ? 'Output all narrative text, names, descriptions in Persian (Farsi).' : 'Output in English.'}
+${isPersian ? 'Output all narrative text, names, descriptions in literary Persian (Farsi).' : 'Output in literary English.'}
 Theme context: ${themeContext || 'Dark basalt mountain fortress, political tension, forbidden alchemy'}
 User guidance: ${prompt || 'Create something rich with atmospheric depth and literary gravitas.'}
 Strictly output a valid JSON object matching the requested schema. Do not enclose in markdown blocks if possible, or return clean JSON.`;
 
-        let schemaInstruction = '';
-        if (type === 'location') {
-          schemaInstruction = `Schema: { "name": string, "region": string, "description": string, "dangerLevel": 1|2|3|4|5, "atmosphere": string, "specialRules": string[] }`;
-        } else if (type === 'npc') {
-          schemaInstruction = `Schema: { "name": string, "title": string, "personalityTraits": string[], "speechStyle": string, "goals": string[], "secrets": [{ "id": string, "description": string, "requiredTrustLevel": number, "revealed": false }], "initialTrust": number }`;
-        } else if (type === 'artifact') {
-          schemaInstruction = `Schema: { "name": string, "title": string, "originEra": string, "rarity": "rare"|"epic"|"legendary"|"mythic", "description": string, "powers": string[], "curseOrCost": string, "attunementRules": string, "secretLore": string }`;
-        } else if (type === 'creature') {
-          schemaInstruction = `Schema: { "name": string, "speciesCategory": "beast"|"monstrosity"|"undead"|"elemental"|"flora"|"draconic", "dangerLevel": 1|2|3|4|5, "behavioralTactics": string, "weaknesses": string[], "resistances": string[], "harvestableLoot": [{ "itemId": string, "name": string, "dropRate": string }], "loreDescription": string }`;
-        } else if (type === 'deity') {
-          schemaInstruction = `Schema: { "name": string, "title": string, "domain": "light"|"secrets"|"death"|"war"|"nature"|"chaos"|"forge", "sacredSymbol": string, "coreDogma": string, "taboos": string[], "divineBlessings": string[] }`;
-        } else if (type === 'timeline_event') {
-          schemaInstruction = `Schema: { "yearOrEra": string, "title": string, "summary": string, "significance": string, "knownByPublic": boolean, "eraCategory": "ancient"|"war"|"reign"|"present" }`;
-        } else if (type === 'world_law') {
-          schemaInstruction = `Schema: { "rule": string, "category": "magic"|"physics"|"society"|"divine", "description": string, "isImmutable": true }`;
-        }
+    let schemaInstruction = '';
+    if (type === 'world') {
+      schemaInstruction = `Schema: { "worldName": string, "summary": string, "themeNotes": string, "aiSystemPrompt": string, "laws": [{ "rule": string, "category": "magic"|"physics"|"society"|"divine", "description": string, "isImmutable": true }], "factions": [{ "id": string, "name": string, "description": string, "alignment": string, "publicGoals": string }] }`;
+    } else if (type === 'location') {
+      schemaInstruction = `Schema: { "name": string, "region": string, "description": string, "dangerLevel": 1|2|3|4|5, "atmosphere": string, "specialRules": string[] }`;
+    } else if (type === 'npc') {
+      schemaInstruction = `Schema: { "name": string, "title": string, "currentLocationId": string, "personalityTraits": string[], "speechStyle": string, "goals": string[], "secrets": [{ "id": string, "description": string, "requiredTrustLevel": number, "revealed": false }], "initialTrust": number }`;
+    } else if (type === 'artifact') {
+      schemaInstruction = `Schema: { "name": string, "title": string, "originEra": string, "rarity": "rare"|"epic"|"legendary"|"mythic", "description": string, "powers": string[], "curseOrCost": string, "attunementRules": string, "secretLore": string }`;
+    } else if (type === 'creature') {
+      schemaInstruction = `Schema: { "name": string, "speciesCategory": "beast"|"monstrosity"|"undead"|"elemental"|"flora"|"draconic", "dangerLevel": 1|2|3|4|5, "behavioralTactics": string, "weaknesses": string[], "resistances": string[], "harvestableLoot": [{ "itemId": string, "name": string, "dropRate": string }], "loreDescription": string }`;
+    } else if (type === 'deity') {
+      schemaInstruction = `Schema: { "name": string, "title": string, "domain": "light"|"secrets"|"death"|"war"|"nature"|"chaos"|"forge", "sacredSymbol": string, "coreDogma": string, "taboos": string[], "divineBlessings": string[] }`;
+    } else if (type === 'timeline_event') {
+      schemaInstruction = `Schema: { "yearOrEra": string, "title": string, "summary": string, "significance": string, "knownByPublic": boolean, "eraCategory": "ancient"|"war"|"reign"|"present" }`;
+    } else if (type === 'world_law') {
+      schemaInstruction = `Schema: { "rule": string, "category": "magic"|"physics"|"society"|"divine", "description": string, "isImmutable": true }`;
+    } else if (type === 'scene') {
+      schemaInstruction = `Schema: { "sceneId": string, "locationId": string, "narrativeText": string, "choices": [{ "id": string, "text": string, "style": "defensive"|"agile"|"aggressive"|"diplomatic"|"inquisitive", "riskLevel": "low"|"medium"|"high", "targetDC": number, "requiredStatId": string }] }`;
+    }
 
-        const fullPrompt = `${systemPrompt}\n${schemaInstruction}`;
-
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: fullPrompt }] }],
-              generationConfig: {
-                responseMimeType: 'application/json',
-                temperature: 0.8,
-              },
-            }),
-          }
-        );
-
-        if (geminiRes.ok) {
-          const data = await geminiRes.json();
-          const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (rawText) {
-            const parsed = JSON.parse(rawText);
-            return NextResponse.json({ success: true, data: parsed, isAiGenerated: true });
-          }
-        }
-      } catch (err) {
-        console.warn('Gemini API call failed, falling back to procedural engine:', err);
+    const aiResult = await generateStructuredJson(
+      `Generate a ${type} entity with creative literary depth.\n${schemaInstruction}`,
+      systemPrompt,
+      {
+        temperature: 0.8,
+        taskType: type === 'world' ? 'world' : taskType,
       }
+    );
+
+    if (aiResult && aiResult.data) {
+      return NextResponse.json({
+        success: true,
+        data: aiResult.data,
+        isAiGenerated: true,
+        modelUsed: aiResult.modelUsed,
+      });
     }
 
     // Procedural Fallback Generator
@@ -251,6 +254,104 @@ Strictly output a valid JSON object matching the requested schema. Do not enclos
             knownByPublic: true,
             eraCategory: 'war',
           };
+    } else if (type === 'world') {
+      fallbackData = isPersian
+        ? {
+            worldName: 'قلمروهای گمشده آرکانیا',
+            summary: 'سرزمینی آکنده از خاکسترهای جادویی باستان که توسط گارد نقره‌ای با مشت آهنین اداره می‌شود.',
+            themeNotes: 'تاریک، رازآلود و سنگین با تعلیق دائمی خیانت در دربار.',
+            aiSystemPrompt: 'تو دانای کل و راوی ارشد جهان آرکانیا هستی. توصیفات باید لحنی حماسی، واقع‌گرایانه و فضاساز داشته باشند.',
+            laws: [
+              {
+                id: `law_${timestamp}_1`,
+                rule: 'جادوی خون نیازمند تسلیم نیروی حیاتی است.',
+                category: 'magic',
+                description: 'هر افسونی بهایی جسمانی یا روانی بر جا می‌گذارد.',
+                isImmutable: true,
+              },
+            ],
+            factions: [
+              {
+                id: `fac_${timestamp}_1`,
+                name: 'فرمانروایی گارد نقره‌ای',
+                description: 'شوالیه‌های قسم‌خورده دربار پادشاهی.',
+                alignment: 'نظم‌گرای سخت‌گیر',
+                publicGoals: 'حفظ آرامش شهر و دستگیری کیمیاگران مرتد.',
+              },
+            ],
+          }
+        : {
+            worldName: 'The Shattered Expanse of Arcania',
+            summary: 'A dark realm veiled in primordial volcanic fog governed by an authoritarian high inquisition.',
+            themeNotes: 'Grimdark, gothic mystery with heavy political tension and forbidden alchemical rites.',
+            aiSystemPrompt: 'You are the Master Storyteller for the dark fantasy interactive RPG Arcania.',
+            laws: [
+              {
+                id: `law_${timestamp}_1`,
+                rule: 'All thaumaturgy leaves indelible arcane scars upon the soul.',
+                category: 'magic',
+                description: 'Casting beyond mortal limits triggers cognitive breakdown.',
+                isImmutable: true,
+              },
+            ],
+            factions: [
+              {
+                id: `fac_${timestamp}_1`,
+                name: 'The Iron Inquisitors',
+                description: 'Elite royal retainers enforcing the ban on occult arts.',
+                alignment: 'Lawful Authoritarian',
+                publicGoals: 'Purge illegal sorcery and enforce imperial edicts.',
+              },
+            ],
+          };
+    } else if (type === 'scene') {
+      fallbackData = isPersian
+        ? {
+            sceneId: `scene_${timestamp}`,
+            locationId: 'loc_dungeon_cell_fa',
+            narrativeText: 'شعله‌های مشعل روی دیوارهای سرد بازالتی می‌رقصند. صدای چرخش کلید در قفل برنجی سکوت دخمه را می‌شکند.',
+            choices: [
+              {
+                id: `choice_${timestamp}_1`,
+                text: 'پشت چارچوب در تاریک سنگر بگیر و خنجرت را آماده کن.',
+                style: 'defensive',
+                riskLevel: 'low',
+                targetDC: 10,
+                requiredStatId: 'agility',
+              },
+              {
+                id: `choice_${timestamp}_2`,
+                text: 'با گام‌های استوار جلو برو و خود را به نگهبان تسلیم‌ناپذیر نشان بده.',
+                style: 'diplomatic',
+                riskLevel: 'medium',
+                targetDC: 12,
+                requiredStatId: 'cunning',
+              },
+            ],
+          }
+        : {
+            sceneId: `scene_${timestamp}`,
+            locationId: 'loc_dungeon_cell',
+            narrativeText: 'Torchlight casts dancing shadows across cold basalt flagstones as an iron key turns in the heavy lock.',
+            choices: [
+              {
+                id: `choice_${timestamp}_1`,
+                text: 'Conceal yourself in the shadows behind the cell door.',
+                style: 'defensive',
+                riskLevel: 'low',
+                targetDC: 10,
+                requiredStatId: 'agility',
+              },
+              {
+                id: `choice_${timestamp}_2`,
+                text: 'Step forward into the light to confront the guard.',
+                style: 'diplomatic',
+                riskLevel: 'medium',
+                targetDC: 12,
+                requiredStatId: 'cunning',
+              },
+            ],
+          };
     } else if (type === 'world_law') {
       fallbackData = isPersian
         ? {
@@ -262,7 +363,7 @@ Strictly output a valid JSON object matching the requested schema. Do not enclos
           }
         : {
             id: `law_${timestamp}`,
-            rule: 'Blood thaumaturgy inexorably demands an equal tithe of the caster\'s soul.',
+            rule: "Blood thaumaturgy inexorably demands an equal tithe of the caster's soul.",
             category: 'magic',
             description: 'No crimson rite can be channeled without permanent vitality drain or memory decay.',
             isImmutable: true,

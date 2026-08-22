@@ -1,5 +1,5 @@
-import WorldBiblePage from './world/page';
+import StoriesListPage from './stories/page';
 
 export default function StudioIndexPage() {
-  return <WorldBiblePage />;
+  return <StoriesListPage />;
 }

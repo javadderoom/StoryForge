@@ -62,6 +62,10 @@ export function DiceRollModal({
   const hasSettled = isOpen && resolution !== null && completedResolution === resolution;
   const isRolling = isOpen && resolution !== null && !hasSettled;
 
+  // Derive completed/rolling resolution state from the active resolution + open state.
+  // Intentional setState-in-effect: cleared on close and committed after a timed
+  // roll animation keyed to the `resolution` identity (not every commit).
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isOpen || !resolution) {
       setCompletedResolution(null);
@@ -74,6 +78,7 @@ export function DiceRollModal({
 
     return () => clearTimeout(timer);
   }, [isOpen, resolution]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!isOpen || !resolution) return null;
 

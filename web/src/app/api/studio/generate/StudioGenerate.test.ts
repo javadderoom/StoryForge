@@ -11,6 +11,7 @@ import {
   TimelineEventSchema,
   WorldLawSchema,
 } from '../../../../lib/types/world';
+import { z } from 'zod';
 
 function createMockRequest(body: any): NextRequest {
   return new NextRequest('http://localhost:3000/api/studio/generate', {
@@ -20,8 +21,34 @@ function createMockRequest(body: any): NextRequest {
   });
 }
 
+const WorldSynthesisSchema = z.object({
+  worldName: z.string().min(2),
+  summary: z.string().min(5),
+  themeNotes: z.string(),
+  aiSystemPrompt: z.string().optional(),
+  laws: z.array(z.any()).default([]),
+  factions: z.array(z.any()).default([]),
+});
+
+const SceneSynthesisSchema = z.object({
+  sceneId: z.string(),
+  locationId: z.string(),
+  narrativeText: z.string().min(5),
+  choices: z.array(
+    z.object({
+      id: z.string(),
+      text: z.string().min(1),
+      style: z.enum(['defensive', 'agile', 'aggressive', 'diplomatic', 'inquisitive']),
+      riskLevel: z.enum(['low', 'medium', 'high']),
+      targetDC: z.number().optional(),
+      requiredStatId: z.string().optional(),
+    })
+  ).min(1),
+});
+
 describe('StudioGenerate API - AI Co-Pilot & Procedural Synthesis Engine', () => {
   const types = [
+    { type: 'world', schema: WorldSynthesisSchema },
     { type: 'location', schema: WorldLocationSchema },
     { type: 'npc', schema: NPCDossierSchema },
     { type: 'artifact', schema: WorldArtifactSchema },
@@ -29,12 +56,18 @@ describe('StudioGenerate API - AI Co-Pilot & Procedural Synthesis Engine', () =>
     { type: 'deity', schema: WorldDeitySchema },
     { type: 'timeline_event', schema: TimelineEventSchema },
     { type: 'world_law', schema: WorldLawSchema },
+    { type: 'scene', schema: SceneSynthesisSchema },
   ] as const;
 
-  describe('Persian (Farsi) Generation', () => {
+  describe('Persian (Farsi) Generation with Custom System Prompt', () => {
     types.forEach(({ type, schema }) => {
       it(`generates schema-compliant ${type} in Persian`, async () => {
-        const req = createMockRequest({ type, isPersian: true });
+        const req = createMockRequest({
+          type,
+          isPersian: true,
+          customSystemPrompt: 'تو راوی ارشد هستی.',
+          taskType: type === 'world' ? 'world' : 'scene',
+        });
         const res = await POST(req);
         assert.equal(res.status, 200);
 
@@ -52,10 +85,15 @@ describe('StudioGenerate API - AI Co-Pilot & Procedural Synthesis Engine', () =>
     });
   });
 
-  describe('English Generation', () => {
+  describe('English Generation with Custom System Prompt', () => {
     types.forEach(({ type, schema }) => {
       it(`generates schema-compliant ${type} in English`, async () => {
-        const req = createMockRequest({ type, isPersian: false });
+        const req = createMockRequest({
+          type,
+          isPersian: false,
+          customSystemPrompt: 'You are the Master Storyteller.',
+          taskType: type === 'world' ? 'world' : 'scene',
+        });
         const res = await POST(req);
         assert.equal(res.status, 200);
 

@@ -351,7 +351,11 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
   const [nodes, setNodes] = useState<GraphNode[]>(initialNodes);
   const edges = initialEdges;
 
-  // Update when story changes while preserving custom dragged positions
+  // Update when story changes while preserving custom dragged positions.
+  // Intentional setState-in-effect: merges new story data with persisted drag
+  // positions. Positions are mutated imperatively during drag, so a pure
+  // useMemo derivation is impractical.
+  /* eslint-disable react-hooks/set-state-in-effect */
   React.useEffect(() => {
     setNodes((prevNodes) => {
       const posMap = new Map(prevNodes.map((n) => [n.id, { x: n.x, y: n.y }]));
@@ -361,6 +365,7 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
       });
     });
   }, [initialNodes]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Filters
   const visibleNodes = useMemo(() => {

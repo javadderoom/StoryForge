@@ -15,6 +15,10 @@ import {
   Check,
   Sparkles,
   Info,
+  Cpu,
+  Terminal,
+  Zap,
+  RotateCcw,
 } from 'lucide-react';
 
 export default function WorldBiblePage() {
@@ -22,6 +26,7 @@ export default function WorldBiblePage() {
     story,
     isPersian,
     updateWorldMeta,
+    updateWorldBible,
     addWorldLaw,
     editWorldLaw,
     deleteWorldLaw,
@@ -36,6 +41,7 @@ export default function WorldBiblePage() {
     worldName: story.worldBible.worldName,
     summary: story.worldBible.summary,
     themeNotes: story.worldBible.themeNotes,
+    aiSystemPrompt: story.worldBible.aiSystemPrompt || '',
   });
 
   // Law Modal state
@@ -70,19 +76,35 @@ export default function WorldBiblePage() {
     publicGoals: '',
   });
 
+  // AI World Synthesis Modal (Gemini 3.7 Flash)
+  const [aiWorldModalOpen, setAiWorldModalOpen] = useState(false);
+  const [aiWorldPrompt, setAiWorldPrompt] = useState('');
+  const [aiCustomSystemPrompt, setAiCustomSystemPrompt] = useState(
+    story.worldBible.aiSystemPrompt ||
+      (isPersian
+        ? 'تو دانای کل و راوی ارشد بازی نقش‌آفرینی تعاملی هستی. دنیا را با تعلیق، غنای ادبی، رازهای تاریک و پیامدهای منطقی توصیف کن.'
+        : 'You are the Master Storyteller for an interactive grimdark RPG. Write with atmospheric depth and literary gravitas.')
+  );
+  const [isGeneratingWorld, setIsGeneratingWorld] = useState(false);
+
   const t = {
     heading: isPersian ? 'انجیل جهان و قوانین ثابت' : 'World Bible & Lore Graph',
     subheading: isPersian
-      ? 'حقایق ثابت، قوانین فیزیکی/جادویی و جناح‌های تغییرناپذیر جهان'
-      : 'Immutable world rules, physics/magic laws, factions, and geographical codices.',
+      ? 'حقایق ثابت، قوانین فیزیکی/جادویی، جناح‌های تغییرناپذیر و دستورالعمل سیستم هوش مصنوعی'
+      : 'Immutable world rules, physics/magic laws, factions, and Master AI System Directives.',
     worldIdLabel: isPersian ? 'شناسه جهان:' : 'World ID:',
     artisticTone: isPersian ? 'لحن هنری و فضاسازی:' : 'Artistic Tone & Atmosphere:',
+    masterPromptTitle: isPersian ? 'دستورالعمل هوش مصنوعی و لحن سیستم (System Prompt)' : 'Master AI System Prompt & Engine Directives',
+    masterPromptDesc: isPersian
+      ? 'این متن به عنوان دستورالعمل سیستم (System Instruction) به مدل هوش مصنوعی ارسال می‌شود تا لحن روایت، واژگان و شخصیت راوی را شکل دهد.'
+      : 'This system directive governs the AI narrator\'s literary voice, vocabulary, and tone constraints.',
     immutableLaws: isPersian ? 'قوانین ثابت و محدودیت‌ها' : 'Immutable World Laws',
     factions: isPersian ? 'جناح‌ها و هم‌پیمانی‌ها' : 'Factions & Allegiances',
     goals: isPersian ? 'اهداف عمومی:' : 'Public Goals:',
     addLaw: isPersian ? '+ ثبت قانون جدید' : '+ Add World Law',
     addFaction: isPersian ? '+ ثبت جناح جدید' : '+ Add Faction',
     editMeta: isPersian ? 'ویرایش مشخصات جهان' : 'Edit World Details',
+    aiWorldGenBtn: isPersian ? '⚡ خلق جهان با هوش مصنوعی (Gemini 3.7 Flash)' : '⚡ Synthesize World (Gemini 3.7 Flash)',
     save: isPersian ? 'ذخیره تغییرات' : 'Save Changes',
     cancel: isPersian ? 'انصراف' : 'Cancel',
     category: isPersian ? 'دسته‌بندی' : 'Category',
@@ -223,6 +245,53 @@ export default function WorldBiblePage() {
     }
   };
 
+  // Trigger Full AI World Synthesis (Using Gemini 3.7 Flash)
+  const handleGenerateWorld = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsGeneratingWorld(true);
+
+    try {
+      const res = await fetch('/api/studio/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'world',
+          taskType: 'world', // Prioritizes Gemini 3.7 Flash
+          prompt: aiWorldPrompt,
+          customSystemPrompt: aiCustomSystemPrompt,
+          isPersian,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.success && json.data) {
+        const generated = json.data;
+        updateWorldBible((prev) => ({
+          ...prev,
+          worldName: generated.worldName || prev.worldName,
+          summary: generated.summary || prev.summary,
+          themeNotes: generated.themeNotes || prev.themeNotes,
+          aiSystemPrompt: generated.aiSystemPrompt || aiCustomSystemPrompt,
+          laws: generated.laws && generated.laws.length > 0 ? generated.laws : prev.laws,
+          factions: generated.factions && generated.factions.length > 0 ? generated.factions : prev.factions,
+        }));
+
+        setAiWorldModalOpen(false);
+        notify.success(
+          isPersian
+            ? `جهان "${generated.worldName}" توسط مدل ${json.modelUsed || 'Gemini 3.7 Flash'} با موفقیت خلق شد`
+            : `World synthesized by ${json.modelUsed || 'Gemini 3.7 Flash'}`
+        );
+      } else {
+        notify.error(isPersian ? 'خطا در سنتز جهان توسط هوش مصنوعی' : 'Failed to synthesize world');
+      }
+    } catch {
+      notify.error(isPersian ? 'خطا در اتصال به سرور هوش مصنوعی' : 'AI connection error');
+    } finally {
+      setIsGeneratingWorld(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Header Banner & Metadata Editor */}
@@ -237,22 +306,30 @@ export default function WorldBiblePage() {
                 </div>
                 <p className="text-sm text-zinc-400 max-w-3xl leading-relaxed">{story.worldBible.summary}</p>
               </div>
-              <div className="flex items-center gap-2 self-start">
+              <div className="flex flex-wrap items-center gap-2.5 self-start">
+                <button
+                  onClick={() => setAiWorldModalOpen(true)}
+                  className="flex items-center gap-1.5 text-xs bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-zinc-950 px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-amber-500/20 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {t.aiWorldGenBtn}
+                </button>
                 <button
                   onClick={() => {
                     setMetaForm({
                       worldName: story.worldBible.worldName,
                       summary: story.worldBible.summary,
                       themeNotes: story.worldBible.themeNotes,
+                      aiSystemPrompt: story.worldBible.aiSystemPrompt || '',
                     });
                     setIsEditingMeta(true);
                   }}
-                  className="flex items-center gap-1.5 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 px-3.5 py-1.5 rounded-xl border border-amber-500/20 transition-all font-semibold cursor-pointer"
+                  className="flex items-center gap-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3.5 py-2 rounded-xl border border-zinc-700 transition-all font-semibold cursor-pointer"
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
+                  <Edit2 className="w-3.5 h-3.5 text-amber-400" />
                   {t.editMeta}
                 </button>
-                <span className="text-xs bg-zinc-800/90 border border-zinc-700/60 text-zinc-300 px-3.5 py-1.5 rounded-xl font-mono">
+                <span className="text-xs bg-zinc-800/90 border border-zinc-700/60 text-zinc-400 px-3.5 py-2 rounded-xl font-mono">
                   {t.worldIdLabel} {story.worldBible.worldId}
                 </span>
               </div>
@@ -317,141 +394,177 @@ export default function WorldBiblePage() {
                   required
                 />
               </div>
+              <div>
+                <label className="block text-xs text-purple-300 mb-1 font-medium flex items-center gap-1.5">
+                  <Terminal className="w-3.5 h-3.5 text-purple-400" />
+                  Master AI System Prompt (دستورالعمل سیستم هوش مصنوعی)
+                </label>
+                <textarea
+                  rows={3}
+                  value={metaForm.aiSystemPrompt}
+                  onChange={(e) => setMetaForm((prev) => ({ ...prev, aiSystemPrompt: e.target.value }))}
+                  placeholder="Custom AI narrator instructions..."
+                  className="w-full bg-zinc-950 border border-purple-500/30 rounded-xl px-3.5 py-2 text-xs text-purple-200 focus:outline-none focus:border-purple-400 font-mono"
+                />
+              </div>
             </div>
           </form>
         )}
       </div>
 
-      {/* Laws & Factions 2-Column Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Immutable Laws Column */}
-        <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-sm font-bold text-zinc-200 uppercase tracking-wider flex items-center gap-2">
-                <Shield className="w-4 h-4 text-rose-400" /> {t.immutableLaws}
-                <span className="text-xs font-mono bg-rose-500/10 text-rose-300 px-2 py-0.5 rounded-lg border border-rose-500/20">
-                  {story.worldBible.laws.length}
-                </span>
-              </h3>
-              <button
-                onClick={() => openLawModal()}
-                className="text-xs flex items-center gap-1 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 px-3 py-1.5 rounded-xl border border-rose-500/30 transition-all font-semibold cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                {t.addLaw}
-              </button>
+      {/* Master AI System Prompt Card (Live UI View) */}
+      <div className="bg-gradient-to-br from-purple-950/20 via-zinc-900/60 to-zinc-950 border border-purple-500/20 rounded-3xl p-6 md:p-8 backdrop-blur-sm shadow-xl space-y-4">
+        <div className="flex items-center justify-between gap-4 border-b border-purple-500/20 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-300">
+              <Terminal className="w-5 h-5" />
             </div>
-
-            <div className="space-y-3.5">
-              {story.worldBible.laws.map((law) => (
-                <div
-                  key={law.id}
-                  className="p-4 rounded-2xl bg-zinc-950/70 border border-zinc-800/70 hover:border-zinc-700/80 transition-all group"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-rose-400 px-2.5 py-0.5 rounded-md bg-rose-500/10 border border-rose-500/20">
-                      {law.category}
-                    </span>
-                    <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => openLawModal(law)}
-                        className="p-1 text-zinc-400 hover:text-amber-400 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
-                        title="Edit Law"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteLaw(law)}
-                        className="p-1 text-zinc-400 hover:text-rose-400 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
-                        title="Delete Law"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                  <h4 className="text-sm font-semibold text-zinc-200">{law.rule}</h4>
-                  <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{law.description}</p>
-                </div>
-              ))}
+            <div>
+              <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+                {t.masterPromptTitle}
+              </h3>
+              <p className="text-xs text-zinc-400 mt-0.5">{t.masterPromptDesc}</p>
             </div>
           </div>
+          <span className="text-[11px] font-mono bg-purple-500/10 border border-purple-500/30 text-purple-300 px-3 py-1 rounded-xl">
+            Live AI Prompt
+          </span>
         </div>
 
-        {/* Factions Column */}
-        <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-sm font-bold text-zinc-200 uppercase tracking-wider flex items-center gap-2">
-                <Users className="w-4 h-4 text-blue-400" /> {t.factions}
-                <span className="text-xs font-mono bg-blue-500/10 text-blue-300 px-2 py-0.5 rounded-lg border border-blue-500/20">
-                  {story.worldBible.factions.length}
-                </span>
-              </h3>
-              <button
-                onClick={() => openFactionModal()}
-                className="text-xs flex items-center gap-1 bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 px-3 py-1.5 rounded-xl border border-blue-500/30 transition-all font-semibold cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                {t.addFaction}
-              </button>
-            </div>
+        <div className="bg-zinc-950/80 border border-zinc-800 rounded-2xl p-4 font-mono text-xs text-purple-200/90 leading-relaxed whitespace-pre-wrap">
+          {story.worldBible.aiSystemPrompt?.trim() ||
+            (isPersian
+              ? 'تو دانای کل و راوی ارشد بازی نقش‌آفرینی StoryForge هستی. تمام صحنه‌ها و واکنش‌ها را با عمق روایی، فضاسازی سنگین و منطبق بر قوانین تغییرناپذیر جهان روایت کن.'
+              : 'You are the Master Storyteller for the StoryForge RPG engine. Narrate all story beats with rich atmospheric prose and strict adherence to immutable world laws.')}
+        </div>
+      </div>
 
-            <div className="space-y-3.5">
-              {story.worldBible.factions.map((fac) => (
-                <div
-                  key={fac.id}
-                  className="p-4 rounded-2xl bg-zinc-950/70 border border-zinc-800/70 hover:border-zinc-700/80 transition-all group"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-sm font-semibold text-zinc-200">{fac.name}</h4>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-blue-400 font-medium px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20">
-                        {fac.alignment}
-                      </span>
-                      <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => openFactionModal(fac)}
-                          className="p-1 text-zinc-400 hover:text-amber-400 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
-                          title="Edit Faction"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteFaction(fac)}
-                          className="p-1 text-zinc-400 hover:text-rose-400 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
-                          title="Delete Faction"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
+      {/* Section 1: Immutable World Laws */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-rose-400" />
+            <h3 className="text-lg font-bold text-zinc-100">{t.immutableLaws}</h3>
+          </div>
+          <button
+            onClick={() => openLawModal()}
+            className="flex items-center gap-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3.5 py-1.5 rounded-xl border border-zinc-700 transition-all font-semibold cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5 text-amber-400" />
+            {t.addLaw}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {story.worldBible.laws.map((law) => (
+            <div
+              key={law.id}
+              className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-5 hover:border-zinc-700 transition-all flex flex-col justify-between group"
+            >
+              <div>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono uppercase bg-rose-500/10 border border-rose-500/20 text-rose-300 px-2 py-0.5 rounded-md">
+                      {law.category}
+                    </span>
+                    <h4 className="text-sm font-bold text-zinc-100">{law.rule}</h4>
                   </div>
-                  <p className="text-xs text-zinc-400 leading-relaxed">{fac.description}</p>
-                  <div className="mt-3 pt-2.5 border-t border-zinc-800/50 text-xs text-zinc-500">
-                    <strong className="text-zinc-400">{t.goals}</strong> {fac.publicGoals}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => openLawModal(law)}
+                      className="p-1 text-zinc-400 hover:text-amber-400 rounded-lg hover:bg-zinc-800 cursor-pointer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteLaw(law)}
+                      className="p-1 text-zinc-400 hover:text-rose-400 rounded-lg hover:bg-zinc-800 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
-              ))}
+                <p className="text-xs text-zinc-400 leading-relaxed">{law.description}</p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-zinc-800/60 flex items-center justify-between text-[11px] text-zinc-500">
+                <span className="font-mono">{law.id}</span>
+                <span className="text-rose-400/80 flex items-center gap-1 font-semibold">
+                  <Shield className="w-3 h-3" /> Immutable Guardrail
+                </span>
+              </div>
             </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Section 2: Factions & Allegiances */}
+      <div className="space-y-4 pt-4 border-t border-zinc-800/60">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="w-5 h-5 text-amber-400" />
+            <h3 className="text-lg font-bold text-zinc-100">{t.factions}</h3>
           </div>
+          <button
+            onClick={() => openFactionModal()}
+            className="flex items-center gap-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3.5 py-1.5 rounded-xl border border-zinc-700 transition-all font-semibold cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5 text-amber-400" />
+            {t.addFaction}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {story.worldBible.factions.map((faction) => (
+            <div
+              key={faction.id}
+              className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-5 hover:border-zinc-700 transition-all flex flex-col justify-between group"
+            >
+              <div>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono bg-purple-500/10 border border-purple-500/20 text-purple-300 px-2 py-0.5 rounded-md">
+                      {faction.alignment}
+                    </span>
+                    <h4 className="text-sm font-bold text-zinc-100">{faction.name}</h4>
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => openFactionModal(faction)}
+                      className="p-1 text-zinc-400 hover:text-amber-400 rounded-lg hover:bg-zinc-800 cursor-pointer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteFaction(faction)}
+                      className="p-1 text-zinc-400 hover:text-rose-400 rounded-lg hover:bg-zinc-800 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-zinc-400 leading-relaxed mb-3">{faction.description}</p>
+                <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-3 text-xs text-zinc-300">
+                  <span className="text-amber-400 font-semibold block mb-1">{t.goals}</span>
+                  <p>{faction.publicGoals}</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-3 border-t border-zinc-800/60 flex items-center justify-between text-[11px] text-zinc-500 font-mono">
+                <span>{faction.id}</span>
+                <span>{faction.territoryIds?.length || 0} Territories</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Law Modal */}
       {lawModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
                 <Shield className="w-5 h-5 text-rose-400" />
-                {editingLawId
-                  ? isPersian
-                    ? 'ویرایش قانون جهان'
-                    : 'Edit World Law'
-                  : isPersian
-                  ? 'ثبت قانون جدید'
-                    : 'Add New World Law'}
+                {editingLawId ? 'Edit World Law' : 'Add Immutable World Law'}
               </h3>
               <button
                 onClick={() => setLawModalOpen(false)}
@@ -472,13 +585,13 @@ export default function WorldBiblePage() {
                       category: e.target.value as WorldLaw['category'],
                     }))
                   }
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-200 focus:outline-none focus:border-rose-500"
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
                 >
-                  <option value="magic">Magic / Bloodcraft</option>
-                  <option value="physics">Physics / Natural Laws</option>
-                  <option value="society">Society / Hierarchy</option>
-                  <option value="creatures">Creatures / Monsters</option>
-                  <option value="technology">Technology / Relics</option>
+                  <option value="magic">Magic / Thaumaturgy</option>
+                  <option value="physics">Physics / Nature</option>
+                  <option value="society">Society / Law</option>
+                  <option value="creatures">Creatures / Bestiary</option>
+                  <option value="divine">Divine / Cosmic</option>
                 </select>
               </div>
 
@@ -488,8 +601,8 @@ export default function WorldBiblePage() {
                   type="text"
                   value={lawForm.rule}
                   onChange={(e) => setLawForm((prev) => ({ ...prev, rule: e.target.value }))}
-                  placeholder="e.g. Dragons have been extinct for 300 years"
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-rose-500"
+                  placeholder="e.g. Dragons are extinct for 300 years"
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
                   required
                 />
               </div>
@@ -500,23 +613,23 @@ export default function WorldBiblePage() {
                   rows={3}
                   value={lawForm.description}
                   onChange={(e) => setLawForm((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Explain why this law exists and what violations the Action Validator will intercept..."
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-200 focus:outline-none focus:border-rose-500"
+                  placeholder="Explain why this rule cannot be violated..."
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
                   required
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
                 <button
                   type="button"
                   onClick={() => setLawModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold"
+                  className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700"
                 >
                   {t.cancel}
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/30"
+                  className="px-4 py-2 rounded-xl bg-rose-500 text-zinc-950 text-xs font-bold hover:bg-rose-400"
                 >
                   {t.save}
                 </button>
@@ -529,17 +642,11 @@ export default function WorldBiblePage() {
       {/* Faction Modal */}
       {factionModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-400" />
-                {editingFactionId
-                  ? isPersian
-                    ? 'ویرایش مشخصات جناح'
-                    : 'Edit Faction'
-                  : isPersian
-                  ? 'ثبت جناح جدید'
-                  : 'Add New Faction'}
+                <Users className="w-5 h-5 text-amber-400" />
+                {editingFactionId ? 'Edit Faction' : 'Register New Faction'}
               </h3>
               <button
                 onClick={() => setFactionModalOpen(false)}
@@ -557,7 +664,7 @@ export default function WorldBiblePage() {
                   value={factionForm.name}
                   onChange={(e) => setFactionForm((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g. The Silver Guard"
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
                   required
                 />
               </div>
@@ -568,8 +675,8 @@ export default function WorldBiblePage() {
                   type="text"
                   value={factionForm.alignment}
                   onChange={(e) => setFactionForm((prev) => ({ ...prev, alignment: e.target.value }))}
-                  placeholder="e.g. Lawful Authoritarian / Shadow Underground"
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-200 focus:outline-none focus:border-blue-500"
+                  placeholder="e.g. Lawful Authoritarian / Rebel Anarchist"
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
                   required
                 />
               </div>
@@ -580,8 +687,8 @@ export default function WorldBiblePage() {
                   rows={2}
                   value={factionForm.description}
                   onChange={(e) => setFactionForm((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Ideology, background history, and presence in the city..."
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-200 focus:outline-none focus:border-blue-500"
+                  placeholder="Faction background and philosophy..."
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
                   required
                 />
               </div>
@@ -592,25 +699,136 @@ export default function WorldBiblePage() {
                   rows={2}
                   value={factionForm.publicGoals}
                   onChange={(e) => setFactionForm((prev) => ({ ...prev, publicGoals: e.target.value }))}
-                  placeholder="What is this faction publicly fighting to achieve?"
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-200 focus:outline-none focus:border-blue-500"
+                  placeholder="What is this faction trying to achieve?"
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
                   required
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
                 <button
                   type="button"
                   onClick={() => setFactionModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold"
+                  className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700"
                 >
                   {t.cancel}
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30"
+                  className="px-4 py-2 rounded-xl bg-amber-500 text-zinc-950 text-xs font-bold hover:bg-amber-400"
                 >
                   {t.save}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* AI World Synthesis Modal (Gemini 3.7 Flash) */}
+      {aiWorldModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-zinc-900 border border-amber-500/30 rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="w-5 h-5 text-amber-400" />
+                <div>
+                  <h3 className="text-base font-bold text-zinc-100">
+                    {isPersian ? 'خلق کامل جهان با هوش مصنوعی' : 'AI World Synthesis Studio'}
+                  </h3>
+                  <span className="text-[11px] text-amber-400 font-mono flex items-center gap-1 mt-0.5">
+                    <Zap className="w-3 h-3" /> Powered by Gemini 3.7 Flash (Frontier Heavy Model)
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAiWorldModalOpen(false)}
+                className="text-zinc-500 hover:text-zinc-300"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleGenerateWorld} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-300 mb-1.5">
+                  {isPersian ? 'ایده و تم کلی جهان (World Concept Prompt):' : 'World Premise & Guidance Prompt:'}
+                </label>
+                <textarea
+                  rows={3}
+                  value={aiWorldPrompt}
+                  onChange={(e) => setAiWorldPrompt(e.target.value)}
+                  placeholder={
+                    isPersian
+                      ? 'مثال: دنیای قرون‌وسطایی تاریک با کوه‌های آتشفشانی، قلعه‌های سیاه‌سنگ و فرقه‌ای مخفی از کیمیاگران شورشی که برای بقا در کانال‌های زیرزمینی مبارزه می‌کنند...'
+                      : 'e.g. A volcanic dark fantasy kingdom ruled by iron inquisitors where blood magic is outlawed and outcasts dwell in subterranean canals...'
+                  }
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                  required
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                    <Terminal className="w-3.5 h-3.5 text-purple-400" />
+                    {isPersian ? 'دستورالعمل سیستم هوش مصنوعی (System Prompt):' : 'Custom AI System Prompt Override:'}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAiCustomSystemPrompt(
+                        isPersian
+                          ? 'تو دانای کل و راوی ارشد بازی نقش‌آفرینی تعاملی هستی. دنیا را با تعلیق، غنای ادبی، رازهای تاریک و پیامدهای منطقی توصیف کن.'
+                          : 'You are the Master Storyteller for an interactive grimdark RPG. Write with atmospheric depth and literary gravitas.'
+                      )
+                    }
+                    className="text-[10.5px] text-zinc-400 hover:text-amber-300 flex items-center gap-1"
+                  >
+                    <RotateCcw className="w-3 h-3" /> {isPersian ? 'پیش‌فرض' : 'Reset'}
+                  </button>
+                </div>
+                <textarea
+                  rows={3}
+                  value={aiCustomSystemPrompt}
+                  onChange={(e) => setAiCustomSystemPrompt(e.target.value)}
+                  className="w-full bg-zinc-950 border border-purple-500/30 rounded-xl px-3.5 py-2 text-xs text-purple-200 focus:outline-none focus:border-purple-400 font-mono"
+                />
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200/90 leading-relaxed flex items-start gap-2.5">
+                <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <span>
+                  {isPersian
+                    ? 'این عملیات با تحلیل ایده و دستورالعمل سیستم شما، نام جهان، خلاصه، قوانین ثابت و جناح‌های اصلی را به‌صورت یکپارچه خلق می‌کند.'
+                    : 'Gemini 3.7 Flash will synthesize world lore, summary, immutable laws, factions, and persistent tone directives in one unified call.'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setAiWorldModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700"
+                >
+                  {isPersian ? 'انصراف' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isGeneratingWorld}
+                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Sparkles className={`w-3.5 h-3.5 ${isGeneratingWorld ? 'animate-spin' : ''}`} />
+                  <span>
+                    {isGeneratingWorld
+                      ? isPersian
+                        ? 'در حال خلق با Gemini 3.7 Flash...'
+                        : 'Synthesizing with Gemini 3.7 Flash...'
+                      : isPersian
+                      ? 'شروع خلق جهان'
+                      : 'Synthesize World'}
+                  </span>
                 </button>
               </div>
             </form>

@@ -1,8 +1,6 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { obsidianCitadelStory } from '@/content/stories/obsidian_citadel';
-import { ghaleSiahsangStory } from '@/content/stories/ghale_siahsang';
 import {
   StoryManifest,
   WorldBible,
@@ -131,9 +129,23 @@ export function getDefaultOntology(isPersian: boolean): WorldOntology {
   };
 }
 
+export interface StoryListItem {
+  id: string;
+  title: string;
+  tagline: string;
+  language: 'en' | 'fa';
+  genres: string[];
+  coverImageUrl?: string;
+  author: string;
+  version: string;
+  published?: boolean;
+  updatedAt?: string;
+}
+
 interface StudioStoryContextType {
   selectedStoryId: string;
   setSelectedStoryId: (id: string) => void;
+  storiesList: StoryListItem[];
   story: StoryManifest;
   isPersian: boolean;
   isRtl: boolean;
@@ -143,10 +155,15 @@ interface StudioStoryContextType {
   isSyncing: boolean;
   lastServerSynced: Date | null;
   saveToServer: (manifestToSave?: StoryManifest) => Promise<boolean>;
+  // Story Registry CRUD
+  createStory: (manifest: StoryManifest) => void;
+  duplicateStory: (storyId: string) => void;
+  deleteStory: (storyId: string) => Promise<void>;
+  setStoryPublished: (id: string, published: boolean) => void;
   // Updaters
-  updateStoryMeta: (updates: Partial<Pick<StoryManifest, 'title' | 'tagline' | 'synopsis' | 'author' | 'version'>>) => void;
+  updateStoryMeta: (updates: Partial<Pick<StoryManifest, 'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language'>>) => void;
   updateWorldBible: (updater: (prev: WorldBible) => WorldBible) => void;
-  updateWorldMeta: (meta: Partial<Pick<WorldBible, 'worldName' | 'summary' | 'themeNotes'>>) => void;
+  updateWorldMeta: (meta: Partial<Pick<WorldBible, 'worldName' | 'summary' | 'themeNotes' | 'aiSystemPrompt'>>) => void;
   // Laws CRUD
   addWorldLaw: (law: WorldLaw) => void;
   editWorldLaw: (id: string, updated: Partial<WorldLaw>) => void;
@@ -212,9 +229,54 @@ interface StudioStoryContextType {
 
 const StudioStoryContext = createContext<StudioStoryContextType | undefined>(undefined);
 
-const CANONICAL_STORIES: Record<string, StoryManifest> = {
-  ghale_siahsang: ghaleSiahsangStory,
-  obsidian_citadel: obsidianCitadelStory,
+const SELECTED_STORY_KEY = 'storyforge_studio_selected_story_v1';
+
+// Stories that previously shipped as built-in "canonical" samples. They no longer
+// exist, but old localStorage selections may still reference their ids.
+const REMOVED_CANONICAL_IDS = ['ghale_siahsang', 'obsidian_citadel'];
+
+// Non-persisted placeholder used when no story is selected, so the Studio shell
+// (which reads many `story.*` fields) keeps rendering without crashing.
+const EMPTY_STORY_PLACEHOLDER: StoryManifest = {
+  id: '',
+  title: '',
+  tagline: '',
+  synopsis: '',
+  genres: [],
+  language: 'en',
+  coverImageUrl: '',
+  author: '',
+  version: '0.0.0',
+  published: false,
+  rpgSystem: {
+    hasCombat: true,
+    diceType: 'd20',
+    inventoryCapacity: 12,
+    stats: [],
+    resources: [],
+    skills: [],
+    startingInventory: [],
+    archetypes: [],
+    backgrounds: [],
+  },
+  worldBible: {
+    worldId: '',
+    worldName: '',
+    summary: '',
+    themeNotes: '',
+    laws: [],
+    factions: [],
+    locations: [],
+    npcs: [],
+    timeline: [],
+    artifacts: [],
+    bestiary: [],
+    religions: [],
+    dramaBonds: [],
+    ontology: getDefaultOntology(false),
+  },
+  initialSceneId: '',
+  initialStoryBeats: [],
 };
 
 function getStorageKey(storyId: string) {
@@ -222,18 +284,97 @@ function getStorageKey(storyId: string) {
 }
 
 export function StudioStoryProvider({ children }: { children: ReactNode }) {
-  const [selectedStoryId, setSelectedStoryId] = useState<string>('ghale_siahsang');
-  const [story, setStory] = useState<StoryManifest>(ghaleSiahsangStory);
+  const [selectedStoryId, setSelectedStoryId] = useState<string>(() => {
+    try {
+      const stored = localStorage.getItem(SELECTED_STORY_KEY);
+      if (stored && !REMOVED_CANONICAL_IDS.includes(stored)) return stored;
+    } catch {
+      // Ignore
+    }
+    return '';
+  });
+  const [story, setStory] = useState<StoryManifest>(EMPTY_STORY_PLACEHOLDER);
   const [hasLocalDraft, setHasLocalDraft] = useState<boolean>(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastServerSynced, setLastServerSynced] = useState<Date | null>(null);
+  const [customStories, setCustomStories] = useState<StoryListItem[]>([]);
 
-  const isPersian = selectedStoryId === 'ghale_siahsang';
+  // Client-only mount gate. The server can't read localStorage, so without this
+  // the first paint would show the empty placeholder before the client restores
+  // the saved selection — a visible flash on refresh.
+  const [mounted, setMounted] = useState<boolean>(false);
+
+  const isPersian = story?.language === 'fa';
   const isRtl = isPersian;
 
-  // Load from localStorage on story change
+  // Persist the active story selection
   useEffect(() => {
+    try {
+      localStorage.setItem(SELECTED_STORY_KEY, selectedStoryId);
+    } catch {
+      // Ignore
+    }
+  }, [selectedStoryId]);
+
+  // Client-only mount gate (see `mounted` declaration above).
+  // Intentional setState-in-effect: flips to true only after the client mounts,
+  // so SSR/first paint renders a neutral skeleton instead of the default story.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Load custom stories from the server (DB is the source of truth for discovery).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/studio/stories');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data?.success || !Array.isArray(data.data) || cancelled) return;
+        const custom = (data.data as any[]).map((s) => ({
+          id: s.id,
+          title: s.title,
+          tagline: s.tagline,
+          language: s.language,
+          genres: s.genres,
+          coverImageUrl: s.coverImageUrl,
+          author: s.author,
+          version: s.version || '1.0.0',
+          published: s.published ?? false,
+        }));
+        if (!cancelled) setCustomStories(custom);
+      } catch {
+        // Server unreachable: keep empty; localStorage drafts still work.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Compute unified stories list (server is the source of truth for discovery).
+  const storiesList: StoryListItem[] = customStories;
+
+  // Load from localStorage on story change.
+  // Intentional setState-in-effect: `story` is also mutated in place by ~40 CRUD
+  // updaters, so a pure useSyncExternalStore/external-store pattern is impractical.
+  // This only fires when `selectedStoryId` changes, not on every commit.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    let cancelled = false;
+
+    // No story selected → show the empty placeholder (friendly empty state).
+    if (!selectedStoryId) {
+      setStory(EMPTY_STORY_PLACEHOLDER);
+      setHasLocalDraft(false);
+      setLastSaved(null);
+      return;
+    }
+
     try {
       const key = getStorageKey(selectedStoryId);
       const stored = localStorage.getItem(key);
@@ -245,24 +386,168 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         setStory(parsed);
         setHasLocalDraft(true);
         setLastSaved(new Date());
-      } else {
-        const canonical = CANONICAL_STORIES[selectedStoryId] || ghaleSiahsangStory;
-        const normalized = {
-          ...canonical,
-          worldBible: {
-            ...canonical.worldBible,
-            ontology: canonical.worldBible.ontology || getDefaultOntology(canonical.language === 'fa'),
-          },
-        };
-        setStory(normalized);
-        setHasLocalDraft(false);
+        return;
       }
     } catch {
-      const canonical = CANONICAL_STORIES[selectedStoryId] || ghaleSiahsangStory;
-      setStory(canonical);
-      setHasLocalDraft(false);
+      // fall through to server load
     }
+
+    // No local draft → load from server (DB is the source of truth; enables
+    // cross-browser sharing of stories created on another device).
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/studio/story?storyId=${encodeURIComponent(selectedStoryId)}`
+        );
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (data?.success && data?.data && !cancelled) {
+          const m = data.data as StoryManifest;
+          if (!m.worldBible?.ontology) {
+            m.worldBible = m.worldBible || ({} as any);
+            m.worldBible.ontology = getDefaultOntology(m.language === 'fa');
+          }
+          setStory(m);
+          setHasLocalDraft(false);
+          setLastSaved(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setStory(EMPTY_STORY_PLACEHOLDER);
+          setHasLocalDraft(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedStoryId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Create New Story
+  const createStory = useCallback(
+    (newStory: StoryManifest) => {
+      const key = getStorageKey(newStory.id);
+      localStorage.setItem(key, JSON.stringify(newStory));
+
+      const newListItem: StoryListItem = {
+        id: newStory.id,
+        title: newStory.title,
+        tagline: newStory.tagline,
+        language: newStory.language,
+        genres: newStory.genres,
+        coverImageUrl: newStory.coverImageUrl,
+        author: newStory.author,
+        version: newStory.version,
+        published: false,
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Persist to the server (DB is the source of truth).
+      saveToServer(newStory);
+
+      // Keep the in-memory custom list in sync without a round-trip.
+      setCustomStories((prev) => [...prev.filter((s) => s.id !== newStory.id), newListItem]);
+
+      setSelectedStoryId(newStory.id);
+      setStory(newStory);
+      setHasLocalDraft(true);
+      setLastSaved(new Date());
+      notify.success(isPersian ? `داستان "${newStory.title}" با موفقیت ایجاد شد` : `Story "${newStory.title}" created`);
+    },
+    [isPersian]
+  );
+
+  // Duplicate Story
+  const duplicateStory = useCallback(
+    async (targetStoryId: string) => {
+      let sourceManifest: StoryManifest | null = null;
+      try {
+        const stored = localStorage.getItem(getStorageKey(targetStoryId));
+        if (stored) {
+          sourceManifest = JSON.parse(stored);
+        }
+      } catch {
+        sourceManifest = null;
+      }
+
+      if (!sourceManifest) {
+        // Fall back to fetching the manifest from the server.
+        try {
+          const res = await fetch(
+            `/api/studio/story?storyId=${encodeURIComponent(targetStoryId)}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.success && data?.data) {
+              sourceManifest = data.data as StoryManifest;
+            }
+          }
+        } catch {
+          sourceManifest = null;
+        }
+      }
+
+      if (!sourceManifest) {
+        notify.error(isPersian ? 'داستان مورد نظر یافت نشد' : 'Target story not found');
+        return;
+      }
+
+      const timestamp = Date.now().toString(36);
+      const newId = `story_${timestamp}`;
+      const cloned: StoryManifest = {
+        ...sourceManifest,
+        id: newId,
+        title: `${sourceManifest.title} (${isPersian ? 'رونوشت' : 'Copy'})`,
+        worldBible: {
+          ...sourceManifest.worldBible,
+          worldId: `${sourceManifest.worldBible.worldId}_copy_${timestamp}`,
+        },
+      };
+
+      createStory(cloned);
+      notify.success(isPersian ? 'رونوشت داستان با موفقیت ایجاد شد' : 'Story duplicated successfully');
+    },
+    [createStory, isPersian]
+  );
+
+  // Delete Story
+  const deleteStory = useCallback(
+    async (targetStoryId: string) => {
+      const confirmed = await notify.confirm({
+        title: isPersian ? 'حذف داستان از استودیو' : 'Delete Story Manifest',
+        message: isPersian
+          ? 'آیا از حذف کامل این داستان و تمام داده‌های جهان آن اطمینان دارید؟'
+          : 'Are you sure you want to permanently delete this story and all its world assets?',
+        confirmText: isPersian ? 'بله، حذف شود' : 'Delete Permanently',
+        cancelText: isPersian ? 'انصراف' : 'Cancel',
+        isDestructive: true,
+      });
+
+      if (confirmed) {
+        localStorage.removeItem(getStorageKey(targetStoryId));
+
+        // Remove from the server (DB is the source of truth).
+        try {
+          await fetch(`/api/studio/story?storyId=${encodeURIComponent(targetStoryId)}`, {
+            method: 'DELETE',
+          });
+        } catch {
+          // ignore network errors; local state updated below regardless
+        }
+
+        // Keep the in-memory custom list in sync.
+        setCustomStories((prev) => prev.filter((s) => s.id !== targetStoryId));
+
+        if (selectedStoryId === targetStoryId) {
+          setSelectedStoryId('');
+        }
+        notify.info(isPersian ? 'داستان با موفقیت حذف شد' : 'Story deleted');
+      }
+    },
+    [isPersian, selectedStoryId]
+  );
 
   // Direct backend sync helper
   const saveToServer = useCallback(
@@ -292,6 +577,45 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     [story]
   );
 
+  const setStoryPublished = useCallback(
+    (id: string, published: boolean) => {
+      // Keep the in-memory list in sync immediately.
+      setCustomStories((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, published } : s))
+      );
+
+      // Persist the published flag on the full manifest (DB is the source of truth).
+      (async () => {
+        let manifest: StoryManifest | null = null;
+        try {
+          const stored = localStorage.getItem(getStorageKey(id));
+          if (stored) manifest = JSON.parse(stored);
+        } catch {
+          manifest = null;
+        }
+        if (!manifest) {
+          try {
+            const res = await fetch(
+              `/api/studio/story?storyId=${encodeURIComponent(id)}`
+            );
+            if (res.ok) {
+              const data = await res.json();
+              if (data?.success && data?.data) {
+                manifest = data.data as StoryManifest;
+              }
+            }
+          } catch {
+            manifest = null;
+          }
+        }
+        if (manifest) {
+          saveToServer({ ...manifest, published });
+        }
+      })();
+    },
+    [saveToServer]
+  );
+
   // Persist helper (writes to localStorage and syncs with server API)
   const persistToStorage = useCallback(
     (newStory: StoryManifest) => {
@@ -310,12 +634,16 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   );
 
   const toggleLanguage = () => {
-    setSelectedStoryId((prev) => (prev === 'ghale_siahsang' ? 'obsidian_citadel' : 'ghale_siahsang'));
+    setStory((prev) => ({ ...prev, language: prev.language === 'fa' ? 'en' : 'fa' } as StoryManifest));
   };
 
   // Story Meta updater
   const updateStoryMeta = useCallback(
-    (updates: Partial<Pick<StoryManifest, 'title' | 'tagline' | 'synopsis' | 'author' | 'version'>>) => {
+    (
+      updates: Partial<
+        Pick<StoryManifest, 'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language'>
+      >
+    ) => {
       setStory((prev) => {
         const updated = { ...prev, ...updates };
         persistToStorage(updated);
@@ -1101,11 +1429,40 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     if (confirmed) {
       const key = getStorageKey(selectedStoryId);
       localStorage.removeItem(key);
-      const canonical = CANONICAL_STORIES[selectedStoryId] || ghaleSiahsangStory;
-      setStory(canonical);
+
+      if (selectedStoryId) {
+        try {
+          const res = await fetch(
+            `/api/studio/story?storyId=${encodeURIComponent(selectedStoryId)}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.success && data?.data) {
+              const m = data.data as StoryManifest;
+              if (!m.worldBible?.ontology) {
+                m.worldBible = m.worldBible || ({} as any);
+                m.worldBible.ontology = getDefaultOntology(m.language === 'fa');
+              }
+              setStory(m);
+              setHasLocalDraft(false);
+              setLastSaved(null);
+              notify.success(
+                isPersian
+                  ? 'پیش‌نویس محلی حذف و نسخه سرور بارگذاری شد'
+                  : 'Local draft discarded; server version restored'
+              );
+              return;
+            }
+          }
+        } catch {
+          // fall through to placeholder
+        }
+      }
+
+      setStory(EMPTY_STORY_PLACEHOLDER);
       setHasLocalDraft(false);
       setLastSaved(null);
-      notify.success(isPersian ? 'تنظیمات به حالت پیش‌فرض بازگشت' : 'Draft reset to canonical default');
+      notify.success(isPersian ? 'پیش‌نویس بازنشانی شد' : 'Draft reset');
     }
   };
 
@@ -1140,6 +1497,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
       value={{
         selectedStoryId,
         setSelectedStoryId,
+        storiesList,
         story,
         isPersian,
         isRtl,
@@ -1149,6 +1507,10 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         isSyncing,
         lastServerSynced,
         saveToServer,
+        createStory,
+        duplicateStory,
+        deleteStory,
+        setStoryPublished,
         updateStoryMeta,
         updateWorldBible,
         updateWorldMeta,
@@ -1202,7 +1564,13 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
       }}
     >
       <div dir={isRtl ? 'rtl' : 'ltr'} className={isRtl ? 'font-[Vazirmatn]' : ''}>
-        {children}
+        {mounted ? (
+          children
+        ) : (
+          <div className="flex min-h-screen items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-400 border-t-gray-700" />
+          </div>
+        )}
       </div>
     </StudioStoryContext.Provider>
   );

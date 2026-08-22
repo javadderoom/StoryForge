@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { StudioStoryProvider, useStudioStory } from '@/lib/context/StudioStoryContext';
 import { Toaster } from '@/lib/notify';
+import { StoryDetailsModal } from '@/components/studio/StoryDetailsModal';
 import {
   BookOpen,
   Sword,
@@ -25,6 +26,8 @@ import {
   Clock,
   Skull,
   Sun,
+  MapPin,
+  Edit2,
 } from 'lucide-react';
 
 function StudioShell({ children }: { children: React.ReactNode }) {
@@ -33,6 +36,8 @@ function StudioShell({ children }: { children: React.ReactNode }) {
     isPersian,
     isRtl,
     story,
+    selectedStoryId,
+    storiesList,
     toggleLanguage,
     hasLocalDraft,
     lastSaved,
@@ -45,11 +50,26 @@ function StudioShell({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     {
+      href: '/studio/stories',
+      label: isPersian ? 'کتابخانه داستان‌ها' : 'Story Library',
+      shortLabel: isPersian ? 'داستان‌ها' : 'Stories',
+      icon: LayoutGrid,
+      count: undefined as number | undefined,
+      isSpecial: true,
+    },
+    {
       href: '/studio/world',
       label: isPersian ? 'انجیل جهان' : 'World Bible',
       shortLabel: isPersian ? 'جهان' : 'World',
       icon: BookOpen,
       count: story.worldBible.laws.length,
+    },
+    {
+      href: '/studio/locations',
+      label: isPersian ? 'جغرافیای جهان' : 'World Geography',
+      shortLabel: isPersian ? 'مکان‌ها' : 'Locations',
+      icon: MapPin,
+      count: story.worldBible.locations?.length || 0,
     },
     {
       href: '/studio/lore-graph',
@@ -126,9 +146,11 @@ function StudioShell({ children }: { children: React.ReactNode }) {
   ];
 
   const isCurrentActive = (href: string) => {
-    if (pathname === '/studio' && href === '/studio/world') return true;
+    if (pathname === '/studio' && href === '/studio/stories') return true;
     return pathname.startsWith(href);
   };
+
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#090a0f] text-zinc-100 flex flex-col md:flex-row antialiased selection:bg-amber-500/30 selection:text-amber-200">
@@ -156,16 +178,36 @@ function StudioShell({ children }: { children: React.ReactNode }) {
           <div className="mt-4 p-3.5 rounded-2xl bg-zinc-900/70 border border-zinc-800/80 space-y-2.5">
             <div className="flex items-center justify-between text-xs text-zinc-400">
               <span className="font-medium">{isPersian ? 'داستان فعال:' : 'Active Story:'}</span>
-              <button
-                onClick={toggleLanguage}
-                className="flex items-center gap-1 text-[11px] bg-zinc-800 hover:bg-zinc-700 text-amber-400 px-2.5 py-1 rounded-lg border border-zinc-700/80 transition-all font-semibold cursor-pointer"
-              >
-                <Languages className="w-3 h-3" />
-                {isPersian ? 'English' : 'فارسی'}
-              </button>
+              <div className="flex items-center gap-1.5">
+                {selectedStoryId && (
+                  <button
+                    onClick={() => setIsDetailsOpen(true)}
+                    className="flex items-center gap-1 text-[11px] bg-zinc-800 hover:bg-zinc-700 text-amber-400 px-2.5 py-1 rounded-lg border border-zinc-700/80 transition-all font-semibold cursor-pointer"
+                    title={isPersian ? 'ویرایش جزئیات داستان' : 'Edit Story Details'}
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    {isPersian ? 'ویرایش' : 'Edit'}
+                  </button>
+                )}
+                <button
+                  onClick={toggleLanguage}
+                  className="flex items-center gap-1 text-[11px] bg-zinc-800 hover:bg-zinc-700 text-amber-400 px-2.5 py-1 rounded-lg border border-zinc-700/80 transition-all font-semibold cursor-pointer"
+                >
+                  <Languages className="w-3 h-3" />
+                  {isPersian ? 'English' : 'فارسی'}
+                </button>
+              </div>
             </div>
-            <div className="text-sm font-bold text-zinc-200 truncate">{story.title}</div>
-            <div className="text-[11px] text-zinc-500 truncate">{story.tagline}</div>
+            <div className="text-sm font-bold text-zinc-200 truncate">
+              {selectedStoryId ? story.title : isPersian ? 'داستان فعالی انتخاب نشده' : 'No active story'}
+            </div>
+            <div className="text-[11px] text-zinc-500 truncate">
+              {selectedStoryId
+                ? story.tagline
+                : isPersian
+                  ? 'از کتابخانه داستانی انتخاب کنید'
+                  : 'Select a story from the library'}
+            </div>
 
             {/* Local & Server Sync Status */}
             <div className="pt-2 border-t border-zinc-800/60 space-y-2 text-[10px]">
@@ -189,8 +231,8 @@ function StudioShell({ children }: { children: React.ReactNode }) {
                           ? 'پیش‌نویس ذخیره شد'
                           : 'Draft Auto-Saved'
                         : isPersian
-                        ? 'نسخه پایه'
-                        : 'Canonical Default'}
+                          ? 'در پایگاه‌داده ذخیره شد'
+                          : 'Saved to DB'}
                     </span>
                   )}
                 </span>
@@ -198,10 +240,14 @@ function StudioShell({ children }: { children: React.ReactNode }) {
                   <button
                     onClick={resetToDefault}
                     className="text-zinc-500 hover:text-rose-400 flex items-center gap-1 transition-colors cursor-pointer"
-                    title={isPersian ? 'بازنشانی به حالت پیش‌فرض' : 'Reset to Default'}
+                    title={
+                      isPersian
+                        ? 'حذف پیش‌نویس محلی و بارگذاری از سرور'
+                        : 'Discard local draft & reload from server'
+                    }
                   >
                     <RotateCcw className="w-2.5 h-2.5" />
-                    {isPersian ? 'بازنشانی' : 'Reset'}
+                    {isPersian ? 'حذف پیش‌نویس' : 'Discard Draft'}
                   </button>
                 )}
               </div>
@@ -320,6 +366,27 @@ function StudioShell({ children }: { children: React.ReactNode }) {
 
         {/* Page Content Body */}
         <main className="max-w-7xl w-full mx-auto px-4 md:px-8 py-6 md:py-8 flex-1">
+          {!selectedStoryId && (
+            <div className="mb-6 flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-200">
+              <BookOpen className="w-5 h-5 shrink-0" />
+              <div>
+                <p className="font-semibold">
+                  {isPersian ? 'هنوز داستانی انتخاب نشده' : 'No story selected'}
+                </p>
+                <p className="text-amber-200/80 text-xs mt-0.5">
+                  {isPersian
+                    ? 'از کتابخانه داستان‌ها، داستانی ایجاد یا انتخاب کنید.'
+                    : 'Create or pick a story from the Story Library to start authoring.'}
+                </p>
+              </div>
+              <Link
+                href="/studio/stories"
+                className="ml-auto shrink-0 px-3 py-1.5 rounded-xl bg-amber-500 text-zinc-950 text-xs font-bold hover:bg-amber-400 cursor-pointer"
+              >
+                {isPersian ? 'برو به کتابخانه' : 'Go to Library'}
+              </Link>
+            </div>
+          )}
           {children}
         </main>
       </div>
@@ -396,6 +463,8 @@ function StudioShell({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
       </nav>
+
+      <StoryDetailsModal isOpen={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} />
     </div>
   );
 }

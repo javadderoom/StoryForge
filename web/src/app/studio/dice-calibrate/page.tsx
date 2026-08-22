@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -82,8 +82,43 @@ const INITIAL_CALIBRATIONS: SavedCalibration[] = [
 
 const STORAGE_KEY = 'storyforge_d20_free_calibration_v1';
 
+// localStorage-backed external store for calibrations (avoids setState-in-effect on mount).
+let calibrationRawCache = '';
+let calibrationParsedCache: SavedCalibration[] = INITIAL_CALIBRATIONS;
+const CALIBRATION_EVENT = 'storyforge:calibration-change';
+
+function readCalibrations(): SavedCalibration[] {
+  if (typeof window === 'undefined') return INITIAL_CALIBRATIONS;
+  const raw = window.localStorage.getItem(STORAGE_KEY) || '';
+  if (raw !== calibrationRawCache) {
+    calibrationRawCache = raw;
+    try {
+      const parsed = JSON.parse(raw);
+      calibrationParsedCache =
+        Array.isArray(parsed) && parsed.length === 20 ? parsed : INITIAL_CALIBRATIONS;
+    } catch {
+      calibrationParsedCache = INITIAL_CALIBRATIONS;
+    }
+  }
+  return calibrationParsedCache;
+}
+
+function subscribeCalibrations(cb: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener(CALIBRATION_EVENT, cb);
+  return () => window.removeEventListener(CALIBRATION_EVENT, cb);
+}
+
+function notifyCalibrationsChanged() {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(CALIBRATION_EVENT));
+}
+
 export default function DiceCalibratePage() {
-  const [calibrations, setCalibrations] = useState<SavedCalibration[]>(INITIAL_CALIBRATIONS);
+  const calibrations = useSyncExternalStore(
+    subscribeCalibrations,
+    readCalibrations,
+    () => INITIAL_CALIBRATIONS
+  );
   const [selectedNum, setSelectedNum] = useState<number>(20);
   const [showCrosshair, setShowCrosshair] = useState<boolean>(true);
   const [hasCopied, setHasCopied] = useState<boolean>(false);
@@ -101,29 +136,14 @@ export default function DiceCalibratePage() {
   const lastSpherePointRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 1));
   const isPointerDownRef = useRef<boolean>(false);
 
-  // Load calibrations from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length === 20) {
-          setCalibrations(parsed);
-        }
-      }
-    } catch {
-      // Ignore parse error
-    }
-  }, []);
-
-  // Save to localStorage whenever calibrations change
+  // Save to localStorage and notify subscribers (store-backed, no setState-in-effect)
   const saveCalibrationsToStorage = (updated: SavedCalibration[]) => {
-    setCalibrations(updated);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     } catch {
       // Ignore quota error
     }
+    notifyCalibrationsChanged();
   };
 
   const showToast = (msg: string) => {
