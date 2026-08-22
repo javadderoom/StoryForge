@@ -125,6 +125,7 @@ const worldBible: WorldBible = {
     placeCategories: [],
     lawCategories: [],
     npcRoles: [],
+    domains: [],
   },
 };
 

@@ -155,6 +155,14 @@ export interface CustomNPCRole {
   isDefault?: boolean;
 }
 
+export interface CustomDomain {
+  id: string; // e.g. "light", "war", "death" — matches WorldDeity.domain
+  name: string; // e.g. "Light & Order", "War & Conquest"
+  description: string;
+  color: string; // Hex color for badges and UI
+  isDefault?: boolean;
+}
+
 export interface CustomLoreRelation {
   id: string;
   sourceId: string;
@@ -168,6 +176,7 @@ export interface WorldOntology {
   placeCategories: CustomPlaceCategory[];
   lawCategories: CustomLawCategory[];
   npcRoles: CustomNPCRole[];
+  domains: CustomDomain[];
 }
 
 export interface WorldBible {
@@ -284,6 +293,14 @@ export const CustomNPCRoleSchema = z.object({
   isDefault: z.boolean().optional(),
 });
 
+export const CustomDomainSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().default(''),
+  color: z.string().default('#F59E0B'),
+  isDefault: z.boolean().optional(),
+});
+
 export const CustomLoreRelationSchema = z.object({
   id: z.string().min(1),
   sourceId: z.string().min(1),
@@ -297,6 +314,7 @@ export const WorldOntologySchema = z.object({
   placeCategories: z.array(CustomPlaceCategorySchema).default([]),
   lawCategories: z.array(CustomLawCategorySchema).default([]),
   npcRoles: z.array(CustomNPCRoleSchema).default([]),
+  domains: z.array(CustomDomainSchema).default([]),
 });
 
 export const WorldLawSchema = z.object({

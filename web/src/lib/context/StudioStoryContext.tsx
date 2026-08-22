@@ -13,6 +13,7 @@ import {
   CustomPlaceCategory,
   CustomLawCategory,
   CustomNPCRole,
+  CustomDomain,
   CustomLoreRelation,
   WorldOntology,
   TimelineEvent,
@@ -126,6 +127,31 @@ export function getDefaultOntology(isPersian: boolean): WorldOntology {
       { id: 'smuggler', name: isPersian ? 'قاچاقچی و دزد' : 'Smuggler / Rogue', description: isPersian ? 'دلالان بازار سیاه و خرابکاران زیرزمینی' : 'Black market brokers and covert operatives', color: '#EC4899', isDefault: true },
       { id: 'scholar', name: isPersian ? 'مورخ و کاتب' : 'Scholar / Sage', description: isPersian ? 'نگهبانان متون کهن و تاریخ‌نگاران' : 'Keepers of lore, archivists, and advisors', color: '#10B981', isDefault: true },
     ],
+    domains: [
+      { id: 'light', name: isPersian ? 'نور و داوری' : 'Light & Order', description: isPersian ? 'نظم، حقیقت و قضاوت کیهانی' : 'Order, truth, and cosmic judgment', color: '#F59E0B', isDefault: true },
+      { id: 'secrets', name: isPersian ? 'سایه‌ها و اسرار' : 'Shadows & Secrets', description: isPersian ? 'پنهان‌کاری، دانش ممنوعه و رازها' : 'Stealth, forbidden lore, and hidden truths', color: '#A855F7', isDefault: true },
+      { id: 'death', name: isPersian ? 'مرگ و ارواح' : 'Death & Rebirth', description: isPersian ? 'گذر روح، میراث و زوال' : 'Soul passage, legacy, and decay', color: '#71717A', isDefault: true },
+      { id: 'war', name: isPersian ? 'جنگ و افتخار' : 'War & Conquest', description: isPersian ? 'نبرد، پیروزی و شکوه نظامی' : 'Battle, victory, and martial glory', color: '#EF4444', isDefault: true },
+      { id: 'nature', name: isPersian ? 'طبیعت و عناصر' : 'Nature & Elements', description: isPersian ? 'رویش، عناصر خام و چرخه حیات' : 'Growth, raw elements, and the life cycle', color: '#10B981', isDefault: true },
+      { id: 'chaos', name: isPersian ? 'آشوب و دگرگونی' : 'Chaos & Change', description: isPersian ? 'دگرگونی، شانس و هرج‌ومرج' : 'Mutation, fortune, and entropy', color: '#EC4899', isDefault: true },
+      { id: 'forge', name: isPersian ? 'آهنگری و صنعت' : 'Forge & Metallurgy', description: isPersian ? 'ساخت، فلزکاری و دانش فنی' : 'Craft, smithing, and applied craft', color: '#F97316', isDefault: true },
+    ],
+  };
+}
+
+/**
+ * Guarantees every ontology array is present, falling back to defaults for any
+ * field missing from persisted/legacy data (e.g. a story saved before `domains`
+ * existed would otherwise have `ontology.domains === undefined`).
+ */
+function normalizeOntology(ont: WorldOntology | undefined, isPersian: boolean): WorldOntology {
+  const base = getDefaultOntology(isPersian);
+  return {
+    relationTypes: ont?.relationTypes ?? base.relationTypes,
+    placeCategories: ont?.placeCategories ?? base.placeCategories,
+    lawCategories: ont?.lawCategories ?? base.lawCategories,
+    npcRoles: ont?.npcRoles ?? base.npcRoles,
+    domains: ont?.domains ?? base.domains,
   };
 }
 
@@ -199,6 +225,9 @@ interface StudioStoryContextType {
   addNpcRole: (role: CustomNPCRole) => void;
   editNpcRole: (id: string, updated: Partial<CustomNPCRole>) => void;
   deleteNpcRole: (id: string) => void;
+  addDomain: (domain: CustomDomain) => void;
+  editDomain: (id: string, updated: Partial<CustomDomain>) => void;
+  deleteDomain: (id: string) => void;
   // Timeline CRUD
   addTimelineEvent: (event: TimelineEvent) => void;
   editTimelineEvent: (id: string, updated: Partial<TimelineEvent>) => void;
@@ -996,7 +1025,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const addCustomRelationType = useCallback(
     (relType: CustomRelationType) => {
       updateWorldBible((prev) => {
-        const ont = prev.ontology || getDefaultOntology(isPersian);
+        const ont = normalizeOntology(prev.ontology, isPersian);
         if (ont.relationTypes.some((r) => r.id === relType.id)) return prev;
         return {
           ...prev,
@@ -1014,7 +1043,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const editCustomRelationType = useCallback(
     (id: string, updated: Partial<CustomRelationType>) => {
       updateWorldBible((prev) => {
-        const ont = prev.ontology || getDefaultOntology(isPersian);
+        const ont = normalizeOntology(prev.ontology, isPersian);
         return {
           ...prev,
           ontology: {
@@ -1031,7 +1060,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const deleteCustomRelationType = useCallback(
     (id: string) => {
       updateWorldBible((prev) => {
-        const ont = prev.ontology || getDefaultOntology(isPersian);
+        const ont = normalizeOntology(prev.ontology, isPersian);
         return {
           ...prev,
           ontology: {
@@ -1048,7 +1077,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const addPlaceCategory = useCallback(
     (category: CustomPlaceCategory) => {
       updateWorldBible((prev) => {
-        const ont = prev.ontology || getDefaultOntology(isPersian);
+        const ont = normalizeOntology(prev.ontology, isPersian);
         if (ont.placeCategories.some((p) => p.id === category.id)) return prev;
         return {
           ...prev,
@@ -1066,7 +1095,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const editPlaceCategory = useCallback(
     (id: string, updated: Partial<CustomPlaceCategory>) => {
       updateWorldBible((prev) => {
-        const ont = prev.ontology || getDefaultOntology(isPersian);
+        const ont = normalizeOntology(prev.ontology, isPersian);
         return {
           ...prev,
           ontology: {
@@ -1083,7 +1112,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const deletePlaceCategory = useCallback(
     (id: string) => {
       updateWorldBible((prev) => {
-        const ont = prev.ontology || getDefaultOntology(isPersian);
+        const ont = normalizeOntology(prev.ontology, isPersian);
         return {
           ...prev,
           ontology: {
@@ -1100,7 +1129,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const addLawCategory = useCallback(
     (category: CustomLawCategory) => {
       updateWorldBible((prev) => {
-        const ont = prev.ontology || getDefaultOntology(isPersian);
+        const ont = normalizeOntology(prev.ontology, isPersian);
         if (ont.lawCategories.some((l) => l.id === category.id)) return prev;
         return {
           ...prev,
@@ -1118,7 +1147,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const editLawCategory = useCallback(
     (id: string, updated: Partial<CustomLawCategory>) => {
       updateWorldBible((prev) => {
-        const ont = prev.ontology || getDefaultOntology(isPersian);
+        const ont = normalizeOntology(prev.ontology, isPersian);
         return {
           ...prev,
           ontology: {
@@ -1135,7 +1164,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const deleteLawCategory = useCallback(
     (id: string) => {
       updateWorldBible((prev) => {
-        const ont = prev.ontology || getDefaultOntology(isPersian);
+        const ont = normalizeOntology(prev.ontology, isPersian);
         return {
           ...prev,
           ontology: {
@@ -1152,7 +1181,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const addNpcRole = useCallback(
     (role: CustomNPCRole) => {
       updateWorldBible((prev) => {
-        const ont = prev.ontology || getDefaultOntology(isPersian);
+        const ont = normalizeOntology(prev.ontology, isPersian);
         if (ont.npcRoles.some((r) => r.id === role.id)) return prev;
         return {
           ...prev,
@@ -1170,7 +1199,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const editNpcRole = useCallback(
     (id: string, updated: Partial<CustomNPCRole>) => {
       updateWorldBible((prev) => {
-        const ont = prev.ontology || getDefaultOntology(isPersian);
+        const ont = normalizeOntology(prev.ontology, isPersian);
         return {
           ...prev,
           ontology: {
@@ -1187,7 +1216,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const deleteNpcRole = useCallback(
     (id: string) => {
       updateWorldBible((prev) => {
-        const ont = prev.ontology || getDefaultOntology(isPersian);
+        const ont = normalizeOntology(prev.ontology, isPersian);
         return {
           ...prev,
           ontology: {
@@ -1197,6 +1226,58 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         };
       });
       notify.info(isPersian ? 'نقش شخصیتی حذف شد' : 'NPC role removed');
+    },
+    [isPersian, updateWorldBible]
+  );
+
+  const addDomain = useCallback(
+    (domain: CustomDomain) => {
+      updateWorldBible((prev) => {
+        const ont = normalizeOntology(prev.ontology, isPersian);
+        if (ont.domains.some((d) => d.id === domain.id)) return prev;
+        return {
+          ...prev,
+          ontology: {
+            ...ont,
+            domains: [...ont.domains, domain],
+          },
+        };
+      });
+      notify.success(isPersian ? 'حوزه کیهانی جدید ثبت شد' : 'Divine domain registered');
+    },
+    [isPersian, updateWorldBible]
+  );
+
+  const editDomain = useCallback(
+    (id: string, updated: Partial<CustomDomain>) => {
+      updateWorldBible((prev) => {
+        const ont = normalizeOntology(prev.ontology, isPersian);
+        return {
+          ...prev,
+          ontology: {
+            ...ont,
+            domains: ont.domains.map((d) => (d.id === id ? { ...d, ...updated } : d)),
+          },
+        };
+      });
+      notify.success(isPersian ? 'حوزه کیهانی به‌روز شد' : 'Divine domain updated');
+    },
+    [isPersian, updateWorldBible]
+  );
+
+  const deleteDomain = useCallback(
+    (id: string) => {
+      updateWorldBible((prev) => {
+        const ont = normalizeOntology(prev.ontology, isPersian);
+        return {
+          ...prev,
+          ontology: {
+            ...ont,
+            domains: ont.domains.filter((d) => d.id !== id),
+          },
+        };
+      });
+      notify.info(isPersian ? 'حوزه کیهانی حذف شد' : 'Divine domain removed');
     },
     [isPersian, updateWorldBible]
   );
@@ -1542,6 +1623,9 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         addNpcRole,
         editNpcRole,
         deleteNpcRole,
+        addDomain,
+        editDomain,
+        deleteDomain,
         addTimelineEvent,
         editTimelineEvent,
         deleteTimelineEvent,

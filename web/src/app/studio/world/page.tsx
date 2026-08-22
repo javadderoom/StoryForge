@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { WorldLaw, Faction } from '@/lib/types';
+import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
 import { notify } from '@/lib/notify';
 import {
   BookOpen,
@@ -259,6 +260,7 @@ export default function WorldBiblePage() {
           taskType: 'world', // Prioritizes Gemini 3.7 Flash
           prompt: aiWorldPrompt,
           customSystemPrompt: aiCustomSystemPrompt,
+          worldContext: buildWorldContextString(story),
           isPersian,
         }),
       });

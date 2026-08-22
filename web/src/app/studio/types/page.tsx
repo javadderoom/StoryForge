@@ -15,8 +15,9 @@ import {
   Sparkles,
   Layers,
   ArrowRight,
+  Crown,
 } from 'lucide-react';
-import { CustomRelationType, CustomPlaceCategory, CustomLawCategory, CustomNPCRole } from '@/lib/types';
+import { CustomRelationType, CustomPlaceCategory, CustomLawCategory, CustomNPCRole, CustomDomain } from '@/lib/types';
 import { notify } from '@/lib/notify';
 
 const QUICK_COLORS = [
@@ -50,9 +51,12 @@ export default function TypesStudioPage() {
     addNpcRole,
     editNpcRole,
     deleteNpcRole,
+    addDomain,
+    editDomain,
+    deleteDomain,
   } = useStudioStory();
 
-  const [activeTab, setActiveTab] = useState<'relations' | 'places' | 'laws' | 'roles'>('relations');
+  const [activeTab, setActiveTab] = useState<'relations' | 'places' | 'laws' | 'roles' | 'domains'>('relations');
 
   // Form states
   const [showAddRelation, setShowAddRelation] = useState(false);
@@ -87,11 +91,19 @@ export default function TypesStudioPage() {
   const [newRoleDesc, setNewRoleDesc] = useState('');
   const [newRoleColor, setNewRoleColor] = useState('#F59E0B');
 
+  const [showAddDomain, setShowAddDomain] = useState(false);
+  const [editingDomain, setEditingDomain] = useState<CustomDomain | null>(null);
+  const [newDomainName, setNewDomainName] = useState('');
+  const [newDomainId, setNewDomainId] = useState('');
+  const [newDomainDesc, setNewDomainDesc] = useState('');
+  const [newDomainColor, setNewDomainColor] = useState('#F59E0B');
+
   const ontology = story.worldBible.ontology || {
     relationTypes: [],
     placeCategories: [],
     lawCategories: [],
     npcRoles: [],
+    domains: [],
   };
 
   // How many world entities reference a given type (used to warn before deletion)
@@ -100,6 +112,7 @@ export default function TypesStudioPage() {
   const placeUsage = (id: string) => story.worldBible.locations.filter((l) => l.category === id).length;
   const lawUsage = (id: string) => story.worldBible.laws.filter((l) => l.category === id).length;
   const roleUsage = (id: string) => story.worldBible.npcs.filter((n) => n.role === id).length;
+  const domainUsage = (id: string) => story.worldBible.religions?.filter((d) => d.domain === id).length || 0;
 
   const confirmDelete = async (opts: {
     name: string;
@@ -299,6 +312,45 @@ export default function TypesStudioPage() {
     resetRoleForm();
   };
 
+  const resetDomainForm = () => {
+    setNewDomainName('');
+    setNewDomainId('');
+    setNewDomainDesc('');
+    setNewDomainColor('#F59E0B');
+    setEditingDomain(null);
+  };
+  const openDomainAdd = () => {
+    resetDomainForm();
+    setShowAddDomain(true);
+  };
+  const openDomainEdit = (domain: CustomDomain) => {
+    setNewDomainName(domain.name);
+    setNewDomainId(domain.id);
+    setNewDomainDesc(domain.description);
+    setNewDomainColor(domain.color);
+    setEditingDomain(domain);
+    setShowAddDomain(true);
+  };
+
+  const handleCreateDomain = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDomainName.trim()) {
+      notify.error(isPersian ? 'نام حوزه کیهانی الزامی است' : 'Domain name is required');
+      return;
+    }
+    const finalId = editingDomain ? editingDomain.id : newDomainId.trim() || `domain_${Date.now().toString(36)}`;
+    const payload: CustomDomain = {
+      id: finalId,
+      name: newDomainName.trim(),
+      description: newDomainDesc.trim(),
+      color: newDomainColor,
+    };
+    if (editingDomain) editDomain(editingDomain.id, payload);
+    else addDomain(payload);
+    setShowAddDomain(false);
+    resetDomainForm();
+  };
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Header Banner */}
@@ -322,7 +374,8 @@ export default function TypesStudioPage() {
             {(ontology.relationTypes?.length || 0) +
               (ontology.placeCategories?.length || 0) +
               (ontology.lawCategories?.length || 0) +
-              (ontology.npcRoles?.length || 0)}{' '}
+              (ontology.npcRoles?.length || 0) +
+              (ontology.domains?.length || 0)}{' '}
             {isPersian ? 'نوع ثبت‌شده' : 'Registered Types'}
           </span>
         </div>
@@ -387,6 +440,21 @@ export default function TypesStudioPage() {
           <span>{isPersian ? 'نقش‌های شخصیت‌ها (NPC Roles)' : 'NPC Roles'}</span>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 font-mono">
             {ontology.npcRoles?.length || 0}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('domains')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs md:text-sm font-bold transition-all ${
+            activeTab === 'domains'
+              ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400 shadow-lg shadow-amber-500/10'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60 border border-transparent'
+          }`}
+        >
+          <Crown className="w-4 h-4" />
+          <span>{isPersian ? 'حوزه‌های ایزدان (Domains)' : 'Domains of Gods'}</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 font-mono">
+            {ontology.domains?.length || 0}
           </span>
         </button>
       </div>
@@ -1141,6 +1209,173 @@ export default function TypesStudioPage() {
 
                 <div className="pt-3 border-t border-zinc-800/60 flex items-center justify-between text-[11px] text-zinc-500 font-mono">
                   <span className="text-zinc-400 font-mono">{role.id}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: DOMAINS OF GODS */}
+      {activeTab === 'domains' && (
+        <div className="space-y-6 animate-fadeIn">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+              <Crown className="w-4 h-4 text-amber-400" />
+              <span>{isPersian ? 'حوزه‌های کیهانی و قلمروهای ایزدان' : 'Divine Domains & Godly Spheres'}</span>
+            </h3>
+            <button
+              onClick={openDomainAdd}
+              className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{isPersian ? '+ ثبت حوزه کیهانی جدید' : '+ Add Divine Domain'}</span>
+            </button>
+          </div>
+
+          {/* Add Divine Domain Form */}
+          {showAddDomain && (
+            <form
+              onSubmit={handleCreateDomain}
+              className="bg-zinc-900/90 border border-amber-500/40 rounded-3xl p-6 backdrop-blur-xl shadow-2xl space-y-4 animate-fadeIn"
+            >
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <span className="text-sm font-bold text-amber-400 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  {editingDomain
+                    ? isPersian
+                      ? 'ویرایش حوزه کیهانی'
+                      : 'Edit Divine Domain'
+                    : isPersian
+                      ? 'تعریف حوزه کیهانی جدید'
+                      : 'New Divine Domain'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddDomain(false);
+                    resetDomainForm();
+                  }}
+                  className="text-zinc-500 hover:text-zinc-300"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                    {isPersian ? 'نام حوزه (فارسی / انگلیسی):' : 'Domain Name:'}
+                  </label>
+                  <input
+                    type="text"
+                    value={newDomainName}
+                    onChange={(e) => setNewDomainName(e.target.value)}
+                    placeholder={isPersian ? 'مثال: نور و داوری، جنگ و افتخار، دریای بیکران' : 'e.g. Light & Order, War & Conquest, The Vast Sea'}
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                    {isPersian ? 'شناسه یکتا (اختیاری):' : 'Unique ID (Optional):'}
+                  </label>
+                  {editingDomain ? (
+                    <div className="w-full bg-zinc-800/60 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-400 font-mono">
+                      {editingDomain.id}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={newDomainId}
+                      onChange={(e) => setNewDomainId(e.target.value)}
+                      placeholder="e.g. light, war, sea"
+                      className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-400"
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                  {isPersian ? 'ماهیت و قلمرو کیهانی حوزه:' : 'Sphere & Cosmic Nature:'}
+                </label>
+                <textarea
+                  rows={2}
+                  value={newDomainDesc}
+                  onChange={(e) => setNewDomainDesc(e.target.value)}
+                  placeholder={isPersian ? 'این حوزه چه نیروها و مفاهیمی را پوشش می‌دهد...' : 'What forces and concepts fall under this domain...'}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddDomain(false)}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700"
+                >
+                  {isPersian ? 'انصراف' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20"
+                >
+                  {isPersian ? 'ثبت حوزه' : 'Save Domain'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Divine Domains Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {ontology.domains?.map((domain) => (
+              <div
+                key={domain.id}
+                className="bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-5 backdrop-blur-sm shadow-xl hover:border-zinc-700 transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span
+                      style={{ backgroundColor: `${domain.color}20`, borderColor: `${domain.color}50`, color: domain.color }}
+                      className="px-3 py-1 rounded-xl text-xs font-bold border flex items-center gap-1.5"
+                    >
+                      <Crown className="w-3.5 h-3.5" />
+                      {domain.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => openDomainEdit(domain)}
+                      className="text-zinc-500 hover:text-amber-400 p-1 transition-colors"
+                      title={isPersian ? 'ویرایش' : 'Edit'}
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        confirmDelete({
+                          name: domain.name,
+                          title: isPersian ? 'حذف حوزه کیهانی' : 'Delete Divine Domain',
+                          isDefault: domain.isDefault,
+                          used: domainUsage(domain.id),
+                          onConfirm: () => deleteDomain(domain.id),
+                        })
+                      }
+                      className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
+                      title={isPersian ? 'حذف' : 'Delete'}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-zinc-300 leading-relaxed min-h-[36px] mb-3">{domain.description}</p>
+                </div>
+
+                <div className="pt-3 border-t border-zinc-800/60 flex items-center justify-between text-[11px] text-zinc-500 font-mono">
+                  <span className="text-amber-400 font-bold">
+                    {isPersian ? `ایزد: ${domainUsage(domain.id)}` : `Deities: ${domainUsage(domain.id)}`}
+                  </span>
+                  <span>{domain.id}</span>
                 </div>
               </div>
             ))}

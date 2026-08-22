@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { StoryTreeCanvas } from '@/components/studio/StoryTreeCanvas';
+import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
 import { GitBranch, Sparkles, BookOpen, Layers, Plus, Terminal, RotateCcw, X, MapPin } from 'lucide-react';
 import { notify } from '@/lib/notify';
 
@@ -43,6 +44,7 @@ export default function StoryBeatsStudioPage() {
           prompt: `${scenePrompt}. Location: ${sceneLocationId}`,
           customSystemPrompt: sceneSystemPrompt,
           themeContext: story.worldBible.themeNotes,
+          worldContext: buildWorldContextString(story),
           isPersian,
         }),
       });

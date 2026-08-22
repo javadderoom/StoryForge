@@ -5,6 +5,7 @@ import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { Sparkles, Plus, Trash2, Edit2, MapPin, X, Flame, Layers, ShieldAlert } from 'lucide-react';
 import { WorldLocation } from '@/lib/types';
 import { notify } from '@/lib/notify';
+import AiFillSection from '@/components/studio/AiFillSection';
 
 const DANGER_MAP: Record<number, { labelEn: string; labelFa: string; badgeClass: string; borderClass: string }> = {
   1: {
@@ -138,42 +139,14 @@ export default function LocationsStudioPage() {
     setShowAddModal(false);
   };
 
-  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
-
-  const handleAiGenerate = async () => {
-    setIsGeneratingAi(true);
-    try {
-      const res = await fetch('/api/studio/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'location',
-          isPersian,
-          themeContext: story.worldBible.themeNotes,
-        }),
-      });
-      const json = await res.json();
-      if (json.success && json.data) {
-        addLocation({
-          id: `loc_${Date.now().toString(36)}`,
-          name: json.data.name || (isPersian ? 'مکان تازه کشف‌شده' : 'Newly Discovered Site'),
-          region: json.data.region || (isPersian ? 'ناشناخته' : 'Unknown'),
-          description: json.data.description || '',
-          atmosphere: json.data.atmosphere || '',
-          category: 'dungeon',
-          dangerLevel: json.data.dangerLevel || 3,
-          connectedLocationIds: [],
-          specialRules: json.data.specialRules || undefined,
-        });
-        notify.success(isPersian ? 'مکان جدید با موفقیت توسط هوش مصنوعی خلق شد' : 'Location forged by AI');
-      } else {
-        notify.error(isPersian ? 'خطا در خلق مکان' : 'Failed to generate location');
-      }
-    } catch {
-      notify.error(isPersian ? 'خطا در ارتباط با هوش مصنوعی' : 'AI connection error');
-    } finally {
-      setIsGeneratingAi(false);
-    }
+  const applyAiFill = (data: Record<string, unknown>) => {
+    if (!locName && data.name) setLocName(data.name as string);
+    if (!locRegion && data.region) setLocRegion(data.region as string);
+    if (data.dangerLevel) setLocDangerLevel(data.dangerLevel as typeof locDangerLevel);
+    if (!locDesc && data.description) setLocDesc(data.description as string);
+    if (!locAtmosphere && data.atmosphere) setLocAtmosphere(data.atmosphere as string);
+    if (!locSpecialRules && Array.isArray(data.specialRules) && (data.specialRules as string[]).length)
+      setLocSpecialRules((data.specialRules as string[]).join('\n'));
   };
 
   return (
@@ -194,16 +167,6 @@ export default function LocationsStudioPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleAiGenerate}
-            disabled={isGeneratingAi}
-            className="px-3.5 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-amber-300 text-xs font-bold flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50"
-          >
-            <Sparkles className={`w-3.5 h-3.5 ${isGeneratingAi ? 'animate-spin' : 'text-amber-400'}`} />
-            <span>
-              {isGeneratingAi ? (isPersian ? 'در حال کشف...' : 'Discovering...') : isPersian ? '⚡ دستیار هوش مصنوعی' : '⚡ AI Co-Pilot'}
-            </span>
-          </button>
           <span className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 px-3.5 py-1.5 rounded-xl font-mono flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-amber-400" />
             {locations.length} {isPersian ? 'مکان ثبت‌شده' : 'Registered Locations'}
@@ -359,6 +322,8 @@ export default function LocationsStudioPage() {
             </div>
 
             <form onSubmit={handleSaveLocation} className="space-y-4">
+              <AiFillSection type="location" onFilled={applyAiFill} />
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">

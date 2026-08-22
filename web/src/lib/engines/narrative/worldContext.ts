@@ -10,6 +10,9 @@ export interface WorldContextBlocks {
   bestiary: string[];
   religions: string[];
   dramaBonds: string[];
+  locations: string[];
+  npcs: string[];
+  laws: string[];
   ontologySummary?: string;
 }
 
@@ -29,6 +32,9 @@ export function buildWorldContextBlocks(story: { worldBible?: WorldBible | null 
       bestiary: [],
       religions: [],
       dramaBonds: [],
+      locations: [],
+      npcs: [],
+      laws: [],
     };
   }
 
@@ -96,10 +102,39 @@ export function buildWorldContextBlocks(story: { worldBible?: WorldBible | null 
     8
   );
 
-  const ontologySummary =
-    wb.ontology && wb.ontology.relationTypes.length > 0
-      ? `Relation types in this world: ${wb.ontology.relationTypes.map((r) => r.name).join(', ')}.`
-      : undefined;
+  const locations = cap(
+    (wb.locations ?? []).map(
+      (l) =>
+        `${l.name} (${l.region || 'unknown region'}, danger ${l.dangerLevel}${
+          l.category ? `, ${l.category}` : ''
+        }) — ${l.description}`
+    ),
+    12
+  );
+
+  const npcs = cap(
+    (wb.npcs ?? []).map(
+      (n) =>
+        `${n.name} (${n.role || 'unknown role'}) — ${n.title || ''}; goals: ${
+          n.goals.join(', ') || 'unknown'
+        }`
+    ),
+    12
+  );
+
+  const laws = cap(
+    (wb.laws ?? []).map((law) => `${law.rule} (${law.category}) — ${law.description}`),
+    10
+  );
+
+  const ontologyLines: string[] = [];
+  if (wb.ontology?.relationTypes?.length) {
+    ontologyLines.push(`Relation types: ${wb.ontology.relationTypes.map((r) => r.name).join(', ')}.`);
+  }
+  if (wb.ontology?.domains?.length) {
+    ontologyLines.push(`Domains of gods: ${wb.ontology.domains.map((d) => d.name).join(', ')}.`);
+  }
+  const ontologySummary = ontologyLines.length ? ontologyLines.join(' ') : undefined;
 
   return {
     worldSummary: wb.summary || undefined,
@@ -111,6 +146,36 @@ export function buildWorldContextBlocks(story: { worldBible?: WorldBible | null 
     bestiary,
     religions,
     dramaBonds,
+    locations,
+    npcs,
+    laws,
     ontologySummary,
   };
+}
+
+/**
+ * Renders the compressed world-context blocks into a compact, labeled string
+ * suitable for injecting into AI generation prompts. Skips empty sections.
+ */
+export function formatWorldContext(blocks: WorldContextBlocks): string {
+  const sections: string[] = [];
+  if (blocks.worldSummary) sections.push(`World Summary: ${blocks.worldSummary}`);
+  if (blocks.themeNotes) sections.push(`Theme Notes: ${blocks.themeNotes}`);
+  if (blocks.authoredSystemPrompt) sections.push(`Author's Directive: ${blocks.authoredSystemPrompt}`);
+  if (blocks.factions.length) sections.push(`Factions:\n- ${blocks.factions.join('\n- ')}`);
+  if (blocks.timeline.length) sections.push(`Timeline:\n- ${blocks.timeline.join('\n- ')}`);
+  if (blocks.artifacts.length) sections.push(`Artifacts:\n- ${blocks.artifacts.join('\n- ')}`);
+  if (blocks.bestiary.length) sections.push(`Bestiary:\n- ${blocks.bestiary.join('\n- ')}`);
+  if (blocks.religions.length) sections.push(`Religions/Deities:\n- ${blocks.religions.join('\n- ')}`);
+  if (blocks.dramaBonds.length) sections.push(`Drama Bonds:\n- ${blocks.dramaBonds.join('\n- ')}`);
+  if (blocks.locations.length) sections.push(`Places/Locations:\n- ${blocks.locations.join('\n- ')}`);
+  if (blocks.npcs.length) sections.push(`NPCs:\n- ${blocks.npcs.join('\n- ')}`);
+  if (blocks.laws.length) sections.push(`World Laws:\n- ${blocks.laws.join('\n- ')}`);
+  if (blocks.ontologySummary) sections.push(blocks.ontologySummary);
+  return sections.join('\n\n');
+}
+
+/** Convenience: build the context blocks and format them in one call. */
+export function buildWorldContextString(story: { worldBible?: WorldBible | null }): string {
+  return formatWorldContext(buildWorldContextBlocks(story));
 }

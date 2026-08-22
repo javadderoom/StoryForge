@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { NPCDossier, NPCDramaBond } from '@/lib/types';
 import { notify } from '@/lib/notify';
+import AiFillSection from '@/components/studio/AiFillSection';
 import {
   User,
   MessageSquare,
@@ -144,6 +145,21 @@ export default function NpcDossiersPage() {
       addNpc({ ...npcForm });
     }
     setNpcModalOpen(false);
+  };
+
+  const applyAiFill = (data: Record<string, unknown>) => {
+    setNpcForm((prev) => ({
+      ...prev,
+      name: prev.name.trim() ? prev.name : (data.name as string) || prev.name,
+      title: prev.title.trim() ? prev.title : (data.title as string) || prev.title,
+      role: (data.role as string) || prev.role,
+      speechStyle: prev.speechStyle.trim() ? prev.speechStyle : (data.speechStyle as string) || prev.speechStyle,
+      personalityTraits: prev.personalityTraits.length
+        ? prev.personalityTraits
+        : ((data.personalityTraits as string[]) || []),
+      goals: prev.goals.length ? prev.goals : ((data.goals as string[]) || []),
+      secrets: prev.secrets.length ? prev.secrets : ((data.secrets as NPCDossier['secrets']) || []),
+    }));
   };
 
   const handleDeleteNpc = async (npc: NPCDossier) => {
@@ -638,6 +654,8 @@ export default function NpcDossiersPage() {
             </div>
 
             <form onSubmit={handleSaveNpc} className="space-y-4">
+              <AiFillSection type="npc" onFilled={applyAiFill} />
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">{t.npcName}</label>
