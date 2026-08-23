@@ -106,4 +106,42 @@ describe('StudioGenerate API - AI Co-Pilot & Procedural Synthesis Engine', () =>
       });
     });
   });
+
+  describe('Edit Mode with Existing Entity Payload', () => {
+    it('generates schema-compliant deity update when editing existing entity', async () => {
+      const existingDeity = {
+        id: 'deity_artavan_01',
+        name: 'آرتاوان',
+        title: 'ایزد نظم و آغاز بیبدل',
+        domain: 'light',
+        sacredSymbol: 'نماد خورشید زرین و زنجیر زرین',
+        coreDogma: 'اصول اولیه',
+        taboos: ['شک در آفرینش'],
+        divineBlessings: ['نور حقیقت'],
+        affiliatedFactionIds: [],
+        holyLocationIds: [],
+      };
+
+      const requestedChange = 'اصول دین را با ۵ اصل جدید جایگزین کن: ۱. آغاز بیبدل ۲. کنترل آگاهی ۳. حقیقت بسته ۴. پاسداری از زنجیرها ۵. سکوت';
+      const editPrompt = `Current entity JSON:\n${JSON.stringify(existingDeity, null, 2)}\n\nRequested changes to apply:\n${requestedChange}\n\nReturn the COMPLETE updated entity as a JSON object with ALL original fields preserved and only the requested changes applied. Output valid JSON only matching the entity schema.`;
+      const editSystem = 'تو در حال ویرایش یک موجودیت موجود هستی. خروجی را به صورت شیء JSON کامل شامل تمام فیلدهای پیشین (با اعمال تغییرات) برگردان. نام و شناسه را حفظ کن. فقط JSON معتبر خروجی بده.\n\n';
+
+      const req = createMockRequest({
+        type: 'deity',
+        isPersian: true,
+        prompt: requestedChange,
+        customSystemPrompt: editSystem + editPrompt,
+      });
+
+      const res = await POST(req);
+      assert.equal(res.status, 200);
+
+      const json = await res.json();
+      assert.equal(json.success, true);
+      assert.ok(json.data, 'Expected data payload for deity update');
+
+      const parseResult = WorldDeitySchema.safeParse(json.data);
+      assert.equal(parseResult.success, true, 'Updated deity must conform to WorldDeitySchema');
+    });
+  });
 });

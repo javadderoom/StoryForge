@@ -7,9 +7,12 @@ An AI-powered interactive RPG novel platform where readers make high-stakes choi
 ---
 
 ## 📖 Documentation & Architecture
+ 
+ * 🚀 **[Run Guide (Local Setup)](file:///g:/Code/StoryForge/docs/run.md)**
+ * 🗺️ **[Feature Roadmap & Milestones](file:///g:/Code/StoryForge/docs/roadmap.md)**
+ * 🪄 **[AI World-Building Architecture Spec](file:///g:/Code/StoryForge/docs/AI_WORLDBUILDING_SPEC.md)**
+ * 🏛️ **[Master Plan & Technical Spec](file:///g:/Code/StoryForge/docs/MASTER_PLAN.md)**
 
-* 🚀 **[Run Guide (Local Setup)](file:///g:/Code/StoryForge/docs/run.md)**
-* 🗺️ **[Feature Roadmap & Milestones](file:///g:/Code/StoryForge/docs/roadmap.md)**
 
 ---
 

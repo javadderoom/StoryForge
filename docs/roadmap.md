@@ -38,6 +38,7 @@ This document outlines the upcoming feature roadmap and planned capabilities for
 ---
 
 ### 5. 🌍 Deep World-Building & Lore Engine (New Target Goals)
+* 📖 **[Detailed AI World-Building Architecture Spec](file:///g:/Code/StoryForge/docs/AI_WORLDBUILDING_SPEC.md)**
 * **⏳ Historical Eras & Interactive Timeline (`/studio/timeline`)**:
   * Visual chronological timeline editor for world history, ancient wars, cosmic catastrophes, and historical schisms.
   * Era-based lore injection into AI prompts and history/arcana skill check resolutions.
@@ -49,8 +50,13 @@ This document outlines the upcoming feature roadmap and planned capabilities for
   * Modeling cosmic deities, religious dogmas, sacred taboos, divine blessings, and heretical cults that influence faction standing and NPC morals.
 * **👥 NPC-to-NPC Interpersonal Relationship Web**:
   * Visualizing and tracking direct character-to-character bonds (*Blood Debt, Master & Apprentice, Secret Romance, Blood Feud, Blackmail*) to power dramatic narrative betrayal and alliance mechanics.
-* **🪄 AI World-Building Co-Pilot (Genesis Generator)**:
-  * In-studio AI brainstorming assistant for generating coherent factions, location atmospheres, plot secrets, and conflict hooks with a single click.
+* **🪄 AI World-Building Co-Pilot & Studio Upgrades**:
+  * *Seed-to-Cosmos Genesis Generator* and *Contradiction Radar (Consistency Auditor)* in `/studio/world`.
+  * *Sub-Zone & Dungeon Spawner* and *"Populate Location" Ecosystem Macro* in `/studio/locations`.
+  * *Dialogue Style Guides & RPG Stat Alignment* in `/studio/npcs`.
+  * *Theme-to-RPG System Synthesizer* in `/studio/rpg`.
+  * *3-Act Branching Plot Tree & Choice Balancer* in `/studio/beats`.
+  * *Contextual Floating AI Assistant Drawer ("The Oracle")* across all studio pages.
 
 ---
 
@@ -58,4 +64,5 @@ This document outlines the upcoming feature roadmap and planned capabilities for
 * **Encounter Mode**: Dedicated turn-based encounter interface for boss battles and combat beats.
 * **Maneuver Options**: Offensive strikes, defensive parries, spellcasting, and tactical item consumption.
 * **Dynamic Enemy AI**: Enemy intent indicators, armor/health tracking, and deterministic dice resolution.
+
 

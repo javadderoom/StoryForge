@@ -150,6 +150,94 @@ export async function generateStructuredJson<T = any>(
 /**
  * Executes a plain-text prompt across the cascading model queue with proxy support.
  */
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+/**
+ * Executes a multi-turn plain-text chat across the cascading model queue.
+ * Maps the conversation history to Gemini `contents` (user -> user, assistant -> model)
+ * while keeping a single system instruction. Used by the studio AI Oracle chat.
+ */
+export async function generateChat(
+  messages: ChatMessage[],
+  systemInstruction?: string,
+  options: GenerateOptions = {}
+): Promise<GenerationResult<string> | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+
+  if (!messages.length) {
+    return null;
+  }
+
+  const baseQueue = getBaseQueueForTask(options.taskType);
+  const modelQueue = options.preferredModel
+    ? [options.preferredModel, ...baseQueue.filter((m) => m !== options.preferredModel)]
+    : baseQueue;
+
+  for (const model of modelQueue) {
+    try {
+      const endpoint = getGeminiEndpoint(model);
+
+      const contents = messages.map((m) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      }));
+
+      const requestBody: any = {
+        contents,
+        generationConfig: {
+          temperature: options.temperature ?? 0.8,
+        },
+      };
+
+      if (systemInstruction) {
+        requestBody.systemInstruction = {
+          parts: [{ text: systemInstruction }],
+        };
+      }
+
+      if (options.maxOutputTokens) {
+        requestBody.generationConfig.maxOutputTokens = options.maxOutputTokens;
+      }
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (res.status === 429 || res.status === 503) {
+        console.warn(`[GeminiClient] ${model} throttled (${res.status}). Cascading...`);
+        continue;
+      }
+
+      if (!res.ok) {
+        continue;
+      }
+
+      const json = await res.json();
+      const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (rawText) {
+        return {
+          data: rawText,
+          rawText,
+          modelUsed: model,
+        };
+      }
+    } catch (err) {
+      console.warn(`[GeminiClient] Failover triggered for model ${model}:`, err);
+    }
+  }
+
+  return null;
+}
+
 export async function generateText(
   prompt: string,
   systemInstruction?: string,

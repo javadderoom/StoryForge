@@ -6,6 +6,7 @@ interface GenerateRequest {
     | 'world'
     | 'location'
     | 'npc'
+    | 'faction'
     | 'artifact'
     | 'creature'
     | 'deity'
@@ -26,6 +27,7 @@ interface GenerateRequest {
   dangerLevel?: 1 | 2 | 3 | 4 | 5;
   npcRole?: string;
   worldContext?: string;
+  anchor?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -46,6 +48,7 @@ export async function POST(req: NextRequest) {
       dangerLevel,
       npcRole,
       worldContext,
+      anchor,
     } = body;
 
     // Build author constraints so the AI honors the chosen "type" (rarity/species/domain/...)
@@ -94,12 +97,14 @@ Generate a high-quality JSON object for a ${type} within a dark fantasy / grim-a
 ${isPersian ? 'Output all narrative text, names, descriptions in literary Persian (Farsi).' : 'Output in literary English.'}
 Theme context: ${themeContext || 'Dark basalt mountain fortress, political tension, forbidden alchemy'}
 User guidance: ${prompt || 'Create something rich with atmospheric depth and literary gravitas.'}
-${worldContext ? `World context (existing lore — stay consistent with it):\n${worldContext}` : ''}${uniquenessInstruction}
+${worldContext ? `World context (existing lore — stay consistent with it):\n${worldContext}` : ''}${uniquenessInstruction}${anchor ? `\n\nANCHOR — This new ${type} MUST be thematically tied to the following existing lore element; derive its concept, theme, powers/flavor, and relations from it rather than introducing an unrelated motif:\n${anchor}` : ''}
 Strictly output a valid JSON object matching the requested schema. Do not enclose in markdown blocks if possible, or return clean JSON.${constraintLine}`;
 
     let schemaInstruction = '';
     if (type === 'world') {
       schemaInstruction = `Schema: { "worldName": string, "summary": string, "themeNotes": string, "aiSystemPrompt": string, "laws": [{ "rule": string, "category": "magic"|"physics"|"society"|"divine", "description": string, "isImmutable": true }], "factions": [{ "id": string, "name": string, "description": string, "alignment": string, "publicGoals": string }] }`;
+    } else if (type === 'faction') {
+      schemaInstruction = `Schema: { "name": string, "description": string, "alignment": string, "publicGoals": string, "secretAgendas": string, "territoryIds": string[], "rivalFactionIds": string[], "alliedFactionIds": string[] }`;
     } else if (type === 'location') {
       schemaInstruction = `Schema: { "name": string, "region": string, "description": string, "dangerLevel": 1|2|3|4|5, "atmosphere": string, "specialRules": string[] }`;
     } else if (type === 'npc') {
@@ -122,11 +127,15 @@ Strictly output a valid JSON object matching the requested schema. Do not enclos
       ? `${constraintLine}\n${schemaInstruction}`
       : schemaInstruction;
 
+    const userPromptText = customSystemPrompt?.trim()
+      ? `Apply the requested changes to the existing ${type} entity and return the complete updated JSON strictly matching the schema:\n${effectiveSchemaInstruction}`
+      : `Generate a ${type} entity with creative literary depth.\n${effectiveSchemaInstruction}`;
+
     const aiResult = await generateStructuredJson(
-      `Generate a ${type} entity with creative literary depth.\n${effectiveSchemaInstruction}`,
+      userPromptText,
       systemPrompt,
       {
-        temperature: 0.8,
+        temperature: customSystemPrompt?.trim() ? 0.7 : 0.8,
         taskType: type === 'world' ? 'world' : taskType,
       }
     );
@@ -144,7 +153,31 @@ Strictly output a valid JSON object matching the requested schema. Do not enclos
     const timestamp = Date.now().toString(36);
     let fallbackData: any = null;
 
-    if (type === 'location') {
+    if (type === 'faction') {
+      fallbackData = isPersian
+        ? {
+            id: `fac_${timestamp}`,
+            name: 'برادری چکمه‌های سربی',
+            description: 'گروهی نیمه‌نظامی از کهنه‌سربازان بندری که مالیات‌های سایه را در حاشیه اسکله وصول می‌کنند.',
+            alignment: 'اقتدارگرای قانون‌مند',
+            territoryIds: [],
+            rivalFactionIds: [],
+            alliedFactionIds: [],
+            publicGoals: 'حفظ نظم در مناطق بندری و جمع‌آوری خراج نیمه‌رسمی',
+            secretAgendas: 'قاچاق تسلیحات به جناح‌های رقیب برای دامن زدن به جنگ قدرت',
+          }
+        : {
+            id: `fac_${timestamp}`,
+            name: 'The Lead-Soled Brotherhood',
+            description: 'A semi-military guild of veteran dockhands who collect shadow-tariffs along the harbor fringe.',
+            alignment: 'Lawful Authoritarian',
+            territoryIds: [],
+            rivalFactionIds: [],
+            alliedFactionIds: [],
+            publicGoals: 'Preserve order in the harbor districts and levy unofficial tariffs',
+            secretAgendas: 'Smuggle arms to rival factions to stoke a power war',
+          };
+    } else if (type === 'location') {
       fallbackData = isPersian
         ? {
             id: `loc_${timestamp}`,

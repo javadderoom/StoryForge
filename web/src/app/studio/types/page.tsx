@@ -981,6 +981,38 @@ export default function TypesStudioPage() {
                 />
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                    {isPersian ? 'رنگ نمایشی در گراف:' : 'Theme Color:'}
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    {QUICK_COLORS.slice(0, 6).map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setNewLawColor(c)}
+                        style={{ backgroundColor: c }}
+                        className={`w-6 h-6 rounded-full border-2 transition-all ${
+                          newLawColor === c ? 'border-white scale-110 shadow-md' : 'border-transparent hover:scale-105'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                    {isPersian ? 'رنگ دلخواه (Custom):' : 'Custom Color:'}
+                  </label>
+                  <input
+                    type="color"
+                    value={newLawColor}
+                    onChange={(e) => setNewLawColor(e.target.value)}
+                    className="w-10 h-9 rounded-xl bg-zinc-950 border border-zinc-700 cursor-pointer"
+                  />
+                </div>
+              </div>
+
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -1145,6 +1177,38 @@ export default function TypesStudioPage() {
                 />
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                    {isPersian ? 'رنگ نمایشی در گراف:' : 'Theme Color:'}
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    {QUICK_COLORS.slice(0, 6).map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setNewRoleColor(c)}
+                        style={{ backgroundColor: c }}
+                        className={`w-6 h-6 rounded-full border-2 transition-all ${
+                          newRoleColor === c ? 'border-white scale-110 shadow-md' : 'border-transparent hover:scale-105'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                    {isPersian ? 'رنگ دلخواه (Custom):' : 'Custom Color:'}
+                  </label>
+                  <input
+                    type="color"
+                    value={newRoleColor}
+                    onChange={(e) => setNewRoleColor(e.target.value)}
+                    className="w-10 h-9 rounded-xl bg-zinc-950 border border-zinc-700 cursor-pointer"
+                  />
+                </div>
+              </div>
+
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -1307,6 +1371,38 @@ export default function TypesStudioPage() {
                   placeholder={isPersian ? 'این حوزه چه نیروها و مفاهیمی را پوشش می‌دهد...' : 'What forces and concepts fall under this domain...'}
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                    {isPersian ? 'رنگ نمایشی در گراف:' : 'Theme Color:'}
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    {QUICK_COLORS.slice(0, 6).map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setNewDomainColor(c)}
+                        style={{ backgroundColor: c }}
+                        className={`w-6 h-6 rounded-full border-2 transition-all ${
+                          newDomainColor === c ? 'border-white scale-110 shadow-md' : 'border-transparent hover:scale-105'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                    {isPersian ? 'رنگ دلخواه (Custom):' : 'Custom Color:'}
+                  </label>
+                  <input
+                    type="color"
+                    value={newDomainColor}
+                    onChange={(e) => setNewDomainColor(e.target.value)}
+                    className="w-10 h-9 rounded-xl bg-zinc-950 border border-zinc-700 cursor-pointer"
+                  />
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">

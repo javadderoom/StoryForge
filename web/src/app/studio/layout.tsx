@@ -28,6 +28,8 @@ import {
   Sun,
   MapPin,
   Edit2,
+  MessageSquare,
+  ChevronRight,
 } from 'lucide-react';
 
 function StudioShell({ children }: { children: React.ReactNode }) {
@@ -143,7 +145,39 @@ function StudioShell({ children }: { children: React.ReactNode }) {
       icon: Sparkles,
       isSpecial: true,
     },
+    {
+      href: '/studio/chat',
+      label: isPersian ? 'مشاور هوش مصنوعی' : 'AI Oracle',
+      shortLabel: isPersian ? 'مشاور' : 'Oracle',
+      icon: MessageSquare,
+      isSpecial: true,
+    },
   ];
+
+  const NAV_SECTIONS = [
+    { key: 'library', label: isPersian ? 'کتابخانه' : 'Library' },
+    { key: 'world', label: isPersian ? 'جهان‌سازی' : 'World Building' },
+    { key: 'entities', label: isPersian ? 'موجودیت‌ها' : 'Entities' },
+    { key: 'story', label: isPersian ? 'روایت و سیستم‌ها' : 'Narrative & Systems' },
+    { key: 'ai', label: isPersian ? 'استودیو هوش مصنوعی' : 'AI Studio' },
+  ] as const;
+
+  const SECTION_OF: Record<string, string> = {
+    '/studio/stories': 'library',
+    '/studio/world': 'world',
+    '/studio/locations': 'world',
+    '/studio/lore-graph': 'world',
+    '/studio/timeline': 'world',
+    '/studio/religions': 'world',
+    '/studio/types': 'world',
+    '/studio/artifacts': 'entities',
+    '/studio/bestiary': 'entities',
+    '/studio/npcs': 'entities',
+    '/studio/beats': 'story',
+    '/studio/rpg': 'story',
+    '/studio/sandbox': 'ai',
+    '/studio/chat': 'ai',
+  };
 
   const isCurrentActive = (href: string) => {
     if (pathname === '/studio' && href === '/studio/stories') return true;
@@ -151,6 +185,9 @@ function StudioShell({ children }: { children: React.ReactNode }) {
   };
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const toggleSection = (key: string) =>
+    setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   return (
     <div className="min-h-screen bg-[#090a0f] text-zinc-100 flex flex-col md:flex-row antialiased selection:bg-amber-500/30 selection:text-amber-200">
@@ -158,7 +195,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-72 bg-[#0c0d14] border-r border-zinc-800/80 p-5 shrink-0 justify-between sticky top-0 h-screen z-40">
-        <div>
+        <div className="flex-1 min-h-0 flex flex-col">
           {/* Header Branding */}
           <div className="flex items-center gap-3 pb-5 border-b border-zinc-800/80">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-rose-600 flex items-center justify-center shadow-lg shadow-amber-500/20 font-black text-white text-lg shrink-0">
@@ -264,46 +301,65 @@ function StudioShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="mt-5 space-y-1.5">
-            <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-3 mb-2">
-              {isPersian ? 'بخش‌های استودیو' : 'Studio Modules'}
-            </div>
-            {navItems.map((item) => {
-              const active = isCurrentActive(item.href);
-              const Icon = item.icon;
+          {/* Navigation Links (grouped) */}
+          <div className="mt-5 flex-1 min-h-0 overflow-y-auto pr-1 space-y-4">
+            {NAV_SECTIONS.map((section) => {
+              const items = navItems.filter((it) => SECTION_OF[it.href] === section.key);
+              if (!items.length) return null;
+              const hasActive = items.some((it) => isCurrentActive(it.href));
+              const open = hasActive || !collapsedSections[section.key];
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                    active
-                      ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-sm shadow-amber-500/10'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon className={`w-4 h-4 ${active ? 'text-amber-400' : 'text-zinc-500'}`} />
-                    <span>{item.label}</span>
-                  </div>
-                  {item.count !== undefined && (
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded-md font-mono ${
-                        active
-                          ? 'bg-amber-500/20 text-amber-300'
-                          : 'bg-zinc-800/80 text-zinc-500'
-                      }`}
-                    >
-                      {item.count}
-                    </span>
+                <div key={section.key}>
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(section.key)}
+                    className="w-full flex items-center justify-between px-3 py-1.5 mb-1 text-[10px] font-bold text-zinc-500 uppercase tracking-wider hover:text-zinc-300 transition-colors"
+                  >
+                    <span>{section.label}</span>
+                    <ChevronRight
+                      className={`w-3 h-3 transition-transform ${open ? 'rotate-90' : ''}`}
+                    />
+                  </button>
+                  {open && (
+                    <nav className="space-y-1.5">
+                      {items.map((item) => {
+                        const active = isCurrentActive(item.href);
+                        const Icon = item.icon;
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                              active
+                                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-sm shadow-amber-500/10'
+                                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <Icon className={`w-4 h-4 ${active ? 'text-amber-400' : 'text-zinc-500'}`} />
+                              <span>{item.label}</span>
+                            </div>
+                            {item.count !== undefined && (
+                              <span
+                                className={`text-[10px] px-2 py-0.5 rounded-md font-mono ${
+                                  active ? 'bg-amber-500/20 text-amber-300' : 'bg-zinc-800/80 text-zinc-500'
+                                }`}
+                              >
+                                {item.count}
+                              </span>
+                            )}
+                            {item.isSpecial && (
+                              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </nav>
                   )}
-                  {item.isSpecial && (
-                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                  )}
-                </Link>
+                </div>
               );
             })}
-          </nav>
+          </div>
         </div>
 
         {/* Footer Actions */}
@@ -369,7 +425,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
           {!selectedStoryId && (
             <div className="mb-6 flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-200">
               <BookOpen className="w-5 h-5 shrink-0" />
-              <div>
+        <div className="flex-1 min-h-0 flex flex-col">
                 <p className="font-semibold">
                   {isPersian ? 'هنوز داستانی انتخاب نشده' : 'No story selected'}
                 </p>
