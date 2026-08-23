@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { WorldLaw, Faction } from '@/lib/types';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
+import { GenesisWorldData } from '@/lib/engines/world/GenesisSchemas';
 import { notify } from '@/lib/notify';
 import {
   BookOpen,
@@ -34,6 +35,8 @@ export default function WorldBiblePage() {
     addFaction,
     editFaction,
     deleteFaction,
+    addLocation,
+    addDeity,
   } = useStudioStory();
 
   // World Meta edit state
@@ -88,6 +91,28 @@ export default function WorldBiblePage() {
   );
   const [isGeneratingWorld, setIsGeneratingWorld] = useState(false);
 
+  // Plan 01 — Genesis Generator (One-Click Seed-to-Cosmos)
+  const [genesisModalOpen, setGenesisModalOpen] = useState(false);
+  const [genesisPrompt, setGenesisPrompt] = useState('');
+  const [isGeneratingGenesis, setIsGeneratingGenesis] = useState(false);
+
+  // Plan 01 — Contradiction Radar (Lore Consistency Auditor)
+  const [radarOpen, setRadarOpen] = useState(false);
+  const [isAuditing, setIsAuditing] = useState(false);
+  const [auditReport, setAuditReport] = useState<{
+    score: number;
+    summary: string;
+    findings: Array<{
+      id: string;
+      severity: 'error' | 'warning' | 'suggestion';
+      category: string;
+      title: string;
+      description: string;
+      involvedEntities: Array<{ entityType: string; name: string }>;
+      suggestedFix: string;
+    }>;
+  } | null>(null);
+
   const t = {
     heading: isPersian ? 'انجیل جهان و قوانین ثابت' : 'World Bible & Lore Graph',
     subheading: isPersian
@@ -106,6 +131,12 @@ export default function WorldBiblePage() {
     addFaction: isPersian ? '+ ثبت جناح جدید' : '+ Add Faction',
     editMeta: isPersian ? 'ویرایش مشخصات جهان' : 'Edit World Details',
     aiWorldGenBtn: isPersian ? '⚡ خلق جهان با هوش مصنوعی (Gemini 3.7 Flash)' : '⚡ Synthesize World (Gemini 3.7 Flash)',
+    genesisBtn: isPersian ? '🌌 تولد جهان (یک‌کلیک)' : '🌌 One-Click Genesis',
+    genesisPresets: isPersian
+      ? ['آرخیپل تاریک و بی‌خورشید', 'امپراتوری کیمیاگری گریم‌دارک', 'فانتزی اسطوره‌ای جاده ابریشم']
+      : ['Sunless Archipelago', 'Grimdark Alchemical Empire', 'Silk Road Mythic Fantasy'],
+    radarBadge: isPersian ? 'سازگاری لور' : 'Lore Consistency',
+    radarRun: isPersian ? '⚡ اجرای رادار تضاد' : '⚡ Run Contradiction Radar',
     save: isPersian ? 'ذخیره تغییرات' : 'Save Changes',
     cancel: isPersian ? 'انصراف' : 'Cancel',
     category: isPersian ? 'دسته‌بندی' : 'Category',
@@ -294,6 +325,99 @@ export default function WorldBiblePage() {
     }
   };
 
+  // Plan 01 — One-Click Genesis Generator (Seed-to-Cosmos)
+  const handleGenerateGenesis = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!genesisPrompt.trim()) return;
+    setIsGeneratingGenesis(true);
+
+    try {
+      const res = await fetch('/api/studio/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'genesis',
+          prompt: genesisPrompt,
+          themeContext: story.worldBible.themeNotes,
+          isPersian,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.success && json.data) {
+        const g = json.data as GenesisWorldData;
+        // Commit meta
+        updateWorldMeta({
+          worldName: g.worldName,
+          summary: g.summary,
+          themeNotes: g.themeNotes || story.worldBible.themeNotes,
+          aiSystemPrompt: g.aiSystemPrompt || story.worldBible.aiSystemPrompt,
+        });
+        // Commit laws / factions / locations / religions
+        (g.laws || []).forEach((law) => addWorldLaw({ ...law, isImmutable: true }));
+        (g.factions || []).forEach((fac) => addFaction(fac));
+        (g.locations || []).forEach((loc) => addLocation(loc));
+        (g.religions || []).forEach((rel) =>
+          addDeity({
+            ...rel,
+            affiliatedFactionIds: [],
+            holyLocationIds: [],
+          })
+        );
+
+        setGenesisModalOpen(false);
+        notify.success(
+          isPersian
+            ? `جهان "${g.worldName}" با ${g.laws?.length} قانون، ${g.factions?.length} جناح، ${g.locations?.length} مکان و ${g.religions?.length} ایزد خلق شد`
+            : `Genesis "${g.worldName}" committed: ${g.laws?.length} laws, ${g.factions?.length} factions, ${g.locations?.length} locations, ${g.religions?.length} deities`
+        );
+      } else {
+        notify.error(isPersian ? 'خطا در تولد جهان' : 'Failed to generate genesis world');
+      }
+    } catch {
+      notify.error(isPersian ? 'خطا در اتصال به سرور هوش مصنوعی' : 'AI connection error');
+    } finally {
+      setIsGeneratingGenesis(false);
+    }
+  };
+
+  // Plan 01 — Contradiction Radar (Lore Consistency Auditor)
+  const handleRunAudit = async () => {
+    setIsAuditing(true);
+    setRadarOpen(true);
+    try {
+      const res = await fetch('/api/studio/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'audit_world',
+          worldBible: story.worldBible,
+          isPersian,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        setAuditReport(json.data);
+      } else {
+        notify.error(isPersian ? 'خطا در تحلیل تضادهای جهان' : 'Failed to run lore audit');
+      }
+    } catch {
+      notify.error(isPersian ? 'خطا در اتصال به سرور' : 'Connection error');
+    } finally {
+      setIsAuditing(false);
+    }
+  };
+
+  const radarScore = auditReport?.score ?? null;
+  const radarSeverityColor =
+    radarScore === null
+      ? 'text-zinc-400 border-zinc-700'
+      : radarScore >= 85
+      ? 'text-emerald-300 border-emerald-500/40'
+      : radarScore >= 60
+      ? 'text-amber-300 border-amber-500/40'
+      : 'text-rose-300 border-rose-500/40';
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Header Banner & Metadata Editor */}
@@ -309,6 +433,13 @@ export default function WorldBiblePage() {
                 <p className="text-sm text-zinc-400 max-w-3xl leading-relaxed">{story.worldBible.summary}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2.5 self-start">
+                <button
+                  onClick={() => setGenesisModalOpen(true)}
+                  className="flex items-center gap-1.5 text-xs bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:from-fuchsia-400 text-zinc-50 px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-fuchsia-500/20 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {t.genesisBtn}
+                </button>
                 <button
                   onClick={() => setAiWorldModalOpen(true)}
                   className="flex items-center gap-1.5 text-xs bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-zinc-950 px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-amber-500/20 cursor-pointer"
@@ -330,6 +461,14 @@ export default function WorldBiblePage() {
                 >
                   <Edit2 className="w-3.5 h-3.5 text-amber-400" />
                   {t.editMeta}
+                </button>
+                <button
+                  onClick={handleRunAudit}
+                  className={`flex items-center gap-1.5 text-xs bg-zinc-900/80 border px-3.5 py-2 rounded-xl font-mono transition-all cursor-pointer ${radarSeverityColor}`}
+                  title={t.radarRun}
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  🛡️ {t.radarBadge}: {radarScore === null ? '—' : `${radarScore}/100`}
                 </button>
                 <span className="text-xs bg-zinc-800/90 border border-zinc-700/60 text-zinc-400 px-3.5 py-2 rounded-xl font-mono">
                   {t.worldIdLabel} {story.worldBible.worldId}
@@ -834,6 +973,181 @@ export default function WorldBiblePage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Plan 01 — Genesis Generator Modal (One-Click Seed-to-Cosmos) */}
+      {genesisModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-zinc-900 border border-fuchsia-500/30 rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="w-5 h-5 text-fuchsia-400" />
+                <div>
+                  <h3 className="text-base font-bold text-zinc-100">
+                    {isPersian ? 'تولد جهان — بذر تا کیهان' : 'Genesis Generator — Seed to Cosmos'}
+                  </h3>
+                  <span className="text-[11px] text-fuchsia-400 font-mono flex items-center gap-1 mt-0.5">
+                    <Zap className="w-3 h-3" /> 4 Laws · 3 Factions · 4 Locations · 2 Deities
+                  </span>
+                </div>
+              </div>
+              <button type="button" onClick={() => setGenesisModalOpen(false)} className="text-zinc-500 hover:text-zinc-300">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleGenerateGenesis} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-300 mb-1.5">
+                  {isPersian ? 'ایده و تم کلی جهان:' : 'World Premise & Guidance:'}
+                </label>
+                <textarea
+                  rows={3}
+                  value={genesisPrompt}
+                  onChange={(e) => setGenesisPrompt(e.target.value)}
+                  placeholder={
+                    isPersian
+                      ? 'مثال: دنیای قرون‌وسطایی تاریک با کوه‌های آتشفشانی، قلعه‌های سیاه‌سنگ و فرقه‌ای مخفی از کیمیاگران شورشی...'
+                      : 'e.g. A volcanic dark fantasy kingdom ruled by iron inquisitors where blood magic is outlawed...'
+                  }
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-fuchsia-400"
+                  required
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {t.genesisPresets.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setGenesisPrompt(preset)}
+                    className="text-[11px] bg-zinc-800 hover:bg-fuchsia-500/20 border border-zinc-700 hover:border-fuchsia-500/40 text-zinc-300 px-3 py-1.5 rounded-xl cursor-pointer transition-all"
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-fuchsia-500/10 border border-fuchsia-500/20 text-xs text-fuchsia-200/90 leading-relaxed flex items-start gap-2.5">
+                <Info className="w-4 h-4 text-fuchsia-400 shrink-0 mt-0.5" />
+                <span>
+                  {isPersian
+                    ? 'با یک کلیک، یک بسته جهانِ یکپارچه شامل قوانین ثابت، جناح‌ها، مکان‌ها و ایزدان خلق و مستقیماً به انجیل جهان متصل می‌شود.'
+                    : 'One click synthesizes a fully interconnected world package (laws, factions, locations, deities) and commits it directly to the World Bible.'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setGenesisModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700"
+                >
+                  {isPersian ? 'انصراف' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isGeneratingGenesis}
+                  className="px-5 py-2 rounded-xl bg-fuchsia-500 hover:bg-fuchsia-400 text-zinc-50 text-xs font-bold shadow-lg shadow-fuchsia-500/20 flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Sparkles className={`w-3.5 h-3.5 ${isGeneratingGenesis ? 'animate-spin' : ''}`} />
+                  <span>
+                    {isGeneratingGenesis
+                      ? isPersian
+                        ? 'در حال تولد جهان...'
+                        : 'Generating Genesis...'
+                      : isPersian
+                      ? '🌌 تولد جهان'
+                      : '🌌 Generate Genesis'}
+                  </span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Plan 01 — Contradiction Radar Drawer */}
+      {radarOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setRadarOpen(false)}>
+          <div
+            className="h-full w-full max-w-md bg-zinc-900 border-l border-zinc-800 shadow-2xl overflow-y-auto p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <Shield className="w-5 h-5 text-rose-400" />
+                <h3 className="text-base font-bold text-zinc-100">
+                  {isPersian ? 'رادار تضاد لور' : 'Contradiction Radar'}
+                </h3>
+              </div>
+              <button type="button" onClick={() => setRadarOpen(false)} className="text-zinc-500 hover:text-zinc-300">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className={`text-3xl font-bold font-mono ${radarSeverityColor.split(' ')[0]}`}>
+                {radarScore === null ? '—' : `${radarScore}/100`}
+              </div>
+              <button
+                type="button"
+                onClick={handleRunAudit}
+                disabled={isAuditing}
+                className="flex items-center gap-1.5 text-xs bg-rose-500/90 hover:bg-rose-500 text-zinc-50 px-3.5 py-2 rounded-xl font-bold disabled:opacity-50 cursor-pointer"
+              >
+                <Zap className={`w-3.5 h-3.5 ${isAuditing ? 'animate-spin' : ''}`} />
+                {isPersian ? 'تحلیل مجدد' : 'Re-Scan'}
+              </button>
+            </div>
+
+            {isAuditing && (
+              <p className="text-xs text-zinc-400">{isPersian ? 'در حال بررسی تضادهای جهان...' : 'Scanning world for contradictions...'}</p>
+            )}
+
+            {!isAuditing && auditReport && (
+              <>
+                <p className="text-xs text-zinc-400 leading-relaxed">{auditReport.summary}</p>
+                <div className="space-y-3">
+                  {auditReport.findings.length === 0 && (
+                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-200">
+                      {isPersian ? 'هیچ تضادی یافت نشد. جهان با ثبات است.' : 'No contradictions found. The world is internally coherent.'}
+                    </div>
+                  )}
+                  {auditReport.findings.map((f) => {
+                    const color =
+                      f.severity === 'error'
+                        ? 'border-rose-500/40 bg-rose-500/5'
+                        : f.severity === 'warning'
+                        ? 'border-amber-500/40 bg-amber-500/5'
+                        : 'border-zinc-700 bg-zinc-800/40';
+                    const sevLabel = f.severity === 'error' ? (isPersian ? 'خطا' : 'ERROR') : f.severity === 'warning' ? (isPersian ? 'هشدار' : 'WARNING') : isPersian ? 'پیشنهاد' : 'ADVICE';
+                    return (
+                      <div key={f.id} className={`rounded-2xl border p-4 space-y-2 ${color}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-zinc-100">{f.title}</span>
+                          <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-md bg-zinc-950/60 text-zinc-300">{sevLabel}</span>
+                        </div>
+                        <p className="text-xs text-zinc-400 leading-relaxed">{f.description}</p>
+                        {f.involvedEntities.length > 0 && (
+                          <p className="text-[11px] text-zinc-500">
+                            {f.involvedEntities.map((e) => e.name).join(' · ')}
+                          </p>
+                        )}
+                        {f.suggestedFix && (
+                          <div className="text-[11px] text-fuchsia-200/90 bg-fuchsia-500/10 border border-fuchsia-500/20 rounded-xl p-2.5 leading-relaxed">
+                            <span className="font-bold text-fuchsia-300">⚡ {isPersian ? 'پیشنهاد اصلاح: ' : 'Suggested fix: '}</span>
+                            {f.suggestedFix}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

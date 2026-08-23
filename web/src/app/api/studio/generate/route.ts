@@ -1,5 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateStructuredJson } from '@/lib/ai/geminiClient';
+import {
+  GenesisWorldSchema,
+  ContradictionAuditReportSchema,
+  buildGenesisUserPrompt,
+  buildAuditUserPrompt,
+  GENESIS_SYSTEM_DIRECTIVES,
+  AUDIT_SYSTEM_DIRECTIVES,
+  GenesisWorldData,
+  ContradictionFinding,
+} from '@/lib/engines/world/GenesisSchemas';
+import { LoreAuditor } from '@/lib/engines/world/LoreAuditor';
+import { WorldBible } from '@/lib/types/world';
+import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
 
 interface GenerateRequest {
   type:
@@ -12,12 +25,15 @@ interface GenerateRequest {
     | 'deity'
     | 'timeline_event'
     | 'world_law'
-    | 'scene';
+    | 'scene'
+    | 'genesis'
+    | 'audit_world';
   prompt?: string;
   themeContext?: string;
   customSystemPrompt?: string;
   taskType?: 'world' | 'scene' | 'default';
   isPersian?: boolean;
+  worldBible?: WorldBible;
   // Author-controlled generation constraints (the "type" they want the AI to honor)
   rarity?: 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
   speciesCategory?: 'beast' | 'monstrosity' | 'undead' | 'elemental' | 'flora' | 'draconic';
@@ -49,7 +65,91 @@ export async function POST(req: NextRequest) {
       npcRole,
       worldContext,
       anchor,
+      worldBible,
     } = body;
+
+    // ----------------------------------------------------------------
+    // Plan 01: Seed-to-Cosmos Genesis Generator
+    // ----------------------------------------------------------------
+    if (type === 'genesis') {
+      const systemInstruction = `${GENESIS_SYSTEM_DIRECTIVES}\n\n${
+        isPersian
+          ? 'زبان خروجی: فارسی ادبی (رشته‌های id انگلیسی بمانند).'
+          : 'Output language: literary English (keep id strings in English).'
+      }`;
+      const userPrompt = buildGenesisUserPrompt({ prompt, isPersian, themeContext });
+
+      const aiResult = await generateStructuredJson<GenesisWorldData>(
+        userPrompt,
+        systemInstruction,
+        { temperature: 0.85, taskType: 'world', maxOutputTokens: 8000 }
+      );
+
+      if (aiResult && aiResult.data) {
+        const parsed = GenesisWorldSchema.safeParse(aiResult.data);
+        if (parsed.success) {
+          return NextResponse.json({
+            success: true,
+            data: parsed.data,
+            isAiGenerated: true,
+            modelUsed: aiResult.modelUsed,
+          });
+        }
+      }
+
+      // Procedural fallback — fully self-consistent starter world
+      return NextResponse.json({
+        success: true,
+        data: buildFallbackGenesis(isPersian),
+        isAiGenerated: false,
+      });
+    }
+
+    // ----------------------------------------------------------------
+    // Plan 01: Contradiction Radar (Lore Consistency Auditor)
+    // ----------------------------------------------------------------
+    if (type === 'audit_world') {
+      const wb = worldBible;
+      if (!wb || !wb.worldId) {
+        return NextResponse.json(
+          { success: false, error: 'A worldBible payload is required for audit_world.' },
+          { status: 400 }
+        );
+      }
+
+      const deterministic = LoreAuditor.audit(wb);
+
+      // Try to enrich with an AI audit; if unavailable, return the deterministic one.
+      const aiResult = await generateStructuredJson(
+        buildAuditUserPrompt({ isPersian, worldContext: buildWorldContextString({ worldBible: wb }) }),
+        AUDIT_SYSTEM_DIRECTIVES,
+        { temperature: 0.3, taskType: 'world', maxOutputTokens: 6000 }
+      );
+
+      if (aiResult && aiResult.data) {
+        const parsed = ContradictionAuditReportSchema.safeParse(aiResult.data);
+        if (parsed.success) {
+          // Union deterministic findings into the AI report so hard violations always surface.
+          const mergedFindings = mergeFindings(deterministic.findings, parsed.data.findings);
+          return NextResponse.json({
+            success: true,
+            data: {
+              score: parsed.data.score,
+              summary: parsed.data.summary,
+              findings: mergedFindings,
+            },
+            isAiGenerated: true,
+            modelUsed: aiResult.modelUsed,
+          });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: deterministic,
+        isAiGenerated: false,
+      });
+    }
 
     // Build author constraints so the AI honors the chosen "type" (rarity/species/domain/...)
     const constraints: string[] = [];
@@ -151,7 +251,7 @@ Strictly output a valid JSON object matching the requested schema. Do not enclos
 
     // Procedural Fallback Generator
     const timestamp = Date.now().toString(36);
-    let fallbackData: any = null;
+    let fallbackData: Record<string, unknown> | null = null;
 
     if (type === 'faction') {
       fallbackData = isPersian
@@ -464,10 +564,93 @@ Strictly output a valid JSON object matching the requested schema. Do not enclos
     }
 
     return NextResponse.json({ success: true, data: fallbackData, isAiGenerated: false });
-  } catch (err: any) {
+  } catch (err) {
     return NextResponse.json(
-      { success: false, error: err?.message || 'Failed to generate lore content' },
+      { success: false, error: err instanceof Error ? err.message : 'Failed to generate lore content' },
       { status: 500 }
     );
   }
+}
+
+// ----------------------------------------------------------------------------
+// Plan 01 helpers: Genesis fallback + audit finding merge
+// ----------------------------------------------------------------------------
+
+function mergeFindings(
+  deterministic: ContradictionFinding[],
+  aiFindings: ContradictionFinding[]
+): ContradictionFinding[] {
+  const seen = new Set<string>();
+  const merged: ContradictionFinding[] = [];
+  for (const f of [...deterministic, ...aiFindings]) {
+    const key = `${f.category}:${f.title}`.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(f);
+  }
+  return merged;
+}
+
+function buildFallbackGenesis(isPersian: boolean): GenesisWorldData {
+  if (isPersian) {
+    return {
+      worldName: 'قلمروهای خاکستر آرکانیا',
+      tagline: 'سرزمینی که در آن خاکستر جادوی کهن می‌بارد',
+      summary: 'دنیایی تاریک و رازآلود با قلعه‌های سیاه‌سنگ، فرقه‌های مخفی کیمیاگران و نبردهای پنهان بر سر قدرت.',
+      themeNotes: 'تاریک، رازآلود، سنگین با تعلیق دائمی خیانت در دربار.',
+      aiSystemPrompt: 'تو دانای کل و راوی ارشد جهان آرکانیا هستی. با لحنی حماسی، واقع‌گرایانه و فضاساز روایت کن.',
+      laws: [
+        { id: 'law_blood_magic', rule: 'جادوی خون نیازمند تسلیم نیروی حیاتی است.', description: 'هر افسون بهایی جسمانی یا روانی بر جا می‌گذارد.', category: 'magic', isImmutable: true },
+        { id: 'law_dragon_extinct', rule: 'اژدهایان ۳۰۰ سال است که منقرض شده‌اند.', description: 'هیچ اژدهای زنده‌ای در جهان وجود ندارد.', category: 'society', isImmutable: true },
+        { id: 'law_no_fly', rule: 'پرواز جادویی در حریم شهر ممنوع است.', description: 'استفاده از الفاظ پروازی در محدوده دربار جرم است.', category: 'society', isImmutable: true },
+        { id: 'law_divine_oath', rule: 'سوگند شکسته به ایزدان باعث نفرین می‌شود.', description: 'نقض پیمان مقدس پیامدهای کیهانی دارد.', category: 'divine', isImmutable: true },
+      ],
+      factions: [
+        { id: 'fac_silver_guard', name: 'گارد نقره‌ای', description: 'شوالیه‌های قسم‌خورده دربار پادشاهی.', alignment: 'نظم‌گرای سخت‌گیر', publicGoals: 'حفظ آرامش شهر و دستگیری کیمیاگران مرتد.', secretAgendas: 'گسترش جاسوسی در میان جناح‌های رقیب.', rivalFactionIds: ['fac_ash_syndicate'], alliedFactionIds: ['fac_candle_order'], territoryIds: ['loc_obsidian_citadel'] },
+        { id: 'fac_ash_syndicate', name: 'سندیکای خاکستر', description: 'کیمیاگران شورشی در کانال‌های زیرزمینی.', alignment: 'متمرد آنارشیست', publicGoals: 'لغو مالیات جادو و آزادی کیمیا.', secretAgendas: 'احیای هنرهای ممنوعه خون.', rivalFactionIds: ['fac_silver_guard'], alliedFactionIds: [], territoryIds: ['loc_sunken_canal'] },
+        { id: 'fac_candle_order', name: 'فرقه شمع روشن', description: 'روحانیون ایزد نور و نظم.', alignment: 'مذهبی سنتی', publicGoals: 'پاسداری از معابد و جلوگیری از کفر.', secretAgendas: 'انباشت ثروت در خزانه‌های مقدس.', rivalFactionIds: [], alliedFactionIds: ['fac_silver_guard'], territoryIds: ['loc_sunspire_temple'] },
+      ],
+      locations: [
+        { id: 'loc_obsidian_citadel', name: 'قلعه سیاه‌سنگ', region: 'پایتخت', description: 'دژی عظیم از سنگ‌های آتشفشانی که بر فراز شهر قرار دارد.', atmosphere: 'سرد، دلهره‌آور، بوی آهن و بخار گوگرد.', dangerLevel: 4, specialRules: ['حضور دائم گارد نقره‌ای'], connectedLocationIds: ['loc_sunken_canal', 'loc_sunspire_temple'] },
+        { id: 'loc_sunken_canal', name: 'کانال غرق‌شده', region: 'حاشیه شهر', description: 'شبکه‌ای از تونل‌های آبی زیرزمینی که پناهگاه متمردان است.', atmosphere: 'تاریک، مرطوب، بوی تعفن و اکسیر.', dangerLevel: 3, specialRules: ['خطر غرق‌شدن در مدارهای پرآب'], connectedLocationIds: ['loc_obsidian_citadel'] },
+        { id: 'loc_sunspire_temple', name: 'معبد نوک خورشید', region: 'بخش مقدس', description: 'پرستشگاه بلند ایزد نور با مناره‌های طلایی.', atmosphere: 'آرام، مذهبی، بوی بخور و کندر.', dangerLevel: 2, specialRules: ['احترام به آیین اجباری است'], connectedLocationIds: ['loc_obsidian_citadel'] },
+        { id: 'loc_ash_wastes', name: 'بیابان خاکستر', region: 'خارج از دیوارها', description: 'دشتی سوزان و بی‌آب‌وعلف که محکومان به تبعید فرستاده می‌شوند.', atmosphere: 'خشک، وزوز باد، افق تار', dangerLevel: 5, specialRules: ['کمبود آب و سایه'], connectedLocationIds: [] },
+      ],
+      religions: [
+        { id: 'deity_sovereign_fire', name: 'ایزدبانوی شعله', title: 'بانوی کوره ابدی', domain: 'forge', sacredSymbol: 'سندان سنگی مشتعل', coreDogma: 'تنها از طریق آزمایش و اراده، جوهر کمال یافت می‌شود.', taboos: ['خاموش کردن کوره مقدس'], divineBlessings: ['مقاومت در برابر گرما'] },
+        { id: 'deity_dawn_order', name: 'ایزد نور', title: 'قاضی روشن', domain: 'light', sacredSymbol: 'خورشید زرین', coreDogma: 'حقیقت و نظم کیهانی برتر از هر خواسته‌ای است.', taboos: ['دروغ بر سوگند مقدس'], divineBlessings: ['نور حقیقت'] },
+      ],
+      coreCampaignMystery: 'چه کسی نقشه احیای اژدهایان کهن را در زیر کانال‌های غرق‌شده پنهان کرده است؟',
+    };
+  }
+
+  return {
+    worldName: 'The Shattered Expanse of Arcania',
+    tagline: 'A realm where the ash of elder sorcery still falls from the sky',
+    summary: 'A grim, mysterious world of black-stone citadels, hidden alchemical cults, and silent wars for power in the court.',
+    themeNotes: 'Grimdark, gothic mystery with heavy political tension and forbidden arcane rites.',
+    aiSystemPrompt: 'You are the Master Storyteller for the dark fantasy interactive RPG Arcania.',
+    laws: [
+      { id: 'law_blood_magic', rule: 'All blood thaumaturgy demands an equal tithe of vitality.', description: 'Every crimson rite leaves a permanent physical or mental scar.', category: 'magic', isImmutable: true },
+      { id: 'law_dragon_extinct', rule: 'Dragons have been extinct for 300 years.', description: 'No living dragon exists anywhere in the world.', category: 'society', isImmutable: true },
+      { id: 'law_no_fly', rule: 'Magical flight is forbidden within city limits.', description: 'Casting levitation or flight in the capital is a capital crime.', category: 'society', isImmutable: true },
+      { id: 'law_divine_oath', rule: 'A broken oath to the gods invokes a curse.', description: 'Violating a sacred pact carries cosmic consequences.', category: 'divine', isImmutable: true },
+    ],
+    factions: [
+      { id: 'fac_silver_guard', name: 'The Silver Guard', description: 'Sworn royalist knights enforcing imperial edicts.', alignment: 'Lawful Authoritarian', publicGoals: 'Preserve order and purge illegal sorcery.', secretAgendas: 'Expand covert surveillance across rival factions.', rivalFactionIds: ['fac_ash_syndicate'], alliedFactionIds: ['fac_candle_order'], territoryIds: ['loc_obsidian_citadel'] },
+      { id: 'fac_ash_syndicate', name: 'The Ash Syndicate', description: 'Rebellious alchemists dwelling in the subterranean canals.', alignment: 'Rebel Anarchist', publicGoals: 'Abolish the sorcery tax and free the craft.', secretAgendas: 'Revive forbidden blood arts in secret.', rivalFactionIds: ['fac_silver_guard'], alliedFactionIds: [], territoryIds: ['loc_sunken_canal'] },
+      { id: 'fac_candle_order', name: 'The Candle Order', description: 'Clerics of the Sovereign of Light and Order.', alignment: 'Traditional Theocrat', publicGoals: 'Guard the temples and root out heresy.', secretAgendas: 'Amass wealth within the sacred vaults.', rivalFactionIds: [], alliedFactionIds: ['fac_silver_guard'], territoryIds: ['loc_sunspire_temple'] },
+    ],
+    locations: [
+      { id: 'loc_obsidian_citadel', name: 'The Obsidian Citadel', region: 'Capital', description: 'A towering volcanic-stone fortress looming above the city.', atmosphere: 'Cold, oppressive, scent of iron and sulfur.', dangerLevel: 4, specialRules: ['Constant Silver Guard patrols'], connectedLocationIds: ['loc_sunken_canal', 'loc_sunspire_temple'] },
+      { id: 'loc_sunken_canal', name: 'The Sunken Canal', region: 'City Fringe', description: 'A network of flooded tunnels sheltering outcasts and rebels.', atmosphere: 'Dark, damp, reeking of alchemical rot.', dangerLevel: 3, specialRules: ['Risk of drowning in flooded conduits'], connectedLocationIds: ['loc_obsidian_citadel'] },
+      { id: 'loc_sunspire_temple', name: 'The Sunspire Temple', region: 'Sacred District', description: 'A tall gilded shrine to the Sovereign of Light.', atmosphere: 'Serene, devotional, scent of incense.', dangerLevel: 2, specialRules: ['Ritual observance is mandatory'], connectedLocationIds: ['loc_obsidian_citadel'] },
+      { id: 'loc_ash_wastes', name: 'The Ash Wastes', region: 'Beyond the Walls', description: 'A scorched, waterless plain where exiles are sent.', atmosphere: 'Arid, wind-howling, dim horizon.', dangerLevel: 5, specialRules: ['Severe water and shade scarcity'], connectedLocationIds: [] },
+    ],
+    religions: [
+      { id: 'deity_sovereign_fire', name: 'The Sovereign of the Crucible', title: 'Lady of the Eternal Forge', domain: 'forge', sacredSymbol: 'Blazing stone anvil', coreDogma: 'Only through trial and will is true spirit forged.', taboos: ['Quenching sacred blast furnaces'], divineBlessings: ['Thermal resistance'] },
+      { id: 'deity_dawn_order', name: 'The Dawn Sovereign', title: 'The Radiant Judge', domain: 'light', sacredSymbol: 'Golden sun', coreDogma: 'Truth and cosmic order surpass all mortal wants.', taboos: ['Lying under sacred oath'], divineBlessings: ['Light of truth'] },
+    ],
+    coreCampaignMystery: 'Who concealed the blueprint to revive the elder dragons beneath the Sunken Canal?',
+  };
 }

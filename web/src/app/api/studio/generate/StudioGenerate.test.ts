@@ -10,7 +10,12 @@ import {
   WorldDeitySchema,
   TimelineEventSchema,
   WorldLawSchema,
+  WorldBible,
 } from '../../../../lib/types/world';
+import {
+  GenesisWorldSchema,
+  ContradictionAuditReportSchema,
+} from '../../../../lib/engines/world/GenesisSchemas';
 import { z } from 'zod';
 
 function createMockRequest(body: any): NextRequest {
@@ -144,4 +149,92 @@ describe('StudioGenerate API - AI Co-Pilot & Procedural Synthesis Engine', () =>
       assert.equal(parseResult.success, true, 'Updated deity must conform to WorldDeitySchema');
     });
   });
+
+  describe('Plan 01 — Genesis Generator', () => {
+    it('generates a schema-compliant Genesis world package (4 laws, 3 factions, 4 locations, 2 religions)', async () => {
+      const req = createMockRequest({
+        type: 'genesis',
+        isPersian: false,
+        prompt: 'A volcanic dark fantasy kingdom ruled by iron inquisitors.',
+      });
+      const res = await POST(req);
+      assert.equal(res.status, 200);
+      const json = await res.json();
+      assert.equal(json.success, true);
+      assert.ok(json.data, 'Expected Genesis data payload');
+
+      const parseResult = GenesisWorldSchema.safeParse(json.data);
+      if (!parseResult.success) {
+        console.error('Genesis validation failure:', parseResult.error.format());
+      }
+      assert.equal(parseResult.success, true, 'Generated Genesis must conform to GenesisWorldSchema');
+      assert.equal(json.data.laws.length, 4);
+      assert.equal(json.data.factions.length, 3);
+      assert.equal(json.data.locations.length, 4);
+      assert.equal(json.data.religions.length, 2);
+      assert.ok(json.data.coreCampaignMystery?.length >= 20);
+    });
+  });
+
+  describe('Plan 01 — Contradiction Radar (audit_world)', () => {
+    const sampleWorld: WorldBible = {
+      worldId: 'world_audit',
+      worldName: 'Audit World',
+      summary: 'A world with a dangling reference.',
+      themeNotes: '',
+      laws: [
+        {
+          id: 'law_magic',
+          rule: 'Magic is strictly forbidden by imperial law.',
+          description: 'Casting is illegal.',
+          category: 'magic',
+          isImmutable: true,
+        },
+      ],
+      factions: [
+        {
+          id: 'fac_a',
+          name: 'House A',
+          description: 'A faction with a broken territory link.',
+          alignment: 'neutral',
+          territoryIds: ['loc_missing'],
+          rivalFactionIds: [],
+          alliedFactionIds: [],
+          publicGoals: '',
+        },
+      ],
+      locations: [],
+      timeline: [],
+      npcs: [],
+      artifacts: [],
+      bestiary: [],
+      religions: [],
+      dramaBonds: [],
+    };
+
+    it('audits a world and returns a ContradictionAuditReport with findings', async () => {
+      const req = createMockRequest({
+        type: 'audit_world',
+        isPersian: false,
+        worldBible: sampleWorld,
+      });
+      const res = await POST(req);
+      assert.equal(res.status, 200);
+      const json = await res.json();
+      assert.equal(json.success, true);
+      assert.ok(json.data, 'Expected audit report');
+
+      const parseResult = ContradictionAuditReportSchema.safeParse(json.data);
+      assert.equal(parseResult.success, true, 'Audit report must conform to ContradictionAuditReportSchema');
+      assert.ok(json.data.score >= 0 && json.data.score <= 100);
+      assert.ok(json.data.findings.length >= 1, 'Expected at least the dangling-link finding');
+    });
+
+    it('rejects audit_world without a worldBible payload', async () => {
+      const req = createMockRequest({ type: 'audit_world', isPersian: false });
+      const res = await POST(req);
+      assert.equal(res.status, 400);
+    });
+  });
 });
+
