@@ -3,39 +3,44 @@
  * Supports Cloudflare Worker proxy via GEMINI_PROXY_URL and automated cascading queue across available models.
  */
 
-// Frontier heavy model queue for World Generation (prioritizing Gemini 3.7 Flash)
+// Frontier heavy model queue for World Generation (prioritizing 3.7/3.6 Flash, 3.5/3.1 Flash-Lite, 2.5 Flash/Lite, and Gemma-4-IT)
 export const WORLD_GENERATION_QUEUE = [
   'gemini-3.7-flash',
-  'gemini-3-flash',
+  'gemini-3.6-flash',
   'gemini-3.5-flash-lite',
   'gemini-3.1-flash-lite',
-  'gemini-2.5-flash-lite',
   'gemini-2.5-flash',
-  'gemma-4-31b',
-  'gemma-4-26b',
+  'gemini-2.5-flash-lite',
+  'gemma-4-31b-it',
+  'gemma-4-26b-a4b-it',
 ] as const;
 
-// High-capacity fast queue for Scene & Story Turn generation (prioritizing 500 RPD flash-lite)
+// High-capacity fast queue for Scene & Story Turn generation (prioritizing 500 RPD Flash-Lite models)
 export const SCENE_GENERATION_QUEUE = [
   'gemini-3.5-flash-lite',
   'gemini-3.1-flash-lite',
   'gemini-3.7-flash',
-  'gemini-3-flash',
-  'gemini-2.5-flash-lite',
+  'gemini-3.6-flash',
   'gemini-2.5-flash',
-  'gemma-4-31b',
-  'gemma-4-26b',
+  'gemini-2.5-flash-lite',
+  'gemma-4-31b-it',
+  'gemma-4-26b-a4b-it',
 ] as const;
+
+
+
 
 export const MODEL_CASCADE_QUEUE = SCENE_GENERATION_QUEUE;
 
 export type SupportedModel = (typeof WORLD_GENERATION_QUEUE)[number];
+
 
 export interface GenerateOptions {
   temperature?: number;
   maxOutputTokens?: number;
   preferredModel?: SupportedModel;
   taskType?: 'world' | 'scene' | 'default';
+  timeoutMs?: number;
 }
 
 export interface GenerationResult<T = any> {
@@ -60,62 +65,26 @@ export function getGeminiEndpoint(modelName: string): string {
 }
 
 function getBaseQueueForTask(taskType?: 'world' | 'scene' | 'default'): readonly string[] {
-  if (taskType === 'world') {
-    return WORLD_GENERATION_QUEUE;
+  const envModel = process.env.GEMINI_MODEL?.trim();
+  const queue = taskType === 'world' ? WORLD_GENERATION_QUEUE : SCENE_GENERATION_QUEUE;
+  if (envModel) {
+    return [envModel, ...queue.filter((m) => m !== envModel)];
   }
-  return SCENE_GENERATION_QUEUE;
+  return queue;
+}
+
+
+function extractCandidateText(json: any): string | null {
+  const parts: any[] = json?.candidates?.[0]?.content?.parts || [];
+  if (!parts.length) return null;
+  // Find non-thought content part, or fallback to the last part
+  const textPart = parts.find((p) => !p.thought && typeof p.text === 'string' && p.text.trim().length > 0) || parts[parts.length - 1];
+  return textPart?.text || null;
 }
 
 /**
- * Executes an HTTP POST with exponential backoff and jitter for transient network or throttle errors.
- */
-async function fetchWithRetry(
-  endpoint: string,
-  requestBody: unknown,
-  maxRetries = 3,
-  initialDelayMs = 500
-): Promise<Response> {
-  let attempt = 0;
-  while (true) {
-    attempt++;
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
-
-      // Transient throttling (429) or backend overload (503)
-      if ((res.status === 429 || res.status === 503) && attempt <= maxRetries) {
-        const jitter = Math.random() * 200;
-        const delay = initialDelayMs * Math.pow(2, attempt - 1) + jitter;
-        console.warn(
-          `[GeminiClient] Server returned ${res.status} on attempt ${attempt}/${maxRetries}. Retrying in ${Math.round(delay)}ms...`
-        );
-        await new Promise((r) => setTimeout(r, delay));
-        continue;
-      }
-
-      return res;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (attempt <= maxRetries) {
-        const jitter = Math.random() * 200;
-        const delay = initialDelayMs * Math.pow(2, attempt - 1) + jitter;
-        console.warn(
-          `[GeminiClient] Network failure on attempt ${attempt}/${maxRetries} (${msg}). Retrying in ${Math.round(delay)}ms...`
-        );
-        await new Promise((r) => setTimeout(r, delay));
-        continue;
-      }
-      throw err;
-    }
-  }
-}
-
-/**
- * Executes a structured JSON prompt across the cascading model queue with automated retries.
- * Automatically retries transient network errors per model before cascading to the next model in queue.
+ * Executes a structured JSON prompt across the cascading model queue.
+ * If a model returns an error (rate-limit, quota, or network), it immediately cascades to the next model.
  */
 export async function generateStructuredJson<T = unknown>(
   prompt: string,
@@ -132,7 +101,11 @@ export async function generateStructuredJson<T = unknown>(
     ? [options.preferredModel, ...baseQueue.filter((m) => m !== options.preferredModel)]
     : baseQueue;
 
+  const timeoutMs = options.timeoutMs ?? (options.taskType === 'world' ? 45000 : 25000);
+
   for (const model of modelQueue) {
+    console.log(`[GeminiClient] Attempting model: ${model} (${options.taskType || 'default'}, timeout: ${timeoutMs}ms)...`);
+
     try {
       const endpoint = getGeminiEndpoint(model);
 
@@ -155,26 +128,27 @@ export async function generateStructuredJson<T = unknown>(
           options.maxOutputTokens;
       }
 
-      const res = await fetchWithRetry(endpoint, requestBody, 3, 600);
-
-      if (res.status === 429 || res.status === 503) {
-        console.warn(`[GeminiClient] ${model} exhausted retries (${res.status}). Cascading to next model...`);
-        continue;
-      }
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
 
       if (!res.ok) {
-        const errorText = await res.text();
-        console.warn(`[GeminiClient] ${model} request failed (${res.status}): ${errorText}. Trying next model...`);
+        const errorText = await res.text().catch(() => '');
+        console.warn(`[GeminiClient] ${model} failed (${res.status}): ${errorText}. Immediately trying next model in queue...`);
         continue;
       }
 
       const json = await res.json();
-      const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text;
+      const rawText = extractCandidateText(json);
 
       if (rawText) {
         // Strip any markdown fences if present
         const cleaned = rawText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
         const parsed = JSON.parse(cleaned);
+        console.log(`[GeminiClient] Successfully generated response using model: ${model}`);
         return {
           data: parsed as T,
           rawText,
@@ -182,8 +156,8 @@ export async function generateStructuredJson<T = unknown>(
         };
       }
     } catch (err) {
-      console.warn(`[GeminiClient] Failover triggered for model ${model}:`, err);
-      // Cascade to next model in queue
+      console.warn(`[GeminiClient] ${model} timed out or threw error. Immediately trying next model:`, err);
+      // Cascade to next model in queue immediately
     }
   }
 
@@ -223,7 +197,11 @@ export async function generateChat(
     ? [options.preferredModel, ...baseQueue.filter((m) => m !== options.preferredModel)]
     : baseQueue;
 
+  const timeoutMs = options.timeoutMs ?? 30000;
+
   for (const model of modelQueue) {
+    console.log(`[GeminiClient] Attempting chat with model: ${model}...`);
+
     try {
       const endpoint = getGeminiEndpoint(model);
 
@@ -249,21 +227,24 @@ export async function generateChat(
         requestBody.generationConfig.maxOutputTokens = options.maxOutputTokens;
       }
 
-      const res = await fetchWithRetry(endpoint, requestBody, 3, 500);
-
-      if (res.status === 429 || res.status === 503) {
-        console.warn(`[GeminiClient] ${model} exhausted retries (${res.status}). Cascading...`);
-        continue;
-      }
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
 
       if (!res.ok) {
+        const errorText = await res.text().catch(() => '');
+        console.warn(`[GeminiClient] ${model} chat failed (${res.status}): ${errorText}. Trying next model...`);
         continue;
       }
 
       const json = await res.json();
-      const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text;
+      const rawText = extractCandidateText(json);
 
       if (rawText) {
+        console.log(`[GeminiClient] Chat response succeeded using model: ${model}`);
         return {
           data: rawText,
           rawText,
@@ -271,7 +252,7 @@ export async function generateChat(
         };
       }
     } catch (err) {
-      console.warn(`[GeminiClient] Failover triggered for model ${model}:`, err);
+      console.warn(`[GeminiClient] ${model} chat timed out or threw error. Trying next model:`, err);
     }
   }
 
@@ -293,7 +274,11 @@ export async function generateText(
     ? [options.preferredModel, ...baseQueue.filter((m) => m !== options.preferredModel)]
     : baseQueue;
 
+  const timeoutMs = options.timeoutMs ?? 30000;
+
   for (const model of modelQueue) {
+    console.log(`[GeminiClient] Attempting text with model: ${model}...`);
+
     try {
       const endpoint = getGeminiEndpoint(model);
 
@@ -315,21 +300,24 @@ export async function generateText(
           options.maxOutputTokens;
       }
 
-      const res = await fetchWithRetry(endpoint, requestBody, 3, 500);
-
-      if (res.status === 429 || res.status === 503) {
-        console.warn(`[GeminiClient] ${model} exhausted retries (${res.status}). Cascading...`);
-        continue;
-      }
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
 
       if (!res.ok) {
+        const errorText = await res.text().catch(() => '');
+        console.warn(`[GeminiClient] ${model} text failed (${res.status}): ${errorText}. Trying next model...`);
         continue;
       }
 
       const json = await res.json();
-      const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text;
+      const rawText = extractCandidateText(json);
 
       if (rawText) {
+        console.log(`[GeminiClient] Text generation succeeded using model: ${model}`);
         return {
           data: rawText,
           rawText,
@@ -337,10 +325,13 @@ export async function generateText(
         };
       }
     } catch (err) {
-      console.warn(`[GeminiClient] Failover triggered for model ${model}:`, err);
+      console.warn(`[GeminiClient] ${model} text timed out or threw error. Trying next model:`, err);
     }
   }
 
   return null;
 }
+
+
+
 

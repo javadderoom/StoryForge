@@ -5,21 +5,22 @@ import { z } from 'zod';
 // ----------------------------------------------------------------------------
 
 export const GenesisLocationSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(2),
+  id: z.string().default(() => `loc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`),
+  name: z.string().min(1).default('Unnamed Location'),
   region: z.string().default(''),
-  description: z.string().min(10),
+  description: z.string().default(''),
   atmosphere: z.string().default(''),
   dangerLevel: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).default(3),
   specialRules: z.array(z.string()).default([]),
   connectedLocationIds: z.array(z.string()).default([]),
 });
 
+
 export const GenesisFactionSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(2),
-  description: z.string().min(10),
-  alignment: z.string().default(''),
+  id: z.string().default(() => `fac_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`),
+  name: z.string().min(1).default('Unnamed Faction'),
+  description: z.string().default(''),
+  alignment: z.string().default('neutral'),
   publicGoals: z.string().default(''),
   secretAgendas: z.string().default(''),
   rivalFactionIds: z.array(z.string()).default([]),
@@ -28,18 +29,18 @@ export const GenesisFactionSchema = z.object({
 });
 
 export const GenesisLawSchema = z.object({
-  id: z.string().min(1),
-  rule: z.string().min(3),
+  id: z.string().default(() => `law_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`),
+  rule: z.string().min(1).default('Immutable World Law'),
   description: z.string().default(''),
-  category: z.enum(['magic', 'physics', 'society', 'divine']).default('magic'),
-  isImmutable: z.literal(true),
+  category: z.string().default('magic'),
+  isImmutable: z.boolean().default(true),
 });
 
 export const GenesisReligionSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(2),
+  id: z.string().default(() => `deity_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`),
+  name: z.string().min(1).default('Unnamed Deity'),
   title: z.string().default(''),
-  domain: z.enum(['light', 'death', 'war', 'secrets', 'nature', 'chaos', 'forge']),
+  domain: z.string().default('light'),
   sacredSymbol: z.string().default(''),
   coreDogma: z.string().default(''),
   taboos: z.array(z.string()).default([]),
@@ -47,19 +48,111 @@ export const GenesisReligionSchema = z.object({
 });
 
 export const GenesisWorldSchema = z.object({
-  worldName: z.string().min(2),
-  tagline: z.string().min(5),
-  summary: z.string().min(20),
+  worldName: z.string().min(1).default('New World'),
+  tagline: z.string().default(''),
+  summary: z.string().default(''),
   themeNotes: z.string().default(''),
   aiSystemPrompt: z.string().default(''),
-  laws: z.array(GenesisLawSchema).length(4),
-  factions: z.array(GenesisFactionSchema).length(3),
-  locations: z.array(GenesisLocationSchema).length(4),
-  religions: z.array(GenesisReligionSchema).length(2),
-  coreCampaignMystery: z.string().min(20),
+  laws: z.array(GenesisLawSchema).default([]),
+  factions: z.array(GenesisFactionSchema).default([]),
+  locations: z.array(GenesisLocationSchema).default([]),
+  religions: z.array(GenesisReligionSchema).default([]),
+  coreCampaignMystery: z.string().default(''),
 });
 
 export type GenesisWorldData = z.infer<typeof GenesisWorldSchema>;
+
+/**
+ * Normalizes raw AI output into a strictly valid GenesisWorldData structure,
+ * handling variations like nested "meta" objects, "deities" instead of "religions",
+ * and missing defaults.
+ */
+export function normalizeGenesisData(raw: any): GenesisWorldData {
+  if (!raw || typeof raw !== 'object') {
+    return GenesisWorldSchema.parse({});
+  }
+
+  const meta = raw.meta && typeof raw.meta === 'object' ? raw.meta : {};
+  const worldName = raw.worldName || meta.worldName || raw.name || meta.name || 'New Realm';
+  const tagline = raw.tagline || meta.tagline || '';
+  const summary = raw.summary || meta.summary || raw.description || meta.description || '';
+  const themeNotes = raw.themeNotes || meta.themeNotes || '';
+  const aiSystemPrompt = raw.aiSystemPrompt || meta.aiSystemPrompt || '';
+
+  const rawLaws = Array.isArray(raw.laws) ? raw.laws : [];
+  const laws = rawLaws.map((l: any, idx: number) => ({
+    id: l?.id || `law_00${idx + 1}`,
+    rule: l?.rule || l?.name || l?.title || 'World Law',
+    description: l?.description || (l?.consequence ? `${l.description || ''} Consequence: ${l.consequence}`.trim() : ''),
+    category: l?.category || 'magic',
+    isImmutable: true,
+  }));
+
+  const rawFactions = Array.isArray(raw.factions) ? raw.factions : [];
+  const factions = rawFactions.map((f: any, idx: number) => ({
+    id: f?.id || `fac_00${idx + 1}`,
+    name: f?.name || 'Faction',
+    description: f?.description || (f?.motto ? `${f.description || ''} Motto: ${f.motto}`.trim() : ''),
+    alignment: f?.alignment || 'neutral',
+    publicGoals: f?.publicGoals || f?.motto || '',
+    secretAgendas: f?.secretAgendas || '',
+    rivalFactionIds: Array.isArray(f?.rivalFactionIds) ? f.rivalFactionIds : [],
+    alliedFactionIds: Array.isArray(f?.alliedFactionIds) ? f.alliedFactionIds : [],
+    territoryIds: Array.isArray(f?.territoryIds) ? f.territoryIds : [],
+  }));
+
+  const rawLocations = Array.isArray(raw.locations) ? raw.locations : [];
+  const locations = rawLocations.map((loc: any, idx: number) => {
+    const rawDanger = Number(loc?.dangerLevel);
+    const dangerLevel: 1 | 2 | 3 | 4 | 5 =
+      rawDanger === 1 || rawDanger === 2 || rawDanger === 3 || rawDanger === 4 || rawDanger === 5
+        ? rawDanger
+        : 3;
+    return {
+      id: loc?.id || `loc_00${idx + 1}`,
+      name: loc?.name || 'Location',
+      region: loc?.region || '',
+      description: loc?.description || '',
+      atmosphere: loc?.atmosphere || '',
+      dangerLevel,
+      specialRules: Array.isArray(loc?.specialRules) ? loc.specialRules : [],
+      connectedLocationIds: Array.isArray(loc?.connectedLocationIds) ? loc.connectedLocationIds : [],
+    };
+  });
+
+
+  const rawReligions = Array.isArray(raw.religions)
+    ? raw.religions
+    : Array.isArray(raw.deities)
+    ? raw.deities
+    : [];
+  const religions = rawReligions.map((r: any, idx: number) => ({
+    id: r?.id || `deity_00${idx + 1}`,
+    name: r?.name || 'Deity',
+    title: r?.title || '',
+    domain: r?.domain || 'light',
+    sacredSymbol: r?.sacredSymbol || '',
+    coreDogma: r?.coreDogma || (Array.isArray(r?.tenets) ? r.tenets.join('; ') : r?.description || ''),
+    taboos: Array.isArray(r?.taboos) ? r.taboos : [],
+    divineBlessings: Array.isArray(r?.divineBlessings) ? r.divineBlessings : [],
+  }));
+
+  const coreCampaignMystery = raw.coreCampaignMystery || raw.mystery || raw.campaignMystery || '';
+
+  return GenesisWorldSchema.parse({
+    worldName,
+    tagline,
+    summary,
+    themeNotes,
+    aiSystemPrompt,
+    laws,
+    factions,
+    locations,
+    religions,
+    coreCampaignMystery,
+  });
+}
+
 
 // ----------------------------------------------------------------------------
 // Plan 01: Contradiction Radar (Lore Consistency Auditor) schemas
@@ -125,8 +218,31 @@ export function buildGenesisUserPrompt(opts: {
 
 ${opts.themeContext ? `Theme context: ${opts.themeContext}\n\n` : ''}${langNote}
 
-Generate the complete Genesis world package now. Remember: EXACTLY 4 laws, 3 factions, 4 locations, 2 deities; stable unique ids; cross-referenced links; valid JSON only.`;
+Strict JSON Schema to return:
+{
+  "worldName": "Name of the World",
+  "tagline": "A compelling atmospheric tagline",
+  "summary": "Rich narrative summary of the world",
+  "themeNotes": "Tone, themes, and aesthetic notes",
+  "aiSystemPrompt": "System storytelling persona instructions",
+  "laws": [
+    { "id": "law_001", "rule": "High-stakes immutable rule", "description": "Details & consequences", "category": "magic|physics|society|divine", "isImmutable": true }
+  ],
+  "factions": [
+    { "id": "fac_001", "name": "Faction Name", "description": "Lore description", "alignment": "Lawful/Neutral/Rebel", "publicGoals": "...", "secretAgendas": "...", "territoryIds": ["loc_001"], "rivalFactionIds": [], "alliedFactionIds": [] }
+  ],
+  "locations": [
+    { "id": "loc_001", "name": "Location Name", "region": "...", "description": "Atmospheric description", "atmosphere": "...", "dangerLevel": 3, "specialRules": [], "connectedLocationIds": ["loc_002"] }
+  ],
+  "religions": [
+    { "id": "deity_001", "name": "Deity/Faith Name", "title": "Honorific", "domain": "light|death|war|secrets|nature|chaos|forge", "sacredSymbol": "...", "coreDogma": "...", "taboos": ["..."], "divineBlessings": ["..."] }
+  ],
+  "coreCampaignMystery": "The overarching central mystery driving the story"
 }
+
+Generate the complete Genesis world package matching this schema now. Output valid JSON only.`;
+}
+
 
 export const AUDIT_SYSTEM_DIRECTIVES = `You are the Lore Consistency Auditor for StoryForge. You analyze an entire World Bible and detect continuity breaks, magic-law violations, dangling references, orphaned entities, and timeline paradoxes.
 

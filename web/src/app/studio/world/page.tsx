@@ -316,10 +316,10 @@ export default function WorldBiblePage() {
             : `World synthesized by ${json.modelUsed || 'Gemini 3.7 Flash'}`
         );
       } else {
-        notify.error(isPersian ? 'خطا در سنتز جهان توسط هوش مصنوعی' : 'Failed to synthesize world');
+        notify.error(json.error || (isPersian ? 'خطا در سنتز جهان توسط هوش مصنوعی' : 'Failed to synthesize world'));
       }
-    } catch {
-      notify.error(isPersian ? 'خطا در اتصال به سرور هوش مصنوعی' : 'AI connection error');
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : (isPersian ? 'خطا در اتصال به سرور هوش مصنوعی' : 'AI connection error'));
     } finally {
       setIsGeneratingWorld(false);
     }
@@ -372,10 +372,10 @@ export default function WorldBiblePage() {
             : `Genesis "${g.worldName}" committed: ${g.laws?.length} laws, ${g.factions?.length} factions, ${g.locations?.length} locations, ${g.religions?.length} deities`
         );
       } else {
-        notify.error(isPersian ? 'خطا در تولد جهان' : 'Failed to generate genesis world');
+        notify.error(json.error || (isPersian ? 'خطا در تولد جهان' : 'Failed to generate genesis world'));
       }
-    } catch {
-      notify.error(isPersian ? 'خطا در اتصال به سرور هوش مصنوعی' : 'AI connection error');
+    } catch (err) {
+      notify.error(err instanceof Error ? err.message : (isPersian ? 'خطا در اتصال به سرور هوش مصنوعی' : 'AI connection error'));
     } finally {
       setIsGeneratingGenesis(false);
     }

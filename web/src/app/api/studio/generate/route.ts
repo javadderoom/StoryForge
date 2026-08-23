@@ -9,6 +9,7 @@ import {
   AUDIT_SYSTEM_DIRECTIVES,
   GenesisWorldData,
   ContradictionFinding,
+  normalizeGenesisData,
 } from '@/lib/engines/world/GenesisSchemas';
 import { LoreAuditor } from '@/lib/engines/world/LoreAuditor';
 import { WorldBible } from '@/lib/types/world';
@@ -86,16 +87,16 @@ export async function POST(req: NextRequest) {
       );
 
       if (aiResult && aiResult.data) {
-        const parsed = GenesisWorldSchema.safeParse(aiResult.data);
-        if (parsed.success) {
-          return NextResponse.json({
-            success: true,
-            data: parsed.data,
-            isAiGenerated: true,
-            modelUsed: aiResult.modelUsed,
-          });
-        }
+        const normalized = normalizeGenesisData(aiResult.data);
+        return NextResponse.json({
+          success: true,
+          data: normalized,
+          isAiGenerated: true,
+          modelUsed: aiResult.modelUsed,
+        });
       }
+
+
 
       return NextResponse.json(
         {
