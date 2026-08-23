@@ -64,117 +64,112 @@ describe('StudioGenerate API - AI Co-Pilot & Procedural Synthesis Engine', () =>
     { type: 'scene', schema: SceneSynthesisSchema },
   ] as const;
 
-  describe('Persian (Farsi) Generation with Custom System Prompt', () => {
-    types.forEach(({ type, schema }) => {
-      it(`generates schema-compliant ${type} in Persian`, async () => {
-        const req = createMockRequest({
-          type,
-          isPersian: true,
-          customSystemPrompt: 'تو راوی ارشد هستی.',
-          taskType: type === 'world' ? 'world' : 'scene',
-        });
-        const res = await POST(req);
-        assert.equal(res.status, 200);
-
-        const json = await res.json();
-        assert.equal(json.success, true);
-        assert.ok(json.data, `Expected data payload for ${type}`);
-
-        // Validate payload against Zod schema
-        const parseResult = schema.safeParse(json.data);
-        if (!parseResult.success) {
-          console.error(`Validation failure for ${type}:`, parseResult.error.format());
-        }
-        assert.equal(parseResult.success, true, `Generated ${type} must conform to schema`);
-      });
-    });
-  });
-
-  describe('English Generation with Custom System Prompt', () => {
-    types.forEach(({ type, schema }) => {
-      it(`generates schema-compliant ${type} in English`, async () => {
+  describe('No-Mock Error Guardrail (503 on unauthenticated/offline failure)', () => {
+    types.forEach(({ type }) => {
+      it(`returns 503 without fake mock fallback when offline for ${type}`, async () => {
         const req = createMockRequest({
           type,
           isPersian: false,
-          customSystemPrompt: 'You are the Master Storyteller.',
+          prompt: 'Create something unique.',
           taskType: type === 'world' ? 'world' : 'scene',
         });
         const res = await POST(req);
-        assert.equal(res.status, 200);
+        // When GEMINI_API_KEY is not set or network fails, route must return 503 without silent fallback
+        assert.equal(res.status, 503);
 
         const json = await res.json();
-        assert.equal(json.success, true);
-        assert.ok(json.data, `Expected data payload for ${type}`);
-
-        const parseResult = schema.safeParse(json.data);
-        assert.equal(parseResult.success, true, `Generated English ${type} must conform to schema`);
+        assert.equal(json.success, false);
+        assert.ok(json.error?.includes('failed') || json.error?.includes('شکست'));
       });
     });
   });
 
-  describe('Edit Mode with Existing Entity Payload', () => {
-    it('generates schema-compliant deity update when editing existing entity', async () => {
-      const existingDeity = {
-        id: 'deity_artavan_01',
-        name: 'آرتاوان',
-        title: 'ایزد نظم و آغاز بیبدل',
-        domain: 'light',
-        sacredSymbol: 'نماد خورشید زرین و زنجیر زرین',
-        coreDogma: 'اصول اولیه',
-        taboos: ['شک در آفرینش'],
-        divineBlessings: ['نور حقیقت'],
-        affiliatedFactionIds: [],
-        holyLocationIds: [],
+  describe('Schema Validation on Synthetic AI Outputs', () => {
+    it('validates a schema-compliant Genesis world package', () => {
+      const mockGenesis = {
+        worldName: 'The Ash Citadel of Khoran',
+        tagline: 'Where elder magic turns flesh to bronze',
+        summary: 'A harsh basalt plateau ruled by rival alchemical legions.',
+        themeNotes: 'Grimdark, bronze-age mysticism',
+        aiSystemPrompt: 'You are the Chronicler of Khoran.',
+        laws: [
+          { id: 'law_1', rule: 'Metal cannot be mined; it must be distilled.', description: 'Smelting is forbidden.', category: 'physics', isImmutable: true },
+          { id: 'law_2', rule: 'Blood oaths bind the soul across death.', description: 'Traitor souls cannot rest.', category: 'divine', isImmutable: true },
+          { id: 'law_3', rule: 'Flight is a capital crime in the capital.', description: 'No levitation permitted.', category: 'society', isImmutable: true },
+          { id: 'law_4', rule: 'Every spell demands a memory tithe.', description: 'Casting consumes personal memories.', category: 'magic', isImmutable: true },
+        ],
+        factions: [
+          { id: 'fac_1', name: 'The Bronze Order', description: 'Warrior-monks', alignment: 'Lawful', publicGoals: 'Guard the crucibles', secretAgendas: 'Seize the primeval forge', rivalFactionIds: ['fac_2'], alliedFactionIds: [], territoryIds: ['loc_1'] },
+          { id: 'fac_2', name: 'Ash Walkers', description: 'Rebel heretics', alignment: 'Chaotic', publicGoals: 'Abolish memory tithes', secretAgendas: 'Awaken the deep fire', rivalFactionIds: ['fac_1'], alliedFactionIds: [], territoryIds: ['loc_2'] },
+          { id: 'fac_3', name: 'Silent Guild', description: 'Merchants of bone', alignment: 'Neutral', publicGoals: 'Trade distilled alloys', secretAgendas: 'Monopolize the deep mines', rivalFactionIds: [], alliedFactionIds: [], territoryIds: ['loc_3'] },
+        ],
+        locations: [
+          { id: 'loc_1', name: 'The Obsidian Spire', region: 'Upper Plateau', description: 'A fortress carved from volcanic glass.', dangerLevel: 4, specialRules: ['Bronze armor mandatory'], connectedLocationIds: ['loc_2', 'loc_3'] },
+          { id: 'loc_2', name: 'The Sulfur Chasm', region: 'Deep Lowlands', description: 'A smoking rift where heretics hide.', dangerLevel: 5, specialRules: ['Acidic vapor toxicity'], connectedLocationIds: ['loc_1'] },
+          { id: 'loc_3', name: 'The Bone Vault', region: 'Merchant Quarter', description: 'A bazaar constructed from leviathan ribs.', dangerLevel: 2, specialRules: ['No weapons drawn'], connectedLocationIds: ['loc_1', 'loc_4'] },
+          { id: 'loc_4', name: 'The Outer Waste', region: 'Horizon', description: 'Endless plains of powdered basalt.', dangerLevel: 3, specialRules: ['Water scarcity'], connectedLocationIds: ['loc_3'] },
+        ],
+        religions: [
+          { id: 'deity_1', name: 'The Crucible Mother', title: 'Architect of Flame', domain: 'forge', sacredSymbol: 'Anvil of bronze', coreDogma: 'Through trial comes purification.', taboos: ['Quenching sacred fires'], divineBlessings: ['Heat resistance'] },
+          { id: 'deity_2', name: 'The Blind Judge', title: 'Keeper of Oaths', domain: 'light', sacredSymbol: 'Balanced scale', coreDogma: 'Pledges are immutable truth.', taboos: ['Breaking sworn contracts'], divineBlessings: ['Insight'] },
+        ],
+        coreCampaignMystery: 'Who poisoned the primeval crucible beneath the Obsidian Spire to spark the metal blight?',
       };
 
-      const requestedChange = 'اصول دین را با ۵ اصل جدید جایگزین کن: ۱. آغاز بیبدل ۲. کنترل آگاهی ۳. حقیقت بسته ۴. پاسداری از زنجیرها ۵. سکوت';
-      const editPrompt = `Current entity JSON:\n${JSON.stringify(existingDeity, null, 2)}\n\nRequested changes to apply:\n${requestedChange}\n\nReturn the COMPLETE updated entity as a JSON object with ALL original fields preserved and only the requested changes applied. Output valid JSON only matching the entity schema.`;
-      const editSystem = 'تو در حال ویرایش یک موجودیت موجود هستی. خروجی را به صورت شیء JSON کامل شامل تمام فیلدهای پیشین (با اعمال تغییرات) برگردان. نام و شناسه را حفظ کن. فقط JSON معتبر خروجی بده.\n\n';
+      const parseResult = GenesisWorldSchema.safeParse(mockGenesis);
+      assert.equal(parseResult.success, true);
+    });
 
-      const req = createMockRequest({
-        type: 'deity',
-        isPersian: true,
-        prompt: requestedChange,
-        customSystemPrompt: editSystem + editPrompt,
-      });
+    it('validates schema compliance across all single entity types', () => {
+      assert.equal(
+        WorldLocationSchema.safeParse({
+          id: 'loc_01',
+          name: 'The Sunken Crypt',
+          region: 'Underrealm',
+          description: 'A flooded stone chamber with moss-covered pillars.',
+          dangerLevel: 3,
+          atmosphere: 'Damp, cold, echoing with dripping water.',
+          specialRules: ['Fortitude check required'],
+          connectedLocationIds: [],
+        }).success,
+        true
+      );
 
-      const res = await POST(req);
-      assert.equal(res.status, 200);
-
-      const json = await res.json();
-      assert.equal(json.success, true);
-      assert.ok(json.data, 'Expected data payload for deity update');
-
-      const parseResult = WorldDeitySchema.safeParse(json.data);
-      assert.equal(parseResult.success, true, 'Updated deity must conform to WorldDeitySchema');
+      assert.equal(
+        WorldArtifactSchema.safeParse({
+          id: 'art_01',
+          name: 'Eye of the Augur',
+          title: 'Relic of the First Seer',
+          originEra: 'Era 1',
+          rarity: 'legendary',
+          description: 'A glowing crystal lens that reveals hidden passageways.',
+          powers: ['True sight up to 30ft', '+2 to Perception'],
+          curseOrCost: 'Induces severe migraines upon prolonged use.',
+          attunementRules: 'Requires Arcana 3',
+          currentHolderType: 'unknown',
+          secretLore: 'Forged from the calcified cornea of an ancient star-gazer.',
+        }).success,
+        true
+      );
     });
   });
 
+
   describe('Plan 01 — Genesis Generator', () => {
-    it('generates a schema-compliant Genesis world package (4 laws, 3 factions, 4 locations, 2 religions)', async () => {
+    it('returns 503 error without silent mock fallback when offline', async () => {
       const req = createMockRequest({
         type: 'genesis',
         isPersian: false,
         prompt: 'A volcanic dark fantasy kingdom ruled by iron inquisitors.',
       });
       const res = await POST(req);
-      assert.equal(res.status, 200);
+      assert.equal(res.status, 503);
       const json = await res.json();
-      assert.equal(json.success, true);
-      assert.ok(json.data, 'Expected Genesis data payload');
-
-      const parseResult = GenesisWorldSchema.safeParse(json.data);
-      if (!parseResult.success) {
-        console.error('Genesis validation failure:', parseResult.error.format());
-      }
-      assert.equal(parseResult.success, true, 'Generated Genesis must conform to GenesisWorldSchema');
-      assert.equal(json.data.laws.length, 4);
-      assert.equal(json.data.factions.length, 3);
-      assert.equal(json.data.locations.length, 4);
-      assert.equal(json.data.religions.length, 2);
-      assert.ok(json.data.coreCampaignMystery?.length >= 20);
+      assert.equal(json.success, false);
+      assert.ok(json.error?.includes('failed') || json.error?.includes('Genesis'));
     });
   });
+
 
   describe('Plan 01 — Contradiction Radar (audit_world)', () => {
     const sampleWorld: WorldBible = {

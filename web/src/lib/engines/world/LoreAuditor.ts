@@ -15,10 +15,10 @@ export class LoreAuditor {
 
     this.checkDanglingLinks(world, findings);
     this.checkMagicBanViolations(world, findings);
-    this.checkExtinctSpeciesViolations(world, findings);
     this.checkFactionRivalryAsymmetry(world, findings);
     this.checkOrphanedEntities(world, findings);
     this.checkEmptyFields(world, findings);
+
 
     const score = LoreAuditor.computeScore(world, findings);
     return {
@@ -152,9 +152,11 @@ export class LoreAuditor {
     const banLaw = world.laws.find(
       (l) =>
         l.category === 'magic' &&
-        /(ban|forbid|prohibit|illegal|outlaw|extinct|no magic|no longer)/i.test(l.rule + ' ' + l.description)
+        l.isImmutable &&
+        /(ban|forbid|prohibit|illegal|outlaw|ممنوع|غیرقانونی|قدغن|جرم)/i.test(l.rule + ' ' + (l.description || ''))
     );
     if (!banLaw) return;
+
 
     for (const art of world.artifacts || []) {
       const text = (art.powers || []).join(' ') + ' ' + (art.description || '');
@@ -175,33 +177,7 @@ export class LoreAuditor {
     }
   }
 
-  // "Dragons are extinct" law vs a living draconic creature
-  private static checkExtinctSpeciesViolations(
-    world: WorldBible,
-    findings: ContradictionFinding[]
-  ): void {
-    const extinctLaw = world.laws.find(
-      (l) => /(extinct|wiped out|no longer exist|dead species)/i.test(l.rule + ' ' + l.description) && /(dragon|wyrm|drake)/i.test(l.rule + ' ' + l.description)
-    );
-    if (!extinctLaw) return;
 
-    for (const c of world.bestiary || []) {
-      if ((c.speciesCategory === 'draconic' || /(dragon|wyrm|drake)/i.test(c.name + ' ' + c.loreDescription)) && !/extinct|fossil|remnant|skeleton/i.test(c.loreDescription)) {
-        findings.push({
-          id: `law_conflict_${c.id}`,
-          severity: 'error',
-          category: 'law_conflict',
-          title: 'Living dragon contradicts extinction law',
-          description: `Creature "${c.name}" is a living draconic entity, but immutable law "${extinctLaw.rule}" declares dragons extinct.`,
-          involvedEntities: [
-            { entityType: 'creature', name: c.name },
-            { entityType: 'world_law', name: extinctLaw.rule },
-          ],
-          suggestedFix: `Reframe "${c.name}" as a lesser drake, a fossil revenant, or amend the law to permit this subspecies.`,
-        });
-      }
-    }
-  }
 
   // Faction A lists B as rival but B does not list A → asymmetry suggestion
   private static checkFactionRivalryAsymmetry(world: WorldBible, findings: ContradictionFinding[]): void {

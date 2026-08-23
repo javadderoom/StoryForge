@@ -105,10 +105,12 @@ export const GENESIS_SYSTEM_DIRECTIVES = `You are the Master World-Building Co-P
 
 STRICT REQUIREMENTS:
 - Generate EXACTLY 4 immutable World Laws, 3 Factions, 4 Locations, and 2 Deities/Religions.
+- MEANINGFUL WORLD LAWS: Every World Law must establish a high-stakes, dramatic rule of engagement that directly impacts the story, narrative choices, and player actions (e.g. strict costs/scars of magic, environmental/physical hazards, sacred covenants, or forbidden societal edicts). NEVER generate shallow filler or arbitrary creature extinction trivia (e.g. "creatures X are extinct"). Every law must have real meaning and consequence in the world.
 - You MUST assign stable, unique snake_case string ids to EVERY entity (e.g. "law_001", "fac_iron_inquisition", "loc_obsidian_citadel", "deity_sovereign_fire"). Use the SAME id when one entity references another (faction.territoryIds must list location ids you created; location.connectedLocationIds must list other location ids you created; faction.rivalFactionIds / alliedFactionIds must list other faction ids you created).
 - Every entity must be anchored to the others: factions hold territories you created, locations connect to each other, deities have clear thematic ties to the laws and factions.
 - Output literary, atmospheric prose. Avoid generic AI tropes ("tapestry of fate", "whispers of the forgotten", "ancient evil awakens").
 - Output ONLY valid JSON matching the requested schema. No markdown fences.`;
+
 
 export function buildGenesisUserPrompt(opts: {
   prompt: string;

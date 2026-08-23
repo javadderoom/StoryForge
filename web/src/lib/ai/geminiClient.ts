@@ -67,10 +67,57 @@ function getBaseQueueForTask(taskType?: 'world' | 'scene' | 'default'): readonly
 }
 
 /**
- * Executes a structured JSON prompt across the cascading model queue.
- * Automatically fails over to the next model upon hitting 429 (quota/rate limit) or 503 errors.
+ * Executes an HTTP POST with exponential backoff and jitter for transient network or throttle errors.
  */
-export async function generateStructuredJson<T = any>(
+async function fetchWithRetry(
+  endpoint: string,
+  requestBody: unknown,
+  maxRetries = 3,
+  initialDelayMs = 500
+): Promise<Response> {
+  let attempt = 0;
+  while (true) {
+    attempt++;
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      // Transient throttling (429) or backend overload (503)
+      if ((res.status === 429 || res.status === 503) && attempt <= maxRetries) {
+        const jitter = Math.random() * 200;
+        const delay = initialDelayMs * Math.pow(2, attempt - 1) + jitter;
+        console.warn(
+          `[GeminiClient] Server returned ${res.status} on attempt ${attempt}/${maxRetries}. Retrying in ${Math.round(delay)}ms...`
+        );
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+
+      return res;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (attempt <= maxRetries) {
+        const jitter = Math.random() * 200;
+        const delay = initialDelayMs * Math.pow(2, attempt - 1) + jitter;
+        console.warn(
+          `[GeminiClient] Network failure on attempt ${attempt}/${maxRetries} (${msg}). Retrying in ${Math.round(delay)}ms...`
+        );
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+/**
+ * Executes a structured JSON prompt across the cascading model queue with automated retries.
+ * Automatically retries transient network errors per model before cascading to the next model in queue.
+ */
+export async function generateStructuredJson<T = unknown>(
   prompt: string,
   systemInstruction?: string,
   options: GenerateOptions = {}
@@ -89,7 +136,7 @@ export async function generateStructuredJson<T = any>(
     try {
       const endpoint = getGeminiEndpoint(model);
 
-      const requestBody: any = {
+      const requestBody: Record<string, unknown> = {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           responseMimeType: 'application/json',
@@ -104,24 +151,20 @@ export async function generateStructuredJson<T = any>(
       }
 
       if (options.maxOutputTokens) {
-        requestBody.generationConfig.maxOutputTokens = options.maxOutputTokens;
+        (requestBody.generationConfig as Record<string, unknown>).maxOutputTokens =
+          options.maxOutputTokens;
       }
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
+      const res = await fetchWithRetry(endpoint, requestBody, 3, 600);
 
-      // 429 (Resource Exhausted) or 503 (Overloaded) -> Cascade to next model in queue
       if (res.status === 429 || res.status === 503) {
-        console.warn(`[GeminiClient] ${model} throttled (${res.status}). Cascading to next model in queue...`);
+        console.warn(`[GeminiClient] ${model} exhausted retries (${res.status}). Cascading to next model...`);
         continue;
       }
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.warn(`[GeminiClient] ${model} request failed with ${res.status}: ${errorText}. Trying next...`);
+        console.warn(`[GeminiClient] ${model} request failed (${res.status}): ${errorText}. Trying next model...`);
         continue;
       }
 
@@ -129,7 +172,7 @@ export async function generateStructuredJson<T = any>(
       const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (rawText) {
-        // Strip code block markers if returned by model
+        // Strip any markdown fences if present
         const cleaned = rawText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
         const parsed = JSON.parse(cleaned);
         return {
@@ -140,12 +183,13 @@ export async function generateStructuredJson<T = any>(
       }
     } catch (err) {
       console.warn(`[GeminiClient] Failover triggered for model ${model}:`, err);
-      // Continue to next model in queue
+      // Cascade to next model in queue
     }
   }
 
   return null;
 }
+
 
 /**
  * Executes a plain-text prompt across the cascading model queue with proxy support.
@@ -205,14 +249,10 @@ export async function generateChat(
         requestBody.generationConfig.maxOutputTokens = options.maxOutputTokens;
       }
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
+      const res = await fetchWithRetry(endpoint, requestBody, 3, 500);
 
       if (res.status === 429 || res.status === 503) {
-        console.warn(`[GeminiClient] ${model} throttled (${res.status}). Cascading...`);
+        console.warn(`[GeminiClient] ${model} exhausted retries (${res.status}). Cascading...`);
         continue;
       }
 
@@ -257,7 +297,7 @@ export async function generateText(
     try {
       const endpoint = getGeminiEndpoint(model);
 
-      const requestBody: any = {
+      const requestBody: Record<string, unknown> = {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: options.temperature ?? 0.7,
@@ -271,17 +311,14 @@ export async function generateText(
       }
 
       if (options.maxOutputTokens) {
-        requestBody.generationConfig.maxOutputTokens = options.maxOutputTokens;
+        (requestBody.generationConfig as Record<string, unknown>).maxOutputTokens =
+          options.maxOutputTokens;
       }
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
+      const res = await fetchWithRetry(endpoint, requestBody, 3, 500);
 
       if (res.status === 429 || res.status === 503) {
-        console.warn(`[GeminiClient] ${model} throttled (${res.status}). Cascading...`);
+        console.warn(`[GeminiClient] ${model} exhausted retries (${res.status}). Cascading...`);
         continue;
       }
 
@@ -306,3 +343,4 @@ export async function generateText(
 
   return null;
 }
+

@@ -13,10 +13,10 @@ describe('ActionValidator - Lore & Inventory Guardrails', () => {
     themeNotes: 'Gritty',
     laws: [
       {
-        id: 'law_dragons_extinct',
-        rule: 'Dragons became extinct 300 years ago.',
-        description: '',
-        category: 'creatures',
+        id: 'law_arcane_discipline',
+        rule: 'Magic cannot be freely cast without the proper arcane discipline.',
+        description: 'Uninitiated mortals cannot cast spells.',
+        category: 'magic',
         isImmutable: true,
       },
     ],
@@ -50,17 +50,8 @@ describe('ActionValidator - Lore & Inventory Guardrails', () => {
     currentLocationId: 'loc_cell',
   };
 
-  it('rejects actions that violate immutable world laws (e.g. summoning extinct dragons)', () => {
-    const res = ActionValidator.validateAction(
-      'I summon my pet dragon to melt the bars',
-      samplePlayerState,
-      sampleWorldBible,
-      sampleRpgSystem
-    );
-    assert.equal(res.isValid, false);
-    assert.equal(res.violatesLawId, 'law_dragons_extinct');
-    assert.ok(res.rejectionReason?.includes('extinct'));
-  });
+
+
 
   it('rejects using specific items not present in inventory', () => {
     const res = ActionValidator.validateAction(

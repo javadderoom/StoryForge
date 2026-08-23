@@ -6,7 +6,13 @@ import { PlaythroughSession, PlayerState } from '@/lib/types/gameplay';
 import { getEmptyStoryManifest } from '../../storyFactory';
 
 describe('StoryForge Database Repositories', () => {
-  it('should save and retrieve a story by ID with WorldBible and RpgSystem', async () => {
+  const isDbActive = process.env.ENABLE_DB === 'true';
+
+  it('should save and retrieve a story by ID with WorldBible and RpgSystem', async (t) => {
+    if (!isDbActive) {
+      t.skip('Database tests skipped because ENABLE_DB is not true');
+      return;
+    }
     const manifest = getEmptyStoryManifest('en');
     await StoryRepository.saveStory(manifest);
 
@@ -25,7 +31,11 @@ describe('StoryForge Database Repositories', () => {
     assert.strictEqual(manifest, null);
   });
 
-  it('should distinguish published from draft stories in getAllStories', async () => {
+  it('should distinguish published from draft stories in getAllStories', async (t) => {
+    if (!isDbActive) {
+      t.skip('Database tests skipped because ENABLE_DB is not true');
+      return;
+    }
     const draft = getEmptyStoryManifest('fa');
     draft.published = false;
     await StoryRepository.saveStory(draft);
@@ -42,6 +52,7 @@ describe('StoryForge Database Repositories', () => {
     // Cleanup
     await StoryRepository.deleteStory(draft.id);
   });
+
 
   it('should persist playthrough session and record turns', async () => {
     const story = getEmptyStoryManifest('en');

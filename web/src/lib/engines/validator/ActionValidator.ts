@@ -33,53 +33,38 @@ export class ActionValidator {
       };
     }
 
-    // 1. Check against immutable World Laws
-    for (const law of worldBible.laws) {
-      if (law.isImmutable) {
-        // Creature extinction check (e.g. Dragons)
-        if (
-          law.category === 'creatures' &&
-          (lower.includes('dragon') || lower.includes('summon dragon') || lower.includes('tame dragon')) &&
-          law.rule.toLowerCase().includes('extinct')
-        ) {
-          return {
-            isValid: false,
-            violatesLawId: law.id,
-            rejectionReason: `Action violates world law: ${law.rule}`,
-            suggestedAction: 'Look for another path or utilize the tools and skills at your disposal.',
-            normalizedAction: trimmed,
-          };
-        }
-
-        // Magic restriction check
-        if (
-          law.category === 'magic' &&
-          (lower.includes('cast spell') || lower.includes('fireball') || lower.includes('teleport')) &&
-          !rpgSystem.stats.some((s) => s.id === 'arcana' || s.id === 'magic')
-        ) {
-          return {
-            isValid: false,
-            violatesLawId: law.id,
-            rejectionReason: `Magic cannot be freely cast without the proper arcane discipline.`,
-            suggestedAction: 'Rely on your physical abilities, wits, or items in your pack.',
-            normalizedAction: trimmed,
-          };
-        }
-      }
-    }
-
-    // 2. Check for item hallucination (attempting to use specific key items not possessed)
-    const itemAttemptMatches = lower.match(/(?:use|unlock with|open with|drink|consume)\s+(?:the|a|my)?\s+([a-z\s]+)/i);
+    // 1. Check for item hallucination (attempting to use specific items not possessed)
+    const itemAttemptMatches = lower.match(
+      /(?:use|unlock with|open with|drink|consume|equip|wield|read)\s+(?:the|a|my)?\s+([a-z\u0600-\u06FF\s]+)/i
+    );
     if (itemAttemptMatches && itemAttemptMatches[1]) {
       const referencedItemName = itemAttemptMatches[1].trim();
 
-      // If user specifically references rare keys or potions, check inventory
-      if (referencedItemName.includes('key') || referencedItemName.includes('potion') || referencedItemName.includes('scroll')) {
-        const hasItem = playerState.inventory.some((item) =>
-          item.name.toLowerCase().includes(referencedItemName) || referencedItemName.includes(item.name.toLowerCase())
+      // Only check if it's a substantive item name (length >= 3) and not a generic physical maneuver
+      const genericManeuvers = new Set([
+        'hands',
+        'fists',
+        'body',
+        'shoulder',
+        'force',
+        'feet',
+        'strength',
+        'lockpick',
+        'دست',
+        'پا',
+        'بدن',
+        'زور',
+      ]);
+
+      if (referencedItemName.length >= 3 && !genericManeuvers.has(referencedItemName)) {
+        const hasItem = playerState.inventory.some(
+          (item) =>
+            item.name.toLowerCase().includes(referencedItemName) ||
+            referencedItemName.includes(item.name.toLowerCase()) ||
+            item.id.toLowerCase() === referencedItemName
         );
 
-        if (!hasItem && !referencedItemName.includes('lockpick')) {
+        if (!hasItem) {
           return {
             isValid: false,
             rejectionReason: `You do not have "${referencedItemName}" in your inventory.`,
@@ -89,6 +74,7 @@ export class ActionValidator {
         }
       }
     }
+
 
     // 3. Knowledge-boundary guardrail: block actions that rely on NPC secrets
     //    the player has not yet discovered through play.

@@ -82,36 +82,7 @@ describe('LoreAuditor — deterministic consistency checks', () => {
     assert.equal(finding?.severity, 'error');
   });
 
-  it('flags law_conflict when a living draconic creature contradicts an extinction law', () => {
-    const world = baseWorld({
-      laws: [
-        {
-          id: 'law_dragon',
-          rule: 'Dragons have been extinct for 300 years.',
-          description: 'No living dragons.',
-          category: 'creatures',
-          isImmutable: true,
-        },
-      ],
-      bestiary: [
-        {
-          id: 'cre_wyrm',
-          name: 'Ember Wyrm',
-          speciesCategory: 'draconic',
-          dangerLevel: 5,
-          habitatLocationIds: [],
-          behavioralTactics: 'Breathes fire.',
-          weaknesses: ['cold'],
-          resistances: ['fire'],
-          harvestableLoot: [],
-          loreDescription: 'A fearsome living dragon of the ash peaks.',
-        },
-      ],
-    });
-    const report = LoreAuditor.audit(world);
-    const finding = report.findings.find((f) => f.category === 'law_conflict');
-    assert.ok(finding, 'expected a law_conflict finding');
-  });
+
 
   it('flags one-sided faction rivalry as a suggestion', () => {
     const world = baseWorld({
