@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import type { WorldBible } from '@/lib/types/world';
+import type { WorldBible, OracleMemoryDirective } from '@/lib/types/world';
 
 export const ALLOWED_ENTITIES = [
   'faction',
@@ -421,7 +420,11 @@ Ops: "create", "update", "delete". Entities: ${ENUM}. You MUST include the "enti
 export function buildAdviserSystemPrompt(
   persona: PersonaId,
   isPersian: boolean,
-  opts: { worldContext?: string; activeEntityContext?: string } = {}
+  opts: {
+    worldContext?: string;
+    activeEntityContext?: string;
+    directives?: (string | OracleMemoryDirective)[];
+  } = {}
 ): string {
   const p = ADVISER_PERSONAS[persona] || ADVISER_PERSONAS.oracle;
   const baseLines = isPersian
@@ -446,8 +449,22 @@ export function buildAdviserSystemPrompt(
         'When the author explicitly asks you to add, change, or remove something in the world, emit EXACTLY ONE structured action block (see protocol). Otherwise just converse and emit no blocks.',
       ];
 
+  const activeDirectives = (opts.directives || []).filter((d) =>
+    typeof d === 'string' ? d.trim().length > 0 : d.isActive !== false && d.directive.trim().length > 0
+  );
 
-
+  const directiveSection =
+    activeDirectives.length > 0
+      ? isPersian
+        ? `\n\nدستورالعمل‌ها و خاطرات تثبیت‌شده نویسنده (این موارد تصمیمات قطعی جهان هستند و هرگز نباید نقض شوند):\n` +
+          activeDirectives
+            .map((d, i) => `${i + 1}. ${typeof d === 'string' ? d : `[${d.category}] ${d.directive}`}`)
+            .join('\n')
+        : `\n\nPERMANENT AUTHOR DIRECTIVES & ESTABLISHED CANON MEMORIES (Immutable author decisions — you MUST strictly align with and never contradict them):\n` +
+          activeDirectives
+            .map((d, i) => `${i + 1}. ${typeof d === 'string' ? d : `[${d.category}] ${d.directive}`}`)
+            .join('\n')
+      : '';
 
   const worldSection = opts.worldContext
     ? `\n\nWORLD BIBLE (existing lore — use it for accurate, consistent answers and never contradict it):\n${opts.worldContext}`
@@ -459,7 +476,14 @@ export function buildAdviserSystemPrompt(
 
   const langLine = isPersian ? '\nپاسخ را به فارسی روان، شفاف و مستقیم بنویس.' : '';
 
-  return baseLines.join('\n') + worldSection + focusSection + buildActionProtocolSection(isPersian) + langLine;
+  return (
+    baseLines.join('\n') +
+    directiveSection +
+    worldSection +
+    focusSection +
+    buildActionProtocolSection(isPersian) +
+    langLine
+  );
 }
 
 

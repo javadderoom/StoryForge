@@ -535,8 +535,8 @@
     "semantic_hash": ""
   },
   "web/next-env.d.ts": {
-    "mtime": 1787571295.1772337,
-    "ast_hash": "8195d2c60ce847a459ae9d308d6a5724",
+    "mtime": 1787584636.050991,
+    "ast_hash": "aa94238a90e7d04b7a47ecc3145ba6a0",
     "semantic_hash": ""
   },
   "web/next.config.ts": {
@@ -650,8 +650,8 @@
     "semantic_hash": ""
   },
   "web/src/lib/types/world.ts": {
-    "mtime": 1787582011.2099898,
-    "ast_hash": "e0ba5bd5a13b2839f1d1b6da752307a0",
+    "mtime": 1787586896.9794147,
+    "ast_hash": "6d94ccd1532f8d36f66490bbb00cf1ba",
     "semantic_hash": ""
   },
   "web/tsconfig.json": {
@@ -1610,13 +1610,13 @@
     "semantic_hash": ""
   },
   "web/src/app/api/studio/chat/StudioChat.test.ts": {
-    "mtime": 1787519572.2040067,
-    "ast_hash": "f959368d1324c186533d965b04d38f39",
+    "mtime": 1787587086.1954255,
+    "ast_hash": "1eb5ed7ed5f0088bc5c0bf2301b9b7a7",
     "semantic_hash": ""
   },
   "web/src/app/api/studio/chat/route.ts": {
-    "mtime": 1787515449.5725784,
-    "ast_hash": "2d47b9a3c7cb5798da57533c2f3ac531",
+    "mtime": 1787587000.1449513,
+    "ast_hash": "a08bdeed7eaa4c372ecac9e9ec25f0da",
     "semantic_hash": ""
   },
   "web/src/app/studio/chat/page.tsx": {
@@ -1680,8 +1680,8 @@
     "semantic_hash": ""
   },
   "web/src/lib/engines/world/ActionProtocol.ts": {
-    "mtime": 1787573599.7717607,
-    "ast_hash": "cc543d1325e5de3787a001199b3763ed",
+    "mtime": 1787586982.3883617,
+    "ast_hash": "bb7b34e64fb74d348dc410088939044c",
     "semantic_hash": ""
   },
   "web/src/lib/engines/world/GenesisSchemas.ts": {
@@ -1750,13 +1750,18 @@
     "semantic_hash": ""
   },
   "web/src/components/studio/StudioOracleDrawer.tsx": {
-    "mtime": 1787582796.3806741,
-    "ast_hash": "e19afdad8c3e6152a578f20965daf920",
+    "mtime": 1787587190.1768565,
+    "ast_hash": "c9568bc2748778c42a8d6a472e10c853",
     "semantic_hash": ""
   },
   "web/src/app/api/studio/lore/route.ts": {
     "mtime": 1787584266.9055066,
     "ast_hash": "e4fa9640df72977fc7b0089289345b7b",
+    "semantic_hash": ""
+  },
+  "docs/plans/07_MASSIVE_UNIVERSE_LONG_FORM_SAGA_PLAN.md": {
+    "mtime": 1787586773.9467256,
+    "ast_hash": "1426cab7f68653476d61e0e1aa10ba71",
     "semantic_hash": ""
   }
 }

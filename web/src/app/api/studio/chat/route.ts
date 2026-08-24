@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
       : 'oracle';
     const activeEntityContext: string =
       typeof body.activeEntityContext === 'string' ? body.activeEntityContext : '';
+    const directives = Array.isArray(body.directives) ? body.directives : [];
 
     if (!messages.length) {
       return NextResponse.json(
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
       buildAdviserSystemPrompt(persona, isPersian, {
         worldContext,
         activeEntityContext,
+        directives,
       });
 
     const result = await generateChat(messages, systemInstruction, {

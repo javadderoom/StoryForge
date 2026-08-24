@@ -325,6 +325,7 @@ export interface WorldBible {
   dramaBonds?: NPCDramaBond[];
   ontology?: WorldOntology;
   customRelations?: CustomLoreRelation[];
+  oracleDirectives?: OracleMemoryDirective[];
 }
 
 // ----------------------------------------------------
@@ -774,5 +775,16 @@ export const BranchingStoryTreeSchema = z.object({
   acts: z.array(BranchingActSchema).length(3),
 });
 export type BranchingStoryTree = z.infer<typeof BranchingStoryTreeSchema>;
+
+// --- Oracle Memory & Author Directives Schema ---
+export const OracleMemoryDirectiveSchema = z.object({
+  id: z.string(),
+  directive: z.string(),
+  category: z.enum(['canon_fact', 'tone_rule', 'character_arc', 'forbidden_trope', 'custom']).default('canon_fact'),
+  isActive: z.boolean().default(true),
+  createdAt: z.string().optional(),
+  sourceMessage: z.string().optional(),
+});
+export type OracleMemoryDirective = z.infer<typeof OracleMemoryDirectiveSchema>;
 
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
@@ -14,19 +14,24 @@ import {
   Compass,
   Copy,
   Check,
-  ChevronDown,
   RotateCcw,
   BookOpen,
-  Sword,
-  Skull,
-  Sun,
-  Clock,
-  GitBranch,
+  Pin,
+  Plus,
+  Trash2,
+  Bookmark,
+  ToggleLeft,
+  ToggleRight,
+  Shield,
+  Lightbulb,
+  Cpu,
 } from 'lucide-react';
 import { notify } from '@/lib/notify';
 import { PersonaId } from '@/lib/engines/world/ActionProtocol';
+import { OracleMemoryDirective } from '@/lib/types/world';
 
 interface ChatMessage {
+  id?: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
@@ -84,19 +89,55 @@ const ADVISER_PERSONAS: {
 
 export default function StudioOracleDrawer() {
   const pathname = usePathname();
-  const { story, isPersian, isRtl } = useStudioStory();
+  const { story, isPersian, isRtl, updateWorldBible } = useStudioStory();
 
   const [isOpen, setIsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'chat' | 'memory'>('chat');
   const [selectedPersona, setSelectedPersona] = useState<PersonaId>('oracle');
   const [inputQuery, setInputQuery] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [pinnedIndex, setPinnedIndex] = useState<number | null>(null);
+
+  // Memory Vault Form State
+  const [newDirectiveText, setNewDirectiveText] = useState('');
+  const [newDirectiveCategory, setNewDirectiveCategory] = useState<OracleMemoryDirective['category']>('canon_fact');
 
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const storageKey = `storyforge_oracle_history_${story.id}`;
 
   const activePersonaMeta =
     ADVISER_PERSONAS.find((p) => p.id === selectedPersona) || ADVISER_PERSONAS[0];
+
+  const oracleDirectives: OracleMemoryDirective[] = story.worldBible.oracleDirectives || [];
+  const activeDirectivesCount = oracleDirectives.filter((d) => d.isActive !== false).length;
+
+  // Load chat history from localStorage on story mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setMessages(parsed);
+        }
+      }
+    } catch {
+      // Ignore local storage error
+    }
+  }, [storageKey]);
+
+  // Persist chat history to localStorage
+  useEffect(() => {
+    try {
+      if (messages.length > 0) {
+        localStorage.setItem(storageKey, JSON.stringify(messages));
+      }
+    } catch {
+      // Ignore local storage error
+    }
+  }, [messages, storageKey]);
 
   const getRouteLabel = () => {
     if (pathname.includes('/timeline')) return isPersian ? 'گاه‌شمار' : 'Timeline';
@@ -151,6 +192,7 @@ export default function StudioOracleDrawer() {
     if (!text || isGenerating) return;
 
     const userMsg: ChatMessage = {
+      id: `msg_${Date.now().toString(36)}`,
       role: 'user',
       content: text,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -171,6 +213,7 @@ export default function StudioOracleDrawer() {
           persona: selectedPersona,
           worldContext,
           activeEntityContext: `Active Studio Route: ${pathname} (${getRouteLabel()}). Story Title: ${story.title}`,
+          directives: story.worldBible.oracleDirectives || [],
           isPersian,
         }),
       });
@@ -184,6 +227,7 @@ export default function StudioOracleDrawer() {
         setMessages((prev) => [
           ...prev,
           {
+            id: `msg_${Date.now().toString(36)}_rep`,
             role: 'assistant',
             content: json.reply,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -206,9 +250,106 @@ export default function StudioOracleDrawer() {
     notify.success(isPersian ? 'در حافظه کپی شد' : 'Copied to clipboard');
   };
 
+  // Pin a message directly to Oracle Permanent Memory Vault
+  const handlePinToMemory = (content: string, index: number) => {
+    const cleanDirective = content.length > 300 ? content.slice(0, 300) + '...' : content;
+    const newEntry: OracleMemoryDirective = {
+      id: `dir_${Date.now().toString(36)}`,
+      directive: cleanDirective,
+      category: 'canon_fact',
+      isActive: true,
+      createdAt: new Date().toLocaleDateString(),
+      sourceMessage: content.slice(0, 100),
+    };
+
+    updateWorldBible((prev) => ({
+      ...prev,
+      oracleDirectives: [...(prev.oracleDirectives || []), newEntry],
+    }));
+
+    setPinnedIndex(index);
+    setTimeout(() => setPinnedIndex(null), 2000);
+    notify.success(
+      isPersian
+        ? 'این نکته در مخزن حافظه دائمی پیشگو ذخیره شد 🧠'
+        : 'Saved as permanent canon memory in Oracle Vault 🧠'
+    );
+  };
+
+  // Add Manual Memory Directive
+  const handleAddDirective = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDirectiveText.trim()) return;
+
+    const newEntry: OracleMemoryDirective = {
+      id: `dir_${Date.now().toString(36)}`,
+      directive: newDirectiveText.trim(),
+      category: newDirectiveCategory,
+      isActive: true,
+      createdAt: new Date().toLocaleDateString(),
+    };
+
+    updateWorldBible((prev) => ({
+      ...prev,
+      oracleDirectives: [...(prev.oracleDirectives || []), newEntry],
+    }));
+
+    setNewDirectiveText('');
+    notify.success(isPersian ? 'دستورالعمل جدید در حافظه پیشگو ثبت شد' : 'New canon directive stored in Oracle memory');
+  };
+
+  const handleToggleDirective = (id: string) => {
+    updateWorldBible((prev) => ({
+      ...prev,
+      oracleDirectives: (prev.oracleDirectives || []).map((d) =>
+        d.id === id ? { ...d, isActive: !d.isActive } : d
+      ),
+    }));
+  };
+
+  const handleDeleteDirective = async (id: string) => {
+    const confirmed = await notify.confirm({
+      title: isPersian ? 'حذف دستورالعمل حافظه' : 'Delete Memory Directive',
+      message: isPersian
+        ? 'آیا از حذف این نکته از حافظه دائمی پیشگو اطمینان دارید؟'
+        : 'Are you sure you want to permanently delete this memory directive?',
+      confirmText: isPersian ? 'حذف' : 'Delete',
+      cancelText: isPersian ? 'انصراف' : 'Cancel',
+      isDestructive: true,
+    });
+
+    if (confirmed) {
+      updateWorldBible((prev) => ({
+        ...prev,
+        oracleDirectives: (prev.oracleDirectives || []).filter((d) => d.id !== id),
+      }));
+      notify.info(isPersian ? 'دستورالعمل از حافظه حذف شد' : 'Directive removed from Oracle memory');
+    }
+  };
+
+  const handleClearChatHistory = async () => {
+    const confirmed = await notify.confirm({
+      title: isPersian ? 'پاک‌سازی تاریخچه گفتگو' : 'Clear Chat History',
+      message: isPersian
+        ? 'آیا از پاک کردن کل تاریخچه گفت‌وگوی پیشگو برای این داستان اطمینان دارید؟'
+        : 'Are you sure you want to clear all conversation history for this story?',
+      confirmText: isPersian ? 'پاک‌سازی کامل' : 'Clear History',
+      cancelText: isPersian ? 'انصراف' : 'Cancel',
+      isDestructive: true,
+    });
+
+    if (confirmed) {
+      setMessages([]);
+      try {
+        localStorage.removeItem(storageKey);
+      } catch {}
+      notify.info(isPersian ? 'تاریخچه گفتگو پاک شد' : 'Chat history cleared');
+    }
+  };
+
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isGenerating]);
+  }, [messages, isGenerating, activeTab]);
 
   return (
     <>
@@ -222,6 +363,11 @@ export default function StudioOracleDrawer() {
         >
           <Sparkles className="w-4 h-4 animate-pulse" />
           <span>{isPersian ? 'پیشگوی استودیو' : 'Studio Oracle'}</span>
+          {activeDirectivesCount > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full bg-zinc-950 text-amber-300 text-[10px] font-mono border border-amber-400/40">
+              🧠 {activeDirectivesCount}
+            </span>
+          )}
           <span className="w-2 h-2 rounded-full bg-zinc-950 animate-ping" />
         </button>
       )}
@@ -230,7 +376,7 @@ export default function StudioOracleDrawer() {
       {isOpen && (
         <div
           dir={isRtl ? 'rtl' : 'ltr'}
-          className="fixed inset-y-0 end-0 z-50 w-full sm:w-96 md:w-[420px] bg-zinc-950/95 backdrop-blur-xl border-s border-zinc-800 shadow-2xl flex flex-col justify-between animate-fadeIn"
+          className="fixed inset-y-0 end-0 z-50 w-full sm:w-96 md:w-[440px] bg-zinc-950/95 backdrop-blur-xl border-s border-zinc-800 shadow-2xl flex flex-col justify-between animate-fadeIn"
         >
           {/* Header */}
           <div className="p-4 border-b border-zinc-800 bg-zinc-900/70 space-y-3">
@@ -252,44 +398,82 @@ export default function StudioOracleDrawer() {
               </div>
 
               <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setMessages([])}
-                  className="p-1.5 rounded-lg text-zinc-400 hover:text-amber-300 hover:bg-zinc-800"
-                  title="Clear Chat"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
+                {activeTab === 'chat' && (
+                  <button
+                    type="button"
+                    onClick={handleClearChatHistory}
+                    className="p-1.5 rounded-lg text-zinc-400 hover:text-amber-300 hover:bg-zinc-800 transition-colors"
+                    title={isPersian ? 'پاک‌سازی گفتگو' : 'Clear Chat History'}
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800"
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* Persona Selector Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-              {ADVISER_PERSONAS.map((persona) => {
-                const isSelected = persona.id === selectedPersona;
-                return (
-                  <button
-                    key={persona.id}
-                    type="button"
-                    onClick={() => setSelectedPersona(persona.id)}
-                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold shrink-0 transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
-                        : 'text-zinc-400 hover:text-zinc-200 bg-zinc-900 border border-zinc-800'
-                    }`}
-                  >
-                    {isPersian ? persona.nameFa : persona.nameEn}
-                  </button>
-                );
-              })}
+            {/* Navigation Tabs (Chat vs Memory Vault) */}
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-zinc-950 rounded-xl border border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setActiveTab('chat')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'chat'
+                    ? 'bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/20'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>{isPersian ? 'گفت‌وگو با پیشگو' : 'Oracle Chat'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('memory')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'memory'
+                    ? 'bg-purple-600 text-white shadow-md shadow-purple-500/20'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Pin className="w-3.5 h-3.5" />
+                <span>{isPersian ? 'مخزن حافظه' : 'Memory Vault'}</span>
+                {activeDirectivesCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-zinc-900 text-[10px] font-mono border border-purple-400/40">
+                    {activeDirectivesCount}
+                  </span>
+                )}
+              </button>
             </div>
+
+            {/* Persona Selector Tabs (Only active in Chat mode) */}
+            {activeTab === 'chat' && (
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                {ADVISER_PERSONAS.map((persona) => {
+                  const isSelected = persona.id === selectedPersona;
+                  return (
+                    <button
+                      key={persona.id}
+                      type="button"
+                      onClick={() => setSelectedPersona(persona.id)}
+                      className={`px-2.5 py-1 rounded-xl text-[11px] font-bold shrink-0 transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                          : 'text-zinc-400 hover:text-zinc-200 bg-zinc-900 border border-zinc-800'
+                      }`}
+                    >
+                      {isPersian ? persona.nameFa : persona.nameEn}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Route Context Banner */}
             <div className="flex items-center justify-between text-[10px] font-mono px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-400">
@@ -301,146 +485,286 @@ export default function StudioOracleDrawer() {
             </div>
           </div>
 
-          {/* Chat Messages Log */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
-            {messages.length === 0 ? (
-              <div className="text-center py-8 space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-amber-400 shadow-inner">
-                  <Sparkles className="w-6 h-6" />
-                </div>
-                <div className="space-y-1">
-                  <h4 className="font-bold text-zinc-200 text-xs">
-                    {isPersian ? 'مشاور هوشمند لور و داستان' : 'Studio Lore Advisor Ready'}
-                  </h4>
-                  <p className="text-[11px] text-zinc-500 max-w-xs mx-auto leading-relaxed">
-                    {isPersian
-                      ? 'هر سؤالی درباره پیوستگی قوانین، خلق موجودات، طراحی دیالوگ‌ها، یا بالانس تاس‌های RPG دارید بپرسید.'
-                      : 'Ask anything about world consistency, creature design, dialogue voice, or RPG balance.'}
-                  </p>
-                </div>
+          {/* ========================================================= */}
+          {/* TAB 1: INTERACTIVE CHAT */}
+          {/* ========================================================= */}
+          {activeTab === 'chat' ? (
+            <>
+              {/* Chat Messages Log */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
+                {messages.length === 0 ? (
+                  <div className="text-center py-8 space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-amber-400 shadow-inner">
+                      <Sparkles className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-zinc-200 text-xs">
+                        {isPersian ? 'مشاور هوشمند لور و داستان' : 'Studio Lore Advisor Ready'}
+                      </h4>
+                      <p className="text-[11px] text-zinc-500 max-w-xs mx-auto leading-relaxed">
+                        {isPersian
+                          ? 'هر سؤالی درباره پیوستگی قوانین، خلق موجودات، طراحی دیالوگ‌ها، یا بالانس تاس‌های RPG دارید بپرسید.'
+                          : 'Ask anything about world consistency, creature design, dialogue voice, or RPG balance.'}
+                      </p>
+                    </div>
 
-                {/* Quick Suggestion Chips */}
-                <div className="pt-3 space-y-1.5 text-start">
-                  <span className="text-[10px] text-zinc-500 font-mono block">
-                    {isPersian ? 'پیشنهادات سریع برای این بخش:' : 'Quick Prompts for this page:'}
-                  </span>
-                  <div className="space-y-1">
-                    {getQuickSuggestions().map((sug, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => handleSendMessage(sug)}
-                        className="w-full text-start p-2 rounded-xl bg-zinc-900/80 hover:bg-zinc-900 border border-zinc-800 hover:border-amber-500/30 text-[11px] text-zinc-300 transition-all cursor-pointer"
-                      >
-                        💡 {sug}
-                      </button>
-                    ))}
+                    {/* Quick Suggestion Chips */}
+                    <div className="pt-3 space-y-1.5 text-start">
+                      <span className="text-[10px] text-zinc-500 font-mono block">
+                        {isPersian ? 'پیشنهادات سریع برای این بخش:' : 'Quick Prompts for this page:'}
+                      </span>
+                      <div className="space-y-1">
+                        {getQuickSuggestions().map((sug, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => handleSendMessage(sug)}
+                            className="w-full text-start p-2 rounded-xl bg-zinc-900/80 hover:bg-zinc-900 border border-zinc-800 hover:border-amber-500/30 text-[11px] text-zinc-300 transition-all cursor-pointer"
+                          >
+                            💡 {sug}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ) : (
-              messages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex flex-col space-y-1 ${
-                    msg.role === 'user' ? 'items-end' : 'items-start'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
-                    {msg.role === 'user' ? (
-                      <>
-                        <span>{msg.timestamp}</span>
-                        <User className="w-3 h-3 text-zinc-400" />
-                      </>
-                    ) : (
-                      <>
-                        <Bot className="w-3 h-3 text-amber-400" />
-                        <span>{isPersian ? activePersonaMeta.nameFa : activePersonaMeta.nameEn}</span>
-                        <span>•</span>
-                        <span>{msg.timestamp}</span>
-                      </>
-                    )}
-                  </div>
-
-                  <div
-                    className={`p-3 rounded-2xl max-w-[90%] text-xs leading-relaxed group relative ${
-                      msg.role === 'user'
-                        ? 'bg-amber-500 text-zinc-950 font-medium rounded-ee-none'
-                        : 'bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-es-none'
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-
-                    {msg.role === 'assistant' && (
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(msg.content, idx)}
-                        className="absolute top-2 end-2 p-1 rounded bg-zinc-950/60 text-zinc-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Copy Response"
-                      >
-                        {copiedIndex === idx ? (
-                          <Check className="w-3 h-3 text-emerald-400" />
+                ) : (
+                  messages.map((msg, idx) => (
+                    <div
+                      key={msg.id || idx}
+                      className={`flex flex-col space-y-1 ${
+                        msg.role === 'user' ? 'items-end' : 'items-start'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
+                        {msg.role === 'user' ? (
+                          <>
+                            <span>{msg.timestamp}</span>
+                            <User className="w-3 h-3 text-zinc-400" />
+                          </>
                         ) : (
-                          <Copy className="w-3 h-3" />
+                          <>
+                            <Bot className="w-3 h-3 text-amber-400" />
+                            <span>{isPersian ? activePersonaMeta.nameFa : activePersonaMeta.nameEn}</span>
+                            <span>•</span>
+                            <span>{msg.timestamp}</span>
+                          </>
                         )}
-                      </button>
-                    )}
+                      </div>
+
+                      <div
+                        className={`p-3.5 rounded-2xl max-w-[92%] text-xs leading-relaxed group relative ${
+                          msg.role === 'user'
+                            ? 'bg-amber-500 text-zinc-950 font-medium rounded-ee-none'
+                            : 'bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-es-none'
+                        }`}
+                      >
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+
+                        <div className="absolute top-2 end-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {/* Pin to Memory Button */}
+                          <button
+                            type="button"
+                            onClick={() => handlePinToMemory(msg.content, idx)}
+                            className="p-1 rounded bg-zinc-950/80 text-zinc-400 hover:text-purple-300 transition-colors"
+                            title={isPersian ? 'ثبت در حافظه دائمی پیشگو' : 'Save to Oracle Memory Vault'}
+                          >
+                            {pinnedIndex === idx ? (
+                              <Check className="w-3 h-3 text-purple-400" />
+                            ) : (
+                              <Pin className="w-3 h-3" />
+                            )}
+                          </button>
+
+                          {/* Copy Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(msg.content, idx)}
+                            className="p-1 rounded bg-zinc-950/80 text-zinc-400 hover:text-white transition-colors"
+                            title={isPersian ? 'کپی متن' : 'Copy Response'}
+                          >
+                            {copiedIndex === idx ? (
+                              <Check className="w-3 h-3 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3 h-3" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {isGenerating && (
+                  <div className="flex items-center gap-2 text-xs text-amber-400 animate-pulse p-2">
+                    <Sparkles className="w-3.5 h-3.5 animate-spin" />
+                    <span>{isPersian ? 'پیشگو در حال اندیشیدن است...' : 'Oracle is contemplating...'}</span>
                   </div>
-                </div>
-              ))
-            )}
-
-            {isGenerating && (
-              <div className="flex items-center gap-2 text-xs text-amber-400 animate-pulse p-2">
-                <Sparkles className="w-3.5 h-3.5 animate-spin" />
-                <span>{isPersian ? 'پیشگو در حال اندیشیدن است...' : 'Oracle is contemplating...'}</span>
+                )}
+                <div ref={chatBottomRef} />
               </div>
-            )}
-            <div ref={chatBottomRef} />
-          </div>
 
-          {/* Input Box */}
-          <div className="p-3 border-t border-zinc-800 bg-zinc-900/60 space-y-1.5">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-              }}
-              className="flex items-end gap-2"
-            >
-              <textarea
-                rows={2}
-                value={inputQuery}
-                onChange={(e) => setInputQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
+              {/* Input Box */}
+              <div className="p-3 border-t border-zinc-800 bg-zinc-900/60 space-y-1.5">
+                <form
+                  onSubmit={(e) => {
                     e.preventDefault();
-                    if (inputQuery.trim() && !isGenerating) {
-                      handleSendMessage();
+                    handleSendMessage();
+                  }}
+                  className="flex items-end gap-2"
+                >
+                  <textarea
+                    rows={2}
+                    value={inputQuery}
+                    onChange={(e) => setInputQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (inputQuery.trim() && !isGenerating) {
+                          handleSendMessage();
+                        }
+                      }
+                    }}
+                    placeholder={
+                      isPersian
+                        ? `پیام خود را بنویسید (Enter برای ارسال، Shift+Enter برای خط جدید)...`
+                        : `Type your message (Enter to send, Shift+Enter for newline)...`
                     }
+                    className="flex-1 bg-zinc-950 border border-zinc-700/80 rounded-2xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 resize-none max-h-32 leading-relaxed"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!inputQuery.trim() || isGenerating}
+                    className="p-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold transition-all shadow-md shadow-amber-500/20 disabled:opacity-40 cursor-pointer shrink-0 mb-0.5"
+                    title={isPersian ? 'ارسال پیام' : 'Send message'}
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </form>
+                <div className="flex items-center justify-between text-[9.5px] text-zinc-500 px-1">
+                  <span>{isPersian ? '↵ ارسال • Shift+↵ خط جدید' : '↵ Send • Shift+↵ New Line'}</span>
+                  <span>{story.worldBible.worldName || 'StoryForge'}</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            /* ========================================================= */
+            /* TAB 2: ORACLE MEMORY VAULT */
+            /* ========================================================= */
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+              <div className="p-3 rounded-2xl bg-purple-950/30 border border-purple-500/30 space-y-1">
+                <div className="flex items-center gap-1.5 text-purple-300 font-bold">
+                  <Pin className="w-3.5 h-3.5" />
+                  <span>{isPersian ? 'مخزن حافظه و دستورالعمل‌های دائم' : 'Permanent Oracle Memory Vault'}</span>
+                </div>
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                  {isPersian
+                    ? 'تمام نکات، تصمیمات بنیادین و حقایق ذخیره‌شده در این بخش، مستقیماً به حافظه تمام ۵ مشاور پیشگو تزریق می‌شوند و در تمام گفتگوها محترم شمرده خواهند شد.'
+                    : 'All canon facts and creative directives stored here are permanently injected into all 5 Oracle personas to guide future consultations.'}
+                </p>
+              </div>
+
+              {/* Add Directive Form */}
+              <form onSubmit={handleAddDirective} className="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-zinc-300 flex items-center gap-1">
+                    <Plus className="w-3 h-3 text-purple-400" />
+                    {isPersian ? 'افزودن دستورالعمل جدید به حافظه:' : 'Add New Memory Directive:'}
+                  </label>
+                  <select
+                    value={newDirectiveCategory}
+                    onChange={(e) => setNewDirectiveCategory(e.target.value as any)}
+                    className="bg-zinc-950 border border-zinc-700 rounded-lg px-2 py-1 text-[10.5px] text-purple-300 font-mono"
+                  >
+                    <option value="canon_fact">{isPersian ? 'حقیقت لور (Canon)' : 'Canon Fact'}</option>
+                    <option value="tone_rule">{isPersian ? 'قانون لحن و تم (Tone)' : 'Tone Rule'}</option>
+                    <option value="character_arc">{isPersian ? 'خط شخصیتی (Character)' : 'Character Arc'}</option>
+                    <option value="forbidden_trope">{isPersian ? 'ممنوعیت داستانی (Forbidden)' : 'Forbidden Trope'}</option>
+                    <option value="custom">{isPersian ? 'سفارشی (Custom)' : 'Custom'}</option>
+                  </select>
+                </div>
+
+                <textarea
+                  rows={2}
+                  value={newDirectiveText}
+                  onChange={(e) => setNewDirectiveText(e.target.value)}
+                  placeholder={
+                    isPersian
+                      ? 'مثال: امپراتور نقره‌ای مخفیانه مرده و یک ربات جای او را گرفته است...'
+                      : 'e.g. The Silver Emperor is secretly dead and replaced by an automaton...'
                   }
-                }}
-                placeholder={
-                  isPersian
-                    ? `پیام خود را بنویسید (Enter برای ارسال، Shift+Enter برای خط جدید)...`
-                    : `Type your message (Enter to send, Shift+Enter for newline)...`
-                }
-                className="flex-1 bg-zinc-950 border border-zinc-700/80 rounded-2xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 resize-none max-h-32 leading-relaxed"
-              />
-              <button
-                type="submit"
-                disabled={!inputQuery.trim() || isGenerating}
-                className="p-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold transition-all shadow-md shadow-amber-500/20 disabled:opacity-40 cursor-pointer shrink-0 mb-0.5"
-                title={isPersian ? 'ارسال پیام' : 'Send message'}
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-            <div className="flex items-center justify-between text-[9.5px] text-zinc-500 px-1">
-              <span>{isPersian ? '↵ ارسال • Shift+↵ خط جدید' : '↵ Send • Shift+↵ New Line'}</span>
-              <span>{story.worldBible.worldName || 'StoryForge'}</span>
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-purple-400"
+                />
+
+                <button
+                  type="submit"
+                  disabled={!newDirectiveText.trim()}
+                  className="w-full py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 disabled:opacity-40 transition-all cursor-pointer shadow-md shadow-purple-600/20"
+                >
+                  <Pin className="w-3.5 h-3.5" />
+                  <span>{isPersian ? 'ثبت دائم در حافظه پیشگو' : 'Save Directive to Memory'}</span>
+                </button>
+              </form>
+
+              {/* Directives List */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono px-1">
+                  <span>{isPersian ? 'حافظه‌های فعال:' : 'Active Memory Directives:'}</span>
+                  <span>{oracleDirectives.length} {isPersian ? 'مورد' : 'total'}</span>
+                </div>
+
+                {oracleDirectives.length === 0 ? (
+                  <div className="text-center py-6 text-zinc-500 space-y-1">
+                    <Bookmark className="w-6 h-6 mx-auto text-zinc-700" />
+                    <p className="text-[11px]">
+                      {isPersian
+                        ? 'هنوز نکته‌ای در حافظه ثبت نشده است. می‌توانید با زدن دکمه 📌 روی پیام‌ها آن‌ها را اضافه کنید.'
+                        : 'No memory directives stored yet. You can pin key messages in the chat tab using 📌.'}
+                    </p>
+                  </div>
+                ) : (
+                  oracleDirectives.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`p-3 rounded-2xl border transition-all ${
+                        item.isActive !== false
+                          ? 'bg-zinc-900/90 border-purple-500/30'
+                          : 'bg-zinc-950/60 border-zinc-800 opacity-60'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between pb-1.5 border-b border-zinc-800/80 mb-2">
+                        <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 font-mono text-[9.5px] border border-purple-500/30">
+                          {item.category || 'canon_fact'}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleDirective(item.id)}
+                            className="text-zinc-400 hover:text-white p-1"
+                            title={item.isActive !== false ? 'Mute' : 'Activate'}
+                          >
+                            {item.isActive !== false ? (
+                              <ToggleRight className="w-4 h-4 text-emerald-400" />
+                            ) : (
+                              <ToggleLeft className="w-4 h-4 text-zinc-600" />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDirective(item.id)}
+                            className="text-zinc-500 hover:text-red-400 p-1"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-zinc-200 text-xs leading-relaxed">{item.directive}</p>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </>

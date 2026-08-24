@@ -117,4 +117,28 @@ describe('StudioChat API - AI Oracle (Context-Aware)', () => {
     const json = await res.json();
     assert.equal(json.persona, 'oracle');
   });
+
+  it('injects permanent author directives and canon memories into system instruction', async () => {
+    captured.length = 0;
+    const req = createMockRequest({
+      messages: [{ role: 'user', content: 'Advise me on emperor' }],
+      worldContext: '',
+      isPersian: false,
+      persona: 'oracle',
+      directives: [
+        {
+          id: 'dir_1',
+          directive: 'The Silver Emperor is secretly an automaton',
+          category: 'canon_fact',
+          isActive: true,
+        },
+      ],
+    });
+    const res = await POST(req);
+    assert.equal(res.status, 200);
+    const sentBody = JSON.parse(captured[0].body);
+    const systemText = sentBody.systemInstruction.parts[0].text;
+    assert.match(systemText, /PERMANENT AUTHOR DIRECTIVES/i, 'directives header must appear');
+    assert.match(systemText, /Silver Emperor is secretly an automaton/, 'directive content must appear');
+  });
 });
