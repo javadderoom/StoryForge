@@ -400,33 +400,46 @@ export default function StudioOracleDrawer() {
           </div>
 
           {/* Input Box */}
-          <div className="p-3 border-t border-zinc-800 bg-zinc-900/60 space-y-2">
+          <div className="p-3 border-t border-zinc-800 bg-zinc-900/60 space-y-1.5">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSendMessage();
               }}
-              className="flex items-center gap-2"
+              className="flex items-end gap-2"
             >
-              <input
-                type="text"
+              <textarea
+                rows={2}
                 value={inputQuery}
                 onChange={(e) => setInputQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (inputQuery.trim() && !isGenerating) {
+                      handleSendMessage();
+                    }
+                  }
+                }}
                 placeholder={
                   isPersian
-                    ? `از ${activePersonaMeta.nameFa} راهنمایی بخواهید...`
-                    : `Consult with ${activePersonaMeta.nameEn}...`
+                    ? `پیام خود را بنویسید (Enter برای ارسال، Shift+Enter برای خط جدید)...`
+                    : `Type your message (Enter to send, Shift+Enter for newline)...`
                 }
-                className="flex-1 bg-zinc-950 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-400"
+                className="flex-1 bg-zinc-950 border border-zinc-700/80 rounded-2xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 resize-none max-h-32 leading-relaxed"
               />
               <button
                 type="submit"
                 disabled={!inputQuery.trim() || isGenerating}
-                className="p-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold transition-all shadow-md shadow-amber-500/20 disabled:opacity-40 cursor-pointer"
+                className="p-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold transition-all shadow-md shadow-amber-500/20 disabled:opacity-40 cursor-pointer shrink-0 mb-0.5"
+                title={isPersian ? 'ارسال پیام' : 'Send message'}
               >
-                <Send className="w-3.5 h-3.5" />
+                <Send className="w-4 h-4" />
               </button>
             </form>
+            <div className="flex items-center justify-between text-[9.5px] text-zinc-500 px-1">
+              <span>{isPersian ? '↵ ارسال • Shift+↵ خط جدید' : '↵ Send • Shift+↵ New Line'}</span>
+              <span>{story.worldBible.worldName || 'StoryForge'}</span>
+            </div>
           </div>
         </div>
       )}

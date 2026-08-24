@@ -1,5 +1,18 @@
 import { prisma } from '../client';
 import { StoryManifest } from '@/lib/types';
+import {
+  WorldBible,
+  WorldCreature,
+  WorldArtifact,
+  TimelineEvent,
+  NPCDossier,
+  WorldDeity,
+  WorldLocation,
+  Faction,
+  WorldLaw,
+  NPCDramaBond,
+  WorldOntology,
+} from '@/lib/types/world';
 
 const isDatabaseActive = process.env.ENABLE_DB === 'true';
 
@@ -81,7 +94,267 @@ export class StoryRepository {
   }
 
   /**
-   * Saves or updates a StoryManifest in the database
+   * Fetches the relational WorldBible projection without loading full story manifest.
+   */
+  static async getWorldBible(storyId: string): Promise<WorldBible | null> {
+    if (!isDatabaseActive) return null;
+    try {
+      const wb = await prisma.worldBible.findUnique({
+        where: { storyId },
+      });
+      if (!wb) return null;
+      return {
+        worldId: wb.id,
+        worldName: wb.worldName,
+        summary: wb.summary,
+        themeNotes: wb.themeNotes,
+        laws: (wb.laws as unknown as WorldLaw[]) || [],
+        factions: (wb.factions as unknown as Faction[]) || [],
+        locations: (wb.locations as unknown as WorldLocation[]) || [],
+        npcs: (wb.npcs as unknown as NPCDossier[]) || [],
+        timeline: (wb.timeline as unknown as TimelineEvent[]) || [],
+        artifacts: (wb.artifacts as unknown as WorldArtifact[]) || [],
+        bestiary: (wb.bestiary as unknown as WorldCreature[]) || [],
+        religions: (wb.religions as unknown as WorldDeity[]) || [],
+        dramaBonds: (wb.dramaBonds as unknown as NPCDramaBond[]) || [],
+        ontology: (wb.ontology as unknown as WorldOntology) || undefined,
+        customRelations: [],
+      };
+    } catch (e) {
+      console.warn(`Database fetch error for worldBible ${storyId}:`, e);
+      return null;
+    }
+  }
+
+  /**
+   * Selectively fetches only the Bestiary collection for a story.
+   */
+  static async getBestiary(storyId: string): Promise<WorldCreature[]> {
+    if (!isDatabaseActive) return [];
+    try {
+      const wb = await prisma.worldBible.findUnique({
+        where: { storyId },
+        select: { bestiary: true },
+      });
+      return (wb?.bestiary as unknown as WorldCreature[]) || [];
+    } catch (e) {
+      console.warn(`Database fetch error for bestiary ${storyId}:`, e);
+      return [];
+    }
+  }
+
+  /**
+   * Selectively fetches only the Artifacts collection for a story.
+   */
+  static async getArtifacts(storyId: string): Promise<WorldArtifact[]> {
+    if (!isDatabaseActive) return [];
+    try {
+      const wb = await prisma.worldBible.findUnique({
+        where: { storyId },
+        select: { artifacts: true },
+      });
+      return (wb?.artifacts as unknown as WorldArtifact[]) || [];
+    } catch (e) {
+      console.warn(`Database fetch error for artifacts ${storyId}:`, e);
+      return [];
+    }
+  }
+
+  /**
+   * Selectively fetches only the Timeline collection for a story.
+   */
+  static async getTimeline(storyId: string): Promise<TimelineEvent[]> {
+    if (!isDatabaseActive) return [];
+    try {
+      const wb = await prisma.worldBible.findUnique({
+        where: { storyId },
+        select: { timeline: true },
+      });
+      return (wb?.timeline as unknown as TimelineEvent[]) || [];
+    } catch (e) {
+      console.warn(`Database fetch error for timeline ${storyId}:`, e);
+      return [];
+    }
+  }
+
+  /**
+   * Selectively fetches only the NPCs collection for a story.
+   */
+  static async getNpcs(storyId: string): Promise<NPCDossier[]> {
+    if (!isDatabaseActive) return [];
+    try {
+      const wb = await prisma.worldBible.findUnique({
+        where: { storyId },
+        select: { npcs: true },
+      });
+      return (wb?.npcs as unknown as NPCDossier[]) || [];
+    } catch (e) {
+      console.warn(`Database fetch error for npcs ${storyId}:`, e);
+      return [];
+    }
+  }
+
+  /**
+   * Selectively fetches only the Religions collection for a story.
+   */
+  static async getReligions(storyId: string): Promise<WorldDeity[]> {
+    if (!isDatabaseActive) return [];
+    try {
+      const wb = await prisma.worldBible.findUnique({
+        where: { storyId },
+        select: { religions: true },
+      });
+      return (wb?.religions as unknown as WorldDeity[]) || [];
+    } catch (e) {
+      console.warn(`Database fetch error for religions ${storyId}:`, e);
+      return [];
+    }
+  }
+
+  /**
+   * Selectively fetches only the Locations collection for a story.
+   */
+  static async getLocations(storyId: string): Promise<WorldLocation[]> {
+    if (!isDatabaseActive) return [];
+    try {
+      const wb = await prisma.worldBible.findUnique({
+        where: { storyId },
+        select: { locations: true },
+      });
+      return (wb?.locations as unknown as WorldLocation[]) || [];
+    } catch (e) {
+      console.warn(`Database fetch error for locations ${storyId}:`, e);
+      return [];
+    }
+  }
+
+  /**
+   * Selectively fetches only the Factions collection for a story.
+   */
+  static async getFactions(storyId: string): Promise<Faction[]> {
+    if (!isDatabaseActive) return [];
+    try {
+      const wb = await prisma.worldBible.findUnique({
+        where: { storyId },
+        select: { factions: true },
+      });
+      return (wb?.factions as unknown as Faction[]) || [];
+    } catch (e) {
+      console.warn(`Database fetch error for factions ${storyId}:`, e);
+      return [];
+    }
+  }
+
+  /**
+   * Selectively fetches only the World Laws collection for a story.
+   */
+  static async getLaws(storyId: string): Promise<WorldLaw[]> {
+    if (!isDatabaseActive) return [];
+    try {
+      const wb = await prisma.worldBible.findUnique({
+        where: { storyId },
+        select: { laws: true },
+      });
+      return (wb?.laws as unknown as WorldLaw[]) || [];
+    } catch (e) {
+      console.warn(`Database fetch error for laws ${storyId}:`, e);
+      return [];
+    }
+  }
+
+  /**
+   * Selectively fetches only the NPC Drama Bonds collection for a story.
+   */
+  static async getDramaBonds(storyId: string): Promise<NPCDramaBond[]> {
+    if (!isDatabaseActive) return [];
+    try {
+      const wb = await prisma.worldBible.findUnique({
+        where: { storyId },
+        select: { dramaBonds: true },
+      });
+      return (wb?.dramaBonds as unknown as NPCDramaBond[]) || [];
+    } catch (e) {
+      console.warn(`Database fetch error for dramaBonds ${storyId}:`, e);
+      return [];
+    }
+  }
+
+  /**
+   * Selectively fetches only the World Ontology for a story.
+   */
+  static async getOntology(storyId: string): Promise<WorldOntology | null> {
+    if (!isDatabaseActive) return null;
+    try {
+      const wb = await prisma.worldBible.findUnique({
+        where: { storyId },
+        select: { ontology: true },
+      });
+      return (wb?.ontology as unknown as WorldOntology) || null;
+    } catch (e) {
+      console.warn(`Database fetch error for ontology ${storyId}:`, e);
+      return null;
+    }
+  }
+
+  /**
+   * Performs an atomic partial update on a specific lore collection,
+   * keeping both the PostgreSQL column and Story.manifest in 100% sync.
+   */
+  static async updateLoreCollection(
+    storyId: string,
+    collection:
+      | 'laws'
+      | 'factions'
+      | 'locations'
+      | 'npcs'
+      | 'timeline'
+      | 'artifacts'
+      | 'bestiary'
+      | 'religions'
+      | 'dramaBonds'
+      | 'ontology',
+    data: any
+  ) {
+    if (!isDatabaseActive) {
+      return { success: true, isMock: true, collection };
+    }
+    try {
+      return await prisma.$transaction(async (tx) => {
+        // 1. Update the dedicated relational column on world_bibles
+        const updatedWb = await tx.worldBible.update({
+          where: { storyId },
+          data: { [collection]: data as any },
+        });
+
+        // 2. Patch the story.manifest JSON document to maintain dual-layer parity
+        const story = await tx.story.findUnique({
+          where: { id: storyId },
+          select: { manifest: true },
+        });
+
+        if (story && story.manifest) {
+          const manifest = story.manifest as any;
+          if (!manifest.worldBible) {
+            manifest.worldBible = {};
+          }
+          manifest.worldBible[collection] = data;
+
+          await tx.story.update({
+            where: { id: storyId },
+            data: { manifest },
+          });
+        }
+
+        return { success: true, collection, updatedWb };
+      });
+    } catch (e) {
+      console.warn(`Database partial update failed for ${collection} on story ${storyId}:`, e);
+      return { success: false, error: String(e) };
+    }
+  }
+
+  /**
+   * Saves or updates a full StoryManifest in the database
    */
   static async saveStory(manifest: StoryManifest) {
     if (!isDatabaseActive) {

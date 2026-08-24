@@ -1135,13 +1135,13 @@
     "semantic_hash": ""
   },
   "web/src/lib/db/repositories/storyRepository.test.ts": {
-    "mtime": 1787509120.5328722,
-    "ast_hash": "3a155e42fb5703bcd64232a0a54743ef",
+    "mtime": 1787584083.108499,
+    "ast_hash": "46bda0ac3aa3b814205a16ed45a1ea4d",
     "semantic_hash": ""
   },
   "web/src/lib/db/repositories/storyRepository.ts": {
-    "mtime": 1787581488.6388261,
-    "ast_hash": "5f7623d543976415fd09a0a312d4ac8f",
+    "mtime": 1787584253.452422,
+    "ast_hash": "a49a9f3bcb296a2e99e93b9b79ed9a9e",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -1752,6 +1752,11 @@
   "web/src/components/studio/StudioOracleDrawer.tsx": {
     "mtime": 1787582796.3806741,
     "ast_hash": "e19afdad8c3e6152a578f20965daf920",
+    "semantic_hash": ""
+  },
+  "web/src/app/api/studio/lore/route.ts": {
+    "mtime": 1787584266.9055066,
+    "ast_hash": "e4fa9640df72977fc7b0089289345b7b",
     "semantic_hash": ""
   }
 }

@@ -230,7 +230,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "scripts_context_loadcontext",
-      "community": 79,
+      "community": 71,
       "norm_label": "loadcontext()"
     },
     {
@@ -260,7 +260,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "scripts_context_resolvetargetselection",
-      "community": 221,
+      "community": 79,
       "norm_label": "resolvetargetselection()"
     },
     {
@@ -280,7 +280,7 @@
       "source_location": "L178",
       "_origin": "ast",
       "id": "scripts_context_ispathinside",
-      "community": 218,
+      "community": 29,
       "norm_label": "ispathinside()"
     },
     {
@@ -320,7 +320,7 @@
       "source_location": "L215",
       "_origin": "ast",
       "id": "scripts_context_findmonoreporoot",
-      "community": 29,
+      "community": 218,
       "norm_label": "findmonoreporoot()"
     },
     {
@@ -340,7 +340,7 @@
       "source_location": "L240",
       "_origin": "ast",
       "id": "scripts_context_hasgitboundary",
-      "community": 29,
+      "community": 218,
       "norm_label": "hasgitboundary()"
     },
     {
@@ -370,7 +370,7 @@
       "source_location": "L300",
       "_origin": "ast",
       "id": "scripts_context_resolvecandidatecontextsummary",
-      "community": 218,
+      "community": 29,
       "norm_label": "resolvecandidatecontextsummary()"
     },
     {
@@ -380,7 +380,7 @@
       "source_location": "L316",
       "_origin": "ast",
       "id": "scripts_context_contextsourcestatus",
-      "community": 218,
+      "community": 29,
       "norm_label": "contextsourcestatus()"
     },
     {
@@ -390,7 +390,7 @@
       "source_location": "L330",
       "_origin": "ast",
       "id": "scripts_context_contextsourcepath",
-      "community": 218,
+      "community": 29,
       "norm_label": "contextsourcepath()"
     },
     {
@@ -510,7 +510,7 @@
       "source_location": "L501",
       "_origin": "ast",
       "id": "scripts_context_ispathinsideorequal",
-      "community": 218,
+      "community": 29,
       "norm_label": "ispathinsideorequal()"
     },
     {
@@ -660,7 +660,7 @@
       "source_location": "L682",
       "_origin": "ast",
       "id": "scripts_context_saferead",
-      "community": 79,
+      "community": 71,
       "norm_label": "saferead()"
     },
     {
@@ -2490,7 +2490,7 @@
       "source_location": "L573",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_contrastratio",
-      "community": 37,
+      "community": 62,
       "norm_label": "contrastratio()"
     },
     {
@@ -2570,7 +2570,7 @@
       "source_location": "L759",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_iscardlikefromprops",
-      "community": 227,
+      "community": 14,
       "norm_label": "iscardlikefromprops()"
     },
     {
@@ -2700,7 +2700,7 @@
       "source_location": "L1330",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_parseradiustopx",
-      "community": 227,
+      "community": 14,
       "norm_label": "parseradiustopx()"
     },
     {
@@ -2710,7 +2710,7 @@
       "source_location": "L1344",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_resolveborderradiuspx",
-      "community": 227,
+      "community": 14,
       "norm_label": "resolveborderradiuspx()"
     },
     {
@@ -2960,7 +2960,7 @@
       "source_location": "L1914",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_hasmeaningfuldirecttext",
-      "community": 50,
+      "community": 14,
       "norm_label": "hasmeaningfuldirecttext()"
     },
     {
@@ -2970,7 +2970,7 @@
       "source_location": "L1922",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_textdescendantsflushsides",
-      "community": 50,
+      "community": 14,
       "norm_label": "textdescendantsflushsides()"
     },
     {
@@ -3120,7 +3120,7 @@
       "source_location": "L2567",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_iscardlikedom",
-      "community": 227,
+      "community": 14,
       "norm_label": "iscardlikedom()"
     },
     {
@@ -3130,7 +3130,7 @@
       "source_location": "L2579",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_checklayout",
-      "community": 227,
+      "community": 14,
       "norm_label": "checklayout()"
     },
     {
@@ -3150,7 +3150,7 @@
       "source_location": "L2691",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_iscardlike",
-      "community": 227,
+      "community": 14,
       "norm_label": "iscardlike()"
     },
     {
@@ -3160,7 +3160,7 @@
       "source_location": "L2711",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_checkpagelayout",
-      "community": 227,
+      "community": 14,
       "norm_label": "checkpagelayout()"
     },
     {
@@ -3320,7 +3320,7 @@
       "source_location": "L2955",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_positionedchildisdecorative",
-      "community": 14,
+      "community": 59,
       "norm_label": "positionedchildisdecorative()"
     },
     {
@@ -3330,7 +3330,7 @@
       "source_location": "L2990",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_positionedchildhassubstantivecontent",
-      "community": 14,
+      "community": 59,
       "norm_label": "positionedchildhassubstantivecontent()"
     },
     {
@@ -3340,7 +3340,7 @@
       "source_location": "L3006",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_clippingcontainerisintentionalviewport",
-      "community": 14,
+      "community": 59,
       "norm_label": "clippingcontainerisintentionalviewport()"
     },
     {
@@ -3350,7 +3350,7 @@
       "source_location": "L3015",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_elementrect",
-      "community": 14,
+      "community": 59,
       "norm_label": "elementrect()"
     },
     {
@@ -3360,7 +3360,7 @@
       "source_location": "L3029",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_positionedstyleimpliesescape",
-      "community": 14,
+      "community": 59,
       "norm_label": "positionedstyleimpliesescape()"
     },
     {
@@ -3370,7 +3370,7 @@
       "source_location": "L3050",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_positionedchildescapesclip",
-      "community": 14,
+      "community": 59,
       "norm_label": "positionedchildescapesclip()"
     },
     {
@@ -3380,7 +3380,7 @@
       "source_location": "L3061",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_checkclippedoverflow",
-      "community": 14,
+      "community": 59,
       "norm_label": "checkclippedoverflow()"
     },
     {
@@ -3390,7 +3390,7 @@
       "source_location": "L3086",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_checkelementclippedoverflow",
-      "community": 14,
+      "community": 59,
       "norm_label": "checkelementclippedoverflow()"
     },
     {
@@ -3400,7 +3400,7 @@
       "source_location": "L3090",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_checkelementclippedoverflowdom",
-      "community": 14,
+      "community": 59,
       "norm_label": "checkelementclippedoverflowdom()"
     },
     {
@@ -3690,7 +3690,7 @@
       "source_location": "L3936",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_pickworstcontrastcolor",
-      "community": 37,
+      "community": 62,
       "norm_label": "pickworstcontrastcolor()"
     },
     {
@@ -3870,7 +3870,7 @@
       "source_location": "L4404",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_iselementhidden",
-      "community": 50,
+      "community": 14,
       "norm_label": "iselementhidden()"
     },
     {
@@ -3880,7 +3880,7 @@
       "source_location": "L4411",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_serializefindings",
-      "community": 14,
+      "community": 227,
       "norm_label": "serializefindings()"
     },
     {
@@ -4010,7 +4010,7 @@
       "source_location": "L4561",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_shouldskipdesignelement",
-      "community": 50,
+      "community": 14,
       "norm_label": "shouldskipdesignelement()"
     },
     {
@@ -4110,7 +4110,7 @@
       "source_location": "L4843",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_scanresultmeta",
-      "community": 14,
+      "community": 227,
       "norm_label": "scanresultmeta()"
     },
     {
@@ -4120,7 +4120,7 @@
       "source_location": "L4849",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_postserializedfindings",
-      "community": 14,
+      "community": 227,
       "norm_label": "postserializedfindings()"
     },
     {
@@ -4190,7 +4190,7 @@
       "source_location": "L4978",
       "_origin": "ast",
       "id": "detector_detect_antipatterns_browser_renderbrowserfindings",
-      "community": 14,
+      "community": 227,
       "norm_label": "renderbrowserfindings()"
     },
     {
@@ -4210,7 +4210,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "browser_detect_url",
-      "community": 5,
+      "community": 204,
       "norm_label": "detect-url.mjs"
     },
     {
@@ -4220,7 +4220,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "browser_detect_url_serializedesignsystemforbrowser",
-      "community": 5,
+      "community": 204,
       "norm_label": "serializedesignsystemforbrowser()"
     },
     {
@@ -4230,7 +4230,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "browser_detect_url_runvisualcontrastfallback",
-      "community": 5,
+      "community": 204,
       "norm_label": "runvisualcontrastfallback()"
     },
     {
@@ -4240,7 +4240,7 @@
       "source_location": "L106",
       "_origin": "ast",
       "id": "browser_detect_url_detecturl",
-      "community": 5,
+      "community": 204,
       "norm_label": "detecturl()"
     },
     {
@@ -4880,7 +4880,7 @@
       "source_location": "L817",
       "_origin": "ast",
       "id": "static_html_css_cascade_staticdocument_queryselectorall",
-      "community": 82,
+      "community": 12,
       "norm_label": ".queryselectorall()"
     },
     {
@@ -4930,7 +4930,7 @@
       "source_location": "L841",
       "_origin": "ast",
       "id": "static_html_css_cascade_staticdocument_getstyle",
-      "community": 82,
+      "community": 59,
       "norm_label": ".getstyle()"
     },
     {
@@ -4940,7 +4940,7 @@
       "source_location": "L846",
       "_origin": "ast",
       "id": "static_html_css_cascade_makestaticstyle",
-      "community": 82,
+      "community": 59,
       "norm_label": "makestaticstyle()"
     },
     {
@@ -4950,7 +4950,7 @@
       "source_location": "L855",
       "_origin": "ast",
       "id": "static_html_css_cascade_buildstaticwindow",
-      "community": 12,
+      "community": 5,
       "norm_label": "buildstaticwindow()"
     },
     {
@@ -4970,7 +4970,7 @@
       "source_location": "L887",
       "_origin": "ast",
       "id": "static_html_css_cascade_buildstaticstylemap",
-      "community": 5,
+      "community": 204,
       "norm_label": "buildstaticstylemap()"
     },
     {
@@ -4980,7 +4980,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "static_html_detect_html",
-      "community": 201,
+      "community": 5,
       "norm_label": "detect-html.mjs"
     },
     {
@@ -4990,7 +4990,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "static_html_detect_html_checkstaticpagetypography",
-      "community": 201,
+      "community": 5,
       "norm_label": "checkstaticpagetypography()"
     },
     {
@@ -5000,7 +5000,7 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "static_html_detect_html_checkelementbrokenimage",
-      "community": 201,
+      "community": 5,
       "norm_label": "checkelementbrokenimage()"
     },
     {
@@ -5010,7 +5010,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "static_html_detect_html_static_element_rules",
-      "community": 201,
+      "community": 5,
       "norm_label": "static_element_rules"
     },
     {
@@ -5030,7 +5030,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "visual_screenshot_contrast",
-      "community": 5,
+      "community": 204,
       "norm_label": "screenshot-contrast.mjs"
     },
     {
@@ -5040,7 +5040,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "visual_screenshot_contrast_sanitizescreenshotclip",
-      "community": 5,
+      "community": 204,
       "norm_label": "sanitizescreenshotclip()"
     },
     {
@@ -5050,7 +5050,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "visual_screenshot_contrast_comparescreenshotcontrast",
-      "community": 5,
+      "community": 204,
       "norm_label": "comparescreenshotcontrast()"
     },
     {
@@ -5060,7 +5060,7 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "visual_screenshot_contrast_capturevisualcontrastcandidate",
-      "community": 5,
+      "community": 204,
       "norm_label": "capturevisualcontrastcandidate()"
     },
     {
@@ -5200,7 +5200,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "profile_profiler",
-      "community": 5,
+      "community": 204,
       "norm_label": "profiler.mjs"
     },
     {
@@ -5210,7 +5210,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "profile_profiler_profilenow",
-      "community": 5,
+      "community": 204,
       "norm_label": "profilenow()"
     },
     {
@@ -5220,7 +5220,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "profile_profiler_createdetectorprofile",
-      "community": 5,
+      "community": 204,
       "norm_label": "createdetectorprofile()"
     },
     {
@@ -5230,7 +5230,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "profile_profiler_recordprofileevent",
-      "community": 5,
+      "community": 204,
       "norm_label": "recordprofileevent()"
     },
     {
@@ -5240,7 +5240,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "profile_profiler_extractfindingids",
-      "community": 5,
+      "community": 204,
       "norm_label": "extractfindingids()"
     },
     {
@@ -5250,7 +5250,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "profile_profiler_profilefindings",
-      "community": 5,
+      "community": 204,
       "norm_label": "profilefindings()"
     },
     {
@@ -5260,7 +5260,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "profile_profiler_profilestep",
-      "community": 5,
+      "community": 204,
       "norm_label": "profilestep()"
     },
     {
@@ -5270,7 +5270,7 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "profile_profiler_profilefindingsasync",
-      "community": 5,
+      "community": 204,
       "norm_label": "profilefindingsasync()"
     },
     {
@@ -5280,7 +5280,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "profile_profiler_profilestepasync",
-      "community": 5,
+      "community": 204,
       "norm_label": "profilestepasync()"
     },
     {
@@ -5290,7 +5290,7 @@
       "source_location": "L95",
       "_origin": "ast",
       "id": "profile_profiler_percentile",
-      "community": 5,
+      "community": 204,
       "norm_label": "percentile()"
     },
     {
@@ -5300,7 +5300,7 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "profile_profiler_summarizedetectorprofile",
-      "community": 5,
+      "community": 204,
       "norm_label": "summarizedetectorprofile()"
     },
     {
@@ -5380,7 +5380,7 @@
       "source_location": "L430",
       "_origin": "ast",
       "id": "registry_antipatterns_filterbyproviders",
-      "community": 5,
+      "community": 204,
       "norm_label": "filterbyproviders()"
     },
     {
@@ -5540,7 +5540,7 @@
       "source_location": "L446",
       "_origin": "ast",
       "id": "rules_checks_checkhtmlpatterns",
-      "community": 201,
+      "community": 5,
       "norm_label": "checkhtmlpatterns()"
     },
     {
@@ -5670,7 +5670,7 @@
       "source_location": "L925",
       "_origin": "ast",
       "id": "rules_checks_oklchtorgb",
-      "community": 2,
+      "community": 12,
       "norm_label": "oklchtorgb()"
     },
     {
@@ -5680,7 +5680,7 @@
       "source_location": "L951",
       "_origin": "ast",
       "id": "rules_checks_parseanycolor",
-      "community": 2,
+      "community": 12,
       "norm_label": "parseanycolor()"
     },
     {
@@ -5820,7 +5820,7 @@
       "source_location": "L1252",
       "_origin": "ast",
       "id": "rules_checks_resolvelengthpx",
-      "community": 8,
+      "community": 2,
       "norm_label": "resolvelengthpx()"
     },
     {
@@ -5990,7 +5990,7 @@
       "source_location": "L1850",
       "_origin": "ast",
       "id": "rules_checks_checkelementheroeyebrow",
-      "community": 12,
+      "community": 2,
       "norm_label": "checkelementheroeyebrow()"
     },
     {
@@ -6020,7 +6020,7 @@
       "source_location": "L1900",
       "_origin": "ast",
       "id": "rules_checks_checkelementglow",
-      "community": 195,
+      "community": 5,
       "norm_label": "checkelementglow()"
     },
     {
@@ -6060,7 +6060,7 @@
       "source_location": "L2014",
       "_origin": "ast",
       "id": "rules_checks_checkpagetypography",
-      "community": 5,
+      "community": 2,
       "norm_label": "checkpagetypography()"
     },
     {
@@ -6080,7 +6080,7 @@
       "source_location": "L2112",
       "_origin": "ast",
       "id": "rules_checks_checkpagelayout",
-      "community": 2,
+      "community": 5,
       "norm_label": "checkpagelayout()"
     },
     {
@@ -6530,7 +6530,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "shared_constants",
-      "community": 201,
+      "community": 5,
       "norm_label": "constants.mjs"
     },
     {
@@ -6540,7 +6540,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "shared_constants_safe_tags",
-      "community": 201,
+      "community": 5,
       "norm_label": "safe_tags"
     },
     {
@@ -6550,7 +6550,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "shared_constants_border_safe_tags",
-      "community": 201,
+      "community": 5,
       "norm_label": "border_safe_tags"
     },
     {
@@ -6560,7 +6560,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "shared_constants_overused_fonts",
-      "community": 201,
+      "community": 5,
       "norm_label": "overused_fonts"
     },
     {
@@ -6570,7 +6570,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "shared_constants_google_domains",
-      "community": 201,
+      "community": 5,
       "norm_label": "google_domains"
     },
     {
@@ -6580,7 +6580,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "shared_constants_vercel_domains",
-      "community": 201,
+      "community": 5,
       "norm_label": "vercel_domains"
     },
     {
@@ -6590,7 +6590,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "shared_constants_github_domains",
-      "community": 201,
+      "community": 5,
       "norm_label": "github_domains"
     },
     {
@@ -6600,7 +6600,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "shared_constants_brand_font_domains",
-      "community": 201,
+      "community": 5,
       "norm_label": "brand_font_domains"
     },
     {
@@ -6620,7 +6620,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "shared_constants_generic_fonts",
-      "community": 201,
+      "community": 5,
       "norm_label": "generic_fonts"
     },
     {
@@ -6630,7 +6630,7 @@
       "source_location": "L74",
       "_origin": "ast",
       "id": "shared_constants_known_serif_fonts",
-      "community": 201,
+      "community": 5,
       "norm_label": "known_serif_fonts"
     },
     {
@@ -7530,7 +7530,7 @@
       "source_location": "L106",
       "_origin": "ast",
       "id": "scripts_hook_lib_safereadjson",
-      "community": 9,
+      "community": 206,
       "norm_label": "safereadjson()"
     },
     {
@@ -7590,7 +7590,7 @@
       "source_location": "L137",
       "_origin": "ast",
       "id": "scripts_hook_lib_readconfig",
-      "community": 9,
+      "community": 206,
       "norm_label": "readconfig()"
     },
     {
@@ -7600,7 +7600,7 @@
       "source_location": "L151",
       "_origin": "ast",
       "id": "scripts_hook_lib_hooksection",
-      "community": 9,
+      "community": 206,
       "norm_label": "hooksection()"
     },
     {
@@ -7610,7 +7610,7 @@
       "source_location": "L156",
       "_origin": "ast",
       "id": "scripts_hook_lib_detectorsection",
-      "community": 9,
+      "community": 206,
       "norm_label": "detectorsection()"
     },
     {
@@ -7630,7 +7630,7 @@
       "source_location": "L165",
       "_origin": "ast",
       "id": "scripts_hook_lib_clonedefaultconfig",
-      "community": 9,
+      "community": 206,
       "norm_label": "clonedefaultconfig()"
     },
     {
@@ -7830,7 +7830,7 @@
       "source_location": "L425",
       "_origin": "ast",
       "id": "scripts_hook_lib_readcache",
-      "community": 9,
+      "community": 206,
       "norm_label": "readcache()"
     },
     {
@@ -8310,7 +8310,7 @@
       "source_location": "L1224",
       "_origin": "ast",
       "id": "scripts_hook_lib_writeauditlog",
-      "community": 47,
+      "community": 206,
       "norm_label": "writeauditlog()"
     },
     {
@@ -8430,7 +8430,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "scripts_hook",
-      "community": 47,
+      "community": 206,
       "norm_label": "hook.mjs"
     },
     {
@@ -8440,7 +8440,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "scripts_hook_readstdin",
-      "community": 47,
+      "community": 206,
       "norm_label": "readstdin()"
     },
     {
@@ -8450,7 +8450,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "scripts_hook_main",
-      "community": 47,
+      "community": 206,
       "norm_label": "main()"
     },
     {
@@ -9510,7 +9510,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_is_generated",
-      "community": 23,
+      "community": 223,
       "norm_label": "is-generated.mjs"
     },
     {
@@ -9520,7 +9520,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "lib_is_generated_header_markers",
-      "community": 23,
+      "community": 223,
       "norm_label": "header_markers"
     },
     {
@@ -9530,7 +9530,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "lib_is_generated_isgeneratedfile",
-      "community": 23,
+      "community": 223,
       "norm_label": "isgeneratedfile()"
     },
     {
@@ -9540,7 +9540,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "lib_is_generated_isgitignored",
-      "community": 23,
+      "community": 223,
       "norm_label": "isgitignored()"
     },
     {
@@ -9550,7 +9550,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "lib_is_generated_hasgeneratedheader",
-      "community": 23,
+      "community": 223,
       "norm_label": "hasgeneratedheader()"
     },
     {
@@ -9640,7 +9640,7 @@
       "source_location": "L183",
       "_origin": "ast",
       "id": "scripts_live_accept_scrubmanualeditsagainstoriginalblock",
-      "community": 31,
+      "community": 43,
       "norm_label": "scrubmanualeditsagainstoriginalblock()"
     },
     {
@@ -9690,7 +9690,7 @@
       "source_location": "L230",
       "_origin": "ast",
       "id": "scripts_live_accept_scrubmanualeditsagainstfile",
-      "community": 31,
+      "community": 43,
       "norm_label": "scrubmanualeditsagainstfile()"
     },
     {
@@ -10770,7 +10770,7 @@
       "source_location": "L1755",
       "_origin": "ast",
       "id": "scripts_live_browser_placeholdersizing",
-      "community": 0,
+      "community": 191,
       "norm_label": "placeholdersizing()"
     },
     {
@@ -10790,7 +10790,7 @@
       "source_location": "L1778",
       "_origin": "ast",
       "id": "scripts_live_browser_applyplaceholdersizingstyles",
-      "community": 0,
+      "community": 191,
       "norm_label": "applyplaceholdersizingstyles()"
     },
     {
@@ -10960,7 +10960,7 @@
       "source_location": "L2029",
       "_origin": "ast",
       "id": "scripts_live_browser_findinsertanchorindom",
-      "community": 112,
+      "community": 191,
       "norm_label": "findinsertanchorindom()"
     },
     {
@@ -10970,7 +10970,7 @@
       "source_location": "L2046",
       "_origin": "ast",
       "id": "scripts_live_browser_isinsertgeneratingsession",
-      "community": 112,
+      "community": 191,
       "norm_label": "isinsertgeneratingsession()"
     },
     {
@@ -10980,7 +10980,7 @@
       "source_location": "L2053",
       "_origin": "ast",
       "id": "scripts_live_browser_ensureinsertplaceholder",
-      "community": 112,
+      "community": 191,
       "norm_label": "ensureinsertplaceholder()"
     },
     {
@@ -11040,7 +11040,7 @@
       "source_location": "L2161",
       "_origin": "ast",
       "id": "scripts_live_browser_createinsertplaceholder",
-      "community": 0,
+      "community": 191,
       "norm_label": "createinsertplaceholder()"
     },
     {
@@ -11290,7 +11290,7 @@
       "source_location": "L2989",
       "_origin": "ast",
       "id": "scripts_live_browser_getmountedsveltecomponentanchor",
-      "community": 112,
+      "community": 191,
       "norm_label": "getmountedsveltecomponentanchor()"
     },
     {
@@ -12290,7 +12290,7 @@
       "source_location": "L4801",
       "_origin": "ast",
       "id": "scripts_live_browser_synccyclingcontrols",
-      "community": 112,
+      "community": 191,
       "norm_label": "synccyclingcontrols()"
     },
     {
@@ -12320,7 +12320,7 @@
       "source_location": "L4842",
       "_origin": "ast",
       "id": "scripts_live_browser_parseoriginalmarkupelement",
-      "community": 112,
+      "community": 191,
       "norm_label": "parseoriginalmarkupelement()"
     },
     {
@@ -12330,7 +12330,7 @@
       "source_location": "L4848",
       "_origin": "ast",
       "id": "scripts_live_browser_normalizeelementclassname",
-      "community": 112,
+      "community": 191,
       "norm_label": "normalizeelementclassname()"
     },
     {
@@ -12350,7 +12350,7 @@
       "source_location": "L4870",
       "_origin": "ast",
       "id": "scripts_live_browser_isusableinjectionanchor",
-      "community": 112,
+      "community": 191,
       "norm_label": "isusableinjectionanchor()"
     },
     {
@@ -12360,7 +12360,7 @@
       "source_location": "L4878",
       "_origin": "ast",
       "id": "scripts_live_browser_elementmatchesoriginalmarkup",
-      "community": 112,
+      "community": 191,
       "norm_label": "elementmatchesoriginalmarkup()"
     },
     {
@@ -12370,7 +12370,7 @@
       "source_location": "L4899",
       "_origin": "ast",
       "id": "scripts_live_browser_findliveelementfromanchorsnapshot",
-      "community": 112,
+      "community": 191,
       "norm_label": "findliveelementfromanchorsnapshot()"
     },
     {
@@ -12380,7 +12380,7 @@
       "source_location": "L4922",
       "_origin": "ast",
       "id": "scripts_live_browser_findliveelementfororiginalmarkup",
-      "community": 112,
+      "community": 191,
       "norm_label": "findliveelementfororiginalmarkup()"
     },
     {
@@ -12390,7 +12390,7 @@
       "source_location": "L4962",
       "_origin": "ast",
       "id": "scripts_live_browser_resolveliveinjectionanchor",
-      "community": 112,
+      "community": 191,
       "norm_label": "resolveliveinjectionanchor()"
     },
     {
@@ -12400,7 +12400,7 @@
       "source_location": "L4986",
       "_origin": "ast",
       "id": "scripts_live_browser_issvelteinsertmanifest",
-      "community": 112,
+      "community": 191,
       "norm_label": "issvelteinsertmanifest()"
     },
     {
@@ -12410,7 +12410,7 @@
       "source_location": "L4990",
       "_origin": "ast",
       "id": "scripts_live_browser_findliveelementforsveltemanifest",
-      "community": 112,
+      "community": 191,
       "norm_label": "findliveelementforsveltemanifest()"
     },
     {
@@ -12440,7 +12440,7 @@
       "source_location": "L5036",
       "_origin": "ast",
       "id": "scripts_live_browser_loadsvelteruntime",
-      "community": 112,
+      "community": 191,
       "norm_label": "loadsvelteruntime()"
     },
     {
@@ -12460,7 +12460,7 @@
       "source_location": "L5069",
       "_origin": "ast",
       "id": "scripts_live_browser_loadsveltecomponentvariantsource",
-      "community": 0,
+      "community": 191,
       "norm_label": "loadsveltecomponentvariantsource()"
     },
     {
@@ -12470,7 +12470,7 @@
       "source_location": "L5083",
       "_origin": "ast",
       "id": "scripts_live_browser_extractsveltecomponentstyle",
-      "community": 0,
+      "community": 191,
       "norm_label": "extractsveltecomponentstyle()"
     },
     {
@@ -12480,7 +12480,7 @@
       "source_location": "L5088",
       "_origin": "ast",
       "id": "scripts_live_browser_applysveltecomponentvariantstyle",
-      "community": 0,
+      "community": 191,
       "norm_label": "applysveltecomponentvariantstyle()"
     },
     {
@@ -12490,7 +12490,7 @@
       "source_location": "L5105",
       "_origin": "ast",
       "id": "scripts_live_browser_removesveltecomponentvariantstyle",
-      "community": 0,
+      "community": 191,
       "norm_label": "removesveltecomponentvariantstyle()"
     },
     {
@@ -12570,7 +12570,7 @@
       "source_location": "L5220",
       "_origin": "ast",
       "id": "scripts_live_browser_buildsveltepropvaluesfromliveelement",
-      "community": 0,
+      "community": 191,
       "norm_label": "buildsveltepropvaluesfromliveelement()"
     },
     {
@@ -12580,7 +12580,7 @@
       "source_location": "L5234",
       "_origin": "ast",
       "id": "scripts_live_browser_mountsveltecomponentvariant",
-      "community": 112,
+      "community": 191,
       "norm_label": "mountsveltecomponentvariant()"
     },
     {
@@ -12600,7 +12600,7 @@
       "source_location": "L5303",
       "_origin": "ast",
       "id": "scripts_live_browser_applyoriginalattrstosvelteanchor",
-      "community": 112,
+      "community": 191,
       "norm_label": "applyoriginalattrstosvelteanchor()"
     },
     {
@@ -12610,7 +12610,7 @@
       "source_location": "L5318",
       "_origin": "ast",
       "id": "scripts_live_browser_commitacceptedsveltecomponenttodom",
-      "community": 112,
+      "community": 191,
       "norm_label": "commitacceptedsveltecomponenttodom()"
     },
     {
@@ -12690,7 +12690,7 @@
       "source_location": "L5646",
       "_origin": "ast",
       "id": "scripts_live_browser_buildsvelteexpressiontextmap",
-      "community": 0,
+      "community": 191,
       "norm_label": "buildsvelteexpressiontextmap()"
     },
     {
@@ -12700,7 +12700,7 @@
       "source_location": "L5689",
       "_origin": "ast",
       "id": "scripts_live_browser_expressiontextmatcher",
-      "community": 0,
+      "community": 191,
       "norm_label": "expressiontextmatcher()"
     },
     {
@@ -12710,7 +12710,7 @@
       "source_location": "L5703",
       "_origin": "ast",
       "id": "scripts_live_browser_collecttextnodes",
-      "community": 0,
+      "community": 191,
       "norm_label": "collecttextnodes()"
     },
     {
@@ -12720,7 +12720,7 @@
       "source_location": "L5715",
       "_origin": "ast",
       "id": "scripts_live_browser_normalizepreviewtext",
-      "community": 0,
+      "community": 191,
       "norm_label": "normalizepreviewtext()"
     },
     {
@@ -12730,7 +12730,7 @@
       "source_location": "L5719",
       "_origin": "ast",
       "id": "scripts_live_browser_escaperegexp",
-      "community": 0,
+      "community": 191,
       "norm_label": "escaperegexp()"
     },
     {
@@ -13670,7 +13670,7 @@
       "source_location": "L8295",
       "_origin": "ast",
       "id": "scripts_live_browser_globalbarmodetoggles",
-      "community": 0,
+      "community": 26,
       "norm_label": "globalbarmodetoggles()"
     },
     {
@@ -13680,7 +13680,7 @@
       "source_location": "L8304",
       "_origin": "ast",
       "id": "scripts_live_browser_applyglobalbarlabelstate",
-      "community": 0,
+      "community": 26,
       "norm_label": "applyglobalbarlabelstate()"
     },
     {
@@ -15840,7 +15840,7 @@
       "source_location": "L243",
       "_origin": "ast",
       "id": "scripts_live_inject_resolvefiles",
-      "community": 18,
+      "community": 79,
       "norm_label": "resolvefiles()"
     },
     {
@@ -16120,7 +16120,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "scripts_live_manual_edit_evidence_buildmanualeditevidence",
-      "community": 43,
+      "community": 40,
       "norm_label": "buildmanualeditevidence()"
     },
     {
@@ -17000,7 +17000,7 @@
       "source_location": "L974",
       "_origin": "ast",
       "id": "scripts_live_server_applylegacydeferredacceptsonstartup",
-      "community": 15,
+      "community": 220,
       "norm_label": "applylegacydeferredacceptsonstartup()"
     },
     {
@@ -18820,7 +18820,7 @@
       "source_location": "L236",
       "_origin": "ast",
       "id": "live_svelte_component_findsveltecomponentmanifest",
-      "community": 15,
+      "community": 220,
       "norm_label": "findsveltecomponentmanifest()"
     },
     {
@@ -18830,7 +18830,7 @@
       "source_location": "L255",
       "_origin": "ast",
       "id": "live_svelte_component_readmanifest",
-      "community": 15,
+      "community": 220,
       "norm_label": "readmanifest()"
     },
     {
@@ -19080,7 +19080,7 @@
       "source_location": "L744",
       "_origin": "ast",
       "id": "live_svelte_component_deferredacceptspath",
-      "community": 15,
+      "community": 220,
       "norm_label": "deferredacceptspath()"
     },
     {
@@ -19090,7 +19090,7 @@
       "source_location": "L749",
       "_origin": "ast",
       "id": "live_svelte_component_readdeferredaccepts",
-      "community": 15,
+      "community": 220,
       "norm_label": "readdeferredaccepts()"
     },
     {
@@ -19100,7 +19100,7 @@
       "source_location": "L758",
       "_origin": "ast",
       "id": "live_svelte_component_writedeferredaccept",
-      "community": 15,
+      "community": 220,
       "norm_label": "writedeferredaccept()"
     },
     {
@@ -19110,7 +19110,7 @@
       "source_location": "L767",
       "_origin": "ast",
       "id": "live_svelte_component_applydeferredsveltecomponentaccepts",
-      "community": 15,
+      "community": 220,
       "norm_label": "applydeferredsveltecomponentaccepts()"
     },
     {
@@ -27642,7 +27642,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "package_flutter_riverpod_flutter_riverpod_dart",
-      "community": 191,
+      "community": 56,
       "norm_label": "package:flutter_riverpod/flutter_riverpod.dart"
     },
     {
@@ -29932,7 +29932,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "screens_character_creation_screen_charactercreationscreen",
-      "community": 56,
+      "community": 222,
       "norm_label": "charactercreationscreen"
     },
     {
@@ -29942,7 +29942,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "consumerstatefulwidget",
-      "community": 56,
+      "community": 222,
       "norm_label": "consumerstatefulwidget"
     },
     {
@@ -29952,7 +29952,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "screens_character_creation_screen_charactercreationscreenstate",
-      "community": 56,
+      "community": 205,
       "norm_label": "_charactercreationscreenstate"
     },
     {
@@ -29962,7 +29962,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "consumerstate",
-      "community": 56,
+      "community": 205,
       "norm_label": "consumerstate"
     },
     {
@@ -30342,7 +30342,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "core_utils_persian_numbers_dart",
-      "community": 191,
+      "community": 56,
       "norm_label": "../../core/utils/persian_numbers.dart"
     },
     {
@@ -30682,7 +30682,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "screens_reader_screen_readerscreen",
-      "community": 205,
+      "community": 222,
       "norm_label": "readerscreen"
     },
     {
@@ -30972,7 +30972,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "screens_story_catalog_screen_storycatalogscreen",
-      "community": 56,
+      "community": 208,
       "norm_label": "storycatalogscreen"
     },
     {
@@ -30982,7 +30982,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "screens_story_catalog_screen_storycatalogscreenstate",
-      "community": 56,
+      "community": 208,
       "norm_label": "_storycatalogscreenstate"
     },
     {
@@ -31842,7 +31842,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_item_detail_sheet",
-      "community": 191,
+      "community": 56,
       "norm_label": "item_detail_sheet.dart"
     },
     {
@@ -31862,7 +31862,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_item_detail_sheet_item",
-      "community": 191,
+      "community": 56,
       "norm_label": "item"
     },
     {
@@ -31872,7 +31872,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "gameitem",
-      "community": 191,
+      "community": 56,
       "norm_label": "gameitem"
     },
     {
@@ -31882,7 +31882,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_item_detail_sheet_ispersian",
-      "community": 191,
+      "community": 56,
       "norm_label": "ispersian"
     },
     {
@@ -31892,7 +31892,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_item_detail_sheet_show",
-      "community": 191,
+      "community": 56,
       "norm_label": "show"
     },
     {
@@ -31902,7 +31902,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_item_detail_sheet_getraritycolor",
-      "community": 191,
+      "community": 56,
       "norm_label": "_getraritycolor"
     },
     {
@@ -31912,7 +31912,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_item_detail_sheet_getraritytitle",
-      "community": 191,
+      "community": 56,
       "norm_label": "_getraritytitle"
     },
     {
@@ -31922,7 +31922,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_item_detail_sheet_gettypeicon",
-      "community": 191,
+      "community": 56,
       "norm_label": "_gettypeicon"
     },
     {
@@ -31932,7 +31932,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_item_detail_sheet_gettypelabel",
-      "community": 191,
+      "community": 56,
       "norm_label": "_gettypelabel"
     },
     {
@@ -31952,7 +31952,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_item_detail_sheet_getstatname",
-      "community": 191,
+      "community": 56,
       "norm_label": "_getstatname"
     },
     {
@@ -31962,7 +31962,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "rpg_toast_dart",
-      "community": 191,
+      "community": 56,
       "norm_label": "rpg_toast.dart"
     },
     {
@@ -32312,7 +32312,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_rpg_hud_drawer_rpghuddrawer",
-      "community": 56,
+      "community": 222,
       "norm_label": "rpghuddrawer"
     },
     {
@@ -32322,7 +32322,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "widgets_rpg_hud_drawer_rpghuddrawerstate",
-      "community": 56,
+      "community": 222,
       "norm_label": "_rpghuddrawerstate"
     },
     {
@@ -33462,7 +33462,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "test_widget_test",
-      "community": 191,
+      "community": 56,
       "norm_label": "widget_test.dart"
     },
     {
@@ -33472,7 +33472,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "test_widget_test_main",
-      "community": 191,
+      "community": 56,
       "norm_label": "main"
     },
     {
@@ -33482,7 +33482,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "package_flutter_test_flutter_test_dart",
-      "community": 191,
+      "community": 56,
       "norm_label": "package:flutter_test/flutter_test.dart"
     },
     {
@@ -33492,7 +33492,7 @@
       "source_location": null,
       "_origin": "ast",
       "id": "package_storyforge_main_dart",
-      "community": 191,
+      "community": 56,
       "norm_label": "package:storyforge/main.dart"
     },
     {
@@ -34812,7 +34812,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "action_route",
-      "community": 172,
+      "community": 211,
       "norm_label": "route.ts"
     },
     {
@@ -34822,7 +34822,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "action_route_geminiadapter",
-      "community": 172,
+      "community": 211,
       "norm_label": "geminiadapter"
     },
     {
@@ -35048,6 +35048,36 @@
     {
       "label": "route.ts",
       "file_type": "code",
+      "source_file": "web/src/app/api/studio/lore/route.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "lore_route",
+      "community": 211,
+      "norm_label": "route.ts"
+    },
+    {
+      "label": "GET()",
+      "file_type": "code",
+      "source_file": "web/src/app/api/studio/lore/route.ts",
+      "source_location": "L4",
+      "_origin": "ast",
+      "id": "lore_route_get",
+      "community": 211,
+      "norm_label": "get()"
+    },
+    {
+      "label": "PATCH()",
+      "file_type": "code",
+      "source_file": "web/src/app/api/studio/lore/route.ts",
+      "source_location": "L81",
+      "_origin": "ast",
+      "id": "lore_route_patch",
+      "community": 211,
+      "norm_label": "patch()"
+    },
+    {
+      "label": "route.ts",
+      "file_type": "code",
       "source_file": "web/src/app/api/studio/stories/route.ts",
       "source_location": "L1",
       "_origin": "ast",
@@ -35092,7 +35122,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "story_route",
-      "community": 211,
+      "community": 201,
       "norm_label": "route.ts"
     },
     {
@@ -35102,7 +35132,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "story_route_post",
-      "community": 211,
+      "community": 201,
       "norm_label": "post()"
     },
     {
@@ -35112,7 +35142,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "story_route_get",
-      "community": 211,
+      "community": 201,
       "norm_label": "get()"
     },
     {
@@ -35122,7 +35152,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "story_route_delete",
-      "community": 211,
+      "community": 201,
       "norm_label": "delete()"
     },
     {
@@ -35542,7 +35572,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "studio_page",
-      "community": 211,
+      "community": 201,
       "norm_label": "page.tsx"
     },
     {
@@ -35552,7 +35582,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "studio_page_studioindexpage",
-      "community": 211,
+      "community": 201,
       "norm_label": "studioindexpage()"
     },
     {
@@ -35632,7 +35662,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "stories_page",
-      "community": 211,
+      "community": 201,
       "norm_label": "page.tsx"
     },
     {
@@ -35642,7 +35672,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "stories_page_storieslistpage",
-      "community": 211,
+      "community": 200,
       "norm_label": "storieslistpage()"
     },
     {
@@ -35652,7 +35682,7 @@
       "source_location": "L267",
       "_origin": "ast",
       "id": "stories_page_storycard",
-      "community": 211,
+      "community": 201,
       "norm_label": "storycard()"
     },
     {
@@ -35722,7 +35752,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "world_page",
-      "community": 200,
+      "community": 217,
       "norm_label": "page.tsx"
     },
     {
@@ -35732,7 +35762,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "world_page_worldbiblepage",
-      "community": 200,
+      "community": 217,
       "norm_label": "worldbiblepage()"
     },
     {
@@ -35742,7 +35772,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_dicerollmodal",
-      "community": 148,
+      "community": 78,
       "norm_label": "dicerollmodal.tsx"
     },
     {
@@ -35752,7 +35782,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "components_dicerollmodal_dicerollmodalprops",
-      "community": 148,
+      "community": 78,
       "norm_label": "dicerollmodalprops"
     },
     {
@@ -35762,7 +35792,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "components_dicerollmodal_getpersiansummary",
-      "community": 148,
+      "community": 78,
       "norm_label": "getpersiansummary()"
     },
     {
@@ -35772,7 +35802,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "components_dicerollmodal_resource_labels_fa",
-      "community": 148,
+      "community": 78,
       "norm_label": "resource_labels_fa"
     },
     {
@@ -35782,7 +35812,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "components_dicerollmodal_dicerollmodal",
-      "community": 148,
+      "community": 78,
       "norm_label": "dicerollmodal()"
     },
     {
@@ -36192,7 +36222,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "studio_loregraphcanvas",
-      "community": 171,
+      "community": 211,
       "norm_label": "loregraphcanvas.tsx"
     },
     {
@@ -36202,7 +36232,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "studio_loregraphcanvas_nodetype",
-      "community": 171,
+      "community": 211,
       "norm_label": "nodetype"
     },
     {
@@ -36212,7 +36242,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "studio_loregraphcanvas_graphnode",
-      "community": 171,
+      "community": 211,
       "norm_label": "graphnode"
     },
     {
@@ -36222,7 +36252,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "studio_loregraphcanvas_graphedge",
-      "community": 171,
+      "community": 211,
       "norm_label": "graphedge"
     },
     {
@@ -36232,7 +36262,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "studio_loregraphcanvas_loregraphcanvasprops",
-      "community": 171,
+      "community": 211,
       "norm_label": "loregraphcanvasprops"
     },
     {
@@ -36292,7 +36322,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "studio_storydetailsmodal",
-      "community": 211,
+      "community": 201,
       "norm_label": "storydetailsmodal.tsx"
     },
     {
@@ -36302,7 +36332,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "studio_storydetailsmodal_storydetailsform",
-      "community": 211,
+      "community": 200,
       "norm_label": "storydetailsform()"
     },
     {
@@ -36312,7 +36342,7 @@
       "source_location": "L250",
       "_origin": "ast",
       "id": "studio_storydetailsmodal_storydetailsmodal",
-      "community": 211,
+      "community": 200,
       "norm_label": "storydetailsmodal()"
     },
     {
@@ -36322,7 +36352,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "studio_storytreecanvas",
-      "community": 211,
+      "community": 201,
       "norm_label": "storytreecanvas.tsx"
     },
     {
@@ -36332,7 +36362,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "studio_storytreecanvas_storybeatchoice",
-      "community": 211,
+      "community": 201,
       "norm_label": "storybeatchoice"
     },
     {
@@ -36342,7 +36372,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "studio_storytreecanvas_storybeatnode",
-      "community": 211,
+      "community": 201,
       "norm_label": "storybeatnode"
     },
     {
@@ -36352,7 +36382,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "studio_storytreecanvas_storytreecanvasprops",
-      "community": 211,
+      "community": 201,
       "norm_label": "storytreecanvasprops"
     },
     {
@@ -36362,7 +36392,7 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "studio_storytreecanvas_calculatetreelayout",
-      "community": 211,
+      "community": 201,
       "norm_label": "calculatetreelayout()"
     },
     {
@@ -36372,7 +36402,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "studio_storytreecanvas_storytreecanvas",
-      "community": 200,
+      "community": 201,
       "norm_label": "storytreecanvas()"
     },
     {
@@ -36422,7 +36452,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "stories_storymanifestintegrity_test",
-      "community": 211,
+      "community": 201,
       "norm_label": "storymanifestintegrity.test.ts"
     },
     {
@@ -36602,7 +36632,7 @@
       "source_location": "L193",
       "_origin": "ast",
       "id": "context_studiostorycontext_storylistitem",
-      "community": 211,
+      "community": 171,
       "norm_label": "storylistitem"
     },
     {
@@ -36662,7 +36692,7 @@
       "source_location": "L350",
       "_origin": "ast",
       "id": "context_studiostorycontext_studiostoryprovider",
-      "community": 171,
+      "community": 200,
       "norm_label": "studiostoryprovider()"
     },
     {
@@ -36829,7 +36859,7 @@
       "label": "StoryRepository",
       "file_type": "code",
       "source_file": "web/src/lib/db/repositories/storyRepository.ts",
-      "source_location": "L6",
+      "source_location": "L19",
       "_origin": "ast",
       "id": "repositories_storyrepository_storyrepository",
       "community": 211,
@@ -36839,7 +36869,7 @@
       "label": ".getAllStories()",
       "file_type": "code",
       "source_file": "web/src/lib/db/repositories/storyRepository.ts",
-      "source_location": "L11",
+      "source_location": "L24",
       "_origin": "ast",
       "id": "repositories_storyrepository_storyrepository_getallstories",
       "community": 211,
@@ -36849,27 +36879,147 @@
       "label": ".getStoryById()",
       "file_type": "code",
       "source_file": "web/src/lib/db/repositories/storyRepository.ts",
-      "source_location": "L48",
+      "source_location": "L61",
       "_origin": "ast",
       "id": "repositories_storyrepository_storyrepository_getstorybyid",
-      "community": 211,
+      "community": 201,
       "norm_label": ".getstorybyid()"
+    },
+    {
+      "label": ".getWorldBible()",
+      "file_type": "code",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L99",
+      "_origin": "ast",
+      "id": "repositories_storyrepository_storyrepository_getworldbible",
+      "community": 211,
+      "norm_label": ".getworldbible()"
+    },
+    {
+      "label": ".getBestiary()",
+      "file_type": "code",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L132",
+      "_origin": "ast",
+      "id": "repositories_storyrepository_storyrepository_getbestiary",
+      "community": 211,
+      "norm_label": ".getbestiary()"
+    },
+    {
+      "label": ".getArtifacts()",
+      "file_type": "code",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L149",
+      "_origin": "ast",
+      "id": "repositories_storyrepository_storyrepository_getartifacts",
+      "community": 211,
+      "norm_label": ".getartifacts()"
+    },
+    {
+      "label": ".getTimeline()",
+      "file_type": "code",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L166",
+      "_origin": "ast",
+      "id": "repositories_storyrepository_storyrepository_gettimeline",
+      "community": 171,
+      "norm_label": ".gettimeline()"
+    },
+    {
+      "label": ".getNpcs()",
+      "file_type": "code",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L183",
+      "_origin": "ast",
+      "id": "repositories_storyrepository_storyrepository_getnpcs",
+      "community": 211,
+      "norm_label": ".getnpcs()"
+    },
+    {
+      "label": ".getReligions()",
+      "file_type": "code",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L200",
+      "_origin": "ast",
+      "id": "repositories_storyrepository_storyrepository_getreligions",
+      "community": 211,
+      "norm_label": ".getreligions()"
+    },
+    {
+      "label": ".getLocations()",
+      "file_type": "code",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L217",
+      "_origin": "ast",
+      "id": "repositories_storyrepository_storyrepository_getlocations",
+      "community": 211,
+      "norm_label": ".getlocations()"
+    },
+    {
+      "label": ".getFactions()",
+      "file_type": "code",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L234",
+      "_origin": "ast",
+      "id": "repositories_storyrepository_storyrepository_getfactions",
+      "community": 211,
+      "norm_label": ".getfactions()"
+    },
+    {
+      "label": ".getLaws()",
+      "file_type": "code",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L251",
+      "_origin": "ast",
+      "id": "repositories_storyrepository_storyrepository_getlaws",
+      "community": 211,
+      "norm_label": ".getlaws()"
+    },
+    {
+      "label": ".getDramaBonds()",
+      "file_type": "code",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L268",
+      "_origin": "ast",
+      "id": "repositories_storyrepository_storyrepository_getdramabonds",
+      "community": 171,
+      "norm_label": ".getdramabonds()"
+    },
+    {
+      "label": ".getOntology()",
+      "file_type": "code",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L285",
+      "_origin": "ast",
+      "id": "repositories_storyrepository_storyrepository_getontology",
+      "community": 211,
+      "norm_label": ".getontology()"
+    },
+    {
+      "label": ".updateLoreCollection()",
+      "file_type": "code",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L303",
+      "_origin": "ast",
+      "id": "repositories_storyrepository_storyrepository_updatelorecollection",
+      "community": 211,
+      "norm_label": ".updatelorecollection()"
     },
     {
       "label": ".saveStory()",
       "file_type": "code",
       "source_file": "web/src/lib/db/repositories/storyRepository.ts",
-      "source_location": "L86",
+      "source_location": "L359",
       "_origin": "ast",
       "id": "repositories_storyrepository_storyrepository_savestory",
-      "community": 211,
+      "community": 201,
       "norm_label": ".savestory()"
     },
     {
       "label": ".deleteStory()",
       "file_type": "code",
       "source_file": "web/src/lib/db/repositories/storyRepository.ts",
-      "source_location": "L193",
+      "source_location": "L466",
       "_origin": "ast",
       "id": "repositories_storyrepository_storyrepository_deletestory",
       "community": 211,
@@ -37562,7 +37712,7 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "world_genesisschemas_genesisworlddata",
-      "community": 200,
+      "community": 217,
       "norm_label": "genesisworlddata"
     },
     {
@@ -37752,7 +37902,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_genrepresets",
-      "community": 211,
+      "community": 201,
       "norm_label": "genrepresets.ts"
     },
     {
@@ -37762,7 +37912,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "lib_genrepresets_genre_labels",
-      "community": 211,
+      "community": 201,
       "norm_label": "genre_labels"
     },
     {
@@ -37772,7 +37922,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "lib_genrepresets_genre_presets",
-      "community": 211,
+      "community": 201,
       "norm_label": "genre_presets"
     },
     {
@@ -37902,7 +38052,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_storyfactory",
-      "community": 211,
+      "community": 201,
       "norm_label": "storyfactory.ts"
     },
     {
@@ -37912,7 +38062,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "lib_storyfactory_getemptystorymanifest",
-      "community": 211,
+      "community": 201,
       "norm_label": "getemptystorymanifest()"
     },
     {
@@ -37942,7 +38092,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "types_gameplay_actionstyle",
-      "community": 172,
+      "community": 78,
       "norm_label": "actionstyle"
     },
     {
@@ -38052,7 +38202,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "types_index",
-      "community": 211,
+      "community": 201,
       "norm_label": "index.ts"
     },
     {
@@ -38262,7 +38412,7 @@
       "source_location": "L126",
       "_origin": "ast",
       "id": "types_rpg_rpgsystemschemavalidator",
-      "community": 211,
+      "community": 201,
       "norm_label": "rpgsystemschemavalidator"
     },
     {
@@ -38272,7 +38422,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "types_story",
-      "community": 211,
+      "community": 201,
       "norm_label": "story.ts"
     },
     {
@@ -38282,7 +38432,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "types_story_genre",
-      "community": 211,
+      "community": 201,
       "norm_label": "genre"
     },
     {
@@ -38292,7 +38442,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "types_story_storymanifest",
-      "community": 211,
+      "community": 201,
       "norm_label": "storymanifest"
     },
     {
@@ -38302,7 +38452,7 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "types_story_storymanifestschema",
-      "community": 211,
+      "community": 201,
       "norm_label": "storymanifestschema"
     },
     {
@@ -38322,7 +38472,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "types_world_worldlaw",
-      "community": 171,
+      "community": 211,
       "norm_label": "worldlaw"
     },
     {
@@ -38332,7 +38482,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "types_world_faction",
-      "community": 171,
+      "community": 211,
       "norm_label": "faction"
     },
     {
@@ -38362,7 +38512,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "types_world_worldlocation",
-      "community": 171,
+      "community": 211,
       "norm_label": "worldlocation"
     },
     {
@@ -38422,7 +38572,7 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "types_world_timelineevent",
-      "community": 200,
+      "community": 171,
       "norm_label": "timelineevent"
     },
     {
@@ -38492,7 +38642,7 @@
       "source_location": "L149",
       "_origin": "ast",
       "id": "types_world_npcdossier",
-      "community": 171,
+      "community": 211,
       "norm_label": "npcdossier"
     },
     {
@@ -38512,7 +38662,7 @@
       "source_location": "L177",
       "_origin": "ast",
       "id": "types_world_worldartifact",
-      "community": 171,
+      "community": 211,
       "norm_label": "worldartifact"
     },
     {
@@ -38532,7 +38682,7 @@
       "source_location": "L199",
       "_origin": "ast",
       "id": "types_world_worldcreature",
-      "community": 171,
+      "community": 211,
       "norm_label": "worldcreature"
     },
     {
@@ -38552,7 +38702,7 @@
       "source_location": "L221",
       "_origin": "ast",
       "id": "types_world_worlddeity",
-      "community": 171,
+      "community": 211,
       "norm_label": "worlddeity"
     },
     {
@@ -38562,7 +38712,7 @@
       "source_location": "L237",
       "_origin": "ast",
       "id": "types_world_npcdramabond",
-      "community": 200,
+      "community": 171,
       "norm_label": "npcdramabond"
     },
     {
@@ -38632,7 +38782,7 @@
       "source_location": "L303",
       "_origin": "ast",
       "id": "types_world_worldontology",
-      "community": 171,
+      "community": 211,
       "norm_label": "worldontology"
     },
     {
@@ -39012,7 +39162,7 @@
       "source_location": "L676",
       "_origin": "ast",
       "id": "types_world_worldbibleschema",
-      "community": 211,
+      "community": 201,
       "norm_label": "worldbibleschema"
     },
     {
@@ -133590,9 +133740,9 @@
       "source_file": "web/src/app/api/studio/generate/StudioGenerate.test.ts",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "generate_studiogenerate_test",
-      "target": "types_world_branchingstorytreeschema",
-      "confidence_score": 1.0
+      "target": "types_world_branchingstorytreeschema"
     },
     {
       "relation": "imports",
@@ -133711,9 +133861,9 @@
       "source_file": "web/src/app/api/studio/generate/StudioGenerate.test.ts",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "generate_studiogenerate_test",
-      "target": "types_world_themerpgsystemschema",
-      "confidence_score": 1.0
+      "target": "types_world_themerpgsystemschema"
     },
     {
       "relation": "imports",
@@ -134118,6 +134268,48 @@
       "weight": 1.0,
       "source": "generate_route_post",
       "target": "world_genesisschemas_normalizegenesisdata"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/app/api/studio/lore/route.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "lore_route",
+      "target": "lore_route_get",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/app/api/studio/lore/route.ts",
+      "source_location": "L81",
+      "weight": 1.0,
+      "source": "lore_route",
+      "target": "lore_route_patch",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/app/api/studio/lore/route.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "lore_route",
+      "target": "repositories_storyrepository",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/app/api/studio/lore/route.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "lore_route",
+      "target": "repositories_storyrepository_storyrepository",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports_from",
@@ -134708,9 +134900,9 @@
       "source_file": "web/src/app/studio/beats/page.tsx",
       "source_location": "L25",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "beats_page",
-      "target": "types_world",
-      "confidence_score": 1.0
+      "target": "types_world"
     },
     {
       "relation": "imports",
@@ -134719,9 +134911,9 @@
       "source_file": "web/src/app/studio/beats/page.tsx",
       "source_location": "L25",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "beats_page",
-      "target": "types_world_branchingstorytree",
-      "confidence_score": 1.0
+      "target": "types_world_branchingstorytree"
     },
     {
       "relation": "calls",
@@ -135415,9 +135607,9 @@
       "source_file": "web/src/app/studio/layout.tsx",
       "source_location": "L9",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_layout",
-      "target": "studio_studiooracledrawer",
-      "confidence_score": 1.0
+      "target": "studio_studiooracledrawer"
     },
     {
       "relation": "calls",
@@ -136078,9 +136270,9 @@
       "source_file": "web/src/app/studio/rpg/page.tsx",
       "source_location": "L7",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "rpg_page",
-      "target": "narrative_worldcontext",
-      "confidence_score": 1.0
+      "target": "narrative_worldcontext"
     },
     {
       "relation": "imports",
@@ -136089,9 +136281,9 @@
       "source_file": "web/src/app/studio/rpg/page.tsx",
       "source_location": "L7",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "rpg_page",
-      "target": "narrative_worldcontext_buildworldcontextstring",
-      "confidence_score": 1.0
+      "target": "narrative_worldcontext_buildworldcontextstring"
     },
     {
       "relation": "contains",
@@ -136154,9 +136346,9 @@
       "source_file": "web/src/app/studio/rpg/page.tsx",
       "source_location": "L6",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "rpg_page",
-      "target": "types_world",
-      "confidence_score": 1.0
+      "target": "types_world"
     },
     {
       "relation": "imports",
@@ -136165,9 +136357,9 @@
       "source_file": "web/src/app/studio/rpg/page.tsx",
       "source_location": "L6",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "rpg_page",
-      "target": "types_world_themerpgsystempayload",
-      "confidence_score": 1.0
+      "target": "types_world_themerpgsystempayload"
     },
     {
       "relation": "calls",
@@ -137742,9 +137934,9 @@
       "source_file": "web/src/components/studio/MentionTextarea.tsx",
       "source_location": "L4",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_mentiontextarea",
-      "target": "context_studiostorycontext",
-      "confidence_score": 1.0
+      "target": "context_studiostorycontext"
     },
     {
       "relation": "imports",
@@ -137753,9 +137945,9 @@
       "source_file": "web/src/components/studio/MentionTextarea.tsx",
       "source_location": "L4",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_mentiontextarea",
-      "target": "context_studiostorycontext_usestudiostory",
-      "confidence_score": 1.0
+      "target": "context_studiostorycontext_usestudiostory"
     },
     {
       "relation": "contains",
@@ -137763,9 +137955,9 @@
       "source_file": "web/src/components/studio/MentionTextarea.tsx",
       "source_location": "L17",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_mentiontextarea",
-      "target": "studio_mentiontextarea_mentionitem",
-      "confidence_score": 1.0
+      "target": "studio_mentiontextarea_mentionitem"
     },
     {
       "relation": "contains",
@@ -137773,9 +137965,9 @@
       "source_file": "web/src/components/studio/MentionTextarea.tsx",
       "source_location": "L34",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_mentiontextarea",
-      "target": "studio_mentiontextarea_mentiontextarea",
-      "confidence_score": 1.0
+      "target": "studio_mentiontextarea_mentiontextarea"
     },
     {
       "relation": "contains",
@@ -137783,9 +137975,9 @@
       "source_file": "web/src/components/studio/MentionTextarea.tsx",
       "source_location": "L26",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_mentiontextarea",
-      "target": "studio_mentiontextarea_mentiontextareaprops",
-      "confidence_score": 1.0
+      "target": "studio_mentiontextarea_mentiontextareaprops"
     },
     {
       "relation": "calls",
@@ -137974,9 +138166,9 @@
       "source_file": "web/src/components/studio/StudioOracleDrawer.tsx",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_studiooracledrawer",
-      "target": "context_studiostorycontext",
-      "confidence_score": 1.0
+      "target": "context_studiostorycontext"
     },
     {
       "relation": "imports",
@@ -137985,9 +138177,9 @@
       "source_file": "web/src/components/studio/StudioOracleDrawer.tsx",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_studiooracledrawer",
-      "target": "context_studiostorycontext_usestudiostory",
-      "confidence_score": 1.0
+      "target": "context_studiostorycontext_usestudiostory"
     },
     {
       "relation": "imports_from",
@@ -137996,9 +138188,9 @@
       "source_file": "web/src/components/studio/StudioOracleDrawer.tsx",
       "source_location": "L26",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_studiooracledrawer",
-      "target": "lib_notify",
-      "confidence_score": 1.0
+      "target": "lib_notify"
     },
     {
       "relation": "imports",
@@ -138007,9 +138199,9 @@
       "source_file": "web/src/components/studio/StudioOracleDrawer.tsx",
       "source_location": "L26",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_studiooracledrawer",
-      "target": "lib_notify_notify",
-      "confidence_score": 1.0
+      "target": "lib_notify_notify"
     },
     {
       "relation": "imports_from",
@@ -138018,9 +138210,9 @@
       "source_file": "web/src/components/studio/StudioOracleDrawer.tsx",
       "source_location": "L6",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_studiooracledrawer",
-      "target": "narrative_worldcontext",
-      "confidence_score": 1.0
+      "target": "narrative_worldcontext"
     },
     {
       "relation": "imports",
@@ -138029,9 +138221,9 @@
       "source_file": "web/src/components/studio/StudioOracleDrawer.tsx",
       "source_location": "L6",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_studiooracledrawer",
-      "target": "narrative_worldcontext_buildworldcontextstring",
-      "confidence_score": 1.0
+      "target": "narrative_worldcontext_buildworldcontextstring"
     },
     {
       "relation": "contains",
@@ -138039,9 +138231,9 @@
       "source_file": "web/src/components/studio/StudioOracleDrawer.tsx",
       "source_location": "L35",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_studiooracledrawer",
-      "target": "studio_studiooracledrawer_adviser_personas",
-      "confidence_score": 1.0
+      "target": "studio_studiooracledrawer_adviser_personas"
     },
     {
       "relation": "contains",
@@ -138049,9 +138241,9 @@
       "source_file": "web/src/components/studio/StudioOracleDrawer.tsx",
       "source_location": "L29",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_studiooracledrawer",
-      "target": "studio_studiooracledrawer_chatmessage",
-      "confidence_score": 1.0
+      "target": "studio_studiooracledrawer_chatmessage"
     },
     {
       "relation": "contains",
@@ -138059,9 +138251,9 @@
       "source_file": "web/src/components/studio/StudioOracleDrawer.tsx",
       "source_location": "L85",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_studiooracledrawer",
-      "target": "studio_studiooracledrawer_studiooracledrawer",
-      "confidence_score": 1.0
+      "target": "studio_studiooracledrawer_studiooracledrawer"
     },
     {
       "relation": "imports_from",
@@ -138070,9 +138262,9 @@
       "source_file": "web/src/components/studio/StudioOracleDrawer.tsx",
       "source_location": "L27",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_studiooracledrawer",
-      "target": "world_actionprotocol",
-      "confidence_score": 1.0
+      "target": "world_actionprotocol"
     },
     {
       "relation": "imports",
@@ -138081,9 +138273,9 @@
       "source_file": "web/src/components/studio/StudioOracleDrawer.tsx",
       "source_location": "L27",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "studio_studiooracledrawer",
-      "target": "world_actionprotocol_personaid",
-      "confidence_score": 1.0
+      "target": "world_actionprotocol_personaid"
     },
     {
       "relation": "calls",
@@ -139305,6 +139497,138 @@
       "target": "types_story_storymanifest"
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "repositories_storyrepository",
+      "target": "types_world",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "repositories_storyrepository",
+      "target": "types_world_faction",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "repositories_storyrepository",
+      "target": "types_world_npcdossier",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "repositories_storyrepository",
+      "target": "types_world_npcdramabond",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "repositories_storyrepository",
+      "target": "types_world_timelineevent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "repositories_storyrepository",
+      "target": "types_world_worldartifact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "repositories_storyrepository",
+      "target": "types_world_worldbible",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "repositories_storyrepository",
+      "target": "types_world_worldcreature",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "repositories_storyrepository",
+      "target": "types_world_worlddeity",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "repositories_storyrepository",
+      "target": "types_world_worldlaw",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "repositories_storyrepository",
+      "target": "types_world_worldlocation",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "repositories_storyrepository",
+      "target": "types_world_worldontology",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "web/src/lib/db/repositories/storyRepository.ts",
@@ -139328,11 +139652,121 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L149",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository",
+      "target": "repositories_storyrepository_storyrepository_getartifacts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L132",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository",
+      "target": "repositories_storyrepository_storyrepository_getbestiary",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L268",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository",
+      "target": "repositories_storyrepository_storyrepository_getdramabonds",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L234",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository",
+      "target": "repositories_storyrepository_storyrepository_getfactions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L251",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository",
+      "target": "repositories_storyrepository_storyrepository_getlaws",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L217",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository",
+      "target": "repositories_storyrepository_storyrepository_getlocations",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L183",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository",
+      "target": "repositories_storyrepository_storyrepository_getnpcs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L285",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository",
+      "target": "repositories_storyrepository_storyrepository_getontology",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L200",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository",
+      "target": "repositories_storyrepository_storyrepository_getreligions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
       "source_location": "L89",
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "repositories_storyrepository_storyrepository",
       "target": "repositories_storyrepository_storyrepository_getstorybyid"
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L166",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository",
+      "target": "repositories_storyrepository_storyrepository_gettimeline",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L99",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository",
+      "target": "repositories_storyrepository_storyrepository_getworldbible",
+      "confidence_score": 1.0
     },
     {
       "relation": "method",
@@ -139345,6 +139779,16 @@
       "target": "repositories_storyrepository_storyrepository_savestory"
     },
     {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L303",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository",
+      "target": "repositories_storyrepository_storyrepository_updatelorecollection",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "references",
       "context": "generic_arg",
       "confidence": "EXTRACTED",
@@ -139354,6 +139798,127 @@
       "confidence_score": 1.0,
       "source": "repositories_storyrepository_storyrepository_getstorybyid",
       "target": "types_story_storymanifest"
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L99",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository_getworldbible",
+      "target": "types_world_worldbible",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L132",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository_getbestiary",
+      "target": "types_world_worldcreature",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L149",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository_getartifacts",
+      "target": "types_world_worldartifact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L166",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository_gettimeline",
+      "target": "types_world_timelineevent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L183",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository_getnpcs",
+      "target": "types_world_npcdossier",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L200",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository_getreligions",
+      "target": "types_world_worlddeity",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L217",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository_getlocations",
+      "target": "types_world_worldlocation",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L234",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository_getfactions",
+      "target": "types_world_faction",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L251",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository_getlaws",
+      "target": "types_world_worldlaw",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L268",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository_getdramabonds",
+      "target": "types_world_npcdramabond",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "web/src/lib/db/repositories/storyRepository.ts",
+      "source_location": "L285",
+      "weight": 1.0,
+      "source": "repositories_storyrepository_storyrepository_getontology",
+      "target": "types_world_worldontology",
+      "confidence_score": 1.0
     },
     {
       "relation": "references",
@@ -142398,9 +142963,9 @@
       "source_file": "web/src/lib/types/world.ts",
       "source_location": "L765",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "types_world",
-      "target": "types_world_branchingactschema",
-      "confidence_score": 1.0
+      "target": "types_world_branchingactschema"
     },
     {
       "relation": "contains",
@@ -142408,9 +142973,9 @@
       "source_file": "web/src/lib/types/world.ts",
       "source_location": "L746",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "types_world",
-      "target": "types_world_branchingchoiceschema",
-      "confidence_score": 1.0
+      "target": "types_world_branchingchoiceschema"
     },
     {
       "relation": "contains",
@@ -142418,9 +142983,9 @@
       "source_file": "web/src/lib/types/world.ts",
       "source_location": "L757",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "types_world",
-      "target": "types_world_branchingsceneschema",
-      "confidence_score": 1.0
+      "target": "types_world_branchingsceneschema"
     },
     {
       "relation": "contains",
@@ -142428,9 +142993,9 @@
       "source_file": "web/src/lib/types/world.ts",
       "source_location": "L776",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "types_world",
-      "target": "types_world_branchingstorytree",
-      "confidence_score": 1.0
+      "target": "types_world_branchingstorytree"
     },
     {
       "relation": "contains",
@@ -142438,9 +143003,9 @@
       "source_file": "web/src/lib/types/world.ts",
       "source_location": "L771",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "types_world",
-      "target": "types_world_branchingstorytreeschema",
-      "confidence_score": 1.0
+      "target": "types_world_branchingstorytreeschema"
     },
     {
       "relation": "contains",
@@ -143028,9 +143593,9 @@
       "source_file": "web/src/lib/types/world.ts",
       "source_location": "L729",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "types_world",
-      "target": "types_world_themerpgarchetypeschema",
-      "confidence_score": 1.0
+      "target": "types_world_themerpgarchetypeschema"
     },
     {
       "relation": "contains",
@@ -143038,9 +143603,9 @@
       "source_file": "web/src/lib/types/world.ts",
       "source_location": "L721",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "types_world",
-      "target": "types_world_themerpgresourceschema",
-      "confidence_score": 1.0
+      "target": "types_world_themerpgresourceschema"
     },
     {
       "relation": "contains",
@@ -143048,9 +143613,9 @@
       "source_file": "web/src/lib/types/world.ts",
       "source_location": "L713",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "types_world",
-      "target": "types_world_themerpgstatschema",
-      "confidence_score": 1.0
+      "target": "types_world_themerpgstatschema"
     },
     {
       "relation": "contains",
@@ -143058,9 +143623,9 @@
       "source_file": "web/src/lib/types/world.ts",
       "source_location": "L743",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "types_world",
-      "target": "types_world_themerpgsystempayload",
-      "confidence_score": 1.0
+      "target": "types_world_themerpgsystempayload"
     },
     {
       "relation": "contains",
@@ -143068,9 +143633,9 @@
       "source_file": "web/src/lib/types/world.ts",
       "source_location": "L737",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "types_world",
-      "target": "types_world_themerpgsystemschema",
-      "confidence_score": 1.0
+      "target": "types_world_themerpgsystemschema"
     },
     {
       "relation": "contains",
@@ -152684,5 +153249,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "5216ddb0e3853d5124f67f167baeb3df263945ad"
+  "built_at_commit": "b826e652146260e04ac089f7911e059c90f23369"
 }

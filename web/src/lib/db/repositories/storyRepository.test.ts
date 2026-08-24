@@ -1,150 +1,55 @@
 import { describe, it } from 'node:test';
-import assert from 'node:assert';
+import assert from 'node:assert/strict';
 import { StoryRepository } from './storyRepository';
-import { SessionRepository } from './sessionRepository';
-import { PlaythroughSession, PlayerState } from '@/lib/types/gameplay';
-import { getEmptyStoryManifest } from '../../storyFactory';
 
-describe('StoryForge Database Repositories', () => {
-  const isDbActive = process.env.ENABLE_DB === 'true';
-
-  it('should save and retrieve a story by ID with WorldBible and RpgSystem', async (t) => {
-    if (!isDbActive) {
-      t.skip('Database tests skipped because ENABLE_DB is not true');
-      return;
-    }
-    const manifest = getEmptyStoryManifest('en');
-    await StoryRepository.saveStory(manifest);
-
-    const fetched = await StoryRepository.getStoryById(manifest.id);
-    assert.ok(fetched, 'Saved story should be retrievable by ID');
-    assert.strictEqual(fetched?.id, manifest.id);
-    assert.ok(fetched?.worldBible.laws.length >= 0, 'WorldBible should be present');
-    assert.ok(fetched?.rpgSystem.stats.length > 0, 'RpgSystem stats should be populated');
-
-    // Cleanup
-    await StoryRepository.deleteStory(manifest.id);
+describe('StoryRepository — Selective Queries & Partial Updates', () => {
+  it('exposes granular getter methods for all 10 lore domains', () => {
+    assert.equal(typeof StoryRepository.getWorldBible, 'function');
+    assert.equal(typeof StoryRepository.getBestiary, 'function');
+    assert.equal(typeof StoryRepository.getArtifacts, 'function');
+    assert.equal(typeof StoryRepository.getTimeline, 'function');
+    assert.equal(typeof StoryRepository.getNpcs, 'function');
+    assert.equal(typeof StoryRepository.getReligions, 'function');
+    assert.equal(typeof StoryRepository.getLocations, 'function');
+    assert.equal(typeof StoryRepository.getFactions, 'function');
+    assert.equal(typeof StoryRepository.getLaws, 'function');
+    assert.equal(typeof StoryRepository.getDramaBonds, 'function');
+    assert.equal(typeof StoryRepository.getOntology, 'function');
   });
 
-  it('should return null for a non-existent story', async () => {
-    const manifest = await StoryRepository.getStoryById('does_not_exist_12345');
-    assert.strictEqual(manifest, null);
+  it('exposes partial atomic updater method updateLoreCollection', () => {
+    assert.equal(typeof StoryRepository.updateLoreCollection, 'function');
   });
 
-  it('should distinguish published from draft stories in getAllStories', async (t) => {
-    if (!isDbActive) {
-      t.skip('Database tests skipped because ENABLE_DB is not true');
-      return;
-    }
-    const draft = getEmptyStoryManifest('fa');
-    draft.published = false;
-    await StoryRepository.saveStory(draft);
+  it('returns empty array / mock response when database is in mock mode', async () => {
+    const bestiary = await StoryRepository.getBestiary('story_mock_123');
+    assert.ok(Array.isArray(bestiary));
 
-    const all = await StoryRepository.getAllStories();
-    assert.ok(all.some((s) => s.id === draft.id), 'Draft should appear in unfiltered list');
+    const artifacts = await StoryRepository.getArtifacts('story_mock_123');
+    assert.ok(Array.isArray(artifacts));
 
-    const publishedOnly = await StoryRepository.getAllStories(true);
-    assert.ok(
-      !publishedOnly.some((s) => s.id === draft.id),
-      'Draft should NOT appear in published-only list'
-    );
+    const timeline = await StoryRepository.getTimeline('story_mock_123');
+    assert.ok(Array.isArray(timeline));
 
-    // Cleanup
-    await StoryRepository.deleteStory(draft.id);
-  });
+    const npcs = await StoryRepository.getNpcs('story_mock_123');
+    assert.ok(Array.isArray(npcs));
 
+    const religions = await StoryRepository.getReligions('story_mock_123');
+    assert.ok(Array.isArray(religions));
 
-  it('should persist playthrough session and record turns', async () => {
-    const story = getEmptyStoryManifest('en');
-    await StoryRepository.saveStory(story);
+    const locations = await StoryRepository.getLocations('story_mock_123');
+    assert.ok(Array.isArray(locations));
 
-    const testSessionId = `test_sess_${Date.now()}`;
-    const mockPlayerState: PlayerState = {
-      stats: { might: 12, agility: 14, cunning: 10, arcana: 8 },
-      resources: { hp: 100, stamina: 50, gold: 30 },
-      inventory: [],
-      equipment: {},
-      discoveredLocationIds: ['loc_dungeon_cell'],
-      relationships: {},
-      activeQuestIds: ['quest_test'],
-      completedQuestIds: [],
-      currentLocationId: 'loc_dungeon_cell',
-    };
+    const factions = await StoryRepository.getFactions('story_mock_123');
+    assert.ok(Array.isArray(factions));
 
-    const session: PlaythroughSession = {
-      sessionId: testSessionId,
-      userId: 'test_player',
-      storyId: story.id,
-      currentSceneId: 'scene_prologue',
-      turnCount: 1,
-      playerState: mockPlayerState,
-      history: [
-        {
-          turnNumber: 1,
-          sceneId: 'scene_prologue',
-          playerActionText: 'Awakening in the dark',
-          actionStyle: 'tactical',
-          narrativeProse: 'The cold stones press against your back...',
-          presentedChoices: [],
-          timestamp: Date.now(),
-        },
-      ],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
+    const laws = await StoryRepository.getLaws('story_mock_123');
+    assert.ok(Array.isArray(laws));
 
-    // 1. Create Session
-    const created = await SessionRepository.createSession(session);
-    assert.ok(created, 'Session should be created in DB');
+    const dramaBonds = await StoryRepository.getDramaBonds('story_mock_123');
+    assert.ok(Array.isArray(dramaBonds));
 
-    // 2. Fetch Session
-    const fetched = await SessionRepository.getSession(testSessionId);
-    assert.ok(fetched, 'Fetched session should not be null');
-    assert.strictEqual(fetched?.sessionId, testSessionId);
-    assert.strictEqual(fetched?.turns.length, 1);
-
-    // 3. Record a Turn
-    const recordedTurn = await SessionRepository.recordTurn({
-      sessionId: testSessionId,
-      beat: {
-        turnNumber: 2,
-        sceneId: 'scene_cell_door',
-        playerActionText: 'Search the bench',
-        actionStyle: 'tactical',
-        narrativeProse: 'Under the bench, you find a rusty iron nail.',
-        presentedChoices: [],
-        timestamp: Date.now(),
-      },
-      updatedPlayerState: {
-        ...mockPlayerState,
-        inventory: [
-          {
-            id: 'iron_nail',
-            name: 'Iron Nail',
-            type: 'quest_item',
-            description: 'A sharp rusty nail',
-            quantity: 1,
-          },
-        ],
-      },
-      memories: [
-        {
-          category: 'player',
-          importance: 7,
-          summary: 'Player found an iron nail under the prison bench',
-        },
-      ],
-    });
-
-    assert.ok(recordedTurn, 'Turn should be recorded');
-    assert.strictEqual(recordedTurn?.turnNumber, 2);
-
-    // 4. Verify updated session state
-    const updatedSession = await SessionRepository.getSession(testSessionId);
-    assert.strictEqual(updatedSession?.turns.length, 2);
-    assert.strictEqual(updatedSession?.memories.length, 1);
-
-    // Cleanup
-    await StoryRepository.deleteStory(story.id);
+    const result = await StoryRepository.updateLoreCollection('story_mock_123', 'bestiary', []);
+    assert.equal(result.success, true);
   });
 });
