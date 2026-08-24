@@ -2,8 +2,35 @@
 
 import React, { useState } from 'react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
-import { Sparkles, Plus, Trash2, Edit2, MapPin, X, Flame, Layers, ShieldAlert } from 'lucide-react';
-import { WorldLocation } from '@/lib/types';
+import {
+  Sparkles,
+  Plus,
+  Trash2,
+  Edit2,
+  MapPin,
+  X,
+  Flame,
+  Layers,
+  ShieldAlert,
+  Compass,
+  ChevronDown,
+  ChevronUp,
+  Users,
+  Skull,
+  Crown,
+  Dice5,
+  Loader2,
+  Check,
+  Zap,
+  Target,
+  FileText,
+} from 'lucide-react';
+import {
+  WorldLocation,
+  LocationSubZone,
+  PopulateLocationPayload,
+  LocationPointOfInterest,
+} from '@/lib/types';
 import { notify } from '@/lib/notify';
 import AiFillSection from '@/components/studio/AiFillSection';
 
@@ -40,8 +67,26 @@ const DANGER_MAP: Record<number, { labelEn: string; labelFa: string; badgeClass:
   },
 };
 
+const SUBZONE_TYPE_LABELS: Record<string, { fa: string; en: string; color: string }> = {
+  dungeon: { fa: 'سیاه‌چال / دخمه', en: 'Dungeon', color: 'text-rose-400 border-rose-500/30 bg-rose-500/10' },
+  sanctuary: { fa: 'محراب / پناهگاه', en: 'Sanctuary', color: 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10' },
+  ruin: { fa: 'ویرانه باستانی', en: 'Ruin', color: 'text-amber-300 border-amber-500/30 bg-amber-500/10' },
+  vault: { fa: 'خزانه اسرار', en: 'Vault', color: 'text-purple-300 border-purple-500/30 bg-purple-500/10' },
+  market: { fa: 'بازار / کاروانسرا', en: 'Market', color: 'text-sky-300 border-sky-500/30 bg-sky-500/10' },
+  hazard_zone: { fa: 'منطقه مخاطره‌آمیز', en: 'Hazard Zone', color: 'text-red-400 border-red-500/30 bg-red-500/10' },
+};
+
 export default function LocationsStudioPage() {
-  const { story, isPersian, addLocation, editLocation, deleteLocation } = useStudioStory();
+  const {
+    story,
+    isPersian,
+    addLocation,
+    editLocation,
+    deleteLocation,
+    addNpc,
+    addCreature,
+    addArtifact,
+  } = useStudioStory();
 
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
@@ -54,6 +99,20 @@ export default function LocationsStudioPage() {
   const [locDangerLevel, setLocDangerLevel] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [locSpecialRules, setLocSpecialRules] = useState('');
   const [locConnectedIds, setLocConnectedIds] = useState<string[]>([]);
+
+  // Sub-zones and Micro-Ecosystem state
+  const [openSubZoneLocationId, setOpenSubZoneLocationId] = useState<string | null>(null);
+  const [isGeneratingSubZones, setIsGeneratingSubZones] = useState<string | null>(null);
+  const [subZonesPreview, setSubZonesPreview] = useState<{
+    location: WorldLocation;
+    subZones: LocationSubZone[];
+  } | null>(null);
+
+  const [isGeneratingEcosystem, setIsGeneratingEcosystem] = useState<string | null>(null);
+  const [ecosystemPreview, setEcosystemPreview] = useState<{
+    location: WorldLocation;
+    payload: PopulateLocationPayload;
+  } | null>(null);
 
   const locations = story.worldBible.locations || [];
   const categories = story.worldBible.ontology?.placeCategories || [];
@@ -118,6 +177,8 @@ export default function LocationsStudioPage() {
       .map((r) => r.trim())
       .filter((r) => r.length > 0);
 
+    const existingLoc = locations.find((l) => l.id === editingLocationId);
+
     const payload: WorldLocation = {
       id: editingLocationId || `loc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
       name: locName.trim(),
@@ -128,6 +189,8 @@ export default function LocationsStudioPage() {
       dangerLevel: locDangerLevel,
       connectedLocationIds: locConnectedIds,
       specialRules: specialRulesArray.length > 0 ? specialRulesArray : undefined,
+      subZones: existingLoc?.subZones,
+      pointsOfInterest: existingLoc?.pointsOfInterest,
     };
 
     if (editingLocationId) {
@@ -148,6 +211,169 @@ export default function LocationsStudioPage() {
     if (!locSpecialRules && Array.isArray(data.specialRules) && (data.specialRules as string[]).length)
       setLocSpecialRules((data.specialRules as string[]).join('\n'));
   };
+
+  // --- Sub-Zones Generator ---
+  const handleGenerateSubZones = async (loc: WorldLocation) => {
+    setIsGeneratingSubZones(loc.id);
+    try {
+      const worldContext = `WORLD NAME: ${story.worldBible.worldName || 'Atarion'}\nLOCATION: ${loc.name} (${loc.region})\nATMOSPHERE: ${loc.atmosphere}\nDESCRIPTION: ${loc.description}`;
+      const res = await fetch('/api/studio/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'location_subzones',
+          prompt: `Create 3 to 5 interconnected sub-zones and exploration sectors for ${loc.name}`,
+          anchor: loc.name,
+          worldContext,
+          isPersian,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        const rawSubZones = Array.isArray(json.data.subZones)
+          ? json.data.subZones
+          : Array.isArray(json.data)
+          ? json.data
+          : [];
+        const normalizedSubZones: LocationSubZone[] = rawSubZones.map(
+          (sz: any, i: number) => ({
+            id: sz.id || `sz_${Date.now().toString(36)}_${i}`,
+            name: sz.name || `Sub-zone ${i + 1}`,
+            subType: sz.subType || 'dungeon',
+            dangerLevel: (Number(sz.dangerLevel) || loc.dangerLevel || 3) as 1 | 2 | 3 | 4 | 5,
+            atmosphere: sz.atmosphere || '',
+            explorationHooks: Array.isArray(sz.explorationHooks) ? sz.explorationHooks : [],
+            pointsOfInterest: Array.isArray(sz.pointsOfInterest)
+              ? sz.pointsOfInterest.map((p: any) => ({
+                  name: p.name || 'Point of Interest',
+                  description: p.description || '',
+                  skillCheck: p.skillCheck
+                    ? {
+                        attribute: p.skillCheck.attribute || 'Perception',
+                        dc: Number(p.skillCheck.dc) || 12,
+                        failureConsequence: p.skillCheck.failureConsequence || '',
+                      }
+                    : undefined,
+                }))
+              : [],
+          })
+        );
+        setSubZonesPreview({ location: loc, subZones: normalizedSubZones });
+      } else {
+        notify.error(json.error || (isPersian ? 'تولید زیربخش‌ها ناموفق بود' : 'Failed to generate sub-zones'));
+      }
+    } catch {
+      notify.error(isPersian ? 'خطا در برقراری ارتباط با سرور' : 'Connection error');
+    } finally {
+      setIsGeneratingSubZones(null);
+    }
+  };
+
+  const handleSaveSubZonesPreview = () => {
+    if (!subZonesPreview) return;
+    const { location, subZones } = subZonesPreview;
+    const existing = location.subZones || [];
+    const merged = [...existing, ...subZones];
+    editLocation(location.id, { subZones: merged });
+    setOpenSubZoneLocationId(location.id);
+    setSubZonesPreview(null);
+    notify.success(
+      isPersian
+        ? `${subZones.length} زیربخش با موفقیت به "${location.name}" افزوده شد`
+        : `${subZones.length} sub-zones added to "${location.name}"`
+    );
+  };
+
+  const handleDeleteSubZone = async (loc: WorldLocation, subZoneId: string) => {
+    const conf = await notify.confirm({
+      title: isPersian ? 'حذف زیربخش' : 'Delete Sub-Zone',
+      message: isPersian
+        ? 'آیا از حذف این زیربخش و نقاط تعاملی آن مطمئن هستید؟'
+        : 'Are you sure you want to remove this sub-zone and its POIs?',
+      confirmText: isPersian ? 'حذف شود' : 'Delete',
+      cancelText: isPersian ? 'انصراف' : 'Cancel',
+      isDestructive: true,
+    });
+    if (conf) {
+      const next = (loc.subZones || []).filter((sz) => sz.id !== subZoneId);
+      editLocation(loc.id, { subZones: next });
+      notify.info(isPersian ? 'زیربخش حذف شد' : 'Sub-zone removed');
+    }
+  };
+
+  // --- Populate Micro-Ecosystem Macro ---
+  const handleGenerateEcosystem = async (loc: WorldLocation) => {
+    setIsGeneratingEcosystem(loc.id);
+    try {
+      const worldContext = `WORLD NAME: ${story.worldBible.worldName || 'Atarion'}\nLOCATION: ${loc.name} (${loc.region})\nATMOSPHERE: ${loc.atmosphere}\nDESCRIPTION: ${loc.description}`;
+      const res = await fetch('/api/studio/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'populate_location',
+          prompt: `Populate a complete micro-ecosystem for ${loc.name} (2 resident NPCs, 1 native creature, 1 hidden mythic relic)`,
+          anchor: loc.name,
+          worldContext,
+          isPersian,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        const payload = json.data as PopulateLocationPayload;
+        // Normalize IDs and tie to current location
+        const normalizedNpcs = (payload.npcs || []).map((n: any, i: number) => ({
+          ...n,
+          id: n.id || `npc_${Date.now().toString(36)}_${i}`,
+          currentLocationId: loc.id,
+        }));
+        const normalizedCreature = {
+          ...payload.creature,
+          id: payload.creature?.id || `creature_${Date.now().toString(36)}`,
+          habitatLocationIds: [loc.id],
+          dangerLevel: (Number(payload.creature?.dangerLevel) || 3) as 1 | 2 | 3 | 4 | 5,
+        };
+        const normalizedRelic = {
+          ...payload.hiddenRelic,
+          id: payload.hiddenRelic?.id || `artifact_${Date.now().toString(36)}`,
+          currentHolderId: loc.id,
+          currentHolderType: 'location' as const,
+        };
+        setEcosystemPreview({
+          location: loc,
+          payload: {
+            locationId: loc.id,
+            npcs: normalizedNpcs,
+            creature: normalizedCreature,
+            hiddenRelic: normalizedRelic,
+          },
+        });
+      } else {
+        notify.error(json.error || (isPersian ? 'تولید زیست‌بوم با شکست مواجه شد' : 'Failed to generate ecosystem'));
+      }
+    } catch {
+      notify.error(isPersian ? 'خطا در برقراری ارتباط با سرور' : 'Connection error');
+    } finally {
+      setIsGeneratingEcosystem(null);
+    }
+  };
+
+  const handleCommitEcosystem = () => {
+    if (!ecosystemPreview) return;
+    const { location, payload } = ecosystemPreview;
+
+    // Batch insert into Studio context
+    (payload.npcs || []).forEach((npc) => addNpc(npc));
+    if (payload.creature) addCreature(payload.creature);
+    if (payload.hiddenRelic) addArtifact(payload.hiddenRelic);
+
+    setEcosystemPreview(null);
+    notify.success(
+      isPersian
+        ? `زیست‌بوم کامل "${location.name}" به جهان افزوده شد (۲ شخصیت، ۱ هیولا، ۱ عتیقه)`
+        : `Micro-ecosystem for "${location.name}" added to world (2 NPCs, 1 Creature, 1 Relic)`
+    );
+  };
+
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -278,6 +504,147 @@ export default function LocationsStudioPage() {
                       </ul>
                     </div>
                   )}
+                  {/* Sub-Zones & Ecosystem Actions */}
+                  <div className="pt-2 flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() =>
+                        setOpenSubZoneLocationId(
+                          openSubZoneLocationId === loc.id ? null : loc.id
+                        )
+                      }
+                      className="flex-1 py-1.5 px-3 rounded-xl bg-zinc-950/80 hover:bg-zinc-800 border border-zinc-800 text-xs font-bold text-zinc-300 flex items-center justify-between transition-all"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Compass className="w-3.5 h-3.5 text-amber-400" />
+                        <span>{isPersian ? 'زیربخش‌ها و سیاه‌چال‌ها' : 'Sub-Zones & Dungeons'}</span>
+                        <span className="px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 text-[10px]">
+                          {loc.subZones?.length || 0}
+                        </span>
+                      </span>
+                      {openSubZoneLocationId === loc.id ? (
+                        <ChevronUp className="w-3.5 h-3.5 text-zinc-400" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => handleGenerateEcosystem(loc)}
+                      disabled={isGeneratingEcosystem === loc.id}
+                      className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-amber-500/20 hover:from-purple-500/30 hover:to-amber-500/30 border border-purple-500/40 text-purple-200 text-xs font-bold flex items-center gap-1.5 transition-all disabled:opacity-50"
+                      title={isPersian ? 'تولید ۲ شخصیت، ۱ هیولا و ۱ عتیقه بومی این مکان' : 'Populate 2 NPCs, 1 Creature, and 1 Relic native to this place'}
+                    >
+                      {isGeneratingEcosystem === loc.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
+                      ) : (
+                        <Zap className="w-3.5 h-3.5 text-purple-400" />
+                      )}
+                      <span>{isPersian ? 'زیست‌بوم' : 'Populate'}</span>
+                    </button>
+                  </div>
+
+                  {/* Sub-Zones Collapsible Panel */}
+                  {openSubZoneLocationId === loc.id && (
+                    <div className="space-y-3 pt-3 border-t border-zinc-800/80 animate-fadeIn">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-zinc-400 flex items-center gap-1">
+                          <Compass className="w-3 h-3 text-amber-400" />
+                          {isPersian ? 'زیربخش‌های کشف‌شده:' : 'Discovered Sub-Zones:'}
+                        </span>
+                        <button
+                          onClick={() => handleGenerateSubZones(loc)}
+                          disabled={isGeneratingSubZones === loc.id}
+                          className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[11px] font-bold flex items-center gap-1 transition-all disabled:opacity-50"
+                        >
+                          {isGeneratingSubZones === loc.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+                          ) : (
+                            <Sparkles className="w-3 h-3 text-amber-400" />
+                          )}
+                          <span>{isPersian ? 'تولید با AI' : 'AI Generate'}</span>
+                        </button>
+                      </div>
+
+                      {loc.subZones && loc.subZones.length > 0 ? (
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                          {loc.subZones.map((sz) => {
+                            const subTypeMeta = SUBZONE_TYPE_LABELS[sz.subType] || SUBZONE_TYPE_LABELS.dungeon;
+                            return (
+                              <div
+                                key={sz.id}
+                                className="bg-zinc-950/60 border border-zinc-800/80 rounded-2xl p-3 space-y-1.5 text-xs"
+                              >
+                                <div className="flex items-center justify-between gap-1">
+                                  <div className="flex items-center gap-1.5 font-bold text-zinc-200">
+                                    <span>{sz.name}</span>
+                                    <span className={`px-2 py-0.5 rounded-lg text-[10px] border ${subTypeMeta.color}`}>
+                                      {isPersian ? subTypeMeta.fa : subTypeMeta.en}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => handleDeleteSubZone(loc, sz.id)}
+                                    className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+
+                                {sz.atmosphere && (
+                                  <p className="text-[11px] text-zinc-400 italic">
+                                    "{sz.atmosphere}"
+                                  </p>
+                                )}
+
+                                {sz.pointsOfInterest && sz.pointsOfInterest.length > 0 && (
+                                  <div className="space-y-1 pt-1">
+                                    <span className="text-[10px] text-zinc-500 font-bold flex items-center gap-1">
+                                      <Target className="w-2.5 h-2.5 text-amber-400" />
+                                      {isPersian ? 'نقاط تعاملی و چالش‌ها:' : 'POIs & Skill Gates:'}
+                                    </span>
+                                    {sz.pointsOfInterest.map((poi, pIdx) => (
+                                      <div
+                                        key={pIdx}
+                                        className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-2 text-[11px] space-y-0.5"
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <span className="font-semibold text-zinc-300">{poi.name}</span>
+                                          {poi.skillCheck && (
+                                            <span
+                                              dir="ltr"
+                                              className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 font-mono text-[10px] border border-amber-500/20"
+                                            >
+                                              {poi.skillCheck.attribute} DC {poi.skillCheck.dc}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="text-zinc-400 text-[10.5px] leading-tight">
+                                          {poi.description}
+                                        </p>
+                                        {poi.skillCheck?.failureConsequence && (
+                                          <p className="text-rose-300/80 text-[10px]">
+                                            ⚠️ {isPersian ? 'پیامد شکست: ' : 'Failure: '}
+                                            {poi.skillCheck.failureConsequence}
+                                          </p>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 bg-zinc-950/30 border border-zinc-800/50 rounded-2xl p-3">
+                          <p className="text-xs text-zinc-500">
+                            {isPersian
+                              ? 'هنوز زیربخشی برای این مکان ساخته نشده است.'
+                              : 'No sub-zones charted for this location yet.'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Card Footer: Danger Tier + Connections */}
@@ -296,6 +663,7 @@ export default function LocationsStudioPage() {
           })
         )}
       </div>
+
 
       {/* Add / Edit Location Modal */}
       {showAddModal && (
@@ -490,6 +858,350 @@ export default function LocationsStudioPage() {
           </div>
         </div>
       )}
+
+      {/* Sub-Zones AI Preview Modal */}
+      {subZonesPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-3xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2 text-amber-400">
+                <Compass className="w-5 h-5" />
+                <h3 className="text-sm font-bold">
+                  {isPersian
+                    ? `پیش‌نمایش زیربخش‌های "${subZonesPreview.location.name}"`
+                    : `Sub-Zones Preview for "${subZonesPreview.location.name}"`}
+                </h3>
+              </div>
+              <button
+                onClick={() => setSubZonesPreview(null)}
+                className="text-zinc-500 hover:text-zinc-300"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-400">
+              {isPersian
+                ? 'زیربخش‌ها و سیاه‌چال‌های زیر توسط هوش مصنوعی بر پایه اتمسفر و جغرافیای این مکان طراحی شده‌اند:'
+                : 'The following sub-zones and exploration sectors have been procedurally tailored to this location:'}
+            </p>
+
+            <div className="space-y-3">
+              {subZonesPreview.subZones.map((sz, idx) => {
+                const subTypeMeta = SUBZONE_TYPE_LABELS[sz.subType] || SUBZONE_TYPE_LABELS.dungeon;
+                return (
+                  <div
+                    key={idx}
+                    className="bg-zinc-950/80 border border-zinc-800 rounded-2xl p-4 space-y-2 text-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-zinc-100 text-sm">{sz.name}</span>
+                        <span className={`px-2 py-0.5 rounded-lg text-[10.5px] border ${subTypeMeta.color}`}>
+                          {isPersian ? subTypeMeta.fa : subTypeMeta.en}
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-lg bg-zinc-800 text-zinc-400 font-mono text-[10px]">
+                        {isPersian ? 'خطر:' : 'Danger:'} {sz.dangerLevel}/5
+                      </span>
+                    </div>
+
+                    {sz.atmosphere && (
+                      <p className="text-zinc-400 text-xs italic bg-zinc-900/60 rounded-xl px-3 py-1.5 border border-zinc-800/60">
+                        "{sz.atmosphere}"
+                      </p>
+                    )}
+
+                    {sz.explorationHooks && sz.explorationHooks.length > 0 && (
+                      <div className="space-y-1">
+                        <span className="text-[10.5px] text-zinc-500 font-bold">
+                          {isPersian ? 'قلاب‌های اکتشافی:' : 'Exploration Hooks:'}
+                        </span>
+                        <ul className="list-disc list-inside space-y-0.5 text-zinc-300 text-[11px]">
+                          {sz.explorationHooks.map((hook, hIdx) => (
+                            <li key={hIdx}>{hook}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {sz.pointsOfInterest && sz.pointsOfInterest.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        <span className="text-[10.5px] text-amber-400/90 font-bold flex items-center gap-1">
+                          <Target className="w-3 h-3 text-amber-400" />
+                          {isPersian ? 'نقاط تعاملی و چالش‌ها:' : 'POIs & Skill Gates:'}
+                        </span>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {sz.pointsOfInterest.map((poi, pIdx) => (
+                            <div
+                              key={pIdx}
+                              className="bg-zinc-900 border border-zinc-800 rounded-xl p-2.5 space-y-1"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-zinc-200 text-xs">{poi.name}</span>
+                                {poi.skillCheck && (
+                                  <span
+                                    dir="ltr"
+                                    className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 font-mono text-[10px] border border-amber-500/20"
+                                  >
+                                    {poi.skillCheck.attribute} DC {poi.skillCheck.dc}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-zinc-400 text-[11px] leading-tight">
+                                {poi.description}
+                              </p>
+                              {poi.skillCheck?.failureConsequence && (
+                                <p className="text-rose-300/80 text-[10px]">
+                                  ⚠️ {isPersian ? 'شکست: ' : 'Fail: '}
+                                  {poi.skillCheck.failureConsequence}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setSubZonesPreview(null)}
+                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700"
+              >
+                {isPersian ? 'انصراف' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveSubZonesPreview}
+                className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                <span>
+                  {isPersian
+                    ? `تأیید و ذخیره (${subZonesPreview.subZones.length} زیربخش)`
+                    : `Save (${subZonesPreview.subZones.length} Sub-Zones)`}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Populate Micro-Ecosystem Preview Modal */}
+      {ecosystemPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-4xl w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2 text-purple-400">
+                <Zap className="w-5 h-5" />
+                <h3 className="text-sm font-bold">
+                  {isPersian
+                    ? `زیست‌بوم کامل مکان "${ecosystemPreview.location.name}"`
+                    : `Micro-Ecosystem for "${ecosystemPreview.location.name}"`}
+                </h3>
+              </div>
+              <button
+                onClick={() => setEcosystemPreview(null)}
+                className="text-zinc-500 hover:text-zinc-300"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-400">
+              {isPersian
+                ? 'یک بسته روایی کامل و همگام شامل ۲ شخصیت با اسرار، ۱ موجود بومی متناسب با اقلیم، و ۱ عتیقه پنهان آماده ثبت در جهان است:'
+                : 'A synchronized lore packet containing 2 resident NPCs, 1 native creature, and 1 hidden mythic relic is ready to be added:'}
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Resident NPCs */}
+              <div className="md:col-span-3 space-y-2">
+                <h4 className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                  <Users className="w-4 h-4" />
+                  {isPersian ? 'شخصیت‌های مقیم این مکان (۲ نفر):' : 'Resident NPCs (2):'}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {ecosystemPreview.payload.npcs.map((npc, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-zinc-950/80 border border-zinc-800 rounded-2xl p-4 space-y-2 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="font-bold text-zinc-100 text-sm">{npc.name}</span>
+                          {npc.title && (
+                            <p className="text-[11px] text-zinc-400">{npc.title}</p>
+                          )}
+                        </div>
+                        {npc.role && (
+                          <span className="px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10.5px]">
+                            {npc.role}
+                          </span>
+                        )}
+                      </div>
+
+
+
+                      {npc.speechStyle && (
+                        <p className="text-[11px] text-zinc-400 italic">
+                          "{npc.speechStyle}"
+                        </p>
+                      )}
+
+                      {npc.personalityTraits && npc.personalityTraits.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {npc.personalityTraits.map((trait, tIdx) => (
+                            <span
+                              key={tIdx}
+                              className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 text-[10px]"
+                            >
+                              {trait}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {npc.secrets && npc.secrets.length > 0 && (
+                        <div className="text-[10.5px] text-purple-300/90 bg-purple-950/20 border border-purple-500/20 rounded-xl p-2">
+                          🔒 {npc.secrets.length} {isPersian ? 'راز فاش‌نشده' : 'hidden secrets'}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Native Creature */}
+              <div className="md:col-span-2 space-y-2">
+                <h4 className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                  <Skull className="w-4 h-4" />
+                  {isPersian ? 'موجود بومی و وحشی اقلیم:' : 'Native Creature:'}
+                </h4>
+                {ecosystemPreview.payload.creature && (
+                  <div className="bg-zinc-950/80 border border-zinc-800 rounded-2xl p-4 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-zinc-100 text-sm">
+                        {ecosystemPreview.payload.creature.name}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-[10.5px]">
+                        {ecosystemPreview.payload.creature.speciesCategory} · خطر{' '}
+                        {ecosystemPreview.payload.creature.dangerLevel}/5
+                      </span>
+                    </div>
+
+                    {ecosystemPreview.payload.creature.loreDescription && (
+                      <p className="text-zinc-400 text-xs leading-relaxed">
+                        {ecosystemPreview.payload.creature.loreDescription}
+                      </p>
+                    )}
+
+                    {ecosystemPreview.payload.creature.behavioralTactics && (
+                      <p className="text-zinc-300 text-[11px] bg-zinc-900/70 rounded-xl p-2 border border-zinc-800/80">
+                        ⚔️ <strong className="text-zinc-200">{isPersian ? 'تاکتیک نبرد:' : 'Tactics:'}</strong>{' '}
+                        {ecosystemPreview.payload.creature.behavioralTactics}
+                      </p>
+                    )}
+
+                    {ecosystemPreview.payload.creature.harvestableLoot &&
+                      ecosystemPreview.payload.creature.harvestableLoot.length > 0 && (
+                        <div className="flex flex-wrap gap-1 text-[10px]">
+                          <span className="text-zinc-500">{isPersian ? 'غنایم:' : 'Loot:'}</span>
+                          {ecosystemPreview.payload.creature.harvestableLoot.map((loot, lIdx) => (
+                            <span
+                              key={lIdx}
+                              className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300"
+                            >
+                              {loot.name} ({loot.dropRate})
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                  </div>
+                )}
+              </div>
+
+              {/* Hidden Mythic Relic */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                  <Crown className="w-4 h-4" />
+                  {isPersian ? 'عتیقه پنهان مکان:' : 'Hidden Relic:'}
+                </h4>
+                {ecosystemPreview.payload.hiddenRelic && (
+                  <div className="bg-zinc-950/80 border border-zinc-800 rounded-2xl p-4 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-bold text-zinc-100 text-sm">
+                          {ecosystemPreview.payload.hiddenRelic.name}
+                        </span>
+                        {ecosystemPreview.payload.hiddenRelic.title && (
+                          <p className="text-[11px] text-zinc-400">
+                            {ecosystemPreview.payload.hiddenRelic.title}
+                          </p>
+                        )}
+                      </div>
+                      <span className="px-2 py-0.5 rounded-lg bg-sky-500/10 text-sky-300 border border-sky-500/20 text-[10.5px]">
+                        {ecosystemPreview.payload.hiddenRelic.rarity}
+                      </span>
+                    </div>
+
+                    <p className="text-zinc-400 text-[11px] leading-tight">
+                      {ecosystemPreview.payload.hiddenRelic.description}
+                    </p>
+
+                    {ecosystemPreview.payload.hiddenRelic.powers &&
+                      ecosystemPreview.payload.hiddenRelic.powers.length > 0 && (
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] text-zinc-500 font-bold">
+                            {isPersian ? 'قدرت‌ها:' : 'Powers:'}
+                          </span>
+                          <ul className="list-disc list-inside text-zinc-300 text-[10.5px]">
+                            {ecosystemPreview.payload.hiddenRelic.powers.map((p, pIdx) => (
+                              <li key={pIdx}>{p}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                    {ecosystemPreview.payload.hiddenRelic.curseOrCost && (
+                      <p className="text-rose-300/90 text-[10.5px] bg-rose-950/20 border border-rose-500/20 rounded-xl p-2">
+                        🩸 {isPersian ? 'نفرین / بهای استفاده: ' : 'Curse/Cost: '}
+                        {ecosystemPreview.payload.hiddenRelic.curseOrCost}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setEcosystemPreview(null)}
+                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700"
+              >
+                {isPersian ? 'انصراف' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleCommitEcosystem}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-amber-500 hover:from-purple-400 hover:to-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-purple-500/20 flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                <span>
+                  {isPersian ? '📥 افزودن همه به جهان' : '📥 Batch Insert into World'}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

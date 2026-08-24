@@ -20,6 +20,26 @@ export interface Faction {
   secretAgendas?: string;
 }
 
+export interface LocationPointOfInterest {
+  name: string;
+  description: string;
+  skillCheck?: {
+    attribute: string;
+    dc: number;
+    failureConsequence: string;
+  };
+}
+
+export interface LocationSubZone {
+  id: string;
+  name: string;
+  subType: 'dungeon' | 'sanctuary' | 'ruin' | 'vault' | 'market' | 'hazard_zone' | string;
+  dangerLevel: 1 | 2 | 3 | 4 | 5;
+  atmosphere: string;
+  explorationHooks: string[];
+  pointsOfInterest: LocationPointOfInterest[];
+}
+
 export interface WorldLocation {
   id: string;
   name: string;
@@ -30,6 +50,40 @@ export interface WorldLocation {
   connectedLocationIds: string[];
   atmosphere: string; // Tone keywords e.g. "Gloomy, fog-drenched, damp stone"
   specialRules?: string[];
+  subZones?: LocationSubZone[];
+  pointsOfInterest?: LocationPointOfInterest[];
+}
+
+
+export interface TimelineRippleRepercussion {
+  targetType: 'faction' | 'location' | 'artifact' | 'religion';
+  targetName: string;
+  effectDescription: string;
+}
+
+export interface TimelineRipple {
+  sourceEventTitle: string;
+  modernRepercussions: TimelineRippleRepercussion[];
+}
+
+export interface EpochArcEra {
+  eraName: string;
+  timeframe: string;
+  description: string;
+  majorCataclysm: string;
+  legacyFactions: string[];
+}
+
+export interface EpochArcKeyEvent {
+  title: string;
+  eraName: string;
+  narrativeSummary: string;
+  lastingConsequences: string;
+}
+
+export interface EpochArc {
+  eras: EpochArcEra[];
+  keyEvents: EpochArcKeyEvent[];
 }
 
 export interface TimelineEvent {
@@ -43,6 +97,53 @@ export interface TimelineEvent {
   linkedFactionIds?: string[];
   linkedLocationIds?: string[];
   secretDetails?: string;
+  ripples?: TimelineRippleRepercussion[];
+}
+
+export interface NpcSampleDialogue {
+  context: 'greeting' | 'bargaining' | 'threatened' | 'dying';
+  quote: string;
+}
+
+export interface NpcVoiceGuide {
+  npcName: string;
+  speechQuirks: string[];
+  sampleDialogue: NpcSampleDialogue[];
+  negotiationVulnerabilities: string[];
+  psychologicalBreakingPoint: string;
+}
+
+export interface NpcEquippedGear {
+  name: string;
+  type: string;
+  description?: string;
+}
+
+export interface NpcStatCalibration {
+  npcId?: string;
+  npcName: string;
+  combatTier: 'civilian' | 'apprentice' | 'veteran' | 'elite' | 'boss' | 'mythic';
+  challengeRating: number; // 1 to 20
+  statRatings: Record<string, number>;
+  signatureAbilities: string[];
+  equippedGear: NpcEquippedGear[];
+}
+
+export interface NpcRelationshipBond {
+  id: string;
+  sourceNpcId: string;
+  targetNpcId: string;
+  targetNpcName: string;
+  relationTypeId: string;
+  affinity: number; // -100 to 100
+  secretTension: string;
+  isPublic: boolean;
+}
+
+export interface NpcRelationshipWeb {
+  sourceNpcId: string;
+  sourceNpcName: string;
+  bonds: NpcRelationshipBond[];
 }
 
 export interface NPCDossier {
@@ -62,6 +163,15 @@ export interface NPCDossier {
     revealed: boolean;
   }>;
   initialTrust: number; // e.g. 0 (-100 to 100)
+  voiceGuide?: NpcVoiceGuide;
+  statCalibration?: NpcStatCalibration;
+}
+
+export interface ArtifactVaultLore {
+  creator: string;
+  currentVaultLocation: string;
+  unsealingRitual: string;
+  rivalSeekers: string[];
 }
 
 export interface WorldArtifact {
@@ -77,6 +187,13 @@ export interface WorldArtifact {
   currentHolderType: 'npc' | 'location' | 'faction' | 'vault' | 'unknown';
   currentHolderId: string;
   secretLore?: string;
+  vaultLore?: ArtifactVaultLore;
+}
+
+export interface CreatureAlchemicalYield {
+  reagentName: string;
+  rarity: string;
+  craftingUse: string;
 }
 
 export interface WorldCreature {
@@ -90,6 +207,15 @@ export interface WorldCreature {
   resistances: string[];
   harvestableLoot: Array<{ itemId: string; name: string; dropRate: string }>;
   loreDescription: string;
+  predatorPreyNiche?: string;
+  nonCombatPacificationMethod?: string;
+  alchemicalYields?: CreatureAlchemicalYield[];
+}
+
+export interface SectarianSchism {
+  cultName: string;
+  heresyDoctrine: string;
+  headquartersLocation?: string;
 }
 
 export interface WorldDeity {
@@ -103,7 +229,10 @@ export interface WorldDeity {
   divineBlessings: string[];
   affiliatedFactionIds: string[];
   holyLocationIds: string[];
+  divineOmensForViolation?: string;
+  sectarianSchisms?: SectarianSchism[];
 }
+
 
 export interface NPCDramaBond {
   id: string;
@@ -212,6 +341,83 @@ export const NPCDramaBondSchema = z.object({
   isPublic: z.boolean().default(true),
 });
 
+export const TimelineRippleRepercussionSchema = z.object({
+  targetType: z.enum(['faction', 'location', 'artifact', 'religion']),
+  targetName: z.string(),
+  effectDescription: z.string(),
+});
+
+export const TimelineRippleSchema = z.object({
+  sourceEventTitle: z.string(),
+  modernRepercussions: z.array(TimelineRippleRepercussionSchema).min(2),
+});
+
+export const EpochArcEraSchema = z.object({
+  eraName: z.string(),
+  timeframe: z.string(),
+  description: z.string(),
+  majorCataclysm: z.string(),
+  legacyFactions: z.array(z.string()).default([]),
+});
+
+export const EpochArcKeyEventSchema = z.object({
+  title: z.string(),
+  eraName: z.string(),
+  narrativeSummary: z.string(),
+  lastingConsequences: z.string(),
+});
+
+export const EpochArcSchema = z.object({
+  eras: z.array(EpochArcEraSchema).length(3),
+  keyEvents: z.array(EpochArcKeyEventSchema).min(4),
+});
+
+export const ArtifactVaultLoreSchema = z.object({
+  creator: z.string(),
+  currentVaultLocation: z.string(),
+  unsealingRitual: z.string(),
+  rivalSeekers: z.array(z.string()).default([]),
+});
+
+export const EnhancedArtifactSchema = z.object({
+  name: z.string(),
+  rarity: z.enum(['uncommon', 'rare', 'epic', 'legendary', 'mythic']),
+  attunementCost: z.string().default(''),
+  activePower: z.string(),
+  doubleEdgedCurse: z.string().default(''),
+  vaultLore: ArtifactVaultLoreSchema,
+});
+
+export const CreatureAlchemicalYieldSchema = z.object({
+  reagentName: z.string(),
+  rarity: z.string().default('uncommon'),
+  craftingUse: z.string(),
+});
+
+export const EnhancedCreatureSchema = z.object({
+  name: z.string(),
+  speciesCategory: z.enum(['beast', 'monstrosity', 'undead', 'elemental', 'flora', 'draconic', 'humanoid']),
+  habitatLocationName: z.string(),
+  predatorPreyNiche: z.string(),
+  nonCombatPacificationMethod: z.string(),
+  alchemicalYields: z.array(CreatureAlchemicalYieldSchema).min(1).max(3),
+});
+
+export const SectarianSchismSchema = z.object({
+  cultName: z.string(),
+  heresyDoctrine: z.string(),
+  headquartersLocation: z.string().optional(),
+});
+
+export const EnhancedReligionSchema = z.object({
+  name: z.string(),
+  domain: z.string(),
+  sacredTaboos: z.array(z.string()),
+  divineOmensForViolation: z.string(),
+  divineBlessing: z.string(),
+  sectarianSchisms: z.array(SectarianSchismSchema).default([]),
+});
+
 export const WorldDeitySchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -223,6 +429,8 @@ export const WorldDeitySchema = z.object({
   divineBlessings: z.array(z.string()).default([]),
   affiliatedFactionIds: z.array(z.string()).default([]),
   holyLocationIds: z.array(z.string()).default([]),
+  divineOmensForViolation: z.string().optional(),
+  sectarianSchisms: z.array(SectarianSchismSchema).optional(),
 });
 
 export const WorldCreatureSchema = z.object({
@@ -240,6 +448,9 @@ export const WorldCreatureSchema = z.object({
     dropRate: z.string(),
   })).default([]),
   loreDescription: z.string().default(''),
+  predatorPreyNiche: z.string().optional(),
+  nonCombatPacificationMethod: z.string().optional(),
+  alchemicalYields: z.array(CreatureAlchemicalYieldSchema).optional(),
 });
 
 export const WorldArtifactSchema = z.object({
@@ -255,7 +466,9 @@ export const WorldArtifactSchema = z.object({
   currentHolderType: z.enum(['npc', 'location', 'faction', 'vault', 'unknown']).default('unknown'),
   currentHolderId: z.string().default(''),
   secretLore: z.string().optional(),
+  vaultLore: ArtifactVaultLoreSchema.optional(),
 });
+
 
 export const CustomRelationTypeSchema = z.object({
   id: z.string().min(1),
@@ -337,6 +550,31 @@ export const FactionSchema = z.object({
   secretAgendas: z.string().optional(),
 });
 
+export const LocationPointOfInterestSchema = z.object({
+  name: z.string().min(1),
+  description: z.string(),
+  skillCheck: z.object({
+    attribute: z.string(),
+    dc: z.number().min(5).max(30),
+    failureConsequence: z.string(),
+  }).optional(),
+});
+
+export const LocationSubZoneSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  subType: z.enum(['dungeon', 'sanctuary', 'ruin', 'vault', 'market', 'hazard_zone']).or(z.string()),
+  dangerLevel: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
+  atmosphere: z.string(),
+  explorationHooks: z.array(z.string()).default([]),
+  pointsOfInterest: z.array(LocationPointOfInterestSchema).default([]),
+});
+
+export const LocationSubZonesEnvelopeSchema = z.object({
+  parentLocationId: z.string().optional(),
+  subZones: z.array(LocationSubZoneSchema).min(1),
+});
+
 export const WorldLocationSchema = z.object({
   id: z.string(),
   name: z.string().min(2),
@@ -347,7 +585,10 @@ export const WorldLocationSchema = z.object({
   connectedLocationIds: z.array(z.string()).default([]),
   atmosphere: z.string(),
   specialRules: z.array(z.string()).optional(),
+  subZones: z.array(LocationSubZoneSchema).optional(),
+  pointsOfInterest: z.array(LocationPointOfInterestSchema).optional(),
 });
+
 
 export const TimelineEventSchema = z.object({
   id: z.string().min(1),
@@ -361,14 +602,63 @@ export const TimelineEventSchema = z.object({
   linkedFactionIds: z.array(z.string()).optional(),
   linkedLocationIds: z.array(z.string()).optional(),
   secretDetails: z.string().optional(),
+  ripples: z.array(TimelineRippleRepercussionSchema).optional(),
+});
+
+export const NpcRelationshipBondSchema = z.object({
+  id: z.string(),
+  sourceNpcId: z.string(),
+  targetNpcId: z.string(),
+  targetNpcName: z.string(),
+  relationTypeId: z.string().default('ally'),
+  affinity: z.number().min(-100).max(100).default(0),
+  secretTension: z.string().default(''),
+  isPublic: z.boolean().default(true),
+});
+
+export const NpcRelationshipWebSchema = z.object({
+  sourceNpcId: z.string(),
+  sourceNpcName: z.string(),
+  bonds: z.array(NpcRelationshipBondSchema).min(1),
+});
+
+export const NpcSampleDialogueSchema = z.object({
+  context: z.enum(['greeting', 'bargaining', 'threatened', 'dying']),
+  quote: z.string(),
+});
+
+export const NpcVoiceGuideSchema = z.object({
+  npcName: z.string(),
+  speechQuirks: z.array(z.string()).default([]),
+  sampleDialogue: z.array(NpcSampleDialogueSchema).min(1),
+  negotiationVulnerabilities: z.array(z.string()).default([]),
+  psychologicalBreakingPoint: z.string().default(''),
+});
+
+export const NpcEquippedGearSchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  description: z.string().optional(),
+});
+
+export const NpcStatCalibrationSchema = z.object({
+  npcId: z.string().optional(),
+  npcName: z.string(),
+  combatTier: z.enum(['civilian', 'apprentice', 'veteran', 'elite', 'boss', 'mythic']).default('veteran'),
+  challengeRating: z.number().min(1).max(20).default(1),
+  statRatings: z.record(z.string(), z.number()).default({}),
+  signatureAbilities: z.array(z.string()).default([]),
+  equippedGear: z.array(NpcEquippedGearSchema).default([]),
 });
 
 export const NPCDossierSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   title: z.string().default(''),
+  role: z.string().optional(),
   factionId: z.string().optional(),
   currentLocationId: z.string(),
+
   personalityTraits: z.array(z.string()).default([]),
   speechStyle: z.string().default(''),
   goals: z.array(z.string()).default([]),
@@ -379,6 +669,8 @@ export const NPCDossierSchema = z.object({
     revealed: z.boolean().default(false),
   })).default([]),
   initialTrust: z.number().default(0),
+  voiceGuide: NpcVoiceGuideSchema.optional(),
+  statCalibration: NpcStatCalibrationSchema.optional(),
 });
 
 export const WorldBibleSchema = z.object({
@@ -399,3 +691,88 @@ export const WorldBibleSchema = z.object({
   ontology: WorldOntologySchema.optional(),
   customRelations: z.array(CustomLoreRelationSchema).default([]),
 });
+
+export const PopulateLocationSchema = z.object({
+  locationId: z.string().optional(),
+  npcs: z.array(NPCDossierSchema).min(1),
+  creature: WorldCreatureSchema,
+  hiddenRelic: WorldArtifactSchema,
+});
+export type PopulateLocationPayload = z.infer<typeof PopulateLocationSchema>;
+export type LocationSubZonePayload = z.infer<typeof LocationSubZonesEnvelopeSchema>;
+export type NpcRelationshipWebPayload = z.infer<typeof NpcRelationshipWebSchema>;
+export type NpcVoiceGuidePayload = z.infer<typeof NpcVoiceGuideSchema>;
+export type NpcStatCalibrationPayload = z.infer<typeof NpcStatCalibrationSchema>;
+export type EpochArcPayload = z.infer<typeof EpochArcSchema>;
+export type TimelineRipplePayload = z.infer<typeof TimelineRippleSchema>;
+export type EnhancedArtifactPayload = z.infer<typeof EnhancedArtifactSchema>;
+export type EnhancedCreaturePayload = z.infer<typeof EnhancedCreatureSchema>;
+export type EnhancedReligionPayload = z.infer<typeof EnhancedReligionSchema>;
+
+// --- Plan 06: Theme-to-RPG System Schema ---
+export const ThemeRpgStatSchema = z.object({
+  id: z.string(),
+  nameFa: z.string(),
+  nameEn: z.string(),
+  description: z.string(),
+  defaultValue: z.number().default(10),
+});
+
+export const ThemeRpgResourceSchema = z.object({
+  id: z.string(),
+  nameFa: z.string(),
+  nameEn: z.string(),
+  maxValue: z.number(),
+  decayRule: z.string().optional(),
+});
+
+export const ThemeRpgArchetypeSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  startingStats: z.record(z.string(), z.number()),
+  signaturePerk: z.string(),
+  startingInventory: z.array(z.string()),
+});
+
+export const ThemeRpgSystemSchema = z.object({
+  themeJustification: z.string(),
+  stats: z.array(ThemeRpgStatSchema).min(3).max(6),
+  resources: z.array(ThemeRpgResourceSchema).min(2).max(4),
+  archetypes: z.array(ThemeRpgArchetypeSchema).min(3).max(5),
+});
+export type ThemeRpgSystemPayload = z.infer<typeof ThemeRpgSystemSchema>;
+
+// --- Plan 06: 3-Act Branching Plot Tree Schema ---
+export const BranchingChoiceSchema = z.object({
+  style: z.enum(['defensive_diplomatic', 'tactical_agile', 'aggressive_daring']),
+  textFa: z.string(),
+  textEn: z.string(),
+  statCheck: z.object({
+    stat: z.string(),
+    dc: z.number().min(8).max(25),
+  }).optional(),
+  leadToSceneId: z.string().optional(),
+});
+
+export const BranchingSceneSchema = z.object({
+  sceneId: z.string(),
+  title: z.string(),
+  settingLocationName: z.string(),
+  primaryConflict: z.string(),
+  presentedChoices: z.array(BranchingChoiceSchema).length(3),
+});
+
+export const BranchingActSchema = z.object({
+  actNumber: z.number().min(1).max(3),
+  actTitle: z.string(),
+  scenes: z.array(BranchingSceneSchema),
+});
+
+export const BranchingStoryTreeSchema = z.object({
+  title: z.string(),
+  premise: z.string(),
+  acts: z.array(BranchingActSchema).length(3),
+});
+export type BranchingStoryTree = z.infer<typeof BranchingStoryTreeSchema>;
+
+

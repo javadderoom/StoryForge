@@ -18,10 +18,17 @@ import {
   Zap,
   X,
   Compass,
+  Skull,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  AlertTriangle,
+  Crown,
 } from 'lucide-react';
-import { WorldDeity } from '@/lib/types';
+import { WorldDeity, SectarianSchism, EnhancedReligionPayload } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import AiFillSection from '@/components/studio/AiFillSection';
+import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
 
 const DOMAIN_MAP: Record<string, { labelFa: string; labelEn: string; color: string; bgGlow: string }> = {
   light: { labelFa: 'نور و داوری', labelEn: 'Light & Order', color: 'text-amber-300 bg-amber-500/10 border-amber-500/30', bgGlow: 'from-amber-500/10 to-orange-500/5' },
@@ -51,6 +58,18 @@ export default function ReligionsStudioPage() {
   const [dFactions, setDFactions] = useState<string[]>([]);
   const [dLocations, setDLocations] = useState<string[]>([]);
 
+  // Plan 05 Form states
+  const [dOmens, setDOmens] = useState('');
+  const [dSchisms, setDSchisms] = useState<SectarianSchism[]>([]);
+
+  // Expandable Drawers & AI Generator States
+  const [expandedSchismIds, setExpandedSchismIds] = useState<Set<string>>(new Set());
+  const [generatingSchismsDeityId, setGeneratingSchismsDeityId] = useState<string | null>(null);
+  const [schismsPreview, setSchismsPreview] = useState<{
+    targetDeity: WorldDeity;
+    payload: EnhancedReligionPayload;
+  } | null>(null);
+
   const religions = story.worldBible.religions || [];
   const factions = story.worldBible.factions || [];
   const locations = story.worldBible.locations || [];
@@ -65,6 +84,15 @@ export default function ReligionsStudioPage() {
     return d.domain === filterDomain;
   });
 
+  const toggleSchismExpand = (id: string) => {
+    setExpandedSchismIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const handleOpenAddModal = () => {
     setEditingDeityId(null);
     setDName('');
@@ -76,6 +104,8 @@ export default function ReligionsStudioPage() {
     setDBlessings('');
     setDFactions([]);
     setDLocations([]);
+    setDOmens('');
+    setDSchisms([]);
     setShowAddModal(true);
   };
 
@@ -90,6 +120,8 @@ export default function ReligionsStudioPage() {
     setDBlessings(d.divineBlessings.join('\n'));
     setDFactions(d.affiliatedFactionIds || []);
     setDLocations(d.holyLocationIds || []);
+    setDOmens(d.divineOmensForViolation || '');
+    setDSchisms(d.sectarianSchisms || []);
     setShowAddModal(true);
   };
 
@@ -108,16 +140,16 @@ export default function ReligionsStudioPage() {
   const handleSaveDeity = (e: React.FormEvent) => {
     e.preventDefault();
     if (!dName.trim()) {
-      notify.error(isPersian ? 'نام ایزد / مذهب الزامی است' : 'Deity name is required');
+      notify.error(isPersian ? 'نام ایزد / مذهب الزامی است' : 'Deity / Religion name is required');
       return;
     }
 
-    const taboosArray = dTaboos
+    const taboosArr = dTaboos
       .split('\n')
       .map((t) => t.trim())
       .filter((t) => t.length > 0);
 
-    const blessingsArray = dBlessings
+    const blessingsArr = dBlessings
       .split('\n')
       .map((b) => b.trim())
       .filter((b) => b.length > 0);
@@ -127,63 +159,120 @@ export default function ReligionsStudioPage() {
       name: dName.trim(),
       title: dTitle.trim(),
       domain: dDomain,
-      sacredSymbol: dSymbol.trim() || (isPersian ? 'نماد ناشناخته' : 'Unknown Sigil'),
-      coreDogma: dDogma.trim() || (isPersian ? 'پیروی از احکام ازلی جهان' : 'Follow the celestial order'),
-      taboos: taboosArray,
-      divineBlessings: blessingsArray,
+      sacredSymbol: dSymbol.trim() || (isPersian ? 'نماد ناشناخته' : 'Unspecified Symbol'),
+      coreDogma: dDogma.trim() || (isPersian ? 'ایمان و اراده الهی' : 'Faith and divine conviction'),
+      taboos: taboosArr.length > 0 ? taboosArr : [isPersian ? 'هتک حرمت معابد' : 'Desecration of shrines'],
+      divineBlessings: blessingsArr.length > 0 ? blessingsArr : [isPersian ? 'برکت و هدایت الهی' : 'Divine guidance'],
       affiliatedFactionIds: dFactions,
       holyLocationIds: dLocations,
+      divineOmensForViolation: dOmens.trim() || undefined,
+      sectarianSchisms: dSchisms.length > 0 ? dSchisms : undefined,
     };
 
     if (editingDeityId) {
       editDeity(editingDeityId, payload);
+      notify.success(isPersian ? 'مذهب / ایزد ویرایش شد' : 'Faith / Deity updated');
     } else {
       addDeity(payload);
+      notify.success(isPersian ? 'مذهب جدید به پانتئون جهان افزوده شد' : 'Added faith to pantheon');
     }
 
     setShowAddModal(false);
   };
 
+  // ----------------------------------------------------------------
+  // Plan 05: AI Taboos & Schisms Generator
+  // ----------------------------------------------------------------
+  const handleGenerateReligionSchisms = async (deity: WorldDeity) => {
+    try {
+      setGeneratingSchismsDeityId(deity.id);
+      const worldContext = buildWorldContextString(story);
+      const res = await fetch('/api/studio/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'religion_schisms',
+          prompt: `Generate sacred taboos, chilling divine wrath omens, blessings, and 1 to 3 subterranean heresy splinter cults for "${deity.name}" (Domain: ${deity.domain}). Dogma: ${deity.coreDogma}.`,
+          themeContext: story.worldBible.themeNotes,
+          domain: deity.domain,
+          worldContext,
+          isPersian,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to generate schisms (${res.status})`);
+      }
+
+      const json = await res.json();
+      if (json.data && Array.isArray(json.data.sacredTaboos)) {
+        setSchismsPreview({
+          targetDeity: deity,
+          payload: json.data,
+        });
+      } else {
+        notify.error(isPersian ? 'قالب شقاق‌های مذهبی معتبر نبود' : 'Invalid religion schisms format');
+      }
+    } catch (err: any) {
+      notify.error(err.message || 'Error generating religion schisms');
+    } finally {
+      setGeneratingSchismsDeityId(null);
+    }
+  };
+
+  const handleCommitSchisms = () => {
+    if (!schismsPreview) return;
+    const { targetDeity, payload } = schismsPreview;
+    editDeity(targetDeity.id, {
+      taboos: payload.sacredTaboos,
+      divineOmensForViolation: payload.divineOmensForViolation,
+      divineBlessings: [payload.divineBlessing, ...targetDeity.divineBlessings.slice(0, 2)],
+      sectarianSchisms: payload.sectarianSchisms,
+    });
+    setExpandedSchismIds((prev) => new Set(prev).add(targetDeity.id));
+    setSchismsPreview(null);
+    notify.success(isPersian ? 'تابوها، شوم‌نامه‌ها و بدعت‌های مذهبی ثبت شد' : 'Taboos, omens, and schisms updated');
+  };
+
   const applyAiFill = (data: Record<string, unknown>) => {
     if (!dName && data.name) setDName(data.name as string);
     if (!dTitle && data.title) setDTitle(data.title as string);
-    if (data.domain) setDDomain(data.domain as typeof dDomain);
+    if (data.domain) setDDomain(data.domain as string);
     if (!dSymbol && data.sacredSymbol) setDSymbol(data.sacredSymbol as string);
     if (!dDogma && data.coreDogma) setDDogma(data.coreDogma as string);
-    if (!dTaboos && Array.isArray(data.taboos) && (data.taboos as string[]).length)
-      setDTaboos((data.taboos as string[]).join('\n'));
-    if (!dBlessings && Array.isArray(data.divineBlessings) && (data.divineBlessings as string[]).length)
+    if (!dTaboos && Array.isArray(data.taboos)) setDTaboos((data.taboos as string[]).join('\n'));
+    if (!dBlessings && Array.isArray(data.divineBlessings))
       setDBlessings((data.divineBlessings as string[]).join('\n'));
   };
 
   return (
     <div className="space-y-8 animate-fadeIn">
-      {/* Header Banner */}
-      <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-6 md:p-8 backdrop-blur-sm shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Header Info */}
+      <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-6 md:p-8 backdrop-blur-sm shadow-xl flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2.5 mb-1.5">
+          <div className="flex items-center gap-2.5 mb-1">
             <Sun className="w-5 h-5 text-amber-400" />
             <h2 className="text-xl md:text-2xl font-bold text-zinc-100">
-              {isPersian ? 'پانتئون ایزدان، ادیان و مکاتب کیهانی' : 'Pantheon, Deities & Faith Systems'}
+              {isPersian ? 'پانتئون ایزدان و نظام‌های مذهبی' : 'Pantheons & Divine Faiths'}
             </h2>
           </div>
           <p className="text-sm text-zinc-400 max-w-3xl leading-relaxed">
             {isPersian
-              ? 'ثبت و مدیریت الهه‌ها، احکام مذهبی، گناهان و تابوهای مقدس، برکات الهی و پیوند آیین‌ها با جناح‌ها و معابد داستان.'
-              : 'Architect sacred dogmas, cosmic pantheons, holy taboos, and divine boons that drive ideological faction wars.'}
+              ? 'ثبت و مدیریت عقاید قدسی، تابوهای الهی، شوم‌نامه‌های کفرورزی، برکات ماورایی، و فرقه‌های بدعت‌گذار انشعابی.'
+              : 'Catalogue divine dogmas, sacred taboos, blasphemy omens, miracles, and underground sectarian heresy schisms.'}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 px-3.5 py-1.5 rounded-xl font-mono flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            {religions.length} {isPersian ? 'ایزد ثبت‌شده' : 'Deities & Creeds'}
+            <Crown className="w-3.5 h-3.5 text-amber-400" />
+            {religions.length} {isPersian ? 'مذهب ثبت‌شده' : 'Registered Faiths'}
           </span>
           <button
             onClick={handleOpenAddModal}
-            className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition-all"
+            className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>{isPersian ? '+ ثبت ایزد جدید' : '+ Add Deity & Creed'}</span>
+            <span>{isPersian ? '+ ثبت آیین یا ایزد جدید' : '+ Add Divine Faith'}</span>
           </button>
         </div>
       </div>
@@ -198,82 +287,92 @@ export default function ReligionsStudioPage() {
               : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60 border border-transparent'
           }`}
         >
-          {isPersian ? 'همه آیین‌ها' : 'All Creeds'} ({religions.length})
+          {isPersian ? 'همه حوزه‌ها' : 'All Domains'} ({religions.length})
         </button>
-        {domainOptions.map((o) => (
+        {domainOptions.map((opt) => (
           <button
-            key={o.id}
-            onClick={() => setFilterDomain(o.id)}
+            key={opt.id}
+            onClick={() => setFilterDomain(opt.id)}
             className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
-              filterDomain === o.id
+              filterDomain === opt.id
                 ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400 shadow-md'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60 border border-transparent'
             }`}
           >
-            {o.name}
+            {opt.name}
           </button>
         ))}
       </div>
 
-      {/* Deities Grid */}
+      {/* Faith Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredReligions.length === 0 ? (
           <div className="col-span-full text-center py-16 bg-zinc-900/40 border border-zinc-800/60 rounded-3xl p-8">
             <Sun className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
             <h4 className="text-sm font-bold text-zinc-300">
-              {isPersian ? 'آیینی در این حوزه کیهانی یافت نشد' : 'No deities found in this domain'}
+              {isPersian ? 'مذهبی در این حوزه یافت نشد' : 'No faiths found in this domain'}
             </h4>
             <p className="text-xs text-zinc-500 mt-1">
-              {isPersian ? 'برای ثبت ایزد روی دکمه ثبت ایزد جدید کلیک کنید.' : 'Click "+ Add Deity & Creed" to forge cosmic beliefs.'}
+              {isPersian ? 'برای ثبت آیین روی دکمه ثبت آیین جدید کلیک کنید.' : 'Click "+ Add Divine Faith" to create a new deity.'}
             </p>
           </div>
         ) : (
           filteredReligions.map((d) => {
-            const domainDef = domains.find((x) => x.id === d.domain);
-            const domMeta = DOMAIN_MAP[d.domain] || DOMAIN_MAP.light;
-            const affFacObjs = factions.filter((f) => d.affiliatedFactionIds?.includes(f.id));
-            const holyLocObjs = locations.filter((l) => d.holyLocationIds?.includes(l.id));
+            const domainMeta = DOMAIN_MAP[d.domain] || DOMAIN_MAP.light;
+            const isSchismExpanded = expandedSchismIds.has(d.id);
 
             return (
               <div
                 key={d.id}
-                className={`bg-gradient-to-b ${domMeta.bgGlow} bg-zinc-900/80 border border-zinc-800/80 hover:border-zinc-700 rounded-3xl p-6 backdrop-blur-xl shadow-xl flex flex-col justify-between transition-all space-y-4`}
+                className="bg-zinc-900/70 border border-zinc-800/80 hover:border-zinc-700 rounded-3xl p-6 backdrop-blur-xl shadow-xl flex flex-col justify-between transition-all space-y-4"
               >
                 <div className="space-y-4">
                   {/* Card Header */}
-                  <div className="flex items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
-                    <span
-                      className={`px-3 py-1 rounded-xl text-xs font-bold border ${domainDef ? '' : domMeta.color}`}
-                      style={
-                        domainDef
-                          ? { borderColor: `${domainDef.color}50`, color: domainDef.color, backgroundColor: `${domainDef.color}20` }
-                          : undefined
-                      }
-                    >
-                      {domainDef ? domainDef.name : isPersian ? domMeta.labelFa : domMeta.labelEn}
+                  <div className="flex items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+                    <span className={`px-3 py-1 rounded-xl text-xs font-bold border ${domainMeta.color}`}>
+                      {isPersian ? domainMeta.labelFa : domainMeta.labelEn}
                     </span>
 
                     <div className="flex items-center gap-1.5">
                       <button
+                        type="button"
+                        onClick={() => handleGenerateReligionSchisms(d)}
+                        disabled={generatingSchismsDeityId === d.id}
+                        className="px-2.5 py-1 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10.5px] font-bold flex items-center gap-1 transition-all"
+                        title="Generate Taboos & Schisms"
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        <span>
+                          {generatingSchismsDeityId === d.id
+                            ? isPersian
+                              ? 'سنتز...'
+                              : 'Synthesizing...'
+                            : isPersian
+                            ? '🔮 بدعت‌ها'
+                            : '🔮 Schisms'}
+                        </span>
+                      </button>
+
+                      <button
                         onClick={() => handleOpenEditModal(d)}
-                        className="text-zinc-400 hover:text-amber-300 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+                        className="text-zinc-400 hover:text-amber-300 p-1.5 rounded-lg hover:bg-zinc-800"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={async () => {
                           const conf = await notify.confirm({
-                            title: isPersian ? 'حذف ایزد از پانتئون' : 'Delete Deity',
+                            title: isPersian ? 'حذف مذهب' : 'Delete Faith',
                             message: isPersian
-                              ? `آیا از حذف "${d.name}" از نظام اعتقادی مطمئن هستید؟`
-                              : `Are you sure you want to remove "${d.name}" from the world pantheon?`,
+                              ? `آیا از حذف آیین "${d.name}" اطمینان دارید؟`
+                              : `Are you sure you want to delete "${d.name}"?`,
                             confirmText: isPersian ? 'بله، حذف شود' : 'Delete',
                             cancelText: isPersian ? 'انصراف' : 'Cancel',
                             isDestructive: true,
                           });
                           if (conf) deleteDeity(d.id);
                         }}
-                        className="text-zinc-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+                        className="text-zinc-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-zinc-800"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -283,64 +382,133 @@ export default function ReligionsStudioPage() {
                   <div>
                     <h3 className="text-base font-bold text-zinc-100">{d.name}</h3>
                     {d.title && <p className="text-xs text-amber-400/90 font-medium mt-0.5">{d.title}</p>}
+                    <p className="text-xs text-zinc-400 leading-relaxed mt-2">&ldquo;{d.coreDogma}&rdquo;</p>
                   </div>
 
                   {/* Sacred Symbol */}
-                  <div className="p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 text-xs text-zinc-300 flex items-center gap-2">
-                    <Compass className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span className="text-zinc-400">{isPersian ? 'نماد مقدس:' : 'Symbol:'}</span>
-                    <span className="font-semibold text-zinc-200">{d.sacredSymbol}</span>
-                  </div>
+                  {d.sacredSymbol && (
+                    <div className="p-2.5 bg-zinc-950/60 border border-zinc-800/80 rounded-2xl text-xs flex items-center gap-2 text-zinc-300">
+                      <span className="text-amber-400 font-bold text-[11px]">{isPersian ? 'نماد قدسی:' : 'Symbol:'}</span>
+                      <span>{d.sacredSymbol}</span>
+                    </div>
+                  )}
 
-                  {/* Core Dogma */}
-                  <div className="p-3.5 rounded-2xl bg-zinc-950/80 border border-zinc-800/80 text-xs text-zinc-300 space-y-1">
-                    <span className="text-amber-400 font-bold block text-[11px]">
-                      {isPersian ? 'احکام و آموزه بنیادین:' : 'Core Dogma & Commandments:'}
-                    </span>
-                    <p className="italic leading-relaxed text-zinc-300">&ldquo;{d.coreDogma}&rdquo;</p>
-                  </div>
-
-                  {/* Blessings & Taboos */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    {d.divineBlessings && d.divineBlessings.length > 0 && (
-                      <div className="bg-emerald-950/20 border border-emerald-500/20 rounded-xl p-2.5 space-y-1">
-                        <span className="text-emerald-400 font-bold block text-[11px]">
-                          {isPersian ? 'برکات الهی:' : 'Blessings:'}
-                        </span>
-                        {d.divineBlessings.map((b, idx) => (
-                          <span key={idx} className="block text-emerald-200/90 text-[11px] leading-tight">
-                            • {b}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {d.taboos && d.taboos.length > 0 && (
-                      <div className="bg-rose-950/20 border border-rose-500/20 rounded-xl p-2.5 space-y-1">
-                        <span className="text-rose-400 font-bold block text-[11px]">
-                          {isPersian ? 'گناهان و تابوها:' : 'Taboos:'}
-                        </span>
+                  {/* Taboos */}
+                  {d.taboos && d.taboos.length > 0 && (
+                    <div className="p-3 bg-red-950/20 border border-red-500/20 rounded-2xl text-xs space-y-1">
+                      <span className="text-[11px] font-bold text-red-400 block">
+                        ⛔ {isPersian ? 'تابوهای قدسی و ممنوعه‌ها:' : 'Sacred Taboos:'}
+                      </span>
+                      <ul className="space-y-0.5 text-red-300 text-[11px]">
                         {d.taboos.map((t, idx) => (
-                          <span key={idx} className="block text-rose-200/90 text-[11px] leading-tight">
-                            • {t}
-                          </span>
+                          <li key={idx}>• {t}</li>
                         ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Divine Blessings */}
+                  {d.divineBlessings && d.divineBlessings.length > 0 && (
+                    <div className="p-3 bg-amber-950/20 border border-amber-500/20 rounded-2xl text-xs space-y-1">
+                      <span className="text-[11px] font-bold text-amber-400 block">
+                        ✨ {isPersian ? 'برکات و معجزات برای مؤمنان:' : 'Divine Blessings:'}
+                      </span>
+                      <ul className="space-y-0.5 text-amber-200 text-[11px]">
+                        {d.divineBlessings.map((b, idx) => (
+                          <li key={idx}>• {b}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Plan 05: Divine Omens & Cult Schisms Drawer */}
+                  <div className="bg-zinc-950/70 border border-zinc-800/80 rounded-2xl overflow-hidden">
+                    <div
+                      onClick={() => toggleSchismExpand(d.id)}
+                      className="p-3 flex items-center justify-between cursor-pointer hover:bg-zinc-900/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-purple-400" />
+                        <span className="text-xs font-bold text-zinc-200">
+                          {isPersian ? 'شوم‌نامه‌ها و انشعابات بدعت‌گذار' : 'Wrath Omens & Sectarian Schisms'}
+                        </span>
+                        {d.sectarianSchisms && d.sectarianSchisms.length > 0 && (
+                          <span className="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-lg font-mono">
+                            {d.sectarianSchisms.length} {isPersian ? 'فرقه' : 'cults'}
+                          </span>
+                        )}
+                      </div>
+                      {isSchismExpanded ? (
+                        <ChevronUp className="w-4 h-4 text-zinc-400" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-zinc-400" />
+                      )}
+                    </div>
+
+                    {isSchismExpanded && (
+                      <div className="p-3.5 pt-0 space-y-2.5 text-xs border-t border-zinc-900 animate-fadeIn">
+                        {d.divineOmensForViolation && (
+                          <div className="p-2 rounded-xl bg-red-950/30 border border-red-500/30 text-red-300 text-[11px]">
+                            <span className="text-[10px] text-red-400 font-bold block">
+                              ⚡ {isPersian ? 'شوم‌نامه خشم الهی برای کفرورزان:' : 'Wrath Omen for Violation:'}
+                            </span>
+                            <p className="mt-0.5 leading-relaxed">{d.divineOmensForViolation}</p>
+                          </div>
+                        )}
+
+                        {d.sectarianSchisms && d.sectarianSchisms.length > 0 && (
+                          <div className="space-y-1.5">
+                            <span className="text-[10px] text-zinc-500 block">
+                              🔮 {isPersian ? 'فرقه‌های زیرزمینی و بدعت‌ها:' : 'Sectarian Splinter Cults:'}
+                            </span>
+                            {d.sectarianSchisms.map((schism, sIdx) => (
+                              <div
+                                key={sIdx}
+                                className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px] space-y-0.5"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <strong className="text-purple-300">{schism.cultName}</strong>
+                                  {schism.headquartersLocation && (
+                                    <span className="text-[9.5px] text-zinc-400 flex items-center gap-0.5">
+                                      <MapPin className="w-2.5 h-2.5" />
+                                      {schism.headquartersLocation}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[10.5px] text-zinc-400 italic">{schism.heresyDoctrine}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {!d.divineOmensForViolation && (!d.sectarianSchisms || d.sectarianSchisms.length === 0) && (
+                          <div className="text-center py-3 text-zinc-500 text-xs space-y-1">
+                            <p>{isPersian ? 'شوم‌نامه یا فرقه‌ای ثبت نشده است.' : 'No wrath omens or schisms recorded.'}</p>
+                            <button
+                              type="button"
+                              onClick={() => handleGenerateReligionSchisms(d)}
+                              className="text-purple-400 font-bold hover:underline"
+                            >
+                              {isPersian ? 'اکنون با هوش مصنوعی تولید کنید' : 'Generate with AI now'}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Card Footer: Factions & Temples */}
-                <div className="pt-3 border-t border-zinc-800/80 flex flex-wrap items-center gap-1.5">
-                  {affFacObjs.map((f) => (
-                    <span key={f.id} className="text-[10.5px] bg-purple-500/10 border border-purple-500/20 text-purple-300 px-2 py-0.5 rounded-lg flex items-center gap-1">
-                      <Users className="w-2.5 h-2.5" /> {f.name}
-                    </span>
-                  ))}
-                  {holyLocObjs.map((l) => (
-                    <span key={l.id} className="text-[10.5px] bg-sky-500/10 border border-sky-500/20 text-sky-300 px-2 py-0.5 rounded-lg flex items-center gap-1">
-                      <MapPin className="w-2.5 h-2.5" /> {l.name}
-                    </span>
-                  ))}
+                {/* Holy Locations & Factions */}
+                <div className="pt-3 border-t border-zinc-800 text-[11px] text-zinc-400 flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                    {d.holyLocationIds && d.holyLocationIds.length > 0
+                      ? `${d.holyLocationIds.length} ${isPersian ? 'مکان مقدس' : 'holy sites'}`
+                      : isPersian
+                      ? 'بدون معبد'
+                      : 'No shrines'}
+                  </span>
+                  <span className="font-mono text-zinc-500 text-[10px]">ID: {d.id}</span>
                 </div>
               </div>
             );
@@ -348,25 +516,108 @@ export default function ReligionsStudioPage() {
         )}
       </div>
 
-      {/* Add / Edit Deity Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      {/* Plan 05: Religion Schisms Preview Modal */}
+      {schismsPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <span className="text-sm font-bold text-amber-400 flex items-center gap-2">
-                <Sun className="w-4 h-4" />
-                {editingDeityId
-                  ? isPersian
-                    ? 'ویرایش ایزد و نظام اعتقادی'
-                    : 'Edit Deity & Creed'
-                  : isPersian
-                  ? 'ثبت ایزد و نظام اعتقادی جدید'
-                  : 'Add New Deity & Faith'}
-              </span>
+              <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-purple-400" />
+                {isPersian ? 'پیش‌نمایش تابوها و فرقه‌های بدعت‌گذار' : 'Taboos & Sectarian Schisms Preview'}
+              </h3>
+              <button
+                onClick={() => setSchismsPreview(null)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-3 rounded-2xl bg-zinc-950 border border-zinc-800">
+                <span className="text-[10px] text-zinc-500 block">{isPersian ? 'آیین:' : 'Faith:'}</span>
+                <strong className="text-zinc-100 text-sm">{schismsPreview.targetDeity.name}</strong>
+              </div>
+
+              {schismsPreview.payload.divineOmensForViolation && (
+                <div className="p-3 rounded-xl bg-red-950/30 border border-red-500/30 text-red-300 space-y-1">
+                  <span className="text-[10px] text-red-400 font-bold block">
+                    ⚡ {isPersian ? 'شوم‌نامه خشم الهی:' : 'Divine Wrath Omen:'}
+                  </span>
+                  <p className="leading-relaxed">{schismsPreview.payload.divineOmensForViolation}</p>
+                </div>
+              )}
+
+              {schismsPreview.payload.sacredTaboos.length > 0 && (
+                <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 space-y-1">
+                  <span className="text-[10px] text-amber-400 font-bold block">
+                    ⛔ {isPersian ? 'تابوهای قدسی:' : 'Sacred Taboos:'}
+                  </span>
+                  <ul className="space-y-0.5 text-zinc-300">
+                    {schismsPreview.payload.sacredTaboos.map((taboo, idx) => (
+                      <li key={idx}>• {taboo}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {schismsPreview.payload.sectarianSchisms.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-[10px] text-zinc-400 font-bold block">
+                    🔮 {isPersian ? 'فرقه‌های بدعت‌گذار انشعابی:' : 'Sectarian Splinter Cults:'}
+                  </span>
+                  {schismsPreview.payload.sectarianSchisms.map((schism, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 space-y-0.5"
+                    >
+                      <strong className="text-purple-300 block">{schism.cultName}</strong>
+                      <p className="text-zinc-400 text-[10.5px] italic">{schism.heresyDoctrine}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
               <button
                 type="button"
+                onClick={() => setSchismsPreview(null)}
+                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700"
+              >
+                {isPersian ? 'انصراف' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleCommitSchisms}
+                className="px-5 py-2 rounded-xl bg-purple-500 text-zinc-950 text-xs font-bold shadow-lg shadow-purple-500/20 flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                <span>{isPersian ? '📥 ثبت شقاق‌ها و تابوها' : '📥 Save Schisms'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit Deity Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+                <Sun className="w-5 h-5 text-amber-400" />
+                {editingDeityId
+                  ? isPersian
+                    ? 'ویرایش ایزد یا آیین'
+                    : 'Edit Faith'
+                  : isPersian
+                  ? 'ثبت ایزد یا نظام مذهبی جدید'
+                  : 'Add New Divine Faith'}
+              </h3>
+              <button
                 onClick={() => setShowAddModal(false)}
-                className="text-zinc-500 hover:text-zinc-300"
+                className="text-zinc-400 hover:text-white p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -378,26 +629,27 @@ export default function ReligionsStudioPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'نام ایزد / نام مکتب:' : 'Deity Name:'}
+                    {isPersian ? 'نام ایزد / آیین:' : 'Faith / Deity Name:'}
                   </label>
                   <input
                     type="text"
                     value={dName}
                     onChange={(e) => setDName(e.target.value)}
-                    placeholder={isPersian ? 'مثال: بانوی سایه‌ها و گذرگاه‌های خاموش' : 'e.g. The Lady of Veils'}
+                    placeholder={isPersian ? 'مثال: مشعل‌دار نخستین' : 'e.g. The First Pyremaster'}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                    required
                   />
                 </div>
 
                 <div>
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'لقب و عنوان اسطوره‌ای:' : 'Divine Epithet / Title:'}
+                    {isPersian ? 'عنوان و القاب:' : 'Title / Epithet:'}
                   </label>
                   <input
                     type="text"
                     value={dTitle}
                     onChange={(e) => setDTitle(e.target.value)}
-                    placeholder={isPersian ? 'مثال: حافظ عهد کهن و الهه گمشدگان' : 'e.g. Keeper of Lost Covenants'}
+                    placeholder={isPersian ? 'مثال: پاسدار خاکستر' : 'e.g. Warden of the Cinders'}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                   />
                 </div>
@@ -406,16 +658,16 @@ export default function ReligionsStudioPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'حوزه کیهانی (Domain):' : 'Cosmic Domain:'}
+                    {isPersian ? 'حوزه الوهیت (Domain):' : 'Divine Domain:'}
                   </label>
                   <select
                     value={dDomain}
                     onChange={(e) => setDDomain(e.target.value)}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                   >
-                    {domainOptions.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.name}
+                    {domainOptions.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.name}
                       </option>
                     ))}
                   </select>
@@ -423,13 +675,13 @@ export default function ReligionsStudioPage() {
 
                 <div>
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'نماد مقدس (Sacred Symbol):' : 'Sacred Symbol:'}
+                    {isPersian ? 'نماد قدسی:' : 'Sacred Symbol:'}
                   </label>
                   <input
                     type="text"
                     value={dSymbol}
                     onChange={(e) => setDSymbol(e.target.value)}
-                    placeholder={isPersian ? 'مثال: هلال ماه واژگون نقره‌ای' : 'e.g. Inverted silver crescent'}
+                    placeholder={isPersian ? 'مثال: چشم طلایی با بال‌های گداخته' : 'e.g. Golden eye flanked by molten wings'}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                   />
                 </div>
@@ -437,97 +689,41 @@ export default function ReligionsStudioPage() {
 
               <div>
                 <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                  {isPersian ? 'احکام و آموزه بنیادین (Core Dogma):' : 'Core Dogma & Edicts:'}
+                  {isPersian ? 'عقیده اصلی (Core Dogma):' : 'Core Dogma:'}
                 </label>
                 <textarea
                   rows={2}
                   value={dDogma}
                   onChange={(e) => setDDogma(e.target.value)}
-                  placeholder={isPersian ? 'شرح دستورات دینی و باورهای مذهبی پیروان...' : 'Core beliefs and commandments...'}
+                  placeholder={isPersian ? 'اعتقاد بنیادین پیروان...' : 'Fundamental belief or creed...'}
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-emerald-400 block mb-1.5">
-                    {isPersian ? 'برکات و موهبت‌های الهی (هر خط یک مورد):' : 'Divine Blessings / Boons:'}
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={dBlessings}
-                    onChange={(e) => setDBlessings(e.target.value)}
-                    placeholder={isPersian ? 'دید در تاریکی مطلق\nمهارت در استتار' : 'Darkvision\nStealth bonus'}
-                    className="w-full bg-zinc-950 border border-emerald-500/30 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-rose-400 block mb-1.5">
-                    {isPersian ? 'گناهان و تابوهای مقدس (هر خط یک مورد):' : 'Taboos & Sins:'}
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={dTaboos}
-                    onChange={(e) => setDTaboos(e.target.value)}
-                    placeholder={isPersian ? 'روشن کردن مشعل در معبد\nخیانت به برادران' : 'Igniting torches\nBetraying brothers'}
-                    className="w-full bg-zinc-950 border border-rose-500/30 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-rose-400"
-                  />
-                </div>
+              <div>
+                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                  {isPersian ? 'تابوهای قدسی و گناهان کبیره (هر سطر یک مورد):' : 'Sacred Taboos (One per line):'}
+                </label>
+                <textarea
+                  rows={2}
+                  value={dTaboos}
+                  onChange={(e) => setDTaboos(e.target.value)}
+                  placeholder="Extinguishing a sacred flame\nLying before the altar"
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                />
               </div>
 
-              {/* Faction Links */}
               <div>
-                <label className="text-xs font-bold text-purple-300 block mb-1.5">
-                  {isPersian ? 'جناح‌های پیرو و معتقد:' : 'Affiliated Factions:'}
+                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                  {isPersian ? 'برکات و معجزات برای مؤمنان (هر سطر یک مورد):' : 'Divine Blessings (One per line):'}
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {factions.map((fac) => {
-                    const isSelected = dFactions.includes(fac.id);
-                    return (
-                      <button
-                        key={fac.id}
-                        type="button"
-                        onClick={() => handleToggleFaction(fac.id)}
-                        className={`text-xs px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 ${
-                          isSelected
-                            ? 'bg-purple-500/20 border-purple-400 text-purple-200'
-                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-600'
-                        }`}
-                      >
-                        <Users className="w-3 h-3" />
-                        <span>{fac.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Location / Holy Temple Links */}
-              <div>
-                <label className="text-xs font-bold text-sky-300 block mb-1.5">
-                  {isPersian ? 'معابد و زیارتگاه‌های مقدس:' : 'Holy Sites & Temples:'}
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {locations.map((loc) => {
-                    const isSelected = dLocations.includes(loc.id);
-                    return (
-                      <button
-                        key={loc.id}
-                        type="button"
-                        onClick={() => handleToggleLocation(loc.id)}
-                        className={`text-xs px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 ${
-                          isSelected
-                            ? 'bg-sky-500/20 border-sky-400 text-sky-200'
-                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-600'
-                        }`}
-                      >
-                        <MapPin className="w-3 h-3" />
-                        <span>{loc.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                <textarea
+                  rows={2}
+                  value={dBlessings}
+                  onChange={(e) => setDBlessings(e.target.value)}
+                  placeholder="Immunity to poison\nBlinding radiant aura"
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                />
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
@@ -545,10 +741,10 @@ export default function ReligionsStudioPage() {
                   {editingDeityId
                     ? isPersian
                       ? 'ذخیره تغییرات'
-                      : 'Update Deity'
+                      : 'Update Faith'
                     : isPersian
-                    ? 'ثبت در پانتئون'
-                    : 'Save to Pantheon'}
+                    ? 'ثبت آیین'
+                    : 'Save Faith'}
                 </button>
               </div>
             </form>

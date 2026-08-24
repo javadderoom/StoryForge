@@ -24,6 +24,41 @@ import {
 } from '@/lib/types';
 import { notify } from '@/lib/notify';
 
+// Resolve a reference (entity id OR human-readable name) to the canonical
+// stored entity id. Used by relation CRUD so links created by the AI adviser
+// (which often references entities by name) still bind to the right node.
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export function resolveEntityRef(wb: WorldBible, ref: string): string {
+  if (!ref) return ref;
+  const arrays: any[] = [
+    wb.locations,
+    wb.npcs,
+    wb.factions,
+    wb.artifacts,
+    wb.bestiary,
+    wb.religions,
+    wb.laws,
+    wb.timeline,
+  ];
+  const nameFields = ['name', 'name', 'name', 'name', 'name', 'name', 'rule', 'title'];
+  const low = ref.toLowerCase();
+  for (let i = 0; i < arrays.length; i++) {
+    const arr: any[] = arrays[i] || [];
+    for (const e of arr) {
+      if (e.id === ref) return ref;
+    }
+  }
+  for (let i = 0; i < arrays.length; i++) {
+    const arr: any[] = arrays[i] || [];
+    const nf = nameFields[i];
+    for (const e of arr) {
+      if ((e[nf] || '').toLowerCase() === low) return e.id;
+    }
+  }
+  return ref;
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
 export function getDefaultOntology(isPersian: boolean): WorldOntology {
   return {
     relationTypes: [
@@ -767,6 +802,17 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     [isPersian, updateWorldBible]
   );
 
+  const editDeity = useCallback(
+    (id: string, updated: Partial<WorldDeity>) => {
+      updateWorldBible((prev) => ({
+        ...prev,
+        religions: (prev.religions || []).map((d) => (d.id === id ? { ...d, ...updated } : d)),
+      }));
+      notify.success(isPersian ? 'مشخصات ایزد به‌روز شد' : 'Deity updated');
+    },
+    [isPersian, updateWorldBible]
+  );
+
   const deleteFaction = useCallback(
     (id: string) => {
       updateWorldBible((prev) => ({
@@ -870,18 +916,53 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   // Relations CRUD
   const addRelation = useCallback(
     (relation: { sourceId: string; targetId: string; relationType: string }) => {
-      const { sourceId, targetId, relationType } = relation;
+      const { relationType } = relation;
+      const sourceId = resolveEntityRef(story.worldBible, relation.sourceId);
+      const targetId = resolveEntityRef(story.worldBible, relation.targetId);
       if (!sourceId || !targetId || sourceId === targetId) return;
 
       const npcs = story.worldBible.npcs || [];
       const locations = story.worldBible.locations || [];
       const factions = story.worldBible.factions || [];
+      const deities = story.worldBible.religions || [];
 
       const isNpc = (id: string) => npcs.some((n) => n.id === id);
       const isLocation = (id: string) => locations.some((l) => l.id === id);
       const isFaction = (id: string) => factions.some((f) => f.id === id);
+      const isDeity = (id: string) => deities.some((d) => d.id === id);
 
-      if (relationType === 'path' || (isLocation(sourceId) && isLocation(targetId))) {
+      // Deity links are mirrored onto the deity entity (holyLocationIds /
+      // affiliatedFactionIds) so the Religions page reflects them. Checked first
+      // so an explicit type label (e.g. "path") can't shadow the deity binding.
+      if (isDeity(sourceId) && isLocation(targetId)) {
+        const deity = deities.find((d) => d.id === sourceId);
+        if (deity) {
+          editDeity(sourceId, {
+            holyLocationIds: Array.from(new Set([...(deity.holyLocationIds || []), targetId])),
+          });
+        }
+      } else if (isDeity(targetId) && isLocation(sourceId)) {
+        const deity = deities.find((d) => d.id === targetId);
+        if (deity) {
+          editDeity(targetId, {
+            holyLocationIds: Array.from(new Set([...(deity.holyLocationIds || []), sourceId])),
+          });
+        }
+      } else if (isDeity(sourceId) && isFaction(targetId)) {
+        const deity = deities.find((d) => d.id === sourceId);
+        if (deity) {
+          editDeity(sourceId, {
+            affiliatedFactionIds: Array.from(new Set([...(deity.affiliatedFactionIds || []), targetId])),
+          });
+        }
+      } else if (isDeity(targetId) && isFaction(sourceId)) {
+        const deity = deities.find((d) => d.id === targetId);
+        if (deity) {
+          editDeity(targetId, {
+            affiliatedFactionIds: Array.from(new Set([...(deity.affiliatedFactionIds || []), sourceId])),
+          });
+        }
+      } else if (relationType === 'path' || (isLocation(sourceId) && isLocation(targetId))) {
         // Connect 2 locations bidirectionally
         updateLocations((prev) =>
           prev.map((loc) => {
@@ -956,20 +1037,44 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
 
       notify.success(isPersian ? 'پیوند جدید با موفقیت برقرار شد' : 'New lore connection established');
     },
-    [isPersian, updateLocations, editNpc, editFaction, updateWorldBible, story.worldBible]
+    [isPersian, updateLocations, editNpc, editFaction, editDeity, updateWorldBible, story.worldBible]
   );
 
   const deleteRelation = useCallback(
-    (sourceId: string, targetId: string, relationType: string) => {
+    (_sourceId: string, _targetId: string, relationType: string) => {
+      const sourceId = resolveEntityRef(story.worldBible, _sourceId);
+      const targetId = resolveEntityRef(story.worldBible, _targetId);
       const npcs = story.worldBible.npcs || [];
       const locations = story.worldBible.locations || [];
       const factions = story.worldBible.factions || [];
+      const deities = story.worldBible.religions || [];
 
       const isNpc = (id: string) => npcs.some((n) => n.id === id);
       const isLocation = (id: string) => locations.some((l) => l.id === id);
       const isFaction = (id: string) => factions.some((f) => f.id === id);
+      const isDeity = (id: string) => deities.some((d) => d.id === id);
 
-      if (relationType.includes('مسیر') || relationType.includes('Path') || relationType === 'path' || (isLocation(sourceId) && isLocation(targetId))) {
+      // Deity links mirror onto the deity entity — handled first so the
+      // Religions page stays in sync and type-string checks can't shadow them.
+      if ((isDeity(sourceId) && isLocation(targetId)) || (isDeity(targetId) && isLocation(sourceId))) {
+        const deityId = isDeity(sourceId) ? sourceId : targetId;
+        const locId = isLocation(sourceId) ? sourceId : targetId;
+        const deity = deities.find((d) => d.id === deityId);
+        if (deity) {
+          editDeity(deityId, {
+            holyLocationIds: (deity.holyLocationIds || []).filter((id) => id !== locId),
+          });
+        }
+      } else if ((isDeity(sourceId) && isFaction(targetId)) || (isDeity(targetId) && isFaction(sourceId))) {
+        const deityId = isDeity(sourceId) ? sourceId : targetId;
+        const facId = isFaction(sourceId) ? sourceId : targetId;
+        const deity = deities.find((d) => d.id === deityId);
+        if (deity) {
+          editDeity(deityId, {
+            affiliatedFactionIds: (deity.affiliatedFactionIds || []).filter((id) => id !== facId),
+          });
+        }
+      } else if (relationType.includes('مسیر') || relationType.includes('Path') || relationType === 'path' || (isLocation(sourceId) && isLocation(targetId))) {
         updateLocations((prev) =>
           prev.map((loc) => {
             if (loc.id === sourceId) {
@@ -1005,18 +1110,23 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         if (fac1) editFaction(sourceId, { rivalFactionIds: (fac1.rivalFactionIds || []).filter((id) => id !== targetId) });
         if (fac2) editFaction(targetId, { rivalFactionIds: (fac2.rivalFactionIds || []).filter((id) => id !== sourceId) });
       } else {
-        // Remove from customRelations
+        // Remove from customRelations (resolve stored refs too, so links the
+        // AI adviser authored by name can still be deleted).
         updateWorldBible((prev) => ({
           ...prev,
-          customRelations: (prev.customRelations || []).filter(
-            (r) => !(r.sourceId === sourceId && r.targetId === targetId) && !(r.sourceId === targetId && r.targetId === sourceId)
-          ),
+          customRelations: (prev.customRelations || []).filter((r) => {
+            const rs = resolveEntityRef(prev, r.sourceId);
+            const rt = resolveEntityRef(prev, r.targetId);
+            const match =
+              (rs === sourceId && rt === targetId) || (rs === targetId && rt === sourceId);
+            return !match;
+          }),
         }));
       }
 
       notify.info(isPersian ? 'پیوند حذف شد' : 'Lore connection removed');
     },
-    [isPersian, updateLocations, editNpc, editFaction, updateWorldBible, story.worldBible]
+    [isPersian, updateLocations, editNpc, editFaction, editDeity, updateWorldBible, story.worldBible]
   );
 
   // ----------------------------------------------------
@@ -1416,17 +1526,6 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         };
       });
       notify.success(isPersian ? 'ایزد و نظام عقیدتی جدید ثبت شد' : 'Deity registered');
-    },
-    [isPersian, updateWorldBible]
-  );
-
-  const editDeity = useCallback(
-    (id: string, updated: Partial<WorldDeity>) => {
-      updateWorldBible((prev) => ({
-        ...prev,
-        religions: (prev.religions || []).map((d) => (d.id === id ? { ...d, ...updated } : d)),
-      }));
-      notify.success(isPersian ? 'مشخصات ایزد به‌روز شد' : 'Deity updated');
     },
     [isPersian, updateWorldBible]
   );

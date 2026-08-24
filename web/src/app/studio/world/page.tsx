@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { WorldLaw, Faction } from '@/lib/types';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
 import { GenesisWorldData } from '@/lib/engines/world/GenesisSchemas';
 import { notify } from '@/lib/notify';
+import EntityWorkshopDrawer, {
+  type WorkshopEntity,
+} from '@/components/studio/EntityWorkshopDrawer';
 import {
   BookOpen,
   Shield,
@@ -17,10 +20,10 @@ import {
   Check,
   Sparkles,
   Info,
-  Cpu,
   Terminal,
   Zap,
   RotateCcw,
+  Wand2,
 } from 'lucide-react';
 
 export default function WorldBiblePage() {
@@ -38,6 +41,26 @@ export default function WorldBiblePage() {
     addLocation,
     addDeity,
   } = useStudioStory();
+
+  const worldContext = useMemo(() => buildWorldContextString(story), [story]);
+
+  // Plan 02 — Inline Entity Workshop Drawer
+  const [workshopEntity, setWorkshopEntity] = useState<WorkshopEntity | null>(null);
+
+  const openWorkshop = (type: 'world_law' | 'faction', item: any) =>
+    setWorkshopEntity({
+      type,
+      id: item.id,
+      name: type === 'world_law' ? item.rule : item.name,
+      data: item,
+    });
+
+  const handleWorkshopApply = (entity: WorkshopEntity, data: any) => {
+    if (entity.type === 'world_law') editWorldLaw(entity.id, data);
+    else if (entity.type === 'faction') editFaction(entity.id, data);
+    setWorkshopEntity(null);
+    notify.success(isPersian ? 'موجودیت به‌روزرسانی شد' : 'Entity updated');
+  };
 
   // World Meta edit state
   const [isEditingMeta, setIsEditingMeta] = useState(false);
@@ -612,6 +635,13 @@ export default function WorldBiblePage() {
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
+                      onClick={() => openWorkshop('world_law', law)}
+                      title={isPersian ? 'کارگاه موجودیت' : 'Entity Workshop'}
+                      className="p-1 text-zinc-400 hover:text-amber-400 rounded-lg hover:bg-zinc-800 cursor-pointer"
+                    >
+                      <Wand2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
                       onClick={() => openLawModal(law)}
                       className="p-1 text-zinc-400 hover:text-amber-400 rounded-lg hover:bg-zinc-800 cursor-pointer"
                     >
@@ -669,6 +699,13 @@ export default function WorldBiblePage() {
                     <h4 className="text-sm font-bold text-zinc-100">{faction.name}</h4>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => openWorkshop('faction', faction)}
+                      title={isPersian ? 'کارگاه موجودیت' : 'Entity Workshop'}
+                      className="p-1 text-zinc-400 hover:text-amber-400 rounded-lg hover:bg-zinc-800 cursor-pointer"
+                    >
+                      <Wand2 className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       onClick={() => openFactionModal(faction)}
                       className="p-1 text-zinc-400 hover:text-amber-400 rounded-lg hover:bg-zinc-800 cursor-pointer"
@@ -1151,6 +1188,16 @@ export default function WorldBiblePage() {
           </div>
         </div>
       )}
+
+      <EntityWorkshopDrawer
+        key={workshopEntity?.id ?? 'none'}
+        open={!!workshopEntity}
+        entity={workshopEntity}
+        worldContext={worldContext}
+        isPersian={isPersian}
+        onClose={() => setWorkshopEntity(null)}
+        onApplyUpdate={handleWorkshopApply}
+      />
     </div>
   );
 }

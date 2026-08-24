@@ -345,7 +345,26 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
       });
     });
 
-    return { initialNodes: nodesList, initialEdges: edgesList };
+    // Build an id-or-name -> nodeId resolver so relations authored with a
+    // human-readable name (e.g. by the AI adviser) still attach to the right
+    // graph node instead of being silently dropped.
+    const nodeAlias = new Map<string, string>();
+    nodesList.forEach((n) => {
+      nodeAlias.set(n.id, n.id);
+      if (n.label) nodeAlias.set(n.label.toLowerCase(), n.id);
+    });
+    const resolveRef = (ref: string): string =>
+      nodeAlias.get(ref) || nodeAlias.get((ref || '').toLowerCase()) || ref;
+
+    const remappedEdges = edgesList
+      .map((e) => ({
+        ...e,
+        source: resolveRef(e.source),
+        target: resolveRef(e.target),
+      }))
+      .filter((e) => e.source !== e.target);
+
+    return { initialNodes: nodesList, initialEdges: remappedEdges };
   }, [worldBible, isPersian]);
 
   const [nodes, setNodes] = useState<GraphNode[]>(initialNodes);
@@ -605,27 +624,26 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
                 <button
                   key={type}
                   onClick={() => setVisibleTypes((prev) => ({ ...prev, [type]: !prev[type] }))}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition-all ${
-                    active
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition-all ${active
                       ? `${styles.badge} shadow-sm`
                       : 'text-zinc-500 hover:text-zinc-400 opacity-40'
-                  }`}
+                    }`}
                 >
                   <span>{getNodeIcon(type)}</span>
                   <span>
                     {type === 'location'
                       ? t.locations
                       : type === 'npc'
-                      ? t.npcs
-                      : type === 'faction'
-                      ? t.factions
-                      : type === 'artifact'
-                      ? t.artifacts
-                      : type === 'creature'
-                      ? t.creatures
-                      : type === 'deity'
-                      ? t.deities
-                      : t.laws}
+                        ? t.npcs
+                        : type === 'faction'
+                          ? t.factions
+                          : type === 'artifact'
+                            ? t.artifacts
+                            : type === 'creature'
+                              ? t.creatures
+                              : type === 'deity'
+                                ? t.deities
+                                : t.laws}
                   </span>
                 </button>
               );
@@ -816,18 +834,15 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
                   top: `${node.y}px`,
                   transform: 'translate(-50%, -50%)',
                 }}
-                className={`absolute cursor-pointer transition-all duration-150 z-10 ${
-                  isSelected ? 'scale-110 z-30' : 'hover:scale-105'
-                }`}
+                className={`absolute cursor-pointer transition-all duration-150 z-10 ${isSelected ? 'scale-110 z-30' : 'hover:scale-105'
+                  }`}
               >
                 <div
-                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 backdrop-blur-xl shadow-2xl transition-all ${
-                    styles.bg
-                  } ${styles.border} ${
-                    isSelected
+                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 backdrop-blur-xl shadow-2xl transition-all ${styles.bg
+                    } ${styles.border} ${isSelected
                       ? `ring-4 ring-amber-400 ${styles.glow} bg-zinc-900`
                       : 'hover:border-white/70'
-                  }`}
+                    }`}
                 >
                   <div className="p-2 rounded-xl bg-black/50 border border-white/10 shrink-0">
                     {getNodeIcon(node.type)}

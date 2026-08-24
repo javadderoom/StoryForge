@@ -14,72 +14,22 @@ import {
   ShieldCheck,
   Menu,
   X,
+  AlertTriangle,
 } from 'lucide-react';
-
-type EntityType =
-  | 'faction'
-  | 'location'
-  | 'npc'
-  | 'artifact'
-  | 'creature'
-  | 'deity'
-  | 'timeline_event'
-  | 'world_law';
-
-const ALLOWED_ENTITIES: EntityType[] = [
-  'faction',
-  'location',
-  'npc',
-  'artifact',
-  'creature',
-  'deity',
-  'timeline_event',
-  'world_law',
-];
-
-// Map natural-language names the model may use to canonical entity types.
-const ENTITY_ALIASES: Record<string, EntityType> = {
-  faction: 'faction',
-  organization: 'faction',
-  organisation: 'faction',
-  order: 'faction',
-  guild: 'faction',
-  location: 'location',
-  place: 'location',
-  region: 'location',
-  area: 'location',
-  npc: 'npc',
-  character: 'npc',
-  person: 'npc',
-  artifact: 'artifact',
-  relic: 'artifact',
-  item: 'artifact',
-  creature: 'creature',
-  monster: 'creature',
-  beast: 'creature',
-  deity: 'deity',
-  religion: 'deity',
-  religions: 'deity',
-  god: 'deity',
-  gods: 'deity',
-  goddess: 'deity',
-  pantheon: 'deity',
-  divinity: 'deity',
-  faith: 'deity',
-  cult: 'deity',
-  timeline_event: 'timeline_event',
-  event: 'timeline_event',
-  timeline: 'timeline_event',
-  era: 'timeline_event',
-  world_law: 'world_law',
-  law: 'world_law',
-  rule: 'world_law',
-};
-
-function normalizeEntityName(raw: any): EntityType | null {
-  if (typeof raw !== 'string') return null;
-  return ENTITY_ALIASES[raw.trim().toLowerCase()] || null;
-}
+import DiffPreviewModal, { type DiffView } from '@/components/studio/DiffPreviewModal';
+import {
+  ALLOWED_ENTITIES,
+  type EntityType,
+  type PersonaId,
+  ADVISER_PERSONAS,
+  parseActionBlocks,
+  resolveEntityTarget,
+  nameOf,
+  nameMatch,
+  normalizeEntity,
+  getEntityArray,
+  detectLoreGaps,
+} from '@/lib/engines/world/ActionProtocol';
 
 interface ActionBlock {
   op: 'create' | 'update' | 'delete';
@@ -97,6 +47,16 @@ interface AppliedAction {
   error?: string;
 }
 
+interface PendingChange {
+  op: 'create' | 'update' | 'delete';
+  entity: EntityType;
+  label: string;
+  oldData?: any;
+  newData?: any;
+  targetId?: string;
+  error?: string;
+}
+
 interface ChatMsg {
   role: 'user' | 'assistant';
   content: string;
@@ -110,36 +70,6 @@ interface AiChatConversation {
   messages: ChatMsg[];
   createdAt: number;
   updatedAt: number;
-}
-
-function nameOf(entity: EntityType, item: any): string {
-  if (!item) return '';
-  return item.name ?? item.title ?? item.rule ?? item.yearOrEra ?? '';
-}
-
-function nameMatch(a: string, b: string): boolean {
-  const x = (a || '').toString().trim().toLowerCase();
-  const y = (b || '').toString().trim().toLowerCase();
-  if (!x || !y) return false;
-  return x === y || x.includes(y) || y.includes(x);
-}
-
-function normalizeEntity(entity: EntityType, data: any): any {
-  if (!data || typeof data !== 'object') return data;
-  if (!data.id) {
-    const prefix: Record<EntityType, string> = {
-      faction: 'fac',
-      location: 'loc',
-      npc: 'npc',
-      artifact: 'art',
-      creature: 'creature',
-      deity: 'deity',
-      timeline_event: 'evt',
-      world_law: 'law',
-    };
-    data.id = `${prefix[entity]}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-  }
-  return data;
 }
 
 function chatStorageKey(storyId: string): string {
@@ -270,6 +200,16 @@ export default function AiOraclePage() {
   const [persistKey, setPersistKey] = useState<string>(() => chatStorageKey(story.id));
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Plan 02 — Multi-Persona Advisory Council + focused-entity injection.
+  const [persona, setPersona] = useState<PersonaId>('oracle');
+  const [focus, setFocus] = useState<{ type: EntityType; id: string; name: string } | null>(null);
+  const [pending, setPending] = useState<PendingChange[]>([]);
+  const [pendingIdx, setPendingIdx] = useState(0);
+
+  const appliedResultsRef = useRef<AppliedAction[]>([]);
+  const appliedFailedRef = useRef<AppliedAction[]>([]);
+  const diffCtxRef = useRef<{ chatId: string; next: ChatMsg[]; clean: string } | null>(null);
+
   // Load conversations for the active story
   useEffect(() => {
     const key = chatStorageKey(story.id);
@@ -318,6 +258,11 @@ export default function AiOraclePage() {
         skipped: 'ویرایش غیرفعال بود — رد شد',
         notFound: 'موجودیت یافت نشد',
         failed: 'عملیات ناموفق',
+        personaLabel: 'شخصیت مشاور',
+        focusLabel: 'تمرکز روی موجودیت',
+        focusNone: 'بدون تمرکز',
+        gapsTitle: 'رادار خلأهای لور',
+        close: 'بستن',
       }
     : {
         heading: 'AI Oracle',
@@ -335,6 +280,11 @@ export default function AiOraclePage() {
         skipped: 'Editing disabled — skipped',
         notFound: 'Entity not found',
         failed: 'Action failed',
+        personaLabel: 'Adviser persona',
+        focusLabel: 'Focus entity',
+        focusNone: 'No focus',
+        gapsTitle: 'Lore Gap Radar',
+        close: 'Close',
       };
 
   const ENTITY_LABELS: Record<EntityType, string> = isPersian
@@ -373,80 +323,37 @@ export default function AiOraclePage() {
     world_law: { add: addWorldLaw, edit: editWorldLaw, del: deleteWorldLaw },
   };
 
-  function getEntityArray(entity: EntityType): any[] {
-    const wb = story.worldBible;
-    switch (entity) {
-      case 'faction':
-        return wb.factions || [];
-      case 'location':
-        return wb.locations || [];
-      case 'npc':
-        return wb.npcs || [];
-      case 'artifact':
-        return wb.artifacts || [];
-      case 'creature':
-        return wb.bestiary || [];
-      case 'deity':
-        return wb.religions || [];
-      case 'timeline_event':
-        return wb.timeline || [];
-      case 'world_law':
-        return wb.laws || [];
-      default:
-        return [];
-    }
-  }
+  const PERSONA_ORDER: PersonaId[] = [
+    'oracle',
+    'inquisitor',
+    'weaver',
+    'cosmologist',
+    'stylist',
+  ];
 
-  // Resolve an existing entity from a (possibly loose) reference like
-  // "first god", "the second deity", "Sovereign of Fire", or a number.
-  function resolveTarget(entity: EntityType, byName: string): any | undefined {
-    const arr = getEntityArray(entity);
-    const searchable = (it: any) =>
-      `${nameOf(entity, it)} ${it?.title || ''} ${it?.domain || ''} ${it?.name || ''}`.trim();
-    let found = arr.find((it) => nameMatch(searchable(it), byName));
-    if (found) return found;
-    const stripped = byName
-      .replace(
-        /\b(first|second|third|fourth|fifth|sixth|seventh|last|\d{1,2}(?:st|nd|rd|th))\b/gi,
-        ''
-      )
-      .replace(/\b(god|gods|deity|deities|religion|religions|pantheon|the)\b/gi, '')
-      .trim();
-    if (stripped && stripped.toLowerCase() !== byName.toLowerCase()) {
-      found = arr.find((it) => nameMatch(searchable(it), stripped));
-      if (found) return found;
-    }
-    const ord = parseOrdinal(byName);
-    if (ord !== null) {
-      const i = ord < 0 ? arr.length + ord : ord;
-      if (i >= 0 && i < arr.length) return arr[i];
-    }
-    return undefined;
-  }
+  const loreGaps = useMemo(
+    () => detectLoreGaps(story.worldBible, isPersian),
+    [story.worldBible, isPersian]
+  );
 
-  function parseOrdinal(text: string): number | null {
-    const t = text.toLowerCase();
-    const map: Record<string, number> = {
-      first: 0,
-      second: 1,
-      third: 2,
-      fourth: 3,
-      fifth: 4,
-      sixth: 5,
-      seventh: 6,
-      last: -1,
-      '1st': 0,
-      '2nd': 1,
-      '3rd': 2,
-      '4th': 3,
-      '5th': 4,
-      '6th': 5,
-      '7th': 6,
-    };
-    for (const k of Object.keys(map)) if (t.includes(k)) return map[k];
-    const m = t.match(/\b(\d{1,2})\b/);
-    if (m) return parseInt(m[1], 10) - 1;
-    return null;
+  const focusOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [];
+    for (const et of ALLOWED_ENTITIES) {
+      for (const item of getEntityArray(story.worldBible, et)) {
+        const nm = nameOf(et, item);
+        if (nm) opts.push({ value: `${et}:${item.id}`, label: `${ENTITY_LABELS[et]}: ${nm}` });
+      }
+    }
+    return opts;
+  }, [story.worldBible, isPersian]);
+
+  function buildFocusContext(): string {
+    if (!focus) return '';
+    const arr = getEntityArray(story.worldBible, focus.type);
+    const item =
+      arr.find((it) => it.id === focus!.id) ||
+      arr.find((it) => nameMatch(nameOf(focus!.type, it), focus!.name));
+    return item ? JSON.stringify(item, null, 2) : '';
   }
 
   const quickPrompts: string[] = isPersian
@@ -471,108 +378,73 @@ export default function AiOraclePage() {
     }
   }, [messages, loading]);
 
-  function parseActions(reply: string): { actions: ActionBlock[]; clean: string } {
-    const actions: ActionBlock[] = [];
-    const matches = [
-      ...reply.matchAll(/```(?:storyforge-action|json|jsonc)?\s*\n([\s\S]*?)```/g),
-    ];
-    for (const mt of matches) {
-      try {
-        const obj = JSON.parse(mt[1]);
-        const validOp = obj.op === 'create' || obj.op === 'update' || obj.op === 'delete';
-        let entity = normalizeEntityName(obj.entity);
-        // If the model omitted the entity (common for update/delete), infer it
-        // from the referenced name across all saved entity types.
-        if (
-          !entity &&
-          (obj.op === 'update' || obj.op === 'delete') &&
-          obj.match &&
-          typeof obj.match.byName === 'string'
-        ) {
-          for (const t of ALLOWED_ENTITIES) {
-            if (
-              getEntityArray(t).some((it) => nameMatch(nameOf(t, it), obj.match.byName))
-            ) {
-              entity = t;
-              break;
-            }
-          }
-        }
-        const validEntity = !!entity;
-        const hasTarget =
-          obj.op === 'create'
-            ? typeof obj.prompt === 'string'
-            : !!(obj.match && typeof obj.match.byName === 'string');
-        if (validOp && validEntity && hasTarget) {
-          actions.push({ ...obj, entity } as ActionBlock);
-        }
-      } catch {
-        /* ignore malformed block */
-      }
-    }
-    const clean = reply.replace(/```(?:storyforge-action|json|jsonc)?\s*\n[\s\S]*?```/g, '').trim();
-    return { actions, clean };
+  async function callGenerate(payload: any): Promise<any> {
+    const res = await fetch('/api/studio/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return res.json();
   }
 
-  async function executeActions(
+  async function preparePending(
     actions: ActionBlock[],
-    userMessageFallback?: string
-  ): Promise<{ results: AppliedAction[]; skipped: boolean }> {
-    if (!allowEdit) {
-      return {
-        results: actions.map((a) => ({
+    userText: string
+  ): Promise<{ ready: PendingChange[]; failed: AppliedAction[] }> {
+    const ready: PendingChange[] = [];
+    const failed: AppliedAction[] = [];
+    for (const a of actions) {
+      let entity = a.entity;
+      if (!ALLOWED_ENTITIES.includes(entity) && a.match?.byName) {
+        for (const tt of ALLOWED_ENTITIES) {
+          if (
+            getEntityArray(story.worldBible, tt).some((it) =>
+              nameMatch(nameOf(tt, it), a.match!.byName)
+            )
+          ) {
+            entity = tt;
+            break;
+          }
+        }
+      }
+      if (!ALLOWED_ENTITIES.includes(entity)) {
+        failed.push({
           ok: false,
           op: a.op,
           entity: a.entity,
-          label: a.match?.byName || a.prompt || ENTITY_LABELS[a.entity],
-          error: t.skipped,
-        })),
-        skipped: true,
-      };
-    }
-
-    const results: AppliedAction[] = [];
-    for (const a of actions) {
-      const cfg = MUTATORS[a.entity];
-      const labelOf = (item: any) => `${ENTITY_LABELS[a.entity]}: ${nameOf(a.entity, item)}`;
+          label: a.match?.byName || a.prompt || 'action',
+          error: t.notFound,
+        });
+        continue;
+      }
+      const labelOf = (item: any) => `${ENTITY_LABELS[entity]}: ${nameOf(entity, item)}`;
       try {
         if (a.op === 'create') {
-          const res = await fetch('/api/studio/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: a.entity,
-              prompt: a.prompt || userMessageFallback,
-              worldContext,
-              isPersian,
-              anchor: a.anchor,
-            }),
+          const json = await callGenerate({
+            type: entity,
+            prompt: a.prompt || userText,
+            worldContext,
+            isPersian,
+            anchor: a.anchor,
           });
-          const json = await res.json();
           if (!json.success || !json.data) throw new Error(json.error || t.failed);
-          const data = normalizeEntity(a.entity, json.data);
-          cfg.add(data);
-          results.push({ ok: true, op: 'create', entity: a.entity, label: labelOf(data) });
-        } else if (a.op === 'update' || a.op === 'delete') {
-          const target = resolveTarget(a.entity, a.match!.byName);
+          const data = normalizeEntity(entity, json.data);
+          ready.push({ op: 'create', entity, label: labelOf(data), newData: data });
+        } else {
+          const target = resolveEntityTarget(story.worldBible, entity, a.match!.byName);
           if (!target) throw new Error(t.notFound);
           if (a.op === 'delete') {
-            cfg.del(target.id);
-            results.push({
-              ok: true,
+            ready.push({
               op: 'delete',
-              entity: a.entity,
-              label: `${ENTITY_LABELS[a.entity]}: ${nameOf(a.entity, target)}`,
+              entity,
+              label: `${ENTITY_LABELS[entity]}: ${nameOf(entity, target)}`,
+              oldData: target,
+              targetId: target.id,
             });
           } else {
             const changeBrief = a.prompt?.trim()
-              ? `${a.prompt.trim()}${
-                  userMessageFallback && userMessageFallback !== a.prompt
-                    ? `\n\nOriginal user request:\n${userMessageFallback}`
-                    : ''
-                }`
-              : userMessageFallback || 'Update entity based on user prompt';
-
+              ? a.prompt.trim()
+              : userText || 'Update entity based on user prompt';
             const editPrompt = `Current entity JSON:\n${JSON.stringify(
               target,
               null,
@@ -581,39 +453,80 @@ export default function AiOraclePage() {
             const editSystem = isPersian
               ? 'تو در حال ویرایش یک موجودیت موجود هستی. خروجی را به صورت شیء JSON کامل شامل تمام فیلدهای پیشین (با اعمال تغییرات) برگردان. نام و شناسه را حفظ کن. فقط JSON معتبر خروجی بده.\n\n'
               : 'You are editing an EXISTING world entity. Return the COMPLETE updated entity as a JSON object with ALL original fields preserved and only the requested changes applied. Preserve name and id. Output valid JSON only.\n\n';
-            const res = await fetch('/api/studio/generate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: a.entity,
-                prompt: changeBrief,
-                worldContext,
-                isPersian,
-                // NOTE: the generate route overrides its system prompt with
-                // customSystemPrompt, so the edit brief MUST live here or the
-                // model never sees what to change.
-                customSystemPrompt: editSystem + editPrompt,
-              }),
+            const json = await callGenerate({
+              type: entity,
+              prompt: changeBrief,
+              worldContext,
+              isPersian,
+              customSystemPrompt: editSystem + editPrompt,
             });
-            const json = await res.json();
             if (!json.success || !json.data) throw new Error(json.error || t.failed);
             const merged = { ...target, ...json.data, id: target.id };
-            const data = normalizeEntity(a.entity, merged);
-            cfg.edit(target.id, data);
-            results.push({ ok: true, op: 'update', entity: a.entity, label: labelOf(data) });
+            const data = normalizeEntity(entity, merged);
+            ready.push({
+              op: 'update',
+              entity,
+              label: labelOf(data),
+              oldData: target,
+              newData: data,
+              targetId: target.id,
+            });
           }
         }
       } catch (e: any) {
-        results.push({
+        failed.push({
           ok: false,
           op: a.op,
-          entity: a.entity,
-          label: a.match?.byName || a.prompt || ENTITY_LABELS[a.entity],
+          entity,
+          label: a.match?.byName || a.prompt || ENTITY_LABELS[entity],
           error: e?.message || t.failed,
         });
       }
     }
-    return { results, skipped: false };
+    return { ready, failed };
+  }
+
+  function applyPending(change: PendingChange, editedData?: any): AppliedAction {
+    const data = editedData ?? change.newData;
+    const cfg = MUTATORS[change.entity];
+    if (change.op === 'create') {
+      cfg.add(data);
+      return { ok: true, op: 'create', entity: change.entity, label: change.label };
+    }
+    if (change.op === 'delete') {
+      cfg.del(change.targetId!);
+      return { ok: true, op: 'delete', entity: change.entity, label: change.label };
+    }
+    cfg.edit(change.targetId!, data);
+    return { ok: true, op: 'update', entity: change.entity, label: change.label };
+  }
+
+  function finalizeAssistant(
+    chatId: string,
+    next: ChatMsg[],
+    clean: string,
+    preFailed: AppliedAction[]
+  ) {
+    const all = [...appliedResultsRef.current, ...preFailed];
+    const failedList = all.filter((a) => !a.ok);
+    let content = clean || (all.length ? '(applied)' : '');
+    if (failedList.length) {
+      const list = failedList.map((f) => `• ${f.label}: ${f.error}`).join('\n');
+      content +=
+        (isPersian ? '\n\n⚠️ برخی تغییرات اعمال نشد:\n' : '\n\n⚠️ Some changes could NOT be applied:\n') +
+        list;
+    }
+    const assistantMsg: ChatMsg = {
+      role: 'assistant',
+      content,
+      actions: all,
+      skipped: all.length > 0 && all.every((a) => !a.ok && a.error === t.skipped),
+    };
+    updateChatMessages(chatId, [...next, assistantMsg]);
+    appliedResultsRef.current = [];
+    appliedFailedRef.current = [];
+    diffCtxRef.current = null;
+    setLoading(false);
   }
 
   function updateChatMessages(id: string, msgs: ChatMsg[], titleOverride?: string) {
@@ -688,7 +601,13 @@ export default function AiOraclePage() {
       const res = await fetch('/api/studio/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: next, worldContext, isPersian }),
+        body: JSON.stringify({
+          messages: next,
+          worldContext,
+          isPersian,
+          persona,
+          activeEntityContext: buildFocusContext(),
+        }),
       });
       const json = await res.json();
       if (!json.success) {
@@ -696,45 +615,120 @@ export default function AiOraclePage() {
           ...next,
           { role: 'assistant', content: json.error || t.errorConn },
         ]);
+        setLoading(false);
         return;
       }
-      const { actions, clean } = parseActions(json.reply);
-      let applied: AppliedAction[] = [];
-      let skipped = false;
-      if (actions.length) {
-        const ex = await executeActions(actions, trimmed);
-        applied = ex.results;
-        skipped = ex.skipped;
+      const actions = parseActionBlocks(json.reply);
+      const clean = json.reply.replace(/```[\s\S]*?```/g, '').trim();
+
+      if (!actions.length || !allowEdit) {
+        const skipped = actions.length > 0 && !allowEdit;
+        const assistantMsg: ChatMsg = {
+          role: 'assistant',
+          content: clean || json.reply,
+          actions: skipped
+            ? actions.map((a) => ({
+                ok: false,
+                op: a.op,
+                entity: a.entity,
+                label: a.match?.byName || a.prompt || ENTITY_LABELS[a.entity],
+                error: t.skipped,
+              }))
+            : [],
+          skipped,
+        };
+        updateChatMessages(chatId, [...next, assistantMsg]);
+        setLoading(false);
+        return;
       }
-      const failed = applied.filter((a) => !a.ok);
-      let content = clean || (actions.length ? '(applied)' : json.reply);
-      if (failed.length) {
-        const list = failed.map((f) => `• ${f.label}: ${f.error}`).join('\n');
-        content +=
-          (isPersian
-            ? '\n\n⚠️ برخی تغییرات اعمال نشد:\n'
-            : '\n\n⚠️ Some changes could NOT be applied:\n') + list;
+
+      const { ready, failed } = await preparePending(actions, trimmed);
+      appliedResultsRef.current = [];
+      appliedFailedRef.current = failed;
+      if (ready.length === 0) {
+        finalizeAssistant(chatId, next, clean, failed);
+        return;
       }
-      const assistantMsg: ChatMsg = {
-        role: 'assistant',
-        content,
-        actions: applied,
-        skipped,
-      };
-      updateChatMessages(chatId, [...next, assistantMsg]);
+      diffCtxRef.current = { chatId, next, clean };
+      setPending(ready);
+      setPendingIdx(0);
+      setLoading(false);
     } catch {
       updateChatMessages(chatId, [...next, { role: 'assistant', content: t.errorConn }]);
-    } finally {
       setLoading(false);
     }
+
   }
+
+  // When the diff queue is exhausted, commit the assistant message.
+  useEffect(() => {
+    if (pending.length > 0 && pendingIdx >= pending.length) {
+      const ctx = diffCtxRef.current;
+      if (ctx) finalizeAssistant(ctx.chatId, ctx.next, ctx.clean, appliedFailedRef.current);
+      setPending([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingIdx, pending.length]);
+
+  const handleConfirmDiff = (editedData?: any) => {
+    const change = pending[pendingIdx];
+    if (!change) {
+      setPendingIdx(pendingIdx + 1);
+      return;
+    }
+    if (change.error) {
+      appliedResultsRef.current.push({
+        ok: false,
+        op: change.op,
+        entity: change.entity,
+        label: change.label,
+        error: change.error,
+      });
+    } else {
+      try {
+        appliedResultsRef.current.push(applyPending(change, editedData));
+      } catch (e: any) {
+        appliedResultsRef.current.push({
+          ok: false,
+          op: change.op,
+          entity: change.entity,
+          label: change.label,
+          error: e?.message || t.failed,
+        });
+      }
+    }
+    setPendingIdx(pendingIdx + 1);
+  };
+
+  const handleRejectDiff = () => {
+    const change = pending[pendingIdx];
+    if (change) {
+      appliedResultsRef.current.push({
+        ok: false,
+        op: change.op,
+        entity: change.entity,
+        label: change.label,
+        error: t.skipped,
+      });
+    }
+    setPendingIdx(pendingIdx + 1);
+  };
+
+  const currentDiff: DiffView | null =
+    pending.length > 0 && pendingIdx < pending.length
+      ? {
+          op: pending[pendingIdx].op,
+          entityLabel: pending[pendingIdx].label,
+          oldData: pending[pendingIdx].oldData,
+          newData: pending[pendingIdx].newData,
+        }
+      : null;
 
   const opWord = (op: 'create' | 'update' | 'delete') =>
     op === 'create' ? t.created : op === 'update' ? t.updated : t.deleted;
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] md:h-screen overflow-hidden">
-      {/* Conversation list (desktop) */}
       <ChatList
         chats={chats}
         activeId={activeId}
@@ -747,7 +741,6 @@ export default function AiOraclePage() {
         isPersian={isPersian}
       />
 
-      {/* Conversation list (mobile drawer) */}
       {mobileListOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileListOpen(false)} />
@@ -768,7 +761,6 @@ export default function AiOraclePage() {
         </div>
       )}
 
-      {/* Conversation panel */}
       <div className="flex-1 flex flex-col min-w-0">
         <div className="border-b border-zinc-800/70 px-4 md:px-6 py-3 flex items-center gap-3">
           <button
@@ -781,11 +773,79 @@ export default function AiOraclePage() {
           <div className="h-9 w-9 rounded-xl bg-amber-500/15 text-amber-300 flex items-center justify-center">
             <MessageSquare className="h-4 w-4" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-sm font-semibold text-zinc-100">{t.heading}</h1>
             <p className="text-[11px] text-zinc-400">{t.subheading}</p>
           </div>
         </div>
+
+        {/* Plan 02 — Persona selector + focused entity + lore-gap radar */}
+        <div className="border-b border-zinc-800/70 px-4 md:px-6 py-2 flex flex-wrap items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wide text-zinc-500 hidden sm:inline">
+            {t.personaLabel}
+          </span>
+          <div className="flex flex-wrap gap-1">
+            {PERSONA_ORDER.map((pid) => {
+              const p = ADVISER_PERSONAS[pid];
+              const active = persona === pid;
+              return (
+                <button
+                  key={pid}
+                  onClick={() => setPersona(pid)}
+                  title={p.blurb[isPersian ? 'fa' : 'en']}
+                  className={`px-2.5 py-1 rounded-full text-[11px] border transition-colors ${
+                    active
+                      ? 'bg-amber-500/20 text-amber-200 border-amber-500/40'
+                      : 'bg-zinc-900/60 text-zinc-400 border-zinc-700/60 hover:text-zinc-200'
+                  }`}
+                >
+                  {p.label[isPersian ? 'fa' : 'en']}
+                </button>
+              );
+            })}
+          </div>
+          <select
+            value={focus ? `${focus.type}:${focus.id}` : ''}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (!v) {
+                setFocus(null);
+                return;
+              }
+              const [type, id] = v.split(':');
+              const arr = getEntityArray(story.worldBible, type as EntityType);
+              const item = arr.find((it) => it.id === id);
+              setFocus({ type: type as EntityType, id, name: item ? nameOf(type as EntityType, item) : '' });
+            }}
+            className="ml-auto text-[11px] rounded-lg bg-zinc-900/70 border border-zinc-700/60 px-2 py-1 text-zinc-300 focus:outline-none"
+            title={t.focusLabel}
+          >
+            <option value="">{t.focusNone}</option>
+            {focusOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {loreGaps.length > 0 && (
+          <div className="px-4 md:px-6 py-2 border-b border-zinc-800/60 flex items-center gap-2 flex-wrap">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="text-[10px] uppercase tracking-wide text-zinc-500">
+              {t.gapsTitle}
+            </span>
+            {loreGaps.map((g) => (
+              <button
+                key={g}
+                onClick={() => handleSend(isPersian ? `درباره این خلأ بگو: ${g}` : `Tell me about this gap: ${g}`)}
+                className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/10 text-amber-300 border border-amber-500/20 hover:bg-amber-500/20"
+              >
+                {g}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div
           ref={scrollRef}
@@ -916,7 +976,15 @@ export default function AiOraclePage() {
           </div>
         </div>
       </div>
+
+      <DiffPreviewModal
+        open={!!currentDiff}
+        diff={currentDiff}
+        isPersian={isPersian}
+        busy={loading}
+        onConfirm={handleConfirmDiff}
+        onReject={handleRejectDiff}
+      />
     </div>
   );
 }
-

@@ -79,6 +79,42 @@ describe('StudioChat API - AI Oracle (Context-Aware)', () => {
     assert.equal(res.status, 200);
     const sentBody = JSON.parse(captured[0].body);
     const systemText = sentBody.systemInstruction.parts[0].text;
-    assert.match(systemText, /مشاور جهان‌سازی/);
+    assert.match(systemText, /جهان‌سازی/);
+
+  });
+
+  it('injects the selected persona prompt and focused-entity context', async () => {
+    captured.length = 0;
+    const req = createMockRequest({
+      messages: [{ role: 'user', content: 'Stress-test my magic system' }],
+      worldContext: 'LAWS:\n- Blood magic petrifies the caster into basalt',
+      isPersian: false,
+      persona: 'cosmologist',
+      activeEntityContext: '{"id":"law_1","rule":"Blood magic petrifies the caster into basalt"}',
+
+    });
+    const res = await POST(req);
+    assert.equal(res.status, 200);
+    const json = await res.json();
+    assert.equal(json.persona, 'cosmologist');
+    const sentBody = JSON.parse(captured[0].body);
+    const systemText = sentBody.systemInstruction.parts[0].text;
+    assert.match(systemText, /COSMOLOGIST/i, 'persona core must be injected');
+    assert.match(systemText, /FOCUSED ENTITY/, 'focused-entity context must be injected');
+    assert.match(systemText, /law_1/, 'focused entity JSON must appear');
+  });
+
+  it('falls back to the oracle persona for an unknown persona id', async () => {
+    captured.length = 0;
+    const req = createMockRequest({
+      messages: [{ role: 'user', content: 'hi' }],
+      worldContext: '',
+      isPersian: false,
+      persona: 'banana',
+    });
+    const res = await POST(req);
+    assert.equal(res.status, 200);
+    const json = await res.json();
+    assert.equal(json.persona, 'oracle');
   });
 });

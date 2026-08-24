@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { StudioStoryProvider, useStudioStory } from '@/lib/context/StudioStoryContext';
 import { Toaster } from '@/lib/notify';
 import { StoryDetailsModal } from '@/components/studio/StoryDetailsModal';
+import StudioOracleDrawer from '@/components/studio/StudioOracleDrawer';
 import {
   BookOpen,
   Sword,
@@ -521,6 +522,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
       </nav>
 
       <StoryDetailsModal isOpen={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} />
+      <StudioOracleDrawer />
     </div>
   );
 }

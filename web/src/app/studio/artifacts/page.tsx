@@ -18,10 +18,18 @@ import {
   Layers,
   Award,
   Crown,
+  Key,
+  Users,
+  Compass,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  Sword,
 } from 'lucide-react';
-import { WorldArtifact } from '@/lib/types';
+import { WorldArtifact, ArtifactVaultLore, EnhancedArtifactPayload } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import AiFillSection from '@/components/studio/AiFillSection';
+import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
 
 const RARITY_MAP = {
   mythic: {
@@ -81,6 +89,20 @@ export default function ArtifactsStudioPage() {
   const [artHolderId, setArtHolderId] = useState('');
   const [artSecretLore, setArtSecretLore] = useState('');
 
+  // Plan 05 Vault Lore form fields
+  const [vaultCreator, setVaultCreator] = useState('');
+  const [vaultLocation, setVaultLocation] = useState('');
+  const [vaultRitual, setVaultRitual] = useState('');
+  const [vaultSeekers, setVaultSeekers] = useState('');
+
+  // Expandable Drawers & AI Generator States
+  const [expandedVaultLoreIds, setExpandedVaultLoreIds] = useState<Set<string>>(new Set());
+  const [generatingVaultArtifactId, setGeneratingVaultArtifactId] = useState<string | null>(null);
+  const [vaultLorePreview, setVaultLorePreview] = useState<{
+    targetArtifact: WorldArtifact;
+    payload: EnhancedArtifactPayload;
+  } | null>(null);
+
   const artifacts = story.worldBible.artifacts || [];
   const npcs = story.worldBible.npcs || [];
   const locations = story.worldBible.locations || [];
@@ -90,6 +112,15 @@ export default function ArtifactsStudioPage() {
     if (filterRarity === 'all') return true;
     return art.rarity === filterRarity;
   });
+
+  const toggleVaultLoreExpand = (id: string) => {
+    setExpandedVaultLoreIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const handleOpenAddModal = () => {
     setEditingArtifactId(null);
@@ -104,6 +135,10 @@ export default function ArtifactsStudioPage() {
     setArtHolderType('vault');
     setArtHolderId('');
     setArtSecretLore('');
+    setVaultCreator('');
+    setVaultLocation('');
+    setVaultRitual('');
+    setVaultSeekers('');
     setShowAddModal(true);
   };
 
@@ -120,6 +155,10 @@ export default function ArtifactsStudioPage() {
     setArtHolderType(art.currentHolderType);
     setArtHolderId(art.currentHolderId);
     setArtSecretLore(art.secretLore || '');
+    setVaultCreator(art.vaultLore?.creator || '');
+    setVaultLocation(art.vaultLore?.currentVaultLocation || '');
+    setVaultRitual(art.vaultLore?.unsealingRitual || '');
+    setVaultSeekers(art.vaultLore?.rivalSeekers?.join(', ') || '');
     setShowAddModal(true);
   };
 
@@ -135,6 +174,19 @@ export default function ArtifactsStudioPage() {
       .map((p) => p.trim())
       .filter((p) => p.length > 0);
 
+    const vaultLorePayload: ArtifactVaultLore | undefined =
+      vaultCreator.trim() || vaultLocation.trim() || vaultRitual.trim()
+        ? {
+            creator: vaultCreator.trim() || (isPersian ? 'استاد افزارمند ناشناس' : 'Unknown Artificer'),
+            currentVaultLocation: vaultLocation.trim() || (isPersian ? 'خزانه پنهان' : 'Hidden Vault'),
+            unsealingRitual: vaultRitual.trim() || (isPersian ? 'رمزگشایی با رون‌های کهن' : 'Ancient runic deciphering'),
+            rivalSeekers: vaultSeekers
+              .split(',')
+              .map((s) => s.trim())
+              .filter((s) => s.length > 0),
+          }
+        : undefined;
+
     const payload: WorldArtifact = {
       id: editingArtifactId || `art_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
       name: artName.trim(),
@@ -148,15 +200,71 @@ export default function ArtifactsStudioPage() {
       currentHolderType: artHolderType,
       currentHolderId: artHolderId.trim() || 'unknown',
       secretLore: artSecretLore.trim() || undefined,
+      vaultLore: vaultLorePayload,
     };
 
     if (editingArtifactId) {
       editArtifact(editingArtifactId, payload);
+      notify.success(isPersian ? 'یادگار باستانی ویرایش شد' : 'Artifact updated');
     } else {
       addArtifact(payload);
+      notify.success(isPersian ? 'یادگار جدید به جهان افزوده شد' : 'Added new relic');
     }
 
     setShowAddModal(false);
+  };
+
+  // ----------------------------------------------------------------
+  // Plan 05: AI Vault & Relic Generator
+  // ----------------------------------------------------------------
+  const handleGenerateVaultLore = async (art: WorldArtifact) => {
+    try {
+      setGeneratingVaultArtifactId(art.id);
+      const worldContext = buildWorldContextString(story);
+      const res = await fetch('/api/studio/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'artifact_enhanced',
+          prompt: `Generate rich vault quest hooks, unsealing rituals, rival seekers, and balanced powers/curses for "${art.name}" (${art.rarity} tier). Prioritize tangible weapons/armor.`,
+          themeContext: story.worldBible.themeNotes,
+          rarity: art.rarity,
+          worldContext,
+          isPersian,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to generate vault lore (${res.status})`);
+      }
+
+      const json = await res.json();
+      if (json.data && json.data.vaultLore) {
+        setVaultLorePreview({
+          targetArtifact: art,
+          payload: json.data,
+        });
+      } else {
+        notify.error(isPersian ? 'قالب لور خزانه‌داری معتبر نبود' : 'Invalid vault lore format');
+      }
+    } catch (err: any) {
+      notify.error(err.message || 'Error generating vault lore');
+    } finally {
+      setGeneratingVaultArtifactId(null);
+    }
+  };
+
+  const handleCommitVaultLore = () => {
+    if (!vaultLorePreview) return;
+    const { targetArtifact, payload } = vaultLorePreview;
+    editArtifact(targetArtifact.id, {
+      vaultLore: payload.vaultLore,
+      curseOrCost: payload.doubleEdgedCurse || targetArtifact.curseOrCost,
+      attunementRules: payload.attunementCost || targetArtifact.attunementRules,
+    });
+    setExpandedVaultLoreIds((prev) => new Set(prev).add(targetArtifact.id));
+    setVaultLorePreview(null);
+    notify.success(isPersian ? 'لور خزانه‌داری برای این یادگار ثبت شد' : 'Vault lore updated on artifact');
   };
 
   const getHolderDisplayName = (type: string, id: string) => {
@@ -190,19 +298,19 @@ export default function ArtifactsStudioPage() {
 
   return (
     <div className="space-y-8 animate-fadeIn">
-      {/* Header Banner */}
-      <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-6 md:p-8 backdrop-blur-sm shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Header Info */}
+      <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-6 md:p-8 backdrop-blur-sm shadow-xl flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2.5 mb-1.5">
+          <div className="flex items-center gap-2.5 mb-1">
             <Sparkles className="w-5 h-5 text-amber-400" />
             <h2 className="text-xl md:text-2xl font-bold text-zinc-100">
-              {isPersian ? 'خزانه عتیقه‌ها و یادگارهای باستانی' : 'Mythic Relics & Ancient Artifacts'}
+              {isPersian ? 'دست‌سازه‌ها و یادگارهای باستانی' : 'Relics & Arcane Artifacts'}
             </h2>
           </div>
           <p className="text-sm text-zinc-400 max-w-3xl leading-relaxed">
             {isPersian
-              ? 'ثبت و مدیریت دست‌سازه‌های جادویی، سلاح‌های باستانی، طلسم‌ها و عتیقه‌های نفرین‌شده همراه با شروط تسخیر (Attunement) و بهای جادویی.'
-              : 'Manage mythic relics, ancient artifacts, and cursed heirlooms with attunement rules, holders, and dark costs.'}
+              ? 'ثبت و مدیریت سلاح‌های کهن، عصاها، زره‌ها و عتیقه‌های نفرین‌شده همراه با لور خزانه‌داری، مراسم آزادسازی، و مدعیان رقیب.'
+              : 'Manage mythic weapons, wands, armor, and cursed heirlooms with vault quest hooks, unsealing rituals, and rival seekers.'}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -212,7 +320,7 @@ export default function ArtifactsStudioPage() {
           </span>
           <button
             onClick={handleOpenAddModal}
-            className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition-all"
+            className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>{isPersian ? '+ ثبت یادگار جدید' : '+ Add Mythic Relic'}</span>
@@ -272,6 +380,16 @@ export default function ArtifactsStudioPage() {
         >
           {isPersian ? 'کمیاب' : 'Rare'}
         </button>
+        <button
+          onClick={() => setFilterRarity('uncommon')}
+          className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
+            filterRarity === 'uncommon'
+              ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 shadow-md'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60 border border-transparent'
+          }`}
+        >
+          {isPersian ? 'نامعمول' : 'Uncommon'}
+        </button>
       </div>
 
       {/* Artifact Cards Grid */}
@@ -290,11 +408,12 @@ export default function ArtifactsStudioPage() {
           filteredArtifacts.map((art) => {
             const meta = RARITY_MAP[art.rarity] || RARITY_MAP.rare;
             const holderText = getHolderDisplayName(art.currentHolderType, art.currentHolderId);
+            const isVaultExpanded = expandedVaultLoreIds.has(art.id);
 
             return (
               <div
                 key={art.id}
-                className={`bg-zinc-900/70 border-2 rounded-3xl p-6 backdrop-blur-xl shadow-2xl flex flex-col justify-between transition-all ${meta.borderClass} ${meta.glowClass}`}
+                className={`bg-zinc-900/70 border-2 rounded-3xl p-6 backdrop-blur-xl shadow-2xl flex flex-col justify-between transition-all ${meta.borderClass} ${meta.glowClass} space-y-4`}
               >
                 <div className="space-y-4">
                   {/* Card Header */}
@@ -304,6 +423,25 @@ export default function ArtifactsStudioPage() {
                     </span>
 
                     <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateVaultLore(art)}
+                        disabled={generatingVaultArtifactId === art.id}
+                        className="px-2.5 py-1 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10.5px] font-bold flex items-center gap-1 transition-all"
+                        title="Generate Vault Lore"
+                      >
+                        <Key className="w-3.5 h-3.5" />
+                        <span>
+                          {generatingVaultArtifactId === art.id
+                            ? isPersian
+                              ? 'سنتز...'
+                              : 'Synthesizing...'
+                            : isPersian
+                            ? '🗝️ خزانه‌داری'
+                            : '🗝️ Vault'}
+                        </span>
+                      </button>
+
                       <button
                         onClick={() => handleOpenEditModal(art)}
                         className="text-zinc-400 hover:text-amber-300 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
@@ -331,7 +469,10 @@ export default function ArtifactsStudioPage() {
                   </div>
 
                   <div>
-                    <h3 className="text-base font-bold text-zinc-100">{art.name}</h3>
+                    <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+                      <Sword className="w-4 h-4 text-amber-400" />
+                      {art.name}
+                    </h3>
                     {art.title && <p className="text-xs text-amber-400/90 font-medium mt-0.5">{art.title}</p>}
                     <p className="text-xs text-zinc-400 leading-relaxed mt-2">{art.description}</p>
                   </div>
@@ -354,32 +495,118 @@ export default function ArtifactsStudioPage() {
                     </div>
                   )}
 
-                  {/* Curse or Cost */}
-                  {art.curseOrCost && (
-                    <div className="bg-red-950/20 border border-red-500/30 rounded-2xl p-3 text-xs text-red-300">
-                      <span className="text-red-400 font-bold flex items-center gap-1 mb-1">
-                        <Flame className="w-3.5 h-3.5" />
-                        {isPersian ? 'نفرین یا بهای تسخیر:' : 'Curse / Dark Cost:'}
+                  {/* Attunement Rules */}
+                  {art.attunementRules && (
+                    <div className="p-3 rounded-2xl bg-zinc-950/40 border border-zinc-800 text-xs text-zinc-300 space-y-1">
+                      <span className="text-zinc-400 font-bold block text-[10.5px]">
+                        {isPersian ? 'شرایط تسخیر (Attunement):' : 'Attunement Requirements:'}
                       </span>
-                      <p>{art.curseOrCost}</p>
+                      <p className="text-zinc-300">{art.attunementRules}</p>
                     </div>
                   )}
 
-                  {/* Attunement */}
-                  {art.attunementRules && (
-                    <div className="text-[11.5px] text-zinc-400 bg-zinc-950/40 border border-zinc-800/80 rounded-xl px-3 py-2">
-                      <span className="text-zinc-300 font-bold">{isPersian ? 'شرط تسخیر:' : 'Attunement:'} </span>
-                      {art.attunementRules}
+                  {/* Curse or Cost (Legendary / Mythic) */}
+                  {art.curseOrCost && (
+                    <div className="p-3 rounded-2xl bg-red-950/20 border border-red-500/20 text-xs text-red-300 space-y-1">
+                      <span className="text-red-400 font-bold block text-[10.5px]">
+                        ☠️ {isPersian ? 'نفرین و بهای تسخیر:' : 'Double-Edged Curse / Dark Cost:'}
+                      </span>
+                      <p className="text-red-300/90 leading-relaxed">{art.curseOrCost}</p>
                     </div>
                   )}
+
+                  {/* Plan 05: Vault Lore & Quest Hooks Drawer */}
+                  <div className="bg-zinc-950/70 border border-zinc-800/80 rounded-2xl overflow-hidden">
+                    <div
+                      onClick={() => toggleVaultLoreExpand(art.id)}
+                      className="p-3 flex items-center justify-between cursor-pointer hover:bg-zinc-900/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Key className="w-4 h-4 text-amber-400" />
+                        <span className="text-xs font-bold text-zinc-200">
+                          {isPersian ? 'لور خزانه‌داری و قلاب‌های مأموریت' : 'Vault Lore & Quest Hooks'}
+                        </span>
+                        {art.vaultLore ? (
+                          <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-lg font-mono">
+                            {isPersian ? 'ثبت‌شده' : 'Configured'}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-zinc-500 italic">
+                            {isPersian ? '(خالی)' : '(Unset)'}
+                          </span>
+                        )}
+                      </div>
+                      {isVaultExpanded ? (
+                        <ChevronUp className="w-4 h-4 text-zinc-400" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-zinc-400" />
+                      )}
+                    </div>
+
+                    {isVaultExpanded && (
+                      <div className="p-3.5 pt-0 space-y-2.5 text-xs border-t border-zinc-900 animate-fadeIn">
+                        {art.vaultLore ? (
+                          <>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="p-2 rounded-xl bg-zinc-900 border border-zinc-800">
+                                <span className="text-[10px] text-zinc-500 block">{isPersian ? 'سازنده کهن:' : 'Creator:'}</span>
+                                <strong className="text-zinc-200">{art.vaultLore.creator}</strong>
+                              </div>
+                              <div className="p-2 rounded-xl bg-zinc-900 border border-zinc-800">
+                                <span className="text-[10px] text-zinc-500 block">{isPersian ? 'مکان خزانه:' : 'Vault Site:'}</span>
+                                <strong className="text-amber-300">{art.vaultLore.currentVaultLocation}</strong>
+                              </div>
+                            </div>
+
+                            <div className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 space-y-1">
+                              <span className="text-[10px] text-zinc-500 block">
+                                🔮 {isPersian ? 'آیین رمزگشایی و گشودن خزانه:' : 'Unsealing Ritual:'}
+                              </span>
+                              <p className="text-zinc-300 text-[11px] leading-relaxed">{art.vaultLore.unsealingRitual}</p>
+                            </div>
+
+                            {art.vaultLore.rivalSeekers && art.vaultLore.rivalSeekers.length > 0 && (
+                              <div>
+                                <span className="text-[10px] text-zinc-500 block mb-1">
+                                  ⚔️ {isPersian ? 'جویندگان و رقبای مدعی:' : 'Rival Seekers:'}
+                                </span>
+                                <div className="flex flex-wrap gap-1">
+                                  {art.vaultLore.rivalSeekers.map((seek, sIdx) => (
+                                    <span
+                                      key={sIdx}
+                                      className="px-2 py-0.5 rounded-lg bg-zinc-900 text-rose-300 border border-rose-500/20 text-[10px]"
+                                    >
+                                      {seek}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="text-center py-3 text-zinc-500 text-xs space-y-1">
+                            <p>{isPersian ? 'لور خزانه‌داری برای این یادگار ثبت نشده است.' : 'No vault lore registered.'}</p>
+                            <button
+                              type="button"
+                              onClick={() => handleGenerateVaultLore(art)}
+                              className="text-amber-400 font-bold hover:underline"
+                            >
+                              {isPersian ? 'اکنون با هوش مصنوعی تولید کنید' : 'Generate with AI now'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Card Footer: Holder & Origin */}
-                <div className="pt-4 mt-4 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
-                  <span className="bg-zinc-800/80 px-2.5 py-1 rounded-xl text-zinc-300 font-medium">
+                {/* Footer Holder Tag */}
+                <div className="pt-3 border-t border-zinc-800 text-[11px] text-zinc-400 flex items-center justify-between">
+                  <span className="flex items-center gap-1 font-medium">
+                    <MapPin className="w-3.5 h-3.5 text-amber-400" />
                     {holderText}
                   </span>
-                  <span className="text-[11px] font-mono text-zinc-500">{art.originEra}</span>
+                  <span className="font-mono text-zinc-500 text-[10px]" dir="ltr">{art.originEra}</span>
                 </div>
               </div>
             );
@@ -387,25 +614,96 @@ export default function ArtifactsStudioPage() {
         )}
       </div>
 
+      {/* Plan 05: Vault Lore Preview Modal */}
+      {vaultLorePreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+                <Key className="w-5 h-5 text-amber-400" />
+                {isPersian ? 'پیش‌نمایش لور خزانه‌داری و نفرین' : 'Vault Lore & Relic Preview'}
+              </h3>
+              <button
+                onClick={() => setVaultLorePreview(null)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-3 rounded-2xl bg-zinc-950 border border-zinc-800">
+                <span className="text-[10px] text-zinc-500 block">{isPersian ? 'یادگار مورد نظر:' : 'Target Relic:'}</span>
+                <strong className="text-zinc-100 text-sm">{vaultLorePreview.targetArtifact.name}</strong>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2.5 rounded-xl bg-zinc-950 border border-zinc-800">
+                  <span className="text-[10px] text-zinc-500 block">{isPersian ? 'سازنده:' : 'Creator:'}</span>
+                  <strong className="text-zinc-200">{vaultLorePreview.payload.vaultLore.creator}</strong>
+                </div>
+                <div className="p-2.5 rounded-xl bg-zinc-950 border border-zinc-800">
+                  <span className="text-[10px] text-zinc-500 block">{isPersian ? 'مکان خزانه:' : 'Vault Site:'}</span>
+                  <strong className="text-amber-300">{vaultLorePreview.payload.vaultLore.currentVaultLocation}</strong>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 space-y-1">
+                <span className="text-[10px] text-amber-400 font-bold block">
+                  🔮 {isPersian ? 'مراسم گشودن قفل خزانه:' : 'Unsealing Ritual:'}
+                </span>
+                <p className="text-zinc-300 leading-relaxed">{vaultLorePreview.payload.vaultLore.unsealingRitual}</p>
+              </div>
+
+              {vaultLorePreview.payload.doubleEdgedCurse && (
+                <div className="p-3 rounded-xl bg-red-950/20 border border-red-500/20 space-y-1 text-red-300">
+                  <span className="text-[10px] text-red-400 font-bold block">
+                    ☠️ {isPersian ? 'نفرین و بهای تسخیر:' : 'Double-Edged Curse:'}
+                  </span>
+                  <p className="leading-relaxed">{vaultLorePreview.payload.doubleEdgedCurse}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setVaultLorePreview(null)}
+                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700"
+              >
+                {isPersian ? 'انصراف' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleCommitVaultLore}
+                className="px-5 py-2 rounded-xl bg-amber-500 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                <span>{isPersian ? '📥 ثبت لور خزانه‌داری' : '📥 Save Vault Lore'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add / Edit Artifact Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <span className="text-sm font-bold text-amber-400 flex items-center gap-2">
-                <Sparkles className="w-4 h-4" />
+              <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-400" />
                 {editingArtifactId
                   ? isPersian
                     ? 'ویرایش یادگار باستانی'
-                    : 'Edit Mythic Relic'
+                    : 'Edit Ancient Relic'
                   : isPersian
-                  ? 'ثبت عتیقه و یادگار باستانی جدید'
-                  : 'Add New Mythic Relic'}
-              </span>
+                  ? 'ثبت دست‌سازه و عتیقه جدید'
+                  : 'Register New Relic'}
+              </h3>
               <button
-                type="button"
                 onClick={() => setShowAddModal(false)}
-                className="text-zinc-500 hover:text-zinc-300"
+                className="text-zinc-400 hover:text-white p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -417,26 +715,27 @@ export default function ArtifactsStudioPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'نام یادگار:' : 'Artifact Name:'}
+                    {isPersian ? 'نام عتیقه / دست‌سازه:' : 'Artifact Name:'}
                   </label>
                   <input
                     type="text"
                     value={artName}
                     onChange={(e) => setArtName(e.target.value)}
-                    placeholder={isPersian ? 'مثال: تاج خاکستر و آتش کهن' : 'e.g. The Crown of Cinders'}
+                    placeholder={isPersian ? 'مثال: چشم پیشگو' : 'e.g. Eye of the Augur'}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                    required
                   />
                 </div>
 
                 <div>
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'عنوان اسطوره‌ای / لقب:' : 'Mythic Epithet / Title:'}
+                    {isPersian ? 'عنوان و القاب:' : 'Title / Epithet:'}
                   </label>
                   <input
                     type="text"
                     value={artTitle}
                     onChange={(e) => setArtTitle(e.target.value)}
-                    placeholder={isPersian ? 'مثال: یادگار پادشاه نخستین' : 'e.g. Heirloom of the First Sovereign'}
+                    placeholder={isPersian ? 'مثال: چشم بلورین کهن' : 'e.g. The First Glass of Scrying'}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                   />
                 </div>
@@ -445,30 +744,30 @@ export default function ArtifactsStudioPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'درجه کمیابی (Rarity):' : 'Rarity Tier:'}
+                    {isPersian ? 'رده نایابی (Rarity):' : 'Rarity Tier:'}
                   </label>
                   <select
                     value={artRarity}
                     onChange={(e) => setArtRarity(e.target.value as any)}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                   >
-                    <option value="mythic">{isPersian ? 'اسطوره‌ای / کیهانی (Mythic)' : 'Mythic'}</option>
-                    <option value="legendary">{isPersian ? 'افسانه‌ای (Legendary)' : 'Legendary'}</option>
-                    <option value="epic">{isPersian ? 'حماسی (Epic)' : 'Epic'}</option>
-                    <option value="rare">{isPersian ? 'کمیاب (Rare)' : 'Rare'}</option>
                     <option value="uncommon">{isPersian ? 'نامعمول (Uncommon)' : 'Uncommon'}</option>
+                    <option value="rare">{isPersian ? 'کمیاب (Rare)' : 'Rare'}</option>
+                    <option value="epic">{isPersian ? 'حماسی (Epic)' : 'Epic'}</option>
+                    <option value="legendary">{isPersian ? 'افسانه‌ای (Legendary)' : 'Legendary'}</option>
+                    <option value="mythic">{isPersian ? 'اسطوره‌ای / کیهانی (Mythic)' : 'Mythic'}</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'عصر تاریخی پیدایش:' : 'Origin Epoch / Era:'}
+                    {isPersian ? 'عصر و دوران پیدایش:' : 'Origin Era:'}
                   </label>
                   <input
                     type="text"
                     value={artOriginEra}
                     onChange={(e) => setArtOriginEra(e.target.value)}
-                    placeholder={isPersian ? 'مثال: ۳۰۰ سال پیش (عصر خاکستر)' : 'e.g. 300 Years Ago'}
+                    placeholder={isPersian ? 'مثال: دوران نخستین' : 'e.g. The First Age'}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                   />
                 </div>
@@ -476,104 +775,97 @@ export default function ArtifactsStudioPage() {
 
               <div>
                 <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                  {isPersian ? 'شرح افسانه و ظاهر یادگار:' : 'Description & Lore:'}
+                  {isPersian ? 'توضیحات ظاهری و حس فیزیکی:' : 'Description & Physical Appearance:'}
                 </label>
                 <textarea
                   rows={2}
                   value={artDesc}
                   onChange={(e) => setArtDesc(e.target.value)}
-                  placeholder={isPersian ? 'ظاهر، متریال ساخت و افسانه‌های پیرامون آن...' : 'Visual details and legends...'}
+                  placeholder={isPersian ? 'شکل ظاهری، سنگینی، جنس و هاله جادویی...' : 'Appearance, material, tactile feel...'}
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                 />
               </div>
 
               <div>
                 <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                  {isPersian ? 'نیروها و اثرات ماورایی (هر خط یک اثر):' : 'Powers & Properties (One per line):'}
+                  {isPersian ? 'نیروها و اثرات (هر سطر یک قدرت):' : 'Powers & Resonance (One per line):'}
                 </label>
                 <textarea
                   rows={2}
                   value={artPowers}
                   onChange={(e) => setArtPowers(e.target.value)}
-                  placeholder={isPersian ? 'کنترل ذهن سربازان کم‌اراده\nمقاومت در برابر آتش' : 'Mind control over weak sentries\nFire immunity'}
+                  placeholder={isPersian ? 'دیدن در تاریکی تا ۳۰ گام\nافزایش مهارت Arcana' : 'True sight\n+2 to Arcana checks'}
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-red-400 block mb-1.5">
-                    {isPersian ? 'نفرین یا بهای استفاده (اختیاری):' : 'Curse / Dark Cost (Optional):'}
-                  </label>
-                  <input
-                    type="text"
-                    value={artCurse}
-                    onChange={(e) => setArtCurse(e.target.value)}
-                    placeholder={isPersian ? 'مثال: جنون تدریجی شعله' : 'e.g. Gradual pyromania'}
-                    className="w-full bg-zinc-950 border border-red-500/30 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
-                  />
+              {/* Vault Lore Inputs in Modal */}
+              <div className="p-3.5 rounded-2xl bg-zinc-950/80 border border-amber-500/20 space-y-3">
+                <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5" />
+                  {isPersian ? 'قلاب‌های مأموریت و خزانه‌داری (اختیاری):' : 'Vault Lore & Quest Hooks (Optional):'}
+                </span>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] text-zinc-400 block mb-1">{isPersian ? 'سازنده کهن:' : 'Creator:'}</label>
+                    <input
+                      type="text"
+                      value={vaultCreator}
+                      onChange={(e) => setVaultCreator(e.target.value)}
+                      placeholder="e.g. Grand Artificer Kenneth"
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-zinc-400 block mb-1">{isPersian ? 'مکان خزانه:' : 'Vault Site:'}</label>
+                    <input
+                      type="text"
+                      value={vaultLocation}
+                      onChange={(e) => setVaultLocation(e.target.value)}
+                      placeholder="e.g. Sunken Crypt"
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-100"
+                    />
+                  </div>
                 </div>
 
                 <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">{isPersian ? 'آیین رمزگشایی و گشودن قفل:' : 'Unsealing Ritual:'}</label>
+                  <input
+                    type="text"
+                    value={vaultRitual}
+                    onChange={(e) => setVaultRitual(e.target.value)}
+                    placeholder="e.g. Submerge in holy water under full moon"
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-100"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'شرط تسخیر / نیازهای مهارت:' : 'Attunement Requirements:'}
+                    {isPersian ? 'شرایط تسخیر (Attunement):' : 'Attunement Conditions:'}
                   </label>
                   <input
                     type="text"
                     value={artAttunement}
                     onChange={(e) => setArtAttunement(e.target.value)}
-                    placeholder={isPersian ? 'مثال: نیازمند دانش کهن ۱۲+' : 'e.g. Requires Arcana 12+'}
+                    placeholder={isPersian ? 'مثال: نیاز به Arcana 3 و سوگند وفاداری' : 'e.g. Requires Arcana 3'}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'نوع دارنده / محل فعلی:' : 'Holder Entity Type:'}
-                  </label>
-                  <select
-                    value={artHolderType}
-                    onChange={(e) => setArtHolderType(e.target.value as any)}
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
-                  >
-                    <option value="vault">{isPersian ? 'خزانه مخفی / نامعلوم' : 'Secret Vault / Unknown'}</option>
-                    <option value="npc">{isPersian ? 'در دست شخصیت (NPC)' : 'Held by NPC'}</option>
-                    <option value="location">{isPersian ? 'در مکان خاص (Location)' : 'Stationed at Location'}</option>
-                    <option value="faction">{isPersian ? 'در تصاحب جناح (Faction)' : 'Owned by Faction'}</option>
-                  </select>
-                </div>
 
                 <div>
-                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'انتخاب دارنده مشخص:' : 'Select Specific Holder:'}
+                  <label className="text-xs font-bold text-red-400 block mb-1.5">
+                    {isPersian ? 'نفرین یا بهای جادویی (مخصوص سطوح بالا):' : 'Double-Edged Curse / Cost:'}
                   </label>
-                  <select
-                    value={artHolderId}
-                    onChange={(e) => setArtHolderId(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
-                  >
-                    <option value="unknown">{isPersian ? '-- نامعلوم / مهروموم شده --' : '-- Unknown / Sealed --'}</option>
-                    {artHolderType === 'npc' &&
-                      npcs.map((n) => (
-                        <option key={n.id} value={n.id}>
-                          {n.name} ({n.title})
-                        </option>
-                      ))}
-                    {artHolderType === 'location' &&
-                      locations.map((l) => (
-                        <option key={l.id} value={l.id}>
-                          {l.name}
-                        </option>
-                      ))}
-                    {artHolderType === 'faction' &&
-                      factions.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.name}
-                        </option>
-                      ))}
-                  </select>
+                  <input
+                    type="text"
+                    value={artCurse}
+                    onChange={(e) => setArtCurse(e.target.value)}
+                    placeholder={isPersian ? 'مثال: سردردهای میگرنی شدید' : 'e.g. Induces memory haze'}
+                    className="w-full bg-zinc-950 border border-red-500/30 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
+                  />
                 </div>
               </div>
 
@@ -592,10 +884,10 @@ export default function ArtifactsStudioPage() {
                   {editingArtifactId
                     ? isPersian
                       ? 'ذخیره تغییرات'
-                      : 'Update Artifact'
+                      : 'Update Relic'
                     : isPersian
-                    ? 'ثبت در خزانه'
-                    : 'Save to Vault'}
+                    ? 'ثبت در گنجینه'
+                    : 'Save Relic'}
                 </button>
               </div>
             </form>

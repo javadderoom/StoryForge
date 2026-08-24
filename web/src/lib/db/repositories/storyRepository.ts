@@ -127,6 +127,12 @@ export class StoryRepository {
             factions: (manifest.worldBible.factions || []) as any,
             locations: (manifest.worldBible.locations || []) as any,
             npcs: (manifest.worldBible.npcs || []) as any,
+            timeline: (manifest.worldBible.timeline || []) as any,
+            artifacts: (manifest.worldBible.artifacts || []) as any,
+            bestiary: (manifest.worldBible.bestiary || []) as any,
+            religions: (manifest.worldBible.religions || []) as any,
+            dramaBonds: (manifest.worldBible.dramaBonds || []) as any,
+            ontology: (manifest.worldBible.ontology || {}) as any,
           },
           create: {
             storyId: manifest.id,
@@ -137,6 +143,12 @@ export class StoryRepository {
             factions: (manifest.worldBible.factions || []) as any,
             locations: (manifest.worldBible.locations || []) as any,
             npcs: (manifest.worldBible.npcs || []) as any,
+            timeline: (manifest.worldBible.timeline || []) as any,
+            artifacts: (manifest.worldBible.artifacts || []) as any,
+            bestiary: (manifest.worldBible.bestiary || []) as any,
+            religions: (manifest.worldBible.religions || []) as any,
+            dramaBonds: (manifest.worldBible.dramaBonds || []) as any,
+            ontology: (manifest.worldBible.ontology || {}) as any,
           },
         });
 

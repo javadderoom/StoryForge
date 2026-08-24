@@ -37,6 +37,12 @@ model WorldBible {
   factions    Json     @default("[]")
   locations   Json     @default("[]")
   npcs        Json     @default("[]")
+  timeline    Json     @default("[]")
+  artifacts   Json     @default("[]")
+  bestiary    Json     @default("[]")
+  religions   Json     @default("[]")
+  dramaBonds  Json     @default("[]")
+  ontology    Json     @default("{}")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

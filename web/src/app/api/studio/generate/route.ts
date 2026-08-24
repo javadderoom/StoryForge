@@ -27,8 +27,22 @@ interface GenerateRequest {
     | 'timeline_event'
     | 'world_law'
     | 'scene'
+    | 'location_subzones'
+    | 'populate_location'
+    | 'npc_relationships'
+    | 'npc_voice_guide'
+    | 'npc_stat_calibration'
+    | 'epoch_arc'
+    | 'timeline_ripple'
+    | 'artifact_enhanced'
+    | 'creature_ecology'
+    | 'religion_schisms'
+    | 'rpg_system_synthesis'
+    | 'branching_story_tree'
     | 'genesis'
     | 'audit_world';
+
+
   prompt?: string;
   themeContext?: string;
   customSystemPrompt?: string;
@@ -194,6 +208,11 @@ export async function POST(req: NextRequest) {
         ? '\n\nIMPORTANT — UNIQUENESS: The "World context" above lists entities that ALREADY EXIST in this world. Generate a single brand-new, distinct entity. Do NOT reuse, copy, or closely paraphrase the name, title, or description of any existing entity. Your output must be clearly unique in both name and concept.'
         : '\n\nIMPORTANT — UNIQUENESS: Ensure your output is wholly original and distinct, with no overlap with previously generated content.';
 
+    const diversityInstruction = isPersian
+      ? '\n\nتنوع مضمونی — تعادل در استفاده از خاطرات: از تمرکز مداوم و افراطی روی موضوعات «فراموشی، قربانی کردن خاطرات و از دست دادن حافظه» خودداری کن. این موضوع را فقط به عنوان یک جنبه نادر در نظر بگیر و از مضامین متنوع دیگر مانند کیمیای سیاه، نفرین‌های فیزیکی، پیمان‌های خونی، متریال‌های فاسد و دسیسه‌های سیاسی استفاده کن.'
+      : '\n\nTHEMATIC DIVERSITY — MODERATE MEMORY USAGE: Do NOT overuse tropes related to memory loss, memory sacrifice, or fading recollection. Treat memory-related costs as a rare, specific mechanic rather than the default trope for every entity. Draw broadly from other dark-fantasy concepts: blood alchemy, corrosive ash, bodily transformations, political espionage, or ancient metallurgy.';
+
+
     // Use custom system prompt from UI if provided, otherwise default to context-rich prompt
     const systemPrompt =
       customSystemPrompt?.trim() ||
@@ -202,8 +221,9 @@ Generate a high-quality JSON object for a ${type} within a dark fantasy / grim-a
 ${isPersian ? 'Output all narrative text, names, descriptions in literary Persian (Farsi).' : 'Output in literary English.'}
 Theme context: ${themeContext || 'Dark basalt mountain fortress, political tension, forbidden alchemy'}
 User guidance: ${prompt || 'Create something rich with atmospheric depth and literary gravitas.'}
-${worldContext ? `World context (existing lore — stay consistent with it):\n${worldContext}` : ''}${uniquenessInstruction}${anchor ? `\n\nANCHOR — This new ${type} MUST be thematically tied to the following existing lore element; derive its concept, theme, powers/flavor, and relations from it rather than introducing an unrelated motif:\n${anchor}` : ''}
+${worldContext ? `World context (existing lore — stay consistent with it):\n${worldContext}` : ''}${uniquenessInstruction}${diversityInstruction}${anchor ? `\n\nANCHOR — This new ${type} MUST be thematically tied to the following existing lore element; derive its concept, theme, powers/flavor, and relations from it rather than introducing an unrelated motif:\n${anchor}` : ''}
 Strictly output a valid JSON object matching the requested schema. Do not enclose in markdown blocks if possible, or return clean JSON.${constraintLine}`;
+
 
     let schemaInstruction = '';
     if (type === 'world') {
@@ -215,7 +235,7 @@ Strictly output a valid JSON object matching the requested schema. Do not enclos
     } else if (type === 'npc') {
       schemaInstruction = `Schema: { "name": string, "title": string, "role": string, "currentLocationId": string, "personalityTraits": string[], "speechStyle": string, "goals": string[], "secrets": [{ "id": string, "description": string, "requiredTrustLevel": number, "revealed": false }], "initialTrust": number }`;
     } else if (type === 'artifact') {
-      schemaInstruction = `Schema: { "name": string, "title": string, "originEra": string, "rarity": "uncommon"|"rare"|"epic"|"legendary"|"mythic", "description": string, "powers": string[], "curseOrCost": string, "attunementRules": string, "secretLore": string }`;
+      schemaInstruction = `Schema: { "name": string, "title": string, "originEra": string, "rarity": "uncommon"|"rare"|"epic"|"legendary"|"mythic", "description": string, "powers": string[], "curseOrCost": string, "attunementRules": string, "secretLore": string } (IMPORTANT: Prioritize tangible physical equipment — swords, daggers, axes, wands, staves, plate armor, shields, cloaks, and gauntlets — over abstract stones or conceptual trinkets. Swords, wands, and martial armor must be much more frequent. If rarity is "uncommon", "rare", or "epic", curseOrCost MUST be an empty string "" and attunementRules should be simple/clean with no drawbacks. Curses and severe attunement costs are strictly reserved for "legendary" and "mythic" tiers)`;
     } else if (type === 'creature') {
       schemaInstruction = `Schema: { "name": string, "speciesCategory": "beast"|"monstrosity"|"undead"|"elemental"|"flora"|"draconic", "dangerLevel": 1|2|3|4|5, "behavioralTactics": string, "weaknesses": string[], "resistances": string[], "harvestableLoot": [{ "itemId": string, "name": string, "dropRate": string }], "loreDescription": string }`;
     } else if (type === 'deity') {
@@ -224,9 +244,35 @@ Strictly output a valid JSON object matching the requested schema. Do not enclos
       schemaInstruction = `Schema: { "yearOrEra": string, "title": string, "summary": string, "significance": string, "knownByPublic": boolean, "eraCategory": "ancient"|"war"|"reign"|"present" }`;
     } else if (type === 'world_law') {
       schemaInstruction = `Schema: { "rule": string, "category": "magic"|"physics"|"society"|"divine", "description": string, "isImmutable": true }`;
+    } else if (type === 'location_subzones') {
+      schemaInstruction = `Schema: { "parentLocationId": string, "subZones": [{ "id": string, "name": string, "subType": "dungeon"|"sanctuary"|"ruin"|"vault"|"market"|"hazard_zone", "dangerLevel": 1|2|3|4|5, "atmosphere": string, "explorationHooks": string[], "pointsOfInterest": [{ "name": string, "description": string, "skillCheck": { "attribute": string, "dc": number, "failureConsequence": string } }] }] } (Generate 3 to 5 deeply atmospheric, interconnected sub-zones with tangible points of interest and reader skill checks)`;
+    } else if (type === 'populate_location') {
+      schemaInstruction = `Schema: { "locationId": string, "npcs": [{ "id": string, "name": string, "title": string, "role": string, "currentLocationId": string, "personalityTraits": string[], "speechStyle": string, "goals": string[], "secrets": [{ "id": string, "description": string, "requiredTrustLevel": number, "revealed": false }], "initialTrust": number }], "creature": { "id": string, "name": string, "speciesCategory": "beast"|"monstrosity"|"undead"|"elemental"|"flora"|"draconic", "dangerLevel": 1|2|3|4|5, "habitatLocationIds": string[], "behavioralTactics": string, "weaknesses": string[], "resistances": string[], "harvestableLoot": [{ "itemId": string, "name": string, "dropRate": string }], "loreDescription": string }, "hiddenRelic": { "id": string, "name": string, "title": string, "originEra": string, "rarity": "uncommon"|"rare"|"epic"|"legendary"|"mythic", "description": string, "powers": string[], "curseOrCost": string, "attunementRules": string, "currentHolderType": "location", "currentHolderId": string, "secretLore": string } } (Generate a synchronized micro-ecosystem: 2 resident NPCs, 1 native creature, and 1 hidden artifact all themed to the location. Note: The hiddenRelic should preferably be a tangible weapon, wand, stave, shield, or armor piece. If hiddenRelic is uncommon/rare/epic, curseOrCost must be "" with clean attunement; reserve curses strictly for legendary and mythic tiers)`;
+    } else if (type === 'npc_relationships') {
+      schemaInstruction = `Schema: { "sourceNpcId": string, "sourceNpcName": string, "bonds": [{ "id": string, "sourceNpcId": string, "targetNpcId": string, "targetNpcName": string, "relationTypeId": "blood_debt"|"mentor_apprentice"|"ally"|"rival"|"faction_ally"|"custom", "affinity": number (-100 to 100), "secretTension": string, "isPublic": boolean }] } (Generate 2 to 4 dramatic interpersonal bonds between this character and other existing NPCs in the world context. MUST connect to real characters in the world when available)`;
+    } else if (type === 'npc_voice_guide') {
+      schemaInstruction = `Schema: { "npcName": string, "speechQuirks": string[], "sampleDialogue": [{ "context": "greeting"|"bargaining"|"threatened"|"dying", "quote": string }], "negotiationVulnerabilities": string[], "psychologicalBreakingPoint": string } (Generate a Voice & Dialogue Style Guide with 4 distinct sample quotes for greeting, bargaining, threatened, and dying contexts)`;
+    } else if (type === 'npc_stat_calibration') {
+      schemaInstruction = `Schema: { "npcId": string, "npcName": string, "combatTier": "civilian"|"apprentice"|"veteran"|"elite"|"boss"|"mythic", "challengeRating": number (1 to 20), "statRatings": { [stat: string]: number }, "signatureAbilities": string[], "equippedGear": [{ "name": string, "type": string, "description": string }] } (Calibrate RPG stats, combat rating, signature powers, and martial/spellcasting equipment for this character)`;
+    } else if (type === 'epoch_arc') {
+      schemaInstruction = `Schema: { "eras": [{ "eraName": string, "timeframe": string, "description": string, "majorCataclysm": string, "legacyFactions": string[] }], "keyEvents": [{ "title": string, "eraName": string, "narrativeSummary": string, "lastingConsequences": string }] } (Generate a cohesive 3-era historical macro-arc: 1. Age of Creation / Mythic Dawn, 2. The Great Cataclysm / War of Ruin, 3. The Present Ash / Modern Age, along with at least 4 key turning point events across these eras)`;
+    } else if (type === 'timeline_ripple') {
+      schemaInstruction = `Schema: { "sourceEventTitle": string, "modernRepercussions": [{ "targetType": "faction"|"location"|"artifact"|"religion", "targetName": string, "effectDescription": string }] } (Propagate 2 to 4 cascading historical consequences across modern factions, sacred sites, relics, or religious schisms resulting from this ancient event)`;
+    } else if (type === 'artifact_enhanced') {
+      schemaInstruction = `Schema: { "name": string, "rarity": "uncommon"|"rare"|"epic"|"legendary"|"mythic", "attunementCost": string, "activePower": string, "doubleEdgedCurse": string, "vaultLore": { "creator": string, "currentVaultLocation": string, "unsealingRitual": string, "rivalSeekers": string[] } } (IMPORTANT: Prioritize tangible physical equipment — swords, daggers, axes, wands, staves, plate armor, shields, gauntlets, cloaks. If rarity is uncommon, rare, or epic, doubleEdgedCurse MUST be "" and attunementCost should be simple without negative drawbacks. Curses and severe sacrifices are strictly reserved for legendary and mythic tiers. Vault location and rival seekers must tie into existing world locations and factions when possible)`;
+    } else if (type === 'creature_ecology') {
+      schemaInstruction = `Schema: { "name": string, "speciesCategory": "beast"|"monstrosity"|"undead"|"elemental"|"flora"|"draconic"|"humanoid", "habitatLocationName": string, "predatorPreyNiche": string, "nonCombatPacificationMethod": string, "alchemicalYields": [{ "reagentName": string, "rarity": "uncommon"|"rare"|"epic", "craftingUse": string }] } (Generate ecological food chain dynamics, behavioral tactics, non-lethal pacification methods, and 1 to 3 harvestable alchemical / crafting reagents used for potions, forging, or ritual spellcraft)`;
+    } else if (type === 'religion_schisms') {
+      schemaInstruction = `Schema: { "name": string, "domain": string, "sacredTaboos": string[], "divineOmensForViolation": string, "divineBlessing": string, "sectarianSchisms": [{ "cultName": string, "heresyDoctrine": string, "headquartersLocation": string }] } (Generate strict sacred taboos, chilling divine omens/wrath triggers for blasphemers, blessings for faithful devotees, and 1 to 3 underground heresy splinter cults/schisms)`;
+    } else if (type === 'rpg_system_synthesis') {
+      schemaInstruction = `Schema: { "themeJustification": string, "stats": [{ "id": string, "nameFa": string, "nameEn": string, "description": string, "defaultValue": number }], "resources": [{ "id": string, "nameFa": string, "nameEn": string, "maxValue": number, "decayRule": string }], "archetypes": [{ "name": string, "description": string, "startingStats": Record<string, number>, "signaturePerk": string, "startingInventory": string[] }] } (Synthesize 4 to 6 core attributes, 2 to 4 vital resources/pools, and 4 thematic starting archetypes directly derived from the story's theme notes and world laws. Prioritize unique thematic flavor, e.g. Sanity/Paranoia for cosmic horror, Lineage/Guile for political intrigue)`;
+    } else if (type === 'branching_story_tree') {
+      schemaInstruction = `Schema: { "title": string, "premise": string, "acts": [{ "actNumber": number, "actTitle": string, "scenes": [{ "sceneId": string, "title": string, "settingLocationName": string, "primaryConflict": string, "presentedChoices": [{ "style": "defensive_diplomatic"|"tactical_agile"|"aggressive_daring", "textFa": string, "textEn": string, "statCheck": { "stat": string, "dc": number }, "leadToSceneId": string }] }] }] } (Synthesize a complete 3-Act branching story graph where Act 1 introduces the hook, Act 2 builds rising tension with branching pathways, and Act 3 delivers climactic payoffs. Every scene MUST feature 3 distinct choice archetypes: 1. defensive_diplomatic, 2. tactical_agile, 3. aggressive_daring. Stat checks must use realistic DCs between 10 and 20)`;
     } else if (type === 'scene') {
       schemaInstruction = `Schema: { "sceneId": string, "locationId": string, "narrativeText": string, "choices": [{ "id": string, "text": string, "style": "defensive"|"agile"|"aggressive"|"diplomatic"|"inquisitive", "riskLevel": "low"|"medium"|"high", "targetDC": number, "requiredStatId": string }] }`;
     }
+
+
 
     const effectiveSchemaInstruction = constraints.length
       ? `${constraintLine}\n${schemaInstruction}`

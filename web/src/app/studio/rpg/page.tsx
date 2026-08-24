@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { StatDefinition, ResourceDefinition, GameItem } from '@/lib/types';
+import { ThemeRpgSystemPayload } from '@/lib/types/world';
+import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
 import { notify } from '@/lib/notify';
 import {
   Sword,
@@ -18,6 +20,8 @@ import {
   Zap,
   Sliders,
   Sparkles,
+  RefreshCw,
+  Wand2,
 } from 'lucide-react';
 
 export default function RpgMechanicsPage() {
@@ -68,6 +72,93 @@ export default function RpgMechanicsPage() {
   });
   const [itemModStat, setItemModStat] = useState<string>('');
   const [itemModVal, setItemModVal] = useState<number>(1);
+
+  // Plan 06: Theme-to-RPG System Synthesizer State
+  const [isSynthesizingRpg, setIsSynthesizingRpg] = useState(false);
+  const [rpgSynthesisPreview, setRpgSynthesisPreview] = useState<ThemeRpgSystemPayload | null>(null);
+
+  const handleSynthesizeRpgSystem = async () => {
+    try {
+      setIsSynthesizingRpg(true);
+      const worldContext = buildWorldContextString(story);
+      const res = await fetch('/api/studio/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'rpg_system_synthesis',
+          prompt: 'Synthesize 4-6 bespoke core attributes, 2-4 vital pools, and 4 starting archetypes directly derived from the story theme notes and world laws.',
+          themeContext: story.worldBible.themeNotes,
+          worldContext,
+          isPersian,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to synthesize RPG system (${res.status})`);
+      }
+
+      const json = await res.json();
+      if (json.data && Array.isArray(json.data.stats) && Array.isArray(json.data.resources)) {
+        setRpgSynthesisPreview(json.data);
+      } else {
+        notify.error(isPersian ? 'قالب پاسخ سیستم RPG نامعتبر بود' : 'Invalid RPG system synthesis response');
+      }
+    } catch (err: any) {
+      notify.error(err.message || 'Error synthesizing RPG mechanics');
+    } finally {
+      setIsSynthesizingRpg(false);
+    }
+  };
+
+  const handleCommitRpgSynthesis = () => {
+    if (!rpgSynthesisPreview) return;
+
+    const mappedStats: StatDefinition[] = rpgSynthesisPreview.stats.map((s) => ({
+      id: s.id,
+      name: isPersian ? s.nameFa : s.nameEn,
+      description: s.description,
+      baseValue: s.defaultValue || 10,
+    }));
+
+    const mappedResources: ResourceDefinition[] = rpgSynthesisPreview.resources.map((r, idx) => ({
+      id: r.id,
+      name: isPersian ? r.nameFa : r.nameEn,
+      current: r.maxValue || 100,
+      max: r.maxValue || 100,
+      min: 0,
+      color: idx === 0 ? '#ef4444' : idx === 1 ? '#3b82f6' : idx === 2 ? '#10b981' : '#a855f7',
+    }));
+
+    const mappedArchetypes = rpgSynthesisPreview.archetypes.map((a) => ({
+      id: a.name.toLowerCase().replace(/\s+/g, '_'),
+      name: a.name,
+      description: a.description,
+      startingStats: a.startingStats,
+      signaturePerk: a.signaturePerk,
+      startingInventory: a.startingInventory.map((item, idx) => ({
+        id: `item_${Date.now().toString(36)}_${idx}`,
+        name: item,
+        description: isPersian ? 'تجهیزات آغازین کاراکتر' : 'Starting class equipment',
+        type: 'weapon' as const,
+        quantity: 1,
+        rarity: 'common' as const,
+      })),
+    }));
+
+    updateRpgSystem((prev) => ({
+      ...prev,
+      stats: mappedStats,
+      resources: mappedResources,
+      archetypes: mappedArchetypes as any,
+    }));
+
+    setRpgSynthesisPreview(null);
+    notify.success(
+      isPersian
+        ? 'سیستم نقش‌آفرینی، ویژگی‌ها و کلاس‌های اختصاصی تم اعمال شد'
+        : 'Theme-tailored RPG attributes, resources, and archetypes applied successfully'
+    );
+  };
 
   const t = {
     heading: isPersian ? 'مکانیک‌های نقش‌آفرینی و آمار' : 'RPG System & Ruleset Matrix',
@@ -307,6 +398,24 @@ export default function RpgMechanicsPage() {
               <p className="text-sm text-zinc-400">{t.subheading}</p>
             </div>
             <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={handleSynthesizeRpgSystem}
+                disabled={isSynthesizingRpg}
+                className="flex items-center gap-1.5 text-xs bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-zinc-950 px-3.5 py-1.5 rounded-xl font-bold cursor-pointer transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>
+                  {isSynthesizingRpg
+                    ? isPersian
+                      ? 'سنتز سیستم RPG...'
+                      : 'Synthesizing RPG...'
+                    : isPersian
+                    ? '⚡ سنتز سیستم از تم'
+                    : '⚡ Synthesize System'}
+                </span>
+              </button>
+
               <button
                 onClick={() => {
                   setSettingsForm({
@@ -924,6 +1033,112 @@ export default function RpgMechanicsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Plan 06: Theme-to-RPG System Synthesis Preview Modal */}
+      {rpgSynthesisPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-400" />
+                {isPersian ? 'پیش‌نمایش سیستم نقش‌آفرینی بر اساس تم جهان' : 'Theme-Tailored RPG System Preview'}
+              </h3>
+              <button
+                onClick={() => setRpgSynthesisPreview(null)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Theme Justification */}
+            <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 text-xs space-y-1">
+              <span className="text-amber-400 font-bold block text-[11px]">
+                📜 {isPersian ? 'فلسفه و تطابق با تم داستان:' : 'Theme Justification & Rationale:'}
+              </span>
+              <p className="text-zinc-300 leading-relaxed italic">{rpgSynthesisPreview.themeJustification}</p>
+            </div>
+
+            {/* Stats Preview */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-amber-400 block">
+                ⚔️ {isPersian ? 'ویژگی‌های اصلی شخصیت (Attributes):' : 'Core Attributes:'}
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {rpgSynthesisPreview.stats.map((st, idx) => (
+                  <div key={idx} className="p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs space-y-0.5">
+                    <div className="flex items-center justify-between">
+                      <strong className="text-zinc-100">{isPersian ? st.nameFa : st.nameEn}</strong>
+                      <span className="text-amber-400 font-mono text-[10px]" dir="ltr">Base: {st.defaultValue}</span>
+                    </div>
+                    <p className="text-zinc-400 text-[10.5px]">{st.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Resources Preview */}
+            <div className="space-y-2 pt-2 border-t border-zinc-800">
+              <span className="text-xs font-bold text-red-400 block">
+                ❤️ {isPersian ? 'منابع و ذخایر حیاتی (Resource Pools):' : 'Vital Resource Pools:'}
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {rpgSynthesisPreview.resources.map((res, idx) => (
+                  <div key={idx} className="p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs space-y-0.5">
+                    <div className="flex items-center justify-between">
+                      <strong className="text-zinc-100">{isPersian ? res.nameFa : res.nameEn}</strong>
+                      <span className="text-red-400 font-mono text-[10px]" dir="ltr">Max: {res.maxValue}</span>
+                    </div>
+                    {res.decayRule && <p className="text-zinc-400 text-[10.5px] italic">⚠️ {res.decayRule}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Archetypes Preview */}
+            <div className="space-y-2 pt-2 border-t border-zinc-800">
+              <span className="text-xs font-bold text-purple-400 block">
+                👑 {isPersian ? 'کلاس‌ها و کهن‌الگوهای آغازین:' : 'Starting Class Archetypes:'}
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {rpgSynthesisPreview.archetypes.map((arch, idx) => (
+                  <div key={idx} className="p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs space-y-1">
+                    <strong className="text-purple-300 block">{arch.name}</strong>
+                    <p className="text-zinc-400 text-[10.5px]">{arch.description}</p>
+                    <div className="text-[10px] text-amber-300/90 font-mono">
+                      ⭐ {arch.signaturePerk}
+                    </div>
+                    <div className="flex flex-wrap gap-1 pt-1 border-t border-zinc-900">
+                      {arch.startingInventory.map((it, iIdx) => (
+                        <span key={iIdx} className="px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-300 text-[9.5px]">
+                          {it}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setRpgSynthesisPreview(null)}
+                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700 cursor-pointer"
+              >
+                {isPersian ? 'انصراف' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleCommitRpgSynthesis}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Check className="w-4 h-4" />
+                <span>{isPersian ? '📥 اعمال سیستم RPG به داستان' : '📥 Apply RPG System'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

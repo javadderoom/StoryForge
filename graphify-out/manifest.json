@@ -535,7 +535,7 @@
     "semantic_hash": ""
   },
   "web/next-env.d.ts": {
-    "mtime": 1787482356.8881958,
+    "mtime": 1787571295.1772337,
     "ast_hash": "8195d2c60ce847a459ae9d308d6a5724",
     "semantic_hash": ""
   },
@@ -545,8 +545,8 @@
     "semantic_hash": ""
   },
   "web/package.json": {
-    "mtime": 1787397679.5161536,
-    "ast_hash": "b2c7587dec7f7208ac4374129e3ca1aa",
+    "mtime": 1787515725.7766454,
+    "ast_hash": "753635a884592804e3e597bdd2058e1b",
     "semantic_hash": ""
   },
   "web/postcss.config.mjs": {
@@ -610,13 +610,13 @@
     "semantic_hash": ""
   },
   "web/src/lib/engines/validator/ActionValidator.test.ts": {
-    "mtime": 1787408560.7869768,
-    "ast_hash": "b0b266df8cf70ae3185d81bc82842e5b",
+    "mtime": 1787510612.5626714,
+    "ast_hash": "f0d0f46f5ddcd864b62ebbd98de0272d",
     "semantic_hash": ""
   },
   "web/src/lib/engines/validator/ActionValidator.ts": {
-    "mtime": 1787408194.192743,
-    "ast_hash": "178089c4087b1094073a9e26faf06084",
+    "mtime": 1787510595.6033466,
+    "ast_hash": "f487fcaf1c27d920c8f2fc725bb338e3",
     "semantic_hash": ""
   },
   "web/src/lib/providers/GeminiAdapter.ts": {
@@ -650,8 +650,8 @@
     "semantic_hash": ""
   },
   "web/src/lib/types/world.ts": {
-    "mtime": 1787427130.7533844,
-    "ast_hash": "596831316c19d803afddd57d70be539f",
+    "mtime": 1787582011.2099898,
+    "ast_hash": "e0ba5bd5a13b2839f1d1b6da752307a0",
     "semantic_hash": ""
   },
   "web/tsconfig.json": {
@@ -845,8 +845,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1787262905.8086565,
-    "ast_hash": "fcdb54e2cef9a2fe2ad06762cf8cd480",
+    "mtime": 1787504374.2092533,
+    "ast_hash": "98787c0b7c862442075fe91cf3e76217",
     "semantic_hash": ""
   },
   "app/README.md": {
@@ -1075,18 +1075,18 @@
     "semantic_hash": ""
   },
   "web/src/app/studio/layout.tsx": {
-    "mtime": 1787483100.9450245,
-    "ast_hash": "1ea25da34e6bc13c5abd79c45ef8f305",
+    "mtime": 1787582887.6889553,
+    "ast_hash": "f2e9de7c8e8ba8b29e6eed328b8c2182",
     "semantic_hash": ""
   },
   "web/src/app/studio/npcs/page.tsx": {
-    "mtime": 1787415802.2362003,
-    "ast_hash": "331da23715edc6be4c28131a41a1c950",
+    "mtime": 1787575545.1316118,
+    "ast_hash": "dd19c4b5c564cab3950fcf7bd0c29f19",
     "semantic_hash": ""
   },
   "web/src/app/studio/rpg/page.tsx": {
-    "mtime": 1787324008.5106144,
-    "ast_hash": "8b0db9b6126385f04b49e6f9cc1bb7f1",
+    "mtime": 1787582419.8841383,
+    "ast_hash": "0c2f9c8f71337ae479da9f023ee44bcc",
     "semantic_hash": ""
   },
   "web/src/app/studio/sandbox/page.tsx": {
@@ -1095,13 +1095,13 @@
     "semantic_hash": ""
   },
   "web/src/app/studio/world/page.tsx": {
-    "mtime": 1787419805.8145587,
-    "ast_hash": "2cb12fc378f7b9f1de38ea6818c80872",
+    "mtime": 1787515994.1173928,
+    "ast_hash": "b3c7824b31417bda3e0a9c76bae7f8b5",
     "semantic_hash": ""
   },
   "web/src/lib/context/StudioStoryContext.tsx": {
-    "mtime": 1787428226.516042,
-    "ast_hash": "ff79c3511d20c3676e5d114e3efae96c",
+    "mtime": 1787566917.8853762,
+    "ast_hash": "579bfc77b7a721bdb7b59df7e91ed356",
     "semantic_hash": ""
   },
   "web/prisma.config.ts": {
@@ -1135,13 +1135,13 @@
     "semantic_hash": ""
   },
   "web/src/lib/db/repositories/storyRepository.test.ts": {
-    "mtime": 1787404367.2014518,
-    "ast_hash": "4c7af7ed8889ae8e651303253db614d5",
+    "mtime": 1787509120.5328722,
+    "ast_hash": "3a155e42fb5703bcd64232a0a54743ef",
     "semantic_hash": ""
   },
   "web/src/lib/db/repositories/storyRepository.ts": {
-    "mtime": 1787402324.2067535,
-    "ast_hash": "f0784fd6ee0a8ae32646f4cbadb237ca",
+    "mtime": 1787581488.6388261,
+    "ast_hash": "5f7623d543976415fd09a0a312d4ac8f",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -1435,8 +1435,8 @@
     "semantic_hash": ""
   },
   "docs/roadmap.md": {
-    "mtime": 1787334033.8995552,
-    "ast_hash": "e5da435296dde86cec75d144fcdb122e",
+    "mtime": 1787504364.8513691,
+    "ast_hash": "5f830b19aac79a25510dac32d030e37b",
     "semantic_hash": ""
   },
   "app/lib/models/character_creation.dart": {
@@ -1520,8 +1520,8 @@
     "semantic_hash": ""
   },
   "web/src/app/studio/beats/page.tsx": {
-    "mtime": 1787419841.7825315,
-    "ast_hash": "39d0b75801b4df205f835ef5cf5f4e75",
+    "mtime": 1787582462.6648753,
+    "ast_hash": "acefc415066c82849743315854319d5f",
     "semantic_hash": ""
   },
   "web/src/app/studio/lore-graph/page.tsx": {
@@ -1530,8 +1530,8 @@
     "semantic_hash": ""
   },
   "web/src/components/studio/LoreGraphCanvas.tsx": {
-    "mtime": 1787396642.1492805,
-    "ast_hash": "b7cb7661a4550f1700f6f05719752c83",
+    "mtime": 1787565050.8627584,
+    "ast_hash": "d358ebad7920e8c087a1ce9602b7a647",
     "semantic_hash": ""
   },
   "web/src/components/studio/StoryTreeCanvas.tsx": {
@@ -1540,33 +1540,33 @@
     "semantic_hash": ""
   },
   "web/src/app/api/studio/generate/route.ts": {
-    "mtime": 1787487639.982078,
-    "ast_hash": "3e502e45fd01e6664e71f814ae36f994",
+    "mtime": 1787582063.8884206,
+    "ast_hash": "d9600f1da7234cbe7e63de48554b3b97",
     "semantic_hash": ""
   },
   "web/src/app/studio/artifacts/page.tsx": {
-    "mtime": 1787415622.2140791,
-    "ast_hash": "9dbc726b2cd03e2b679dfcf8d9803824",
+    "mtime": 1787580481.360034,
+    "ast_hash": "817b739224e2950eaa2a06afcc6710af",
     "semantic_hash": ""
   },
   "web/src/app/studio/bestiary/page.tsx": {
-    "mtime": 1787415656.6418023,
-    "ast_hash": "1fbab955f510409abdcd034ee25644a7",
+    "mtime": 1787580509.0837176,
+    "ast_hash": "65435a3d69d3db576d99de5556b226e5",
     "semantic_hash": ""
   },
   "web/src/app/studio/religions/page.tsx": {
-    "mtime": 1787427362.747764,
-    "ast_hash": "fe9a85e6c1b0c2299a7eb15ca0d6df6b",
+    "mtime": 1787580533.5990434,
+    "ast_hash": "8c1d2971254cc38f135e19790ba549e2",
     "semantic_hash": ""
   },
   "web/src/app/studio/timeline/page.tsx": {
-    "mtime": 1787415718.531763,
-    "ast_hash": "2250f8c92faf3911519fdc3d7bb7fe50",
+    "mtime": 1787580433.39177,
+    "ast_hash": "872515b11b39770eafb3954b9c6d4bb0",
     "semantic_hash": ""
   },
   "web/src/app/studio/types/page.tsx": {
-    "mtime": 1787427292.8132942,
-    "ast_hash": "7c1612b52b6128a34248f8bd1a2c3441",
+    "mtime": 1787493805.1172602,
+    "ast_hash": "737be2de62247ac428a3b2503ee16a7f",
     "semantic_hash": ""
   },
   "web/src/lib/notify.tsx": {
@@ -1575,8 +1575,8 @@
     "semantic_hash": ""
   },
   "web/src/app/api/studio/generate/StudioGenerate.test.ts": {
-    "mtime": 1787488021.3742108,
-    "ast_hash": "a26aae87ec94632fd2b3f224cf64d024",
+    "mtime": 1787582187.4416416,
+    "ast_hash": "2efd419e028beff4ec82d6ccc9ad90a4",
     "semantic_hash": ""
   },
   "web/src/content/stories/StoryManifestIntegrity.test.ts": {
@@ -1590,8 +1590,8 @@
     "semantic_hash": ""
   },
   "web/src/lib/ai/geminiClient.ts": {
-    "mtime": 1787482060.6920412,
-    "ast_hash": "429f60a797656d3ae6ebf5fc77ff8800",
+    "mtime": 1787513567.106838,
+    "ast_hash": "3d336391a047478ead7fb649cb4c9111",
     "semantic_hash": ""
   },
   "web/src/app/studio/stories/page.tsx": {
@@ -1610,23 +1610,23 @@
     "semantic_hash": ""
   },
   "web/src/app/api/studio/chat/StudioChat.test.ts": {
-    "mtime": 1787482439.9931922,
-    "ast_hash": "2b3f0532de988396ab25ff5d8fb7ea3e",
+    "mtime": 1787519572.2040067,
+    "ast_hash": "f959368d1324c186533d965b04d38f39",
     "semantic_hash": ""
   },
   "web/src/app/api/studio/chat/route.ts": {
-    "mtime": 1787487622.0232394,
-    "ast_hash": "4f73773d4ff4e320c2ff9e0ea547a723",
+    "mtime": 1787515449.5725784,
+    "ast_hash": "2d47b9a3c7cb5798da57533c2f3ac531",
     "semantic_hash": ""
   },
   "web/src/app/studio/chat/page.tsx": {
-    "mtime": 1787487695.3234847,
-    "ast_hash": "671d4d6ade60d01f93565414890ad07e",
+    "mtime": 1787520548.177341,
+    "ast_hash": "275296d4578fe44c92755a0ba27574de",
     "semantic_hash": ""
   },
   "web/src/app/studio/locations/page.tsx": {
-    "mtime": 1787415768.1199236,
-    "ast_hash": "c0d2c86c3529eea011e4444aa61fb111",
+    "mtime": 1787570112.3456547,
+    "ast_hash": "a689c70aa0688d8090d2b5c09434d77b",
     "semantic_hash": ""
   },
   "web/src/components/studio/AiFillSection.tsx": {
@@ -1662,6 +1662,96 @@
   "web/src/lib/storyFactory.ts": {
     "mtime": 1787406904.5302324,
     "ast_hash": "a33b7a93961bbd0b1429249ace84cb8d",
+    "semantic_hash": ""
+  },
+  "web/src/components/studio/DiffPreviewModal.tsx": {
+    "mtime": 1787516058.2903135,
+    "ast_hash": "9ee5032c2fa3a436c1863ad243bebc30",
+    "semantic_hash": ""
+  },
+  "web/src/components/studio/EntityWorkshopDrawer.tsx": {
+    "mtime": 1787515981.0809472,
+    "ast_hash": "9daea546d61c91f99ec617d976bd445b",
+    "semantic_hash": ""
+  },
+  "web/src/lib/engines/world/ActionProtocol.test.ts": {
+    "mtime": 1787520055.9831464,
+    "ast_hash": "e3bee5c2bd9468f852bb1d8ac9de53af",
+    "semantic_hash": ""
+  },
+  "web/src/lib/engines/world/ActionProtocol.ts": {
+    "mtime": 1787573599.7717607,
+    "ast_hash": "cc543d1325e5de3787a001199b3763ed",
+    "semantic_hash": ""
+  },
+  "web/src/lib/engines/world/GenesisSchemas.ts": {
+    "mtime": 1787514860.4777431,
+    "ast_hash": "686002f25fb5526d5c6e6836670118ea",
+    "semantic_hash": ""
+  },
+  "web/src/lib/engines/world/LoreAuditor.test.ts": {
+    "mtime": 1787510157.0730555,
+    "ast_hash": "8b14f2f8c3fce8c7e7e259ad0a715f61",
+    "semantic_hash": ""
+  },
+  "web/src/lib/engines/world/LoreAuditor.ts": {
+    "mtime": 1787510627.4236596,
+    "ast_hash": "1f9f5c703a5528a19810b088049f0aa3",
+    "semantic_hash": ""
+  },
+  "docs/AI_WORLDBUILDING_SPEC.md": {
+    "mtime": 1787505333.6648664,
+    "ast_hash": "a895da89422d1d1903199380db1dc853",
+    "semantic_hash": ""
+  },
+  "docs/plans/01_WORLD_GENESIS_AND_AUDITOR_PLAN.md": {
+    "mtime": 1787508531.9703908,
+    "ast_hash": "a73275251de06e8482a1524a056073d2",
+    "semantic_hash": ""
+  },
+  "docs/plans/02_AI_ADVISER_AND_ORACLE_PLAN.md": {
+    "mtime": 1787506329.2454712,
+    "ast_hash": "e387b7f02fca2b57ff8334421baeb0ed",
+    "semantic_hash": ""
+  },
+  "docs/plans/03_LOCATIONS_AND_ECOSYSTEM_PLAN.md": {
+    "mtime": 1787506758.9097533,
+    "ast_hash": "c7e28a669aded49530037ae6528ee792",
+    "semantic_hash": ""
+  },
+  "docs/plans/04_NPCS_AND_SOCIAL_DRAMA_PLAN.md": {
+    "mtime": 1787506799.1980474,
+    "ast_hash": "67fade7f286e5d1b9d364d1375628f69",
+    "semantic_hash": ""
+  },
+  "docs/plans/05_CHRONICLES_RELICS_BESTIARY_RELIGIONS_PLAN.md": {
+    "mtime": 1787505314.5567117,
+    "ast_hash": "b3d9f3e7b9fdcd89f0b9ee9c42dd07bf",
+    "semantic_hash": ""
+  },
+  "docs/plans/06_RPG_AND_BRANCHING_BEATS_PLAN.md": {
+    "mtime": 1787505324.5549219,
+    "ast_hash": "c8e2ce01d5d3d035e797cfd8c9299ee0",
+    "semantic_hash": ""
+  },
+  "docs/plans/AI_SYSTEM_UPGRADE_MASTER_PLAN.md": {
+    "mtime": 1787508542.1186192,
+    "ast_hash": "4692a83e506cfd823e4c57b5e6c4272d",
+    "semantic_hash": ""
+  },
+  "web/prisma/migrations/20260824142351_sync_world_bible_lore_vaults/migration.sql": {
+    "mtime": 1787581431.8271892,
+    "ast_hash": "6e38a16c78e304701db189d31f023438",
+    "semantic_hash": ""
+  },
+  "web/src/components/studio/MentionTextarea.tsx": {
+    "mtime": 1787582685.663337,
+    "ast_hash": "9c23657b142c557f430a862ff09363c3",
+    "semantic_hash": ""
+  },
+  "web/src/components/studio/StudioOracleDrawer.tsx": {
+    "mtime": 1787582796.3806741,
+    "ast_hash": "e19afdad8c3e6152a578f20965daf920",
     "semantic_hash": ""
   }
 }
