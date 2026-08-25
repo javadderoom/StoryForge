@@ -21,6 +21,7 @@ import {
   WorldCreature,
   WorldDeity,
   NPCDramaBond,
+  SagaManifest,
 } from '@/lib/types';
 import { notify } from '@/lib/notify';
 
@@ -285,6 +286,8 @@ interface StudioStoryContextType {
   deleteDramaBond: (id: string) => void;
   // Story Beats CRUD
   updateStoryBeats: (updater: (prev: StoryManifest['initialStoryBeats']) => StoryManifest['initialStoryBeats']) => void;
+  // Plan 07: Saga / Multi-Chapter Campaign CRUD
+  updateSaga: (updater: (prev?: SagaManifest) => SagaManifest) => void;
   // Global Actions
   resetToDefault: () => Promise<void>;
   exportStoryJson: () => void;
@@ -1594,6 +1597,19 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     [persistToStorage]
   );
 
+  // Plan 07: Saga / Multi-Chapter Campaign CRUD
+  const updateSaga = useCallback(
+    (updater: (prev?: SagaManifest) => SagaManifest) => {
+      setStory((prev) => {
+        const updatedSaga = updater(prev.saga);
+        const updated = { ...prev, saga: updatedSaga };
+        persistToStorage(updated);
+        return updated;
+      });
+    },
+    [persistToStorage]
+  );
+
   // Reset to default
   const resetToDefault = async () => {
     const confirmed = await notify.confirm({
@@ -1741,6 +1757,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         editDramaBond,
         deleteDramaBond,
         updateStoryBeats,
+        updateSaga,
         resetToDefault,
         exportStoryJson,
         importStoryJson,

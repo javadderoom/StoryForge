@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { WorldBible, WorldBibleSchema } from './world';
+import { WorldBible, WorldBibleSchema, SagaManifest, SagaManifestSchema } from './world';
 import { RPGSystemSchema, RPGSystemSchemaValidator } from './rpg';
 
 export type Genre =
@@ -27,6 +27,7 @@ export interface StoryManifest {
   rpgSystem: RPGSystemSchema;
   worldBible: WorldBible;
   initialSceneId: string;
+  saga?: SagaManifest;
   initialStoryBeats: Array<{
     sceneId: string;
     locationId: string;
@@ -57,5 +58,6 @@ export const StoryManifestSchema = z.object({
   rpgSystem: RPGSystemSchemaValidator,
   worldBible: WorldBibleSchema,
   initialSceneId: z.string(),
+  saga: SagaManifestSchema.optional(),
   initialStoryBeats: z.array(z.any()).default([]),
 });

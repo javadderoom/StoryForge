@@ -76,3 +76,16 @@ export const MemoryEntrySchema = z.object({
   entityIds: z.array(z.string()).optional(),
   createdAt: z.number(),
 });
+
+// ----------------------------------------------------
+// Plan 07: 3-Tier Hierarchical Saga Memory Envelope
+// ----------------------------------------------------
+
+export interface ThreeTierContextEnvelope {
+  /** Tier 1 — verbatim recent turns & active scene choices */
+  workingMemory: MemoryEntry[];
+  /** Tier 2 — compressed chronological milestone rollups of completed chapters */
+  episodicRollup: string[];
+  /** Tier 3 — living world state lines (factions, NPC statuses, key items) */
+  livingWorldLedger: string[];
+}

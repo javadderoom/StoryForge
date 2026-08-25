@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { StoryManifest } from '@/lib/types';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { StoryManifest, StoryChapter, StoryBeat } from '@/lib/types';
 import {
   GitBranch,
   MapPin,
@@ -40,6 +40,10 @@ interface StoryBeatNode {
 interface StoryTreeCanvasProps {
   story: StoryManifest;
   isPersian?: boolean;
+  /** Plan 07: when provided, the canvas edits this chapter's scenes (controlled) instead of the flat beat list. */
+  chapter?: StoryChapter;
+  /** Plan 07: commit handler for chapter-scene edits in controlled mode. */
+  onScenesChange?: (scenes: StoryBeat[]) => void;
 }
 
 // Helper: Calculate automatic hierarchical tree layout via BFS
@@ -107,8 +111,10 @@ function calculateTreeLayout(beatsList: StoryBeatNode[]): Record<string, { x: nu
   return positions;
 }
 
-export function StoryTreeCanvas({ story, isPersian = false }: StoryTreeCanvasProps) {
-  const [beats, setBeats] = useState<StoryBeatNode[]>(() => {
+export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesChange }: StoryTreeCanvasProps) {
+  const isChapterMode = !!chapter;
+
+  const [localBeats, setLocalBeats] = useState<StoryBeatNode[]>(() => {
     if (story.initialStoryBeats && story.initialStoryBeats.length > 0) {
       return story.initialStoryBeats as StoryBeatNode[];
     }
@@ -131,6 +137,23 @@ export function StoryTreeCanvas({ story, isPersian = false }: StoryTreeCanvasPro
       },
     ];
   });
+
+  // In chapter mode the beats are owned by the parent saga state; in flat mode
+  // they are local component state.
+  const beats: StoryBeatNode[] =
+    isChapterMode && chapter ? ((chapter.scenes || []) as StoryBeatNode[]) : localBeats;
+
+  // Unified mutation wrapper: routes edits to the saga (controlled) or local state.
+  const commitBeats = (
+    next: StoryBeatNode[] | ((prev: StoryBeatNode[]) => StoryBeatNode[])
+  ) => {
+    if (isChapterMode) {
+      const value = typeof next === 'function' ? next(beats) : next;
+      onScenesChange?.(value as StoryBeat[]);
+    } else {
+      setLocalBeats(next);
+    }
+  };
 
   const [selectedSceneId, setSelectedSceneId] = useState<string>(
     beats[0]?.sceneId || 'scene_prologue'
@@ -156,13 +179,28 @@ export function StoryTreeCanvas({ story, isPersian = false }: StoryTreeCanvasPro
   // derivation is impractical.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (story.initialStoryBeats && story.initialStoryBeats.length > 0) {
+    if (!isChapterMode && story.initialStoryBeats && story.initialStoryBeats.length > 0) {
       const loadedBeats = story.initialStoryBeats as StoryBeatNode[];
-      setBeats(loadedBeats);
+      setLocalBeats(loadedBeats);
       setSelectedSceneId(loadedBeats[0]?.sceneId || 'scene_prologue');
       setNodePositions(calculateTreeLayout(loadedBeats));
     }
-  }, [story]);
+  }, [story, isChapterMode]);
+
+  // Plan 07: re-seed layout when switching between chapters.
+  // Keyed on scene-id signature so intra-chapter drag positions survive commits.
+  const chapterSceneKey = chapter ? (chapter.scenes || []).map((s) => s.sceneId).join('|') : '';
+  const [lastChapterKey, setLastChapterKey] = useState(chapterSceneKey);
+  useEffect(() => {
+    if (isChapterMode && chapter && lastChapterKey !== chapterSceneKey) {
+      setLastChapterKey(chapterSceneKey);
+      const scenes = (chapter.scenes || []) as StoryBeatNode[];
+      setNodePositions(calculateTreeLayout(scenes));
+      setSelectedSceneId(scenes[0]?.sceneId || '');
+      setPan({ x: 40, y: 30 });
+      setZoom(1);
+    }
+  }, [chapterSceneKey, isChapterMode, chapter, lastChapterKey]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const selectedBeat = useMemo(
@@ -290,18 +328,18 @@ export function StoryTreeCanvas({ story, isPersian = false }: StoryTreeCanvasPro
       },
     }));
 
-    setBeats((prev) => [...prev, newBeat]);
+    commitBeats((prev) => [...prev, newBeat]);
     setSelectedSceneId(newId);
   };
 
   const handleUpdateNarrative = (text: string) => {
-    setBeats((prev) =>
+    commitBeats((prev) =>
       prev.map((b) => (b.sceneId === selectedSceneId ? { ...b, narrativeText: text } : b))
     );
   };
 
   const handleUpdateLocation = (locId: string) => {
-    setBeats((prev) =>
+    commitBeats((prev) =>
       prev.map((b) => (b.sceneId === selectedSceneId ? { ...b, locationId: locId } : b))
     );
   };
@@ -321,7 +359,7 @@ export function StoryTreeCanvas({ story, isPersian = false }: StoryTreeCanvasPro
       targetSceneId: nextCandidate?.sceneId,
     };
 
-    setBeats((prev) =>
+    commitBeats((prev) =>
       prev.map((b) =>
         b.sceneId === selectedSceneId ? { ...b, choices: [...b.choices, newChoice] } : b
       )
@@ -329,7 +367,7 @@ export function StoryTreeCanvas({ story, isPersian = false }: StoryTreeCanvasPro
   };
 
   const handleUpdateChoice = (choiceId: string, updatedFields: Partial<StoryBeatChoice>) => {
-    setBeats((prev) =>
+    commitBeats((prev) =>
       prev.map((b) => {
         if (b.sceneId !== selectedSceneId) return b;
         return {
@@ -340,8 +378,30 @@ export function StoryTreeCanvas({ story, isPersian = false }: StoryTreeCanvasPro
     );
   };
 
+  const handleDeleteBeat = (sceneId: string) => {
+    const nextBeats = beats
+      .filter((b) => b.sceneId !== sceneId)
+      .map((b) => ({
+        ...b,
+        choices: b.choices.map((c) =>
+          c.targetSceneId === sceneId ? { ...c, targetSceneId: undefined } : c
+        ),
+      }));
+
+    commitBeats(nextBeats);
+    setNodePositions((prev) => {
+      const next = { ...prev };
+      delete next[sceneId];
+      return next;
+    });
+
+    if (selectedSceneId === sceneId) {
+      setSelectedSceneId(nextBeats[0]?.sceneId || '');
+    }
+  };
+
   const handleDeleteChoice = (choiceId: string) => {
-    setBeats((prev) =>
+    commitBeats((prev) =>
       prev.map((b) => {
         if (b.sceneId !== selectedSceneId) return b;
         return {
@@ -625,6 +685,19 @@ export function StoryTreeCanvas({ story, isPersian = false }: StoryTreeCanvasPro
                       <MapPin className="w-3 h-3" />
                       {beat.locationId}
                     </span>
+                    {isSelected && (
+                      <button
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteBeat(beat.sceneId);
+                        }}
+                        title={isPersian ? 'حذف این صحنه' : 'Delete this scene'}
+                        className="text-zinc-500 hover:text-rose-400 transition-colors p-1 rounded-lg hover:bg-rose-500/10"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
 
                   {/* Prose Preview */}
@@ -691,6 +764,13 @@ export function StoryTreeCanvas({ story, isPersian = false }: StoryTreeCanvasPro
               <span className="text-xs font-mono text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 rounded-xl">
                 {selectedBeat.sceneId}
               </span>
+              <button
+                onClick={() => handleDeleteBeat(selectedBeat.sceneId)}
+                title={isPersian ? 'حذف این صحنه' : 'Delete this scene'}
+                className="text-zinc-500 hover:text-rose-400 transition-colors p-1.5 rounded-lg hover:bg-rose-500/10"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
 
             {/* Scene ID & Location Picker */}
@@ -860,7 +940,7 @@ export function StoryTreeCanvas({ story, isPersian = false }: StoryTreeCanvasPro
         )}
 
         <div className="pt-4 border-t border-zinc-800/60 flex items-center justify-between text-[11px] text-zinc-500">
-          <span>{story.title}</span>
+          <span>{chapter ? `${chapter.chapterNumber}. ${chapter.title}` : story.title}</span>
           <span className="font-mono">{beats.length} Beats Defined</span>
         </div>
       </div>

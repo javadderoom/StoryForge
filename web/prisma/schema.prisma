@@ -72,18 +72,20 @@ model RpgSystem {
 }
 
 model PlaythroughSession {
-  sessionId       String   @id
-  userId          String   @default("guest_user")
-  storyId         String
-  currentSceneId  String
-  turnCount       Int      @default(1)
-  playerState     Json
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  sessionId        String   @id
+  userId           String   @default("guest_user")
+  storyId          String
+  currentSceneId   String
+  turnCount        Int      @default(1)
+  playerState      Json
+  currentChapterId String?
+  sagaLedger       Json     @default("{}")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  story           Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  turns           TurnHistory[]
-  memories        MemoryLog[]
+  story            Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  turns            TurnHistory[]
+  memories         MemoryLog[]
 
   @@map("playthrough_sessions")
 }
@@ -98,6 +100,7 @@ model TurnHistory {
   narrativeProse   String
   presentedChoices Json     @default("[]")
   resolution       Json?
+  chapterNumber    Int?
   createdAt        DateTime @default(now())
 
   session          PlaythroughSession @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
@@ -107,15 +110,20 @@ model TurnHistory {
 }
 
 model MemoryLog {
-  id         String   @id @default(uuid())
-  sessionId  String
-  category   String   @default("player")
-  importance Int      @default(5)
-  summary    String
-  turnNumber Int      @default(1)
-  createdAt  DateTime @default(now())
+  id             String   @id @default(uuid())
+  sessionId      String
+  category       String   @default("player")
+  importance     Int      @default(5)
+  summary        String
+  detail         String?
+  turnNumber     Int      @default(1)
+  sceneId        String?
+  chapterNumber  Int?
+  entityIds      String[] @default([])
+  tags           String[] @default([])
+  createdAt      DateTime @default(now())
 
-  session    PlaythroughSession @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
+  session        PlaythroughSession @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
 
   @@index([sessionId, importance])
   @@map("memory_logs")

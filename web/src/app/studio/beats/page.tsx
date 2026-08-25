@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { StoryTreeCanvas } from '@/components/studio/StoryTreeCanvas';
-import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
+import { buildWorldContextString, buildChapterContextString } from '@/lib/engines/narrative/worldContext';
 import {
   GitBranch,
   Sparkles,
@@ -20,12 +20,35 @@ import {
   Zap,
   Sword,
   Target,
+  Crown,
+  Trash2,
 } from 'lucide-react';
 import { notify } from '@/lib/notify';
-import { BranchingStoryTree } from '@/lib/types/world';
+import {
+  BranchingStoryTree,
+  SagaManifest,
+  StoryChapter,
+  StoryBeat,
+  EpicSagaSynthesis,
+  EpicSagaSynthesisSchema,
+} from '@/lib/types/world';
+
+const SCOPE_TIER_META: Record<
+  string,
+  { labelEn: string; labelFa: string; color: string }
+> = {
+  street: { labelEn: 'Street', labelFa: 'خیابانی', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' },
+  regional: { labelEn: 'Regional', labelFa: 'منطقه‌ای', color: 'text-sky-400 bg-sky-500/10 border-sky-500/30' },
+  continental: { labelEn: 'Continental', labelFa: 'قاره‌ای', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' },
+  mythic: { labelEn: 'Mythic', labelFa: 'اسطوره‌ای', color: 'text-purple-400 bg-purple-500/10 border-purple-500/30' },
+};
+
+// Module-scope so the React Compiler never treats timestamped IDs as
+// render-phase side effects.
+const makeId = (prefix: string) => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
 export default function StoryBeatsStudioPage() {
-  const { story, isPersian, updateStoryBeats } = useStudioStory();
+  const { story, isPersian, updateStoryBeats, updateSaga } = useStudioStory();
 
   const [aiSceneModalOpen, setAiSceneModalOpen] = useState(false);
   const [sceneLocationId, setSceneLocationId] = useState(story.worldBible.locations[0]?.id || 'loc_dungeon_cell');
@@ -42,6 +65,14 @@ export default function StoryBeatsStudioPage() {
   const [isSynthesizingTree, setIsSynthesizingTree] = useState(false);
   const [treeSynthesisPreview, setTreeSynthesisPreview] = useState<BranchingStoryTree | null>(null);
 
+  // Plan 07: Multi-Chapter Epic Saga state
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
+  const [isSynthesizingSaga, setIsSynthesizingSaga] = useState(false);
+  const [sagaPreview, setSagaPreview] = useState<SagaManifest | null>(null);
+
+  const sagaChapters: StoryChapter[] = story.saga?.chapters ?? [];
+  const activeChapter = sagaChapters.find((c) => c.id === activeChapterId) || null;
+
   const t = {
     heading: isPersian ? 'درخت روایی و شاخه‌بندی صحنه‌ها' : 'Branching Story Beats Tree',
     subheading: isPersian
@@ -50,6 +81,13 @@ export default function StoryBeatsStudioPage() {
     totalBeats: isPersian ? 'صحنه‌های تعریف‌شده:' : 'Defined Story Beats:',
     aiSceneBtn: isPersian ? '⚡ خلق تک‌صحنه' : '⚡ Add Single Beat',
     aiTreeBtn: isPersian ? '🌳 سنتز درخت ۳ پرده‌ای' : '🌳 Synthesize 3-Act Tree',
+    aiSagaBtn: isPersian ? '👑 سنتز حماسه ۵ فصلی' : '👑 Synthesize Full 5-Chapter Epic Saga',
+    flatBeatsTab: isPersian ? '📜 صحنه‌های تکی' : '📜 Flat Beats',
+    addChapterBtn: isPersian ? '+ فصل جدید' : '+ Add Chapter',
+    goalLabel: isPersian ? 'هدف روایی فصل:' : 'Chapter Goal:',
+    prereqLabel: isPersian ? 'پیش‌نیازها:' : 'Prerequisites:',
+    summaryPromptLabel: isPersian ? 'دستور خلاصه پایان فصل:' : 'Completion Rollup Prompt:',
+    deleteChapterBtn: isPersian ? 'حذف فصل' : 'Delete Chapter',
   };
 
   const handleGenerateScene = async (e: React.FormEvent) => {
@@ -66,7 +104,15 @@ export default function StoryBeatsStudioPage() {
           prompt: `${scenePrompt}. Location: ${sceneLocationId}`,
           customSystemPrompt: sceneSystemPrompt,
           themeContext: story.worldBible.themeNotes,
-          worldContext: buildWorldContextString(story),
+          // Plan 07: inside an active chapter, inject only the lore slice
+          // relevant to that chapter's scope and scene locations.
+          worldContext: activeChapter
+            ? buildChapterContextString(
+                story,
+                { scopeTier: activeChapter.scopeTier, scenes: activeChapter.scenes },
+                story.saga?.ledger
+              )
+            : buildWorldContextString(story),
           isPersian,
         }),
       });
@@ -74,7 +120,7 @@ export default function StoryBeatsStudioPage() {
       const json = await res.json();
       if (json.success && json.data) {
         const beat = json.data;
-        const newSceneId = `scene_${Date.now().toString(36)}`;
+        const newSceneId = makeId('scene');
         updateStoryBeats((prev) => [
           ...(prev || []),
           {
@@ -183,6 +229,163 @@ export default function StoryBeatsStudioPage() {
     );
   };
 
+  // ----------------------------------------------------------------
+  // Plan 07: Multi-Arc Epic Saga Synthesizer (5-chapter campaign)
+  // ----------------------------------------------------------------
+  const normalizeSagaFromDraft = (draft: EpicSagaSynthesis): SagaManifest => {
+    const locationList = story.worldBible.locations || [];
+    const defaultLocId = locationList[0]?.id || 'loc_hub';
+
+    const chapters: StoryChapter[] = draft.chapters
+      .slice()
+      .sort((a, b) => a.chapterNumber - b.chapterNumber)
+      .map((ch, i) => {
+        const chapterId = makeId(`chapter${ch.chapterNumber || i + 1}`);
+        const scenes: StoryBeat[] = (ch.scenes || []).map((sc) => {
+          const matchedLoc = locationList.find((l) =>
+            l.name.toLowerCase().includes(sc.settingLocationName.toLowerCase())
+          );
+          const sceneId = sc.sceneId || `scene_${chapterId}_${Math.random().toString(36).slice(2, 6)}`;
+          return {
+            sceneId,
+            locationId: matchedLoc?.id || defaultLocId,
+            narrativeText: `[${ch.title}] ${sc.title}\n\n${sc.primaryConflict}`,
+            choices: (sc.presentedChoices || []).map((choice, idx) => ({
+              id: `choice_${sceneId}_${idx + 1}`,
+              text: isPersian ? choice.textFa : choice.textEn,
+              style:
+                choice.style === 'defensive_diplomatic'
+                  ? 'defensive'
+                  : choice.style === 'tactical_agile'
+                  ? 'agile'
+                  : 'aggressive',
+              riskLevel:
+                choice.style === 'aggressive_daring'
+                  ? 'high'
+                  : choice.style === 'tactical_agile'
+                  ? 'medium'
+                  : 'low',
+              targetDC: choice.statCheck?.dc,
+              requiredStatId: choice.statCheck?.stat,
+              targetSceneId: choice.leadToSceneId,
+            })),
+          };
+        });
+
+        return {
+          id: chapterId,
+          chapterNumber: ch.chapterNumber || i + 1,
+          title: ch.title,
+          scopeTier: ch.scopeTier,
+          narrativeGoal: ch.narrativeGoal || '',
+          prerequisiteFlags: ch.prerequisiteFlags || [],
+          scenes,
+          completionSummaryPrompt: ch.completionSummaryPrompt || '',
+        };
+      });
+
+    return {
+      sagaTitle: draft.sagaTitle,
+      premise: draft.premise,
+      chapters,
+      ledger: {
+        factionReputations: [],
+        npcStatuses: [],
+        keyItems: [],
+        chapterSummaries: [],
+        openPlotThreads: [],
+      },
+    };
+  };
+
+  const handleSynthesizeEpicSaga = async () => {
+    try {
+      setIsSynthesizingSaga(true);
+      const res = await fetch('/api/studio/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'epic_saga_synthesis',
+          prompt:
+            'Synthesize a cohesive 5-chapter epic saga with escalating scope tiers and dramatic branching checkpoints grounded in this world.',
+          themeContext: story.worldBible.themeNotes,
+          worldContext: buildWorldContextString(story),
+          isPersian,
+        }),
+      });
+
+      if (!res.ok) throw new Error(`Failed to synthesize saga (${res.status})`);
+      const json = await res.json();
+
+      const parsed = EpicSagaSynthesisSchema.safeParse(json?.data);
+      if (!parsed.success) {
+        notify.error(isPersian ? 'قالب حماسه چندفصلی نامعتبر بود' : 'Invalid epic saga response');
+        return;
+      }
+
+      setSagaPreview(normalizeSagaFromDraft(parsed.data));
+    } catch (err) {
+      notify.error(
+        err instanceof Error ? err.message : 'Error synthesizing epic saga'
+      );
+    } finally {
+      setIsSynthesizingSaga(false);
+    }
+  };
+
+  const handleCommitSaga = () => {
+    if (!sagaPreview) return;
+    updateSaga(() => sagaPreview);
+    setActiveChapterId(sagaPreview.chapters[0]?.id || null);
+    setSagaPreview(null);
+    notify.success(
+      isPersian
+        ? `حماسه «${sagaPreview.sagaTitle}» با ${sagaPreview.chapters.length} فصل ثبت شد`
+        : `Epic saga "${sagaPreview.sagaTitle}" committed with ${sagaPreview.chapters.length} chapters`
+    );
+  };
+
+  const handleAddChapter = () => {
+    const nextNumber = sagaChapters.length + 1;
+    const newChapter: StoryChapter = {
+      id: makeId('chapter'),
+      chapterNumber: nextNumber,
+      title: isPersian ? `فصل ${nextNumber}` : `Chapter ${nextNumber}`,
+      scopeTier: nextNumber <= 1 ? 'street' : nextNumber === 2 ? 'regional' : nextNumber < 5 ? 'continental' : 'mythic',
+      narrativeGoal: '',
+      prerequisiteFlags: [],
+      scenes: [],
+      completionSummaryPrompt: '',
+    };
+    updateSaga(
+      (prev) =>
+        prev
+          ? { ...prev, chapters: [...prev.chapters, newChapter] }
+          : { sagaTitle: story.title || 'Untitled Saga', premise: '', chapters: [newChapter] }
+    );
+    setActiveChapterId(newChapter.id);
+  };
+
+  const handleDeleteChapter = (chapterId: string) => {
+    const remaining = sagaChapters.filter((c) => c.id !== chapterId);
+    updateSaga((prev) =>
+      prev
+        ? { ...prev, chapters: remaining.map((c, i) => ({ ...c, chapterNumber: i + 1 })) }
+        : { sagaTitle: story.title || 'Untitled Saga', premise: '', chapters: [] }
+    );
+    if (activeChapterId === chapterId) setActiveChapterId(null);
+    notify.info(isPersian ? 'فصل حذف شد' : 'Chapter removed');
+  };
+
+  const handleChapterScenesChange = (scenes: StoryBeat[]) => {
+    if (!activeChapter) return;
+    updateSaga((prev) =>
+      prev
+        ? { ...prev, chapters: prev.chapters.map((c) => (c.id === activeChapter.id ? { ...c, scenes } : c)) }
+        : { sagaTitle: story.title || 'Untitled Saga', premise: '', chapters: [] }
+    );
+  };
+
   const getChoiceStyleMeta = (style: string) => {
     switch (style) {
       case 'defensive_diplomatic':
@@ -208,6 +411,23 @@ export default function StoryBeatsStudioPage() {
           <p className="text-sm text-zinc-400 max-w-3xl leading-relaxed">{t.subheading}</p>
         </div>
         <div className="flex items-center gap-2.5 self-start md:self-auto">
+          {/* Plan 07: 5-Chapter Epic Saga Synthesizer Trigger */}
+          <button
+            type="button"
+            onClick={handleSynthesizeEpicSaga}
+            disabled={isSynthesizingSaga}
+            className="flex items-center gap-1.5 text-xs bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-zinc-950 px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-amber-500/20 cursor-pointer disabled:opacity-50"
+          >
+            <Crown className="w-3.5 h-3.5" />
+            <span>
+              {isSynthesizingSaga
+                ? isPersian
+                  ? 'در حال سنتز حماسه...'
+                  : 'Synthesizing Saga...'
+                : t.aiSagaBtn}
+            </span>
+          </button>
+
           {/* Plan 06: 3-Act Branching Plot Tree Synthesizer Trigger */}
           <button
             type="button"
@@ -234,13 +454,120 @@ export default function StoryBeatsStudioPage() {
           </button>
           <span className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 px-3.5 py-2 rounded-xl font-mono flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-amber-400" />
-            {story.initialStoryBeats?.length || 1} {isPersian ? 'صحنه' : 'Beats'}
+            {(activeChapter ? activeChapter.scenes.length : story.initialStoryBeats?.length) || 0}{' '}
+            {isPersian ? 'صحنه' : 'Beats'}
           </span>
         </div>
       </div>
 
+      {/* Plan 07: Chapter Tabs (Campaign Flowchart Navigation) */}
+      {(sagaChapters.length > 0 || activeChapter) && (
+        <div className="flex flex-wrap items-center gap-2 bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-2 backdrop-blur-sm">
+          <button
+            type="button"
+            onClick={() => setActiveChapterId(null)}
+            className={`flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer border ${
+              !activeChapter
+                ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            {t.flatBeatsTab}
+          </button>
+          <ChevronRight className="w-3.5 h-3.5 text-zinc-700" />
+          {sagaChapters.map((ch) => {
+            const meta = SCOPE_TIER_META[ch.scopeTier] || SCOPE_TIER_META.street;
+            const isActive = activeChapter?.id === ch.id;
+            return (
+              <button
+                key={ch.id}
+                type="button"
+                onClick={() => setActiveChapterId(ch.id)}
+                className={`flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer border ${
+                  isActive
+                    ? `${meta.color} ring-2 ring-offset-0`
+                    : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
+                }`}
+              >
+                <span className="font-mono opacity-70">#{ch.chapterNumber}</span>
+                <span className="max-w-[160px] truncate">{ch.title}</span>
+                <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-mono ${meta.color}`}>
+                  {isPersian ? meta.labelFa : meta.labelEn}
+                </span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={handleAddChapter}
+            className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl font-bold border border-dashed border-zinc-700 text-zinc-500 hover:text-amber-300 hover:border-amber-500/50 transition-all cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            {t.addChapterBtn}
+          </button>
+        </div>
+      )}
+
+      {/* Plan 07: Active Chapter Briefing Strip */}
+      {activeChapter && (
+        <div className="bg-gradient-to-r from-purple-950/40 via-zinc-900/60 to-zinc-900/60 border border-purple-500/20 rounded-2xl p-4 space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1 min-w-0">
+              <h4 className="text-sm font-bold text-purple-200 flex items-center gap-2">
+                <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="truncate">
+                  {activeChapter.chapterNumber}. {activeChapter.title}
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded-md border text-[10px] font-mono shrink-0 ${
+                    (SCOPE_TIER_META[activeChapter.scopeTier] || SCOPE_TIER_META.street).color
+                  }`}
+                >
+                  {isPersian
+                    ? (SCOPE_TIER_META[activeChapter.scopeTier] || SCOPE_TIER_META.street).labelFa
+                    : (SCOPE_TIER_META[activeChapter.scopeTier] || SCOPE_TIER_META.street).labelEn}
+                </span>
+              </h4>
+              {activeChapter.narrativeGoal && (
+                <p className="text-xs text-zinc-300 leading-relaxed">
+                  <strong className="text-purple-300">{t.goalLabel}</strong> {activeChapter.narrativeGoal}
+                </p>
+              )}
+              {activeChapter.prerequisiteFlags.length > 0 && (
+                <div className="flex items-center flex-wrap gap-1.5">
+                  <span className="text-[10px] font-bold text-zinc-400">{t.prereqLabel}</span>
+                  {activeChapter.prerequisiteFlags.map((flag) => (
+                    <span
+                      key={flag}
+                      dir="ltr"
+                      className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-sky-500/10 border border-sky-500/30 text-sky-300"
+                    >
+                      {flag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => handleDeleteChapter(activeChapter.id)}
+              title={t.deleteChapterBtn}
+              className="text-zinc-500 hover:text-rose-400 transition-colors p-1.5 rounded-lg hover:bg-rose-500/10 shrink-0"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Interactive Story Tree Canvas */}
-      <StoryTreeCanvas story={story} isPersian={isPersian} />
+      <StoryTreeCanvas
+        story={story}
+        isPersian={isPersian}
+        chapter={activeChapter || undefined}
+        onScenesChange={handleChapterScenesChange}
+      />
 
       {/* Plan 06: 3-Act Branching Plot Tree Synthesis Preview Modal */}
       {treeSynthesisPreview && (
@@ -343,6 +670,103 @@ export default function StoryBeatsStudioPage() {
               >
                 <Check className="w-4 h-4" />
                 <span>{isPersian ? '📥 تزریق درخت روایی به داستان' : '📥 Commit Story Tree'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Plan 07: Epic Saga Synthesis Preview Modal */}
+      {sagaPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-zinc-900 border border-amber-500/30 rounded-3xl p-6 max-w-4xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+                <Crown className="w-5 h-5 text-amber-400" />
+                {isPersian ? 'پیش‌نمایش حماسه چندفصلی' : 'Epic Saga Campaign Preview'}
+              </h3>
+              <button
+                onClick={() => setSagaPreview(null)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 text-xs space-y-1">
+              <h4 className="font-bold text-amber-300 text-sm">{sagaPreview.sagaTitle}</h4>
+              <p className="text-zinc-300 leading-relaxed italic">{sagaPreview.premise}</p>
+            </div>
+
+            {/* Chapters List */}
+            <div className="space-y-3">
+              {sagaPreview.chapters.map((ch) => {
+                const meta = SCOPE_TIER_META[ch.scopeTier] || SCOPE_TIER_META.street;
+                return (
+                  <div
+                    key={ch.id}
+                    className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 text-xs space-y-2"
+                  >
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2.5 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold font-mono">
+                        Ch {ch.chapterNumber}
+                      </span>
+                      <strong className="text-zinc-100">{ch.title}</strong>
+                      <span className={`px-2 py-0.5 rounded-md border text-[9.5px] font-bold ${meta.color}`}>
+                        {isPersian ? meta.labelFa : meta.labelEn}
+                      </span>
+                    </div>
+
+                    {ch.narrativeGoal && (
+                      <p className="text-zinc-300 text-[11px] leading-relaxed">
+                        <strong className="text-purple-300">{t.goalLabel}</strong> {ch.narrativeGoal}
+                      </p>
+                    )}
+                    {ch.prerequisiteFlags.length > 0 && (
+                      <p className="text-[10px] text-sky-300/80 font-mono" dir="ltr">
+                        requires: [{ch.prerequisiteFlags.join(', ')}]
+                      </p>
+                    )}
+
+                    <div className="space-y-1.5 pt-1 border-t border-zinc-900">
+                      <span className="text-[10px] text-zinc-500 block">
+                        {isPersian ? 'صحنه‌های فصل:' : 'Chapter Scenes:'} ({ch.scenes.length})
+                      </span>
+                      {ch.scenes.map((sc, sIdx) => (
+                        <div key={sIdx} className="flex items-start gap-2 text-[11px] p-2 rounded-xl bg-zinc-900/70 border border-zinc-800/70">
+                          <MapPin className="w-3 h-3 text-sky-400 shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-zinc-200 truncate">
+                              {sc.narrativeText.split('\n')[0]?.replace(/^\[.*?\]\s*/, '')}
+                            </p>
+                            <span className="text-[9.5px] text-zinc-500">
+                              {(isPersian ? 'انتخاب‌ها' : 'Choices')}: {sc.choices.length} ·{' '}
+                              {(sc.narrativeText.split('\n\n')[1] || '').slice(0, 90)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setSagaPreview(null)}
+                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700 cursor-pointer"
+              >
+                {isPersian ? 'انصراف' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleCommitSaga}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Check className="w-4 h-4" />
+                <span>{isPersian ? '📥 ثبت حماسه در داستان' : '📥 Commit Epic Saga'}</span>
               </button>
             </div>
           </div>

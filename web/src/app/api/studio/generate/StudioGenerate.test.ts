@@ -22,6 +22,7 @@ import {
   EnhancedReligionSchema,
   ThemeRpgSystemSchema,
   BranchingStoryTreeSchema,
+  EpicSagaSynthesisSchema,
   WorldBible,
 } from '../../../../lib/types/world';
 
@@ -80,6 +81,7 @@ describe('StudioGenerate API - AI Co-Pilot & Procedural Synthesis Engine', () =>
     { type: 'npc_relationships', schema: NpcRelationshipWebSchema },
     { type: 'npc_voice_guide', schema: NpcVoiceGuideSchema },
     { type: 'npc_stat_calibration', schema: NpcStatCalibrationSchema },
+    { type: 'epic_saga_synthesis', schema: EpicSagaSynthesisSchema },
   ] as const;
 
 

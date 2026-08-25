@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { GameItem } from './rpg';
+import { WorldStateLedger } from './world';
 
 export type ActionStyle =
   | 'defensive'
@@ -95,6 +96,8 @@ export interface TurnBeat {
   resolution?: CheckResolution;
   narrativeProse: string;
   presentedChoices: ChoiceOption[];
+  // Plan 07: chapter linkage for long-form saga campaigns
+  chapterNumber?: number;
   timestamp: number;
 }
 
@@ -106,6 +109,9 @@ export interface PlaythroughSession {
   turnCount: number;
   playerState: PlayerState;
   history: TurnBeat[];
+  // Plan 07: long-form saga campaign state
+  currentChapterId?: string;
+  sagaLedger?: WorldStateLedger;
   createdAt: number;
   updatedAt: number;
 }

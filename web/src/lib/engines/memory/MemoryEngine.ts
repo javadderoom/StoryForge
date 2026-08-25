@@ -1,4 +1,6 @@
-import { MemoryEntry, MemoryCategory, ImportanceScore } from '@/lib/types/memory';
+import { MemoryEntry, MemoryCategory, ImportanceScore, ThreeTierContextEnvelope } from '@/lib/types/memory';
+import { ChapterSummaryEntry, WorldStateLedger } from '@/lib/types/world';
+import { formatLivingWorldLedger } from '@/lib/engines/narrative/worldContext';
 
 export interface ExtractedFact {
   category: MemoryCategory;
@@ -82,5 +84,55 @@ export class MemoryEngine {
    */
   public getAllMemories(): MemoryEntry[] {
     return [...this.memories];
+  }
+
+  // ------------------------------------------------------------------
+  // Plan 07: Hierarchical 3-Tier Saga Memory (long-form campaigns)
+  // ------------------------------------------------------------------
+
+  /**
+   * Tier 1 (Working Memory): the verbatim memories of the most recent turns.
+   * Prevents loss of immediate dialogue and room state across long sessions.
+   */
+  public getWorkingMemory(limit = 3): MemoryEntry[] {
+    return [...this.memories]
+      .sort((a, b) => b.turnNumber - a.turnNumber || b.createdAt - a.createdAt)
+      .slice(0, limit);
+  }
+
+  /**
+   * Tier 2 (Episodic Milestone Rollup): compressed chronological summaries of
+   * completed chapters. Keeps 50-200+ turn sagas coherent without replaying
+   * every historical turn into the context window.
+   */
+  public buildEpisodicRollup(
+    chapterSummaries: ChapterSummaryEntry[],
+    limit = 12
+  ): string[] {
+    return [...chapterSummaries]
+      .sort((a, b) => a.chapterNumber - b.chapterNumber)
+      .slice(-limit)
+      .map((c) => {
+        const flags = c.irreversibleChoices.length
+          ? ` | Irreversible: ${c.irreversibleChoices.join('; ')}`
+          : '';
+        return `Chapter ${c.chapterNumber} «${c.title}»: ${c.summary}${flags}`;
+      });
+  }
+
+  /**
+   * Assembles the full 3-tier hierarchical envelope used by the narrator:
+   * working memory (verbatim), episodic rollup (compressed), and the living
+   * world ledger (faction reputations / NPC statuses / key items).
+   */
+  public buildThreeTierEnvelope(
+    ledger?: WorldStateLedger | null,
+    workingMemoryLimit = 3
+  ): ThreeTierContextEnvelope {
+    return {
+      workingMemory: this.getWorkingMemory(workingMemoryLimit),
+      episodicRollup: this.buildEpisodicRollup(ledger?.chapterSummaries ?? []),
+      livingWorldLedger: formatLivingWorldLedger(ledger),
+    };
   }
 }

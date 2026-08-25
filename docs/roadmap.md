@@ -65,4 +65,13 @@ This document outlines the upcoming feature roadmap and planned capabilities for
 * **Maneuver Options**: Offensive strikes, defensive parries, spellcasting, and tactical item consumption.
 * **Dynamic Enemy AI**: Enemy intent indicators, armor/health tracking, and deterministic dice resolution.
 
+---
+
+### 7. 🛡️ Narrative Consistency Hardening (Next Engineering Priority)
+* 📖 **[Full Audit & Implementation Plan](file:///g:/Code/StoryForge/docs/plans/08_CONSISTENCY_HARDENING_PLAN.md)**
+* Stop canon corruption: no silent mock-fallback persistence, post-validate AI choices/memories against the active RPG schema.
+* Server-authoritative PlayerState; write the Living World State Ledger at play time.
+* Implement the spec'd "World Lore Check" action guardrail and LoreAuditor v2 (saga graph, duplicate names, cross-vault references).
+
+
 

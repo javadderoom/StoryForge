@@ -787,4 +787,190 @@ export const OracleMemoryDirectiveSchema = z.object({
 });
 export type OracleMemoryDirective = z.infer<typeof OracleMemoryDirectiveSchema>;
 
+// ----------------------------------------------------
+// Plan 07: Massive Universe Long-Form Saga & Episodic Campaign Engine
+// ----------------------------------------------------
+
+export const ScopeTierSchema = z.enum(['street', 'regional', 'continental', 'mythic']);
+export type ScopeTier = z.infer<typeof ScopeTierSchema>;
+
+export const StoryBeatChoiceSchema = z.object({
+  id: z.string().min(1),
+  text: z.string().min(1),
+  style: z
+    .enum(['defensive', 'agile', 'aggressive', 'diplomatic', 'inquisitive'])
+    .default('inquisitive'),
+  riskLevel: z.enum(['low', 'medium', 'high']).default('medium'),
+  targetDC: z.number().optional(),
+  requiredStatId: z.string().optional(),
+  targetSceneId: z.string().optional(),
+});
+
+export const StoryBeatSchema = z.object({
+  sceneId: z.string().min(1),
+  locationId: z.string().default(''),
+  narrativeText: z.string().default(''),
+  choices: z.array(StoryBeatChoiceSchema).default([]),
+});
+export type StoryBeat = z.infer<typeof StoryBeatSchema>;
+
+export interface StoryChapter {
+  id: string;
+  chapterNumber: number;
+  title: string;
+  scopeTier: ScopeTier;
+  /** Macro objective for this chapter, e.g. "Infiltrate the Iron Guild and obtain the sealed ledger" */
+  narrativeGoal: string;
+  /** Story flags that must be set before this chapter can unlock */
+  prerequisiteFlags: string[];
+  scenes: StoryBeat[];
+  /** Directive used by the AI to compress the chapter into an episodic milestone rollup */
+  completionSummaryPrompt: string;
+}
+
+export interface ChapterSummaryEntry {
+  chapterNumber: number;
+  title: string;
+  summary: string;
+  irreversibleChoices: string[];
+}
+
+export interface FactionReputationEntry {
+  factionId: string;
+  factionName: string;
+  score: number; // -100 (Hostile) to +100 (Allied)
+  stance: 'hostile' | 'wary' | 'neutral' | 'friendly' | 'allied';
+  note?: string;
+}
+
+export interface NpcLifeStatusEntry {
+  npcId: string;
+  npcName: string;
+  status: 'alive' | 'dead' | 'imprisoned' | 'missing' | 'companion' | 'transformed';
+  note?: string;
+}
+
+export interface KeyItemLedgerEntry {
+  itemId: string;
+  name: string;
+  description?: string;
+  acquiredChapterNumber?: number;
+  isStoryCritical: boolean;
+}
+
+/** Tier 3 of the saga memory engine: the Living World State Ledger */
+export interface WorldStateLedger {
+  factionReputations: FactionReputationEntry[];
+  npcStatuses: NpcLifeStatusEntry[];
+  keyItems: KeyItemLedgerEntry[];
+  /** Tier 2 episodic milestone rollups, one per completed chapter */
+  chapterSummaries: ChapterSummaryEntry[];
+  openPlotThreads: string[];
+}
+
+export interface SagaManifest {
+  sagaTitle: string;
+  premise: string;
+  chapters: StoryChapter[];
+  ledger?: WorldStateLedger;
+}
+
+export const FactionReputationEntrySchema = z.object({
+  factionId: z.string().min(1),
+  factionName: z.string().default(''),
+  score: z.number().min(-100).max(100).default(0),
+  stance: z.enum(['hostile', 'wary', 'neutral', 'friendly', 'allied']).default('neutral'),
+  note: z.string().optional(),
+});
+
+export const NpcLifeStatusEntrySchema = z.object({
+  npcId: z.string().min(1),
+  npcName: z.string().default(''),
+  status: z
+    .enum(['alive', 'dead', 'imprisoned', 'missing', 'companion', 'transformed'])
+    .default('alive'),
+  note: z.string().optional(),
+});
+
+export const KeyItemLedgerEntrySchema = z.object({
+  itemId: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().default(''),
+  acquiredChapterNumber: z.number().int().min(1).optional(),
+  isStoryCritical: z.boolean().default(false),
+});
+
+export const ChapterSummaryEntrySchema = z.object({
+  chapterNumber: z.number().int().min(1),
+  title: z.string().default(''),
+  summary: z.string().min(3),
+  irreversibleChoices: z.array(z.string()).default([]),
+});
+
+export const WorldStateLedgerSchema = z.object({
+  factionReputations: z.array(FactionReputationEntrySchema).default([]),
+  npcStatuses: z.array(NpcLifeStatusEntrySchema).default([]),
+  keyItems: z.array(KeyItemLedgerEntrySchema).default([]),
+  chapterSummaries: z.array(ChapterSummaryEntrySchema).default([]),
+  openPlotThreads: z.array(z.string()).default([]),
+});
+
+export const StoryChapterSchema = z.object({
+  id: z.string().min(1),
+  chapterNumber: z.number().int().min(1),
+  title: z.string().min(2),
+  scopeTier: ScopeTierSchema.default('street'),
+  narrativeGoal: z.string().default(''),
+  prerequisiteFlags: z.array(z.string()).default([]),
+  scenes: z.array(StoryBeatSchema).default([]),
+  completionSummaryPrompt: z.string().default(''),
+});
+
+export const SagaManifestSchema = z.object({
+  sagaTitle: z.string().min(2),
+  premise: z.string().default(''),
+  chapters: z.array(StoryChapterSchema).default([]),
+  ledger: WorldStateLedgerSchema.optional(),
+});
+
+// --- Plan 07: Multi-Arc Saga Synthesizer AI response schema ---
+export const SagaSceneDraftChoiceSchema = z.object({
+  style: z.enum(['defensive_diplomatic', 'tactical_agile', 'aggressive_daring']),
+  textFa: z.string(),
+  textEn: z.string(),
+  statCheck: z
+    .object({
+      stat: z.string(),
+      dc: z.number().min(8).max(30),
+    })
+    .optional(),
+  leadToSceneId: z.string().optional(),
+});
+
+export const SagaSceneDraftSchema = z.object({
+  sceneId: z.string(),
+  title: z.string(),
+  settingLocationName: z.string(),
+  primaryConflict: z.string(),
+  presentedChoices: z.array(SagaSceneDraftChoiceSchema).min(1),
+});
+
+export const SagaChapterDraftSchema = z.object({
+  chapterNumber: z.number().int().min(1),
+  title: z.string(),
+  scopeTier: ScopeTierSchema,
+  narrativeGoal: z.string(),
+  prerequisiteFlags: z.array(z.string()).default([]),
+  completionSummaryPrompt: z.string().default(''),
+  scenes: z.array(SagaSceneDraftSchema).min(1),
+});
+
+export const EpicSagaSynthesisSchema = z.object({
+  sagaTitle: z.string().min(2),
+  premise: z.string(),
+  chapters: z.array(SagaChapterDraftSchema).min(3),
+});
+export type EpicSagaSynthesis = z.infer<typeof EpicSagaSynthesisSchema>;
+
+
 

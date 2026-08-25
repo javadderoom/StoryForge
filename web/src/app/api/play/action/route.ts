@@ -124,15 +124,22 @@ export async function POST(req: NextRequest) {
       category: string;
       importance?: number;
       summary: string;
+      detail?: string | null;
       turnNumber?: number;
+      sceneId?: string | null;
+      entityIds?: string[];
+      tags?: string[];
     }>;
     const memoryEntries = memoryLogs.map((m, i) => ({
       id: `mem_${m.turnNumber ?? 0}_${i}`,
       category: m.category,
       importance: typeof m.importance === 'number' ? m.importance : 5,
       summary: m.summary,
-      tags: [],
-      sceneId: turnSceneByNumber.get(m.turnNumber ?? 0) ?? currentLocation.id,
+      detail: m.detail ?? undefined,
+      tags: m.tags ?? [],
+      entityIds: m.entityIds ?? [],
+      // Prefer the dedicated scene column; fall back to the turn lookup.
+      sceneId: m.sceneId ?? turnSceneByNumber.get(m.turnNumber ?? 0) ?? currentLocation.id,
       turnNumber: m.turnNumber ?? 0,
       createdAt: m.turnNumber ?? 0,
     })) as unknown as MemoryEntry[];

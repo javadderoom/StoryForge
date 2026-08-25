@@ -1,4 +1,4 @@
-import { WorldBible } from '@/lib/types/world';
+import { WorldBible, ScopeTier, StoryChapter, WorldStateLedger } from '@/lib/types/world';
 
 export interface WorldContextBlocks {
   worldSummary?: string;
@@ -16,14 +16,144 @@ export interface WorldContextBlocks {
   ontologySummary?: string;
 }
 
+export interface ScopedContextOptions {
+  /** Active chapter scope tier — drives how much lore is injected. */
+  scopeTier: ScopeTier;
+  /** Location ids relevant to the active scene(s). */
+  locationIds?: string[];
+  /** NPC ids present in the active scene(s). */
+  npcIds?: string[];
+}
+
+/**
+ * Token budgets per scope tier. Early "street" chapters stay strictly grounded
+ * by injecting only a sliver of the World Bible; mythic scopes may cite most
+ * of it.
+ */
+const SCOPE_CAPS: Record<ScopeTier, {
+  factions: number;
+  timeline: number;
+  artifacts: number;
+  bestiary: number;
+  religions: number;
+  dramaBonds: number;
+  locations: number;
+  npcs: number;
+  laws: number;
+}> = {
+  street: { factions: 3, timeline: 4, artifacts: 4, bestiary: 4, religions: 3, dramaBonds: 4, locations: 4, npcs: 6, laws: 10 },
+  regional: { factions: 6, timeline: 8, artifacts: 8, bestiary: 8, religions: 6, dramaBonds: 6, locations: 8, npcs: 9, laws: 10 },
+  continental: { factions: 10, timeline: 10, artifacts: 10, bestiary: 10, religions: 9, dramaBonds: 7, locations: 10, npcs: 12, laws: 10 },
+  mythic: { factions: 10, timeline: 12, artifacts: 12, bestiary: 12, religions: 12, dramaBonds: 8, locations: 12, npcs: 12, laws: 10 },
+};
+
 const cap = (arr: string[], max: number): string[] => (arr.length > max ? arr.slice(0, max) : arr);
+
+/**
+ * Plan 07 — Dynamic Context-Aware Lore Retrieval.
+ * Prunes the World Bible down to only the entities relevant to the active
+ * chapter scope and scene location/NPCs (~5-10% of total lore), so long-form
+ * sagas avoid stuffing the entire universe into every turn.
+ */
+export function pruneWorldBibleToScope(
+  wb: WorldBible,
+  options: ScopedContextOptions
+): WorldBible {
+  const { scopeTier, locationIds = [], npcIds = [] } = options;
+
+  // 1-hop neighborhood of the active locations (travel-adjacent context).
+  const activeLocSet = new Set(locationIds);
+  for (const locId of locationIds) {
+    const loc = (wb.locations ?? []).find((l) => l.id === locId);
+    loc?.connectedLocationIds?.forEach((id) => activeLocSet.add(id));
+  }
+  const activeNpcSet = new Set(npcIds);
+
+  const keepNpcs = (wb.npcs ?? []).filter(
+    (n) => activeNpcSet.has(n.id) || activeLocSet.has(n.currentLocationId)
+  );
+  const keptNpcIds = new Set(keepNpcs.map((n) => n.id));
+
+  const keepFactions = (wb.factions ?? []).filter(
+    (f) =>
+      f.territoryIds.some((t) => activeLocSet.has(t)) ||
+      keepNpcs.some((n) => n.factionId && n.factionId === f.id)
+  );
+  const keptFactionIds = new Set(keepFactions.map((f) => f.id));
+
+  // Continental/mythic scopes widen the aperture to kingdom-level politics,
+  // religions, and artifacts even if not directly anchored to the scene.
+  const isHighScope = scopeTier === 'continental' || scopeTier === 'mythic';
+  if (isHighScope) {
+    for (const f of wb.factions ?? []) keptFactionIds.add(f.id);
+    keepFactions.length = 0;
+    keepFactions.push(...(wb.factions ?? []));
+  }
+
+  const keepLocations =
+    scopeTier === 'mythic'
+      ? wb.locations ?? []
+      : (wb.locations ?? []).filter(
+          (l) => activeLocSet.has(l.id) || l.connectedLocationIds?.some((id) => activeLocSet.has(id))
+        );
+  const keptLocationIds = new Set(keepLocations.map((l) => l.id));
+
+  const keepBestiary = (wb.bestiary ?? []).filter(
+    (c) =>
+      c.habitatLocationIds.length === 0 ||
+      c.habitatLocationIds.some((h) => keptLocationIds.has(h))
+  );
+
+  const keepArtifacts = (wb.artifacts ?? []).filter((a) => {
+    switch (a.currentHolderType) {
+      case 'npc':
+        return (
+          keptNpcIds.has(a.currentHolderId) ||
+          (isHighScope && (wb.npcs ?? []).some((n) => n.id === a.currentHolderId))
+        );
+      case 'location':
+        return keptLocationIds.has(a.currentHolderId);
+      case 'faction':
+        return keptFactionIds.has(a.currentHolderId);
+      default:
+        return isHighScope;
+    }
+  });
+
+  const keepReligions = (wb.religions ?? []).filter(
+    (d) =>
+      d.holyLocationIds.some((h) => keptLocationIds.has(h)) ||
+      d.affiliatedFactionIds.some((f) => keptFactionIds.has(f))
+  );
+
+  const keepDramaBonds = (wb.dramaBonds ?? []).filter(
+    (b) => keptNpcIds.has(b.sourceNpcId) || keptNpcIds.has(b.targetNpcId)
+  );
+
+  return {
+    ...wb,
+    npcs: keepNpcs,
+    factions: keepFactions,
+    locations: keepLocations,
+    bestiary: keepBestiary,
+    artifacts: keepArtifacts,
+    religions: keepReligions,
+    dramaBonds: keepDramaBonds,
+  };
+}
 
 /**
  * Compresses the full World Bible into dense, token-bounded one-liner blocks
  * suitable for injecting into the play-time narrator context envelope.
+ *
+ * Pass `options` (Plan 07) to activate scope-aware pruning for long-form saga
+ * chapters; omit it to compress the whole bible at mythic-tier budgets.
  */
-export function buildWorldContextBlocks(story: { worldBible?: WorldBible | null }): WorldContextBlocks {
-  const wb = story.worldBible;
+export function buildWorldContextBlocks(
+  story: { worldBible?: WorldBible | null },
+  options?: ScopedContextOptions
+): WorldContextBlocks {
+  let wb = story.worldBible;
   if (!wb) {
     return {
       factions: [],
@@ -38,6 +168,12 @@ export function buildWorldContextBlocks(story: { worldBible?: WorldBible | null 
     };
   }
 
+  const scopeTier: ScopeTier = options?.scopeTier ?? 'mythic';
+  if (options) {
+    wb = pruneWorldBibleToScope(wb, options);
+  }
+  const caps = SCOPE_CAPS[scopeTier];
+
   const npcName = new Map<string, string>();
   for (const n of wb.npcs ?? []) npcName.set(n.id, n.name);
 
@@ -48,7 +184,7 @@ export function buildWorldContextBlocks(story: { worldBible?: WorldBible | null 
           f.secretAgendas ? ` | Hidden agenda: ${f.secretAgendas}` : ''
         }`
     ),
-    10
+    caps.factions
   );
 
   const timeline = cap(
@@ -60,7 +196,7 @@ export function buildWorldContextBlocks(story: { worldBible?: WorldBible | null 
         return ar - br;
       })
       .map((t) => `${t.yearOrEra}: ${t.title} — ${t.summary}${t.significance ? ` (${t.significance})` : ''}`),
-    12
+    caps.timeline
   );
 
   const artifacts = cap(
@@ -68,7 +204,7 @@ export function buildWorldContextBlocks(story: { worldBible?: WorldBible | null 
       (a) =>
         `${a.name} (${a.rarity}) — powers: ${a.powers.join(', ') || 'unknown'}; held by ${a.currentHolderType} ${a.currentHolderId}`
     ),
-    12
+    caps.artifacts
   );
 
   const bestiary = cap(
@@ -78,7 +214,7 @@ export function buildWorldContextBlocks(story: { worldBible?: WorldBible | null 
           c.habitatLocationIds.join('/') || 'unknown'
         } | weakness: ${c.weaknesses.join(', ') || 'unknown'}`
     ),
-    12
+    caps.bestiary
   );
 
   const religions = cap(
@@ -88,7 +224,7 @@ export function buildWorldContextBlocks(story: { worldBible?: WorldBible | null 
           d.taboos?.length ? ` | Taboos: ${d.taboos.join(', ')}` : ''
         }`
     ),
-    12
+    caps.religions
   );
 
   const dramaBonds = cap(
@@ -99,7 +235,7 @@ export function buildWorldContextBlocks(story: { worldBible?: WorldBible | null 
         const tgt = npcName.get(b.targetNpcId) ?? b.targetNpcId;
         return `${src} ↔ ${tgt} (affinity ${b.affinity})`;
       }),
-    8
+    caps.dramaBonds
   );
 
   const locations = cap(
@@ -109,7 +245,7 @@ export function buildWorldContextBlocks(story: { worldBible?: WorldBible | null 
           l.category ? `, ${l.category}` : ''
         }) — ${l.description}`
     ),
-    12
+    caps.locations
   );
 
   const npcs = cap(
@@ -119,12 +255,12 @@ export function buildWorldContextBlocks(story: { worldBible?: WorldBible | null 
           n.goals.join(', ') || 'unknown'
         }`
     ),
-    12
+    caps.npcs
   );
 
   const laws = cap(
     (wb.laws ?? []).map((law) => `${law.rule} (${law.category}) — ${law.description}`),
-    10
+    caps.laws
   );
 
   const ontologyLines: string[] = [];
@@ -178,4 +314,74 @@ export function formatWorldContext(blocks: WorldContextBlocks): string {
 /** Convenience: build the context blocks and format them in one call. */
 export function buildWorldContextString(story: { worldBible?: WorldBible | null }): string {
   return formatWorldContext(buildWorldContextBlocks(story));
+}
+
+/**
+ * Plan 07 — Living World State Ledger renderer (Tier 3).
+ * Produces dense one-liner strings, e.g.:
+ *   `Faction Syndicate: +25 (allied)`, `NPC Vael: dead — slain at the breach`
+ */
+export function formatLivingWorldLedger(ledger?: WorldStateLedger | null): string[] {
+  if (!ledger) return [];
+  const lines: string[] = [];
+
+  for (const f of ledger.factionReputations ?? []) {
+    const name = f.factionName || f.factionId;
+    lines.push(
+      `Faction ${name}: ${f.score >= 0 ? '+' : ''}${f.score} (${f.stance})${f.note ? ` — ${f.note}` : ''}`
+    );
+  }
+  for (const n of ledger.npcStatuses ?? []) {
+    const name = n.npcName || n.npcId;
+    lines.push(`NPC ${name}: ${n.status}${n.note ? ` — ${n.note}` : ''}`);
+  }
+  for (const i of ledger.keyItems ?? []) {
+    lines.push(
+      `Item ${i.name}${i.isStoryCritical ? ' [STORY-CRITICAL]' : ''}${
+        i.acquiredChapterNumber ? ` (acquired Ch${i.acquiredChapterNumber})` : ''
+      }${i.description ? ` — ${i.description}` : ''}`
+    );
+  }
+  if (ledger.openPlotThreads?.length) {
+    lines.push(`Open plot threads: ${ledger.openPlotThreads.join(' | ')}`);
+  }
+  return lines;
+}
+
+/**
+ * Plan 07 — Chapter-scoped context envelope for long-form saga play.
+ * Injects ONLY the relevant slice of world lore for the active chapter scope
+ * and scene locations, followed by the episodic chapter rollups and the
+ * living-world ledger.
+ */
+export function buildChapterContextString(
+  story: { worldBible?: WorldBible | null },
+  chapter: Pick<StoryChapter, 'scopeTier' | 'scenes'>,
+  ledger?: WorldStateLedger | null
+): string {
+  const locationIds = Array.from(
+    new Set((chapter.scenes ?? []).map((s) => s.locationId).filter(Boolean))
+  );
+
+  const blocks = buildWorldContextBlocks(story, { scopeTier: chapter.scopeTier, locationIds });
+  const sections: string[] = [formatWorldContext(blocks)];
+
+  if (ledger?.chapterSummaries?.length) {
+    const rollups = [...ledger.chapterSummaries]
+      .sort((a, b) => a.chapterNumber - b.chapterNumber)
+      .map(
+        (c) =>
+          `- Ch${c.chapterNumber} «${c.title}»: ${c.summary}${
+            c.irreversibleChoices.length ? ` | Irreversible: ${c.irreversibleChoices.join('; ')}` : ''
+          }`
+      );
+    sections.push(`Episodic Milestone Rollup:\n${rollups.join('\n')}`);
+  }
+
+  const ledgerLines = formatLivingWorldLedger(ledger);
+  if (ledgerLines.length) {
+    sections.push(`Living World Ledger:\n- ${ledgerLines.join('\n- ')}`);
+  }
+
+  return sections.filter(Boolean).join('\n\n');
 }
