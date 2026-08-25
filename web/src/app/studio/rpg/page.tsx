@@ -5,6 +5,7 @@ import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { StatDefinition, ResourceDefinition, GameItem } from '@/lib/types';
 import { ThemeRpgSystemPayload } from '@/lib/types/world';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
+import { PageActions } from '@/components/studio/PageActions';
 import { notify } from '@/lib/notify';
 import {
   Sword,
@@ -397,47 +398,53 @@ export default function RpgMechanicsPage() {
               </div>
               <p className="text-sm text-zinc-400">{t.subheading}</p>
             </div>
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={handleSynthesizeRpgSystem}
-                disabled={isSynthesizingRpg}
-                className="flex items-center gap-1.5 text-xs bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-zinc-950 px-3.5 py-1.5 rounded-xl font-bold cursor-pointer transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>
-                  {isSynthesizingRpg
-                    ? isPersian
-                      ? 'سنتز سیستم RPG...'
-                      : 'Synthesizing RPG...'
-                    : isPersian
-                    ? '⚡ سنتز سیستم از تم'
-                    : '⚡ Synthesize System'}
-                </span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setSettingsForm({
-                    diceType: story.rpgSystem.diceType,
-                    inventoryCapacity: story.rpgSystem.inventoryCapacity,
-                    hasCombat: story.rpgSystem.hasCombat,
-                  });
-                  setIsEditingSettings(true);
-                }}
-                className="flex items-center gap-1.5 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 px-3.5 py-1.5 rounded-xl border border-amber-500/20 font-semibold cursor-pointer transition-all"
-              >
-                <Sliders className="w-3.5 h-3.5" />
-                {t.editSettings}
-              </button>
-              <span className="text-xs bg-amber-500/10 border border-amber-500/30 text-amber-300 px-3 py-1.5 rounded-xl font-mono flex items-center gap-1.5">
-                <Dice5 className="w-3.5 h-3.5" />
-                {t.diceType} {story.rpgSystem.diceType.toUpperCase()}
-              </span>
-              <span className="text-xs bg-zinc-800 border border-zinc-700/80 text-zinc-300 px-3 py-1.5 rounded-xl font-mono">
-                {t.capacity} {story.rpgSystem.inventoryCapacity}
-              </span>
-            </div>
+            <PageActions
+              actions={[
+                {
+                  key: 'synthesize',
+                  label:
+                    isSynthesizingRpg
+                      ? isPersian
+                        ? 'سنتز سیستم RPG...'
+                        : 'Synthesizing RPG...'
+                      : isPersian
+                      ? '⚡ سنتز سیستم از تم'
+                      : '⚡ Synthesize System',
+                  icon: Sparkles,
+                  onClick: handleSynthesizeRpgSystem,
+                  disabled: isSynthesizingRpg,
+                  primary: true,
+                  className:
+                    'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-zinc-950 shadow-lg shadow-amber-500/20',
+                },
+                {
+                  key: 'settings',
+                  label: t.editSettings,
+                  icon: Sliders,
+                  onClick: () => {
+                    setSettingsForm({
+                      diceType: story.rpgSystem.diceType,
+                      inventoryCapacity: story.rpgSystem.inventoryCapacity,
+                      hasCombat: story.rpgSystem.hasCombat,
+                    });
+                    setIsEditingSettings(true);
+                  },
+                  className:
+                    'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 font-semibold',
+                },
+              ]}
+              trailing={
+                <>
+                  <span className="text-xs bg-amber-500/10 border border-amber-500/30 text-amber-300 px-3 py-1.5 rounded-xl font-mono flex items-center gap-1.5">
+                    <Dice5 className="w-3.5 h-3.5" />
+                    {story.rpgSystem.diceType.toUpperCase()}
+                  </span>
+                  <span className="hidden sm:flex text-xs bg-zinc-800 border border-zinc-700/80 text-zinc-300 px-3 py-1.5 rounded-xl font-mono">
+                    {t.capacity} {story.rpgSystem.inventoryCapacity}
+                  </span>
+                </>
+              }
+            />
           </div>
         ) : (
           <form onSubmit={handleSaveSettings} className="space-y-4 animate-fadeIn">

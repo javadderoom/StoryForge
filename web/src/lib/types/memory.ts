@@ -62,6 +62,13 @@ export interface WorkingContextEnvelope {
   religions?: string[];
   dramaBonds?: string[];
   ontologySummary?: string;
+  // Plan 07/08: long-form saga grounding
+  activeChapterTitle?: string;
+  activeChapterGoal?: string;
+  /** Tier 2 — compressed milestone rollups of completed chapters */
+  episodicRollup?: string[];
+  /** Tier 3 — living world state lines (factions, NPC statuses, key items) */
+  livingWorldLedger?: string[];
 }
 
 export const MemoryEntrySchema = z.object({

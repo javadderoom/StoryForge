@@ -22,6 +22,7 @@ import {
   Target,
   Crown,
   Trash2,
+  MoreHorizontal,
 } from 'lucide-react';
 import { notify } from '@/lib/notify';
 import {
@@ -69,6 +70,8 @@ export default function StoryBeatsStudioPage() {
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [isSynthesizingSaga, setIsSynthesizingSaga] = useState(false);
   const [sagaPreview, setSagaPreview] = useState<SagaManifest | null>(null);
+  // Plan responsiveness: mobile ⋯ overflow menu for header tools.
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
 
   const sagaChapters: StoryChapter[] = story.saga?.chapters ?? [];
   const activeChapter = sagaChapters.find((c) => c.id === activeChapterId) || null;
@@ -399,10 +402,45 @@ export default function StoryBeatsStudioPage() {
     }
   };
 
+  // Plan responsiveness: single source for header actions (inline on desktop,
+  // collapsed into the ⋯ overflow menu on mobile).
+  const headerActions = [
+    {
+      key: 'saga',
+      label:
+        isSynthesizingSaga
+          ? isPersian
+            ? 'در حال سنتز حماسه...'
+            : 'Synthesizing Saga...'
+          : t.aiSagaBtn,
+      icon: Crown,
+      onClick: handleSynthesizeEpicSaga,
+      disabled: isSynthesizingSaga,
+      className:
+        'bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-zinc-950 shadow-amber-500/20',
+    },
+    {
+      key: 'tree',
+      label:
+        isSynthesizingTree
+          ? isPersian
+            ? 'سنتز درخت ۳ پرده‌ای...'
+            : 'Synthesizing Tree...'
+          : t.aiTreeBtn,
+      icon: Sparkles,
+      onClick: handleSynthesizeStoryTree,
+      disabled: isSynthesizingTree,
+      className:
+        'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-500/20',
+    },
+  ];
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Header Banner */}
-      <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-6 md:p-8 backdrop-blur-sm shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Header Banner — z-40 lifts it (and any popup inside it) above the
+          canvas despite the backdrop-blur stacking-context trap */}
+      <div className="relative z-40 bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-6 md:p-8 backdrop-blur-sm shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5 mb-1.5">
             <GitBranch className="w-5 h-5 text-amber-400" />
@@ -410,49 +448,81 @@ export default function StoryBeatsStudioPage() {
           </div>
           <p className="text-sm text-zinc-400 max-w-3xl leading-relaxed">{t.subheading}</p>
         </div>
+        {/* Plan responsiveness: config-driven actions — inline on desktop,
+            collapsed into a ⋯ overflow menu on mobile. */}
         <div className="flex items-center gap-2.5 self-start md:self-auto">
-          {/* Plan 07: 5-Chapter Epic Saga Synthesizer Trigger */}
-          <button
-            type="button"
-            onClick={handleSynthesizeEpicSaga}
-            disabled={isSynthesizingSaga}
-            className="flex items-center gap-1.5 text-xs bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-zinc-950 px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-amber-500/20 cursor-pointer disabled:opacity-50"
-          >
-            <Crown className="w-3.5 h-3.5" />
-            <span>
-              {isSynthesizingSaga
-                ? isPersian
-                  ? 'در حال سنتز حماسه...'
-                  : 'Synthesizing Saga...'
-                : t.aiSagaBtn}
+          {/* Mobile group */}
+          <div className="flex md:hidden items-center gap-2">
+            <button
+              onClick={() => setAiSceneModalOpen(true)}
+              title={t.aiSceneBtn}
+              className="flex items-center justify-center bg-amber-500 hover:bg-amber-400 text-zinc-950 w-9 h-9 rounded-xl font-bold transition-all shadow-lg shadow-amber-500/20 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+            <span className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 px-2.5 py-2 rounded-xl font-mono flex items-center gap-1">
+              <Layers className="w-3.5 h-3.5 text-amber-400" />
+              {(activeChapter ? activeChapter.scenes.length : story.initialStoryBeats?.length) || 0}
             </span>
-          </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setActionsMenuOpen((v) => !v)}
+                title={isPersian ? 'ابزارها' : 'Tools'}
+                className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all cursor-pointer ${
+                  actionsMenuOpen
+                    ? 'bg-zinc-800 border-zinc-600 text-white'
+                    : 'bg-zinc-900 border-zinc-700 text-zinc-300'
+                }`}
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+              {actionsMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-[99]" onClick={() => setActionsMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 z-[100] w-60 rounded-2xl bg-zinc-900 border border-zinc-700 shadow-2xl p-1.5 space-y-1 animate-fadeIn">
+                    {headerActions.map((a) => (
+                      <button
+                        key={a.key}
+                        type="button"
+                        disabled={a.disabled}
+                        onClick={() => {
+                          setActionsMenuOpen(false);
+                          a.onClick();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold text-zinc-200 hover:bg-zinc-800 disabled:opacity-50 text-start cursor-pointer"
+                      >
+                        <a.icon className="w-4 h-4 shrink-0" />
+                        <span>{a.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
 
-          {/* Plan 06: 3-Act Branching Plot Tree Synthesizer Trigger */}
-          <button
-            type="button"
-            onClick={handleSynthesizeStoryTree}
-            disabled={isSynthesizingTree}
-            className="flex items-center gap-1.5 text-xs bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-purple-500/20 cursor-pointer disabled:opacity-50"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>
-              {isSynthesizingTree
-                ? isPersian
-                  ? 'سنتز درخت ۳ پرده‌ای...'
-                  : 'Synthesizing Tree...'
-                : t.aiTreeBtn}
-            </span>
-          </button>
-
+          {/* Desktop group */}
+          {headerActions.map((a) => (
+            <button
+              key={a.key}
+              type="button"
+              onClick={a.onClick}
+              disabled={a.disabled}
+              className={`hidden md:flex items-center gap-1.5 text-xs px-4 py-2 rounded-xl font-bold transition-all shadow-lg cursor-pointer disabled:opacity-50 ${a.className}`}
+            >
+              <a.icon className="w-3.5 h-3.5" />
+              <span>{a.label}</span>
+            </button>
+          ))}
           <button
             onClick={() => setAiSceneModalOpen(true)}
-            className="flex items-center gap-1.5 text-xs bg-amber-500 hover:bg-amber-400 text-zinc-950 px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-amber-500/20 cursor-pointer"
+            className="hidden md:flex items-center gap-1.5 text-xs bg-amber-500 hover:bg-amber-400 text-zinc-950 px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-amber-500/20 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             {t.aiSceneBtn}
           </button>
-          <span className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 px-3.5 py-2 rounded-xl font-mono flex items-center gap-1.5">
+          <span className="hidden md:flex text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 px-3.5 py-2 rounded-xl font-mono items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-amber-400" />
             {(activeChapter ? activeChapter.scenes.length : story.initialStoryBeats?.length) || 0}{' '}
             {isPersian ? 'صحنه' : 'Beats'}
@@ -462,11 +532,11 @@ export default function StoryBeatsStudioPage() {
 
       {/* Plan 07: Chapter Tabs (Campaign Flowchart Navigation) */}
       {(sagaChapters.length > 0 || activeChapter) && (
-        <div className="flex flex-wrap items-center gap-2 bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-2 backdrop-blur-sm">
+        <div className="relative z-40 flex items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-2 backdrop-blur-sm">
           <button
             type="button"
             onClick={() => setActiveChapterId(null)}
-            className={`flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer border ${
+            className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer border ${
               !activeChapter
                 ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
                 : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
@@ -484,7 +554,7 @@ export default function StoryBeatsStudioPage() {
                 key={ch.id}
                 type="button"
                 onClick={() => setActiveChapterId(ch.id)}
-                className={`flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer border ${
+                className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer border ${
                   isActive
                     ? `${meta.color} ring-2 ring-offset-0`
                     : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
@@ -501,7 +571,7 @@ export default function StoryBeatsStudioPage() {
           <button
             type="button"
             onClick={handleAddChapter}
-            className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl font-bold border border-dashed border-zinc-700 text-zinc-500 hover:text-amber-300 hover:border-amber-500/50 transition-all cursor-pointer"
+            className="shrink-0 whitespace-nowrap flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl font-bold border border-dashed border-zinc-700 text-zinc-500 hover:text-amber-300 hover:border-amber-500/50 transition-all cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             {t.addChapterBtn}
@@ -571,7 +641,7 @@ export default function StoryBeatsStudioPage() {
 
       {/* Plan 06: 3-Act Branching Plot Tree Synthesis Preview Modal */}
       {treeSynthesisPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
           <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-3xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
@@ -678,7 +748,7 @@ export default function StoryBeatsStudioPage() {
 
       {/* Plan 07: Epic Saga Synthesis Preview Modal */}
       {sagaPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
           <div className="bg-zinc-900 border border-amber-500/30 rounded-3xl p-6 max-w-4xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
@@ -775,7 +845,7 @@ export default function StoryBeatsStudioPage() {
 
       {/* AI Scene Synthesis Modal */}
       {aiSceneModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
           <div className="bg-zinc-900 border border-amber-500/30 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <div className="flex items-center gap-2">

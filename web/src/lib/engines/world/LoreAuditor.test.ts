@@ -205,3 +205,181 @@ describe('LoreAuditor — deterministic consistency checks', () => {
     assert.equal(report.findings.length, 0);
   });
 });
+
+describe('Plan 08 — LoreAuditor v2 cross-vault integrity', () => {
+  it('flags artifacts held by missing NPCs (previously unchecked)', () => {
+    const world = baseWorld({
+      npcs: [
+        {
+          id: 'npc_a',
+          name: 'Aria',
+          title: '',
+          currentLocationId: 'loc_a',
+          personalityTraits: [],
+          speechStyle: '',
+          goals: [],
+          secrets: [],
+          initialTrust: 0,
+        },
+      ],
+      locations: [
+        { id: 'loc_a', name: 'Hall A', description: '', region: 'r', dangerLevel: 1, connectedLocationIds: [], atmosphere: '' },
+      ],
+      artifacts: [
+        {
+          id: 'art_x',
+          name: 'Blade of X',
+          title: '',
+          originEra: '',
+          rarity: 'epic',
+          description: '',
+          powers: [],
+          currentHolderType: 'npc',
+          currentHolderId: 'npc_missing',
+        },
+      ],
+    });
+
+    const report = LoreAuditor.audit(world);
+    assert.ok(report.findings.some((f) => f.title === 'Artifact holder not found'));
+  });
+
+  it('flags deity holy sites and creature habitats that do not exist', () => {
+    const world = baseWorld({
+      religions: [
+        {
+          id: 'deity_1',
+          name: 'The Forge Mother',
+          title: '',
+          domain: 'forge',
+          sacredSymbol: '',
+          coreDogma: '',
+          taboos: [],
+          divineBlessings: [],
+          affiliatedFactionIds: [],
+          holyLocationIds: ['loc_missing_shrine'],
+        },
+      ],
+      bestiary: [
+        {
+          id: 'cre_1',
+          name: 'Ash Hound',
+          speciesCategory: 'beast',
+          dangerLevel: 3,
+          habitatLocationIds: ['loc_missing_den'],
+          behavioralTactics: '',
+          weaknesses: [],
+          resistances: [],
+          harvestableLoot: [],
+          loreDescription: '',
+        },
+      ],
+    });
+
+    const report = LoreAuditor.audit(world);
+    assert.ok(report.findings.some((f) => f.title === 'Deity tied to missing holy site'));
+    assert.ok(report.findings.some((f) => f.title === 'Creature habitat not found'));
+  });
+
+  it('flags drama bonds with missing endpoints and duplicate entity names', () => {
+    const npc = (id: string, name: string) => ({
+      id,
+      name,
+      title: '',
+      currentLocationId: 'loc_a',
+      personalityTraits: [],
+      speechStyle: '',
+      goals: [],
+      secrets: [],
+      initialTrust: 0,
+    });
+
+    const world = baseWorld({
+      locations: [
+        { id: 'loc_a', name: 'Hall', description: '', region: 'r', dangerLevel: 1, connectedLocationIds: [], atmosphere: '' },
+      ],
+      factions: [
+        { id: 'fac_a', name: 'Keepers', description: '', alignment: '', territoryIds: ['loc_a'], rivalFactionIds: [], alliedFactionIds: [], publicGoals: '' },
+      ],
+      npcs: [npc('npc_1', 'Captain Rolan'), npc('npc_2', 'captain rolan')],
+      dramaBonds: [
+        {
+          id: 'bond_1',
+          sourceNpcId: 'npc_1',
+          targetNpcId: 'npc_ghost',
+          relationTypeId: 'blood_debt',
+          affinity: -50,
+          secretTension: '',
+          isPublic: true,
+        },
+      ],
+    });
+
+    const report = LoreAuditor.audit(world);
+    assert.ok(report.findings.some((f) => f.title === 'Drama bond references missing NPC'));
+    assert.ok(report.findings.some((f) => f.title === 'Duplicate NPC names'));
+  });
+});
+
+describe('Plan 08 — Saga graph audit (auditSaga)', () => {
+  const scene = (sceneId: string) => ({
+    sceneId,
+    locationId: 'loc_a',
+    narrativeText: 'text',
+    choices: [],
+  });
+
+  it('accepts a coherent saga graph without findings', () => {
+    const report = LoreAuditor.auditSaga({
+      sagaTitle: 'The Long March',
+      premise: '',
+      chapters: [
+        { id: 'ch1', chapterNumber: 1, title: 'One', scopeTier: 'street', narrativeGoal: '', prerequisiteFlags: [], scenes: [scene('s1')], completionSummaryPrompt: '' },
+        { id: 'ch2', chapterNumber: 2, title: 'Two', scopeTier: 'regional', narrativeGoal: '', prerequisiteFlags: ['flag_ch1_done'], scenes: [{ ...scene('s2'), choices: [{ id: 'c1', text: 'next', style: 'agile', riskLevel: 'low', targetSceneId: 's3' }] }, scene('s3')], completionSummaryPrompt: '' },
+      ],
+    });
+    assert.equal(report.findings.length, 0);
+    assert.equal(report.score, 100);
+  });
+
+  it('detects duplicate scene ids across chapters', () => {
+    const report = LoreAuditor.auditSaga({
+      sagaTitle: 'Broken Graph',
+      premise: '',
+      chapters: [
+        { id: 'ch1', chapterNumber: 1, title: 'One', scopeTier: 'street', narrativeGoal: '', prerequisiteFlags: [], scenes: [scene('dup')], completionSummaryPrompt: '' },
+        { id: 'ch2', chapterNumber: 2, title: 'Two', scopeTier: 'regional', narrativeGoal: '', prerequisiteFlags: [], scenes: [scene('dup')], completionSummaryPrompt: '' },
+      ],
+    });
+    assert.ok(report.findings.some((f) => f.title === 'Duplicate scene id'));
+  });
+
+  it('detects dangling branch edges, empty chapters, and scope regressions', () => {
+    const report = LoreAuditor.auditSaga({
+      sagaTitle: 'Messy Saga',
+      premise: '',
+      chapters: [
+        {
+          id: 'ch1',
+          chapterNumber: 1,
+          title: 'Mythic First',
+          scopeTier: 'mythic',
+          narrativeGoal: '',
+          prerequisiteFlags: [],
+          scenes: [
+            {
+              ...scene('s1'),
+              choices: [{ id: 'c1', text: 'to nowhere', style: 'aggressive', riskLevel: 'high', targetSceneId: 'scene_void' }],
+            },
+          ],
+          completionSummaryPrompt: '',
+        },
+        { id: 'ch2', chapterNumber: 2, title: 'Street Second', scopeTier: 'street', narrativeGoal: '', prerequisiteFlags: [], scenes: [], completionSummaryPrompt: '' },
+      ],
+    });
+
+    assert.ok(report.findings.some((f) => f.title === 'Dangling branch edge'));
+    assert.ok(report.findings.some((f) => f.title === 'Empty chapter'));
+    assert.ok(report.findings.some((f) => f.title === 'Scope tier regression'));
+  });
+});

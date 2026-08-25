@@ -8,6 +8,7 @@ import { buildWorldContextBlocks } from '@/lib/engines/narrative/worldContext';
 import { MemoryEngine } from '@/lib/engines/memory/MemoryEngine';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { PlayerState, ActionStyle, RiskLevel, TurnBeat } from '@/lib/types/gameplay';
+import { WorldStateLedger } from '@/lib/types/world';
 import { WorkingContextEnvelope, MemoryCategory, MemoryEntry } from '@/lib/types/memory';
 import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
 
@@ -31,6 +32,9 @@ export async function POST(req: NextRequest) {
       playerState: incomingPlayerState,
       turnNumber = 2,
       forcedDiceRoll,
+      // Plan 07/08
+      currentChapterId: requestedChapterId,
+      sceneId: requestedSceneId,
     } = body;
 
     if (!storyId) {
@@ -41,7 +45,6 @@ export async function POST(req: NextRequest) {
     }
 
     const story = await StoryRepository.getStoryById(storyId);
-    const playerState: PlayerState = incomingPlayerState;
 
     if (!story) {
       return NextResponse.json(
@@ -53,6 +56,25 @@ export async function POST(req: NextRequest) {
     if (!playerActionText || typeof playerActionText !== 'string') {
       return NextResponse.json(
         { success: false, error: 'playerActionText is required' },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    // Load the session FIRST — it is the source of truth for both the
+    // authoritative PlayerState and the Living World Ledger (Plan 08).
+    const session = sessionId ? await SessionRepository.getSession(sessionId) : null;
+
+    // ------------------------------------------------------------------
+    // Plan 08 Phase 2: SERVER-AUTHORITATIVE PlayerState.
+    // A desynced/replayed client payload can claim knowledge or inventory
+    // that bypasses guardrails; when a session exists its persisted state
+    // always wins. The client payload is only a fallback for stateless calls.
+    // ------------------------------------------------------------------
+    const playerState: PlayerState = (session?.playerState as PlayerState | undefined) ?? incomingPlayerState;
+
+    if (!playerState || !playerState.stats) {
+      return NextResponse.json(
+        { success: false, error: 'playerState is required when no sessionId is provided' },
         { status: 400, headers: corsHeaders }
       );
     }
@@ -97,13 +119,33 @@ export async function POST(req: NextRequest) {
       story.rpgSystem
     );
 
-    // 4. Assemble AI Prompt Context Envelope
-    const session = sessionId ? await SessionRepository.getSession(sessionId) : null;
+    // ------------------------------------------------------------------
+    // Plan 08 Phase 3: derive + merge the Living World State Ledger so
+    // relationship drift and story-critical items persist across turns.
+    // ------------------------------------------------------------------
+    const ledgerPatch = GameEngine.deriveLedgerPatch(resolution.stateDiff, story.worldBible);
+    const nextLedger = GameEngine.mergeLedgerPatch(
+      (session?.sagaLedger as WorldStateLedger | null | undefined) ?? null,
+      ledgerPatch
+    );
 
-    const world = buildWorldContextBlocks(story);
+    // ------------------------------------------------------------------
+    // Plan 08 Phase 6: scope-aware lore injection for long-form sagas.
+    // ------------------------------------------------------------------
+    const activeChapter =
+      story.saga?.chapters.find((c) => c.id === (requestedChapterId || session?.currentChapterId)) ||
+      null;
+
+    const currentLocationId = updatedPlayerState.currentLocationId;
+    const world = activeChapter
+      ? buildWorldContextBlocks(story, {
+          scopeTier: activeChapter.scopeTier,
+          locationIds: [currentLocationId],
+        })
+      : buildWorldContextBlocks(story);
 
     const currentLocation =
-      story.worldBible.locations.find((l) => l.id === updatedPlayerState.currentLocationId) ||
+      story.worldBible.locations.find((l) => l.id === currentLocationId) ||
       story.worldBible.locations[0] || {
         id: 'loc_default',
         name: 'Citadel',
@@ -111,7 +153,7 @@ export async function POST(req: NextRequest) {
       };
 
     const activeNPCs = story.worldBible.npcs.filter(
-      (npc) => npc.currentLocationId === updatedPlayerState.currentLocationId
+      (npc) => npc.currentLocationId === currentLocationId
     );
     const activeNpcIds = activeNPCs.map((n) => n.id);
 
@@ -144,11 +186,7 @@ export async function POST(req: NextRequest) {
       createdAt: m.turnNumber ?? 0,
     })) as unknown as MemoryEntry[];
     const retrieved = memoryEntries.length
-      ? new MemoryEngine(memoryEntries).getRelevantMemories(
-          updatedPlayerState.currentLocationId,
-          activeNpcIds,
-          6
-        )
+      ? new MemoryEngine(memoryEntries).getRelevantMemories(currentLocationId, activeNpcIds, 6)
       : [];
     const relevantMemories = [
       ...retrieved.map((m) => ({ category: m.category, importance: m.importance, summary: m.summary })),
@@ -166,6 +204,9 @@ export async function POST(req: NextRequest) {
       .filter((p): p is string => typeof p === 'string' && p.length > 0);
     const recentSceneSnippets =
       priorProse.length > 0 ? priorProse : [story.initialStoryBeats[0]?.narrativeText || ''];
+
+    // Tier 2 rollups + Tier 3 ledger lines from the merged Living World Ledger
+    const threeTier = new MemoryEngine(memoryEntries).buildThreeTierEnvelope(nextLedger);
 
     const contextEnvelope: WorkingContextEnvelope = {
       storyTitle: story.title,
@@ -201,24 +242,56 @@ export async function POST(req: NextRequest) {
       religions: world.religions,
       dramaBonds: world.dramaBonds,
       ontologySummary: world.ontologySummary,
+      // Plan 08 saga grounding
+      activeChapterTitle: activeChapter
+        ? `${activeChapter.chapterNumber}. ${activeChapter.title}`
+        : undefined,
+      activeChapterGoal: activeChapter?.narrativeGoal || undefined,
+      episodicRollup: threeTier.episodicRollup,
+      livingWorldLedger: threeTier.livingWorldLedger,
     };
 
-    // 5. Build prompt and generate prose with Gemini
+    // 4. Build prompt and generate prose with Gemini
     const promptPayload = PromptAssembler.buildNarrativePrompt(contextEnvelope);
     const aiResponse = await geminiAdapter.generateScene(promptPayload);
 
+    // ------------------------------------------------------------------
+    // Plan 08 Phase 1: NEVER persist mock/offline output as story canon.
+    // A degraded generation returns 503 so the client can retry instead of
+    // silently writing an off-world dungeon scene into permanent history.
+    // ------------------------------------------------------------------
+    if (aiResponse.isMock) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'AI narration is unavailable right now (offline or API failure). The turn was NOT recorded to protect story consistency. Please retry.',
+          isMock: true,
+        },
+        { status: 503, headers: corsHeaders }
+      );
+    }
+
+    // Carry the real authored scene id when the client/session knows it;
+    // synthetic ids sever memory→scene linkage in hierarchical retrieval.
+    const beatSceneId =
+      (typeof requestedSceneId === 'string' && requestedSceneId) ||
+      (session?.currentSceneId as string | undefined) ||
+      `scene_turn_${turnNumber}`;
+
     const newBeat: TurnBeat = {
       turnNumber,
-      sceneId: `scene_turn_${turnNumber}`,
+      sceneId: beatSceneId,
       playerActionText,
       actionStyle,
       resolution,
       narrativeProse: aiResponse.narrative,
       presentedChoices: aiResponse.choices,
+      chapterNumber: activeChapter?.chapterNumber,
       timestamp: Date.now(),
     };
 
-    // 6. Persist Turn Record to Database if sessionId provided
+    // 5. Persist Turn Record to Database if sessionId provided
     if (sessionId) {
       const turnMemories = [
         {
@@ -230,6 +303,7 @@ export async function POST(req: NextRequest) {
           category: m.category,
           importance: m.importance,
           summary: m.summary,
+          sceneId: beatSceneId,
         })),
       ];
       await SessionRepository.recordTurn({
@@ -238,6 +312,8 @@ export async function POST(req: NextRequest) {
         resolution,
         updatedPlayerState,
         memories: turnMemories,
+        currentChapterId: activeChapter?.id,
+        sagaLedger: nextLedger,
       });
     }
 
@@ -248,6 +324,8 @@ export async function POST(req: NextRequest) {
           beat: newBeat,
           resolution,
           updatedPlayerState,
+          sagaLedger: nextLedger,
+          activeChapterId: activeChapter?.id ?? null,
         },
       },
       { headers: corsHeaders }

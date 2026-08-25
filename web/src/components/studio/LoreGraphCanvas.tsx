@@ -11,6 +11,8 @@ import {
   Search,
   ZoomIn,
   ZoomOut,
+  Maximize2,
+  Minimize2,
   RotateCcw,
   Globe,
   Heart,
@@ -65,6 +67,18 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
   // Dragging state
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
+  // Plan responsiveness: fullscreen + pinch-zoom + mobile inspector sheet.
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+  const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchBaseRef = useRef<{
+    dist: number;
+    midX: number;
+    midY: number;
+    zoom: number;
+    panX: number;
+    panY: number;
+  } | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   // Type Filters
@@ -431,19 +445,59 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
     setIsAddingLink(false);
   };
 
-  // Mouse Handlers for Pan & Drag
-  const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    setIsDraggingCanvas(true);
-    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+  // Pointer Handlers for Pan, Drag & Pinch (mouse + touch — Plan responsiveness)
+  const handleCanvasMouseDown = (e: React.PointerEvent) => {
+    activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (activePointersRef.current.size === 1) {
+      setIsDraggingCanvas(true);
+      setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    } else if (activePointersRef.current.size === 2) {
+      setIsDraggingCanvas(false);
+      setDraggedNodeId(null);
+      const pts = [...activePointersRef.current.values()];
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+      pinchBaseRef.current = {
+        dist,
+        midX: (pts[0].x + pts[1].x) / 2,
+        midY: (pts[0].y + pts[1].y) / 2,
+        zoom,
+        panX: pan.x,
+        panY: pan.y,
+      };
+    }
   };
 
-  const handleNodeMouseDown = (e: React.MouseEvent, nodeId: string) => {
+  const handleNodeMouseDown = (e: React.PointerEvent, nodeId: string) => {
     e.stopPropagation();
     setDraggedNodeId(nodeId);
     setSelectedNodeId(nodeId);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = (e: React.PointerEvent) => {
+    if (!activePointersRef.current.has(e.pointerId)) return;
+    activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    const base = pinchBaseRef.current;
+    if (base && activePointersRef.current.size >= 2) {
+      const pts = [...activePointersRef.current.values()];
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+      const midX = (pts[0].x + pts[1].x) / 2;
+      const midY = (pts[0].y + pts[1].y) / 2;
+
+      const nextZoom = Math.min(
+        Math.max(Number((base.zoom * (dist / base.dist)).toFixed(2)), 0.4),
+        2.5
+      );
+      const scale = nextZoom / base.zoom;
+      setZoom(nextZoom);
+      setPan({
+        x: midX - (base.midX - base.panX) * scale,
+        y: midY - (base.midY - base.panY) * scale,
+      });
+      return;
+    }
+
     if (isDraggingCanvas) {
       setPan({
         x: e.clientX - dragStart.x,
@@ -461,9 +515,20 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
     }
   };
 
-  const handleMouseUp = () => {
-    setIsDraggingCanvas(false);
-    setDraggedNodeId(null);
+  const handleMouseUp = (e?: React.PointerEvent) => {
+    if (e) activePointersRef.current.delete(e.pointerId);
+    pinchBaseRef.current = null;
+
+    if (activePointersRef.current.size === 1 && !draggedNodeId) {
+      const remaining = [...activePointersRef.current.values()][0];
+      setIsDraggingCanvas(true);
+      setDragStart({ x: remaining.x - pan.x, y: remaining.y - pan.y });
+      return;
+    }
+    if (activePointersRef.current.size === 0) {
+      setIsDraggingCanvas(false);
+      setDraggedNodeId(null);
+    }
   };
 
   const handleWheel = (e: React.WheelEvent) => {
@@ -556,6 +621,10 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
     zoomIn: isPersian ? 'بزرگ‌نمایی' : 'Zoom In',
     zoomOut: isPersian ? 'کوچک‌نمایی' : 'Zoom Out',
     reset: isPersian ? 'بازنشانی گراف' : 'Reset View',
+    editScene: isPersian ? 'ویرایش گره' : 'Edit Node',
+    closeEditor: isPersian ? 'بستن' : 'Close',
+    fsEnter: isPersian ? 'حالت تمام‌صفحه' : 'Fullscreen canvas',
+    fsExit: isPersian ? 'خروج از تمام‌صفحه' : 'Exit fullscreen',
     inspectorTitle: isPersian ? 'اطلاعات گره انتخابی' : 'Selected Lore Node',
     noSelection: isPersian ? 'روی هر گره کلیک کنید تا ارتباطات و مشخصات آن نمایش یابد' : 'Click any node to view relations & secrets',
     locations: isPersian ? 'مکان‌ها' : 'Locations',
@@ -580,16 +649,24 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
   };
 
   return (
-    <div className="relative w-full h-[780px] rounded-3xl bg-[#090a14] border border-zinc-800/80 overflow-hidden shadow-2xl flex flex-col md:flex-row select-none">
+    <div
+      className={`${
+        isFullscreen
+          ? 'fixed inset-0 z-[80] bg-[#090a14]'
+          // z-0 traps all descendants below page bars & popups (see StoryTreeCanvas).
+          : 'relative z-0 w-full h-[72vh] md:h-[780px]'
+      } rounded-3xl border border-zinc-800/80 overflow-hidden shadow-2xl flex flex-col md:flex-row select-none`}
+    >
       {/* Canvas Area */}
       <div
         ref={canvasRef}
-        onMouseDown={handleCanvasMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onPointerDown={handleCanvasMouseDown}
+        onPointerMove={handleMouseMove}
+        onPointerUp={handleMouseUp}
+        onPointerLeave={handleMouseUp}
+        onPointerCancel={handleMouseUp}
         onWheel={handleWheel}
-        className="relative flex-1 h-full cursor-grab active:cursor-grabbing overflow-hidden bg-gradient-to-b from-[#090a14] via-[#0b0c1b] to-[#07080f]"
+        className="relative flex-1 h-full cursor-grab active:cursor-grabbing overflow-hidden bg-gradient-to-b from-[#090a14] via-[#0b0c1b] to-[#07080f] touch-none md:touch-auto"
       >
         {/* Dot Grid */}
         <div
@@ -676,6 +753,17 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
               className="p-2 rounded-xl text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition-all"
             >
               <RotateCcw className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setIsFullscreen((v) => !v)}
+              title={isFullscreen ? t.fsExit : t.fsEnter}
+              className="p-2 rounded-xl text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition-all"
+            >
+              {isFullscreen ? (
+                <Minimize2 className="w-4 h-4" />
+              ) : (
+                <Maximize2 className="w-4 h-4" />
+              )}
             </button>
           </div>
         </div>
@@ -828,7 +916,7 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
             return (
               <div
                 key={node.id}
-                onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
+                onPointerDown={(e) => handleNodeMouseDown(e, node.id)}
                 style={{
                   left: `${node.x}px`,
                   top: `${node.y}px`,
@@ -863,8 +951,8 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
           })}
         </div>
 
-        {/* Bottom Legend */}
-        <div className="absolute bottom-4 left-4 z-20 flex flex-wrap items-center gap-3 bg-zinc-900/90 border border-zinc-800/80 rounded-2xl px-4 py-2 text-[11px] text-zinc-400 backdrop-blur-md pointer-events-auto shadow-lg max-w-2xl">
+        {/* Bottom Legend (hidden on phones to declutter) */}
+        <div className="hidden sm:flex absolute bottom-4 left-4 z-20 flex-wrap items-center gap-3 bg-zinc-900/90 border border-zinc-800/80 rounded-2xl px-4 py-2 text-[11px] text-zinc-400 backdrop-blur-md pointer-events-auto shadow-lg max-w-2xl">
           <span className="font-bold text-zinc-300">{t.legend}</span>
           {(worldBible.ontology?.relationTypes || [
             { id: 'path', name: t.path, color: '#38BDF8' },
@@ -878,10 +966,27 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
             </span>
           ))}
         </div>
+
+        {/* Mobile: floating editor trigger — canvas keeps the full screen */}
+        {!isInspectorOpen && selectedNode && (
+          <button
+            type="button"
+            onClick={() => setIsInspectorOpen(true)}
+            className="md:hidden absolute bottom-4 right-4 z-30 flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white px-4 py-2.5 rounded-2xl text-xs font-bold shadow-xl shadow-indigo-500/30 transition-all cursor-pointer"
+          >
+            {t.editScene}
+          </button>
+        )}
       </div>
 
-      {/* Right-Side Node Inspector Drawer */}
-      <div className="w-full md:w-96 bg-[#0b0d1a] border-t md:border-t-0 md:border-l border-zinc-800/80 p-6 flex flex-col justify-between overflow-y-auto z-30 shadow-2xl">
+      {/* Node Inspector: side panel on desktop, bottom sheet on mobile */}
+      <div
+        className={`bg-[#0b0d1a] border-t md:border-t-0 md:border-l border-zinc-800/80 p-6 flex-col justify-between overflow-y-auto shadow-2xl ${
+          isInspectorOpen
+            ? 'fixed inset-x-0 bottom-0 z-[90] max-h-[72vh] rounded-t-3xl flex animate-fadeIn'
+            : 'hidden'
+        } md:static md:flex md:max-h-none md:w-96 md:rounded-none`}
+      >
         {selectedNode ? (
           <div className="space-y-6 animate-fadeIn">
             {/* Header */}
@@ -892,6 +997,13 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
                 <span className="text-[10px] text-zinc-500 font-mono ml-auto">
                   {selectedNode.id}
                 </span>
+                <button
+                  onClick={() => setIsInspectorOpen(false)}
+                  title={t.closeEditor}
+                  className="md:hidden p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800"
+                >
+                  ✕
+                </button>
               </div>
               <h3 className="text-lg font-bold text-zinc-100">{selectedNode.label}</h3>
               {selectedNode.sublabel && (

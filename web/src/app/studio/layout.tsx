@@ -31,6 +31,8 @@ import {
   Edit2,
   MessageSquare,
   ChevronRight,
+  Menu,
+  X,
 } from 'lucide-react';
 
 function StudioShell({ children }: { children: React.ReactNode }) {
@@ -185,8 +187,15 @@ function StudioShell({ children }: { children: React.ReactNode }) {
     return pathname.startsWith(href);
   };
 
+  // Plan responsiveness: the mobile FAB opens the submenu; highlight it when
+  // the current page lives inside that submenu (not one of the 4 primary tabs).
+  const PRIMARY_MOBILE_HREFS = ['/studio/world', '/studio/rpg', '/studio/npcs', '/studio/beats'];
+  const isMoreActive = !PRIMARY_MOBILE_HREFS.some((h) => isCurrentActive(h));
+
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  // Plan responsiveness: mobile "More" sheet exposes all studio pages.
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
   const toggleSection = (key: string) =>
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
@@ -461,7 +470,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
             }`}
           >
             <BookOpen className="w-4 h-4 shrink-0" />
-            <span className="text-[10px] truncate max-w-[65px] text-center">{navItems[0].shortLabel}</span>
+            <span className="text-[10px] truncate max-w-[65px] text-center">{navItems.find((n) => n.href === '/studio/world')?.shortLabel}</span>
           </Link>
 
           {/* Tab 2: RPG Rules */}
@@ -474,7 +483,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
             }`}
           >
             <Sword className="w-4 h-4 shrink-0" />
-            <span className="text-[10px] truncate max-w-[65px] text-center">{navItems[3].shortLabel}</span>
+            <span className="text-[10px] truncate max-w-[65px] text-center">{navItems.find((n) => n.href === '/studio/rpg')?.shortLabel}</span>
           </Link>
 
           {/* Center Column Spacer for Grid */}
@@ -482,15 +491,20 @@ function StudioShell({ children }: { children: React.ReactNode }) {
             <span className="w-12 h-6" />
           </div>
 
-          {/* Absolute Dead-Center Elevated Action Button */}
+          {/* Absolute Dead-Center Elevated Action Button: opens the full submenu */}
           <div className="absolute left-1/2 -translate-x-1/2 -top-5 flex justify-center items-center z-10">
-            <Link
-              href="/studio/sandbox"
-              className="w-13 h-13 rounded-full bg-gradient-to-tr from-emerald-400 via-teal-300 to-emerald-200 text-zinc-950 flex items-center justify-center shadow-lg shadow-emerald-500/40 border-4 border-[#090a0f] hover:scale-105 active:scale-95 transition-all shrink-0"
-              title={isPersian ? 'سندباکس و هوش مصنوعی' : 'AI Sandbox Simulator'}
+            <button
+              type="button"
+              onClick={() => setIsMoreOpen((v) => !v)}
+              className={`w-13 h-13 rounded-full flex items-center justify-center shadow-lg border-4 border-[#090a0f] hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer ${
+                isMoreActive
+                  ? 'bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-300 text-zinc-950 shadow-amber-500/40'
+                  : 'bg-gradient-to-tr from-emerald-400 via-teal-300 to-emerald-200 text-zinc-950 shadow-emerald-500/40'
+              }`}
+              title={isPersian ? 'همه بخش‌های استودیو' : 'All Studio Sections'}
             >
-              <LayoutGrid className="w-6 h-6 stroke-[2.5]" />
-            </Link>
+              {isMoreOpen ? <X className="w-6 h-6 stroke-[2.5]" /> : <Menu className="w-6 h-6 stroke-[2.5]" />}
+            </button>
           </div>
 
           {/* Tab 3: NPCs */}
@@ -503,7 +517,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
             }`}
           >
             <User className="w-4 h-4 shrink-0" />
-            <span className="text-[10px] truncate max-w-[65px] text-center">{navItems[4].shortLabel}</span>
+            <span className="text-[10px] truncate max-w-[65px] text-center">{navItems.find((n) => n.href === '/studio/npcs')?.shortLabel}</span>
           </Link>
 
           {/* Tab 4: Beats */}
@@ -516,10 +530,73 @@ function StudioShell({ children }: { children: React.ReactNode }) {
             }`}
           >
             <GitBranch className="w-4 h-4 shrink-0" />
-            <span className="text-[10px] truncate max-w-[65px] text-center">{navItems[2].shortLabel}</span>
+            <span className="text-[10px] truncate max-w-[65px] text-center">{navItems.find((n) => n.href === '/studio/beats')?.shortLabel}</span>
           </Link>
         </div>
       </nav>
+
+      {/* Mobile "More" Navigation Sheet */}
+      {isMoreOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm animate-fadeIn"
+          onClick={() => setIsMoreOpen(false)}
+        >
+          <div
+            className="absolute bottom-0 left-0 right-0 max-h-[78vh] overflow-y-auto rounded-t-3xl bg-[#0d0e15] border-t border-x border-zinc-800 p-5 pb-28 shadow-2xl animate-fadeIn"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-zinc-200">
+                {isPersian ? 'همه بخش‌های استودیو' : 'All Studio Sections'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsMoreOpen(false)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            {NAV_SECTIONS.map((section) => {
+              const items = navItems.filter((it) => SECTION_OF[it.href] === section.key);
+              if (!items.length) return null;
+              return (
+                <div key={section.key} className="mb-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-2 px-1">
+                    {section.label}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {items.map((item) => {
+                      const Icon = item.icon;
+                      const active = isCurrentActive(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setIsMoreOpen(false)}
+                          className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                            active
+                              ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                              : 'bg-zinc-900/70 text-zinc-300 border border-zinc-800'
+                          }`}
+                        >
+                          <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-amber-400' : 'text-zinc-500'}`} />
+                          <span className="truncate flex-1">{item.label}</span>
+                          {item.count !== undefined && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-zinc-800/90 text-zinc-400 font-mono shrink-0">
+                              {item.count}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <StoryDetailsModal isOpen={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} />
       <StudioOracleDrawer />

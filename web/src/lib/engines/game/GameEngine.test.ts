@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { GameEngine } from './GameEngine';
 import { PlayerState } from '../../types/gameplay';
 import { RPGSystemSchema } from '../../types/rpg';
+import { WorldBible } from '../../types/world';
 
 describe('GameEngine - Deterministic Mechanics & Math', () => {
   const sampleRpgSystem: RPGSystemSchema = {
@@ -253,5 +254,96 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
       assert.equal(startingEquipment.mainHand, 'greatsword_valoria');
       assert.equal(startingEquipment.offHand, undefined);
     });
+  });
+});
+
+describe('Plan 08 - Living World State Ledger derivation', () => {
+  const worldBible = {
+    worldId: 'w1',
+    worldName: 'W',
+    summary: 's',
+    themeNotes: 't',
+    laws: [],
+    factions: [
+      { id: 'fac_guild', name: 'Iron Guild', description: '', alignment: '', territoryIds: [], rivalFactionIds: [], alliedFactionIds: [], publicGoals: '' },
+    ],
+    locations: [],
+    timeline: [],
+    npcs: [
+      {
+        id: 'npc_bren',
+        name: 'Quartermaster Bren',
+        title: '',
+        role: 'smuggler',
+        factionId: 'fac_guild',
+        currentLocationId: 'loc_hall',
+        personalityTraits: [],
+        speechStyle: '',
+        goals: [],
+        secrets: [],
+        initialTrust: 0,
+      },
+      {
+        id: 'npc_lonely',
+        name: 'No Faction Ned',
+        title: '',
+        currentLocationId: 'loc_docks',
+        personalityTraits: [],
+        speechStyle: '',
+        goals: [],
+        secrets: [],
+        initialTrust: 0,
+      },
+    ],
+    artifacts: [],
+    bestiary: [],
+    religions: [],
+    dramaBonds: [],
+  } as WorldBible;
+
+  it('derives faction reputation drift from NPC relationship changes', () => {
+    const patch = GameEngine.deriveLedgerPatch(
+      { relationshipChanges: { npc_bren: { trustDelta: 30 } } },
+      worldBible
+    );
+
+    assert.ok(patch.factionReputations?.length === 1);
+    assert.equal(patch.factionReputations![0].factionId, 'fac_guild');
+    assert.equal(patch.factionReputations![0].score, 30);
+    assert.ok(patch.npcStatuses?.some((n) => n.npcId === 'npc_bren'));
+  });
+
+  it('flags story-critical item gains as key ledger items', () => {
+    const patch = GameEngine.deriveLedgerPatch(
+      {
+        itemsAdded: [
+          { id: 'item_sealed_ledger', name: 'Sealed Ledger', description: 'Proof.', type: 'quest_item', quantity: 1 },
+          { id: 'apple', name: 'Apple', description: '', type: 'consumable', quantity: 2 },
+        ],
+      },
+      worldBible
+    );
+
+    assert.equal(patch.keyItems?.length, 1);
+    assert.equal(patch.keyItems![0].itemId, 'item_sealed_ledger');
+  });
+
+  it('merges patches cumulatively and clamps reputation scores', () => {
+    const base = GameEngine.mergeLedgerPatch(null, {
+      factionReputations: [{ factionId: 'fac_guild', factionName: 'Iron Guild', score: 80, stance: 'friendly' }],
+      npcStatuses: [{ npcId: 'npc_bren', npcName: 'Quartermaster Bren', status: 'alive' }],
+      keyItems: [{ itemId: 'item_a', name: 'A', isStoryCritical: true }],
+    });
+
+    const merged = GameEngine.mergeLedgerPatch(base, {
+      factionReputations: [{ factionId: 'fac_guild', factionName: 'Iron Guild', score: 60, stance: 'hostile' }],
+      npcStatuses: [{ npcId: 'npc_bren', npcName: 'Quartermaster Bren', status: 'dead' as const, note: 'Slain' }],
+      keyItems: [{ itemId: 'item_b', name: 'B', isStoryCritical: false }],
+    });
+
+    assert.equal(merged.factionReputations[0].score, 100); // clamped at +100
+    assert.equal(merged.factionReputations[0].stance, 'hostile');
+    assert.equal(merged.npcStatuses[0].status, 'dead');
+    assert.deepEqual(merged.keyItems.map((k) => k.itemId), ['item_a', 'item_b']);
   });
 });

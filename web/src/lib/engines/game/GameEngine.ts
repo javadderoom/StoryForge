@@ -7,6 +7,7 @@ import {
   ChoiceOption,
 } from '@/lib/types/gameplay';
 import { RPGSystemSchema, GameItem } from '@/lib/types/rpg';
+import { WorldBible, WorldStateLedger } from '@/lib/types/world';
 
 export interface RollOptions {
   statId?: string;
@@ -324,7 +325,6 @@ export class GameEngine {
         const current = updated.resources[resourceId] !== undefined ? updated.resources[resourceId] : 100;
         let maxVal = 100;
         let minVal = 0;
-        let minFloor = 0;
 
         if (rpgSystem) {
           const resDef = rpgSystem.resources.find((r) => r.id === resourceId);
@@ -393,5 +393,122 @@ export class GameEngine {
     }
 
     return updated;
+  }
+
+  // ------------------------------------------------------------------
+  // Plan 08 — Living World State Ledger derivation (Tier 3)
+  // ------------------------------------------------------------------
+
+  /**
+   * Derives a Living World Ledger patch from a deterministic state mutation
+   * diff, so NPC relationship shifts and story-critical item gains survive
+   * beyond the current turn instead of evaporating.
+   *
+   * Heuristics (deterministic by design):
+   * - `relationshipChanges` on NPCs with a known faction drift that faction's
+   *   reputation score by the trust delta.
+   * - Every touched NPC gets/updates a status entry (default: alive).
+   * - Added items flagged as quest items or high rarity become key items.
+   */
+  public static deriveLedgerPatch(
+    diff: StateMutationDiff,
+    worldBible: WorldBible
+  ): Partial<WorldStateLedger> {
+    const npcById = new Map(worldBible.npcs.map((n) => [n.id, n]));
+
+    const factionDeltas = new Map<string, { name: string; delta: number }>();
+    const npcStatuses: WorldStateLedger['npcStatuses'] = [];
+
+    for (const [npcId, change] of Object.entries(diff.relationshipChanges || {})) {
+      const npc = npcById.get(npcId);
+      npcStatuses.push({
+        npcId,
+        npcName: npc?.name || npcId,
+        status: 'alive',
+        note: change.newSecret ? `Learned secret: ${change.newSecret}` : undefined,
+      });
+      const factionId = npc?.factionId;
+      if (factionId && change.trustDelta !== 0) {
+        const entry = factionDeltas.get(factionId) || { name: '', delta: 0 };
+        entry.delta += change.trustDelta;
+        if (npc?.factionId) {
+          entry.name = worldBible.factions.find((f) => f.id === factionId)?.name || factionId;
+        }
+        factionDeltas.set(factionId, entry);
+      }
+    }
+
+    const factionReputations: WorldStateLedger['factionReputations'] = [];
+    for (const [factionId, { name, delta }] of factionDeltas) {
+      const stance =
+        delta >= 25 ? 'friendly' : delta <= -25 ? 'hostile' : 'neutral';
+      factionReputations.push({ factionId, factionName: name || factionId, score: delta, stance });
+    }
+
+    const keyItems: WorldStateLedger['keyItems'] = (diff.itemsAdded || [])
+      .filter((item) => this.isStoryCriticalItem(item))
+      .map((item) => ({
+        itemId: item.id,
+        name: item.name,
+        description: item.description || '',
+        isStoryCritical: true,
+      }));
+
+    const patch: Partial<WorldStateLedger> = {};
+    if (factionReputations.length) patch.factionReputations = factionReputations;
+    if (npcStatuses.length) patch.npcStatuses = npcStatuses;
+    if (keyItems.length) patch.keyItems = keyItems;
+    return patch;
+  }
+
+  private static isStoryCriticalItem(item: GameItem): boolean {
+    return (
+      item.type === 'quest_item' ||
+      /quest|relic|artifact|seal|heirloom|ledger/i.test(item.id) ||
+      /quest|relic|artifact|seal|heirloom|ledger/i.test(item.name)
+    );
+  }
+
+  /**
+   * Merges a derived ledger patch into the session's persisted Living World
+   * Ledger. Entries are keyed by id so repeated turns accumulate deltas rather
+   * than overwrite history; reputation scores are clamped to [-100, +100].
+   */
+  public static mergeLedgerPatch(
+    base: WorldStateLedger | null | undefined,
+    patch: Partial<WorldStateLedger>
+  ): WorldStateLedger {
+    const merged: WorldStateLedger = base
+      ? JSON.parse(JSON.stringify(base))
+      : { factionReputations: [], npcStatuses: [], keyItems: [], chapterSummaries: [], openPlotThreads: [] };
+
+    for (const rep of patch.factionReputations || []) {
+      const existing = merged.factionReputations.find((r) => r.factionId === rep.factionId);
+      if (existing) {
+        existing.score = Math.min(100, Math.max(-100, existing.score + rep.score));
+        existing.stance = rep.stance;
+        if (rep.note) existing.note = rep.note;
+      } else {
+        merged.factionReputations.push({ ...rep, note: rep.note });
+      }
+    }
+
+    for (const npc of patch.npcStatuses || []) {
+      const existing = merged.npcStatuses.find((n) => n.npcId === npc.npcId);
+      if (existing) {
+        existing.status = npc.status;
+        if (npc.note) existing.note = npc.note;
+      } else {
+        merged.npcStatuses.push({ ...npc });
+      }
+    }
+
+    for (const item of patch.keyItems || []) {
+      if (!merged.keyItems.some((k) => k.itemId === item.itemId)) {
+        merged.keyItems.push({ ...item });
+      }
+    }
+
+    return merged;
   }
 }

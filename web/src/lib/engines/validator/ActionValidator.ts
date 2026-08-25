@@ -76,7 +76,24 @@ export class ActionValidator {
     }
 
 
-    // 3. Knowledge-boundary guardrail: block actions that rely on NPC secrets
+    // 3. Plan 08 Check 3 — World Lore guardrails (MASTER_PLAN §5.3):
+    //    extinct creatures cannot be summoned, artifacts must be possessed,
+    //    and travel must respect the location graph.
+    const loreViolation =
+      ActionValidator.checkBannedCreatures(trimmed, worldBible) ??
+      ActionValidator.checkUnownedArtifact(lower, playerState, worldBible) ??
+      ActionValidator.checkMovementPlausibility(lower, playerState, worldBible);
+    if (loreViolation) {
+      return {
+        isValid: false,
+        isGuardrailViolation: true,
+        rejectionReason: loreViolation,
+        suggestedAction: 'This contradicts the laws of the world or your surroundings. Find another way.',
+        normalizedAction: trimmed,
+      };
+    }
+
+    // 4. Knowledge-boundary guardrail: block actions that rely on NPC secrets
     //    the player has not yet discovered through play.
     const secretViolation = ActionValidator.detectUndiscoveredSecret(trimmed, playerState, worldBible);
     if (secretViolation) {
@@ -89,11 +106,102 @@ export class ActionValidator {
       };
     }
 
-    // 4. Action is valid and plausible
+    // 5. Action is valid and plausible
     return {
       isValid: true,
       normalizedAction: trimmed,
     };
+  }
+
+  /**
+   * Plan 08: immutable extinction/ban laws that explicitly name a bestiary
+   * entry make that creature impossible to summon or interact with.
+   * E.g. law "Dragons are extinct" + bestiary "Dragon" → "summon dragon" fails.
+   */
+  private static checkBannedCreatures(actionText: string, worldBible: WorldBible): string | null {
+    const lower = actionText.toLowerCase();
+    const extinctionLaw = /(extinct|no longer exist|eradicated|wiped out|cannot be summoned|never return|منقرض|انقراض|دیگر وجود ندارند)/i;
+
+    const bannedNames = new Set<string>();
+    for (const law of worldBible.laws ?? []) {
+      if (!law.isImmutable) continue;
+      const lawText = `${law.rule} ${law.description || ''}`.toLowerCase();
+      if (!extinctionLaw.test(lawText)) continue;
+      for (const creature of worldBible.bestiary ?? []) {
+        const name = creature.name.toLowerCase();
+        if (name.length >= 4 && lawText.includes(name)) {
+          bannedNames.add(name);
+        }
+      }
+    }
+
+    for (const name of bannedNames) {
+      if (lower.includes(name)) {
+        return `Impossible: ${name}s are extinct in this world according to its immutable laws.`;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Plan 08: naming a known world artifact the player does not possess is an
+   * inventory hallucination (e.g. claiming the Sealed Ledger from thin air).
+   */
+  private static checkUnownedArtifact(
+    lowerAction: string,
+    playerState: PlayerState,
+    worldBible: WorldBible
+  ): string | null {
+    for (const artifact of worldBible.artifacts ?? []) {
+      const name = artifact.name.toLowerCase();
+      if (name.length < 4 || !lowerAction.includes(name)) continue;
+
+      const owned = playerState.inventory.some(
+        (item) =>
+          item.id === artifact.id ||
+          item.name.toLowerCase().includes(name) ||
+          name.includes(item.name.toLowerCase())
+      );
+      if (!owned) {
+        return `"${artifact.name}" is not in your possession. You must obtain it within the story first.`;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Plan 08: travel actions must respect the location graph — the target must
+   * be a connected neighbor of the player's current location.
+   */
+  private static checkMovementPlausibility(
+    lowerAction: string,
+    playerState: PlayerState,
+    worldBible: WorldBible
+  ): string | null {
+    const travelIntent =
+      /\b(go|travel|head|walk|run|sneak|sail|ride|journey|move|return)\s+(to|toward|towards|into|back to)?\b/.test(lowerAction) ||
+      /برو(یم|ید)?\s+به|سفر\s+(به|کن)|حرکت\s+به/.test(lowerAction);
+    if (!travelIntent) return null;
+
+    const current = worldBible.locations.find((l) => l.id === playerState.currentLocationId);
+
+    for (const loc of worldBible.locations ?? []) {
+      const name = loc.name.toLowerCase();
+      if (name.length < 4 || !lowerAction.includes(name) || loc.id === playerState.currentLocationId) {
+        continue;
+      }
+      const connected =
+        !!current &&
+        ((current.connectedLocationIds || []).includes(loc.id) ||
+          (loc.connectedLocationIds || []).includes(current.id));
+      if (!connected) {
+        return `"${loc.name}" is not directly reachable from ${
+          current?.name ?? 'your current position'
+        }. Travel through connected locations first.`;
+      }
+      break; // evaluate only the first named destination
+    }
+    return null;
   }
 
   /**
@@ -144,6 +252,17 @@ export class ActionValidator {
         if (lower.includes(secret.id.toLowerCase())) {
           return `You cannot act on knowledge of ${npc.name}'s secret you do not yet possess.`;
         }
+
+        // Plan 08 precision: term overlap alone produced false positives on
+        // common world nouns. Overlapping terms only count as secret leakage
+        // when the action also names the NPC in question (any distinctive
+        // name word counts, so "the baroness" matches "Baroness Vey").
+        const nameWords = npc.name
+          .toLowerCase()
+          .split(/[^a-z\u0600-\u06FF]+/)
+          .filter((w) => w.length >= 3);
+        const mentionsNpc = nameWords.some((w) => lower.includes(w));
+        if (!mentionsNpc) continue;
 
         const terms = secret.description
           .toLowerCase()

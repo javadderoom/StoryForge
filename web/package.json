@@ -8,7 +8,7 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/lib/engines/game/GameEngine.test.ts src/lib/engines/validator/ActionValidator.test.ts src/lib/engines/memory/MemoryEngine.test.ts src/lib/engines/world/LoreAuditor.test.ts src/lib/engines/world/ActionProtocol.test.ts src/lib/db/repositories/storyRepository.test.ts src/content/stories/StoryManifestIntegrity.test.ts src/lib/types/WorldBibleSchema.test.ts src/lib/types/SagaSchemas.test.ts src/lib/engines/narrative/ScopedWorldContext.test.ts src/app/api/studio/generate/StudioGenerate.test.ts src/app/api/studio/chat/StudioChat.test.ts"
+    "test": "tsx --test src/lib/engines/game/GameEngine.test.ts src/lib/engines/validator/ActionValidator.test.ts src/lib/engines/memory/MemoryEngine.test.ts src/lib/engines/world/LoreAuditor.test.ts src/lib/engines/world/ActionProtocol.test.ts src/lib/db/repositories/storyRepository.test.ts src/content/stories/StoryManifestIntegrity.test.ts src/lib/types/WorldBibleSchema.test.ts src/lib/types/SagaSchemas.test.ts src/lib/engines/narrative/ScopedWorldContext.test.ts src/lib/providers/GeminiAdapter.test.ts src/app/api/studio/generate/StudioGenerate.test.ts src/app/api/studio/chat/StudioChat.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.17.1",

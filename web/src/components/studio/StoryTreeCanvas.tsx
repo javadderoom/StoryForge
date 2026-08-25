@@ -1,23 +1,22 @@
 'use client';
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { StoryManifest, StoryChapter, StoryBeat } from '@/lib/types';
 import {
   GitBranch,
   MapPin,
-  Sparkles,
   Plus,
   Trash2,
-  CheckCircle2,
   ZoomIn,
   ZoomOut,
   RotateCcw,
   BookOpen,
   ArrowRight,
-  Shield,
-  Zap,
   LayoutGrid,
   Move,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 
 interface StoryBeatChoice {
@@ -170,8 +169,38 @@ export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesCha
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  // Plan responsiveness: fullscreen editing + two-finger pinch-zoom.
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  // Mobile: inspector renders as a bottom sheet instead of stacking below.
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+  const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchBaseRef = useRef<{
+    dist: number;
+    midX: number;
+    midY: number;
+    zoom: number;
+    panX: number;
+    panY: number;
+  } | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Plan responsiveness — fit the tree to narrow viewports on first paint
+  // (a 360px node at zoom 1 overflows a 375px phone screen).
+  const getFitZoom = () => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return 1;
+    if (rect.width >= 768) return 1; // desktop keeps native scale
+    return Math.min(Math.max(Number((rect.width / 460).toFixed(2)), 0.35), 1);
+  };
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    setZoom(getFitZoom());
+    // Run once after mount when the canvas has a measurable box.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Re-seed beats + layout from the story when it changes.
   // Intentional setState-in-effect: re-derives from `story` on change, but beats
@@ -198,7 +227,7 @@ export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesCha
       setNodePositions(calculateTreeLayout(scenes));
       setSelectedSceneId(scenes[0]?.sceneId || '');
       setPan({ x: 40, y: 30 });
-      setZoom(1);
+      setZoom(getFitZoom());
     }
   }, [chapterSceneKey, isChapterMode, chapter, lastChapterKey]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -256,18 +285,62 @@ export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesCha
   }, [beats, nodePositions]);
 
   // Mouse Dragging & Panning Handlers
-  const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    setIsDraggingCanvas(true);
-    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+  const handleCanvasMouseDown = (e: React.PointerEvent) => {
+    activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (activePointersRef.current.size === 1) {
+      setIsDraggingCanvas(true);
+      setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    } else if (activePointersRef.current.size === 2) {
+      // Second finger down → switch from pan/node-drag to pinch-zoom.
+      setIsDraggingCanvas(false);
+      setDraggedNodeId(null);
+      const pts = [...activePointersRef.current.values()];
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+      pinchBaseRef.current = {
+        dist,
+        midX: (pts[0].x + pts[1].x) / 2,
+        midY: (pts[0].y + pts[1].y) / 2,
+        zoom,
+        panX: pan.x,
+        panY: pan.y,
+      };
+    }
   };
 
-  const handleNodeMouseDown = (e: React.MouseEvent, sceneId: string) => {
+  const handleNodeMouseDown = (e: React.PointerEvent, sceneId: string) => {
     e.stopPropagation();
     setDraggedNodeId(sceneId);
     setSelectedSceneId(sceneId);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  // Plan responsiveness — Pointer Events unify mouse + touch; two active
+  // pointers drive anchored pinch-zoom instead of panning.
+  const handleMouseMove = (e: React.PointerEvent) => {
+    if (!activePointersRef.current.has(e.pointerId)) return;
+    activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    const base = pinchBaseRef.current;
+    if (base && activePointersRef.current.size >= 2) {
+      const pts = [...activePointersRef.current.values()];
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+      const midX = (pts[0].x + pts[1].x) / 2;
+      const midY = (pts[0].y + pts[1].y) / 2;
+
+      const nextZoom = Math.min(
+        Math.max(Number((base.zoom * (dist / base.dist)).toFixed(2)), 0.35),
+        2.5
+      );
+      const scale = nextZoom / base.zoom;
+      // Keep the world point under the pinch midpoint anchored.
+      setZoom(nextZoom);
+      setPan({
+        x: midX - (base.midX - base.panX) * scale,
+        y: midY - (base.midY - base.panY) * scale,
+      });
+      return;
+    }
+
     if (isDraggingCanvas) {
       setPan({
         x: e.clientX - dragStart.x,
@@ -286,9 +359,21 @@ export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesCha
     }
   };
 
-  const handleMouseUp = () => {
-    setIsDraggingCanvas(false);
-    setDraggedNodeId(null);
+  const handleMouseUp = (e?: React.PointerEvent) => {
+    if (e) activePointersRef.current.delete(e.pointerId);
+    pinchBaseRef.current = null;
+
+    if (activePointersRef.current.size === 1 && !draggedNodeId) {
+      // Pinch ended with one finger still down → resume panning seamlessly.
+      const remaining = [...activePointersRef.current.values()][0];
+      setIsDraggingCanvas(true);
+      setDragStart({ x: remaining.x - pan.x, y: remaining.y - pan.y });
+      return;
+    }
+    if (activePointersRef.current.size === 0) {
+      setIsDraggingCanvas(false);
+      setDraggedNodeId(null);
+    }
   };
 
   const handleWheel = (e: React.WheelEvent) => {
@@ -330,6 +415,8 @@ export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesCha
 
     commitBeats((prev) => [...prev, newBeat]);
     setSelectedSceneId(newId);
+    // Mobile: surface the editor sheet immediately for the freshly added beat.
+    setIsInspectorOpen(true);
   };
 
   const handleUpdateNarrative = (text: string) => {
@@ -452,307 +539,14 @@ export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesCha
     zoomOut: isPersian ? 'کوچک‌نمایی' : 'Zoom Out',
     reset: isPersian ? 'بازنشانی نما' : 'Reset View',
     legend: isPersian ? 'شاخه‌های تصمیم:' : 'Decision Branches:',
+    editScene: isPersian ? 'ویرایش صحنه' : 'Edit Scene',
+    closeEditor: isPersian ? 'بستن ویرایشگر' : 'Close editor',
+    fsEnter: isPersian ? 'حالت تمام‌صفحه' : 'Fullscreen canvas',
+    fsExit: isPersian ? 'خروج از تمام‌صفحه' : 'Exit fullscreen',
   };
 
-  return (
-    <div className="relative w-full h-[840px] rounded-3xl bg-[#080a14] border border-zinc-800/80 overflow-hidden shadow-2xl flex flex-col md:flex-row select-none">
-      {/* Visual Flowchart Canvas */}
-      <div
-        ref={canvasRef}
-        onMouseDown={handleCanvasMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onWheel={handleWheel}
-        className="relative flex-1 h-full cursor-grab active:cursor-grabbing overflow-hidden bg-gradient-to-b from-[#080a14] via-[#0a0c1b] to-[#06070e]"
-      >
-        {/* Background Grid */}
-        <div
-          className="absolute inset-0 opacity-20 pointer-events-none"
-          style={{
-            backgroundImage: `radial-gradient(#F59E0B 1.2px, transparent 1.2px)`,
-            backgroundSize: `${34 * zoom}px ${34 * zoom}px`,
-            backgroundPosition: `${pan.x}px ${pan.y}px`,
-          }}
-        />
-
-        {/* Top Control Bar */}
-        <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between gap-3 pointer-events-none">
-          <div className="flex items-center gap-2 pointer-events-auto">
-            {/* Add Scene Button */}
-            <button
-              onClick={handleAddBeat}
-              className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-xl shadow-amber-500/20 transition-all transform hover:scale-105"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>{t.addScene}</span>
-            </button>
-
-            {/* Auto-Arrange Layout */}
-            <button
-              onClick={handleAutoArrange}
-              className="flex items-center gap-2 bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700/80 text-amber-400 px-3.5 py-2.5 rounded-2xl text-xs font-bold shadow-xl backdrop-blur-md transition-all"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span>{t.autoArrange}</span>
-            </button>
-          </div>
-
-          {/* Zoom / Reset Controls */}
-          <div className="flex items-center gap-1 bg-zinc-900/90 border border-zinc-700/80 rounded-2xl p-1 shadow-xl backdrop-blur-md pointer-events-auto">
-            <button
-              onClick={() => setZoom((z) => Math.min(z + 0.15, 2.0))}
-              title={t.zoomIn}
-              className="p-2 rounded-xl text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition-all"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setZoom((z) => Math.max(z - 0.15, 0.4))}
-              title={t.zoomOut}
-              className="p-2 rounded-xl text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition-all"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => {
-                setZoom(1);
-                setPan({ x: 40, y: 30 });
-              }}
-              title={t.reset}
-              className="p-2 rounded-xl text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition-all"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Transformable Canvas Surface */}
-        <div
-          className="absolute inset-0 transition-transform duration-75 origin-top-left"
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          }}
-        >
-          {/* SVG Connection Edges Layer */}
-          <svg className="absolute top-0 left-0 w-[3400px] h-[3400px] pointer-events-none overflow-visible z-0">
-            <defs>
-              <marker
-                id="arrow-amber"
-                viewBox="0 0 10 10"
-                refX="26"
-                refY="5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto-start-reverse"
-              >
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#F59E0B" />
-              </marker>
-              <marker
-                id="arrow-green"
-                viewBox="0 0 10 10"
-                refX="26"
-                refY="5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto-start-reverse"
-              >
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#10B981" />
-              </marker>
-              <marker
-                id="arrow-red"
-                viewBox="0 0 10 10"
-                refX="26"
-                refY="5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto-start-reverse"
-              >
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#EF4444" />
-              </marker>
-            </defs>
-
-            {branchEdges.map((edge) => {
-              const srcPos = nodePositions[edge.sourceId];
-              const tgtPos = nodePositions[edge.targetId];
-              if (!srcPos || !tgtPos) return null;
-
-              const isHighlighted =
-                selectedSceneId === edge.sourceId || selectedSceneId === edge.targetId;
-
-              // Node box dimensions
-              const srcY = srcPos.y + 110;
-              const tgtY = tgtPos.y - 110;
-
-              const midY = (srcY + tgtY) / 2;
-              const pathD = `M ${srcPos.x} ${srcY} C ${srcPos.x} ${midY}, ${tgtPos.x} ${midY}, ${tgtPos.x} ${tgtY}`;
-
-              return (
-                <g key={edge.id}>
-                  {/* Outer Glow */}
-                  {isHighlighted && (
-                    <path
-                      d={pathD}
-                      fill="none"
-                      stroke={edge.color}
-                      strokeWidth={8}
-                      strokeOpacity={0.35}
-                      strokeLinecap="round"
-                    />
-                  )}
-
-                  {/* Main Line */}
-                  <path
-                    d={pathD}
-                    fill="none"
-                    stroke={edge.color}
-                    strokeWidth={isHighlighted ? 3.5 : 2.2}
-                    strokeOpacity={isHighlighted ? 1 : 0.75}
-                    markerEnd={
-                      edge.color === '#EF4444'
-                        ? 'url(#arrow-red)'
-                        : edge.color === '#10B981'
-                        ? 'url(#arrow-green)'
-                        : 'url(#arrow-amber)'
-                    }
-                  />
-
-                  {/* DC Check Pill Badge on Line */}
-                  <g transform={`translate(${(srcPos.x + tgtPos.x) / 2}, ${midY})`}>
-                    <rect
-                      x={-54}
-                      y={-11}
-                      width={108}
-                      height={22}
-                      rx={11}
-                      fill="#0C0E1B"
-                      stroke={edge.color}
-                      strokeWidth={isHighlighted ? 2 : 1.2}
-                    />
-                    <text
-                      x={0}
-                      y={4}
-                      fill={edge.color}
-                      fontSize="9.5"
-                      fontWeight="bold"
-                      textAnchor="middle"
-                      className="select-none font-mono"
-                    >
-                      {edge.dcLabel}
-                    </text>
-                  </g>
-                </g>
-              );
-            })}
-          </svg>
-
-          {/* Story Beat Nodes */}
-          {beats.map((beat, idx) => {
-            const isSelected = selectedSceneId === beat.sceneId;
-            const pos = nodePositions[beat.sceneId] || { x: 600, y: 120 + idx * 360 };
-
-            return (
-              <div
-                key={beat.sceneId}
-                onMouseDown={(e) => handleNodeMouseDown(e, beat.sceneId)}
-                style={{
-                  left: `${pos.x}px`,
-                  top: `${pos.y}px`,
-                  transform: 'translate(-50%, -50%)',
-                }}
-                className={`absolute w-[360px] cursor-grab active:cursor-grabbing transition-transform duration-75 z-10 ${
-                  isSelected ? 'scale-105 z-30' : 'hover:scale-[1.02]'
-                }`}
-              >
-                <div
-                  className={`p-5 rounded-3xl border-2 backdrop-blur-xl shadow-2xl transition-all ${
-                    isSelected
-                      ? 'bg-zinc-900 border-amber-400 ring-4 ring-amber-400/30 shadow-amber-500/20'
-                      : 'bg-zinc-950/90 border-zinc-800/90 hover:border-zinc-600'
-                  }`}
-                >
-                  {/* Top Meta */}
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-lg">
-                        #{idx + 1}
-                      </span>
-                      <span className="text-xs font-mono text-zinc-300 font-bold">
-                        {beat.sceneId}
-                      </span>
-                    </div>
-                    <span className="text-[11px] font-medium text-sky-400 bg-sky-500/15 border border-sky-500/30 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      {beat.locationId}
-                    </span>
-                    {isSelected && (
-                      <button
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteBeat(beat.sceneId);
-                        }}
-                        title={isPersian ? 'حذف این صحنه' : 'Delete this scene'}
-                        className="text-zinc-500 hover:text-rose-400 transition-colors p-1 rounded-lg hover:bg-rose-500/10"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Prose Preview */}
-                  <p className="text-xs text-zinc-300 line-clamp-3 leading-relaxed mb-3 font-serif">
-                    {beat.narrativeText}
-                  </p>
-
-                  {/* Choices List */}
-                  <div className="space-y-1.5 pt-3 border-t border-zinc-800/80">
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 block">
-                      {isPersian ? 'شاخه‌های خروجی این صحنه:' : 'Exit Branches:'} ({beat.choices.length})
-                    </span>
-                    {beat.choices.map((c) => (
-                      <div
-                        key={c.id}
-                        className="flex items-center justify-between text-[11px] p-2 rounded-xl bg-zinc-900/80 border border-zinc-800 text-zinc-300 gap-2"
-                      >
-                        <span className="truncate max-w-[180px] flex items-center gap-1.5">
-                          <ArrowRight className="w-3 h-3 text-amber-400 shrink-0" />
-                          {c.text}
-                        </span>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {c.targetDC && (
-                            <span className="text-[9.5px] font-mono font-bold text-amber-300 px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30">
-                              DC {c.targetDC}
-                            </span>
-                          )}
-                          {getRiskBadge(c.riskLevel)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Bottom Legend */}
-        <div className="absolute bottom-4 left-4 z-20 flex items-center gap-3 bg-zinc-900/90 border border-zinc-800/80 rounded-2xl px-4 py-2 text-[11px] text-zinc-400 backdrop-blur-md pointer-events-auto shadow-lg">
-          <span className="font-bold text-zinc-300">{t.legend}</span>
-          <span className="flex items-center gap-1.5 text-emerald-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" /> {isPersian ? 'مسیر کم‌خطر' : 'Low Risk Branch'}
-          </span>
-          <span className="flex items-center gap-1.5 text-amber-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" /> {isPersian ? 'مسیر مهارت‌آزمایی' : 'DC Skill Check'}
-          </span>
-          <span className="flex items-center gap-1.5 text-red-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" /> {isPersian ? 'مسیر پرخطر / نبرد' : 'High Risk Branch'}
-          </span>
-        </div>
-      </div>
-
-      {/* Right-Side Beat Inspector & Editor */}
-      <div className="w-full md:w-[440px] bg-[#0a0c18] border-t md:border-t-0 md:border-l border-zinc-800/80 p-6 flex flex-col justify-between overflow-y-auto z-30 shadow-2xl">
+    const inspectorBody = (
+      <>
         {selectedBeat ? (
           <div className="space-y-6 animate-fadeIn">
             {/* Header */}
@@ -770,6 +564,13 @@ export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesCha
                 className="text-zinc-500 hover:text-rose-400 transition-colors p-1.5 rounded-lg hover:bg-rose-500/10"
               >
                 <Trash2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setIsInspectorOpen(false)}
+                title={t.closeEditor}
+                className="md:hidden text-zinc-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-zinc-800"
+              >
+                ✕
               </button>
             </div>
 
@@ -943,7 +744,362 @@ export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesCha
           <span>{chapter ? `${chapter.chapterNumber}. ${chapter.title}` : story.title}</span>
           <span className="font-mono">{beats.length} Beats Defined</span>
         </div>
+      </>
+    );
+
+  return (
+    <>
+    <div
+      className={`${
+        isFullscreen
+          ? 'fixed inset-0 z-[80] bg-[#080a14]'
+          // z-0 creates a stacking context: every descendant (inspector sheet,
+          // floating buttons, transformed layers) is trapped BELOW the page
+          // bars (banner/tabs z-40) and popups, no matter its inner z-index.
+          : 'relative z-0 w-full h-[72vh] md:h-[840px]'
+      } rounded-3xl border border-zinc-800/80 overflow-hidden shadow-2xl flex flex-col md:flex-row select-none`}
+    >
+      {/* Visual Flowchart Canvas */}
+      <div
+        ref={canvasRef}
+        onPointerDown={handleCanvasMouseDown}
+        onPointerMove={handleMouseMove}
+        onPointerUp={handleMouseUp}
+        onPointerLeave={handleMouseUp}
+        onPointerCancel={handleMouseUp}
+        onWheel={handleWheel}
+        className="relative flex-1 h-full cursor-grab active:cursor-grabbing overflow-hidden bg-gradient-to-b from-[#080a14] via-[#0a0c1b] to-[#06070e] touch-none md:touch-auto"
+      >
+        {/* Background Grid */}
+        <div
+          className="absolute inset-0 opacity-20 pointer-events-none"
+          style={{
+            backgroundImage: `radial-gradient(#F59E0B 1.2px, transparent 1.2px)`,
+            backgroundSize: `${34 * zoom}px ${34 * zoom}px`,
+            backgroundPosition: `${pan.x}px ${pan.y}px`,
+          }}
+        />
+
+        {/* Top Control Bar */}
+        <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between gap-3 pointer-events-none">
+          <div className="flex items-center gap-2 pointer-events-auto">
+            {/* Add Scene Button */}
+            <button
+              onClick={handleAddBeat}
+              className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-xl shadow-amber-500/20 transition-all transform hover:scale-105"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>{t.addScene}</span>
+            </button>
+
+            {/* Auto-Arrange Layout */}
+            <button
+              onClick={handleAutoArrange}
+              className="flex items-center gap-2 bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700/80 text-amber-400 px-3.5 py-2.5 rounded-2xl text-xs font-bold shadow-xl backdrop-blur-md transition-all"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>{t.autoArrange}</span>
+            </button>
+          </div>
+
+          {/* Zoom / Reset Controls */}
+          <div className="flex items-center gap-1 bg-zinc-900/90 border border-zinc-700/80 rounded-2xl p-1 shadow-xl backdrop-blur-md pointer-events-auto">
+            <button
+              onClick={() => setZoom((z) => Math.min(z + 0.15, 2.0))}
+              title={t.zoomIn}
+              className="p-2 rounded-xl text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition-all"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setZoom((z) => Math.max(z - 0.15, 0.4))}
+              title={t.zoomOut}
+              className="p-2 rounded-xl text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition-all"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                setZoom(1);
+                setPan({ x: 40, y: 30 });
+              }}
+              title={t.reset}
+              className="p-2 rounded-xl text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition-all"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setIsFullscreen((v) => !v)}
+              title={isFullscreen ? t.fsExit : t.fsEnter}
+              className="p-2 rounded-xl text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition-all"
+            >
+              {isFullscreen ? (
+                <Minimize2 className="w-4 h-4" />
+              ) : (
+                <Maximize2 className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Transformable Canvas Surface */}
+        <div
+          className="absolute inset-0 transition-transform duration-75 origin-top-left"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          }}
+        >
+          {/* SVG Connection Edges Layer */}
+          <svg className="absolute top-0 left-0 w-[3400px] h-[3400px] pointer-events-none overflow-visible z-0">
+            <defs>
+              <marker
+                id="arrow-amber"
+                viewBox="0 0 10 10"
+                refX="26"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#F59E0B" />
+              </marker>
+              <marker
+                id="arrow-green"
+                viewBox="0 0 10 10"
+                refX="26"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#10B981" />
+              </marker>
+              <marker
+                id="arrow-red"
+                viewBox="0 0 10 10"
+                refX="26"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#EF4444" />
+              </marker>
+            </defs>
+
+            {branchEdges.map((edge) => {
+              const srcPos = nodePositions[edge.sourceId];
+              const tgtPos = nodePositions[edge.targetId];
+              if (!srcPos || !tgtPos) return null;
+
+              const isHighlighted =
+                selectedSceneId === edge.sourceId || selectedSceneId === edge.targetId;
+
+              // Node box dimensions
+              const srcY = srcPos.y + 110;
+              const tgtY = tgtPos.y - 110;
+
+              const midY = (srcY + tgtY) / 2;
+              const pathD = `M ${srcPos.x} ${srcY} C ${srcPos.x} ${midY}, ${tgtPos.x} ${midY}, ${tgtPos.x} ${tgtY}`;
+
+              return (
+                <g key={edge.id}>
+                  {/* Outer Glow */}
+                  {isHighlighted && (
+                    <path
+                      d={pathD}
+                      fill="none"
+                      stroke={edge.color}
+                      strokeWidth={8}
+                      strokeOpacity={0.35}
+                      strokeLinecap="round"
+                    />
+                  )}
+
+                  {/* Main Line */}
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke={edge.color}
+                    strokeWidth={isHighlighted ? 3.5 : 2.2}
+                    strokeOpacity={isHighlighted ? 1 : 0.75}
+                    markerEnd={
+                      edge.color === '#EF4444'
+                        ? 'url(#arrow-red)'
+                        : edge.color === '#10B981'
+                        ? 'url(#arrow-green)'
+                        : 'url(#arrow-amber)'
+                    }
+                  />
+
+                  {/* DC Check Pill Badge on Line */}
+                  <g transform={`translate(${(srcPos.x + tgtPos.x) / 2}, ${midY})`}>
+                    <rect
+                      x={-54}
+                      y={-11}
+                      width={108}
+                      height={22}
+                      rx={11}
+                      fill="#0C0E1B"
+                      stroke={edge.color}
+                      strokeWidth={isHighlighted ? 2 : 1.2}
+                    />
+                    <text
+                      x={0}
+                      y={4}
+                      fill={edge.color}
+                      fontSize="9.5"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                      className="select-none font-mono"
+                    >
+                      {edge.dcLabel}
+                    </text>
+                  </g>
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* Story Beat Nodes */}
+          {beats.map((beat, idx) => {
+            const isSelected = selectedSceneId === beat.sceneId;
+            const pos = nodePositions[beat.sceneId] || { x: 600, y: 120 + idx * 360 };
+
+            return (
+              <div
+                key={beat.sceneId}
+                onPointerDown={(e) => handleNodeMouseDown(e, beat.sceneId)}
+                style={{
+                  left: `${pos.x}px`,
+                  top: `${pos.y}px`,
+                  transform: 'translate(-50%, -50%)',
+                }}
+                className={`absolute w-[360px] cursor-grab active:cursor-grabbing transition-transform duration-75 z-10 ${
+                  isSelected ? 'scale-105 z-30' : 'hover:scale-[1.02]'
+                }`}
+              >
+                <div
+                  className={`p-5 rounded-3xl border-2 backdrop-blur-xl shadow-2xl transition-all ${
+                    isSelected
+                      ? 'bg-zinc-900 border-amber-400 ring-4 ring-amber-400/30 shadow-amber-500/20'
+                      : 'bg-zinc-950/90 border-zinc-800/90 hover:border-zinc-600'
+                  }`}
+                >
+                  {/* Top Meta */}
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-lg">
+                        #{idx + 1}
+                      </span>
+                      <span className="text-xs font-mono text-zinc-300 font-bold">
+                        {beat.sceneId}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-medium text-sky-400 bg-sky-500/15 border border-sky-500/30 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {beat.locationId}
+                    </span>
+                    {isSelected && (
+                      <button
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteBeat(beat.sceneId);
+                        }}
+                        title={isPersian ? 'حذف این صحنه' : 'Delete this scene'}
+                        className="text-zinc-500 hover:text-rose-400 transition-colors p-1 rounded-lg hover:bg-rose-500/10"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Prose Preview */}
+                  <p className="text-xs text-zinc-300 line-clamp-3 leading-relaxed mb-3 font-serif">
+                    {beat.narrativeText}
+                  </p>
+
+                  {/* Choices List */}
+                  <div className="space-y-1.5 pt-3 border-t border-zinc-800/80">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 block">
+                      {isPersian ? 'شاخه‌های خروجی این صحنه:' : 'Exit Branches:'} ({beat.choices.length})
+                    </span>
+                    {beat.choices.map((c) => (
+                      <div
+                        key={c.id}
+                        className="flex items-center justify-between text-[11px] p-2 rounded-xl bg-zinc-900/80 border border-zinc-800 text-zinc-300 gap-2"
+                      >
+                        <span className="truncate max-w-[180px] flex items-center gap-1.5">
+                          <ArrowRight className="w-3 h-3 text-amber-400 shrink-0" />
+                          {c.text}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {c.targetDC && (
+                            <span className="text-[9.5px] font-mono font-bold text-amber-300 px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30">
+                              DC {c.targetDC}
+                            </span>
+                          )}
+                          {getRiskBadge(c.riskLevel)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Bottom Legend (hidden on phones to declutter) */}
+        <div className="hidden sm:flex absolute bottom-4 left-4 z-20 items-center gap-3 bg-zinc-900/90 border border-zinc-800/80 rounded-2xl px-4 py-2 text-[11px] text-zinc-400 backdrop-blur-md pointer-events-auto shadow-lg">
+          <span className="font-bold text-zinc-300">{t.legend}</span>
+          <span className="flex items-center gap-1.5 text-emerald-400">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" /> {isPersian ? 'مسیر کم‌خطر' : 'Low Risk Branch'}
+          </span>
+          <span className="flex items-center gap-1.5 text-amber-400">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" /> {isPersian ? 'مسیر مهارت‌آزمایی' : 'DC Skill Check'}
+          </span>
+          <span className="flex items-center gap-1.5 text-red-400">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" /> {isPersian ? 'مسیر پرخطر / نبرد' : 'High Risk Branch'}
+          </span>
+        </div>
+
+        {/* Mobile: floating editor trigger — canvas keeps the full screen */}
+        {!isInspectorOpen && (
+          <button
+            type="button"
+            onClick={() => setIsInspectorOpen(true)}
+            className="md:hidden absolute bottom-4 right-4 z-30 flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-xl shadow-amber-500/30 transition-all cursor-pointer"
+          >
+            <GitBranch className="w-3.5 h-3.5" />
+            {t.editScene}
+          </button>
+        )}
       </div>
-    </div>
-  );
-}
+
+      {/* Beat Inspector: side panel on desktop (mobile uses the portal sheet below) */}
+      <div className="hidden md:flex md:w-[440px] bg-[#0a0c18] border-t-0 md:border-t-0 md:border-l border-zinc-800/80 p-6 flex-col justify-between overflow-y-auto z-30 shadow-2xl">
+        {inspectorBody}
+      </div>
+      {/* Mobile inspector sheet - portaled to document.body so it escapes
+          every stacking context (canvas z-0 trap, nav, blurred bars). */}
+      {isInspectorOpen &&
+        createPortal(
+          <div className="md:hidden fixed inset-x-0 bottom-0 z-[95] max-h-[72vh] rounded-t-3xl bg-[#0a0c18] border-t border-zinc-800/80 p-6 flex flex-col overflow-y-auto shadow-2xl animate-fadeIn">
+            <button
+              type="button"
+              onClick={() => setIsInspectorOpen(false)}
+              className="self-end text-zinc-400 hover:text-white text-sm p-1 mb-1 cursor-pointer"
+              title={t.closeEditor}
+            >
+              {'\u2715'}
+            </button>
+            {inspectorBody}
+          </div>,
+          document.body
+        )}
+      </div>
+      </>
+    );
+  }

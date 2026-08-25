@@ -12,7 +12,7 @@ import {
   normalizeGenesisData,
 } from '@/lib/engines/world/GenesisSchemas';
 import { LoreAuditor } from '@/lib/engines/world/LoreAuditor';
-import { WorldBible } from '@/lib/types/world';
+import { WorldBible, SagaManifest } from '@/lib/types/world';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
 
 interface GenerateRequest {
@@ -60,6 +60,8 @@ interface GenerateRequest {
   npcRole?: string;
   worldContext?: string;
   anchor?: string;
+  // Plan 08: optional saga payload for deterministic saga-graph auditing
+  saga?: SagaManifest;
 }
 
 export async function POST(req: NextRequest) {
@@ -138,6 +140,15 @@ export async function POST(req: NextRequest) {
       }
 
       const deterministic = LoreAuditor.audit(wb);
+
+      // Plan 08: union deterministic saga-graph findings when a saga is sent.
+      const sagaAudit = body.saga ? LoreAuditor.auditSaga(body.saga as SagaManifest) : null;
+      if (sagaAudit) {
+        deterministic.findings.push(...sagaAudit.findings);
+        deterministic.score = Math.max(0, Math.min(deterministic.score, sagaAudit.score));
+        deterministic.summary =
+          `${deterministic.summary} ${sagaAudit.findings.length} saga issue(s) detected.`.trim();
+      }
 
       // Try to enrich with an AI audit; if unavailable, return the deterministic one.
       const aiResult = await generateStructuredJson(

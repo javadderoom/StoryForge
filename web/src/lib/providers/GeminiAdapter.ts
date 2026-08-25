@@ -1,16 +1,131 @@
 import { GoogleGenAI } from '@google/genai';
 import { GenerationPromptPayload } from '../engines/narrative/PromptAssembler';
-import { ChoiceOption } from '../types/gameplay';
+import { ChoiceOption, ActionStyle, RiskLevel } from '../types/gameplay';
 import { MemoryCategory } from '../types/memory';
+
+export interface ExtractedMemory {
+  category: MemoryCategory;
+  importance: number;
+  summary: string;
+}
 
 export interface GeneratedSceneResponse {
   narrative: string;
   choices: ChoiceOption[];
-  extractedMemories: Array<{
-    category: MemoryCategory;
-    importance: number;
-    summary: string;
-  }>;
+  extractedMemories: ExtractedMemory[];
+  /**
+   * Plan 08: true when this response came from the offline mock generator
+   * (no API key configured, or the API call failed). Mock prose must NEVER be
+   * persisted as story canon — callers are expected to reject it (HTTP 503).
+   */
+  isMock: boolean;
+}
+
+const VALID_ACTION_STYLES = new Set([
+  'defensive',
+  'agile',
+  'aggressive',
+  'diplomatic',
+  'inquisitive',
+  'tactical',
+  'stealthy',
+  'free_text',
+]);
+
+const VALID_RISK_LEVELS = new Set(['low', 'medium', 'high']);
+
+const VALID_MEMORY_CATEGORIES = new Set(['world', 'character', 'story', 'player', 'recent']);
+
+/**
+ * Plan 08 — deterministic normalization of AI-returned choices.
+ * Rejects choices referencing stats that do not exist in the active RPG system
+ * (they would silently roll with a 0 modifier), clamps DCs to a sane range,
+ * and coerces style/riskLevel into their unions.
+ */
+export function normalizeChoices(
+  rawChoices: unknown,
+  validStatIds: string[],
+  isEnglish: boolean
+): ChoiceOption[] {
+  if (!Array.isArray(rawChoices)) return [];
+  const statIds = new Set(validStatIds.map((id) => id.toLowerCase()));
+  const defaultChoiceText = isEnglish ? 'Proceed forward...' : 'ادامه مسیر...';
+
+  const normalized: ChoiceOption[] = [];
+  for (const c of rawChoices) {
+    if (!c || typeof c !== 'object') continue;
+    const raw = c as Record<string, unknown>;
+    const text = typeof raw.text === 'string' && raw.text.trim() ? raw.text.trim() : defaultChoiceText;
+
+    // A choice whose required stat does not exist in this story would break
+    // the next turn's deterministic check — drop it rather than corrupt canon.
+    let requiredStatId: string | undefined =
+      (raw.requiredStatId as string) ||
+      (raw.required_stat_id as string) ||
+      (raw.statId as string) ||
+      (raw.stat_id as string);
+    if (!requiredStatId) continue;
+    requiredStatId = requiredStatId.toLowerCase();
+    if (!statIds.has(requiredStatId)) continue;
+
+      const style = VALID_ACTION_STYLES.has(raw.style as string) ? (raw.style as ActionStyle) : 'tactical';
+    const riskLevelRaw =
+      VALID_RISK_LEVELS.has(raw.riskLevel as string)
+        ? (raw.riskLevel as RiskLevel)
+        : VALID_RISK_LEVELS.has(raw.risk_level as string)
+        ? (raw.risk_level as RiskLevel)
+        : 'medium';
+    const riskLevel: RiskLevel = riskLevelRaw;
+
+    let targetDC =
+      typeof raw.targetDC === 'number'
+        ? raw.targetDC
+        : typeof raw.target_dc === 'number'
+        ? raw.target_dc
+        : riskLevel === 'high'
+        ? 14
+        : riskLevel === 'low'
+        ? 10
+        : 12;
+    targetDC = Math.min(30, Math.max(5, Math.round(targetDC)));
+
+    normalized.push({
+      id: typeof raw.id === 'string' && raw.id ? raw.id : `choice_${normalized.length + 1}`,
+      text,
+      style,
+      riskLevel,
+      targetDC,
+      requiredStatId,
+    });
+  }
+  return normalized.slice(0, 4);
+}
+
+/**
+ * Plan 08 — deterministic normalization of AI-extracted memories.
+ * Clamps importance to 0–10, whitelists categories, drops ephemeral entries
+ * (<3) and junk summaries so the memory ledger stays consistent with the
+ * MemoryEngine's persistence policy.
+ */
+export function normalizeExtractedMemories(rawMemories: unknown): ExtractedMemory[] {
+  if (!Array.isArray(rawMemories)) return [];
+  const out: ExtractedMemory[] = [];
+  for (const m of rawMemories) {
+    if (!m || typeof m !== 'object') continue;
+    const raw = m as Record<string, unknown>;
+    const summary = typeof raw.summary === 'string' ? raw.summary.trim() : '';
+    if (summary.length < 3) continue;
+
+    const category = VALID_MEMORY_CATEGORIES.has(raw.category as string)
+      ? (raw.category as MemoryCategory)
+      : 'story';
+    const importanceRaw = typeof raw.importance === 'number' ? Math.round(raw.importance) : 5;
+    const importance = Math.min(10, Math.max(0, importanceRaw));
+    if (importance < 3) continue; // ephemeral chit-chat never enters the ledger
+
+    out.push({ category, importance, summary });
+  }
+  return out;
 }
 
 export class GeminiAdapter {
@@ -30,8 +145,8 @@ export class GeminiAdapter {
    */
   public async generateScene(prompt: GenerationPromptPayload): Promise<GeneratedSceneResponse> {
     if (!this.client) {
-      // Fallback mock response for local testing without API key
-      return this.generateMockScene(prompt);
+      // No API key configured (local testing): mock response, flagged as mock.
+      return { ...this.generateMockScene(prompt), isMock: true };
     }
 
     try {
@@ -54,30 +169,29 @@ export class GeminiAdapter {
         ? 'The scene shifts as the consequences of your choice unfold before you...'
         : 'صحنه به آرامی در برابرت ورق می‌خورد...';
 
-      const defaultChoiceText = prompt.isEnglish ? 'Proceed forward...' : 'ادامه مسیر...';
+      const validStatIds = Object.keys(prompt.playerStatIds || {});
 
       return {
-        narrative: parsed.narrative || defaultNarrative,
-        choices: (parsed.choices || []).map((c: any, index: number) => ({
-          id: c.id || `choice_${index + 1}`,
-          text: c.text || defaultChoiceText,
-          style: c.style || 'tactical',
-          riskLevel: c.riskLevel || 'medium',
-          targetDC: typeof c.targetDC === 'number' ? c.targetDC : (typeof c.target_dc === 'number' ? c.target_dc : (c.riskLevel === 'high' ? 14 : c.riskLevel === 'low' ? 10 : 12)),
-          requiredStatId: c.requiredStatId || c.required_stat_id || c.statId || c.stat_id,
-        })),
-        extractedMemories: parsed.extractedMemories || [],
+        narrative:
+          typeof parsed.narrative === 'string' && parsed.narrative.trim()
+            ? parsed.narrative
+            : defaultNarrative,
+        choices: normalizeChoices(parsed.choices, validStatIds, prompt.isEnglish),
+        extractedMemories: normalizeExtractedMemories(parsed.extractedMemories),
+        isMock: false,
       };
     } catch (error) {
+      // Plan 08: a failed generation must NOT silently degrade into fake canon.
       console.error('Gemini API generation error:', error);
-      return this.generateMockScene(prompt);
+      return { ...this.generateMockScene(prompt), isMock: true };
     }
   }
 
   /**
-   * Mock fallback generator adapted to the requested language.
+   * Mock fallback generator adapted to the requested language. Always flagged
+   * with `isMock: true` by generateScene — never persist its output.
    */
-  private generateMockScene(prompt: GenerationPromptPayload): GeneratedSceneResponse {
+  private generateMockScene(prompt: GenerationPromptPayload): Omit<GeneratedSceneResponse, 'isMock'> {
     if (prompt.isEnglish) {
       return {
         narrative:

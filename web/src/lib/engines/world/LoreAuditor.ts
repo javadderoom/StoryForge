@@ -1,4 +1,4 @@
-import { WorldBible } from '@/lib/types/world';
+import { WorldBible, SagaManifest } from '@/lib/types/world';
 import { ContradictionAuditReport, ContradictionFinding } from './GenesisSchemas';
 
 /**
@@ -18,7 +18,12 @@ export class LoreAuditor {
     this.checkFactionRivalryAsymmetry(world, findings);
     this.checkOrphanedEntities(world, findings);
     this.checkEmptyFields(world, findings);
-
+    // Plan 08 Auditor v2
+    this.checkArtifactHolderRefs(world, findings);
+    this.checkReligionRefs(world, findings);
+    this.checkBestiaryHabitats(world, findings);
+    this.checkDramaBondEndpoints(world, findings);
+    this.checkDuplicateNames(world, findings);
 
     const score = LoreAuditor.computeScore(world, findings);
     return {
@@ -29,6 +34,71 @@ export class LoreAuditor {
           : `Detected ${findings.length} issue(s): ${findings.filter((f) => f.severity === 'error').length} error(s), ${findings.filter((f) => f.severity === 'warning').length} warning(s), ${findings.filter((f) => f.severity === 'suggestion').length} suggestion(s).`,
       findings,
     };
+  }
+
+  /**
+   * Plan 08: deterministic audit of a committed saga campaign graph — dangling
+   * choice edges, duplicate scene ids, empty chapters, and scope escalation.
+   */
+  public static auditSaga(saga: SagaManifest): ContradictionAuditReport {
+    const findings: ContradictionFinding[] = [];
+    const chapters = saga.chapters || [];
+
+    const sceneOwner = new Map<string, string>(); // sceneId → chapterId
+    for (const ch of chapters) {
+      for (const sc of ch.scenes || []) {
+        if (sceneOwner.has(sc.sceneId)) {
+          findings.push(this.finding('warning', 'missing_link', 'Duplicate scene id', `Scene id "${sc.sceneId}" exists in more than one chapter ("${sceneOwner.get(sc.sceneId)}" and "${ch.id}"). Branching edges and tree layout will collide.`, [{ entityType: 'story_chapter', name: ch.title }], 'Rename one of the duplicated scene ids.'));
+        } else {
+          sceneOwner.set(sc.sceneId, ch.id);
+        }
+      }
+    }
+
+    for (const ch of chapters) {
+      if ((ch.scenes || []).length === 0) {
+        findings.push(this.finding('warning', 'missing_link', 'Empty chapter', `Chapter "${ch.title}" (#${ch.chapterNumber}) has no scenes.`, [{ entityType: 'story_chapter', name: ch.title }], 'Add scenes or remove the chapter.'));
+      }
+      for (const sc of ch.scenes || []) {
+        for (const choice of sc.choices || []) {
+          if (choice.targetSceneId && !sceneOwner.has(choice.targetSceneId)) {
+            findings.push(this.finding('warning', 'missing_link', 'Dangling branch edge', `Choice "${choice.text}" in "${sc.sceneId}" targets missing scene id "${choice.targetSceneId}".`, [{ entityType: 'story_beat', name: sc.sceneId }], `Point the choice at an existing scene or clear its destination.`));
+          }
+        }
+      }
+    }
+
+    // Scope tiers must escalate (street < regional < continental < mythic)
+    const tierRank: Record<string, number> = { street: 0, regional: 1, continental: 2, mythic: 3 };
+    let lastRank = -1;
+    for (const ch of [...chapters].sort((a, b) => a.chapterNumber - b.chapterNumber)) {
+      const rank = tierRank[ch.scopeTier] ?? 0;
+      if (rank < lastRank) {
+        findings.push(this.finding('suggestion', 'timeline_paradox', 'Scope tier regression', `Chapter "${ch.title}" (${ch.scopeTier}) lowers the escalation after a higher-scope chapter. Early sagas must stay grounded before expanding.`, [{ entityType: 'story_chapter', name: ch.title }], 'Re-order scope tiers so stakes escalate monotonically.'));
+      }
+      lastRank = Math.max(lastRank, rank);
+    }
+
+    const score = Math.max(0, Math.min(100, 100 - findings.length * 8));
+    return {
+      score,
+      summary:
+        findings.length === 0
+          ? 'Saga graph is coherent.'
+          : `Saga audit detected ${findings.length} issue(s).`,
+      findings,
+    };
+  }
+
+  private static finding(
+    severity: ContradictionFinding['severity'],
+    category: ContradictionFinding['category'],
+    title: string,
+    description: string,
+    involved: { entityType: string; name: string }[],
+    suggestedFix: string
+  ): ContradictionFinding {
+    return { id: `audit_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`, severity, category, title, description, involvedEntities: involved, suggestedFix };
   }
 
   // References to ids that do not exist in the world → missing_link
@@ -267,6 +337,141 @@ export class LoreAuditor {
           involvedEntities: [{ entityType: 'world_law', name: law.rule }],
           suggestedFix: `Expand the law's description with concrete constraints and in-world examples.`,
         });
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Plan 08 Auditor v2 — cross-vault reference integrity
+  // ------------------------------------------------------------------
+
+  private static checkArtifactHolderRefs(world: WorldBible, findings: ContradictionFinding[]): void {
+    const locationIds = new Set(world.locations.map((l) => l.id));
+    const factionIds = new Set(world.factions.map((f) => f.id));
+    const npcIds = new Set(world.npcs.map((n) => n.id));
+
+    for (const art of world.artifacts || []) {
+      let missing: string | null = null;
+      if (art.currentHolderType === 'npc' && art.currentHolderId && !npcIds.has(art.currentHolderId)) {
+        missing = 'NPC';
+      } else if (art.currentHolderType === 'faction' && art.currentHolderId && !factionIds.has(art.currentHolderId)) {
+        missing = 'faction';
+      } else if (art.currentHolderType === 'location' && art.currentHolderId && !locationIds.has(art.currentHolderId)) {
+        missing = 'location';
+      }
+      if (missing) {
+        findings.push({
+          id: `artifact_holder_${art.id}`,
+          severity: 'warning',
+          category: 'missing_link',
+          title: 'Artifact holder not found',
+          description: `Artifact "${art.name}" is held by a ${missing} id "${art.currentHolderId}" that does not exist.`,
+          involvedEntities: [{ entityType: 'artifact', name: art.name }],
+          suggestedFix: `Create the holding ${missing.toLowerCase()} or update currentHolderId.`,
+        });
+      }
+    }
+  }
+
+  private static checkReligionRefs(world: WorldBible, findings: ContradictionFinding[]): void {
+    const locationIds = new Set(world.locations.map((l) => l.id));
+    const factionIds = new Set(world.factions.map((f) => f.id));
+
+    for (const deity of world.religions || []) {
+      for (const locId of deity.holyLocationIds || []) {
+        if (!locationIds.has(locId)) {
+          findings.push({
+            id: `deity_loc_${deity.id}_${locId}`,
+            severity: 'warning',
+            category: 'missing_link',
+            title: 'Deity tied to missing holy site',
+            description: `Deity "${deity.name}" lists holy location "${locId}" which does not exist.`,
+            involvedEntities: [{ entityType: 'religion', name: deity.name }],
+            suggestedFix: 'Create the location or remove the link.',
+          });
+        }
+      }
+      for (const facId of deity.affiliatedFactionIds || []) {
+        if (!factionIds.has(facId)) {
+          findings.push({
+            id: `deity_fac_${deity.id}_${facId}`,
+            severity: 'warning',
+            category: 'missing_link',
+            title: 'Deity tied to missing faction',
+            description: `Deity "${deity.name}" is affiliated with faction "${facId}" which does not exist.`,
+            involvedEntities: [{ entityType: 'religion', name: deity.name }],
+            suggestedFix: 'Create the faction or remove the link.',
+          });
+        }
+      }
+    }
+  }
+
+  private static checkBestiaryHabitats(world: WorldBible, findings: ContradictionFinding[]): void {
+    const locationIds = new Set(world.locations.map((l) => l.id));
+    for (const creature of world.bestiary || []) {
+      for (const habitatId of creature.habitatLocationIds || []) {
+        if (!locationIds.has(habitatId)) {
+          findings.push({
+            id: `creature_habitat_${creature.id}_${habitatId}`,
+            severity: 'warning',
+            category: 'missing_link',
+            title: 'Creature habitat not found',
+            description: `Creature "${creature.name}" lists habitat "${habitatId}" which does not exist.`,
+            involvedEntities: [{ entityType: 'creature', name: creature.name }],
+            suggestedFix: 'Create the location or update habitatLocationIds.',
+          });
+        }
+      }
+    }
+  }
+
+  private static checkDramaBondEndpoints(world: WorldBible, findings: ContradictionFinding[]): void {
+    const npcIds = new Set(world.npcs.map((n) => n.id));
+    for (const bond of world.dramaBonds || []) {
+      if (!npcIds.has(bond.sourceNpcId) || !npcIds.has(bond.targetNpcId)) {
+        findings.push({
+          id: `bond_${bond.id}`,
+          severity: 'warning',
+          category: 'missing_link',
+          title: 'Drama bond references missing NPC',
+          description: `Drama bond "${bond.relationTypeId}" connects "${bond.sourceNpcId}" ↔ "${bond.targetNpcId}", but at least one of them does not exist.`,
+          involvedEntities: [{ entityType: 'drama_bond', name: bond.relationTypeId }],
+          suggestedFix: 'Re-point the bond to existing NPCs or delete it.',
+        });
+      }
+    }
+  }
+
+  private static checkDuplicateNames(world: WorldBible, findings: ContradictionFinding[]): void {
+    const vaults: Array<{ kind: string; entities: Array<{ id: string; name: string }> }> = [
+      { kind: 'NPC', entities: world.npcs },
+      { kind: 'location', entities: world.locations },
+      { kind: 'faction', entities: world.factions },
+      { kind: 'artifact', entities: world.artifacts || [] },
+      { kind: 'deity', entities: world.religions || [] },
+      { kind: 'creature', entities: world.bestiary || [] },
+    ];
+
+    for (const { kind, entities } of vaults) {
+      const byName = new Map<string, string[]>();
+      for (const e of entities) {
+        const key = (e.name || '').trim().toLowerCase();
+        if (!key) continue;
+        byName.set(key, [...(byName.get(key) || []), e.id]);
+      }
+      for (const [name, ids] of byName) {
+        if (ids.length > 1) {
+          findings.push({
+            id: `dup_${kind}_${name.replace(/\s+/g, '_')}`,
+            severity: 'suggestion',
+            category: 'missing_link',
+            title: `Duplicate ${kind} names`,
+            description: `${ids.length} ${kind}s share the name "${name}". Duplicate names poison AI context injection and memory retrieval boosts.`,
+            involvedEntities: [{ entityType: kind, name }],
+            suggestedFix: `Rename or merge the duplicate ${kind} entries.`,
+          });
+        }
       }
     }
   }

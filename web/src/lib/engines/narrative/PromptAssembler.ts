@@ -4,6 +4,8 @@ export interface GenerationPromptPayload {
   systemPrompt: string;
   userPrompt: string;
   isEnglish: boolean;
+  /** Plan 08: valid stat ids of the active RPG system, for choice validation. */
+  playerStatIds?: Record<string, number>;
 }
 
 /**
@@ -56,12 +58,23 @@ export class PromptAssembler {
    */
   public static buildNarrativePrompt(context: WorkingContextEnvelope): GenerationPromptPayload {
     const isEnglish = context.languageDirective === 'en';
+    // Plan 08: only the story's real stats may appear in AI-proposed choices —
+    // hardcoded generic stat names produced ids that silently rolled with 0.
+    const validStatIds = Object.keys(context.playerStatus?.stats || {});
 
     const authorDirective = context.authoredSystemPrompt
       ? `\n\n[AUTHOR'S DIRECTIVE — honor the story author's voice, rules, and constraints below]\n${context.authoredSystemPrompt}`
       : '';
 
     const worldBlock = worldContextBlock(context, isEnglish);
+
+    const statsDirective = validStatIds.length
+      ? isEnglish
+        ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Every choice's "requiredStatId" MUST be one of exactly these stat ids: [${validStatIds.join(', ')}].`
+        : `4. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای و طبیعی ارائه کن. «requiredStatId» هر انتخاب باید دقیقاً یکی از این شناسه‌ها باشد: [${validStatIds.join('، ')}].`
+      : isEnglish
+      ? '4. Provide 2 to 4 natural, contextual next choices for the reader in English.'
+      : '4. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای طبیعی ارائه کن. هر انتخاب باید شامل آمار مناسب و درجه سختی (۹ تا ۱۶) باشد.';
 
     const systemPrompt = isEnglish
       ? `[ROLE & PERSONA: LITERARY NOVELIST & RPG NARRATIVE DIRECTOR]
@@ -73,15 +86,15 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 1. All game mechanics (dice rolls, stats, and consequences) are ALREADY pre-resolved deterministically.
 2. You MUST strictly depict the pre-calculated outcome. Do NOT contradict or alter the mechanical result.
 3. Keep the prose focused (between 200 and 350 words). Maintain narrative momentum and visceral tension.
-4. Provide 2 to 4 natural, contextual next choices for the reader in English.
+${statsDirective}
 
 [OUTPUT FORMAT]
 You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "Visceral, atmospheric next scene prose in English...",
   "choices": [
-    { "id": "choice_1", "text": "First choice description in English...", "style": "defensive", "riskLevel": "low", "targetDC": 10, "requiredStatId": "agility" },
-    { "id": "choice_2", "text": "Second choice description in English...", "style": "tactical", "riskLevel": "medium", "targetDC": 12, "requiredStatId": "cunning" }
+    { "id": "choice_1", "text": "First choice description in English...", "style": "defensive", "riskLevel": "low", "targetDC": 10, "requiredStatId": "${validStatIds[0] || 'might'}" },
+    { "id": "choice_2", "text": "Second choice description in English...", "style": "tactical", "riskLevel": "medium", "targetDC": 12, "requiredStatId": "${validStatIds[1] || validStatIds[0] || 'might'}" }
   ],
   "extractedMemories": [
     { "category": "character", "importance": 7, "summary": "Key discovery about a character in English..." }
@@ -96,15 +109,15 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 1. All game mechanics (dice rolls, stats, and consequences) are ALREADY pre-resolved deterministically.
 2. You MUST strictly depict the pre-calculated outcome. Do NOT contradict or alter the mechanical result.
 3. Keep the prose focused (between 200 and 350 words). Maintain narrative momentum and visceral tension.
-4. Provide 2 to 4 natural, contextual next choices for the reader. Each choice MUST include the most appropriate stat ('might', 'agility', 'cunning', 'arcana') and target DC (9-16).
+${statsDirective}
 
 [OUTPUT FORMAT]
 You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "متن ادبی و فضاسازی صحنه بعدی...",
   "choices": [
-    { "id": "choice_1", "text": "متن تصمیم اول...", "style": "defensive", "riskLevel": "low", "targetDC": 10, "requiredStatId": "agility" },
-    { "id": "choice_2", "text": "متن تصمیم دوم...", "style": "tactical", "riskLevel": "medium", "targetDC": 12, "requiredStatId": "cunning" }
+    { "id": "choice_1", "text": "متن تصمیم اول...", "style": "defensive", "riskLevel": "low", "targetDC": 10, "requiredStatId": "${validStatIds[0] || 'might'}" },
+    { "id": "choice_2", "text": "متن تصمیم دوم...", "style": "tactical", "riskLevel": "medium", "targetDC": 12, "requiredStatId": "${validStatIds[1] || validStatIds[0] || 'might'}" }
   ],
   "extractedMemories": [
     { "category": "character", "importance": 7, "summary": "کشف رازی مهم در مورد شخصیت..." }
@@ -153,6 +166,21 @@ You MUST respond with a valid JSON object matching this schema:
         parts.push(`[RECENT SCENE PROSE]\n${context.recentSceneSnippets.join('\n\n')}`);
       }
 
+      // Plan 08: long-form saga grounding (Tier 2 + Tier 3 memory)
+      if (context.activeChapterTitle) {
+        parts.push(
+          `[ACTIVE CHAPTER]\n${context.activeChapterTitle}${context.activeChapterGoal ? `\nGoal: ${context.activeChapterGoal}` : ''}`
+        );
+      }
+      if (context.episodicRollup?.length) {
+        parts.push(`[EPISODIC MILESTONE ROLLUP — completed chapters]\n${context.episodicRollup.map((x) => `• ${x}`).join('\n')}`);
+      }
+      if (context.livingWorldLedger?.length) {
+        parts.push(
+          `[LIVING WORLD LEDGER — immutable play history]\n${context.livingWorldLedger.map((x) => `• ${x}`).join('\n')}\n(Never resurrect dead or transformed NPCs; honor faction standings.)`
+        );
+      }
+
       parts.push(`[FINAL INSTRUCTION]\nWrite the next scene prose in English reflecting the pre-resolved check outcome and return 2 to 4 contextual choices in pure JSON.`);
     } else {
       // Persian Context
@@ -193,6 +221,21 @@ You MUST respond with a valid JSON object matching this schema:
         parts.push(`[خلاصه صحنه قبلی / RECENT SCENE]\n${context.recentSceneSnippets.join('\n\n')}`);
       }
 
+      // Plan 08: long-form saga grounding (Tier 2 + Tier 3 memory)
+      if (context.activeChapterTitle) {
+        parts.push(
+          `[فصل فعال / ACTIVE CHAPTER]\n${context.activeChapterTitle}${context.activeChapterGoal ? `\nهدف: ${context.activeChapterGoal}` : ''}`
+        );
+      }
+      if (context.episodicRollup?.length) {
+        parts.push(`[خلاصه فصل‌های گذشته / EPISODIC ROLLUP]\n${context.episodicRollup.map((x) => `• ${x}`).join('\n')}`);
+      }
+      if (context.livingWorldLedger?.length) {
+        parts.push(
+          `[دفتر جهان زنده / LIVING WORLD LEDGER]\n${context.livingWorldLedger.map((x) => `• ${x}`).join('\n')}\n(هرگز شخصیات مرده یا دگرگون‌شده را زنده نکن؛ به جایگاه جناح‌ها پایبند بمان.)`
+        );
+      }
+
       parts.push(`[دستور نهایی]\nصحنه بعدی داستان را با نثر ادبی و تاثیر نتیجه تاس بنویس و ۲ تا ۴ انتخاب زمینه ای در قالب JSON برگردان.`);
     }
 
@@ -200,6 +243,7 @@ You MUST respond with a valid JSON object matching this schema:
       systemPrompt,
       userPrompt: parts.join('\n\n'),
       isEnglish,
+      playerStatIds: context.playerStatus?.stats || {},
     };
   }
 }
