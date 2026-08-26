@@ -476,7 +476,7 @@ export default function StudioOracleDrawer() {
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 end-6 z-40 flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 text-zinc-950 font-bold text-xs shadow-2xl shadow-amber-500/30 cursor-pointer transition-all hover:scale-105 border border-amber-300/40 animate-fadeIn"
+          className="fixed bottom-6 end-6 z-[60] max-md:bottom-24 flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 text-zinc-950 font-bold text-xs shadow-2xl shadow-amber-500/30 cursor-pointer transition-all hover:scale-105 border border-amber-300/40 animate-fadeIn"
           title="Open Studio Oracle"
         >
           <Sparkles className="w-4 h-4 animate-pulse" />

@@ -729,17 +729,19 @@ export default function AiOraclePage() {
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] md:h-screen overflow-hidden">
-      <ChatList
-        chats={chats}
-        activeId={activeId}
-        onSelect={(id) => {
-          setActiveId(id);
-          setMobileListOpen(false);
-        }}
-        onNew={newChat}
-        onDelete={deleteChat}
-        isPersian={isPersian}
-      />
+      <div className="hidden md:flex">
+        <ChatList
+          chats={chats}
+          activeId={activeId}
+          onSelect={(id) => {
+            setActiveId(id);
+            setMobileListOpen(false);
+          }}
+          onNew={newChat}
+          onDelete={deleteChat}
+          isPersian={isPersian}
+        />
+      </div>
 
       {mobileListOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
@@ -937,7 +939,7 @@ export default function AiOraclePage() {
           )}
         </div>
 
-        <div className="border-t border-zinc-800/70 px-4 md:px-6 py-4">
+        <div className="border-t border-zinc-800/70 px-4 md:px-6 py-4 pb-24 md:pb-4">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-center gap-2 mb-2 text-xs text-zinc-400">
               <ShieldCheck className="h-3.5 w-3.5" />
