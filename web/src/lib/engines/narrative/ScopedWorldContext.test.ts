@@ -279,6 +279,79 @@ describe('Plan 07 — Dynamic Context-Aware Lore Retrieval (scope pruning)', () 
   });
 });
 
+describe('Plan 07b — Faction scope gating (cosmic dominions stay hidden until escalation)', () => {
+  const dominionBible = {
+    ...worldBible,
+    factions: [
+      ...worldBible.factions!,
+      {
+        id: 'fac_abyssal_dominion',
+        name: 'Abyssal Dominion',
+        description: 'A trans-planarial hierarchy of fallen gods.',
+        alignment: 'Cosmic Evil',
+        // Anchored directly to the ACTIVE street-level scene — only the
+        // tier gate can keep it hidden.
+        territoryIds: ['loc_alley'],
+        rivalFactionIds: [],
+        alliedFactionIds: [],
+        publicGoals: 'Promise mortal followers power',
+        secretAgendas: 'Dominate and twist all creation',
+        scope: 'mythic' as const,
+      },
+    ],
+  };
+
+  it('street chapters prune even scene-anchored factions whose scope outranks the chapter', () => {
+    const pruned = pruneWorldBibleToScope(dominionBible, {
+      scopeTier: 'street',
+      locationIds: ['loc_alley'],
+    });
+    assert.ok(!pruned.factions.some((f) => f.id === 'fac_abyssal_dominion'));
+
+    const blocks = buildWorldContextBlocks(
+      { worldBible: dominionBible },
+      { scopeTier: 'street', locationIds: ['loc_alley'] }
+    );
+    assert.ok(!blocks.factions.some((f) => f.includes('Abyssal Dominion')));
+    // Unscoped factions are unaffected by the gate.
+    assert.ok(blocks.factions.some((f) => f.includes('Iron Guild')));
+  });
+
+  it('continental chapters still hide it; mythic chapters reveal it', () => {
+    const continental = pruneWorldBibleToScope(dominionBible, {
+      scopeTier: 'continental',
+      locationIds: ['loc_alley'],
+    });
+    assert.ok(!continental.factions.some((f) => f.id === 'fac_abyssal_dominion'));
+
+    const mythic = pruneWorldBibleToScope(dominionBible, {
+      scopeTier: 'mythic',
+      locationIds: ['loc_alley'],
+    });
+    assert.ok(mythic.factions.some((f) => f.id === 'fac_abyssal_dominion'));
+  });
+
+  it('regional-scope factions surface once the chapter reaches regional tier', () => {
+    const regionalDominion = {
+      ...dominionBible,
+      factions: dominionBible.factions.map((f) =>
+        f.id === 'fac_abyssal_dominion' ? { ...f, scope: 'regional' as const } : f
+      ),
+    };
+    const street = pruneWorldBibleToScope(regionalDominion, {
+      scopeTier: 'street',
+      locationIds: ['loc_alley'],
+    });
+    assert.ok(!street.factions.some((f) => f.id === 'fac_abyssal_dominion'));
+
+    const regional = pruneWorldBibleToScope(regionalDominion, {
+      scopeTier: 'regional',
+      locationIds: ['loc_alley'],
+    });
+    assert.ok(regional.factions.some((f) => f.id === 'fac_abyssal_dominion'));
+  });
+});
+
 describe('Plan 07 — Living World Ledger & Chapter Context Envelope', () => {
   it('formats faction reputations, NPC statuses, key items, and plot threads', () => {
     const lines = formatLivingWorldLedger({

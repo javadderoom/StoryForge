@@ -239,9 +239,9 @@ Strictly output a valid JSON object matching the requested schema. Do not enclos
 
     let schemaInstruction = '';
     if (type === 'world') {
-      schemaInstruction = `Schema: { "worldName": string, "summary": string, "themeNotes": string, "aiSystemPrompt": string, "laws": [{ "rule": string, "category": "magic"|"physics"|"society"|"divine", "description": string, "isImmutable": true }], "factions": [{ "id": string, "name": string, "description": string, "alignment": string, "publicGoals": string }] }`;
+      schemaInstruction = `Schema: { "worldName": string, "summary": string, "themeNotes": string, "aiSystemPrompt": string, "laws": [{ "rule": string, "category": "magic"|"physics"|"society"|"divine", "description": string, "isImmutable": true }], "factions": [{ "id": string, "name": string, "description": string, "alignment": string, "publicGoals": string, "secretAgendas": string, "scope": "street"|"regional"|"continental"|"mythic" }] } (Faction scope = the chapter tier where it becomes narratively active: street gangs/city guards are "street", kingdoms and trade leagues are "regional", empire-spanning orders are "continental", cosmic/trans-planarial dominions of gods or devils are "mythic")`;
     } else if (type === 'faction') {
-      schemaInstruction = `Schema: { "name": string, "description": string, "alignment": string, "publicGoals": string, "secretAgendas": string, "territoryIds": string[], "rivalFactionIds": string[], "alliedFactionIds": string[] }`;
+      schemaInstruction = `Schema: { "name": string, "description": string, "alignment": string, "publicGoals": string, "secretAgendas": string, "territoryIds": string[], "rivalFactionIds": string[], "alliedFactionIds": string[], "scope": "street"|"regional"|"continental"|"mythic" } (scope = the chapter tier where this faction becomes narratively active; use "mythic" for cosmic dominions of gods/devils that should stay hidden until the saga's climax)`;
     } else if (type === 'location') {
       schemaInstruction = `Schema: { "name": string, "region": string, "description": string, "dangerLevel": 1|2|3|4|5, "atmosphere": string, "specialRules": string[] }`;
     } else if (type === 'npc') {

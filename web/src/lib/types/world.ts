@@ -18,6 +18,13 @@ export interface Faction {
   alliedFactionIds: string[];
   publicGoals: string;
   secretAgendas?: string;
+  /**
+   * Chapter scope tier at which this faction becomes narratively active.
+   * Street/regional chapters prune factions whose scope outranks the chapter
+   * (e.g. a mythic cosmic dominion stays hidden until the saga escalates).
+   * Omitted = always relevant (backwards compatible).
+   */
+  scope?: ScopeTier;
 }
 
 export interface LocationPointOfInterest {
@@ -549,6 +556,7 @@ export const FactionSchema = z.object({
   alliedFactionIds: z.array(z.string()).default([]),
   publicGoals: z.string(),
   secretAgendas: z.string().optional(),
+  scope: z.enum(['street', 'regional', 'continental', 'mythic']).optional(),
 });
 
 export const LocationPointOfInterestSchema = z.object({

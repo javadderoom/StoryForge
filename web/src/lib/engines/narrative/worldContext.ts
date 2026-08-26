@@ -49,6 +49,15 @@ const SCOPE_CAPS: Record<ScopeTier, {
 
 const cap = (arr: string[], max: number): string[] => (arr.length > max ? arr.slice(0, max) : arr);
 
+const TIER_RANK: Record<ScopeTier, number> = { street: 0, regional: 1, continental: 2, mythic: 3 };
+
+/**
+ * A faction with an explicit scope only surfaces once the active chapter's
+ * tier has escalated to it. Unscoped factions are always relevant.
+ */
+const passesFactionTierGate = (scope: ScopeTier | undefined, current: ScopeTier): boolean =>
+  !scope || TIER_RANK[scope] <= TIER_RANK[current];
+
 /**
  * Plan 07 — Dynamic Context-Aware Lore Retrieval.
  * Prunes the World Bible down to only the entities relevant to the active
@@ -76,18 +85,23 @@ export function pruneWorldBibleToScope(
 
   const keepFactions = (wb.factions ?? []).filter(
     (f) =>
-      f.territoryIds.some((t) => activeLocSet.has(t)) ||
-      keepNpcs.some((n) => n.factionId && n.factionId === f.id)
+      passesFactionTierGate(f.scope, scopeTier) &&
+      (f.territoryIds.some((t) => activeLocSet.has(t)) ||
+        keepNpcs.some((n) => n.factionId && n.factionId === f.id))
   );
   const keptFactionIds = new Set(keepFactions.map((f) => f.id));
 
   // Continental/mythic scopes widen the aperture to kingdom-level politics,
-  // religions, and artifacts even if not directly anchored to the scene.
+  // religions, and artifacts even if not directly anchored to the scene —
+  // but still respect faction scope gating (a mythic dominion stays hidden
+  // until the chapter reaches mythic tier).
   const isHighScope = scopeTier === 'continental' || scopeTier === 'mythic';
   if (isHighScope) {
-    for (const f of wb.factions ?? []) keptFactionIds.add(f.id);
+    const gatedAll = (wb.factions ?? []).filter((f) => passesFactionTierGate(f.scope, scopeTier));
+    keptFactionIds.clear();
+    gatedAll.forEach((f) => keptFactionIds.add(f.id));
     keepFactions.length = 0;
-    keepFactions.push(...(wb.factions ?? []));
+    keepFactions.push(...gatedAll);
   }
 
   const keepLocations =

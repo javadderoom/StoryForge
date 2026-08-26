@@ -95,12 +95,16 @@ export default function WorldBiblePage() {
     description: string;
     alignment: string;
     publicGoals: string;
+    secretAgendas: string;
+    scope: string;
   }>({
     id: '',
     name: '',
     description: '',
     alignment: 'Neutral',
     publicGoals: '',
+    secretAgendas: '',
+    scope: '',
   });
 
   // AI World Synthesis Modal (Gemini 3.7 Flash)
@@ -245,6 +249,8 @@ export default function WorldBiblePage() {
         description: faction.description,
         alignment: faction.alignment,
         publicGoals: faction.publicGoals,
+        secretAgendas: faction.secretAgendas ?? '',
+        scope: faction.scope ?? '',
       });
     } else {
       setEditingFactionId(null);
@@ -254,6 +260,8 @@ export default function WorldBiblePage() {
         description: '',
         alignment: 'Neutral Rebel',
         publicGoals: '',
+        secretAgendas: '',
+        scope: '',
       });
     }
     setFactionModalOpen(true);
@@ -263,12 +271,17 @@ export default function WorldBiblePage() {
     e.preventDefault();
     if (!factionForm.name.trim()) return;
 
+    const scope = factionForm.scope as Faction['scope'];
+    const secretAgendas = factionForm.secretAgendas.trim();
+
     if (editingFactionId) {
       editFaction(editingFactionId, {
         name: factionForm.name,
         description: factionForm.description,
         alignment: factionForm.alignment,
         publicGoals: factionForm.publicGoals,
+        secretAgendas: secretAgendas || undefined,
+        scope: scope || undefined,
       });
     } else {
       addFaction({
@@ -277,6 +290,8 @@ export default function WorldBiblePage() {
         description: factionForm.description,
         alignment: factionForm.alignment,
         publicGoals: factionForm.publicGoals,
+        secretAgendas: secretAgendas || undefined,
+        scope: scope || undefined,
         territoryIds: [],
         rivalFactionIds: [],
         alliedFactionIds: [],
@@ -692,10 +707,23 @@ export default function WorldBiblePage() {
             >
               <div>
                 <div className="flex items-start justify-between gap-3 mb-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[10px] font-mono bg-purple-500/10 border border-purple-500/20 text-purple-300 px-2 py-0.5 rounded-md">
                       {faction.alignment}
                     </span>
+                    {faction.scope && (
+                      <span className="text-[10px] font-mono bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-md uppercase">
+                        {faction.scope}+
+                      </span>
+                    )}
+                    {faction.secretAgendas && (
+                      <span
+                        title={isPersian ? 'دستور پنهان ثبت شده' : 'Has a secret agenda'}
+                        className="text-[10px] font-mono bg-rose-500/10 border border-rose-500/20 text-rose-300 px-2 py-0.5 rounded-md"
+                      >
+                        🔒 {isPersian ? 'پنهان' : 'Secret'}
+                      </span>
+                    )}
                     <h4 className="text-sm font-bold text-zinc-100">{faction.name}</h4>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -881,6 +909,38 @@ export default function WorldBiblePage() {
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">
+                  {isPersian ? 'دستور پنهان' : 'Secret Agenda'}
+                  <span className="text-zinc-600 ml-1">({isPersian ? 'اختیاری — فقط هوش مصنوعی می‌بیند' : 'optional — only the AI sees this'})</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={factionForm.secretAgendas}
+                  onChange={(e) => setFactionForm((prev) => ({ ...prev, secretAgendas: e.target.value }))}
+                  placeholder={isPersian ? 'مثلاً: تسلط بر جهان و تباه‌سازی آفرینش...' : 'e.g. Dominate and twist all creation...'}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">
+                  {isPersian ? 'گستره روایی' : 'Narrative Scope'}
+                  <span className="text-zinc-600 ml-1">({isPersian ? 'در فصل‌های کوچک‌تر پنهان می‌ماند' : 'hidden until chapters escalate to it'})</span>
+                </label>
+                <select
+                  value={factionForm.scope}
+                  onChange={(e) => setFactionForm((prev) => ({ ...prev, scope: e.target.value }))}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+                >
+                  <option value="">{isPersian ? 'همیشه فعال (پیش‌فرض)' : 'Always visible (default)'}</option>
+                  <option value="street">{isPersian ? 'خیابانی' : 'Street'}</option>
+                  <option value="regional">{isPersian ? 'منطقه‌ای' : 'Regional'}</option>
+                  <option value="continental">{isPersian ? 'قاره‌ای' : 'Continental'}</option>
+                  <option value="mythic">{isPersian ? 'اسطوره‌ای' : 'Mythic'}</option>
+                </select>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
