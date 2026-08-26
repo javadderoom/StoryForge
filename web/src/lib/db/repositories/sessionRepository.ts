@@ -108,6 +108,30 @@ export class SessionRepository {
    * Plan 07: optionally tracks the active chapter, patches the Living World
    * State Ledger, and stores hierarchical memory fields per entry.
    */
+  /**
+   * Persists a client-side player-state mutation (equip / unequip / use item)
+   * so mid-turn changes survive the server-authoritative turn pipeline.
+   */
+  static async updatePlayerState(sessionId: string, playerState: PlayerState) {
+    if (!isDatabaseActive) {
+      const existing = inMemorySessions.get(sessionId);
+      if (existing) {
+        existing.playerState = playerState;
+      }
+      return playerState;
+    }
+    try {
+      await prisma.playthroughSession.update({
+        where: { sessionId },
+        data: { playerState: playerState as any },
+      });
+      return playerState;
+    } catch (e) {
+      console.warn(`Database error updating player state for session ${sessionId}:`, e);
+      return null;
+    }
+  }
+
   static async recordTurn({
     sessionId,
     beat,

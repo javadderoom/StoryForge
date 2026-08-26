@@ -1,6 +1,6 @@
 'use client';
-
-import React, { useState, useEffect } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Shield,
   Sparkles,
@@ -11,172 +11,296 @@ import {
   BookOpen,
   Dices,
   Layers,
+  Volume2,
+  VolumeX,
+  Library,
 } from 'lucide-react';
 import { DiceRollModal } from '@/components/DiceRollModal';
+import { ReaderSettingsModal } from '@/components/ReaderSettingsModal';
+import { StoryCatalogModal } from '@/components/StoryCatalogModal';
+import { CharacterCreationModal } from '@/components/play/CharacterCreationModal';
+import { Compendium } from '@/components/play/Compendium';
+import { AtmosphereCanvas } from '@/components/play/AtmosphereCanvas';
+import { ThreeDChoiceCard } from '@/components/play/ThreeDChoiceCard';
 import {
-  ReaderSettingsModal,
-  ReaderTheme,
+  fetchCatalog,
+  startSession,
+  resumeSession,
+  patchSession,
+  sendAction,
+  getCoverUrl,
+  CharacterSetup,
+  CatalogStory,
+  StartSessionResult,
+} from '@/lib/play/api';
+import {
+  REALM_THEMES,
+  RealmPreset,
   FontSize,
   LineHeight,
-} from '@/components/ReaderSettingsModal';
-import { StoryCatalogModal } from '@/components/StoryCatalogModal';
+  realmFromStory,
+} from '@/lib/play/realmTheme';
+import { resolveActionCheck, DiceResolution } from '@/lib/play/rpgEngine';
+import { audioService, ambientFromLocation } from '@/lib/play/audioService';
+import { toPersianDigits } from '@/lib/play/persianNumbers';
+import { notify } from '@/lib/notify';
 
 const PLAY_SELECTED_STORY_KEY = 'storyforge_play_selected_story_v1';
+const PLAY_SESSION_KEY = 'storyforge_play_session_v1';
+const PLAY_SETTINGS_KEY = 'storyforge_play_settings_v1';
+
+function rollD20(): number {
+  return Math.floor(Math.random() * 20) + 1;
+}
+
+interface PersistedSettings {
+  theme: RealmPreset;
+  fontSize: FontSize;
+  lineHeight: LineHeight;
+  enableParticles: boolean;
+}
 
 export default function Home() {
-  const [selectedStoryId, setSelectedStoryId] = useState<string>(() => {
-    try {
-      return localStorage.getItem(PLAY_SELECTED_STORY_KEY) || '';
-    } catch {
-      return '';
-    }
-  });
-  const [session, setSession] = useState<any>(null);
-  const [currentBeat, setCurrentBeat] = useState<any>(null);
+  const [stories, setStories] = useState<CatalogStory[]>([]);
+  const [selectedStory, setSelectedStory] = useState<CatalogStory | null>(null);
+  const [sessionId, setSessionId] = useState<string>('');
   const [playerState, setPlayerState] = useState<any>(null);
-  const [storyMeta, setStoryMeta] = useState<any>(null);
+  const [storyMeta, setStoryMeta] = useState<{ id: string; title: string; language: string; rpgSystem: any } | null>(null);
+  const [lore, setLore] = useState<{ laws: any[]; locations: { id: string; name: string }[]; npcs: { id: string; name: string }[] }>({ laws: [], locations: [], npcs: [] });
+  const [currentBeat, setCurrentBeat] = useState<{ narrative: string; choices: any[] } | null>(null);
+  const [turnNumber, setTurnNumber] = useState<number>(1);
   const [freeTextAction, setFreeTextAction] = useState('');
   const [loading, setLoading] = useState(false);
-  const [lastOutcome, setLastOutcome] = useState<any>(null);
+  const [lastOutcome, setLastOutcome] = useState<DiceResolution | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Modals & Reader Customization State
-  const [isDiceModalOpen, setIsDiceModalOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // Modals
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
-  const [lastActionText, setLastActionText] = useState('');
-  const [theme, setTheme] = useState<ReaderTheme>('charcoal');
-  const [fontSize, setFontSize] = useState<FontSize>('base');
-  const [lineHeight, setLineHeight] = useState<LineHeight>('relaxed');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isCharCreationOpen, setIsCharCreationOpen] = useState(false);
+  const [isCompendiumOpen, setIsCompendiumOpen] = useState(false);
+  const [isDiceModalOpen, setIsDiceModalOpen] = useState(false);
+  const [diceRolling, setDiceRolling] = useState(true);
+  const [diceResolution, setDiceResolution] = useState<DiceResolution | null>(null);
+  const [diceActionText, setDiceActionText] = useState('');
+  const [pendingTurn, setPendingTurn] = useState<any | null>(null);
 
-  const isRtl = (storyMeta?.language ?? 'en') !== 'en';
-
-  // Persist the active play-story selection across refreshes
-  useEffect(() => {
+  // Reader customization
+  const [settings, setSettings] = useState<PersistedSettings>(() => {
     try {
-      localStorage.setItem(PLAY_SELECTED_STORY_KEY, selectedStoryId);
+      const raw = localStorage.getItem(PLAY_SETTINGS_KEY);
+      if (raw) return JSON.parse(raw);
     } catch {
-      // Ignore
+      /* ignore */
     }
-  }, [selectedStoryId]);
+    return { theme: 'darkFantasy', fontSize: 'base', lineHeight: 'relaxed', enableParticles: true } as PersistedSettings;
+  });
 
+  // Audio mutes
+  const [sfxMuted, setSfxMuted] = useState(false);
+  const [ambientMuted, setAmbientMuted] = useState(false);
+
+  const isRtl = (storyMeta?.language ?? selectedStory?.language ?? 'en') !== 'en';
+
+  // ---- Persist settings ----
   useEffect(() => {
-    startNewGame(selectedStoryId);
-  }, [selectedStoryId]);
-
-  const startNewGame = async (storyId = selectedStoryId) => {
-    setLoading(true);
-    setErrorMessage(null);
-    setLastOutcome(null);
     try {
-      const res = await fetch('/api/play/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ storyId }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setSession(json.data.session);
-        setPlayerState(json.data.session.playerState);
-        setCurrentBeat(json.data.currentBeat);
-        setStoryMeta(json.data.story);
+      localStorage.setItem(PLAY_SETTINGS_KEY, JSON.stringify(settings));
+    } catch {
+      /* ignore */
+    }
+  }, [settings]);
+
+  // ---- Audio subscription ----
+  useEffect(() => {
+    const apply = (s: { sfxMuted: boolean; ambientMuted: boolean }) => {
+      setSfxMuted(s.sfxMuted);
+      setAmbientMuted(s.ambientMuted);
+    };
+    return audioService.subscribe(apply);
+  }, []);
+
+  const startGame = useCallback(
+    async (storyId: string, resumeId?: string, setup?: CharacterSetup, genres?: string[]) => {
+      setLoading(true);
+      setErrorMessage(null);
+      setLastOutcome(null);
+      try {
+        let data: StartSessionResult | null;
+        if (resumeId) {
+          data = await resumeSession(resumeId);
+          if (!data) {
+            // stale session — fall through to fresh start
+            data = await startSession(storyId);
+          }
+        } else {
+          data = await startSession(storyId, setup);
+        }
+        if (!data) throw new Error('No session data');
+        setSessionId(data.sessionId);
+        setPlayerState(data.playerState);
+        setCurrentBeat(data.currentBeat);
+        setTurnNumber(data.turnNumber ?? 1);
+        setStoryMeta(data.story);
+        setLore(data.lore);
+        // Auto-pick realm theme from the story (only if user hasn't customized yet)
+        const auto = realmFromStory({ storyId: data.story.id, genres });
+        setSettings((s) => (s.theme === 'darkFantasy' && auto !== 'darkFantasy' ? { ...s, theme: auto } : s));
+        try {
+          localStorage.setItem(PLAY_SELECTED_STORY_KEY, storyId);
+          localStorage.setItem(PLAY_SESSION_KEY, data.sessionId);
+        } catch {
+          /* ignore */
+        }
+        audioService.playAmbient(ambientFromLocation(data.playerState.currentLocationId));
+      } catch (e: any) {
+        setErrorMessage(e?.message || 'Failed to start session');
+      } finally {
+        setLoading(false);
       }
+    },
+    []
+  );
+
+  // ---- Boot: load catalog + resume ----
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const catalog = await fetchCatalog();
+      if (!active) return;
+      setStories(catalog);
+      let savedStoryId = '';
+      let savedSession = '';
+      try {
+        savedStoryId = localStorage.getItem(PLAY_SELECTED_STORY_KEY) || '';
+        savedSession = localStorage.getItem(PLAY_SESSION_KEY) || '';
+      } catch {
+        /* ignore */
+      }
+      if (savedSession && savedStoryId) {
+        const story = catalog.find((s) => s.id === savedStoryId) || null;
+        setSelectedStory(story);
+        if (story) await startGame(savedStoryId, savedSession, undefined, story.genres);
+        else setIsCatalogOpen(true);
+      } else if (savedStoryId) {
+        const story = catalog.find((s) => s.id === savedStoryId) || null;
+        setSelectedStory(story);
+        setIsCharCreationOpen(true);
+      } else {
+        setIsCatalogOpen(true);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [startGame]);
+
+  const onSelectStory = (story: CatalogStory) => {
+    setSelectedStory(story);
+    setIsCharCreationOpen(true);
+  };
+
+  const onEmbark = async (setup: CharacterSetup) => {
+    if (!selectedStory) return;
+    setIsCharCreationOpen(false);
+    await startGame(selectedStory.id, undefined, setup, selectedStory.genres);
+  };
+
+  const onChoice = async (choice: any) => {
+    if (loading || !playerState || !selectedStory) return;
+    audioService.playSfx('buttonClick');
+    setErrorMessage(null);
+    setDiceActionText(choice.text);
+
+    const roll = rollD20();
+    const resolution = resolveActionCheck({
+      actionText: choice.text,
+      playerState,
+      targetDC: choice.targetDC,
+      riskLevel: choice.riskLevel || 'medium',
+      forcedDiceRoll: roll,
+      isPersian: isRtl,
+    });
+    setDiceResolution(resolution);
+    setLastOutcome(resolution);
+    setIsDiceModalOpen(true);
+    setDiceRolling(true);
+
+    const nextTurn = turnNumber + 1;
+    try {
+      const json = await sendAction({
+        storyId: selectedStory.id,
+        sessionId,
+        playerActionText: choice.text,
+        actionStyle: choice.style || 'tactical',
+        riskLevel: choice.riskLevel || 'medium',
+        statId: resolution.requiredStat,
+        targetDC: resolution.difficultyClass,
+        forcedDiceRoll: roll,
+        playerState,
+        turnNumber: nextTurn,
+      });
+      if (json.isGuardrailViolation) {
+        setErrorMessage(json.rejectionReason);
+        notify.error(isRtl ? 'اقدام شما توسط قوانین جهان رد شد.' : 'Action blocked by world laws.');
+        setIsDiceModalOpen(false);
+        return;
+      }
+      if (!json.success) {
+        setErrorMessage(json.error || 'The scribe is silent.');
+        setIsDiceModalOpen(false);
+        return;
+      }
+      // Park the beat until the reader taps "Continue Narrative"
+      setPendingTurn(json.data);
     } catch (e: any) {
-      console.error(e);
-    } finally {
-      setLoading(false);
+      setErrorMessage(e?.message || 'Network error');
+      setIsDiceModalOpen(false);
     }
   };
 
-  const handleChoice = async (choice: any) => {
-    if (loading) return;
-    setLoading(true);
-    setErrorMessage(null);
-    setLastActionText(choice.text);
-
-    try {
-      const res = await fetch('/api/play/action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          storyId: selectedStoryId,
-          sessionId: session?.sessionId,
-          playerActionText: choice.text,
-          actionStyle: choice.style || 'tactical',
-          riskLevel: choice.riskLevel || 'medium',
-          statId: choice.requiredStatId,
-          targetDC: choice.targetDC,
-          playerState,
-          turnNumber: (session?.turnCount || 1) + 1,
-        }),
-      });
-
-      const json = await res.json();
-      if (json.isGuardrailViolation) {
-        setErrorMessage(json.rejectionReason);
-      } else if (json.success) {
-        setCurrentBeat({
-          narrative: json.data.beat.narrativeProse,
-          choices: json.data.beat.presentedChoices,
-        });
-        setPlayerState(json.data.updatedPlayerState);
-        setLastOutcome(json.data.resolution);
-        setFreeTextAction('');
-
-        // Trigger interactive dice modal if check occurred
-        if (json.data.resolution) {
-          setIsDiceModalOpen(true);
-        }
-      }
-    } catch (e: any) {
-      setErrorMessage(e.message);
-    } finally {
-      setLoading(false);
-    }
+  const applyPendingTurn = () => {
+    if (!pendingTurn) return;
+    setCurrentBeat({ narrative: pendingTurn.beat.narrativeProse, choices: pendingTurn.beat.presentedChoices });
+    setPlayerState(pendingTurn.updatedPlayerState);
+    setTurnNumber((t) => t + 1);
+    audioService.playAmbient(ambientFromLocation(pendingTurn.updatedPlayerState.currentLocationId));
+    audioService.playSfx('pageTurn');
+    setFreeTextAction('');
+    setIsDiceModalOpen(false);
+    setPendingTurn(null);
+    setDiceResolution(null);
   };
 
   const handleFreeTextSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!freeTextAction.trim()) return;
-    handleChoice({ text: freeTextAction, style: 'free_text', riskLevel: 'medium' });
+    onChoice({ text: freeTextAction, style: 'free_text', riskLevel: 'medium' });
   };
 
-  // Theme styling helpers
-  const themeStyles: Record<
-    ReaderTheme,
-    { bg: string; cardBg: string; border: string; text: string; headerBg: string }
-  > = {
-    charcoal: {
-      bg: '#0d0e14',
-      cardBg: '#141522',
-      border: 'border-zinc-800/90',
-      text: 'text-zinc-200',
-      headerBg: 'bg-[#12131c]/90',
-    },
-    oled: {
-      bg: '#050608',
-      cardBg: '#090a0f',
-      border: 'border-zinc-900',
-      text: 'text-zinc-300',
-      headerBg: 'bg-[#050608]/95',
-    },
-    sepia: {
-      bg: '#18130e',
-      cardBg: '#211a14',
-      border: 'border-[#382a1d]',
-      text: 'text-[#d6c4b2]',
-      headerBg: 'bg-[#1e1712]/95',
-    },
-    midnight: {
-      bg: '#080c16',
-      cardBg: '#0f1628',
-      border: 'border-indigo-950/80',
-      text: 'text-indigo-100',
-      headerBg: 'bg-[#0a0f1e]/90',
-    },
+  const onInventoryChange = async (newState: any, toast?: { kind: 'success' | 'warning' | 'info'; text: string }) => {
+    setPlayerState(newState);
+    if (sessionId) await patchSession(sessionId, newState);
+    if (toast) {
+      if (toast.kind === 'success') notify.success(toast.text);
+      else notify.info(toast.text);
+    }
   };
 
-  const currentThemeStyle = themeStyles[theme];
+  const restartAdventure = async () => {
+    if (!selectedStory) return;
+    try {
+      localStorage.removeItem(PLAY_SESSION_KEY);
+    } catch {
+      /* ignore */
+    }
+    setSessionId('');
+    audioService.stopAmbient();
+    setIsCharCreationOpen(true);
+  };
+
+  const themeObj = REALM_THEMES[settings.theme];
+  const isDanger = useHpPct(playerState, storyMeta) < 0.3;
 
   const fontSizeClass: Record<FontSize, string> = {
     sm: 'text-sm md:text-base',
@@ -184,7 +308,6 @@ export default function Home() {
     lg: 'text-lg md:text-xl',
     xl: 'text-xl md:text-2xl',
   };
-
   const lineHeightClass: Record<LineHeight, string> = {
     normal: 'leading-normal',
     relaxed: 'leading-relaxed',
@@ -194,325 +317,385 @@ export default function Home() {
   return (
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
-      style={{ backgroundColor: currentThemeStyle.bg }}
-      className={`min-h-screen flex flex-col font-sans transition-colors duration-300 selection:bg-amber-500/30 selection:text-amber-200 ${currentThemeStyle.text}`}
+      style={{
+        background: `linear-gradient(160deg, ${themeObj.bgGradientStart}, ${themeObj.bgGradientEnd})`,
+        color: themeObj.bodyText,
+      }}
+      className="min-h-screen flex flex-col font-sans transition-colors duration-500"
     >
-      {/* Top Bar Navigation */}
+      {/* Ambient particles */}
+      {settings.enableParticles && (
+        <AtmosphereCanvas theme={themeObj} enableParticles={settings.enableParticles} isDanger={isDanger} />
+      )}
+
+      {/* Header */}
       <header
-        className={`border-b ${currentThemeStyle.border} ${currentThemeStyle.headerBg} backdrop-blur-md px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-40 transition-colors duration-300`}
+        style={{ backgroundColor: themeObj.headerOverlay }}
+        className="sticky top-0 z-40 flex items-center justify-between border-b px-4 py-3 backdrop-blur-md md:px-6"
       >
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-amber-500 to-rose-600 flex items-center justify-center font-bold text-white shadow-md shadow-amber-500/20">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-amber-500 to-rose-600 font-bold text-white shadow-md shadow-amber-500/20">
             ⚡
           </div>
           <div>
-            <h1 className="font-bold text-sm tracking-tight text-zinc-100 flex items-center gap-2">
-              <span>{storyMeta?.title || (isRtl ? 'بدون داستان' : 'No Story Selected')}</span>
+            <h1 className="flex items-center gap-2 text-sm font-bold tracking-tight text-zinc-100">
+              <span>{storyMeta?.title || selectedStory?.title || (isRtl ? 'بدون داستان' : 'No Story Selected')}</span>
               <button
                 onClick={() => setIsCatalogOpen(true)}
-                className="text-[10px] text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-full transition-all flex items-center gap-1 cursor-pointer"
+                className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-400 transition-all hover:bg-amber-500/20"
               >
-                <BookOpen className="w-2.5 h-2.5" />
-                <span>{isRtl ? 'تغییر داستان' : 'Library'}</span>
+                <BookOpen className="h-2.5 w-2.5" />
+                <span>{isRtl ? 'کتابخانه' : 'Library'}</span>
               </button>
             </h1>
-            <p className="text-[11px] text-zinc-400">
+            <p className="text-[11px]" style={{ color: themeObj.mutedText }}>
               {isRtl ? 'رمان تعاملی نقش‌آفرینی' : 'Interactive Dark RPG Novel'}
             </p>
           </div>
         </div>
 
-        {/* Action Controls & Story Switcher */}
         <div className="flex items-center gap-2">
-          {/* Reader Atmosphere Button */}
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-xs text-zinc-300 border border-zinc-700/60 transition-all cursor-pointer"
-            title={isRtl ? 'تنظیمات ظاهر' : 'Reader Atmosphere'}
-          >
-            <Palette className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">{isRtl ? 'پوسته و قلم' : 'Theme'}</span>
-          </button>
-
-          {/* Quick Dice Roll Re-inspect */}
           {lastOutcome && (
             <button
-              onClick={() => setIsDiceModalOpen(true)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-xs text-amber-400 border border-amber-500/30 transition-all cursor-pointer"
+              onClick={() => {
+                setDiceResolution(lastOutcome);
+                setDiceRolling(false);
+                setIsDiceModalOpen(true);
+              }}
+              className="flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-400 transition-all hover:bg-amber-500/20"
               title={isRtl ? 'مشاهده پرتاب تاس' : 'View Dice Roll'}
             >
-              <Dices className="w-3.5 h-3.5" />
-              <span className="font-mono font-bold">{lastOutcome.diceRoll}</span>
+              <Dices className="h-3.5 w-3.5" />
+              <span className="font-mono font-bold">{toPersianDigits(lastOutcome.d20)}</span>
             </button>
           )}
 
-          {/* Restart Button */}
           <button
-            onClick={() => startNewGame(selectedStoryId)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-xs text-zinc-300 border border-zinc-700/60 transition-all cursor-pointer"
-            title={isRtl ? 'شروع مجدد' : 'Restart Adventure'}
+            onClick={() => setIsCompendiumOpen(true)}
+            className="flex items-center gap-1 rounded-lg border border-zinc-700/60 bg-zinc-800/80 px-2.5 py-1.5 text-xs text-zinc-300 transition-all hover:bg-zinc-700"
+            title={isRtl ? 'کدکس' : 'Codex'}
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <Layers className="h-3.5 w-3.5 text-amber-400" />
+            <span className="hidden sm:inline">{isRtl ? 'کدکس' : 'Codex'}</span>
+          </button>
+
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="flex items-center gap-1 rounded-lg border border-zinc-700/60 bg-zinc-800/80 px-2.5 py-1.5 text-xs text-zinc-300 transition-all hover:bg-zinc-700"
+            title={isRtl ? 'تنظیمات' : 'Atmosphere'}
+          >
+            <Palette className="h-3.5 w-3.5 text-amber-400" />
+            <span className="hidden sm:inline">{isRtl ? 'پوسته' : 'Theme'}</span>
+          </button>
+
+          <button
+            onClick={() => audioService.toggleSfxMute()}
+            className="rounded-lg border border-zinc-700/60 bg-zinc-800/80 p-1.5 text-zinc-300 transition-all hover:bg-zinc-700"
+            title={isRtl ? 'صدای افکت' : 'SFX'}
+          >
+            {sfxMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            onClick={() => audioService.toggleAmbientMute()}
+            className="rounded-lg border border-zinc-700/60 bg-zinc-800/80 p-1.5 text-zinc-300 transition-all hover:bg-zinc-700"
+            title={isRtl ? 'موسیقی محیط' : 'Ambient'}
+          >
+            {ambientMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+          </button>
+
+          <button
+            onClick={restartAdventure}
+            className="flex items-center gap-1 rounded-lg border border-zinc-700/60 bg-zinc-800/80 px-2.5 py-1.5 text-xs text-zinc-300 transition-all hover:bg-zinc-700"
+            title={isRtl ? 'شروع مجدد' : 'Restart'}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">{isRtl ? 'شروع مجدد' : 'Restart'}</span>
           </button>
 
-          {/* Studio Link */}
           <a
             href="/studio"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-rose-600 text-white text-xs font-semibold shadow-md shadow-amber-500/20 hover:from-amber-400 hover:to-rose-500 transition-all"
+            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-rose-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-amber-500/20 transition-all hover:from-amber-400 hover:to-rose-500"
           >
-            <Sliders className="w-3.5 h-3.5" />
+            <Sliders className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">{isRtl ? 'استودیو' : 'Studio'}</span>
           </a>
         </div>
       </header>
 
-      {(!selectedStoryId || !storyMeta) && !loading ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center px-4 py-24">
-          <BookOpen className="w-16 h-16 text-zinc-700 mb-5" />
-          <h2 className="text-xl font-bold text-zinc-200">
-            {isRtl ? 'هیچ داستانی انتخاب نشده' : 'No story selected'}
-          </h2>
-          <p className="text-sm text-zinc-400 mt-2 max-w-sm">
-            {isRtl
-              ? 'از کتابخانه داستانی انتخاب کنید یا داستان جدیدی در استودیو بسازید.'
-              : 'Pick a story from the library, or build a new one in the Studio.'}
-          </p>
-          <button
-            onClick={() => setIsCatalogOpen(true)}
-            className="mt-6 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-sm font-bold transition-all cursor-pointer"
-          >
-            <BookOpen className="w-4 h-4" />
-            {isRtl ? 'باز کردن کتابخانه' : 'Open Library'}
-          </button>
-        </div>
+      {!storyMeta && !loading ? (
+        <EmptyState isRtl={isRtl} onOpenLibrary={() => setIsCatalogOpen(true)} coverUrl={selectedStory ? getCoverUrl(selectedStory.id, selectedStory.coverImageUrl) : null} title={selectedStory?.title} onBegin={() => setIsCharCreationOpen(true)} />
       ) : (
-        <div className="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-        {/* Reader Viewport (Main Column) */}
-        <div className="md:col-span-8 space-y-6">
-          {/* E-Reader Book Card */}
-          <div
-            style={{ backgroundColor: currentThemeStyle.cardBg }}
-            className={`border ${currentThemeStyle.border} rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden transition-colors duration-300`}
-          >
-            <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="grid w-full max-w-6xl flex-1 grid-cols-1 items-start gap-6 p-4 md:mx-auto md:grid-cols-12 md:p-6">
+          {/* Reader */}
+          <div className="space-y-6 md:col-span-8">
+            <div
+              style={{ backgroundColor: themeObj.cardBg, borderColor: themeObj.cardBorder }}
+              className="relative overflow-hidden rounded-3xl border p-6 shadow-2xl md:p-8"
+            >
+              <div className="pointer-events-none absolute -right-10 -top-10 h-96 w-96 rounded-full blur-3xl" style={{ background: `${themeObj.primaryAccent}0d` }} />
 
-            {/* Last Dice Resolution Quick Banner */}
-            {lastOutcome && (
-              <div
-                onClick={() => setIsDiceModalOpen(true)}
-                className="mb-6 p-3 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between text-xs cursor-pointer hover:border-amber-500/40 transition-all animate-in fade-in slide-in-from-top-2"
-              >
-                <span className="text-zinc-400 flex items-center gap-2">
-                  <Dices className="w-4 h-4 text-amber-400" />
-                  <span>
-                    {isRtl ? 'بررسی تاس:' : 'Check:'}{' '}
-                    <strong className="text-zinc-200">
-                      {isRtl
-                        ? `تاس ${lastOutcome.diceRoll} (مجموع ${lastOutcome.totalScore} vs DC ${lastOutcome.difficultyClass})`
-                        : `Roll ${lastOutcome.diceRoll} (Total ${lastOutcome.totalScore} vs DC ${lastOutcome.difficultyClass})`}
-                    </strong>
+              {lastOutcome && !isDiceModalOpen && (
+                <button
+                  onClick={() => {
+                    setDiceResolution(lastOutcome);
+                    setDiceRolling(false);
+                    setIsDiceModalOpen(true);
+                  }}
+                  className="mb-6 flex w-full items-center justify-between rounded-2xl border p-3 text-xs"
+                  style={{ backgroundColor: themeObj.cardBg, borderColor: themeObj.cardBorder }}
+                >
+                  <span className="flex items-center gap-2" style={{ color: themeObj.mutedText }}>
+                    <Dices className="h-4 w-4" style={{ color: themeObj.primaryAccent }} />
+                    <span>
+                      {isRtl ? 'بررسی تاس: ' : 'Check: '}
+                      <strong style={{ color: themeObj.bodyText }}>
+                        {isRtl
+                          ? `تاس ${toPersianDigits(lastOutcome.d20)} (مجموع ${toPersianDigits(lastOutcome.total)} در برابر DC ${toPersianDigits(lastOutcome.difficultyClass)})`
+                          : `Roll ${lastOutcome.d20} (Total ${lastOutcome.total} vs DC ${lastOutcome.difficultyClass})`}
+                      </strong>
+                    </span>
                   </span>
-                </span>
-                <span
-                  className={`font-bold uppercase text-[10px] px-2.5 py-0.5 rounded-full ${
-                    lastOutcome.outcome.includes('success')
-                      ? 'bg-emerald-500/20 text-emerald-300'
-                      : 'bg-rose-500/20 text-rose-300'
-                  }`}
-                >
-                  {lastOutcome.outcome.replace('_', ' ')}
-                </span>
-              </div>
-            )}
+                  <span
+                    className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase"
+                    style={{
+                      backgroundColor: lastOutcome.success ? 'rgba(16,185,129,0.18)' : 'rgba(244,63,94,0.18)',
+                      color: lastOutcome.success ? '#34d399' : '#fb7185',
+                    }}
+                  >
+                    {lastOutcome.outcome.replace('_', ' ')}
+                  </span>
+                </button>
+              )}
 
-            {/* Guardrail Violation Alert */}
-            {errorMessage && (
-              <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs leading-relaxed animate-shake">
-                ⚠️ <strong>{isRtl ? 'خطای قانون جهان:' : 'Guardrail Block:'}</strong> {errorMessage}
-              </div>
-            )}
-
-            {/* Novel Prose */}
-            <div className="prose prose-invert max-w-none">
-              {loading ? (
-                <div className="py-16 flex flex-col items-center justify-center text-amber-400/80 animate-pulse space-y-3">
-                  <Sparkles className="w-8 h-8 animate-spin" />
-                  <p className="text-sm font-medium">
-                    {isRtl ? 'داستان در حال شکل‌گیری است...' : 'The narrative unfolds...'}
-                  </p>
+              {errorMessage && (
+                <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs leading-relaxed text-rose-300">
+                  ⚠️ <strong>{isRtl ? 'خطای قانون جهان:' : 'Guardrail Block:'}</strong> {errorMessage}
                 </div>
-              ) : (
-                <p
-                  className={`${fontSizeClass[fontSize]} ${lineHeightClass[lineHeight]} whitespace-pre-line tracking-wide transition-all`}
-                >
-                  {currentBeat?.narrative}
-                </p>
+              )}
+
+              <div className="prose prose-invert max-w-none">
+                {loading ? (
+                  <div className="flex animate-pulse flex-col items-center justify-center space-y-3 py-16 text-amber-400/80">
+                    <Sparkles className="h-8 w-8 animate-spin" />
+                    <p className="text-sm font-medium">{isRtl ? 'داستان در حال شکل‌گیری است...' : 'The narrative unfolds...'}</p>
+                  </div>
+                ) : (
+                  <p className={`whitespace-pre-line tracking-wide transition-all ${fontSizeClass[settings.fontSize]} ${lineHeightClass[settings.lineHeight]}`}>
+                    {currentBeat?.narrative}
+                  </p>
+                )}
+              </div>
+
+              {!loading && currentBeat?.choices && (
+                <div className="mt-8 space-y-4 border-t pt-8" style={{ borderColor: themeObj.cardBorder }}>
+                  <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider" style={{ color: themeObj.mutedText }}>
+                    <Sparkles className="h-3.5 w-3.5" style={{ color: themeObj.primaryAccent }} />
+                    <span>{isRtl ? 'چه تصمیمی می‌گیری؟' : 'What will you do?'}</span>
+                  </h3>
+
+                  <div className="space-y-3">
+                    {currentBeat.choices.map((choice: any, idx: number) => (
+                      <ThreeDChoiceCard
+                        key={idx}
+                        choice={choice}
+                        theme={themeObj}
+                        isPersian={isRtl}
+                        onTap={() => onChoice(choice)}
+                      />
+                    ))}
+                  </div>
+
+                  <form onSubmit={handleFreeTextSubmit} className="mt-4 flex gap-2">
+                    <input
+                      type="text"
+                      value={freeTextAction}
+                      onChange={(e) => setFreeTextAction(e.target.value)}
+                      placeholder={
+                        isRtl
+                          ? 'یا هر عمل دلخواهی را بنویسید (مثلاً: جستجوی زیر نیمکت)...'
+                          : 'Or type any custom action (e.g. search under the wooden bench)...'
+                      }
+                      className="flex-1 rounded-xl border bg-zinc-900 px-4 py-2.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-1"
+                      style={{ borderColor: themeObj.cardBorder, ['--tw-ring-color' as any]: themeObj.primaryAccent }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!freeTextAction.trim()}
+                      className="flex shrink-0 items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-black transition-all hover:bg-amber-400 disabled:opacity-40"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      <span>{isRtl ? 'انجام بده' : 'Act'}</span>
+                    </button>
+                  </form>
+                </div>
               )}
             </div>
+          </div>
 
-            {/* Choices & Actions */}
-            {!loading && currentBeat?.choices && (
-              <div className="mt-8 pt-8 border-t border-zinc-800/80 space-y-4">
-                <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{isRtl ? 'چه تصمیمی می‌گیری؟' : 'What will you do?'}</span>
+          {/* HUD */}
+          <div className="space-y-6 md:col-span-4">
+            <div style={{ backgroundColor: themeObj.cardBg, borderColor: themeObj.cardBorder }} className="rounded-3xl border p-6 shadow-xl">
+              <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider" style={{ color: themeObj.mutedText }}>
+                <Shield className="h-4 w-4" style={{ color: themeObj.primaryAccent }} />
+                <span>{isRtl ? 'مشخصات شخصیت' : 'Character'}</span>
+              </h2>
+
+              <div className="mt-4 space-y-3">
+                {(storyMeta?.rpgSystem?.resources ?? []).map((res: any) => {
+                  const curVal = playerState?.resources?.[res.id] ?? res.current ?? 0;
+                  const maxVal = res.max ?? 1;
+                  const pct = Math.max(0, Math.min(100, (curVal / maxVal) * 100));
+                  const danger = res.id === 'hp' && pct < 30;
+                  return (
+                    <div key={res.id} className="space-y-1">
+                      <div className="flex justify-between text-xs font-semibold">
+                        <span style={{ color: themeObj.bodyText }}>{res.name}</span>
+                        <span style={{ color: danger ? '#fb7185' : res.color || themeObj.primaryAccent }}>
+                          {toPersianDigits(curVal)} / {toPersianDigits(maxVal)}
+                        </span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: danger ? '#fb7185' : res.color || themeObj.primaryAccent }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 border-t pt-4" style={{ borderColor: themeObj.cardBorder }}>
+                <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: themeObj.mutedText }}>
+                  {isRtl ? 'ویژگی‌ها' : 'Attributes'}
                 </h3>
-
-                {/* Literary Choices without risk tags */}
-                <div className="space-y-2.5">
-                  {currentBeat.choices.map((choice: any, idx: number) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleChoice(choice)}
-                      className="w-full text-start p-4 rounded-2xl bg-zinc-900/80 hover:bg-zinc-800/90 border border-zinc-800 hover:border-amber-500/40 transition-all group cursor-pointer"
-                    >
-                      <span className="text-sm text-zinc-200 group-hover:text-amber-200 transition-colors leading-relaxed block">
-                        {choice.text}
-                      </span>
-                    </button>
+                <div className="grid grid-cols-2 gap-2">
+                  {(storyMeta?.rpgSystem?.stats ?? []).map((stat: any) => (
+                    <div key={stat.id} className="flex items-center justify-between rounded-xl border p-2.5" style={{ backgroundColor: themeObj.cardBg, borderColor: themeObj.cardBorder }}>
+                      <span className="text-xs" style={{ color: themeObj.bodyText }}>{stat.name}</span>
+                      <span className="font-mono text-xs font-bold" style={{ color: themeObj.primaryAccent }}>{toPersianDigits(playerState?.stats?.[stat.id] ?? stat.baseValue ?? 0)}</span>
+                    </div>
                   ))}
                 </div>
-
-                {/* Free Text Input */}
-                <form onSubmit={handleFreeTextSubmit} className="mt-4 flex gap-2">
-                  <input
-                    type="text"
-                    value={freeTextAction}
-                    onChange={(e) => setFreeTextAction(e.target.value)}
-                    placeholder={
-                      isRtl
-                        ? 'یا هر عمل دلخواهی را بنویسید (مثلاً: جستجوی زیر نیمکت)...'
-                        : 'Or type any custom action (e.g. search under the wooden bench)...'
-                    }
-                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/30 transition-all"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!freeTextAction.trim()}
-                    className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>{isRtl ? 'انجام بده' : 'Act'}</span>
-                  </button>
-                </form>
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Discreet RPG Drawer / HUD (Right Column) */}
-        <div className="md:col-span-4 space-y-6">
-          <div
-            style={{ backgroundColor: currentThemeStyle.cardBg }}
-            className={`border ${currentThemeStyle.border} rounded-3xl p-6 shadow-xl space-y-6 transition-colors duration-300`}
-          >
-            <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-              <Shield className="w-4 h-4 text-amber-400" />
-              <span>{isRtl ? 'مشخصات شخصیت' : 'Character Status'}</span>
-            </h2>
-
-            {/* Vitals */}
-            <div className="space-y-3">
-              {storyMeta?.rpgSystem?.resources?.map((res: any) => {
-                const curVal = playerState?.resources?.[res.id] ?? res.current;
-                return (
-                  <div key={res.id} className="space-y-1">
-                    <div className="flex justify-between text-xs font-semibold">
-                      <span className="text-zinc-300">{res.name}</span>
-                      <span style={{ color: res.color }}>
-                        {curVal} / {res.max}
-                      </span>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-zinc-800 overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{
-                          width: `${(curVal / res.max) * 100}%`,
-                          backgroundColor: res.color || '#3b82f6',
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Stats */}
-            <div className="pt-4 border-t border-zinc-800/80">
-              <h3 className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-3">
-                {isRtl ? 'ویژگی‌ها' : 'Attributes'}
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                {storyMeta?.rpgSystem?.stats?.map((stat: any) => (
-                  <div
-                    key={stat.id}
-                    className="p-2.5 rounded-xl bg-zinc-900/90 border border-zinc-800 flex justify-between items-center"
-                  >
-                    <span className="text-xs text-zinc-300">{stat.name}</span>
-                    <span className="text-xs font-mono font-bold text-amber-400">
-                      {playerState?.stats?.[stat.id] ?? stat.baseValue}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Inventory */}
-            <div className="pt-4 border-t border-zinc-800/80">
-              <h3 className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-3">
-                {isRtl ? 'کوله پشتی' : 'Inventory'}
-              </h3>
-              <div className="space-y-2">
-                {playerState?.inventory?.map((item: any) => (
-                  <div
-                    key={item.id}
-                    className="p-2.5 rounded-xl bg-zinc-900/90 border border-zinc-800 flex justify-between items-center text-xs"
-                  >
-                    <span className="text-zinc-200">{item.name}</span>
-                    <span className="text-zinc-500 font-mono">x{item.quantity}</span>
-                  </div>
-                ))}
-              </div>
+              <button
+                onClick={() => setIsCompendiumOpen(true)}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border py-2.5 text-xs font-semibold transition-all"
+                style={{ borderColor: themeObj.primaryAccent, color: themeObj.primaryAccent }}
+              >
+                <Library className="h-3.5 w-3.5" />
+                {isRtl ? 'باز کردن کدکس و کوله' : 'Open Codex & Inventory'}
+              </button>
             </div>
           </div>
         </div>
-      </div>
       )}
 
-      {/* Interactive Dice Roll Resolution Modal */}
+      {/* Modals */}
       <DiceRollModal
         isOpen={isDiceModalOpen}
-        resolution={lastOutcome}
-        actionText={lastActionText}
+        isRolling={diceRolling}
+        resolution={diceResolution}
+        actionText={diceActionText}
         isPersian={isRtl}
+        onContinue={applyPendingTurn}
         onClose={() => setIsDiceModalOpen(false)}
       />
 
-      {/* Reader Atmosphere & Typography Modal */}
       <ReaderSettingsModal
         isOpen={isSettingsOpen}
-        theme={theme}
-        fontSize={fontSize}
-        lineHeight={lineHeight}
+        theme={settings.theme}
+        fontSize={settings.fontSize}
+        lineHeight={settings.lineHeight}
+        enableParticles={settings.enableParticles}
         isPersian={isRtl}
-        onThemeChange={setTheme}
-        onFontSizeChange={setFontSize}
-        onLineHeightChange={setLineHeight}
+        onThemeChange={(t) => setSettings((s) => ({ ...s, theme: t }))}
+        onFontSizeChange={(f) => setSettings((s) => ({ ...s, fontSize: f }))}
+        onLineHeightChange={(l) => setSettings((s) => ({ ...s, lineHeight: l }))}
+        onParticlesToggled={(v) => setSettings((s) => ({ ...s, enableParticles: v }))}
         onClose={() => setIsSettingsOpen(false)}
       />
 
-      {/* Story Catalog & Library Modal */}
       <StoryCatalogModal
         isOpen={isCatalogOpen}
-        activeStoryId={selectedStoryId}
+        activeStoryId={selectedStory?.id || ''}
         isPersian={isRtl}
-        onSelectStory={(storyId) => {
-          setSelectedStoryId(storyId);
-          startNewGame(storyId);
-        }}
+        stories={stories}
+        onSelectStory={onSelectStory}
         onClose={() => setIsCatalogOpen(false)}
       />
+
+      {selectedStory && isCharCreationOpen && (
+        <CharacterCreationModal
+          isOpen
+          story={selectedStory}
+          theme={themeObj}
+          isPersian={isRtl}
+          onEmbark={onEmbark}
+          onClose={() => setIsCharCreationOpen(false)}
+        />
+      )}
+
+      {playerState && storyMeta && (
+        <Compendium
+          isOpen={isCompendiumOpen}
+          playerState={playerState}
+          storyMeta={storyMeta as any}
+          lore={lore as any}
+          theme={themeObj}
+          isPersian={isRtl}
+          onInventoryChange={onInventoryChange}
+          onClose={() => setIsCompendiumOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function useHpPct(playerState: any, storyMeta: any): number {
+  const res = storyMeta?.rpgSystem?.resources?.find((r: any) => r.id === 'hp' || r.id === 'health');
+  if (!res || !playerState?.resources) return 1;
+  const cur = playerState.resources[res.id] ?? res.current ?? 0;
+  return cur / (res.max || 1);
+}
+
+function EmptyState({
+  isRtl,
+  onOpenLibrary,
+  coverUrl,
+  title,
+  onBegin,
+}: {
+  isRtl: boolean;
+  onOpenLibrary: () => void;
+  coverUrl: string | null;
+  title?: string;
+  onBegin: () => void;
+}) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const showCover = coverUrl && !imgFailed;
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center px-4 py-24 text-center">
+      {showCover ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={coverUrl!} alt={title} onError={() => setImgFailed(true)} className="mb-6 h-44 w-32 rounded-xl object-cover shadow-2xl" />
+      ) : (
+        <BookOpen className="mb-5 h-16 w-16 text-zinc-700" />
+      )}
+      <h2 className="text-xl font-bold text-zinc-200">{isRtl ? 'هیچ داستانی انتخاب نشده' : 'No story selected'}</h2>
+      <p className="mt-2 max-w-sm text-sm text-zinc-400">
+        {isRtl ? 'از کتابخانه داستانی انتخاب کنید یا داستان جدیدی در استودیو بسازید.' : 'Pick a story from the library, or build a new one in the Studio.'}
+      </p>
+      <div className="mt-6 flex gap-3">
+        <button onClick={onOpenLibrary} className="flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-zinc-950 transition-all hover:bg-amber-400">
+          <BookOpen className="h-4 w-4" />
+          {isRtl ? 'باز کردن کتابخانه' : 'Open Library'}
+        </button>
+        {title && (
+          <button onClick={onBegin} className="flex items-center gap-2 rounded-xl border border-zinc-700 px-5 py-2.5 text-sm font-semibold text-zinc-200 transition-all hover:bg-zinc-800">
+            <Sparkles className="h-4 w-4 text-amber-400" />
+            {isRtl ? 'آغاز ماجراجویی' : 'Begin Tale'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

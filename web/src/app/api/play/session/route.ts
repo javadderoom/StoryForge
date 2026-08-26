@@ -4,8 +4,111 @@ import { SessionRepository } from '@/lib/db/repositories/sessionRepository';
 import { PlaythroughSession, PlayerState } from '@/lib/types/gameplay';
 import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
 
+/**
+ * Lightweight, player-safe projection of the World Bible consumed by the
+ * in-game Compendium (Codex + NPC dossiers). Avoids leaking full lore bodies.
+ */
+function buildPlayLore(story: any) {
+  const wb = story.worldBible ?? {};
+  return {
+    laws: (wb.laws ?? []).map((l: any) => ({ rule: l.rule, description: l.description })),
+    locations: (wb.locations ?? []).map((l: any) => ({ id: l.id, name: l.name })),
+    npcs: (wb.npcs ?? []).map((n: any) => ({ id: n.id, name: n.name })),
+  };
+}
+
 export async function OPTIONS() {
   return handleCorsPreflight();
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const sessionId = req.nextUrl.searchParams.get('sessionId');
+    if (!sessionId) {
+      return NextResponse.json(
+        { success: false, error: 'sessionId is required' },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    const session = await SessionRepository.getSession(sessionId);
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: 'Session not found' },
+        { status: 404, headers: corsHeaders }
+      );
+    }
+
+    const story = await StoryRepository.getStoryById(session.storyId);
+    if (!story) {
+      return NextResponse.json(
+        { success: false, error: 'Story not found' },
+        { status: 404, headers: corsHeaders }
+      );
+    }
+
+    const turns: any[] = (session as any).turns ?? [];
+    const lastTurn = turns.length > 0 ? turns[turns.length - 1] : null;
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          sessionId: session.sessionId,
+          story: {
+            id: story.id,
+            title: story.title,
+            language: story.language,
+            rpgSystem: story.rpgSystem,
+          },
+          playerState: session.playerState,
+          lore: buildPlayLore(story),
+          currentBeat: {
+            narrative: lastTurn?.narrativeProse ?? story.initialStoryBeats[0]?.narrativeText ?? '',
+            choices: lastTurn?.presentedChoices ?? story.initialStoryBeats[0]?.choices ?? [],
+          },
+          turnNumber: session.turnCount ?? 1,
+        },
+      },
+      { headers: corsHeaders }
+    );
+  } catch (error: any) {
+    console.error('Session resume error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to resume session' },
+      { status: 500, headers: corsHeaders }
+    );
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json().catch(() => ({}));
+    const sessionId: string | undefined = body?.sessionId;
+    const playerState: PlayerState | undefined = body?.playerState;
+    if (!sessionId || !playerState) {
+      return NextResponse.json(
+        { success: false, error: 'sessionId and playerState are required' },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    const updated = await SessionRepository.updatePlayerState(sessionId, playerState);
+    if (!updated) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to persist player state' },
+        { status: 500, headers: corsHeaders }
+      );
+    }
+
+    return NextResponse.json({ success: true, data: { playerState: updated } }, { headers: corsHeaders });
+  } catch (error: any) {
+    console.error('Session patch error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to patch session' },
+      { status: 500, headers: corsHeaders }
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -174,6 +277,7 @@ export async function POST(req: NextRequest) {
             language: story.language,
             rpgSystem: story.rpgSystem,
           },
+          lore: buildPlayLore(story),
           currentBeat: {
             narrative: initialBeat.narrativeText,
             choices: initialBeat.choices,
