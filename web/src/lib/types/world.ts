@@ -829,6 +829,8 @@ export interface StoryChapter {
   scopeTier: ScopeTier;
   /** Macro objective for this chapter, e.g. "Infiltrate the Iron Guild and obtain the sealed ledger" */
   narrativeGoal: string;
+  /** How the player participates in this act, e.g. "may fight for either side of the war" */
+  playerInvolvement?: string;
   /** Story flags that must be set before this chapter can unlock */
   prerequisiteFlags: string[];
   scenes: StoryBeat[];
@@ -929,6 +931,7 @@ export const StoryChapterSchema = z.object({
   title: z.string().min(2),
   scopeTier: ScopeTierSchema.default('street'),
   narrativeGoal: z.string().default(''),
+  playerInvolvement: z.string().optional(),
   prerequisiteFlags: z.array(z.string()).default([]),
   scenes: z.array(StoryBeatSchema).default([]),
   completionSummaryPrompt: z.string().default(''),

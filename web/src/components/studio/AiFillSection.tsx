@@ -70,7 +70,7 @@ export default function AiFillSection({ type, onFilled, customSystemPrompt }: Ai
         key: `faction:${f.id}`,
         kind: 'faction',
         label: f.name,
-        detail: `${f.alignment}. ${f.publicGoals}${f.secretAgendas ? ` | Hidden: ${f.secretAgendas}` : ''}`,
+        detail: `${f.alignment}${f.scope ? ` (${f.scope} scope)` : ''}. ${f.publicGoals}${f.secretAgendas ? ` | Hidden: ${f.secretAgendas}` : ''}`,
       })
     );
     (wb?.locations ?? []).forEach((l) =>

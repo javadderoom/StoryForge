@@ -27,7 +27,13 @@ import {
   Cpu,
 } from 'lucide-react';
 import { notify } from '@/lib/notify';
-import { PersonaId } from '@/lib/engines/world/ActionProtocol';
+import { PersonaId, parseActionBlocks } from '@/lib/engines/world/ActionProtocol';
+import {
+  applyWorldChange,
+  prepareWorldChanges,
+  summarizeChangeFields,
+  WorldActionChange,
+} from '@/lib/engines/world/oracleActions';
 import { OracleMemoryDirective } from '@/lib/types/world';
 
 interface ChatMessage {
@@ -89,7 +95,36 @@ const ADVISER_PERSONAS: {
 
 export default function StudioOracleDrawer() {
   const pathname = usePathname();
-  const { story, isPersian, isRtl, updateWorldBible } = useStudioStory();
+  const {
+    story,
+    isPersian,
+    isRtl,
+    updateWorldBible,
+    addFaction,
+    editFaction,
+    deleteFaction,
+    addLocation,
+    editLocation,
+    deleteLocation,
+    addNpc,
+    editNpc,
+    deleteNpc,
+    addArtifact,
+    editArtifact,
+    deleteArtifact,
+    addCreature,
+    editCreature,
+    deleteCreature,
+    addDeity,
+    editDeity,
+    deleteDeity,
+    addTimelineEvent,
+    editTimelineEvent,
+    deleteTimelineEvent,
+    addWorldLaw,
+    editWorldLaw,
+    deleteWorldLaw,
+  } = useStudioStory();
 
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'memory'>('chat');
@@ -99,6 +134,10 @@ export default function StudioOracleDrawer() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [pinnedIndex, setPinnedIndex] = useState<number | null>(null);
+
+  // World-alteration review queue (storyforge-action pipeline)
+  const [pendingChanges, setPendingChanges] = useState<WorldActionChange[]>([]);
+  const [preparingActions, setPreparingActions] = useState(false);
 
   // Memory Vault Form State
   const [newDirectiveText, setNewDirectiveText] = useState('');
@@ -224,15 +263,49 @@ export default function StudioOracleDrawer() {
 
       const json = await res.json();
       if (json.success && json.reply) {
+        // Never render raw action fences; route them into the review pipeline.
+        const cleanReply = json.reply.replace(/```[\s\S]*?```/g, '').trim();
         setMessages((prev) => [
           ...prev,
           {
             id: `msg_${Date.now().toString(36)}_rep`,
             role: 'assistant',
-            content: json.reply,
+            content: cleanReply,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           },
         ]);
+
+        const actions = parseActionBlocks(json.reply);
+        if (actions.length > 0) {
+          setPreparingActions(true);
+          try {
+            const { ready, failed } = await prepareWorldChanges({
+              actions,
+              worldBible: story.worldBible,
+              worldContext,
+              userText: text,
+              isPersian,
+            });
+            if (failed.length > 0) {
+              const list = failed.map((f) => `• ${f.label}: ${f.error}`).join('\n');
+              notify.error(
+                (isPersian ? 'برخی تغییرات آماده نشد:\n' : 'Some changes could not be prepared:\n') + list
+              );
+            }
+            if (ready.length > 0) {
+              setPendingChanges((prev) => [...prev, ...ready]);
+              notify.info(
+                isPersian
+                  ? `${ready.length} تغییر جهانی برای بررسی و تأیید شما آماده شد`
+                  : `${ready.length} world change(s) ready for your review`
+              );
+            }
+          } catch (e: any) {
+            notify.error(e?.message || (isPersian ? 'خطا در اجرای عملیات' : 'Failed to execute actions'));
+          } finally {
+            setPreparingActions(false);
+          }
+        }
       } else {
         notify.error(json.error || (isPersian ? 'خطا در پاسخ پیشگو' : 'Failed to fetch Oracle advice'));
       }
@@ -346,6 +419,51 @@ export default function StudioOracleDrawer() {
       notify.info(isPersian ? 'تاریخچه گفتگو پاک شد' : 'Chat history cleared');
     }
   };
+
+  // ---- storyforge-action review pipeline ----
+  const buildMutators = () => ({
+    faction: { add: addFaction, edit: editFaction, del: deleteFaction },
+    location: { add: addLocation, edit: editLocation, del: deleteLocation },
+    npc: { add: addNpc, edit: editNpc, del: deleteNpc },
+    artifact: { add: addArtifact, edit: editArtifact, del: deleteArtifact },
+    creature: { add: addCreature, edit: editCreature, del: deleteCreature },
+    deity: { add: addDeity, edit: editDeity, del: deleteDeity },
+    timeline_event: { add: addTimelineEvent, edit: editTimelineEvent, del: deleteTimelineEvent },
+    world_law: { add: addWorldLaw, edit: editWorldLaw, del: deleteWorldLaw },
+  });
+
+  const applyOneChange = (change: WorldActionChange) => {
+    try {
+      applyWorldChange(change, buildMutators());
+      setPendingChanges((prev) => prev.filter((c) => c !== change));
+      notify.success(
+        isPersian ? `روی جهان اعمال شد: ${change.label}` : `Applied to world: ${change.label}`
+      );
+    } catch (err) {
+      notify.error((err as Error)?.message || (isPersian ? 'اعمال ناموفق بود' : 'Failed to apply change'));
+    }
+  };
+
+  const dismissOneChange = (change: WorldActionChange) => {
+    setPendingChanges((prev) => prev.filter((c) => c !== change));
+  };
+
+  const applyAllChanges = () => {
+    const mutators = buildMutators();
+    let ok = 0;
+    for (const c of pendingChanges) {
+      try {
+        applyWorldChange(c, mutators);
+        ok += 1;
+      } catch {
+        /* leave unapplied ones visible */
+      }
+    }
+    setPendingChanges((prev) => prev.slice(ok));
+    if (ok > 0) notify.success(isPersian ? `${ok} تغییر اعمال شد` : `Applied ${ok} change(s)`);
+  };
+
+  const dismissAllChanges = () => setPendingChanges([]);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -602,6 +720,91 @@ export default function StudioOracleDrawer() {
                 )}
                 <div ref={chatBottomRef} />
               </div>
+
+              {/* Pending world changes awaiting review */}
+              {(pendingChanges.length > 0 || preparingActions) && (
+                <div className="border-t border-amber-500/20 bg-zinc-900/90 p-3 space-y-2 max-h-[38vh] overflow-y-auto">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1 text-[10px] font-bold font-mono text-amber-300">
+                      <Sparkles className="w-3 h-3" />
+                      {isPersian ? 'تغییرات جهانی در انتظار تأیید' : 'WORLD CHANGES AWAITING REVIEW'}
+                    </span>
+                    {pendingChanges.length > 1 && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={applyAllChanges}
+                          className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold hover:bg-emerald-500/25"
+                        >
+                          {isPersian ? 'اعمال همه' : 'Apply all'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={dismissAllChanges}
+                          className="px-2 py-0.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-400 text-[10px] font-bold hover:text-white"
+                        >
+                          {isPersian ? 'رد همه' : 'Dismiss all'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {preparingActions && (
+                    <div className="flex items-center gap-2 text-[11px] text-amber-300 animate-pulse p-1.5">
+                      <Sparkles className="w-3.5 h-3.5 animate-spin" />
+                      <span>
+                        {isPersian ? 'در حال آماده‌سازی تغییرات جهان…' : 'Preparing world changes…'}
+                      </span>
+                    </div>
+                  )}
+
+                  {pendingChanges.map((c, i) => {
+                    const badge =
+                      c.op === 'create'
+                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                        : c.op === 'delete'
+                          ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                          : 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+                    const fields = summarizeChangeFields(c);
+                    return (
+                      <div
+                        key={`${c.op}-${c.targetId ?? c.label}-${i}`}
+                        className="rounded-xl border border-zinc-700/70 bg-zinc-950 p-2.5 flex items-start justify-between gap-2"
+                      >
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase border ${badge}`}>
+                              {c.op}
+                            </span>
+                            <span className="text-[11px] font-bold text-zinc-100 truncate">{c.label}</span>
+                          </div>
+                          {fields && (
+                            <p className="text-[10px] text-zinc-400 font-mono break-words leading-relaxed">{fields}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => applyOneChange(c)}
+                            title={isPersian ? 'اعمال روی جهان' : 'Apply to world'}
+                            className="p-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 transition-colors"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => dismissOneChange(c)}
+                            title={isPersian ? 'نادیده گرفتن' : 'Dismiss'}
+                            className="p-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Input Box */}
               <div className="p-3 border-t border-zinc-800 bg-zinc-900/60 space-y-1.5">

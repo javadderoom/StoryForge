@@ -40,6 +40,7 @@ interface GenerateRequest {
     | 'rpg_system_synthesis'
     | 'branching_story_tree'
     | 'epic_saga_synthesis'
+    | 'chapter_scenes'
     | 'genesis'
     | 'audit_world';
 
@@ -284,6 +285,8 @@ Strictly output a valid JSON object matching the requested schema. Do not enclos
       schemaInstruction = `Schema: { "sagaTitle": string, "premise": string, "chapters": [{ "chapterNumber": number, "title": string, "scopeTier": "street"|"regional"|"continental"|"mythic", "narrativeGoal": string, "prerequisiteFlags": string[], "completionSummaryPrompt": string, "scenes": [{ "sceneId": string, "title": string, "settingLocationName": string, "primaryConflict": string, "presentedChoices": [{ "style": "defensive_diplomatic"|"tactical_agile"|"aggressive_daring", "textFa": string, "textEn": string, "statCheck": { "stat": string, "dc": number }, "leadToSceneId": string }] }] }] } (👑 Synthesize a FULL 5-CHAPTER EPIC SAGA with strictly escalating narrative scope: Chapter 1 must stay street-level and grounded (threat level 1-2, personal stakes), Chapter 2 expands to city/faction politics ("street" or "regional"), Chapter 3 escalates to a regional conflict that breaks the seal on a larger war, Chapter 4 becomes a continental campaign ("continental"), and Chapter 5 delivers the mythic climax and epoch dawn ("mythic"). Each chapter contains 3 to 5 linked scenes; every scene features exactly 3 choice archetypes: defensive_diplomatic, tactical_agile, aggressive_daring. Choices may chain within a chapter via leadToSceneId using declared sceneIds. Use settingLocationName values that match existing world locations when possible. DCs must be realistic (10-20). Each chapter's completionSummaryPrompt is a one-sentence directive for how the AI should compress the chapter into an episodic milestone rollup.)`;
     } else if (type === 'scene') {
       schemaInstruction = `Schema: { "sceneId": string, "locationId": string, "narrativeText": string, "choices": [{ "id": string, "text": string, "style": "defensive"|"agile"|"aggressive"|"diplomatic"|"inquisitive", "riskLevel": "low"|"medium"|"high", "targetDC": number, "requiredStatId": string }] }`;
+    } else if (type === 'chapter_scenes') {
+      schemaInstruction = `Schema: { "scenes": [{ "title": string, "settingLocationName": string, "narrativeText": string, "primaryConflict": string, "presentedChoices": [{ "textFa": string, "textEn": string, "style": "defensive_diplomatic"|"tactical_agile"|"aggressive_daring", "statCheck": { "stat": string, "dc": number } }] }] } (👑 NARRATIVE-FIRST SCENE GENERATION: The author has hand-written this act's storyline. Dramatize EXACTLY the authored narrative — do NOT invent a different plot. Generate 3 to 5 sequential scenes that escalate within the act: setup → escalation → climax. Every scene MUST advance the authored goal and feature the named factions/NPCs from the WORLD BIBLE by their real names. Use settingLocationName values that match existing world locations. Honor the player involvement directive: choices must let the player participate in the described way. Scale stakes and DCs (10-20) to the act's scope tier. Each scene has exactly 3 choice archetypes: defensive_diplomatic, tactical_agile, aggressive_daring)`;
     }
 
 

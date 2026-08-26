@@ -121,6 +121,13 @@ function StudioShell({ children }: { children: React.ReactNode }) {
         (story.worldBible.ontology?.placeCategories?.length || 0),
     },
     {
+      href: '/studio/narrative-arcs',
+      label: isPersian ? 'قوس‌های روایی' : 'Narrative Arcs',
+      shortLabel: isPersian ? 'روایت' : 'Arcs',
+      icon: Scroll,
+      count: story.saga?.chapters?.length || 0,
+    },
+    {
       href: '/studio/beats',
       label: isPersian ? 'درخت سناریو و شاخه‌ها' : 'Story Beats Tree',
       shortLabel: isPersian ? 'سناریو' : 'Beats',
@@ -177,6 +184,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
     '/studio/bestiary': 'entities',
     '/studio/npcs': 'entities',
     '/studio/beats': 'story',
+    '/studio/narrative-arcs': 'story',
     '/studio/rpg': 'story',
     '/studio/sandbox': 'ai',
     '/studio/chat': 'ai',

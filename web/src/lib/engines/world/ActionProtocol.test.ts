@@ -138,6 +138,16 @@ describe('ActionProtocol — persona system prompts', () => {
     assert.match(p, /storyforge-action/);
   });
 
+  it('instructs personas about faction strategic fields (scope + secretAgendas)', () => {
+    const en = buildAdviserSystemPrompt('oracle', false);
+    assert.match(en, /secretAgendas/);
+    assert.match(en, /"mythic"/);
+
+    const fa = buildAdviserSystemPrompt('oracle', true);
+    assert.match(fa, /secretAgendas/);
+    assert.match(fa, /scope/);
+  });
+
   it('builds a persona-specific prompt (cosmologist) and injects focused entity', () => {
     const p = buildAdviserSystemPrompt('cosmologist', false, {
       activeEntityContext: '{"id":"fac_1"}',
