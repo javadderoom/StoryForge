@@ -9,6 +9,7 @@ import { notify } from '@/lib/notify';
 import EntityWorkshopDrawer, {
   type WorkshopEntity,
 } from '@/components/studio/EntityWorkshopDrawer';
+import AiFillSection from '@/components/studio/AiFillSection';
 import {
   BookOpen,
   Shield,
@@ -24,6 +25,11 @@ import {
   Zap,
   RotateCcw,
   Wand2,
+  MapPin,
+  Swords,
+  Handshake,
+  Flame,
+  Globe,
 } from 'lucide-react';
 
 export default function WorldBiblePage() {
@@ -43,6 +49,18 @@ export default function WorldBiblePage() {
   } = useStudioStory();
 
   const worldContext = useMemo(() => buildWorldContextString(story), [story]);
+
+  const locationNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    (story.worldBible.locations || []).forEach((l) => map.set(l.id, l.name));
+    return map;
+  }, [story.worldBible.locations]);
+
+  const factionNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    (story.worldBible.factions || []).forEach((f) => map.set(f.id, f.name));
+    return map;
+  }, [story.worldBible.factions]);
 
   // Plan 02 — Inline Entity Workshop Drawer
   const [workshopEntity, setWorkshopEntity] = useState<WorkshopEntity | null>(null);
@@ -97,6 +115,9 @@ export default function WorldBiblePage() {
     publicGoals: string;
     secretAgendas: string;
     scope: string;
+    territoryIds: string[];
+    rivalFactionIds: string[];
+    alliedFactionIds: string[];
   }>({
     id: '',
     name: '',
@@ -105,6 +126,9 @@ export default function WorldBiblePage() {
     publicGoals: '',
     secretAgendas: '',
     scope: '',
+    territoryIds: [],
+    rivalFactionIds: [],
+    alliedFactionIds: [],
   });
 
   // AI World Synthesis Modal (Gemini 3.7 Flash)
@@ -251,6 +275,9 @@ export default function WorldBiblePage() {
         publicGoals: faction.publicGoals,
         secretAgendas: faction.secretAgendas ?? '',
         scope: faction.scope ?? '',
+        territoryIds: Array.isArray(faction.territoryIds) ? [...faction.territoryIds] : [],
+        rivalFactionIds: Array.isArray(faction.rivalFactionIds) ? [...faction.rivalFactionIds] : [],
+        alliedFactionIds: Array.isArray(faction.alliedFactionIds) ? [...faction.alliedFactionIds] : [],
       });
     } else {
       setEditingFactionId(null);
@@ -262,40 +289,116 @@ export default function WorldBiblePage() {
         publicGoals: '',
         secretAgendas: '',
         scope: '',
+        territoryIds: [],
+        rivalFactionIds: [],
+        alliedFactionIds: [],
       });
     }
     setFactionModalOpen(true);
+  };
+
+  const handleFactionAiFill = (data: Record<string, unknown>) => {
+    setFactionForm((prev) => ({
+      ...prev,
+      name: typeof data.name === 'string' && data.name ? data.name : prev.name,
+      description:
+        typeof data.description === 'string' && data.description ? data.description : prev.description,
+      alignment: typeof data.alignment === 'string' && data.alignment ? data.alignment : prev.alignment,
+      publicGoals:
+        typeof data.publicGoals === 'string' && data.publicGoals ? data.publicGoals : prev.publicGoals,
+      secretAgendas:
+        typeof data.secretAgendas === 'string' ? data.secretAgendas : prev.secretAgendas,
+      scope: typeof data.scope === 'string' ? data.scope : prev.scope,
+      territoryIds: Array.isArray(data.territoryIds)
+        ? data.territoryIds.filter((x): x is string => typeof x === 'string')
+        : prev.territoryIds,
+      rivalFactionIds: Array.isArray(data.rivalFactionIds)
+        ? data.rivalFactionIds.filter((x): x is string => typeof x === 'string')
+        : prev.rivalFactionIds,
+      alliedFactionIds: Array.isArray(data.alliedFactionIds)
+        ? data.alliedFactionIds.filter((x): x is string => typeof x === 'string')
+        : prev.alliedFactionIds,
+    }));
+  };
+
+  const toggleTerritory = (locId: string) => {
+    setFactionForm((prev) => {
+      const exists = prev.territoryIds.includes(locId);
+      return {
+        ...prev,
+        territoryIds: exists
+          ? prev.territoryIds.filter((id) => id !== locId)
+          : [...prev.territoryIds, locId],
+      };
+    });
+  };
+
+  const toggleAlliedFaction = (otherFacId: string) => {
+    setFactionForm((prev) => {
+      const exists = prev.alliedFactionIds.includes(otherFacId);
+      return {
+        ...prev,
+        alliedFactionIds: exists
+          ? prev.alliedFactionIds.filter((id) => id !== otherFacId)
+          : [...prev.alliedFactionIds, otherFacId],
+        // If made ally, remove from rivals
+        rivalFactionIds: exists
+          ? prev.rivalFactionIds
+          : prev.rivalFactionIds.filter((id) => id !== otherFacId),
+      };
+    });
+  };
+
+  const toggleRivalFaction = (otherFacId: string) => {
+    setFactionForm((prev) => {
+      const exists = prev.rivalFactionIds.includes(otherFacId);
+      return {
+        ...prev,
+        rivalFactionIds: exists
+          ? prev.rivalFactionIds.filter((id) => id !== otherFacId)
+          : [...prev.rivalFactionIds, otherFacId],
+        // If made rival, remove from allies
+        alliedFactionIds: exists
+          ? prev.alliedFactionIds
+          : prev.alliedFactionIds.filter((id) => id !== otherFacId),
+      };
+    });
   };
 
   const handleSaveFaction = (e: React.FormEvent) => {
     e.preventDefault();
     if (!factionForm.name.trim()) return;
 
-    const scope = factionForm.scope as Faction['scope'];
+    const scope = (factionForm.scope || undefined) as Faction['scope'];
     const secretAgendas = factionForm.secretAgendas.trim();
 
     if (editingFactionId) {
       editFaction(editingFactionId, {
-        name: factionForm.name,
-        description: factionForm.description,
-        alignment: factionForm.alignment,
-        publicGoals: factionForm.publicGoals,
+        name: factionForm.name.trim(),
+        description: factionForm.description.trim(),
+        alignment: factionForm.alignment.trim(),
+        publicGoals: factionForm.publicGoals.trim(),
         secretAgendas: secretAgendas || undefined,
-        scope: scope || undefined,
+        scope,
+        territoryIds: factionForm.territoryIds,
+        rivalFactionIds: factionForm.rivalFactionIds,
+        alliedFactionIds: factionForm.alliedFactionIds,
       });
+      notify.success(isPersian ? 'جناح به‌روزرسانی شد' : 'Faction updated');
     } else {
       addFaction({
         id: factionForm.id,
-        name: factionForm.name,
-        description: factionForm.description,
-        alignment: factionForm.alignment,
-        publicGoals: factionForm.publicGoals,
+        name: factionForm.name.trim(),
+        description: factionForm.description.trim(),
+        alignment: factionForm.alignment.trim(),
+        publicGoals: factionForm.publicGoals.trim(),
         secretAgendas: secretAgendas || undefined,
-        scope: scope || undefined,
-        territoryIds: [],
-        rivalFactionIds: [],
-        alliedFactionIds: [],
+        scope,
+        territoryIds: factionForm.territoryIds,
+        rivalFactionIds: factionForm.rivalFactionIds,
+        alliedFactionIds: factionForm.alliedFactionIds,
       });
+      notify.success(isPersian ? 'جناح جدید ثبت شد' : 'New faction registered');
     }
     setFactionModalOpen(false);
   };
@@ -700,66 +803,147 @@ export default function WorldBiblePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {story.worldBible.factions.map((faction) => (
-            <div
-              key={faction.id}
-              className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-5 hover:border-zinc-700 transition-all flex flex-col justify-between group"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-mono bg-purple-500/10 border border-purple-500/20 text-purple-300 px-2 py-0.5 rounded-md">
-                      {faction.alignment}
-                    </span>
-                    {faction.scope && (
-                      <span className="text-[10px] font-mono bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-md uppercase">
-                        {faction.scope}+
+          {story.worldBible.factions.map((faction) => {
+            const territories = (faction.territoryIds || [])
+              .map((id) => locationNameById.get(id) || id)
+              .filter(Boolean);
+            const allies = (faction.alliedFactionIds || [])
+              .map((id) => factionNameById.get(id) || id)
+              .filter(Boolean);
+            const rivals = (faction.rivalFactionIds || [])
+              .map((id) => factionNameById.get(id) || id)
+              .filter(Boolean);
+
+            return (
+              <div
+                key={faction.id}
+                className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-5 hover:border-zinc-700 transition-all flex flex-col justify-between group cursor-pointer"
+                onClick={() => openFactionModal(faction)}
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-mono bg-purple-500/10 border border-purple-500/20 text-purple-300 px-2 py-0.5 rounded-md">
+                        {faction.alignment}
                       </span>
-                    )}
-                    {faction.secretAgendas && (
-                      <span
-                        title={isPersian ? 'دستور پنهان ثبت شده' : 'Has a secret agenda'}
-                        className="text-[10px] font-mono bg-rose-500/10 border border-rose-500/20 text-rose-300 px-2 py-0.5 rounded-md"
+                      {faction.scope && (
+                        <span className="text-[10px] font-mono bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-md uppercase">
+                          {faction.scope}+
+                        </span>
+                      )}
+                      {faction.secretAgendas && (
+                        <span
+                          title={isPersian ? 'دستور پنهان ثبت شده' : 'Has a secret agenda'}
+                          className="text-[10px] font-mono bg-rose-500/10 border border-rose-500/20 text-rose-300 px-2 py-0.5 rounded-md"
+                        >
+                          🔒 {isPersian ? 'پنهان' : 'Secret'}
+                        </span>
+                      )}
+                      <h4 className="text-sm font-bold text-zinc-100">{faction.name}</h4>
+                    </div>
+                    <div
+                      className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => openWorkshop('faction', faction)}
+                        title={isPersian ? 'کارگاه موجودیت' : 'Entity Workshop'}
+                        className="p-1 text-zinc-400 hover:text-amber-400 rounded-lg hover:bg-zinc-800 cursor-pointer"
                       >
-                        🔒 {isPersian ? 'پنهان' : 'Secret'}
+                        <Wand2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => openFactionModal(faction)}
+                        title={isPersian ? 'ویرایش جناح' : 'Edit Faction'}
+                        className="p-1 text-zinc-400 hover:text-amber-400 rounded-lg hover:bg-zinc-800 cursor-pointer"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteFaction(faction)}
+                        title={isPersian ? 'حذف جناح' : 'Delete Faction'}
+                        className="p-1 text-zinc-400 hover:text-rose-400 rounded-lg hover:bg-zinc-800 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-zinc-400 leading-relaxed mb-3">{faction.description}</p>
+                  <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-3 text-xs text-zinc-300 mb-3">
+                    <span className="text-amber-400 font-semibold block mb-1">{t.goals}</span>
+                    <p>{faction.publicGoals}</p>
+                  </div>
+
+                  {faction.secretAgendas && (
+                    <div className="bg-rose-950/20 border border-rose-900/40 rounded-xl p-2.5 text-xs text-rose-300/90 mb-3">
+                      <span className="text-rose-400 font-semibold block mb-0.5 text-[11px]">
+                        🔒 {isPersian ? 'دستور پنهان (فقط راوی هوش مصنوعی):' : 'Secret Agenda (AI Narrator only):'}
                       </span>
+                      <p className="text-zinc-300 text-[11px]">{faction.secretAgendas}</p>
+                    </div>
+                  )}
+
+                  {/* Territories & Relations Badges */}
+                  <div className="space-y-1.5 pt-1">
+                    {territories.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] text-zinc-500 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-amber-400" />
+                          {isPersian ? 'قلمروها:' : 'Territories:'}
+                        </span>
+                        {territories.map((tName, i) => (
+                          <span
+                            key={i}
+                            className="text-[10px] bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded-md"
+                          >
+                            {tName}
+                          </span>
+                        ))}
+                      </div>
                     )}
-                    <h4 className="text-sm font-bold text-zinc-100">{faction.name}</h4>
-                  </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => openWorkshop('faction', faction)}
-                      title={isPersian ? 'کارگاه موجودیت' : 'Entity Workshop'}
-                      className="p-1 text-zinc-400 hover:text-amber-400 rounded-lg hover:bg-zinc-800 cursor-pointer"
-                    >
-                      <Wand2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => openFactionModal(faction)}
-                      className="p-1 text-zinc-400 hover:text-amber-400 rounded-lg hover:bg-zinc-800 cursor-pointer"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteFaction(faction)}
-                      className="p-1 text-zinc-400 hover:text-rose-400 rounded-lg hover:bg-zinc-800 cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+
+                    {allies.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] text-zinc-500 flex items-center gap-1">
+                          <Handshake className="w-3 h-3 text-emerald-400" />
+                          {isPersian ? 'متحدان:' : 'Allies:'}
+                        </span>
+                        {allies.map((aName, i) => (
+                          <span
+                            key={i}
+                            className="text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-2 py-0.5 rounded-md"
+                          >
+                            {aName}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {rivals.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] text-zinc-500 flex items-center gap-1">
+                          <Swords className="w-3 h-3 text-rose-400" />
+                          {isPersian ? 'رقیبان / دشمنان:' : 'Rivals:'}
+                        </span>
+                        {rivals.map((rName, i) => (
+                          <span
+                            key={i}
+                            className="text-[10px] bg-rose-500/10 text-rose-300 border border-rose-500/20 px-2 py-0.5 rounded-md"
+                          >
+                            {rName}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
-                <p className="text-xs text-zinc-400 leading-relaxed mb-3">{faction.description}</p>
-                <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-3 text-xs text-zinc-300">
-                  <span className="text-amber-400 font-semibold block mb-1">{t.goals}</span>
-                  <p>{faction.publicGoals}</p>
+                <div className="mt-4 pt-3 border-t border-zinc-800/60 flex items-center justify-between text-[11px] text-zinc-500 font-mono">
+                  <span>{faction.id}</span>
+                  <span>{faction.territoryIds?.length || 0} Territories</span>
                 </div>
               </div>
-              <div className="mt-4 pt-3 border-t border-zinc-800/60 flex items-center justify-between text-[11px] text-zinc-500 font-mono">
-                <span>{faction.id}</span>
-                <span>{faction.territoryIds?.length || 0} Territories</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -847,12 +1031,18 @@ export default function WorldBiblePage() {
 
       {/* Faction Modal */}
       {factionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
                 <Users className="w-5 h-5 text-amber-400" />
-                {editingFactionId ? 'Edit Faction' : 'Register New Faction'}
+                {editingFactionId
+                  ? isPersian
+                    ? 'ویرایش جناح و مناسبات قدرت'
+                    : 'Edit Faction & Power Web'
+                  : isPersian
+                  ? 'ثبت جناح جدید'
+                  : 'Register New Faction'}
               </h3>
               <button
                 onClick={() => setFactionModalOpen(false)}
@@ -862,29 +1052,51 @@ export default function WorldBiblePage() {
               </button>
             </div>
 
+            {/* AI Assistant Section */}
+            <AiFillSection type="faction" onFilled={handleFactionAiFill} />
+
             <form onSubmit={handleSaveFaction} className="space-y-4">
-              <div>
-                <label className="block text-xs text-zinc-400 mb-1">{t.factionName}</label>
-                <input
-                  type="text"
-                  value={factionForm.name}
-                  onChange={(e) => setFactionForm((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g. The Silver Guard"
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
-                  required
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">{t.factionName}</label>
+                  <input
+                    type="text"
+                    value={factionForm.name}
+                    onChange={(e) => setFactionForm((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g. The Silver Guard"
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">{t.alignment}</label>
+                  <input
+                    type="text"
+                    value={factionForm.alignment}
+                    onChange={(e) => setFactionForm((prev) => ({ ...prev, alignment: e.target.value }))}
+                    placeholder="e.g. Lawful Authoritarian / Rebel Anarchist"
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+                    required
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs text-zinc-400 mb-1">{t.alignment}</label>
-                <input
-                  type="text"
-                  value={factionForm.alignment}
-                  onChange={(e) => setFactionForm((prev) => ({ ...prev, alignment: e.target.value }))}
-                  placeholder="e.g. Lawful Authoritarian / Rebel Anarchist"
+                <label className="block text-xs text-zinc-400 mb-1">
+                  {isPersian ? 'گستره روایی (مقیاس فعالیت در فصل‌ها)' : 'Narrative Scope (Active Chapter Tier)'}
+                </label>
+                <select
+                  value={factionForm.scope}
+                  onChange={(e) => setFactionForm((prev) => ({ ...prev, scope: e.target.value }))}
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
-                  required
-                />
+                >
+                  <option value="">{isPersian ? 'همیشه فعال (پیش‌فرض)' : 'Always visible (default)'}</option>
+                  <option value="street">{isPersian ? 'خیابانی / محلی (Street)' : 'Street (Local gangs, town guards)'}</option>
+                  <option value="regional">{isPersian ? 'منطقه‌ای / پادشاهی (Regional)' : 'Regional (Kingdoms, trade syndicates)'}</option>
+                  <option value="continental">{isPersian ? 'قاره‌ای / امپراتوری (Continental)' : 'Continental (Empire orders, inquisitions)'}</option>
+                  <option value="mythic">{isPersian ? 'اسطوره‌ای / فرابعدی (Mythic)' : 'Mythic (Gods, arch-devils, world-shapers)'}</option>
+                </select>
               </div>
 
               <div>
@@ -893,7 +1105,7 @@ export default function WorldBiblePage() {
                   rows={2}
                   value={factionForm.description}
                   onChange={(e) => setFactionForm((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Faction background and philosophy..."
+                  placeholder="Faction background, cultural origins, and core philosophy..."
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
                   required
                 />
@@ -905,7 +1117,7 @@ export default function WorldBiblePage() {
                   rows={2}
                   value={factionForm.publicGoals}
                   onChange={(e) => setFactionForm((prev) => ({ ...prev, publicGoals: e.target.value }))}
-                  placeholder="What is this faction trying to achieve?"
+                  placeholder="What is this faction publicly claiming to fight for?"
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
                   required
                 />
@@ -913,37 +1125,149 @@ export default function WorldBiblePage() {
 
               <div>
                 <label className="block text-xs text-zinc-400 mb-1">
-                  {isPersian ? 'دستور پنهان' : 'Secret Agenda'}
-                  <span className="text-zinc-600 ml-1">({isPersian ? 'اختیاری — فقط هوش مصنوعی می‌بیند' : 'optional — only the AI sees this'})</span>
+                  {isPersian ? 'دستور پنهان و انگیزه واقعی' : 'Secret Agenda & True Objective'}
+                  <span className="text-zinc-500 ml-1">
+                    ({isPersian ? 'فقط راوی هوش مصنوعی می‌بیند' : 'AI narrator only — hidden from player'})
+                  </span>
                 </label>
                 <textarea
                   rows={2}
                   value={factionForm.secretAgendas}
                   onChange={(e) => setFactionForm((prev) => ({ ...prev, secretAgendas: e.target.value }))}
-                  placeholder={isPersian ? 'مثلاً: تسلط بر جهان و تباه‌سازی آفرینش...' : 'e.g. Dominate and twist all creation...'}
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-rose-500"
+                  placeholder={
+                    isPersian
+                      ? 'مثلاً: تسخیر چشمه ابدی و قربانی کردن خاندان سلطنتی در نیمه‌شب خونین...'
+                      : 'e.g. Infiltrate the royal guard and unleash the sealed primeval titan...'
+                  }
+                  className="w-full bg-zinc-950 border border-rose-900/50 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-rose-500"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs text-zinc-400 mb-1">
-                  {isPersian ? 'گستره روایی' : 'Narrative Scope'}
-                  <span className="text-zinc-600 ml-1">({isPersian ? 'در فصل‌های کوچک‌تر پنهان می‌ماند' : 'hidden until chapters escalate to it'})</span>
+              {/* Territory Selection */}
+              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+                <label className="block text-xs font-semibold text-zinc-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                    {isPersian ? 'قلمروها و پایگاه‌های تحت کنترل' : 'Controlled Territories & Strongholds'}
+                  </span>
+                  <span className="text-[11px] font-mono text-zinc-500">
+                    {factionForm.territoryIds.length} {isPersian ? 'انتخاب شده' : 'selected'}
+                  </span>
                 </label>
-                <select
-                  value={factionForm.scope}
-                  onChange={(e) => setFactionForm((prev) => ({ ...prev, scope: e.target.value }))}
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
-                >
-                  <option value="">{isPersian ? 'همیشه فعال (پیش‌فرض)' : 'Always visible (default)'}</option>
-                  <option value="street">{isPersian ? 'خیابانی' : 'Street'}</option>
-                  <option value="regional">{isPersian ? 'منطقه‌ای' : 'Regional'}</option>
-                  <option value="continental">{isPersian ? 'قاره‌ای' : 'Continental'}</option>
-                  <option value="mythic">{isPersian ? 'اسطوره‌ای' : 'Mythic'}</option>
-                </select>
+                {story.worldBible.locations.length === 0 ? (
+                  <p className="text-xs text-zinc-500 italic">
+                    {isPersian ? 'هنوز مکانی در جهان ثبت نشده است.' : 'No locations registered in the World Bible yet.'}
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1 bg-zinc-950/60 rounded-xl border border-zinc-800">
+                    {story.worldBible.locations.map((loc) => {
+                      const isSelected = factionForm.territoryIds.includes(loc.id);
+                      return (
+                        <button
+                          key={loc.id}
+                          type="button"
+                          onClick={() => toggleTerritory(loc.id)}
+                          className={`text-xs px-3 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
+                            isSelected
+                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 font-semibold'
+                              : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500'
+                          }`}
+                        >
+                          <MapPin className="w-3 h-3" />
+                          <span>{loc.name}</span>
+                          {isSelected && <Check className="w-3 h-3 text-amber-400" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+              {/* Allied Factions Selection */}
+              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+                <label className="block text-xs font-semibold text-zinc-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Handshake className="w-3.5 h-3.5 text-emerald-400" />
+                    {isPersian ? 'جناح‌های هم‌پیمان و متحدان' : 'Allied & Friendly Factions'}
+                  </span>
+                  <span className="text-[11px] font-mono text-zinc-500">
+                    {factionForm.alliedFactionIds.length} {isPersian ? 'انتخاب شده' : 'selected'}
+                  </span>
+                </label>
+                {story.worldBible.factions.filter((f) => f.id !== factionForm.id).length === 0 ? (
+                  <p className="text-xs text-zinc-500 italic">
+                    {isPersian ? 'جناح دیگری برای اتحاد وجود ندارد.' : 'No other factions exist yet.'}
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1 bg-zinc-950/60 rounded-xl border border-zinc-800">
+                    {story.worldBible.factions
+                      .filter((f) => f.id !== factionForm.id)
+                      .map((fac) => {
+                        const isSelected = factionForm.alliedFactionIds.includes(fac.id);
+                        return (
+                          <button
+                            key={fac.id}
+                            type="button"
+                            onClick={() => toggleAlliedFaction(fac.id)}
+                            className={`text-xs px-3 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
+                              isSelected
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 font-semibold'
+                                : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500'
+                            }`}
+                          >
+                            <Handshake className="w-3 h-3" />
+                            <span>{fac.name}</span>
+                            {isSelected && <Check className="w-3 h-3 text-emerald-400" />}
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+
+              {/* Rival Factions Selection */}
+              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+                <label className="block text-xs font-semibold text-zinc-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Swords className="w-3.5 h-3.5 text-rose-400" />
+                    {isPersian ? 'جناح‌های رقیب و متخاصم' : 'Rival & Enemy Factions'}
+                  </span>
+                  <span className="text-[11px] font-mono text-zinc-500">
+                    {factionForm.rivalFactionIds.length} {isPersian ? 'انتخاب شده' : 'selected'}
+                  </span>
+                </label>
+                {story.worldBible.factions.filter((f) => f.id !== factionForm.id).length === 0 ? (
+                  <p className="text-xs text-zinc-500 italic">
+                    {isPersian ? 'جناح دیگری برای ثبت رقابت وجود ندارد.' : 'No other factions exist yet.'}
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1 bg-zinc-950/60 rounded-xl border border-zinc-800">
+                    {story.worldBible.factions
+                      .filter((f) => f.id !== factionForm.id)
+                      .map((fac) => {
+                        const isSelected = factionForm.rivalFactionIds.includes(fac.id);
+                        return (
+                          <button
+                            key={fac.id}
+                            type="button"
+                            onClick={() => toggleRivalFaction(fac.id)}
+                            className={`text-xs px-3 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
+                              isSelected
+                                ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 font-semibold'
+                                : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500'
+                            }`}
+                          >
+                            <Swords className="w-3 h-3" />
+                            <span>{fac.name}</span>
+                            {isSelected && <Flame className="w-3 h-3 text-rose-400" />}
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-zinc-800">
                 <button
                   type="button"
                   onClick={() => setFactionModalOpen(false)}
@@ -953,9 +1277,15 @@ export default function WorldBiblePage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-amber-500 text-zinc-950 text-xs font-bold hover:bg-amber-400"
+                  className="px-5 py-2 rounded-xl bg-amber-500 text-zinc-950 text-xs font-bold hover:bg-amber-400 shadow-lg shadow-amber-500/20"
                 >
-                  {t.save}
+                  {editingFactionId
+                    ? isPersian
+                      ? 'ذخیره تغییرات جناح'
+                      : 'Update Faction'
+                    : isPersian
+                    ? 'ثبت جناح'
+                    : 'Register Faction'}
                 </button>
               </div>
             </form>

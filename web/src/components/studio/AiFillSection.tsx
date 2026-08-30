@@ -13,6 +13,7 @@ export type AiFillType =
   | 'deity'
   | 'timeline_event'
   | 'world_law'
+  | 'faction'
   | 'scene';
 
 export type AiData = Record<string, unknown>;
@@ -29,6 +30,7 @@ const DOMAIN = ['light', 'secrets', 'death', 'war', 'nature', 'chaos', 'forge'];
 const LAW_CATEGORY = ['magic', 'physics', 'society', 'divine'];
 const ERA = ['ancient', 'war', 'reign', 'cataclysm', 'present'];
 const DANGER = [1, 2, 3, 4, 5];
+const SCOPES = ['street', 'regional', 'continental', 'mythic'];
 
 const SUBTYPE_FIELD: Partial<Record<AiFillType, string>> = {
   artifact: 'rarity',
@@ -38,6 +40,7 @@ const SUBTYPE_FIELD: Partial<Record<AiFillType, string>> = {
   timeline_event: 'eraCategory',
   location: 'dangerLevel',
   npc: 'npcRole',
+  faction: 'scope',
 };
 
 // Field name in the generated JSON (may differ from the request field, e.g. npc)
@@ -49,6 +52,7 @@ const DATA_FIELD: Partial<Record<AiFillType, string>> = {
   timeline_event: 'eraCategory',
   location: 'dangerLevel',
   npc: 'role',
+  faction: 'scope',
 };
 
 export default function AiFillSection({ type, onFilled, customSystemPrompt }: AiFillSectionProps) {
@@ -121,6 +125,29 @@ export default function AiFillSection({ type, onFilled, customSystemPrompt }: Ai
       return { label: isPersian ? 'دوران' : 'Era', options: ERA.map((v) => ({ value: v, label: v })) };
     if (type === 'location')
       return { label: isPersian ? 'سطح خطر' : 'Danger', options: DANGER.map((v) => ({ value: String(v), label: String(v) })) };
+    if (type === 'faction')
+      return {
+        label: isPersian ? 'گستره روایی' : 'Narrative Scope',
+        options: SCOPES.map((v) => ({
+          value: v,
+          label:
+            v === 'street'
+              ? isPersian
+                ? 'خیابانی (Street)'
+                : 'Street'
+              : v === 'regional'
+              ? isPersian
+                ? 'منطقه‌ای (Regional)'
+                : 'Regional'
+              : v === 'continental'
+              ? isPersian
+                ? 'قاره‌ای (Continental)'
+                : 'Continental'
+              : isPersian
+              ? 'اسطوره‌ای / کیهانی (Mythic)'
+              : 'Mythic',
+        })),
+      };
     return null;
   })();
 
