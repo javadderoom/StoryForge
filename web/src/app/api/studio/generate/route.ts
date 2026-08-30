@@ -230,10 +230,9 @@ export async function POST(req: NextRequest) {
     const systemPrompt =
       customSystemPrompt?.trim() ||
       `You are the Master World-Building & Narrative AI Co-Pilot for StoryForge, an advanced Interactive Fiction RPG engine.
-Generate a high-quality JSON object for a ${type} within a dark fantasy / grim-arcane setting.
+Generate a high-quality JSON object for a ${type} matching the world's tone and setting.
 ${isPersian ? 'Output all narrative text, names, descriptions in literary Persian (Farsi).' : 'Output in literary English.'}
-Theme context: ${themeContext || 'Dark basalt mountain fortress, political tension, forbidden alchemy'}
-User guidance: ${prompt || 'Create something rich with atmospheric depth and literary gravitas.'}
+${themeContext ? `Theme context: ${themeContext}\n` : ''}User guidance: ${prompt || 'Create something rich with atmospheric depth and literary gravitas.'}
 ${worldContext ? `World context (existing lore — stay consistent with it):\n${worldContext}` : ''}${uniquenessInstruction}${diversityInstruction}${anchor ? `\n\nANCHOR — This new ${type} MUST be thematically tied to the following existing lore element; derive its concept, theme, powers/flavor, and relations from it rather than introducing an unrelated motif:\n${anchor}` : ''}
 Strictly output a valid JSON object matching the requested schema. Do not enclose in markdown blocks if possible, or return clean JSON.${constraintLine}`;
 

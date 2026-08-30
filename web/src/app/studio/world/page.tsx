@@ -1255,6 +1255,7 @@ export default function WorldBiblePage() {
         entity={workshopEntity}
         worldContext={worldContext}
         isPersian={isPersian}
+        themeContext={story.worldBible.themeNotes}
         onClose={() => setWorkshopEntity(null)}
         onApplyUpdate={handleWorkshopApply}
       />

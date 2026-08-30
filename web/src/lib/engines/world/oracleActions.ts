@@ -64,8 +64,10 @@ export async function prepareWorldChanges(opts: {
   worldContext: string;
   userText?: string;
   isPersian?: boolean;
+  themeContext?: string;
 }): Promise<{ ready: WorldActionChange[]; failed: WorldActionFailure[] }> {
   const { actions, worldBible, worldContext, userText = '', isPersian = false } = opts;
+  const themeContext = opts.themeContext || worldBible?.themeNotes || '';
   const t = {
     notFound: isPersian ? 'موجودیت یافت نشد' : 'Entity not found',
     failed: isPersian ? 'تولید محتوای هوش مصنوعی ناموفق بود' : 'AI generation failed',
@@ -109,6 +111,7 @@ export async function prepareWorldChanges(opts: {
           worldContext,
           isPersian,
           anchor: a.anchor,
+          themeContext,
         });
         if (!json.success || !json.data) throw new Error(json.error || t.failed);
         const data = normalizeEntity(entity, json.data);
@@ -136,6 +139,7 @@ export async function prepareWorldChanges(opts: {
             prompt: changeBrief,
             worldContext,
             isPersian,
+            themeContext,
             customSystemPrompt: editSystem + editPrompt,
           });
           if (!json.success || !json.data) throw new Error(json.error || t.failed);

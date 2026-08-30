@@ -20,6 +20,7 @@ interface EntityWorkshopDrawerProps {
   entity: WorkshopEntity | null;
   worldContext: string;
   isPersian: boolean;
+  themeContext?: string;
   onClose: () => void;
   onApplyUpdate: (entity: WorkshopEntity, data: unknown) => void;
 }
@@ -35,6 +36,7 @@ export default function EntityWorkshopDrawer({
   entity,
   worldContext,
   isPersian,
+  themeContext = '',
   onClose,
   onApplyUpdate,
 }: EntityWorkshopDrawerProps) {
@@ -119,6 +121,7 @@ export default function EntityWorkshopDrawer({
             prompt: targetBlock.prompt,
             worldContext,
             isPersian,
+            themeContext,
             customSystemPrompt: editSystem + editPrompt,
           }),
         });

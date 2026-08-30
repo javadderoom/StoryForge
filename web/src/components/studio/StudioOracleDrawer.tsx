@@ -285,6 +285,7 @@ export default function StudioOracleDrawer() {
               worldContext,
               userText: text,
               isPersian,
+              themeContext: story.worldBible?.themeNotes || '',
             });
             if (failed.length > 0) {
               const list = failed.map((f) => `• ${f.label}: ${f.error}`).join('\n');

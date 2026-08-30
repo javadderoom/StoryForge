@@ -426,6 +426,7 @@ export default function AiOraclePage() {
             worldContext,
             isPersian,
             anchor: a.anchor,
+            themeContext: story.worldBible?.themeNotes || '',
           });
           if (!json.success || !json.data) throw new Error(json.error || t.failed);
           const data = normalizeEntity(entity, json.data);
@@ -458,6 +459,7 @@ export default function AiOraclePage() {
               prompt: changeBrief,
               worldContext,
               isPersian,
+              themeContext: story.worldBible?.themeNotes || '',
               customSystemPrompt: editSystem + editPrompt,
             });
             if (!json.success || !json.data) throw new Error(json.error || t.failed);

@@ -195,11 +195,11 @@ export class GeminiAdapter {
     if (prompt.isEnglish) {
       return {
         narrative:
-          'The ancient volcanic masonry hums with cold resonance as the torchlight flickers violently in the sudden draft. Every breath sends a plume of grey frost into the gloom of the dungeon. Across the flagstone corridor, the rhythmic cadence of armored greaves halts abruptly outside the heavy ironwood door.',
+          'A tense silence hangs in the air as torchlight flickers along the passage. Every breath sends a pale mist into the gloom. Across the corridor, the cadence of approaching footsteps halts abruptly outside the doorway.',
         choices: [
           {
             id: 'choice_en_1',
-            text: 'Hold your breath and press your spine deep into the shadow of the basalt alcove.',
+            text: 'Hold your breath and step deep into the shadows along the wall.',
             style: 'defensive',
             riskLevel: 'low',
             targetDC: 10,
@@ -207,7 +207,7 @@ export class GeminiAdapter {
           },
           {
             id: 'choice_en_2',
-            text: 'Carefully slip your brass lockpick into the tumblers of the ironwood door.',
+            text: 'Carefully slip your lockpick into the tumblers of the door.',
             style: 'tactical',
             riskLevel: 'medium',
             targetDC: 12,
@@ -215,7 +215,7 @@ export class GeminiAdapter {
           },
           {
             id: 'choice_en_3',
-            text: 'Draw your notched boot blade and prepare to ambush whoever breaches the threshold.',
+            text: 'Draw your weapon and prepare to confront whoever breaches the threshold.',
             style: 'aggressive',
             riskLevel: 'high',
             targetDC: 14,
@@ -226,7 +226,7 @@ export class GeminiAdapter {
           {
             category: 'character',
             importance: 6,
-            summary: 'Heard heavy armored footsteps halting outside dungeon door',
+            summary: 'Heard approaching footsteps halting outside the doorway',
           },
         ],
       };
@@ -234,11 +234,11 @@ export class GeminiAdapter {
 
     return {
       narrative:
-        'سرمای سنگ‌های بازالتی دژ به استخوانت می‌رسد؛ نوری لرزان از زیر درگاه چوبی کهن به داخل می‌تابد. از پشت در، صدای چرخش کلید در قفل به گوش می‌رسد و سایه‌ای سنگین پشت میله‌های پنجره کوچک بالایی پدیدار می‌شود.',
+        'سکوت سنگینی بر فضا حاکم است و نوری لرزان از زیر درگاه کهن به داخل می‌تابد. از پشت در، صدای چرخش کلید در قفل به گوش می‌رسد و سایه‌ای پشت شکاف درگاه پدیدار می‌شود.',
       choices: [
         {
           id: 'choice_fa_1',
-          text: 'نَفَسَت را در سینه حبس کن و در فرورفتگی تاریک دیوار سنگی پناه بگیر.',
+          text: 'نَفَسَت را در سینه حبس کن و در فرورفتگی تاریک دیوار پناه بگیر.',
           style: 'defensive',
           riskLevel: 'low',
           targetDC: 10,
@@ -246,7 +246,7 @@ export class GeminiAdapter {
         },
         {
           id: 'choice_fa_2',
-          text: 'به آرامی میله قفل‌گشایی را داخل مکانیزم در چوبی بلغزان.',
+          text: 'به آرامی میله قفل‌گشایی را داخل مکانیزم در بلغزان.',
           style: 'tactical',
           riskLevel: 'medium',
           targetDC: 12,
@@ -254,7 +254,7 @@ export class GeminiAdapter {
         },
         {
           id: 'choice_fa_3',
-          text: 'خنجر چکمه‌ات را بیرون بکش و برای شبیخون در آستانه درگاه آماده شو.',
+          text: 'سلاح خود را بیرون بکش و برای شبیخون در آستانه درگاه آماده شو.',
           style: 'aggressive',
           riskLevel: 'high',
           targetDC: 14,
@@ -265,7 +265,7 @@ export class GeminiAdapter {
         {
           category: 'player',
           importance: 6,
-          summary: 'بازیکن مسیر راهروی سیاه‌چال را مخفیانه زیر نظر گرفت.',
+          summary: 'بازیکن مسیر راهرو را مخفیانه زیر نظر گرفت.',
         },
       ],
     };
