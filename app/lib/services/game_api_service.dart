@@ -6,13 +6,14 @@ import '../models/game_state.dart';
 import '../models/character_creation.dart';
 
 class GameApiService {
+  static const String _defaultProdUrl = 'https://story-forge-rouge.vercel.app';
+
   static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:3000';
+    const envUrl = String.fromEnvironment('API_BASE_URL', defaultValue: _defaultProdUrl);
+    if (envUrl.isNotEmpty) {
+      return envUrl.endsWith('/') ? envUrl.substring(0, envUrl.length - 1) : envUrl;
     }
-    return defaultTargetPlatform == TargetPlatform.android
-        ? 'http://10.0.2.2:3000'
-        : 'http://127.0.0.1:3000';
+    return _defaultProdUrl;
   }
 
   /// Fetches available stories from the catalog
