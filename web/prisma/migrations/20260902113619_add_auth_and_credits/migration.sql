@@ -2,7 +2,7 @@
 ALTER TABLE "playthrough_sessions" ALTER COLUMN "userId" DROP NOT NULL;
 
 -- CreateTable
-CREATE TABLE "users" (
+CREATE TABLE IF NOT EXISTS "users" (
     "id" TEXT NOT NULL,
     "phoneNumber" TEXT NOT NULL,
     "passwordHash" TEXT NOT NULL,
@@ -17,7 +17,7 @@ CREATE TABLE "users" (
 );
 
 -- CreateTable
-CREATE TABLE "user_credit_ledgers" (
+CREATE TABLE IF NOT EXISTS "user_credit_ledgers" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "amount" INTEGER NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE "user_credit_ledgers" (
 );
 
 -- CreateTable
-CREATE TABLE "bazaar_purchases" (
+CREATE TABLE IF NOT EXISTS "bazaar_purchases" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "sku" TEXT NOT NULL,
@@ -45,28 +45,31 @@ CREATE TABLE "bazaar_purchases" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_phoneNumber_key" ON "users"("phoneNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "users_phoneNumber_key" ON "users"("phoneNumber");
 
 -- CreateIndex
-CREATE INDEX "user_credit_ledgers_userId_createdAt_idx" ON "user_credit_ledgers"("userId", "createdAt");
+CREATE INDEX IF NOT EXISTS "user_credit_ledgers_userId_createdAt_idx" ON "user_credit_ledgers"("userId", "createdAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "bazaar_purchases_token_key" ON "bazaar_purchases"("token");
+CREATE UNIQUE INDEX IF NOT EXISTS "bazaar_purchases_token_key" ON "bazaar_purchases"("token");
 
 -- CreateIndex
-CREATE INDEX "bazaar_purchases_userId_sku_idx" ON "bazaar_purchases"("userId", "sku");
+CREATE INDEX IF NOT EXISTS "bazaar_purchases_userId_sku_idx" ON "bazaar_purchases"("userId", "sku");
 
 -- CreateIndex
-CREATE INDEX "playthrough_sessions_userId_idx" ON "playthrough_sessions"("userId");
+CREATE INDEX IF NOT EXISTS "playthrough_sessions_userId_idx" ON "playthrough_sessions"("userId");
 
 -- AddForeignKey
+ALTER TABLE "user_credit_ledgers" DROP CONSTRAINT IF EXISTS "user_credit_ledgers_userId_fkey";
 ALTER TABLE "user_credit_ledgers" ADD CONSTRAINT "user_credit_ledgers_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "bazaar_purchases" DROP CONSTRAINT IF EXISTS "bazaar_purchases_userId_fkey";
 ALTER TABLE "bazaar_purchases" ADD CONSTRAINT "bazaar_purchases_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Clean legacy non-foreign-key userIds from playthrough_sessions
-UPDATE "playthrough_sessions" SET "userId" = NULL WHERE "userId" IS NOT NULL;
+UPDATE "playthrough_sessions" SET "userId" = NULL WHERE "userId" IS NOT NULL AND "userId" NOT IN (SELECT "id" FROM "users");
 
 -- AddForeignKey
+ALTER TABLE "playthrough_sessions" DROP CONSTRAINT IF EXISTS "playthrough_sessions_userId_fkey";
 ALTER TABLE "playthrough_sessions" ADD CONSTRAINT "playthrough_sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;

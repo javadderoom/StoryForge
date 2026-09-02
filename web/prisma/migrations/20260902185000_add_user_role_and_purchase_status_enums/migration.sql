@@ -1,8 +1,16 @@
--- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('READER', 'AUTHOR', 'ADMIN');
+-- CreateEnum UserRole
+DO $$ BEGIN
+    CREATE TYPE "UserRole" AS ENUM ('READER', 'AUTHOR', 'ADMIN');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- CreateEnum
-CREATE TYPE "PurchaseStatus" AS ENUM ('COMPLETED', 'PENDING', 'REFUNDED', 'FAILED');
+-- CreateEnum PurchaseStatus
+DO $$ BEGIN
+    CREATE TYPE "PurchaseStatus" AS ENUM ('COMPLETED', 'PENDING', 'REFUNDED', 'FAILED');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- AlterTable users
 ALTER TABLE "users" ALTER COLUMN "role" DROP DEFAULT;

@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "credit_packages" (
+CREATE TABLE IF NOT EXISTS "credit_packages" (
     "id" TEXT NOT NULL,
     "sku" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -20,4 +20,4 @@ CREATE TABLE "credit_packages" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "credit_packages_sku_key" ON "credit_packages"("sku");
+CREATE UNIQUE INDEX IF NOT EXISTS "credit_packages_sku_key" ON "credit_packages"("sku");
