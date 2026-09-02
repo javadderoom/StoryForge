@@ -65,5 +65,8 @@ ALTER TABLE "user_credit_ledgers" ADD CONSTRAINT "user_credit_ledgers_userId_fke
 -- AddForeignKey
 ALTER TABLE "bazaar_purchases" ADD CONSTRAINT "bazaar_purchases_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- Clean legacy non-foreign-key userIds from playthrough_sessions
+UPDATE "playthrough_sessions" SET "userId" = NULL WHERE "userId" IS NOT NULL;
+
 -- AddForeignKey
 ALTER TABLE "playthrough_sessions" ADD CONSTRAINT "playthrough_sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
