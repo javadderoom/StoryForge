@@ -65,8 +65,8 @@ export async function GET(req: NextRequest) {
           playerState: session.playerState,
           lore: buildPlayLore(story),
           currentBeat: {
-            narrative: lastTurn?.narrativeProse ?? story.initialStoryBeats[0]?.narrativeText ?? '',
-            choices: lastTurn?.presentedChoices ?? story.initialStoryBeats[0]?.choices ?? [],
+            narrative: lastTurn?.narrativeProse ?? story.initialStoryBeats?.[0]?.narrativeText ?? '',
+            choices: lastTurn?.presentedChoices ?? story.initialStoryBeats?.[0]?.choices ?? [],
           },
           turnNumber: session.turnCount ?? 1,
         },
@@ -219,8 +219,8 @@ export async function POST(req: NextRequest) {
 
     const initialBeat = story.initialStoryBeats[0] || {
       sceneId: 'scene_start',
-      locationId: 'loc_start',
-      narrativeText: 'Your journey begins...',
+      locationId: story.worldBible.locations[0]?.id || '',
+      narrativeText: '',
       choices: [],
     };
 
@@ -235,11 +235,11 @@ export async function POST(req: NextRequest) {
       resources: initialResources,
       inventory: startingInventory,
       equipment: startingEquipment,
-      discoveredLocationIds: [initialBeat.locationId || 'loc_start'],
+      discoveredLocationIds: initialBeat.locationId ? [initialBeat.locationId] : [],
       relationships: initialRelationships,
       activeQuestIds: ['quest_prologue'],
       completedQuestIds: [],
-      currentLocationId: initialBeat.locationId || 'loc_start',
+      currentLocationId: initialBeat.locationId,
     };
 
     const auth = await getAuthenticatedUser(req);

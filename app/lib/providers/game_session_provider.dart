@@ -12,6 +12,7 @@ class GameSessionState {
   final String? errorMessage;
   final String storyId;
   final String storyTitle;
+  final String language;
   final String currentNarrative;
   final List<ChoiceOption> choices;
   final PlayerState? playerState;
@@ -25,6 +26,7 @@ class GameSessionState {
     this.errorMessage,
     this.storyId = '',
     this.storyTitle = '',
+    this.language = 'fa',
     this.currentNarrative = '',
     this.choices = const [],
     this.playerState,
@@ -34,11 +36,19 @@ class GameSessionState {
     this.isCreditDepleted = false,
   });
 
+  bool get isPersian {
+    if (language == 'en') return false;
+    if (language == 'fa' || language == 'farsi') return true;
+    return RegExp(r'[\u0600-\u06FF]').hasMatch(storyTitle) ||
+        RegExp(r'[\u0600-\u06FF]').hasMatch(currentNarrative);
+  }
+
   GameSessionState copyWith({
     bool? isLoading,
     String? errorMessage,
     String? storyId,
     String? storyTitle,
+    String? language,
     String? currentNarrative,
     List<ChoiceOption>? choices,
     PlayerState? playerState,
@@ -53,6 +63,7 @@ class GameSessionState {
       errorMessage: errorMessage,
       storyId: storyId ?? this.storyId,
       storyTitle: storyTitle ?? this.storyTitle,
+      language: language ?? this.language,
       currentNarrative: currentNarrative ?? this.currentNarrative,
       choices: choices ?? this.choices,
       playerState: playerState ?? this.playerState,
@@ -77,7 +88,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     state = GameSessionState(
       isLoading: true,
       storyId: storyId,
-      storyTitle: title ?? (storyId == 'ghale_siahsang' ? 'قلعه سیاه‌سنگ' : 'The Obsidian Citadel'),
+      storyTitle: title ?? '',
+      language: 'fa',
       currentNarrative: '',
       choices: const [],
       turnNumber: 1,
@@ -91,11 +103,15 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       final playerState = PlayerState.fromJson(sessionData['playerState']);
       final currentBeat = data['currentBeat'];
       final rawChoices = currentBeat['choices'] as List<dynamic>? ?? [];
+      final storyData = data['story'];
+      final extractedLang = (storyData?['language'] as String?) ?? 'fa';
+      final resolvedTitle = storyData?['title'] ?? (title?.isNotEmpty == true ? title : (extractedLang == 'fa' ? 'افسانه بدون عنوان' : 'Untitled Story'));
 
       state = state.copyWith(
         isLoading: false,
         storyId: storyId,
-        storyTitle: data['story']['title'] ?? (title ?? (storyId == 'ghale_siahsang' ? 'قلعه سیاه‌سنگ' : 'The Obsidian Citadel')),
+        storyTitle: resolvedTitle,
+        language: extractedLang,
         currentNarrative: currentBeat['narrative'] ?? '',
         choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
         playerState: playerState,

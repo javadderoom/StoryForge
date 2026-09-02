@@ -27,6 +27,7 @@ export interface StoryManifest {
   rpgSystem: RPGSystemSchema;
   worldBible: WorldBible;
   initialSceneId: string;
+  activeMilestoneGoal?: string;
   saga?: SagaManifest;
   initialStoryBeats: Array<{
     sceneId: string;
@@ -58,6 +59,7 @@ export const StoryManifestSchema = z.object({
   rpgSystem: RPGSystemSchemaValidator,
   worldBible: WorldBibleSchema,
   initialSceneId: z.string(),
+  activeMilestoneGoal: z.string().optional(),
   saga: SagaManifestSchema.optional(),
   initialStoryBeats: z.array(z.any()).default([]),
 });

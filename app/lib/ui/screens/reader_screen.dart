@@ -54,9 +54,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
     Future.microtask(() {
       final session = ref.read(gameSessionProvider);
-      if (session.currentNarrative.isEmpty && !session.isLoading) {
-        final storyToStart = session.storyId.isEmpty ? 'ghale_siahsang' : session.storyId;
-        ref.read(gameSessionProvider.notifier).startStory(storyToStart);
+      if (session.currentNarrative.isEmpty && !session.isLoading && session.storyId.isNotEmpty) {
+        ref.read(gameSessionProvider.notifier).startStory(session.storyId);
       }
     });
   }
@@ -76,7 +75,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   void _handleAction(ChoiceOption choice) async {
     final session = ref.read(gameSessionProvider);
-    final isPersian = session.storyId == 'ghale_siahsang';
+    final isPersian = session.isPersian;
 
     // 1. Roll D20 on device for instant feedback
     final rolledD20 = Random().nextInt(20) + 1;
@@ -137,7 +136,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(gameSessionProvider);
-    final isPersian = session.storyId == 'ghale_siahsang';
+    final isPersian = session.isPersian;
     final theme = _getActiveTheme(session.storyId);
     final isLowHp = (session.playerState?.resources['hp'] ?? 100) < 30;
 
@@ -327,7 +326,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
                                                 Text(
-                                                  isPersian ? 'قلعه سیاه‌سنگ' : 'The Obsidian Citadel',
+                                                  session.storyTitle.isNotEmpty
+                                                      ? session.storyTitle
+                                                      : (isPersian ? 'افسانه ناشناخته' : 'Unknown Realm'),
                                                   style: isPersian
                                                       ? GoogleFonts.vazirmatn(
                                                           fontSize: 17,
@@ -796,8 +797,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   style: GoogleFonts.vazirmatn(fontWeight: FontWeight.bold),
                 ),
                 onPressed: () {
-                  final storyToStart = session.storyId.isEmpty ? 'ghale_siahsang' : session.storyId;
-                  ref.read(gameSessionProvider.notifier).startStory(storyToStart);
+                  if (session.storyId.isNotEmpty) {
+                    ref.read(gameSessionProvider.notifier).startStory(session.storyId);
+                  } else {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => const StoryCatalogScreen()),
+                    );
+                  }
                 },
               ),
             ],

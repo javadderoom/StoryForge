@@ -223,7 +223,7 @@ interface StudioStoryContextType {
   deleteStory: (storyId: string) => Promise<void>;
   setStoryPublished: (id: string, published: boolean) => void;
   // Updaters
-  updateStoryMeta: (updates: Partial<Pick<StoryManifest, 'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language'>>) => void;
+  updateStoryMeta: (updates: Partial<Pick<StoryManifest, 'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'activeMilestoneGoal'>>) => void;
   updateWorldBible: (updater: (prev: WorldBible) => WorldBible) => void;
   updateWorldMeta: (meta: Partial<Pick<WorldBible, 'worldName' | 'summary' | 'themeNotes' | 'aiSystemPrompt'>>) => void;
   // Laws CRUD
@@ -708,7 +708,10 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const updateStoryMeta = useCallback(
     (
       updates: Partial<
-        Pick<StoryManifest, 'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language'>
+        Pick<
+          StoryManifest,
+          'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'activeMilestoneGoal'
+        >
       >
     ) => {
       setStory((prev) => {

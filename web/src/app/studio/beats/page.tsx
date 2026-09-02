@@ -49,7 +49,7 @@ const SCOPE_TIER_META: Record<
 const makeId = (prefix: string) => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
 export default function StoryBeatsStudioPage() {
-  const { story, isPersian, updateStoryBeats, updateSaga } = useStudioStory();
+  const { story, isPersian, updateStoryBeats, updateSaga, updateStoryMeta } = useStudioStory();
 
   const [aiSceneModalOpen, setAiSceneModalOpen] = useState(false);
   const [sceneLocationId, setSceneLocationId] = useState(story.worldBible.locations[0]?.id || 'loc_dungeon_cell');
@@ -380,6 +380,17 @@ export default function StoryBeatsStudioPage() {
     notify.info(isPersian ? 'فصل حذف شد' : 'Chapter removed');
   };
 
+  const handleUpdateChapterGoal = (chapterId: string, goal: string) => {
+    updateSaga((prev) =>
+      prev
+        ? {
+            ...prev,
+            chapters: prev.chapters.map((c) => (c.id === chapterId ? { ...c, narrativeGoal: goal } : c)),
+          }
+        : { sagaTitle: story.title || 'Untitled Saga', premise: '', chapters: [] }
+    );
+  };
+
   const handleChapterScenesChange = (scenes: StoryBeat[]) => {
     if (!activeChapter) return;
     updateSaga((prev) =>
@@ -530,56 +541,120 @@ export default function StoryBeatsStudioPage() {
         </div>
       </div>
 
-      {/* Plan 07: Chapter Tabs (Campaign Flowchart Navigation) */}
-      {(sagaChapters.length > 0 || activeChapter) && (
-        <div className="relative z-40 flex items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-2 backdrop-blur-sm">
-          <button
-            type="button"
-            onClick={() => setActiveChapterId(null)}
-            className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer border ${
-              !activeChapter
-                ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
-                : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            {t.flatBeatsTab}
-          </button>
-          <ChevronRight className="w-3.5 h-3.5 text-zinc-700" />
-          {sagaChapters.map((ch) => {
-            const meta = SCOPE_TIER_META[ch.scopeTier] || SCOPE_TIER_META.street;
-            const isActive = activeChapter?.id === ch.id;
-            return (
-              <button
-                key={ch.id}
-                type="button"
-                onClick={() => setActiveChapterId(ch.id)}
-                className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer border ${
-                  isActive
-                    ? `${meta.color} ring-2 ring-offset-0`
-                    : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
-                }`}
-              >
-                <span className="font-mono opacity-70">#{ch.chapterNumber}</span>
-                <span className="max-w-[160px] truncate">{ch.title}</span>
-                <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-mono ${meta.color}`}>
-                  {isPersian ? meta.labelFa : meta.labelEn}
-                </span>
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={handleAddChapter}
-            className="shrink-0 whitespace-nowrap flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl font-bold border border-dashed border-zinc-700 text-zinc-500 hover:text-amber-300 hover:border-amber-500/50 transition-all cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            {t.addChapterBtn}
-          </button>
-        </div>
-      )}
+      {/* Chapter Tabs (Campaign Flowchart Navigation) */}
+      <div className="relative z-40 flex items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-2 backdrop-blur-sm">
+        <button
+          type="button"
+          onClick={() => setActiveChapterId(null)}
+          className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer border ${
+            !activeChapter
+              ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+              : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
+          }`}
+        >
+          <BookOpen className="w-3.5 h-3.5" />
+          {t.flatBeatsTab}
+        </button>
+        {sagaChapters.length > 0 && <ChevronRight className="w-3.5 h-3.5 text-zinc-700" />}
+        {sagaChapters.map((ch) => {
+          const meta = SCOPE_TIER_META[ch.scopeTier] || SCOPE_TIER_META.street;
+          const isActive = activeChapter?.id === ch.id;
+          return (
+            <button
+              key={ch.id}
+              type="button"
+              onClick={() => setActiveChapterId(ch.id)}
+              className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer border ${
+                isActive
+                  ? `${meta.color} ring-2 ring-offset-0`
+                  : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
+              }`}
+            >
+              <span className="font-mono opacity-70">#{ch.chapterNumber}</span>
+              <span className="max-w-[160px] truncate">{ch.title}</span>
+              <span className={`px-1.5 py-0.5 rounded-md border text-[9px] font-mono ${meta.color}`}>
+                {isPersian ? meta.labelFa : meta.labelEn}
+              </span>
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={handleAddChapter}
+          className="shrink-0 whitespace-nowrap flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl font-bold border border-dashed border-zinc-700 text-zinc-500 hover:text-amber-300 hover:border-amber-500/50 transition-all cursor-pointer"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          {t.addChapterBtn}
+        </button>
+      </div>
 
-      {/* Plan 07: Active Chapter Briefing Strip */}
+      {/* Target Milestone / Narrative Gap-Filler Control Bar */}
+      <div className="bg-gradient-to-r from-amber-950/25 via-zinc-900/85 to-zinc-900/85 border border-amber-500/30 rounded-2xl p-4 shadow-xl space-y-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-300">
+            <Target className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              {isPersian
+                ? 'برخورد هدف روایی (پر کردن شکاف توسط هوش مصنوعی)'
+                : 'Target Encounter Milestone (AI Gap-Filler)'}
+            </span>
+          </div>
+          <span className="text-[11px] text-zinc-400">
+            {isPersian
+              ? 'هوش مصنوعی مسیر را به شکل نامحسوس تا این برخورد خلق می‌کند؛ نیازی به کشیدن خط و ربط دستی نیست.'
+              : 'The AI will naturally bridge the turns toward this encounter; no manual arrows required.'}
+          </span>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center gap-2">
+          <input
+            type="text"
+            value={activeChapter ? activeChapter.narrativeGoal : (story.activeMilestoneGoal || '')}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (activeChapter) {
+                handleUpdateChapterGoal(activeChapter.id, val);
+              } else {
+                updateStoryMeta({ activeMilestoneGoal: val });
+              }
+            }}
+            placeholder={
+              isPersian
+                ? 'مثلاً: رویارویی با NPC شماره ۱۲ در کوچه تاریک برای دریافت طومار رمزنگاری‌شده...'
+                : 'e.g., Cross paths with NPC #12 in the dark alley to receive the encrypted scroll...'
+            }
+            className="w-full sm:flex-1 bg-zinc-950 border border-zinc-700/80 focus:border-amber-500 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none transition-all"
+          />
+          {story.initialStoryBeats && story.initialStoryBeats.length > 1 && (
+            <select
+              onChange={(e) => {
+                const targetScene = story.initialStoryBeats.find((b) => b.sceneId === e.target.value);
+                if (targetScene) {
+                  const goalSnippet = targetScene.narrativeText.slice(0, 120).replace(/\n/g, ' ');
+                  if (activeChapter) {
+                    handleUpdateChapterGoal(activeChapter.id, goalSnippet);
+                  } else {
+                    updateStoryMeta({ activeMilestoneGoal: goalSnippet });
+                  }
+                }
+              }}
+              defaultValue=""
+              className="w-full sm:w-auto shrink-0 bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2.5 text-xs text-amber-300 focus:outline-none cursor-pointer"
+            >
+              <option value="" disabled>
+                {isPersian ? '📌 تنظیم بر اساس یکی از صحنه‌ها...' : '📌 Quick-fill from a scene...'}
+              </option>
+              {story.initialStoryBeats.map((b, i) => (
+                <option key={b.sceneId} value={b.sceneId}>
+                  #{i + 1}: {b.sceneId} ({b.locationId || 'مکان نامشخص'})
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
+
+      {/* Active Chapter Briefing Strip */}
       {activeChapter && (
         <div className="bg-gradient-to-r from-purple-950/40 via-zinc-900/60 to-zinc-900/60 border border-purple-500/20 rounded-2xl p-4 space-y-2">
           <div className="flex items-start justify-between gap-3">
@@ -599,11 +674,6 @@ export default function StoryBeatsStudioPage() {
                     : (SCOPE_TIER_META[activeChapter.scopeTier] || SCOPE_TIER_META.street).labelEn}
                 </span>
               </h4>
-              {activeChapter.narrativeGoal && (
-                <p className="text-xs text-zinc-300 leading-relaxed">
-                  <strong className="text-purple-300">{t.goalLabel}</strong> {activeChapter.narrativeGoal}
-                </p>
-              )}
               {activeChapter.prerequisiteFlags.length > 0 && (
                 <div className="flex items-center flex-wrap gap-1.5">
                   <span className="text-[10px] font-bold text-zinc-400">{t.prereqLabel}</span>

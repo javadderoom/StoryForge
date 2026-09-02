@@ -261,8 +261,12 @@ export async function POST(req: NextRequest) {
       // Plan 08 saga grounding
       activeChapterTitle: activeChapter
         ? `${activeChapter.chapterNumber}. ${activeChapter.title}`
+        : story.activeMilestoneGoal
+        ? story.language === 'fa'
+          ? 'هدف روایی و برخورد پیش‌رو'
+          : 'Active Milestone Encounter'
         : undefined,
-      activeChapterGoal: activeChapter?.narrativeGoal || undefined,
+      activeChapterGoal: activeChapter?.narrativeGoal || story.activeMilestoneGoal || undefined,
       episodicRollup: threeTier.episodicRollup,
       livingWorldLedger: threeTier.livingWorldLedger,
     };

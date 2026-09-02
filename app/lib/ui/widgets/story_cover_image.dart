@@ -27,17 +27,10 @@ class StoryCoverImage extends StatelessWidget {
   });
 
   String _resolveLocalAsset() {
-    if (storyId == 'ghale_siahsang') {
-      return 'assets/covers/ghale_siahsang.webp';
+    if (coverImageUrl != null && coverImageUrl!.isNotEmpty && !coverImageUrl!.startsWith('http')) {
+      return coverImageUrl!;
     }
-    if (storyId == 'obsidian_citadel') {
-      return 'assets/covers/obsidian_citadel.webp';
-    }
-    // Fallback based on coverImageUrl string if present
-    if (coverImageUrl != null && coverImageUrl!.contains('ghale_siahsang')) {
-      return 'assets/covers/ghale_siahsang.webp';
-    }
-    return 'assets/covers/obsidian_citadel.webp';
+    return 'assets/images/splash_art.jpg';
   }
 
   Widget _buildImageContent() {

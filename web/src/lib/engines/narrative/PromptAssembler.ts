@@ -57,7 +57,11 @@ export class PromptAssembler {
    * Accurately adapts language and format based on the story manifest language.
    */
   public static buildNarrativePrompt(context: WorkingContextEnvelope): GenerationPromptPayload {
-    const isEnglish = context.languageDirective === 'en';
+    const isExplicitlyPersian =
+      context.languageDirective === 'fa' ||
+      /[\u0600-\u06FF]/.test(context.storyTitle || '') ||
+      /[\u0600-\u06FF]/.test(context.worldSummary || '');
+    const isEnglish = !isExplicitlyPersian && context.languageDirective === 'en';
     // Plan 08: only the story's real stats may appear in AI-proposed choices —
     // hardcoded generic stat names produced ids that silently rolled with 0.
     const validStatIds = Object.keys(context.playerStatus?.stats || {});
@@ -166,10 +170,13 @@ You MUST respond with a valid JSON object matching this schema:
         parts.push(`[RECENT SCENE PROSE]\n${context.recentSceneSnippets.join('\n\n')}`);
       }
 
-      // Plan 08: long-form saga grounding (Tier 2 + Tier 3 memory)
-      if (context.activeChapterTitle) {
+      // Narrative goal / upcoming milestone encounter directive
+      if (context.activeChapterGoal || context.activeChapterTitle) {
         parts.push(
-          `[ACTIVE CHAPTER]\n${context.activeChapterTitle}${context.activeChapterGoal ? `\nGoal: ${context.activeChapterGoal}` : ''}`
+          `[UPCOMING MILESTONE & NARRATIVE DIRECTION]\n` +
+          (context.activeChapterTitle ? `Chapter: ${context.activeChapterTitle}\n` : '') +
+          (context.activeChapterGoal ? `Target Milestone / Encounter: "${context.activeChapterGoal}"\n` : '') +
+          `• DIRECTIVE: Act as the connective tissue! Subtly steer the environment, obstacles, and choice opportunities across turns toward this milestone encounter without forcing an unnatural instant teleport.`
         );
       }
       if (context.episodicRollup?.length) {
@@ -221,10 +228,13 @@ You MUST respond with a valid JSON object matching this schema:
         parts.push(`[خلاصه صحنه قبلی / RECENT SCENE]\n${context.recentSceneSnippets.join('\n\n')}`);
       }
 
-      // Plan 08: long-form saga grounding (Tier 2 + Tier 3 memory)
-      if (context.activeChapterTitle) {
+      // Narrative goal / upcoming milestone encounter directive
+      if (context.activeChapterGoal || context.activeChapterTitle) {
         parts.push(
-          `[فصل فعال / ACTIVE CHAPTER]\n${context.activeChapterTitle}${context.activeChapterGoal ? `\nهدف: ${context.activeChapterGoal}` : ''}`
+          `[جهت‌گیری روایی و برخورد پیش‌رو / UPCOMING MILESTONE]\n` +
+          (context.activeChapterTitle ? `فصل: ${context.activeChapterTitle}\n` : '') +
+          (context.activeChapterGoal ? `هدف روایی / برخورد هدف: «${context.activeChapterGoal}»\n` : '') +
+          `• دستور راوی: شکاف داستانی را پر کن! وقایع، سرنخ‌ها و انتخاب‌ها را در طول نوبت‌ها به شکلی نامحسوس به سمت تحقق این برخورد روایی هدایت کن تا بازیکن در جریان ماجرا به این اتفاق برسد.`
         );
       }
       if (context.episodicRollup?.length) {

@@ -30,6 +30,7 @@ import {
   Handshake,
   Flame,
   Globe,
+  AlertTriangle,
 } from 'lucide-react';
 
 export default function WorldBiblePage() {
@@ -263,8 +264,41 @@ export default function WorldBiblePage() {
     }
   };
 
+  const factionsWithGhosts = useMemo(() => {
+    const locSet = new Set(story.worldBible.locations.map((l) => l.id));
+    const facSet = new Set(story.worldBible.factions.map((f) => f.id));
+    return story.worldBible.factions.filter((f) => {
+      const hasBadTerritories = (f.territoryIds || []).some((id) => !locSet.has(id));
+      const hasBadAllies = (f.alliedFactionIds || []).some((id) => !facSet.has(id) || id === f.id);
+      const hasBadRivals = (f.rivalFactionIds || []).some((id) => !facSet.has(id) || id === f.id);
+      return hasBadTerritories || hasBadAllies || hasBadRivals;
+    });
+  }, [story.worldBible.factions, story.worldBible.locations]);
+
+  const handleCleanAllGhosts = () => {
+    const locSet = new Set(story.worldBible.locations.map((l) => l.id));
+    const facSet = new Set(story.worldBible.factions.map((f) => f.id));
+    updateWorldBible((prev) => ({
+      ...prev,
+      factions: prev.factions.map((f) => ({
+        ...f,
+        territoryIds: (f.territoryIds || []).filter((id) => locSet.has(id)),
+        alliedFactionIds: (f.alliedFactionIds || []).filter((id) => facSet.has(id) && id !== f.id),
+        rivalFactionIds: (f.rivalFactionIds || []).filter((id) => facSet.has(id) && id !== f.id),
+      })),
+    }));
+    notify.success(
+      isPersian
+        ? 'تمام پیوندها و قلمروهای ساختگی و نامعتبر از جناح‌ها پاکسازی شدند'
+        : 'All phantom territories, allies, and enemy links purged from factions'
+    );
+  };
+
   // Open Faction Modal for Create/Edit
   const openFactionModal = (faction?: Faction) => {
+    const locSet = new Set(story.worldBible.locations.map((l) => l.id));
+    const facSet = new Set(story.worldBible.factions.map((f) => f.id));
+
     if (faction) {
       setEditingFactionId(faction.id);
       setFactionForm({
@@ -275,9 +309,15 @@ export default function WorldBiblePage() {
         publicGoals: faction.publicGoals,
         secretAgendas: faction.secretAgendas ?? '',
         scope: faction.scope ?? '',
-        territoryIds: Array.isArray(faction.territoryIds) ? [...faction.territoryIds] : [],
-        rivalFactionIds: Array.isArray(faction.rivalFactionIds) ? [...faction.rivalFactionIds] : [],
-        alliedFactionIds: Array.isArray(faction.alliedFactionIds) ? [...faction.alliedFactionIds] : [],
+        territoryIds: Array.isArray(faction.territoryIds)
+          ? faction.territoryIds.filter((id) => locSet.has(id))
+          : [],
+        rivalFactionIds: Array.isArray(faction.rivalFactionIds)
+          ? faction.rivalFactionIds.filter((id) => facSet.has(id) && id !== faction.id)
+          : [],
+        alliedFactionIds: Array.isArray(faction.alliedFactionIds)
+          ? faction.alliedFactionIds.filter((id) => facSet.has(id) && id !== faction.id)
+          : [],
       });
     } else {
       setEditingFactionId(null);
@@ -298,6 +338,9 @@ export default function WorldBiblePage() {
   };
 
   const handleFactionAiFill = (data: Record<string, unknown>) => {
+    const locSet = new Set(story.worldBible.locations.map((l) => l.id));
+    const facSet = new Set(story.worldBible.factions.map((f) => f.id));
+
     setFactionForm((prev) => ({
       ...prev,
       name: typeof data.name === 'string' && data.name ? data.name : prev.name,
@@ -310,13 +353,17 @@ export default function WorldBiblePage() {
         typeof data.secretAgendas === 'string' ? data.secretAgendas : prev.secretAgendas,
       scope: typeof data.scope === 'string' ? data.scope : prev.scope,
       territoryIds: Array.isArray(data.territoryIds)
-        ? data.territoryIds.filter((x): x is string => typeof x === 'string')
+        ? data.territoryIds.filter((x): x is string => typeof x === 'string' && locSet.has(x))
         : prev.territoryIds,
       rivalFactionIds: Array.isArray(data.rivalFactionIds)
-        ? data.rivalFactionIds.filter((x): x is string => typeof x === 'string')
+        ? data.rivalFactionIds.filter(
+            (x): x is string => typeof x === 'string' && facSet.has(x) && x !== prev.id
+          )
         : prev.rivalFactionIds,
       alliedFactionIds: Array.isArray(data.alliedFactionIds)
-        ? data.alliedFactionIds.filter((x): x is string => typeof x === 'string')
+        ? data.alliedFactionIds.filter(
+            (x): x is string => typeof x === 'string' && facSet.has(x) && x !== prev.id
+          )
         : prev.alliedFactionIds,
     }));
   };
@@ -802,6 +849,26 @@ export default function WorldBiblePage() {
           </button>
         </div>
 
+        {factionsWithGhosts.length > 0 && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-200 animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>
+                {isPersian
+                  ? `هوش مصنوعی در ${factionsWithGhosts.length} جناح، قلمروها یا متحدان/دشمنانی با شناسه‌های ساختگی ثبت کرده که در جهان وجود ندارند.`
+                  : `The AI registered phantom territories, allies, or rival faction IDs in ${factionsWithGhosts.length} faction(s).`}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCleanAllGhosts}
+              className="shrink-0 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer"
+            >
+              {isPersian ? 'پاکسازی خودکار تمام پیوندهای نامعتبر' : 'Purge All Phantom Relations'}
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {story.worldBible.factions.map((faction) => {
             const territories = (faction.territoryIds || [])
@@ -1144,128 +1211,222 @@ export default function WorldBiblePage() {
               </div>
 
               {/* Territory Selection */}
-              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
-                <label className="block text-xs font-semibold text-zinc-300 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                    {isPersian ? 'قلمروها و پایگاه‌های تحت کنترل' : 'Controlled Territories & Strongholds'}
-                  </span>
-                  <span className="text-[11px] font-mono text-zinc-500">
-                    {factionForm.territoryIds.length} {isPersian ? 'انتخاب شده' : 'selected'}
-                  </span>
-                </label>
-                {story.worldBible.locations.length === 0 ? (
-                  <p className="text-xs text-zinc-500 italic">
-                    {isPersian ? 'هنوز مکانی در جهان ثبت نشده است.' : 'No locations registered in the World Bible yet.'}
-                  </p>
-                ) : (
-                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1 bg-zinc-950/60 rounded-xl border border-zinc-800">
-                    {story.worldBible.locations.map((loc) => {
-                      const isSelected = factionForm.territoryIds.includes(loc.id);
-                      return (
+              {(() => {
+                const validTerritories = factionForm.territoryIds.filter((id) =>
+                  story.worldBible.locations.some((loc) => loc.id === id)
+                );
+                const orphanTerritories = factionForm.territoryIds.filter(
+                  (id) => !story.worldBible.locations.some((loc) => loc.id === id)
+                );
+
+                return (
+                  <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+                    <label className="block text-xs font-semibold text-zinc-300 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                        {isPersian ? 'قلمروها و پایگاه‌های تحت کنترل' : 'Controlled Territories & Strongholds'}
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-500">
+                        {validTerritories.length} {isPersian ? 'انتخاب شده' : 'selected'}
+                      </span>
+                    </label>
+
+                    {orphanTerritories.length > 0 && (
+                      <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2 text-xs text-amber-300">
+                        <span className="text-[11px] leading-tight">
+                          {isPersian
+                            ? `⚠️ ${orphanTerritories.length} شناسه مکانی نامعتبر توسط هوش مصنوعی ثبت شده است (${orphanTerritories.join(', ')}).`
+                            : `⚠️ ${orphanTerritories.length} phantom territory ID(s) found (${orphanTerritories.join(', ')}).`}
+                        </span>
                         <button
-                          key={loc.id}
                           type="button"
-                          onClick={() => toggleTerritory(loc.id)}
-                          className={`text-xs px-3 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
-                            isSelected
-                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 font-semibold'
-                              : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500'
-                          }`}
+                          onClick={() =>
+                            setFactionForm((prev) => ({
+                              ...prev,
+                              territoryIds: validTerritories,
+                            }))
+                          }
+                          className="shrink-0 px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 rounded-lg font-bold text-[10px] transition-all cursor-pointer"
                         >
-                          <MapPin className="w-3 h-3" />
-                          <span>{loc.name}</span>
-                          {isSelected && <Check className="w-3 h-3 text-amber-400" />}
+                          {isPersian ? 'پاکسازی' : 'Clear Phantom IDs'}
                         </button>
-                      );
-                    })}
+                      </div>
+                    )}
+
+                    {story.worldBible.locations.length === 0 ? (
+                      <p className="text-xs text-zinc-500 italic">
+                        {isPersian ? 'هنوز مکانی در جهان ثبت نشده است.' : 'No locations registered in the World Bible yet.'}
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1 bg-zinc-950/60 rounded-xl border border-zinc-800">
+                        {story.worldBible.locations.map((loc) => {
+                          const isSelected = factionForm.territoryIds.includes(loc.id);
+                          return (
+                            <button
+                              key={loc.id}
+                              type="button"
+                              onClick={() => toggleTerritory(loc.id)}
+                              className={`text-xs px-3 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
+                                isSelected
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 font-semibold'
+                                  : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500'
+                              }`}
+                            >
+                              <MapPin className="w-3 h-3" />
+                              <span>{loc.name}</span>
+                              {isSelected && <Check className="w-3 h-3 text-amber-400" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                );
+              })()}
 
               {/* Allied Factions Selection */}
-              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
-                <label className="block text-xs font-semibold text-zinc-300 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Handshake className="w-3.5 h-3.5 text-emerald-400" />
-                    {isPersian ? 'جناح‌های هم‌پیمان و متحدان' : 'Allied & Friendly Factions'}
-                  </span>
-                  <span className="text-[11px] font-mono text-zinc-500">
-                    {factionForm.alliedFactionIds.length} {isPersian ? 'انتخاب شده' : 'selected'}
-                  </span>
-                </label>
-                {story.worldBible.factions.filter((f) => f.id !== factionForm.id).length === 0 ? (
-                  <p className="text-xs text-zinc-500 italic">
-                    {isPersian ? 'جناح دیگری برای اتحاد وجود ندارد.' : 'No other factions exist yet.'}
-                  </p>
-                ) : (
-                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1 bg-zinc-950/60 rounded-xl border border-zinc-800">
-                    {story.worldBible.factions
-                      .filter((f) => f.id !== factionForm.id)
-                      .map((fac) => {
-                        const isSelected = factionForm.alliedFactionIds.includes(fac.id);
-                        return (
-                          <button
-                            key={fac.id}
-                            type="button"
-                            onClick={() => toggleAlliedFaction(fac.id)}
-                            className={`text-xs px-3 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
-                              isSelected
-                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 font-semibold'
-                                : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500'
-                            }`}
-                          >
-                            <Handshake className="w-3 h-3" />
-                            <span>{fac.name}</span>
-                            {isSelected && <Check className="w-3 h-3 text-emerald-400" />}
-                          </button>
-                        );
-                      })}
+              {(() => {
+                const otherFactions = story.worldBible.factions.filter((f) => f.id !== factionForm.id);
+                const otherFactionIds = new Set(otherFactions.map((f) => f.id));
+                const validAllies = factionForm.alliedFactionIds.filter((id) => otherFactionIds.has(id));
+                const orphanAllies = factionForm.alliedFactionIds.filter((id) => !otherFactionIds.has(id));
+
+                return (
+                  <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+                    <label className="block text-xs font-semibold text-zinc-300 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Handshake className="w-3.5 h-3.5 text-emerald-400" />
+                        {isPersian ? 'جناح‌های هم‌پیمان و متحدان' : 'Allied & Friendly Factions'}
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-500">
+                        {validAllies.length} {isPersian ? 'انتخاب شده' : 'selected'}
+                      </span>
+                    </label>
+
+                    {orphanAllies.length > 0 && (
+                      <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-2 text-xs text-emerald-300">
+                        <span className="text-[11px] leading-tight">
+                          {isPersian
+                            ? `⚠️ ${orphanAllies.length} شناسه متحد توسط هوش مصنوعی ثبت شده که در جهان وجود ندارند (${orphanAllies.join(', ')}).`
+                            : `⚠️ ${orphanAllies.length} phantom allied faction ID(s) found (${orphanAllies.join(', ')}).`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFactionForm((prev) => ({
+                              ...prev,
+                              alliedFactionIds: validAllies,
+                            }))
+                          }
+                          className="shrink-0 px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-500/40 rounded-lg font-bold text-[10px] transition-all cursor-pointer"
+                        >
+                          {isPersian ? 'پاکسازی' : 'Clear Phantom Allies'}
+                        </button>
+                      </div>
+                    )}
+
+                    {otherFactions.length === 0 ? (
+                      <p className="text-xs text-zinc-500 italic">
+                        {isPersian ? 'جناح دیگری برای اتحاد وجود ندارد.' : 'No other factions exist yet.'}
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1 bg-zinc-950/60 rounded-xl border border-zinc-800">
+                        {otherFactions.map((fac) => {
+                          const isSelected = factionForm.alliedFactionIds.includes(fac.id);
+                          return (
+                            <button
+                              key={fac.id}
+                              type="button"
+                              onClick={() => toggleAlliedFaction(fac.id)}
+                              className={`text-xs px-3 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
+                                isSelected
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 font-semibold'
+                                  : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500'
+                              }`}
+                            >
+                              <Handshake className="w-3 h-3" />
+                              <span>{fac.name}</span>
+                              {isSelected && <Check className="w-3 h-3 text-emerald-400" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                );
+              })()}
 
               {/* Rival Factions Selection */}
-              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
-                <label className="block text-xs font-semibold text-zinc-300 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Swords className="w-3.5 h-3.5 text-rose-400" />
-                    {isPersian ? 'جناح‌های رقیب و متخاصم' : 'Rival & Enemy Factions'}
-                  </span>
-                  <span className="text-[11px] font-mono text-zinc-500">
-                    {factionForm.rivalFactionIds.length} {isPersian ? 'انتخاب شده' : 'selected'}
-                  </span>
-                </label>
-                {story.worldBible.factions.filter((f) => f.id !== factionForm.id).length === 0 ? (
-                  <p className="text-xs text-zinc-500 italic">
-                    {isPersian ? 'جناح دیگری برای ثبت رقابت وجود ندارد.' : 'No other factions exist yet.'}
-                  </p>
-                ) : (
-                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1 bg-zinc-950/60 rounded-xl border border-zinc-800">
-                    {story.worldBible.factions
-                      .filter((f) => f.id !== factionForm.id)
-                      .map((fac) => {
-                        const isSelected = factionForm.rivalFactionIds.includes(fac.id);
-                        return (
-                          <button
-                            key={fac.id}
-                            type="button"
-                            onClick={() => toggleRivalFaction(fac.id)}
-                            className={`text-xs px-3 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
-                              isSelected
-                                ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 font-semibold'
-                                : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500'
-                            }`}
-                          >
-                            <Swords className="w-3 h-3" />
-                            <span>{fac.name}</span>
-                            {isSelected && <Flame className="w-3 h-3 text-rose-400" />}
-                          </button>
-                        );
-                      })}
+              {(() => {
+                const otherFactions = story.worldBible.factions.filter((f) => f.id !== factionForm.id);
+                const otherFactionIds = new Set(otherFactions.map((f) => f.id));
+                const validRivals = factionForm.rivalFactionIds.filter((id) => otherFactionIds.has(id));
+                const orphanRivals = factionForm.rivalFactionIds.filter((id) => !otherFactionIds.has(id));
+
+                return (
+                  <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+                    <label className="block text-xs font-semibold text-zinc-300 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Swords className="w-3.5 h-3.5 text-rose-400" />
+                        {isPersian ? 'جناح‌های رقیب و متخاصم' : 'Rival & Enemy Factions'}
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-500">
+                        {validRivals.length} {isPersian ? 'انتخاب شده' : 'selected'}
+                      </span>
+                    </label>
+
+                    {orphanRivals.length > 0 && (
+                      <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between gap-2 text-xs text-rose-300">
+                        <span className="text-[11px] leading-tight">
+                          {isPersian
+                            ? `⚠️ ${orphanRivals.length} شناسه دشمن توسط هوش مصنوعی ثبت شده که در جهان وجود ندارند (${orphanRivals.join(', ')}).`
+                            : `⚠️ ${orphanRivals.length} phantom rival faction ID(s) found (${orphanRivals.join(', ')}).`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFactionForm((prev) => ({
+                              ...prev,
+                              rivalFactionIds: validRivals,
+                            }))
+                          }
+                          className="shrink-0 px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40 rounded-lg font-bold text-[10px] transition-all cursor-pointer"
+                        >
+                          {isPersian ? 'پاکسازی' : 'Clear Phantom Rivals'}
+                        </button>
+                      </div>
+                    )}
+
+                    {otherFactions.length === 0 ? (
+                      <p className="text-xs text-zinc-500 italic">
+                        {isPersian ? 'جناح دیگری برای ثبت رقابت وجود ندارد.' : 'No other factions exist yet.'}
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1 bg-zinc-950/60 rounded-xl border border-zinc-800">
+                        {otherFactions.map((fac) => {
+                          const isSelected = factionForm.rivalFactionIds.includes(fac.id);
+                          return (
+                            <button
+                              key={fac.id}
+                              type="button"
+                              onClick={() => toggleRivalFaction(fac.id)}
+                              className={`text-xs px-3 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
+                                isSelected
+                                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 font-semibold'
+                                  : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500'
+                              }`}
+                            >
+                              <Swords className="w-3 h-3" />
+                              <span>{fac.name}</span>
+                              {isSelected && <Flame className="w-3 h-3 text-rose-400" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                );
+              })()}
 
               <div className="flex items-center justify-end gap-2 pt-4 border-t border-zinc-800">
                 <button

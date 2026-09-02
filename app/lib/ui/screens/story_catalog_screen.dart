@@ -72,7 +72,7 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
     final session = ref.watch(gameSessionProvider);
     final activeStoryId = session.storyId;
     final hasActiveNarrative = session.currentNarrative.isNotEmpty;
-    final isPersian = activeStoryId.isEmpty || activeStoryId == 'ghale_siahsang';
+    final isPersian = activeStoryId.isEmpty || session.isPersian;
 
     return Directionality(
       textDirection: isPersian ? TextDirection.rtl : TextDirection.ltr,
@@ -273,7 +273,9 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
     required bool isActive,
     required bool isPersian,
   }) {
-    final isStoryPersian = story.language == 'fa' || story.id == 'ghale_siahsang';
+    final isStoryPersian = story.language == 'fa' ||
+        story.language == 'farsi' ||
+        RegExp(r'[\u0600-\u06FF]').hasMatch(story.title);
 
     return Container(
       decoration: BoxDecoration(

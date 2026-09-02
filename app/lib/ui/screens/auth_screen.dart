@@ -6,8 +6,13 @@ import '../../services/audio_service.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   final VoidCallback? onAuthSuccess;
+  final bool isFullScreen;
 
-  const AuthScreen({super.key, this.onAuthSuccess});
+  const AuthScreen({
+    super.key,
+    this.onAuthSuccess,
+    this.isFullScreen = false,
+  });
 
   static Future<bool?> open(BuildContext context) {
     return showModalBottomSheet<bool>(
@@ -71,7 +76,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
     if (success && mounted) {
       widget.onAuthSuccess?.call();
-      Navigator.of(context).pop(true);
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Color(0xFF10B981),
@@ -109,7 +116,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
     if (success && mounted) {
       widget.onAuthSuccess?.call();
-      Navigator.of(context).pop(true);
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Color(0xFF10B981),
@@ -122,6 +131,92 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+
+    if (widget.isFullScreen) {
+      return Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          backgroundColor: const Color(0xFF090A12),
+          body: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 88,
+                        height: 88,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                              blurRadius: 18,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Image.asset(
+                            'assets/images/app_icon.jpg',
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => const Icon(
+                              Icons.auto_stories_rounded,
+                              color: Color(0xFFF59E0B),
+                              size: 44,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'افسانه‌ساز (StoryForge)',
+                        style: GoogleFonts.vazirmatn(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFFF59E0B),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'جهان رمان‌ها و ماجراجویی‌های تعاملی هوش مصنوعی',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.vazirmatn(
+                          fontSize: 13,
+                          color: const Color(0xFFA1A1AA),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F111D),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: const Color(0xFF272A3C), width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              blurRadius: 24,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: _buildAuthCardContent(authState),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -141,7 +236,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Handle Drag Bar
               Container(
                 width: 40,
                 height: 4,
@@ -151,8 +245,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Title & Icon
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -169,101 +261,106 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 ],
               ),
               const SizedBox(height: 14),
+              _buildAuthCardContent(authState),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-              // Welcome Bonus Banner
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.stars_rounded, color: Color(0xFFF59E0B), size: 22),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'با ثبت‌نام در افسانه‌ساز، ۱۵ صحنه رایگان هدیه بگیرید.',
-                        style: GoogleFonts.vazirmatn(
-                          fontSize: 12.5,
-                          color: const Color(0xFFFBBF24),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Tabs (ورود / ثبت‌نام)
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF181B2C),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  indicator: BoxDecoration(
-                    color: const Color(0xFFF59E0B),
-                    borderRadius: BorderRadius.circular(12),
+  Widget _buildAuthCardContent(AuthState authState) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Welcome Bonus Banner
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.stars_rounded, color: Color(0xFFF59E0B), size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'با ثبت‌نام در افسانه‌ساز، ۱۵ صحنه رایگان هدیه بگیرید.',
+                  style: GoogleFonts.vazirmatn(
+                    fontSize: 12.5,
+                    color: const Color(0xFFFBBF24),
+                    fontWeight: FontWeight.w500,
                   ),
-                  labelColor: const Color(0xFF0F111D),
-                  unselectedLabelColor: const Color(0xFFA1A1AA),
-                  labelStyle: GoogleFonts.vazirmatn(fontWeight: FontWeight.bold, fontSize: 14),
-                  tabs: const [
-                    Tab(text: 'ورود به حساب'),
-                    Tab(text: 'ثبت‌نام جدید'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              if (authState.errorMessage != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          authState.errorMessage!,
-                          style: GoogleFonts.vazirmatn(color: Colors.redAccent, fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-              ],
-
-              // Tab Views
-              SizedBox(
-                height: 260,
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    // --- TAB 1: LOGIN ---
-                    _buildLoginForm(authState.isLoading),
-
-                    // --- TAB 2: REGISTER ---
-                    _buildRegisterForm(authState.isLoading),
-                  ],
                 ),
               ),
             ],
           ),
         ),
-      ),
+        const SizedBox(height: 16),
+
+        // Tabs (ورود / ثبت‌نام)
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF181B2C),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: TabBar(
+            controller: _tabController,
+            indicatorSize: TabBarIndicatorSize.tab,
+            indicator: BoxDecoration(
+              color: const Color(0xFFF59E0B),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            labelColor: const Color(0xFF0F111D),
+            unselectedLabelColor: const Color(0xFFA1A1AA),
+            labelStyle: GoogleFonts.vazirmatn(fontWeight: FontWeight.bold, fontSize: 14),
+            tabs: const [
+              Tab(text: 'ورود به حساب'),
+              Tab(text: 'ثبت‌نام جدید'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        if (authState.errorMessage != null) ...[
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.redAccent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    authState.errorMessage!,
+                    style: GoogleFonts.vazirmatn(color: Colors.redAccent, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        // Tab Views
+        SizedBox(
+          height: 260,
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildLoginForm(authState.isLoading),
+              _buildRegisterForm(authState.isLoading),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

@@ -47,7 +47,7 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
     final backgrounds = _getEffectiveBackgrounds();
 
     _selectedArchetypeId = archetypes.isNotEmpty ? archetypes.first.id : 'shadowblade';
-    _selectedBackgroundId = backgrounds.isNotEmpty ? backgrounds.first.id : 'citadel_outcast';
+    _selectedBackgroundId = backgrounds.isNotEmpty ? backgrounds.first.id : 'lone_wanderer';
 
     _allocatedPoints = {};
     for (final stat in _getEffectiveStats()) {
@@ -71,7 +71,7 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
         id: 'shadowblade',
         name: 'سایه‌تیغ',
         tagline: 'استاد نفوذ بی‌صدا، قفل‌گشایی و ضربات غافلگیرکننده',
-        description: 'در سایه‌های قلعه زاده شده‌ای؛ گام‌هایت بی‌صداست و تیغه‌ات پیش از دیده شدن کار را تمام می‌کند.',
+        description: 'در سایه‌ها زاده شده‌ای؛ گام‌هایت بی‌صداست و تیغه‌ات پیش از دیده شدن کار را تمام می‌کند.',
         iconName: 'colorize',
         statBonuses: {'agility': 2, 'cunning': 1},
       ),
@@ -87,7 +87,7 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
         id: 'arcane_scholar',
         name: 'پژوهشگر کهن',
         tagline: 'کاشف طلسم‌های ممنوعه، متون رمزی و دانش فراموش‌شده',
-        description: 'سال‌ها در کتابخانه‌های ویران والوریا اسرار کفرآمیز را آموخته‌ای؛ ذهن هوشیار و طلسم کهنت راهگشاست.',
+        description: 'سال‌ها در کتابخانه‌های ویران اسرار کفرآمیز را آموخته‌ای؛ ذهن هوشیار و طلسم کهنت راهگشاست.',
         iconName: 'auto_awesome',
         statBonuses: {'arcana': 2, 'cunning': 1},
       ),
@@ -95,7 +95,7 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
         id: 'silver_diplomat',
         name: 'سفیر نقره‌زبان',
         tagline: 'استاد فریب، مذاکره، زبان‌بازی و ارتباطات پنهان',
-        description: 'تیزبین و سخنور؛ در هزارتوی سیاست قلعه، کلماتت برنده‌تر از هر شمشیری درهای بسته را باز می‌کنند.',
+        description: 'تیزبین و سخنور؛ در هزارتوی سیاست، کلماتت برنده‌تر از هر شمشیری درهای بسته را باز می‌کنند.',
         iconName: 'record_voice_over',
         statBonuses: {'cunning': 2, 'agility': 1},
       ),
@@ -108,16 +108,16 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
     }
     return const [
       BackgroundOriginModel(
-        id: 'citadel_outcast',
-        name: 'رانده‌شده از قلعه',
-        description: 'پیش‌تر خادم دژ بوده‌ای اما پس از کشف رازی ممنوعه به سیاهچال افکنده شدی.',
-        trait: 'شناخت گذرگاه‌های مخفی و مجاری خروج آب دژ',
+        id: 'lone_wanderer',
+        name: 'رانده‌شده سرگردان',
+        description: 'ماجراجویی که پس از کشف رازی ممنوعه، سرگردان دشت‌ها و گذرگاه‌های تاریک شده است.',
+        trait: 'شناخت گذرگاه‌های مخفی و بقا در تاریکی',
         statBonuses: {'agility': 1},
       ),
       BackgroundOriginModel(
         id: 'guild_infiltrator',
         name: 'نفوذی انجمن مخفی',
-        description: 'مزدور کارکشته‌ای که برای دزدیدن نقشه کهن والوریا به قلعه نفوذ کرده است.',
+        description: 'مزدور کارکشته‌ای که برای به دست آوردن نقشه‌ای باستانی به قلمرو نفوذ کرده است.',
         trait: 'مهارت در باز کردن قفل‌ها و تشخیص تله‌های مکانیکی',
         statBonuses: {'cunning': 1},
       ),

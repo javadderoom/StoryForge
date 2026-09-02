@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
+import 'providers/auth_provider.dart';
 import 'providers/dice_overlay_provider.dart';
 import 'providers/game_session_provider.dart';
+import 'ui/screens/auth_screen.dart';
 import 'ui/screens/story_catalog_screen.dart';
 import 'ui/widgets/dice_roll_overlay.dart';
 
@@ -20,6 +22,23 @@ class StoryForgeApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final diceState = ref.watch(diceOverlayProvider);
+    final authState = ref.watch(authProvider);
+
+    Widget homeWidget;
+    if (authState.isLoading) {
+      homeWidget = const Scaffold(
+        backgroundColor: Color(0xFF090A12),
+        body: Center(
+          child: CircularProgressIndicator(
+            color: Color(0xFFF59E0B),
+          ),
+        ),
+      );
+    } else if (!authState.isAuthenticated) {
+      homeWidget = const AuthScreen(isFullScreen: true);
+    } else {
+      homeWidget = const StoryCatalogScreen();
+    }
 
     return MaterialApp(
       title: 'افسانه‌ساز (AfsanehSaz)',
@@ -55,7 +74,7 @@ class StoryForgeApp extends ConsumerWidget {
           ),
         );
       },
-      home: const StoryCatalogScreen(),
+      home: homeWidget,
     );
   }
 }

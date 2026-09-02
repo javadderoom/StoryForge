@@ -168,7 +168,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
   Widget build(BuildContext context) {
     final session = ref.watch(gameSessionProvider);
     final playerState = session.playerState;
-    final isPersian = session.storyId.isEmpty || session.storyId == 'ghale_siahsang';
+    final isPersian = session.isPersian;
     final theme = RealmTheme.fromStory(storyId: session.storyId);
 
     return Directionality(
@@ -328,7 +328,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                           ? player.characterName!
                           : (player.archetypeName?.isNotEmpty == true
                               ? player.archetypeName!
-                              : (isPersian ? 'ماجراجوی سیاه‌سنگ' : 'Obsidian Adventurer')),
+                              : (isPersian ? 'ماجراجوی جهان' : 'Adventurer')),
                       style: GoogleFonts.vazirmatn(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -1137,7 +1137,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
               border: Border.all(color: const Color(0xFF27272A)),
             ),
             child: Text(
-              isPersian ? 'رازهای سیاه‌سنگ را کاوش کنید و راه خروج را بیابید.' : 'Explore the secrets of the citadel and find an escape.',
+              isPersian ? 'در جهان بازی کاوش کنید و سرنوشت خود را رقم بزنید.' : 'Explore the realm and forge your own destiny.',
               style: GoogleFonts.vazirmatn(fontSize: 12.5, color: Colors.white70),
             ),
           )
@@ -1284,8 +1284,8 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
               const SizedBox(height: 6),
               Text(
                 isPersian
-                    ? '• نگهبانان قلعه نسبت به هرگونه صدای بلند یا نور مشعل واکنش نشان می‌دهند.'
-                    : '• Citadel guards actively respond to open flames and loud noise.',
+                    ? '• دشمنان و نگهبانان نسبت به هرگونه سر و صدای زیاد و اقدامات بی‌پروایانه واکنش نشان می‌دهند.'
+                    : '• Hostile entities and guards actively respond to reckless actions and loud noise.',
                 style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white70, height: 1.5),
               ),
             ],

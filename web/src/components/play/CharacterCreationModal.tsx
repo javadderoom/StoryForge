@@ -54,9 +54,21 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
   const [points, setPoints] = useState<Record<string, number>>({});
   const [embarking, setEmbarking] = useState(false);
 
-  const archetypes = (story?.archetypes?.length ? story.archetypes : FALLBACK_ARCHETYPES) as any[];
-  const backgrounds = (story?.backgrounds?.length ? story.backgrounds : FALLBACK_BACKGROUNDS) as any[];
-  const stats = (story?.stats?.length ? story.stats : FALLBACK_STATS) as any[];
+  const archetypes = (story?.rpgSystem?.archetypes?.length
+    ? story.rpgSystem.archetypes
+    : story?.archetypes?.length
+      ? story.archetypes
+      : FALLBACK_ARCHETYPES) as any[];
+  const backgrounds = (story?.rpgSystem?.backgrounds?.length
+    ? story.rpgSystem.backgrounds
+    : story?.backgrounds?.length
+      ? story.backgrounds
+      : FALLBACK_BACKGROUNDS) as any[];
+  const stats = (story?.rpgSystem?.stats?.length
+    ? story.rpgSystem.stats
+    : story?.stats?.length
+      ? story.stats
+      : FALLBACK_STATS) as any[];
 
   if (!isOpen) return null;
 
