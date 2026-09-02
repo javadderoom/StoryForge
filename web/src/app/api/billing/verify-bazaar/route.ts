@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth/getUser';
 import { getPrisma } from '@/lib/db/client';
-import { DEFAULT_CREDIT_PACKAGES } from '../packages/route';
+import { DEFAULT_CREDIT_PACKAGES } from '@/lib/billing/packages';
 
 const BAZAAR_PACKAGE_NAME = process.env.BAZAAR_PACKAGE_NAME || 'com.storyforge.app';
 const BAZAAR_CLIENT_ID = process.env.BAZAAR_CLIENT_ID;

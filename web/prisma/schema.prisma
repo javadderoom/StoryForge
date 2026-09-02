@@ -71,12 +71,25 @@ model RpgSystem {
   @@map("rpg_systems")
 }
 
+enum UserRole {
+  READER
+  AUTHOR
+  ADMIN
+}
+
+enum PurchaseStatus {
+  COMPLETED
+  PENDING
+  REFUNDED
+  FAILED
+}
+
 model User {
   id             String               @id @default(uuid())
   phoneNumber    String               @unique
   passwordHash   String
   name           String?
-  role           String               @default("READER")
+  role           UserRole             @default(READER)
   creditBalance  Int                  @default(15)
   phoneVerified  Boolean              @default(false)
   createdAt      DateTime             @default(now())
@@ -105,17 +118,17 @@ model UserCreditLedger {
 }
 
 model BazaarPurchase {
-  id             String   @id @default(uuid())
+  id             String         @id @default(uuid())
   userId         String
   sku            String
-  token          String   @unique
-  status         String   @default("COMPLETED")
-  amountPaidRial Int      @default(0)
+  token          String         @unique
+  status         PurchaseStatus @default(COMPLETED)
+  amountPaidRial Int            @default(0)
   creditsAwarded Int
-  rawResponse    Json     @default("{}")
-  createdAt      DateTime @default(now())
+  rawResponse    Json           @default("{}")
+  createdAt      DateTime       @default(now())
 
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, sku])
   @@map("bazaar_purchases")
