@@ -62,92 +62,15 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
   }
 
   List<ArchetypeModel> _getEffectiveArchetypes() {
-    if (widget.story.archetypes.isNotEmpty) {
-      return widget.story.archetypes;
-    }
-    // Fallback default archetypes
-    return const [
-      ArchetypeModel(
-        id: 'shadowblade',
-        name: 'سایه‌تیغ',
-        tagline: 'استاد نفوذ بی‌صدا، قفل‌گشایی و ضربات غافلگیرکننده',
-        description: 'در سایه‌ها زاده شده‌ای؛ گام‌هایت بی‌صداست و تیغه‌ات پیش از دیده شدن کار را تمام می‌کند.',
-        iconName: 'colorize',
-        statBonuses: {'agility': 2, 'cunning': 1},
-      ),
-      ArchetypeModel(
-        id: 'iron_vanguard',
-        name: 'سرباز پولادین',
-        tagline: 'مدافع سرسخت با شمشیر سنگین و زره پولادین نفوذناپذیر',
-        description: 'آزموده در میدان‌های نبرد؛ شمشیر دو دست و اراده پولادینت دیواری تسخیرناپذیر است.',
-        iconName: 'shield',
-        statBonuses: {'might': 3},
-      ),
-      ArchetypeModel(
-        id: 'arcane_scholar',
-        name: 'پژوهشگر کهن',
-        tagline: 'کاشف طلسم‌های ممنوعه، متون رمزی و دانش فراموش‌شده',
-        description: 'سال‌ها در کتابخانه‌های ویران اسرار کفرآمیز را آموخته‌ای؛ ذهن هوشیار و طلسم کهنت راهگشاست.',
-        iconName: 'auto_awesome',
-        statBonuses: {'arcana': 2, 'cunning': 1},
-      ),
-      ArchetypeModel(
-        id: 'silver_diplomat',
-        name: 'سفیر نقره‌زبان',
-        tagline: 'استاد فریب، مذاکره، زبان‌بازی و ارتباطات پنهان',
-        description: 'تیزبین و سخنور؛ در هزارتوی سیاست، کلماتت برنده‌تر از هر شمشیری درهای بسته را باز می‌کنند.',
-        iconName: 'record_voice_over',
-        statBonuses: {'cunning': 2, 'agility': 1},
-      ),
-    ];
+    return widget.story.archetypes;
   }
 
   List<BackgroundOriginModel> _getEffectiveBackgrounds() {
-    if (widget.story.backgrounds.isNotEmpty) {
-      return widget.story.backgrounds;
-    }
-    return const [
-      BackgroundOriginModel(
-        id: 'lone_wanderer',
-        name: 'رانده‌شده سرگردان',
-        description: 'ماجراجویی که پس از کشف رازی ممنوعه، سرگردان دشت‌ها و گذرگاه‌های تاریک شده است.',
-        trait: 'شناخت گذرگاه‌های مخفی و بقا در تاریکی',
-        statBonuses: {'agility': 1},
-      ),
-      BackgroundOriginModel(
-        id: 'guild_infiltrator',
-        name: 'نفوذی انجمن مخفی',
-        description: 'مزدور کارکشته‌ای که برای به دست آوردن نقشه‌ای باستانی به قلمرو نفوذ کرده است.',
-        trait: 'مهارت در باز کردن قفل‌ها و تشخیص تله‌های مکانیکی',
-        statBonuses: {'cunning': 1},
-      ),
-      BackgroundOriginModel(
-        id: 'noble_exile',
-        name: 'اشراف‌زاده تبعیدی',
-        description: 'وارث خاندانی اصیل و سرنگون‌شده که نشان خاندانش را در درز لباس پنهان کرده است.',
-        trait: 'آگاهی از نشان‌های سلطنتی و نفوذ کلامی بر نگهبانان اصیل‌زاده',
-        statBonuses: {'might': 1},
-      ),
-      BackgroundOriginModel(
-        id: 'temple_acolyte',
-        name: 'نگهبان معبد کهن',
-        description: 'شاگرد راهبان معبد خاموش که برای محافظت از آخرین یادگار باستانی به دژ آمده است.',
-        trait: 'حس ششم در تشخیص دست‌سازه‌های طلسم‌شده و ارواح سرگردان',
-        statBonuses: {'arcana': 1},
-      ),
-    ];
+    return widget.story.backgrounds;
   }
 
   List<StoryStatSummary> _getEffectiveStats() {
-    if (widget.story.stats.isNotEmpty) {
-      return widget.story.stats;
-    }
-    return const [
-      StoryStatSummary(id: 'might', name: 'قدرت بدنی', description: 'توان فیزیکی و مبارزه تن‌به‌تن', baseValue: 12),
-      StoryStatSummary(id: 'agility', name: 'چابکی', description: 'سرعت واکنش، مخفی‌کاری و تعادل', baseValue: 14),
-      StoryStatSummary(id: 'cunning', name: 'هوش و ذکاوت', description: 'دقت دیداری، فریب و قفل‌گشایی', baseValue: 10),
-      StoryStatSummary(id: 'arcana', name: 'دانش کهن', description: 'آشنایی با نمادهای باستانی و آثار ممنوعه', baseValue: 8),
-    ];
+    return widget.story.stats;
   }
 
   int get _remainingPoints {
@@ -157,16 +80,23 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
 
   int _calculateTotalStat(String statId) {
     final stats = _getEffectiveStats();
-    final stat = stats.firstWhere((s) => s.id == statId, orElse: () => StoryStatSummary(id: statId, name: statId, description: ''));
+    final stat = stats.firstWhere(
+      (s) => s.id == statId,
+      orElse: () => StoryStatSummary(id: statId, name: statId, description: ''),
+    );
     final base = stat.baseValue;
 
     final archetypes = _getEffectiveArchetypes();
-    final selectedArch = archetypes.firstWhere((a) => a.id == _selectedArchetypeId, orElse: () => archetypes.first);
-    final archBonus = selectedArch.statBonuses[statId] ?? 0;
+    final selectedArch = archetypes.isNotEmpty
+        ? archetypes.firstWhere((a) => a.id == _selectedArchetypeId, orElse: () => archetypes.first)
+        : null;
+    final archBonus = selectedArch?.statBonuses[statId] ?? 0;
 
     final backgrounds = _getEffectiveBackgrounds();
-    final selectedBg = backgrounds.firstWhere((b) => b.id == _selectedBackgroundId, orElse: () => backgrounds.first);
-    final bgBonus = selectedBg.statBonuses[statId] ?? 0;
+    final selectedBg = backgrounds.isNotEmpty
+        ? backgrounds.firstWhere((b) => b.id == _selectedBackgroundId, orElse: () => backgrounds.first)
+        : null;
+    final bgBonus = selectedBg?.statBonuses[statId] ?? 0;
 
     final allocated = _allocatedPoints[statId] ?? 0;
     return base + archBonus + bgBonus + allocated;
@@ -235,31 +165,20 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
   }
 
   String _formatStatName(String key, bool isPersian) {
-    if (!isPersian) return key.toUpperCase();
-    switch (key.toLowerCase()) {
-      case 'might':
-      case 'strength':
-        return 'قدرت';
-      case 'agility':
-      case 'dexterity':
-        return 'چابکی';
-      case 'cunning':
-      case 'wit':
-        return 'ذکاوت';
-      case 'arcana':
-      case 'magic':
-        return 'دانش کهن';
-      case 'charm':
-      case 'charisma':
-        return 'جذابیت';
-      default:
-        return key;
+    for (final s in _getEffectiveStats()) {
+      if (s.id.toLowerCase() == key.toLowerCase() && s.name.isNotEmpty) {
+        return s.name;
+      }
     }
+    if (!isPersian) return key.toUpperCase();
+    return key;
   }
 
   @override
   Widget build(BuildContext context) {
-    final isPersian = widget.story.language == 'fa' || widget.story.id == 'ghale_siahsang';
+    final isPersian = widget.story.language == 'fa' ||
+        widget.story.language == 'farsi' ||
+        RegExp(r'[\u0600-\u06FF]').hasMatch(widget.story.title);
     final theme = RealmTheme.fromStory(storyId: widget.story.id);
 
     return Directionality(

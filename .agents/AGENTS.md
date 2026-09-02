@@ -32,4 +32,9 @@
 ## Choice Options UI Rule
 - **NO Difficulty / Risk Badges on Choices**: NEVER display difficulty levels, risk indicators (e.g., `'خطرناک'`, `'متوسط'`, `'ایمن'`, `'high'`, `'medium'`, `'low'`, `'safe'`), or DC target badges (e.g., `'DC 12'`) on choice buttons or cards in the UI. Choices must ONLY display the clean literary narrative text of the action.
 
+## Database Integrity & No In-Code Fallbacks
+- **No Hardcoded/Fallback Data for Database Entities**: If an entity, field, or collection exists in the database or is designed to exist in the database (e.g., stories, archetypes, backgrounds, stats, lore, items, factions, locations), **NEVER** write fallback or hardcoded mock/dummy data for it inside application code or repository layers.
+- If data is missing or empty in the database, return empty collections or let the UI handle empty states cleanly. Data must always originate from the database/API, never from in-code fallbacks.
+
+
 

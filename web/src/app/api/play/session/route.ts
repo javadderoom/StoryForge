@@ -7,14 +7,47 @@ import { getAuthenticatedUser } from '@/lib/auth/getUser';
 
 /**
  * Lightweight, player-safe projection of the World Bible consumed by the
- * in-game Compendium (Codex + NPC dossiers). Avoids leaking full lore bodies.
+ * in-game Compendium (Codex + NPC dossiers). Laws are excluded (for world building only).
  */
 function buildPlayLore(story: any) {
   const wb = story.worldBible ?? {};
   return {
-    laws: (wb.laws ?? []).map((l: any) => ({ rule: l.rule, description: l.description })),
-    locations: (wb.locations ?? []).map((l: any) => ({ id: l.id, name: l.name })),
-    npcs: (wb.npcs ?? []).map((n: any) => ({ id: n.id, name: n.name })),
+    locations: (wb.locations ?? []).map((l: any) => ({
+      id: l.id,
+      name: l.name,
+      description: l.description || '',
+      atmosphere: l.atmosphere || '',
+    })),
+    npcs: (wb.npcs ?? []).map((n: any) => ({
+      id: n.id,
+      name: n.name,
+      description: n.description || '',
+      archetype: n.archetype || '',
+    })),
+    factions: (wb.factions ?? []).map((f: any) => ({
+      id: f.id,
+      name: f.name,
+      description: f.description || '',
+      alignment: f.alignment || '',
+    })),
+    bestiary: (wb.bestiary ?? []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      description: c.description || '',
+      dangerLevel: c.dangerLevel || 1,
+    })),
+    deities: (wb.religions ?? []).map((d: any) => ({
+      id: d.id,
+      name: d.name,
+      description: d.description || '',
+      domain: d.domain || '',
+    })),
+    artifacts: (wb.artifacts ?? []).map((a: any) => ({
+      id: a.id,
+      name: a.name,
+      description: a.description || '',
+      rarity: a.rarity || 'uncommon',
+    })),
   };
 }
 

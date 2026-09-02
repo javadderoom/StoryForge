@@ -80,27 +80,35 @@ class AuthNotifier extends Notifier<AuthState> {
     String? guestSessionId,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
-    final result = await AuthService.login(
-      phoneNumber: phoneNumber,
-      password: password,
-      guestSessionId: guestSessionId,
-    );
-
-    if (result['success'] == true) {
-      final user = result['user'] as UserProfile;
-      final token = result['token'] as String;
-      state = state.copyWith(
-        isLoading: false,
-        isAuthenticated: true,
-        user: user,
-        token: token,
-        clearError: true,
+    try {
+      final result = await AuthService.login(
+        phoneNumber: phoneNumber,
+        password: password,
+        guestSessionId: guestSessionId,
       );
-      return true;
-    } else {
+
+      if (result['success'] == true) {
+        final user = result['user'] as UserProfile;
+        final token = result['token'] as String;
+        state = state.copyWith(
+          isLoading: false,
+          isAuthenticated: true,
+          user: user,
+          token: token,
+          clearError: true,
+        );
+        return true;
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: result['error'] ?? 'ورود ناموفق بود.',
+        );
+        return false;
+      }
+    } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: result['error'] ?? 'ورود ناموفق بود.',
+        errorMessage: 'خطا در ارتباط با سرور: $e',
       );
       return false;
     }
@@ -113,28 +121,36 @@ class AuthNotifier extends Notifier<AuthState> {
     String? guestSessionId,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
-    final result = await AuthService.register(
-      phoneNumber: phoneNumber,
-      password: password,
-      name: name,
-      guestSessionId: guestSessionId,
-    );
-
-    if (result['success'] == true) {
-      final user = result['user'] as UserProfile;
-      final token = result['token'] as String;
-      state = state.copyWith(
-        isLoading: false,
-        isAuthenticated: true,
-        user: user,
-        token: token,
-        clearError: true,
+    try {
+      final result = await AuthService.register(
+        phoneNumber: phoneNumber,
+        password: password,
+        name: name,
+        guestSessionId: guestSessionId,
       );
-      return true;
-    } else {
+
+      if (result['success'] == true) {
+        final user = result['user'] as UserProfile;
+        final token = result['token'] as String;
+        state = state.copyWith(
+          isLoading: false,
+          isAuthenticated: true,
+          user: user,
+          token: token,
+          clearError: true,
+        );
+        return true;
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: result['error'] ?? 'ثبت‌نام ناموفق بود.',
+        );
+        return false;
+      }
+    } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: result['error'] ?? 'ثبت‌نام ناموفق بود.',
+        errorMessage: 'خطا در ارتباط با سرور: $e',
       );
       return false;
     }

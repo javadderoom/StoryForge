@@ -20,6 +20,7 @@ class GameSessionState {
   final int turnNumber;
   final Map<String, dynamic>? pendingTurnData;
   final bool isCreditDepleted;
+  final Map<String, dynamic>? lore;
 
   GameSessionState({
     this.isLoading = false,
@@ -34,6 +35,7 @@ class GameSessionState {
     this.turnNumber = 1,
     this.pendingTurnData,
     this.isCreditDepleted = false,
+    this.lore,
   });
 
   bool get isPersian {
@@ -56,6 +58,7 @@ class GameSessionState {
     int? turnNumber,
     Map<String, dynamic>? pendingTurnData,
     bool? isCreditDepleted,
+    Map<String, dynamic>? lore,
     bool clearPendingTurn = false,
   }) {
     return GameSessionState(
@@ -71,6 +74,7 @@ class GameSessionState {
       turnNumber: turnNumber ?? this.turnNumber,
       pendingTurnData: clearPendingTurn ? null : (pendingTurnData ?? this.pendingTurnData),
       isCreditDepleted: isCreditDepleted ?? this.isCreditDepleted,
+      lore: lore ?? this.lore,
     );
   }
 }
@@ -106,12 +110,14 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       final storyData = data['story'];
       final extractedLang = (storyData?['language'] as String?) ?? 'fa';
       final resolvedTitle = storyData?['title'] ?? (title?.isNotEmpty == true ? title : (extractedLang == 'fa' ? 'افسانه بدون عنوان' : 'Untitled Story'));
+      final rawLore = data['lore'] as Map<String, dynamic>?;
 
       state = state.copyWith(
         isLoading: false,
         storyId: storyId,
         storyTitle: resolvedTitle,
         language: extractedLang,
+        lore: rawLore,
         currentNarrative: currentBeat['narrative'] ?? '',
         choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
         playerState: playerState,

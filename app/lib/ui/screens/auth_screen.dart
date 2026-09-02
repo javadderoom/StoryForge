@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/audio_service.dart';
+import 'story_catalog_screen.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   final VoidCallback? onAuthSuccess;
@@ -76,15 +77,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
     if (success && mounted) {
       widget.onAuthSuccess?.call();
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop(true);
-      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Color(0xFF10B981),
           content: Text('با موفقیت وارد شدید. خوش آمدید!'),
         ),
       );
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const StoryCatalogScreen()),
+        );
+      }
     }
   }
 
@@ -116,15 +121,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
     if (success && mounted) {
       widget.onAuthSuccess?.call();
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop(true);
-      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Color(0xFF10B981),
           content: Text('حساب کاربری ایجاد شد! ۱۵ صحنه رایگان به شما اهدا گردید.'),
         ),
       );
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const StoryCatalogScreen()),
+        );
+      }
     }
   }
 
@@ -175,7 +184,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'افسانه‌ساز (StoryForge)',
+                        'افسانه‌ساز',
                         style: GoogleFonts.vazirmatn(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
@@ -309,6 +318,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           ),
           child: TabBar(
             controller: _tabController,
+            dividerColor: Colors.transparent,
             indicatorSize: TabBarIndicatorSize.tab,
             indicator: BoxDecoration(
               color: const Color(0xFFF59E0B),

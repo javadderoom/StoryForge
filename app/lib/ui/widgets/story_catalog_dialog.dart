@@ -110,7 +110,7 @@ class _StoryCatalogDialogState extends State<StoryCatalogDialog> {
                         const Icon(Icons.auto_stories_rounded, color: Color(0xFFF59E0B), size: 20),
                         const SizedBox(width: 8),
                         Text(
-                          widget.isPersian ? 'کتابخانه دنیاها و داستان‌ها' : 'STORYFORGE LIBRARY',
+                          widget.isPersian ? 'کتابخانه دنیاها و داستان‌ها' : 'AFSANEHSAZ LIBRARY',
                           style: GoogleFonts.vazirmatn(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,

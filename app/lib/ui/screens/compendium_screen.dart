@@ -266,7 +266,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                   _buildInventoryTab(playerState, theme, isPersian),
 
                   // Tab 3: NPCs & Factions
-                  _buildNpcDossierTab(playerState, theme, isPersian),
+                  _buildNpcDossierTab(playerState, session, theme, isPersian),
 
                   // Tab 4: Quests & Chronicle
                   _buildQuestJournalTab(playerState, session, theme, isPersian),
@@ -328,7 +328,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                           ? player.characterName!
                           : (player.archetypeName?.isNotEmpty == true
                               ? player.archetypeName!
-                              : (isPersian ? 'ماجراجوی جهان' : 'Adventurer')),
+                              : (isPersian ? 'ماجراجو' : 'Adventurer')),
                       style: GoogleFonts.vazirmatn(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -921,10 +921,12 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
   // ===========================================================================
   // TAB 3: NPCS & FACTIONS DOSSIER
   // ===========================================================================
-  Widget _buildNpcDossierTab(PlayerState player, RealmTheme theme, bool isPersian) {
+  Widget _buildNpcDossierTab(PlayerState player, GameSessionState session, RealmTheme theme, bool isPersian) {
     final relationships = player.relationships;
+    final worldNpcs = (session.lore?['npcs'] as List<dynamic>?) ?? [];
+    final factions = (session.lore?['factions'] as List<dynamic>?) ?? [];
 
-    if (relationships.isEmpty) {
+    if (relationships.isEmpty && worldNpcs.isEmpty && factions.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -948,9 +950,148 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       children: [
-        for (final entry in relationships.entries) ...[
-          _buildNpcCard(entry.key, entry.value, isPersian),
-          const SizedBox(height: 16),
+        if (relationships.isNotEmpty) ...[
+          Text(
+            isPersian ? 'پیوندهای شکل‌گرفته با شخصیت‌ها' : 'FORMED RELATIONSHIPS',
+            style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF9CA3AF)),
+          ),
+          const SizedBox(height: 12),
+          for (final entry in relationships.entries) ...[
+            _buildNpcCard(entry.key, entry.value, isPersian),
+            const SizedBox(height: 12),
+          ],
+          const SizedBox(height: 20),
+        ],
+
+        if (worldNpcs.isNotEmpty) ...[
+          Text(
+            isPersian ? 'شخصیت‌های برجسته جهان' : 'NOTABLE REALM CHARACTERS',
+            style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF9CA3AF)),
+          ),
+          const SizedBox(height: 12),
+          for (final npc in worldNpcs) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF121422),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF272A3C)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.person_outline_rounded, color: Color(0xFFF59E0B), size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              npc['name'] ?? '',
+                              style: GoogleFonts.vazirmatn(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            if ((npc['archetype'] as String?)?.isNotEmpty == true)
+                              Text(
+                                npc['archetype'],
+                                style: GoogleFonts.vazirmatn(
+                                  fontSize: 11,
+                                  color: const Color(0xFFF59E0B),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if ((npc['description'] as String?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      npc['description'],
+                      style: GoogleFonts.vazirmatn(
+                        fontSize: 12,
+                        color: Colors.white70,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+        ],
+
+        if (factions.isNotEmpty) ...[
+          Text(
+            isPersian ? 'گروه‌ها و جناح‌های قلمرو' : 'REALM FACTIONS',
+            style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF9CA3AF)),
+          ),
+          const SizedBox(height: 12),
+          for (final fac in factions) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10121D),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF272A3C)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.shield_outlined, color: Color(0xFF60A5FA), size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          fac['name'] ?? '',
+                          style: GoogleFonts.vazirmatn(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      if ((fac['alignment'] as String?)?.isNotEmpty == true)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF60A5FA).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            fac['alignment'],
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF60A5FA)),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if ((fac['description'] as String?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      fac['description'],
+                      style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white70, height: 1.5),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ],
       ],
     );
@@ -1199,21 +1340,91 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
   // TAB 5: WORLD CODEX & DISCOVERED LORE
   // ===========================================================================
   Widget _buildWorldCodexTab(PlayerState player, GameSessionState session, RealmTheme theme, bool isPersian) {
+    final worldLocations = (session.lore?['locations'] as List<dynamic>?) ?? [];
+    final bestiary = (session.lore?['bestiary'] as List<dynamic>?) ?? [];
+    final artifacts = (session.lore?['artifacts'] as List<dynamic>?) ?? [];
+    final deities = (session.lore?['deities'] as List<dynamic>?) ?? [];
+
+    final hasDiscoveredLocs = player.discoveredLocationIds.isNotEmpty || player.currentLocationId.isNotEmpty;
+
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       children: [
         // Discovered Locations Section
         Text(
-          isPersian ? 'مکان‌های کشف‌شده در قلمرو' : 'DISCOVERED LOCATIONS',
+          isPersian ? 'مکان‌ها و اقلیم‌های قلمرو' : 'REALM LOCATIONS & REALMS',
           style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF9CA3AF)),
         ),
         const SizedBox(height: 12),
-        if (player.discoveredLocationIds.isEmpty && player.currentLocationId.isEmpty)
+        if (worldLocations.isEmpty && !hasDiscoveredLocs)
           Text(
             isPersian ? 'هنوز مکانی ثبت نشده است.' : 'No locations discovered yet.',
             style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white38),
           )
-        else ...[
+        else if (worldLocations.isNotEmpty) ...[
+          for (final loc in worldLocations) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF121422),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: (loc['id'] == player.currentLocationId)
+                      ? const Color(0xFFF59E0B).withValues(alpha: 0.6)
+                      : const Color(0xFF272A3C),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_rounded, color: Color(0xFFF59E0B), size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          loc['name'] ?? '',
+                          style: GoogleFonts.vazirmatn(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      if (loc['id'] == player.currentLocationId)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            isPersian ? 'موقعیت فعلی' : 'Current',
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFF59E0B)),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if ((loc['description'] as String?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      loc['description'],
+                      style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white70, height: 1.5),
+                    ),
+                  ],
+                  if ((loc['atmosphere'] as String?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      loc['atmosphere'],
+                      style: GoogleFonts.vazirmatn(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.white38),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ] else ...[
           for (final loc in {...player.discoveredLocationIds, player.currentLocationId}.where((l) => l.isNotEmpty))
             Container(
               margin: const EdgeInsets.only(bottom: 10),
@@ -1250,47 +1461,186 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
             ),
         ],
 
-        const SizedBox(height: 28),
+        // Bestiary & Creatures Section
+        if (bestiary.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Text(
+            isPersian ? 'موجودات و هیولاهای شناخته‌شده' : 'BESTIARY & CREATURES',
+            style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF9CA3AF)),
+          ),
+          const SizedBox(height: 12),
+          for (final beast in bestiary) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF121422),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF272A3C)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.pest_control_rounded, color: Color(0xFFEF4444), size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          beast['name'] ?? '',
+                          style: GoogleFonts.vazirmatn(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          isPersian ? 'خطر: ${beast['dangerLevel'] ?? 1}' : 'Danger ${beast['dangerLevel'] ?? 1}',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFEF4444)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if ((beast['description'] as String?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      beast['description'],
+                      style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white70, height: 1.5),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
 
-        // Immutable World Rules & Laws
-        Text(
-          isPersian ? 'قوانین شکست‌ناپذیر جهان (World Laws)' : 'IMMUTABLE WORLD LAWS',
-          style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF9CA3AF)),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF10121C),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF27272A)),
+        // Relics & Artifacts Section
+        if (artifacts.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Text(
+            isPersian ? 'آثار کهن و دست‌سازه‌های جادویی' : 'RELICS & ARTIFACTS',
+            style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF9CA3AF)),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isPersian
-                    ? '• اژدهایان در قرن گذشته منقرض شده‌اند و احضار آن‌ها ناممکن است.'
-                    : '• Dragons are extinct; summoning ancient drakes is impossible.',
-                style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white70, height: 1.5),
+          const SizedBox(height: 12),
+          for (final art in artifacts) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10121D),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF272A3C)),
               ),
-              const SizedBox(height: 6),
-              Text(
-                isPersian
-                    ? '• استفاده از جادوی خون بهای سنگینی از سلامت و عقلانیت می‌کاهد.'
-                    : '• Blood magic incurs severe health and sanity penalties.',
-                style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white70, height: 1.5),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.auto_awesome_rounded, color: Color(0xFFA855F7), size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          art['name'] ?? '',
+                          style: GoogleFonts.vazirmatn(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFA855F7).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          art['rarity']?.toString().toUpperCase() ?? 'RARE',
+                          style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFFA855F7)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if ((art['description'] as String?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      art['description'],
+                      style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white70, height: 1.5),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                isPersian
-                    ? '• دشمنان و نگهبانان نسبت به هرگونه سر و صدای زیاد و اقدامات بی‌پروایانه واکنش نشان می‌دهند.'
-                    : '• Hostile entities and guards actively respond to reckless actions and loud noise.',
-                style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white70, height: 1.5),
-              ),
-            ],
+            ),
+          ],
+        ],
+
+        // Deities Section
+        if (deities.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Text(
+            isPersian ? 'خدایان و باورهای کهن' : 'DEITIES & PANTHEONS',
+            style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF9CA3AF)),
           ),
-        ),
+          const SizedBox(height: 12),
+          for (final deity in deities) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10121D),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF272A3C)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.wb_sunny_outlined, color: Color(0xFFFBBF24), size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          deity['name'] ?? '',
+                          style: GoogleFonts.vazirmatn(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      if ((deity['domain'] as String?)?.isNotEmpty == true)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFBBF24).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            deity['domain'],
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFFBBF24)),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if ((deity['description'] as String?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      deity['description'],
+                      style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white70, height: 1.5),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
       ],
     );
   }

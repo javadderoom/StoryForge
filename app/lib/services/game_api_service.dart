@@ -32,11 +32,15 @@ class GameApiService {
       headers: defaultHeaders,
     );
     if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      final List list = json['data'] ?? [];
-      return list.map((s) => StorySummary.fromJson(s)).toList();
+      try {
+        final json = jsonDecode(response.body);
+        final List list = json['data'] ?? [];
+        return list.map((s) => StorySummary.fromJson(s)).toList();
+      } catch (e) {
+        throw Exception('پاسخ سرور با ساختار نامعتبر دریافت شد.');
+      }
     }
-    throw Exception('Failed to load stories catalog');
+    throw Exception('خطا در بارگذاری فهرست داستان‌ها (${response.statusCode})');
   }
 
   /// Starts a new session for a given story with optional custom character setup
@@ -54,10 +58,14 @@ class GameApiService {
     );
 
     if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      return json['data'];
+      try {
+        final json = jsonDecode(response.body);
+        return json['data'] ?? json;
+      } catch (e) {
+        throw Exception('پاسخ نشست با ساختار نامعتبر دریافت شد.');
+      }
     }
-    throw Exception('Failed to initialize gameplay session');
+    throw Exception('خطا در شروع سرگذشت (${response.statusCode})');
   }
 
   /// Processes a player choice or free-text action

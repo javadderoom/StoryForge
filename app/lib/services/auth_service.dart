@@ -37,31 +37,52 @@ class AuthService {
     required String password,
     String? guestSessionId,
   }) async {
-    final url = Uri.parse('${GameApiService.baseUrl}/api/auth/login');
-    final payload = <String, dynamic>{
-      'phoneNumber': phoneNumber,
-      'password': password,
-    };
-    if (guestSessionId != null) payload['guestSessionId'] = guestSessionId;
+    try {
+      final url = Uri.parse('${GameApiService.baseUrl}/api/auth/login');
+      final payload = <String, dynamic>{
+        'phoneNumber': phoneNumber,
+        'password': password,
+      };
+      if (guestSessionId != null) payload['guestSessionId'] = guestSessionId;
 
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
-    );
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 15));
 
-    final json = jsonDecode(response.body);
-    if (response.statusCode == 200 && json['success'] == true) {
-      final token = json['token'] as String;
-      await saveToken(token);
-      final user = UserProfile.fromJson(json['user']);
-      return {'success': true, 'token': token, 'user': user};
+      Map<String, dynamic>? json;
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          json = decoded;
+        }
+      } catch (_) {
+        // Non-JSON response (e.g. proxy HTML error page or 502)
+      }
+
+      if (response.statusCode == 200 && json != null && json['success'] == true) {
+        final token = json['token'] as String;
+        await saveToken(token);
+        final user = UserProfile.fromJson(json['user']);
+        return {'success': true, 'token': token, 'user': user};
+      }
+
+      return {
+        'success': false,
+        'error': json?['error'] ??
+            (response.statusCode != 200
+                ? 'خطا در ارتباط با سرور (${response.statusCode})'
+                : 'ورود با خطا مواجه شد. لطفاً دوباره تلاش کنید.'),
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'خطا در برقراری ارتباط با سرور: $e',
+      };
     }
-
-    return {
-      'success': false,
-      'error': json['error'] ?? 'ورود با خطا مواجه شد. لطفاً دوباره تلاش کنید.',
-    };
   }
 
   /// Register with phone number and password
@@ -71,32 +92,53 @@ class AuthService {
     String? name,
     String? guestSessionId,
   }) async {
-    final url = Uri.parse('${GameApiService.baseUrl}/api/auth/register');
-    final payload = <String, dynamic>{
-      'phoneNumber': phoneNumber,
-      'password': password,
-    };
-    if (name != null && name.trim().isNotEmpty) payload['name'] = name.trim();
-    if (guestSessionId != null) payload['guestSessionId'] = guestSessionId;
+    try {
+      final url = Uri.parse('${GameApiService.baseUrl}/api/auth/register');
+      final payload = <String, dynamic>{
+        'phoneNumber': phoneNumber,
+        'password': password,
+      };
+      if (name != null && name.trim().isNotEmpty) payload['name'] = name.trim();
+      if (guestSessionId != null) payload['guestSessionId'] = guestSessionId;
 
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
-    );
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 15));
 
-    final json = jsonDecode(response.body);
-    if (response.statusCode == 200 && json['success'] == true) {
-      final token = json['token'] as String;
-      await saveToken(token);
-      final user = UserProfile.fromJson(json['user']);
-      return {'success': true, 'token': token, 'user': user, 'message': json['message']};
+      Map<String, dynamic>? json;
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          json = decoded;
+        }
+      } catch (_) {
+        // Non-JSON response
+      }
+
+      if (response.statusCode == 200 && json != null && json['success'] == true) {
+        final token = json['token'] as String;
+        await saveToken(token);
+        final user = UserProfile.fromJson(json['user']);
+        return {'success': true, 'token': token, 'user': user, 'message': json['message']};
+      }
+
+      return {
+        'success': false,
+        'error': json?['error'] ??
+            (response.statusCode != 200
+                ? 'خطا در ارتباط با سرور (${response.statusCode})'
+                : 'ثبت‌نام با خطا مواجه شد. لطفاً دوباره تلاش کنید.'),
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'خطا در برقراری ارتباط با سرور: $e',
+      };
     }
-
-    return {
-      'success': false,
-      'error': json['error'] ?? 'ثبت‌نام با خطا مواجه شد. لطفاً دوباره تلاش کنید.',
-    };
   }
 
   /// Fetches current authenticated user profile and scene balance
