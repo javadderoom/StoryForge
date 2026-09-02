@@ -38,10 +38,25 @@ export class SessionRepository {
       const initialBeat = session.history[0];
 
       return await prisma.$transaction(async (tx) => {
+        let validUserId: string | null = null;
+        if (session.userId && session.userId !== 'guest_user' && session.userId !== 'guest') {
+          try {
+            const userExists = await tx.user.findUnique({
+              where: { id: session.userId },
+              select: { id: true },
+            });
+            if (userExists) {
+              validUserId = userExists.id;
+            }
+          } catch {
+            validUserId = null;
+          }
+        }
+
         const createdSession = await tx.playthroughSession.create({
           data: {
             sessionId: session.sessionId,
-            userId: session.userId,
+            userId: validUserId,
             storyId: session.storyId,
             currentSceneId: session.currentSceneId,
             turnCount: session.turnCount,

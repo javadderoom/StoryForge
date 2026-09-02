@@ -22,7 +22,7 @@ class StoryForgeApp extends ConsumerWidget {
     final diceState = ref.watch(diceOverlayProvider);
 
     return MaterialApp(
-      title: 'StoryForge',
+      title: 'افسانه‌ساز (AfsanehSaz)',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkVoid,
       builder: (context, child) {

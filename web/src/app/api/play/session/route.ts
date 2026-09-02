@@ -3,6 +3,7 @@ import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { SessionRepository } from '@/lib/db/repositories/sessionRepository';
 import { PlaythroughSession, PlayerState } from '@/lib/types/gameplay';
 import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
+import { getAuthenticatedUser } from '@/lib/auth/getUser';
 
 /**
  * Lightweight, player-safe projection of the World Bible consumed by the
@@ -241,9 +242,12 @@ export async function POST(req: NextRequest) {
       currentLocationId: initialBeat.locationId || 'loc_start',
     };
 
+    const auth = await getAuthenticatedUser(req);
+    const userId = auth?.user?.id || (body.userId && body.userId !== 'guest_user' ? body.userId : null);
+
     const session: PlaythroughSession = {
       sessionId: `sess_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-      userId: body.userId || 'guest_user',
+      userId: userId as any,
       storyId: story.id,
       currentSceneId: initialBeat.sceneId,
       turnCount: 1,

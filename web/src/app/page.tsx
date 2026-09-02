@@ -1,6 +1,7 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import {
   Shield,
   Sparkles,
@@ -14,7 +15,12 @@ import {
   Volume2,
   VolumeX,
   Library,
+  Zap,
+  User as UserIcon,
 } from 'lucide-react';
+import { useAuth } from '@/lib/context/AuthContext';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { WebShopModal } from '@/components/billing/WebShopModal';
 import { DiceRollModal } from '@/components/DiceRollModal';
 import { ReaderSettingsModal } from '@/components/ReaderSettingsModal';
 import { StoryCatalogModal } from '@/components/StoryCatalogModal';
@@ -84,6 +90,11 @@ export default function Home() {
   const [diceResolution, setDiceResolution] = useState<DiceResolution | null>(null);
   const [diceActionText, setDiceActionText] = useState('');
   const [pendingTurn, setPendingTurn] = useState<any | null>(null);
+
+  // Auth & Billing
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isShopModalOpen, setIsShopModalOpen] = useState(false);
 
   // Reader customization
   const [settings, setSettings] = useState<PersistedSettings>(() => {
@@ -314,6 +325,56 @@ export default function Home() {
     loose: 'leading-loose',
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#08090E] flex items-center justify-center text-amber-500">
+        <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div
+        dir="rtl"
+        className="min-h-screen bg-[#08090E] text-slate-200 flex flex-col items-center justify-center p-4 relative overflow-hidden selection:bg-amber-500/30 selection:text-amber-200"
+      >
+        <AtmosphereCanvas theme={themeObj} enableParticles={true} isDanger={false} />
+
+        <div className="relative z-10 w-full max-w-md bg-[#0F111D]/95 border border-[#272A3C] backdrop-blur-xl rounded-3xl p-8 shadow-2xl text-center">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-600 flex items-center justify-center font-black text-white text-3xl shadow-xl shadow-amber-500/20 mx-auto mb-5">
+            ⚡
+          </div>
+
+          <h1 className="text-2xl font-black text-white tracking-tight mb-2 font-sans">
+            افسانه‌ساز
+          </h1>
+          <p className="text-xs text-amber-400 font-semibold mb-3">
+            رمان تعاملی نقش‌آفرینی و شبیه‌ساز روایت با هوش مصنوعی
+          </p>
+
+          <p className="text-xs text-slate-400 leading-relaxed mb-6">
+            برای ورود به دنیای روایت‌های تعاملی، لطفا ابتدا وارد حساب کاربری خود شوید یا ثبت‌نام کنید.
+          </p>
+
+          <div className="flex items-center gap-2 p-3.5 mb-6 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-400 text-xs font-bold text-right">
+            <Sparkles className="w-5 h-5 shrink-0 text-amber-400" />
+            <span>با ایجاد حساب، ۱۵ صحنه داستانی رایگان به عنوان هدیه دریافت کنید!</span>
+          </div>
+
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm rounded-2xl transition-all shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>ورود یا ایجاد حساب در افسانه‌ساز</span>
+          </button>
+        </div>
+
+        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      </div>
+    );
+  }
+
   return (
     <div
       dir={isRtl ? 'rtl' : 'ltr'}
@@ -386,6 +447,39 @@ export default function Home() {
           >
             <Palette className="h-3.5 w-3.5 text-amber-400" />
             <span className="hidden sm:inline">{isRtl ? 'پوسته' : 'Theme'}</span>
+          </button>
+
+          {/* Credit Balance Pill */}
+          <button
+            onClick={() => setIsShopModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-1.5 text-xs font-bold text-amber-400 transition-all hover:bg-amber-500/25 cursor-pointer"
+            title={isRtl ? 'شارژ و مشاهده بسته‌های اعتباری' : 'Credit Balance & Shop'}
+          >
+            <Zap className="h-3.5 w-3.5 text-amber-500" />
+            <span>{toPersianDigits(user?.creditBalance ?? 0)}</span>
+          </button>
+
+          {/* Studio Link - ONLY for Admin & Author */}
+          {(user?.role === 'ADMIN' || user?.role === 'AUTHOR') && (
+            <Link
+              href="/studio"
+              className="flex items-center gap-1.5 rounded-lg border border-purple-500/40 bg-purple-500/15 px-2.5 py-1.5 text-xs font-bold text-purple-300 transition-all hover:bg-purple-500/25"
+              title={isRtl ? 'ورود به استودیو نویسندگی و مدیریت' : 'Studio & Admin'}
+            >
+              <Shield className="h-3.5 w-3.5 text-purple-400" />
+              <span className="hidden md:inline">{isRtl ? 'استودیو' : 'Studio'}</span>
+            </Link>
+          )}
+
+          {/* User Profile / Login */}
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-zinc-700/60 bg-zinc-800/80 px-2.5 py-1.5 text-xs text-zinc-300 transition-all hover:bg-zinc-700"
+          >
+            <UserIcon className="h-3.5 w-3.5 text-amber-400" />
+            <span className="hidden sm:inline">
+              {isAuthenticated ? (user?.name || user?.phoneNumber) : (isRtl ? 'ورود' : 'Login')}
+            </span>
           </button>
 
           <button
@@ -646,6 +740,16 @@ export default function Home() {
           onClose={() => setIsCompendiumOpen(false)}
         />
       )}
+
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <WebShopModal
+        isOpen={isShopModalOpen}
+        onClose={() => setIsShopModalOpen(false)}
+        onRequireAuth={() => {
+          setIsShopModalOpen(false);
+          setIsAuthModalOpen(true);
+        }}
+      />
     </div>
   );
 }

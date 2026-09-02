@@ -5,6 +5,7 @@ import '../models/character_creation.dart';
 import '../services/game_api_service.dart';
 import '../services/audio_service.dart';
 import 'audio_provider.dart';
+import 'auth_provider.dart';
 
 class GameSessionState {
   final bool isLoading;
@@ -17,6 +18,7 @@ class GameSessionState {
   final CheckResolution? lastResolution;
   final int turnNumber;
   final Map<String, dynamic>? pendingTurnData;
+  final bool isCreditDepleted;
 
   GameSessionState({
     this.isLoading = false,
@@ -29,6 +31,7 @@ class GameSessionState {
     this.lastResolution,
     this.turnNumber = 1,
     this.pendingTurnData,
+    this.isCreditDepleted = false,
   });
 
   GameSessionState copyWith({
@@ -42,6 +45,7 @@ class GameSessionState {
     CheckResolution? lastResolution,
     int? turnNumber,
     Map<String, dynamic>? pendingTurnData,
+    bool? isCreditDepleted,
     bool clearPendingTurn = false,
   }) {
     return GameSessionState(
@@ -55,6 +59,7 @@ class GameSessionState {
       lastResolution: lastResolution ?? this.lastResolution,
       turnNumber: turnNumber ?? this.turnNumber,
       pendingTurnData: clearPendingTurn ? null : (pendingTurnData ?? this.pendingTurnData),
+      isCreditDepleted: isCreditDepleted ?? this.isCreditDepleted,
     );
   }
 }
@@ -135,6 +140,15 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         forcedDiceRoll: forcedDiceRoll,
       );
 
+      if (result['creditDepleted'] == true) {
+        state = state.copyWith(
+          isLoading: false,
+          isCreditDepleted: true,
+          errorMessage: result['error'] ?? 'اعتبار صحنه‌های شما به پایان رسیده است.',
+        );
+        return null;
+      }
+
       if (result['isGuardrailViolation'] == true) {
         state = state.copyWith(
           isLoading: false,
@@ -147,11 +161,18 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         final resData = result['data']['resolution'];
         final resolution = resData != null ? CheckResolution.fromJson(resData) : null;
 
+        // Update remaining credits in authProvider if provided
+        final remainingCredits = result['data']['remainingCredits'];
+        if (remainingCredits != null && remainingCredits is num) {
+          ref.read(authProvider.notifier).updateCreditBalance(remainingCredits.toInt());
+        }
+
         if (holdNarrativeUpdate) {
           // Store in pending data so the background screen doesn't reveal the next scene
           state = state.copyWith(
             pendingTurnData: result['data'],
             lastResolution: resolution,
+            isCreditDepleted: false,
           );
         } else {
           final beatData = result['data']['beat'];
@@ -171,6 +192,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             playerState: updatedPlayer,
             lastResolution: resolution,
             turnNumber: state.turnNumber + 1,
+            isCreditDepleted: false,
             clearPendingTurn: true,
           );
         }
@@ -206,12 +228,19 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     }
     final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? [];
 
+    // Update remaining credits in authProvider if provided
+    final remainingCredits = data['remainingCredits'];
+    if (remainingCredits != null && remainingCredits is num) {
+      ref.read(authProvider.notifier).updateCreditBalance(remainingCredits.toInt());
+    }
+
     state = state.copyWith(
       isLoading: false,
       currentNarrative: beatData['narrativeProse'] ?? '',
       choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
       playerState: updatedPlayer,
       turnNumber: state.turnNumber + 1,
+      isCreditDepleted: false,
       clearPendingTurn: true,
     );
 

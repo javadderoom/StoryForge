@@ -7,6 +7,9 @@ import { StudioStoryProvider, useStudioStory } from '@/lib/context/StudioStoryCo
 import { Toaster } from '@/lib/notify';
 import { StoryDetailsModal } from '@/components/studio/StoryDetailsModal';
 import StudioOracleDrawer from '@/components/studio/StudioOracleDrawer';
+import { useAuth } from '@/lib/context/AuthContext';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { WebShopModal } from '@/components/billing/WebShopModal';
 import {
   BookOpen,
   Sword,
@@ -33,6 +36,10 @@ import {
   ChevronRight,
   Menu,
   X,
+  ShieldCheck,
+  LogOut,
+  LogIn,
+  Zap,
 } from 'lucide-react';
 
 function StudioShell({ children }: { children: React.ReactNode }) {
@@ -52,6 +59,10 @@ function StudioShell({ children }: { children: React.ReactNode }) {
     exportStoryJson,
     resetToDefault,
   } = useStudioStory();
+
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isShopModalOpen, setIsShopModalOpen] = useState(false);
 
   const navItems = [
     {
@@ -162,6 +173,13 @@ function StudioShell({ children }: { children: React.ReactNode }) {
       icon: MessageSquare,
       isSpecial: true,
     },
+    {
+      href: '/studio/admin',
+      label: isPersian ? 'مدیریت کاربران و مالی' : 'Admin & Finance',
+      shortLabel: isPersian ? 'مدیریت' : 'Admin',
+      icon: ShieldCheck,
+      isSpecial: true,
+    },
   ];
 
   const NAV_SECTIONS = [
@@ -170,6 +188,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
     { key: 'entities', label: isPersian ? 'موجودیت‌ها' : 'Entities' },
     { key: 'story', label: isPersian ? 'روایت و سیستم‌ها' : 'Narrative & Systems' },
     { key: 'ai', label: isPersian ? 'استودیو هوش مصنوعی' : 'AI Studio' },
+    { key: 'admin', label: isPersian ? 'مدیریت ارشد' : 'Admin Area' },
   ] as const;
 
   const SECTION_OF: Record<string, string> = {
@@ -188,6 +207,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
     '/studio/rpg': 'story',
     '/studio/sandbox': 'ai',
     '/studio/chat': 'ai',
+    '/studio/admin': 'admin',
   };
 
   const isCurrentActive = (href: string) => {
@@ -207,6 +227,71 @@ function StudioShell({ children }: { children: React.ReactNode }) {
   const toggleSection = (key: string) =>
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#090a0f] flex items-center justify-center text-amber-500">
+        <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div dir="rtl" className="min-h-screen bg-[#090a0f] flex flex-col items-center justify-center p-6 text-center text-slate-300">
+        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-2xl text-amber-400 mb-4">
+          🔒
+        </div>
+        <h2 className="text-xl font-bold text-white mb-2 font-sans">ورود به محیط استودیو</h2>
+        <p className="text-xs text-slate-400 max-w-sm mb-6 leading-relaxed">
+          برای دسترسی به محیط نویسندگی و طراحی جهان در افسانه‌ساز، لطفاً با حساب کاربری مدیر یا نویسنده خود وارد شوید.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-lg shadow-amber-500/20 cursor-pointer"
+          >
+            ورود به حساب
+          </button>
+          <Link
+            href="/"
+            className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-semibold transition-all border border-zinc-700"
+          >
+            بازگشت به کتاب‌خوان
+          </Link>
+        </div>
+        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      </div>
+    );
+  }
+
+  if (user?.role !== 'ADMIN' && user?.role !== 'AUTHOR') {
+    return (
+      <div dir="rtl" className="min-h-screen bg-[#090a0f] flex flex-col items-center justify-center p-6 text-center text-slate-300">
+        <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-2xl text-red-400 mb-4">
+          🛡️
+        </div>
+        <h2 className="text-xl font-bold text-white mb-2 font-sans">دسترسی محدود شده</h2>
+        <p className="text-xs text-slate-400 max-w-sm mb-6 leading-relaxed">
+          دسترسی به استودیو داستان‌ساز فقط برای مدیران (ADMIN) و نویسندگان مجاز است. حساب کاربری شما دارای سطح دسترسی خواننده (READER) می‌باشد.
+        </p>
+        <div className="flex gap-3">
+          <Link
+            href="/"
+            className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-lg shadow-amber-500/20"
+          >
+            بازگشت به خواندن داستان‌ها
+          </Link>
+          <button
+            onClick={logout}
+            className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-semibold transition-all border border-zinc-700 cursor-pointer"
+          >
+            خروج از حساب
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#090a0f] text-zinc-100 flex flex-col md:flex-row antialiased selection:bg-amber-500/30 selection:text-amber-200">
       <Toaster />
@@ -221,7 +306,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
             </div>
             <div>
               <h1 className="font-bold text-base text-zinc-100 tracking-tight flex items-center gap-2">
-                {isPersian ? 'استودیو داستان‌ساز' : 'StoryForge Studio'}
+                {isPersian ? 'استودیو افسانه‌ساز' : 'AfsanehSaz Studio'}
               </h1>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
                 {isPersian ? 'محیط نویسندگی تعاملی' : 'Interactive Authoring'}
@@ -231,6 +316,52 @@ function StudioShell({ children }: { children: React.ReactNode }) {
 
           {/* Story Selector & Language Switch */}
           <div className="mt-4 p-3.5 rounded-2xl bg-zinc-900/70 border border-zinc-800/80 space-y-2.5">
+            {/* User Account Strip */}
+            <div className="p-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800 flex items-center justify-between text-xs mb-1">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
+                  <User className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <div className="font-bold text-zinc-200">
+                    {isAuthenticated ? (user?.name || user?.phoneNumber) : (isPersian ? 'کاربر مهمان' : 'Guest')}
+                  </div>
+                  <button
+                    onClick={() => setIsShopModalOpen(true)}
+                    className="flex items-center gap-1 text-[10px] text-amber-400 hover:text-amber-300 font-bold transition-colors cursor-pointer"
+                  >
+                    <Zap className="w-2.5 h-2.5" />
+                    <span>{user?.creditBalance ?? 0} {isPersian ? 'صحنه (شارژ)' : 'scenes (Shop)'}</span>
+                    {isAuthenticated && (
+                      <>
+                        <span className="text-zinc-600">•</span>
+                        <span className="text-zinc-400">{user?.role}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                {isAuthenticated ? (
+                  <button
+                    onClick={logout}
+                    className="p-1.5 text-zinc-500 hover:text-rose-400 rounded-lg hover:bg-zinc-800 transition-colors"
+                    title={isPersian ? 'خروج از حساب' : 'Logout'}
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setIsAuthModalOpen(true)}
+                    className="px-2.5 py-1 text-[11px] bg-amber-500 text-slate-950 font-bold rounded-lg hover:bg-amber-400 transition-all"
+                  >
+                    {isPersian ? 'ورود' : 'Login'}
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="flex items-center justify-between text-xs text-zinc-400">
               <span className="font-medium">{isPersian ? 'داستان فعال:' : 'Active Story:'}</span>
               <div className="flex items-center gap-1.5">
@@ -396,7 +527,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
             {isRtl ? <ArrowRight className="w-3.5 h-3.5" /> : <ArrowLeft className="w-3.5 h-3.5" />}
             {isPersian ? 'بازگشت به کتاب‌خوان' : 'Back to Game Reader'}
           </Link>
-          <div className="text-[10px] text-zinc-600 text-center">StoryForge Engine © 2026</div>
+          <div className="text-[10px] text-zinc-600 text-center">AfsanehSaz Engine © 2026</div>
         </div>
       </aside>
 
@@ -608,6 +739,15 @@ function StudioShell({ children }: { children: React.ReactNode }) {
 
       <StoryDetailsModal isOpen={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} />
       <StudioOracleDrawer />
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <WebShopModal
+        isOpen={isShopModalOpen}
+        onClose={() => setIsShopModalOpen(false)}
+        onRequireAuth={() => {
+          setIsShopModalOpen(false);
+          setIsAuthModalOpen(true);
+        }}
+      />
     </div>
   );
 }

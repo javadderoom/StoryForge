@@ -71,9 +71,79 @@ model RpgSystem {
   @@map("rpg_systems")
 }
 
+model User {
+  id             String               @id @default(uuid())
+  phoneNumber    String               @unique
+  passwordHash   String
+  name           String?
+  role           String               @default("READER")
+  creditBalance  Int                  @default(15)
+  phoneVerified  Boolean              @default(false)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  sessions       PlaythroughSession[]
+  creditLedgers  UserCreditLedger[]
+  bazaarPurchases BazaarPurchase[]
+
+  @@map("users")
+}
+
+model UserCreditLedger {
+  id           String   @id @default(uuid())
+  userId       String
+  amount       Int
+  balanceAfter Int
+  reason       String
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("user_credit_ledgers")
+}
+
+model BazaarPurchase {
+  id             String   @id @default(uuid())
+  userId         String
+  sku            String
+  token          String   @unique
+  status         String   @default("COMPLETED")
+  amountPaidRial Int      @default(0)
+  creditsAwarded Int
+  rawResponse    Json     @default("{}")
+  createdAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sku])
+  @@map("bazaar_purchases")
+}
+
+model CreditPackage {
+  id                 String   @id @default(uuid())
+  sku                String   @unique
+  title              String
+  titleEn            String?
+  credits            Int
+  priceToman         Int
+  priceRial          Int      @default(0)
+  originalPriceToman Int?
+  discountPercent    Int?     @default(0)
+  badge              String?
+  description        String
+  isActive           Boolean  @default(true)
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("credit_packages")
+}
+
 model PlaythroughSession {
   sessionId        String   @id
-  userId           String   @default("guest_user")
+  userId           String?  @default("guest_user")
   storyId          String
   currentSceneId   String
   turnCount        Int      @default(1)
@@ -84,9 +154,11 @@ model PlaythroughSession {
   updatedAt        DateTime @updatedAt
 
   story            Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   turns            TurnHistory[]
   memories         MemoryLog[]
 
+  @@index([userId])
   @@map("playthrough_sessions")
 }
 

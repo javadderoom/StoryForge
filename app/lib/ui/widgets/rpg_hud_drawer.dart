@@ -5,7 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/utils/persian_numbers.dart';
 import '../../models/game_state.dart';
 import '../../providers/game_session_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/audio_service.dart';
 import '../screens/compendium_screen.dart';
+import '../screens/auth_screen.dart';
+import '../screens/shop_screen.dart';
 import 'item_detail_sheet.dart';
 
 class RpgHudDrawer extends ConsumerStatefulWidget {
@@ -195,6 +199,117 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                   ],
                 ),
                 const Divider(color: Color(0xFF1E2235), height: 20),
+
+                // Auth & Credit Balance Card
+                Consumer(
+                  builder: (context, ref, child) {
+                    final auth = ref.watch(authProvider);
+                    final user = auth.user;
+                    final credits = user?.creditBalance ?? 0;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF13172B),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFF232845)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              auth.isAuthenticated ? Icons.person_rounded : Icons.person_outline_rounded,
+                              color: const Color(0xFFF59E0B),
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  auth.isAuthenticated
+                                      ? (user?.name ?? user?.phoneNumber ?? 'ماجراجو')
+                                      : (widget.isPersian ? 'کاربر مهمان' : 'Guest Adventurer'),
+                                  style: GoogleFonts.vazirmatn(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                Text(
+                                  auth.isAuthenticated
+                                      ? 'اعتبار: ${PersianNumbers.toPersian(credits)} صحنه'
+                                      : (widget.isPersian ? 'ثبت‌نام (+۱۵ صحنه رایگان)' : 'Sign up (+15 free scenes)'),
+                                  style: GoogleFonts.vazirmatn(
+                                    fontSize: 11,
+                                    color: const Color(0xFFFBBF24),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (!auth.isAuthenticated) ...[
+                                TextButton(
+                                  onPressed: () {
+                                    AudioService().playSfx(SfxType.buttonClick);
+                                    AuthScreen.open(context);
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    backgroundColor: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                  child: Text(
+                                    widget.isPersian ? 'ورود' : 'Login',
+                                    style: GoogleFonts.vazirmatn(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFFF59E0B),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              TextButton(
+                                onPressed: () {
+                                  AudioService().playSfx(SfxType.buttonClick);
+                                  ShopScreen.open(context);
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  backgroundColor: const Color(0xFF232845),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: Text(
+                                  auth.isAuthenticated
+                                      ? (widget.isPersian ? 'شارژ' : 'Shop')
+                                      : (widget.isPersian ? 'فروشگاه' : 'Shop'),
+                                  style: GoogleFonts.vazirmatn(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
 
                 if (player == null)
                   const Expanded(child: Center(child: CircularProgressIndicator(color: Color(0xFFF59E0B))))

@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import { Agentation } from 'agentation';
+import { AuthProvider } from '@/lib/context/AuthContext';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'StoryForge — Interactive RPG Novel',
-  description: 'AI-powered interactive fiction and deterministic RPG engine',
+  title: 'افسانه‌ساز (AfsanehSaz) — رمان تعاملی نقش‌آفرینی',
+  description: 'رمان تعاملی نقش‌آفرینی و شبیه‌ساز روایت با هوش مصنوعی',
 };
 
 export default function RootLayout({
@@ -15,8 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark h-full antialiased">
       <body className="min-h-full bg-[#090a0f] text-zinc-100 flex flex-col">
-        {children}
-        {process.env.NODE_ENV === 'development' && <Agentation />}
+        <AuthProvider>
+          {children}
+          {process.env.NODE_ENV === 'development' && <Agentation />}
+        </AuthProvider>
       </body>
     </html>
   );

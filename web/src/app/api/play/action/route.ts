@@ -11,6 +11,8 @@ import { PlayerState, ActionStyle, RiskLevel, TurnBeat } from '@/lib/types/gamep
 import { WorldStateLedger } from '@/lib/types/world';
 import { WorkingContextEnvelope, MemoryCategory, MemoryEntry } from '@/lib/types/memory';
 import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
+import { getAuthenticatedUser } from '@/lib/auth/getUser';
+import { getPrisma } from '@/lib/db/client';
 
 const geminiAdapter = new GeminiAdapter();
 
@@ -76,6 +78,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'playerState is required when no sessionId is provided' },
         { status: 400, headers: corsHeaders }
+      );
+    }
+
+    // Check Authentication & Credits
+    const auth = await getAuthenticatedUser(req);
+    if (auth && auth.user.creditBalance <= 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          creditDepleted: true,
+          error: 'اعتبار صحنه‌های شما به پایان رسیده است. برای ادامه داستان لطفاً از فروشگاه اعتبار خود را شارژ کنید.',
+          remainingCredits: 0,
+        },
+        { status: 402, headers: corsHeaders }
       );
     }
 
@@ -317,6 +333,34 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // 6. Deduct 1 Scene Credit for Authenticated User
+    let remainingCredits: number | null = null;
+    if (auth) {
+      const prisma = getPrisma();
+      if (prisma) {
+        try {
+          const updated = await prisma.user.update({
+            where: { id: auth.user.id },
+            data: { creditBalance: { decrement: 1 } },
+            select: { creditBalance: true },
+          });
+          remainingCredits = updated.creditBalance;
+
+          await prisma.userCreditLedger.create({
+            data: {
+              userId: auth.user.id,
+              amount: -1,
+              balanceAfter: updated.creditBalance,
+              reason: 'SCENE_PLAY',
+              metadata: { storyId, turnNumber },
+            },
+          });
+        } catch (creditErr) {
+          console.error('Failed to deduct scene credit:', creditErr);
+        }
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -326,6 +370,7 @@ export async function POST(req: NextRequest) {
           updatedPlayerState,
           sagaLedger: nextLedger,
           activeChapterId: activeChapter?.id ?? null,
+          remainingCredits,
         },
       },
       { headers: corsHeaders }

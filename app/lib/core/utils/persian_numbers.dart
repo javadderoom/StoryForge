@@ -1,4 +1,10 @@
-/// Utility extension to convert English numbers and ASCII digits into Persian/Farsi numerals
+/// Utility extension and helper class to convert English numbers and ASCII digits into Persian/Farsi numerals
+class PersianNumbers {
+  static String toPersian(Object? val, {bool enable = true}) {
+    return val.toPersianDigits(enable: enable);
+  }
+}
+
 extension PersianNumberExtension on Object? {
   String toPersianDigits({bool enable = true}) {
     if (this == null) return '';

@@ -17,8 +17,10 @@ import '../widgets/realm_relic_badge.dart';
 import '../widgets/rpg_hud_drawer.dart';
 import '../widgets/reader_settings_sheet.dart';
 import '../widgets/story_cover_image.dart';
+import '../../providers/auth_provider.dart';
 import 'story_catalog_screen.dart';
 import 'compendium_screen.dart';
+import 'shop_screen.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({super.key});
@@ -219,6 +221,44 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   onFontSizeChanged: (s) => setState(() => _fontSize = s),
                   onLineHeightChanged: (lh) => setState(() => _lineHeight = lh),
                   onParticlesToggled: (p) => setState(() => _enableParticles = p),
+                );
+              },
+            ),
+
+            // Credit Balance Pill & Shop Trigger
+            Consumer(
+              builder: (context, ref, child) {
+                final auth = ref.watch(authProvider);
+                final credits = auth.user?.creditBalance ?? 0;
+                return GestureDetector(
+                  onTap: () {
+                    ref.read(audioProvider.notifier).playSfx(SfxType.buttonClick);
+                    ShopScreen.open(context);
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.bolt, color: Color(0xFFF59E0B), size: 14),
+                        const SizedBox(width: 3),
+                        Text(
+                          PersianNumbers.toPersian(credits),
+                          style: GoogleFonts.vazirmatn(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFFFBBF24),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 );
               },
             ),
@@ -504,8 +544,67 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               const SizedBox(height: 14),
                             ],
 
+                            // Credit Depleted Callout Banner
+                            if (session.isCreditDepleted) ...[
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 14),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5), width: 1.5),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.bolt, color: Color(0xFFF59E0B), size: 24),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            'اعتبار صحنه‌های شما به پایان رسیده است.',
+                                            style: GoogleFonts.vazirmatn(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: const Color(0xFFFBBF24),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'برای ادامه ماجراجویی حماسی خود، می‌توانید بسته صحنه‌های داستانی را از کافه‌بازار تهیه کنید.',
+                                      style: GoogleFonts.vazirmatn(fontSize: 12.5, color: const Color(0xFFE2E8F0)),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton.icon(
+                                        onPressed: () {
+                                          ref.read(audioProvider.notifier).playSfx(SfxType.buttonClick);
+                                          ShopScreen.open(context);
+                                        },
+                                        icon: const Icon(Icons.shopping_cart_checkout_rounded, size: 16),
+                                        label: Text(
+                                          'خرید صحنه از کافه‌بازار',
+                                          style: GoogleFonts.vazirmatn(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFFF59E0B),
+                                          foregroundColor: const Color(0xFF0F111D),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+
                             // Guardrail Error Banner
-                            if (session.errorMessage != null) ...[
+                            if (session.errorMessage != null && !session.isCreditDepleted) ...[
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(

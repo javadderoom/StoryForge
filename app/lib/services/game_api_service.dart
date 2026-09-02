@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/story.dart';
 import '../models/game_state.dart';
 import '../models/character_creation.dart';
+import 'auth_service.dart';
 
 class GameApiService {
   static const String _defaultProdUrl = 'https://story-forge-rouge.vercel.app';
@@ -16,9 +16,21 @@ class GameApiService {
     return _defaultProdUrl;
   }
 
+  static Map<String, String> get defaultHeaders {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    final token = AuthService.cachedToken;
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
+
   /// Fetches available stories from the catalog
   static Future<List<StorySummary>> fetchStories() async {
-    final response = await http.get(Uri.parse('$baseUrl/api/play/stories'));
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/play/stories'),
+      headers: defaultHeaders,
+    );
     if (response.statusCode == 200) {
       final json = jsonDecode(response.body);
       final List list = json['data'] ?? [];
@@ -34,7 +46,7 @@ class GameApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/play/session'),
-      headers: {'Content-Type': 'application/json'},
+      headers: defaultHeaders,
       body: jsonEncode({
         'storyId': storyId,
         if (characterSetup != null) 'characterSetup': characterSetup.toJson(),
@@ -62,7 +74,7 @@ class GameApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/play/action'),
-      headers: {'Content-Type': 'application/json'},
+      headers: defaultHeaders,
       body: jsonEncode({
         'storyId': storyId,
         'playerActionText': actionText,
