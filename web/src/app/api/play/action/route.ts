@@ -299,6 +299,10 @@ export async function POST(req: NextRequest) {
       (session?.currentSceneId as string | undefined) ||
       `scene_turn_${turnNumber}`;
 
+    const matchedAuthoredBeat =
+      story.initialStoryBeats?.find((b) => b.sceneId === beatSceneId) ||
+      activeChapter?.scenes?.find((s) => s.sceneId === beatSceneId);
+
     const newBeat: TurnBeat = {
       turnNumber,
       sceneId: beatSceneId,
@@ -308,6 +312,7 @@ export async function POST(req: NextRequest) {
       narrativeProse: aiResponse.narrative,
       presentedChoices: aiResponse.choices,
       chapterNumber: activeChapter?.chapterNumber,
+      imageUrl: matchedAuthoredBeat?.imageUrl,
       timestamp: Date.now(),
     };
 

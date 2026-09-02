@@ -846,7 +846,7 @@ export default function StudioOracleDrawer() {
                 </form>
                 <div className="flex items-center justify-between text-[9.5px] text-zinc-500 px-1">
                   <span>{isPersian ? '↵ ارسال • Shift+↵ خط جدید' : '↵ Send • Shift+↵ New Line'}</span>
-                  <span>{story.worldBible.worldName || 'StoryForge'}</span>
+                  <span>{story.worldBible.worldName || 'AfsanehSaz'}</span>
                 </div>
               </div>
             </>

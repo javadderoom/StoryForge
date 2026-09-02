@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.storyforge.storyforge"
+    namespace = "com.afsanehsaz.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "28.2.13676358"
 
@@ -15,7 +15,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.storyforge.storyforge"
+        applicationId = "com.afsanehsaz.app"
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION

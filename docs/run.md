@@ -1,12 +1,12 @@
-# StoryForge — Local Environment Run Guide
+# AfsanehSaz — Local Environment Run Guide
 
-Welcome to **StoryForge**! This guide walks you through setting up, configuring, and running the entire StoryForge stack locally on your development machine.
+Welcome to **AfsanehSaz**! This guide walks you through setting up, configuring, and running the entire AfsanehSaz stack locally on your development machine.
 
 ---
 
 ## 🏗️ System Architecture Overview
 
-StoryForge consists of two main projects:
+AfsanehSaz consists of two main projects:
 
 1. **`web/` — Web Backend, AI Director & Studio Suite**
    - **Framework:** Next.js 16 App Router (Node.js / TypeScript)
@@ -40,7 +40,7 @@ Ensure you have the following installed on your machine:
 
 ### Step 1: Start the PostgreSQL Database
 
-StoryForge includes a `docker-compose.yml` configured for PostgreSQL 16.
+AfsanehSaz includes a `docker-compose.yml` configured for PostgreSQL 16.
 
 From the project root directory:
 ```bash
@@ -93,7 +93,7 @@ docker compose ps
 
 #### 🔗 Key Backend & Studio URLs:
 - **Story Library & Reader Portal:** `http://localhost:3000`
-- **StoryForge Studio (World Bible & Authoring):** `http://localhost:3000/studio`
+- **AfsanehSaz Studio (World Bible & Authoring):** `http://localhost:3000/studio`
 - **3D D20 Dice Calibration Studio:** `http://localhost:3000/studio/dice-calibrate`
 - **Catalog API:** `http://localhost:3000/api/play/stories`
 
@@ -132,7 +132,7 @@ flutter run -d chrome
    ```
    *(Alternatively, launch it directly from Android Studio > Device Manager or the IDE status bar).*
 
-2. **Run StoryForge on the booted emulator:**
+2. **Run AfsanehSaz on the booted emulator:**
    ```bash
    flutter run -d android
    ```
@@ -147,7 +147,7 @@ flutter run -d windows
 #### Option D: Physical Android / iOS Device over Wi-Fi
 If testing on a physical phone connected to the same Wi-Fi network:
 1. Find your machine's local LAN IP address (e.g. `192.168.1.150` via `ipconfig` or `ifconfig`).
-2. In [`app/lib/services/game_api_service.dart`](file:///g:/Code/StoryForge/app/lib/services/game_api_service.dart#L10), set `baseUrl` to `http://192.168.1.150:3000`.
+2. In [`app/lib/services/game_api_service.dart`](file:///g:/Code/AfsanehSaz/app/lib/services/game_api_service.dart#L10), set `baseUrl` to `http://192.168.1.150:3000`.
 3. Launch with `flutter run`.
 
 ---
@@ -189,7 +189,7 @@ flutter analyze
 - The app is configured with `http` communication for local dev (`http://10.0.2.2:3000`). If experiencing cleartext traffic blocks on older Android SDKs, ensure `android:usesCleartextTraffic="true"` remains enabled in `AndroidManifest.xml`.
 
 ### 4. Git Push Timeout (`HTTP 408`)
-- StoryForge `.gitignore` excludes large binary artifacts (`*.jar`, `*.aar`, `.next/`).
+- AfsanehSaz `.gitignore` excludes large binary artifacts (`*.jar`, `*.aar`, `.next/`).
 - If pushing large assets, increase Git buffer:
   ```bash
   git config http.postBuffer 524288000
@@ -200,7 +200,7 @@ flutter analyze
 ## 📂 Project Directory Structure
 
 ```text
-StoryForge/
+AfsanehSaz/
 ├── docker-compose.yml          # Local PostgreSQL 16 service
 ├── MASTER_PLAN.md              # Technical specification & roadmap
 ├── docs/                       # Project documentation

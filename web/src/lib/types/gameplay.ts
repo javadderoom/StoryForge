@@ -98,6 +98,7 @@ export interface TurnBeat {
   presentedChoices: ChoiceOption[];
   // Plan 07: chapter linkage for long-form saga campaigns
   chapterNumber?: number;
+  imageUrl?: string;
   timestamp: number;
 }
 

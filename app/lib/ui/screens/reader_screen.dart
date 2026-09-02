@@ -307,6 +307,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               ),
                               child: StoryCoverImage(
                                 storyId: session.storyId,
+                                coverImageUrl: session.currentSceneImageUrl?.isNotEmpty == true
+                                    ? session.currentSceneImageUrl
+                                    : session.storyCoverImageUrl,
                                 height: 145,
                                 borderRadius: BorderRadius.circular(21),
                                 heroTag: 'story_cover_${session.storyId}',

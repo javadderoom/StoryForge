@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-/// Exact 3D d20.glb Model View for StoryForge (Flutter)
+/// Exact 3D d20.glb Model View for AfsanehSaz (Flutter)
 /// Renders the exact Three.js 3D GLB model with offline shaders,
 /// gold numeral materials, RoomEnvironment reflections, and calibrated landing physics.
 class ThreeD20DiceView extends StatefulWidget {

@@ -17,6 +17,7 @@ import {
   Move,
   Maximize2,
   Minimize2,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface StoryBeatChoice {
@@ -33,6 +34,7 @@ interface StoryBeatNode {
   sceneId: string;
   locationId: string;
   narrativeText: string;
+  imageUrl?: string;
   choices: StoryBeatChoice[];
 }
 
@@ -431,6 +433,14 @@ export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesCha
     );
   };
 
+  const handleUpdateImageUrl = (url: string) => {
+    commitBeats((prev) =>
+      prev.map((b) =>
+        b.sceneId === selectedSceneId ? { ...b, imageUrl: url.trim() || undefined } : b
+      )
+    );
+  };
+
   const handleAddChoice = () => {
     if (!selectedBeat) return;
     const newChoiceId = `choice_${Date.now().toString().slice(-3)}`;
@@ -604,6 +614,44 @@ export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesCha
                   onChange={(e) => handleUpdateNarrative(e.target.value)}
                   className="w-full bg-zinc-950/80 border border-zinc-800 rounded-2xl p-3.5 text-xs text-zinc-100 leading-relaxed placeholder-zinc-600 focus:outline-none focus:border-amber-500/80"
                 />
+              </div>
+
+              {/* Scene Image URL (Optional) */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
+                    {isPersian ? 'تصویر صحنه (اختیاری):' : 'Scene Image URL (Optional):'}
+                  </label>
+                  {selectedBeat.imageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateImageUrl('')}
+                      className="text-[10px] text-rose-400 hover:text-rose-300 font-normal"
+                    >
+                      {isPersian ? 'حذف تصویر' : 'Clear'}
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="url"
+                  placeholder="https://images.unsplash.com/... or https://..."
+                  value={selectedBeat.imageUrl || ''}
+                  onChange={(e) => handleUpdateImageUrl(e.target.value)}
+                  className="w-full bg-zinc-950/80 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 font-mono placeholder-zinc-600 focus:outline-none focus:border-amber-500/80"
+                />
+                {selectedBeat.imageUrl && (
+                  <div className="mt-2 relative rounded-xl overflow-hidden border border-zinc-800 h-28 bg-zinc-950">
+                    <img
+                      src={selectedBeat.imageUrl}
+                      alt="Scene Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1014,6 +1062,20 @@ export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesCha
                       </button>
                     )}
                   </div>
+
+                  {/* Scene Image Thumbnail (if present) */}
+                  {beat.imageUrl && (
+                    <div className="mb-3 rounded-2xl overflow-hidden h-28 border border-zinc-800/80 bg-zinc-950">
+                      <img
+                        src={beat.imageUrl}
+                        alt={beat.sceneId}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
 
                   {/* Prose Preview */}
                   <p className="text-xs text-zinc-300 line-clamp-3 leading-relaxed mb-3 font-serif">

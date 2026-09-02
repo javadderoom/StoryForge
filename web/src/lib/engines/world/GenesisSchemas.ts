@@ -196,7 +196,7 @@ export type ContradictionFinding = z.infer<typeof ContradictionFindingSchema>;
 // Prompt builders
 // ----------------------------------------------------------------------------
 
-export const GENESIS_SYSTEM_DIRECTIVES = `You are the Master World-Building Co-Pilot for StoryForge. You will output a single, fully self-consistent starter world package as a JSON object.
+export const GENESIS_SYSTEM_DIRECTIVES = `You are the Master World-Building Co-Pilot for AfsanehSaz. You will output a single, fully self-consistent starter world package as a JSON object.
 
 STRICT REQUIREMENTS:
 - Generate EXACTLY 4 immutable World Laws, 3 Factions, 4 Locations, and 2 Deities/Religions.
@@ -246,7 +246,7 @@ Generate the complete Genesis world package matching this schema now. Output val
 }
 
 
-export const AUDIT_SYSTEM_DIRECTIVES = `You are the Lore Consistency Auditor for StoryForge. You analyze an entire World Bible and detect continuity breaks, magic-law violations, dangling references, orphaned entities, and timeline paradoxes.
+export const AUDIT_SYSTEM_DIRECTIVES = `You are the Lore Consistency Auditor for AfsanehSaz. You analyze an entire World Bible and detect continuity breaks, magic-law violations, dangling references, orphaned entities, and timeline paradoxes.
 
 OUTPUT RULES:
 - Return a JSON object with: "score" (integer 0-100, where 100 = flawless consistency), "summary" (one or two sentences), and "findings" (array).

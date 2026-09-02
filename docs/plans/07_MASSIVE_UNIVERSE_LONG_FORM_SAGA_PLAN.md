@@ -1,6 +1,6 @@
 # Plan 07: Massive Universe Long-Form Saga & Episodic Campaign Engine
 
-This architectural specification details StoryForge's long-form campaign engine, designed to support massive world universes and 50–200+ turn interactive sagas across multiple interconnected chapters with zero context degradation.
+This architectural specification details AfsanehSaz's long-form campaign engine, designed to support massive world universes and 50–200+ turn interactive sagas across multiple interconnected chapters with zero context degradation.
 
 ---
 

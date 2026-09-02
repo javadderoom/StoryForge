@@ -93,6 +93,7 @@ export async function GET(req: NextRequest) {
             id: story.id,
             title: story.title,
             language: story.language,
+            coverImageUrl: story.coverImageUrl,
             rpgSystem: story.rpgSystem,
           },
           playerState: session.playerState,
@@ -100,6 +101,9 @@ export async function GET(req: NextRequest) {
           currentBeat: {
             narrative: lastTurn?.narrativeProse ?? story.initialStoryBeats?.[0]?.narrativeText ?? '',
             choices: lastTurn?.presentedChoices ?? story.initialStoryBeats?.[0]?.choices ?? [],
+            imageUrl:
+              story.initialStoryBeats?.find((b) => b.sceneId === session.currentSceneId)?.imageUrl ??
+              undefined,
           },
           turnNumber: session.turnCount ?? 1,
         },
@@ -312,12 +316,14 @@ export async function POST(req: NextRequest) {
             id: story.id,
             title: story.title,
             language: story.language,
+            coverImageUrl: story.coverImageUrl,
             rpgSystem: story.rpgSystem,
           },
           lore: buildPlayLore(story),
           currentBeat: {
             narrative: initialBeat.narrativeText,
             choices: initialBeat.choices,
+            imageUrl: initialBeat.imageUrl,
           },
         },
       },

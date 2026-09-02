@@ -763,8 +763,8 @@ export default function WorldBiblePage() {
         <div className="bg-zinc-950/80 border border-zinc-800 rounded-2xl p-4 font-mono text-xs text-purple-200/90 leading-relaxed whitespace-pre-wrap">
           {story.worldBible.aiSystemPrompt?.trim() ||
             (isPersian
-              ? 'تو دانای کل و راوی ارشد بازی نقش‌آفرینی StoryForge هستی. تمام صحنه‌ها و واکنش‌ها را با عمق روایی، فضاسازی سنگین و منطبق بر قوانین تغییرناپذیر جهان روایت کن.'
-              : 'You are the Master Storyteller for the StoryForge RPG engine. Narrate all story beats with rich atmospheric prose and strict adherence to immutable world laws.')}
+              ? 'تو دانای کل و راوی ارشد بازی نقش‌آفرینی افسانه‌ساز هستی. تمام صحنه‌ها و واکنش‌ها را با عمق روایی، فضاسازی سنگین و منطبق بر قوانین تغییرناپذیر جهان روایت کن.'
+              : 'You are the Master Storyteller for the AfsanehSaz RPG engine. Narrate all story beats with rich atmospheric prose and strict adherence to immutable world laws.')}
         </div>
       </div>
 

@@ -21,6 +21,8 @@ class GameSessionState {
   final Map<String, dynamic>? pendingTurnData;
   final bool isCreditDepleted;
   final Map<String, dynamic>? lore;
+  final String? storyCoverImageUrl;
+  final String? currentSceneImageUrl;
 
   GameSessionState({
     this.isLoading = false,
@@ -36,6 +38,8 @@ class GameSessionState {
     this.pendingTurnData,
     this.isCreditDepleted = false,
     this.lore,
+    this.storyCoverImageUrl,
+    this.currentSceneImageUrl,
   });
 
   bool get isPersian {
@@ -59,6 +63,9 @@ class GameSessionState {
     Map<String, dynamic>? pendingTurnData,
     bool? isCreditDepleted,
     Map<String, dynamic>? lore,
+    String? storyCoverImageUrl,
+    String? currentSceneImageUrl,
+    bool clearSceneImage = false,
     bool clearPendingTurn = false,
   }) {
     return GameSessionState(
@@ -75,6 +82,10 @@ class GameSessionState {
       pendingTurnData: clearPendingTurn ? null : (pendingTurnData ?? this.pendingTurnData),
       isCreditDepleted: isCreditDepleted ?? this.isCreditDepleted,
       lore: lore ?? this.lore,
+      storyCoverImageUrl: storyCoverImageUrl ?? this.storyCoverImageUrl,
+      currentSceneImageUrl: clearSceneImage
+          ? null
+          : (currentSceneImageUrl ?? this.currentSceneImageUrl),
     );
   }
 }
@@ -111,11 +122,15 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       final extractedLang = (storyData?['language'] as String?) ?? 'fa';
       final resolvedTitle = storyData?['title'] ?? (title?.isNotEmpty == true ? title : (extractedLang == 'fa' ? 'افسانه بدون عنوان' : 'Untitled Story'));
       final rawLore = data['lore'] as Map<String, dynamic>?;
+      final coverImg = storyData?['coverImageUrl'] as String?;
+      final sceneImg = currentBeat['imageUrl'] as String?;
 
       state = state.copyWith(
         isLoading: false,
         storyId: storyId,
         storyTitle: resolvedTitle,
+        storyCoverImageUrl: coverImg,
+        currentSceneImageUrl: sceneImg,
         language: extractedLang,
         lore: rawLore,
         currentNarrative: currentBeat['narrative'] ?? '',
@@ -206,10 +221,13 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             updatedPlayer = updatedPlayer.copyWith(equipment: state.playerState!.equipment);
           }
           final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? [];
+          final sceneImg = beatData['imageUrl'] as String?;
 
           state = state.copyWith(
             isLoading: false,
             currentNarrative: beatData['narrativeProse'] ?? '',
+            currentSceneImageUrl: sceneImg,
+            clearSceneImage: sceneImg == null,
             choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
             playerState: updatedPlayer,
             lastResolution: resolution,
@@ -249,6 +267,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       updatedPlayer = updatedPlayer.copyWith(equipment: state.playerState!.equipment);
     }
     final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? [];
+    final sceneImg = beatData['imageUrl'] as String?;
 
     // Update remaining credits in authProvider if provided
     final remainingCredits = data['remainingCredits'];
@@ -259,6 +278,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     state = state.copyWith(
       isLoading: false,
       currentNarrative: beatData['narrativeProse'] ?? '',
+      currentSceneImageUrl: sceneImg,
+      clearSceneImage: sceneImg == null,
       choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
       playerState: updatedPlayer,
       turnNumber: state.turnNumber + 1,

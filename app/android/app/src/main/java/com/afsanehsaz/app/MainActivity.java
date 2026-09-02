@@ -1,4 +1,4 @@
-package com.storyforge.storyforge;
+package com.afsanehsaz.app;
 
 import io.flutter.embedding.android.FlutterActivity;
 

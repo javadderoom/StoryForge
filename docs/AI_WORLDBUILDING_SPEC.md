@@ -1,16 +1,16 @@
-# StoryForge — AI World-Building System Specification
+# AfsanehSaz — AI World-Building System Specification
 
 > **Architectural Specification & Module Blueprint**  
-> *Enhancing authoring workflows with deeply connected, consistent, and literary AI co-pilots across every section of StoryForge Studio.*
+> *Enhancing authoring workflows with deeply connected, consistent, and literary AI co-pilots across every section of AfsanehSaz Studio.*
 
 ---
 
 ## 📖 1. Vision & Core Principles
 
-StoryForge is built on the **Story First, World Before Narrative** doctrine:
+AfsanehSaz is built on the **Story First, World Before Narrative** doctrine:
 > *"The player can change the story, but cannot change the rules of the world without a reason."*
 
-In StoryForge Studio, AI is not a generic text generator, but a **Master Lore Architect and World-Building Co-Pilot**. Every AI generation tool must satisfy four core principles:
+In AfsanehSaz Studio, AI is not a generic text generator, but a **Master Lore Architect and World-Building Co-Pilot**. Every AI generation tool must satisfy four core principles:
 
 1. **Deterministic Lore Anchoring**: New entities must tie directly to existing factions, historical eras, laws, or deities rather than floating as disconnected tropes.
 2. **Uniqueness & Anti-Cloning**: The AI must cross-reference existing entities to prevent repetitive naming patterns, recycled concepts, or near-clones.
@@ -23,7 +23,7 @@ In StoryForge Studio, AI is not a generic text generator, but a **Master Lore Ar
 
 ```
                                ┌────────────────────────────────────────────────┐
-                               │           StoryForge Studio Suite              │
+                               │           AfsanehSaz Studio Suite              │
                                └───────────────────────┬────────────────────────┘
                                                        │
          ┌───────────────────┬───────────────────┼───────────────────┬───────────────────┐
@@ -273,13 +273,13 @@ For exhaustive technical blueprints, Zod schemas, prompt templates, and UI compo
 
 | Phase | Milestone | Execution Plan Document | Key Deliverables |
 | :--- | :--- | :--- | :--- |
-| **Phase 1** | **Core Genesis & Advisory** | 📘 **[Plan 01: World Genesis & Lore Auditor](file:///g:/Code/StoryForge/docs/plans/01_WORLD_GENESIS_AND_AUDITOR_PLAN.md)** | Seed-to-Cosmos Genesis Generator, Contradiction Radar in `/studio/world`. |
-| **Phase 1 & 5** | **AI Adviser & Oracle** | 🧙‍♂️ **[Plan 02: AI Adviser & Oracle Suite](file:///g:/Code/StoryForge/docs/plans/02_AI_ADVISER_AND_ORACLE_PLAN.md)** | Multi-Persona Advisory Council, `storyforge-action` Protocol, Visual Diff Previews in `/studio/chat`. |
-| **Phase 2** | **Ecosystem & Geography** | 🏰 **[Plan 03: Locations & Sub-Zones](file:///g:/Code/StoryForge/docs/plans/03_LOCATIONS_AND_ECOSYSTEM_PLAN.md)** | Sub-Zone Dungeon Spawner, "Populate Location" Macro, POI generator in `/studio/locations`. |
-| **Phase 3** | **Social Intrigue & Web** | 👥 **[Plan 04: NPCs & Social Drama](file:///g:/Code/StoryForge/docs/plans/04_NPCS_AND_SOCIAL_DRAMA_PLAN.md)** | Interpersonal Relationship Web Synthesizer, Dialogue Style Guides in `/studio/npcs`. |
-| **Phase 4** | **Deep Lore Vaults** | ⚔️ **[Plan 05: Chronicles, Relics, Bestiary & Religions](file:///g:/Code/StoryForge/docs/plans/05_CHRONICLES_RELICS_BESTIARY_RELIGIONS_PLAN.md)** | 3-Era Epoch Arc, Double-Edged Curses, Ecology/Alchemical Yields, Divine Taboos. |
-| **Phase 5** | **RPG, Beats & Global UX** | 🎲 **[Plan 06: RPG, Branching Beats & Studio Oracle](file:///g:/Code/StoryForge/docs/plans/06_RPG_AND_BRANCHING_BEATS_PLAN.md)** | Theme-to-RPG Synthesizer, 3-Act Plot Tree & Choice Balancer, Floating Oracle Drawer, `@mentions`. |
+| **Phase 1** | **Core Genesis & Advisory** | 📘 **[Plan 01: World Genesis & Lore Auditor](file:///g:/Code/AfsanehSaz/docs/plans/01_WORLD_GENESIS_AND_AUDITOR_PLAN.md)** | Seed-to-Cosmos Genesis Generator, Contradiction Radar in `/studio/world`. |
+| **Phase 1 & 5** | **AI Adviser & Oracle** | 🧙‍♂️ **[Plan 02: AI Adviser & Oracle Suite](file:///g:/Code/AfsanehSaz/docs/plans/02_AI_ADVISER_AND_ORACLE_PLAN.md)** | Multi-Persona Advisory Council, `storyforge-action` Protocol, Visual Diff Previews in `/studio/chat`. |
+| **Phase 2** | **Ecosystem & Geography** | 🏰 **[Plan 03: Locations & Sub-Zones](file:///g:/Code/AfsanehSaz/docs/plans/03_LOCATIONS_AND_ECOSYSTEM_PLAN.md)** | Sub-Zone Dungeon Spawner, "Populate Location" Macro, POI generator in `/studio/locations`. |
+| **Phase 3** | **Social Intrigue & Web** | 👥 **[Plan 04: NPCs & Social Drama](file:///g:/Code/AfsanehSaz/docs/plans/04_NPCS_AND_SOCIAL_DRAMA_PLAN.md)** | Interpersonal Relationship Web Synthesizer, Dialogue Style Guides in `/studio/npcs`. |
+| **Phase 4** | **Deep Lore Vaults** | ⚔️ **[Plan 05: Chronicles, Relics, Bestiary & Religions](file:///g:/Code/AfsanehSaz/docs/plans/05_CHRONICLES_RELICS_BESTIARY_RELIGIONS_PLAN.md)** | 3-Era Epoch Arc, Double-Edged Curses, Ecology/Alchemical Yields, Divine Taboos. |
+| **Phase 5** | **RPG, Beats & Global UX** | 🎲 **[Plan 06: RPG, Branching Beats & Studio Oracle](file:///g:/Code/AfsanehSaz/docs/plans/06_RPG_AND_BRANCHING_BEATS_PLAN.md)** | Theme-to-RPG Synthesizer, 3-Act Plot Tree & Choice Balancer, Floating Oracle Drawer, `@mentions`. |
 
-> 🗺️ **Master Plan Overview**: [docs/plans/AI_SYSTEM_UPGRADE_MASTER_PLAN.md](file:///g:/Code/StoryForge/docs/plans/AI_SYSTEM_UPGRADE_MASTER_PLAN.md)
+> 🗺️ **Master Plan Overview**: [docs/plans/AI_SYSTEM_UPGRADE_MASTER_PLAN.md](file:///g:/Code/AfsanehSaz/docs/plans/AI_SYSTEM_UPGRADE_MASTER_PLAN.md)
 
 

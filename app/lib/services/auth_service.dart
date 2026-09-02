@@ -5,7 +5,9 @@ import '../models/user_model.dart';
 import 'game_api_service.dart';
 
 class AuthService {
-  static const String _tokenKey = 'storyforge_auth_jwt_token';
+  static const String _tokenKey = 'afsanehsaz_auth_jwt_token';
+  static const String _legacyTokenKey = 'storyforge_auth_jwt_token';
+  static const String _userKey = 'afsanehsaz_auth_user_profile';
 
   static String? _cachedToken;
   static String? get cachedToken => _cachedToken;
@@ -13,8 +15,31 @@ class AuthService {
   /// Loads the persisted token from local storage on app startup
   static Future<String?> loadToken() async {
     final prefs = await SharedPreferences.getInstance();
-    _cachedToken = prefs.getString(_tokenKey);
+    _cachedToken = prefs.getString(_tokenKey) ?? prefs.getString(_legacyTokenKey);
     return _cachedToken;
+  }
+
+  /// Loads the cached user profile from local storage
+  static Future<UserProfile?> loadCachedUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString(_userKey);
+      if (userJson != null && userJson.isNotEmpty) {
+        final decoded = jsonDecode(userJson);
+        if (decoded is Map<String, dynamic>) {
+          return UserProfile.fromJson(decoded);
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Saves the token and cached user profile to local storage
+  static Future<void> saveSession({required String token, required UserProfile user}) async {
+    _cachedToken = token;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, token);
+    await prefs.setString(_userKey, jsonEncode(user.toJson()));
   }
 
   /// Saves the token to local storage
@@ -24,12 +49,17 @@ class AuthService {
     await prefs.setString(_tokenKey, token);
   }
 
-  /// Clears the token on logout
-  static Future<void> clearToken() async {
+  /// Clears session (token + cached user) on logout
+  static Future<void> clearSession() async {
     _cachedToken = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await prefs.remove(_legacyTokenKey);
+    await prefs.remove(_userKey);
   }
+
+  /// Clears the token on logout (alias for clearSession)
+  static Future<void> clearToken() => clearSession();
 
   /// Login with phone number and password
   static Future<Map<String, dynamic>> login({
@@ -65,8 +95,8 @@ class AuthService {
 
       if (response.statusCode == 200 && json != null && json['success'] == true) {
         final token = json['token'] as String;
-        await saveToken(token);
         final user = UserProfile.fromJson(json['user']);
+        await saveSession(token: token, user: user);
         return {'success': true, 'token': token, 'user': user};
       }
 
@@ -121,8 +151,8 @@ class AuthService {
 
       if (response.statusCode == 200 && json != null && json['success'] == true) {
         final token = json['token'] as String;
-        await saveToken(token);
         final user = UserProfile.fromJson(json['user']);
+        await saveSession(token: token, user: user);
         return {'success': true, 'token': token, 'user': user, 'message': json['message']};
       }
 
@@ -159,11 +189,14 @@ class AuthService {
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         if (json['success'] == true && json['user'] != null) {
-          return UserProfile.fromJson(json['user']);
+          final user = UserProfile.fromJson(json['user']);
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(_userKey, jsonEncode(user.toJson()));
+          return user;
         }
       } else if (response.statusCode == 401) {
         // Token invalid or expired
-        await clearToken();
+        await clearSession();
       }
     } catch (e) {
       // Network failure

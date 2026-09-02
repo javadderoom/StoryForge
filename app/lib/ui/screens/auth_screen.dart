@@ -86,8 +86,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop(true);
       } else {
-        Navigator.of(context).pushReplacement(
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const StoryCatalogScreen()),
+          (route) => false,
         );
       }
     }
@@ -130,8 +131,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop(true);
       } else {
-        Navigator.of(context).pushReplacement(
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const StoryCatalogScreen()),
+          (route) => false,
         );
       }
     }

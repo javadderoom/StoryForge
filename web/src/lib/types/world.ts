@@ -818,6 +818,7 @@ export const StoryBeatSchema = z.object({
   sceneId: z.string().min(1),
   locationId: z.string().default(''),
   narrativeText: z.string().default(''),
+  imageUrl: z.string().optional(),
   choices: z.array(StoryBeatChoiceSchema).default([]),
 });
 export type StoryBeat = z.infer<typeof StoryBeatSchema>;

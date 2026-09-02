@@ -33,6 +33,7 @@ export interface StoryManifest {
     sceneId: string;
     locationId: string;
     narrativeText: string;
+    imageUrl?: string;
     choices: Array<{
       id: string;
       text: string;
@@ -53,7 +54,7 @@ export const StoryManifestSchema = z.object({
   genres: z.array(z.string()).default([]),
   language: z.enum(['en', 'fa']).default('en'),
   coverImageUrl: z.string(),
-  author: z.string().default('StoryForge'),
+  author: z.string().default('AfsanehSaz'),
   version: z.string().default('1.0.0'),
   published: z.boolean().optional().default(false),
   rpgSystem: RPGSystemSchemaValidator,

@@ -229,7 +229,7 @@ export async function POST(req: NextRequest) {
     // Use custom system prompt from UI if provided, otherwise default to context-rich prompt
     const systemPrompt =
       customSystemPrompt?.trim() ||
-      `You are the Master World-Building & Narrative AI Co-Pilot for StoryForge, an advanced Interactive Fiction RPG engine.
+      `You are the Master World-Building & Narrative AI Co-Pilot for AfsanehSaz, an advanced Interactive Fiction RPG engine.
 Generate a high-quality JSON object for a ${type} matching the world's tone and setting.
 ${isPersian ? 'Output all narrative text, names, descriptions in literary Persian (Farsi).' : 'Output in literary English.'}
 ${themeContext ? `Theme context: ${themeContext}\n` : ''}User guidance: ${prompt || 'Create something rich with atmospheric depth and literary gravitas.'}

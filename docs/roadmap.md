@@ -1,6 +1,6 @@
-# StoryForge — Feature Roadmap & Architecture Milestones
+# AfsanehSaz — Feature Roadmap & Architecture Milestones
 
-This document outlines the upcoming feature roadmap and planned capabilities for the StoryForge platform across both the Flutter Reader Client and the Next.js Studio & Engine Backend.
+This document outlines the upcoming feature roadmap and planned capabilities for the AfsanehSaz platform across both the Flutter Reader Client and the Next.js Studio & Engine Backend.
 
 ---
 
@@ -29,7 +29,7 @@ This document outlines the upcoming feature roadmap and planned capabilities for
 
 ---
 
-### 4. 🏛️ StoryForge Web Authoring Studio Suite
+### 4. 🏛️ AfsanehSaz Web Authoring Studio Suite
 * **Visual World Bible Editor**: Graph-based node editor for locations, NPCs, factions, and immutable world laws.
 * **Branching Story Beats**: Visual scene tree showing possible story paths, choice branches, and DC checkpoints.
 * **AI Director Sandbox**: Test narrative prompts, verify action guardrails, and calibrate Gemini responses in real-time.
@@ -38,7 +38,7 @@ This document outlines the upcoming feature roadmap and planned capabilities for
 ---
 
 ### 5. 🌍 Deep World-Building & Lore Engine (New Target Goals)
-* 📖 **[Detailed AI World-Building Architecture Spec](file:///g:/Code/StoryForge/docs/AI_WORLDBUILDING_SPEC.md)**
+* 📖 **[Detailed AI World-Building Architecture Spec](file:///g:/Code/AfsanehSaz/docs/AI_WORLDBUILDING_SPEC.md)**
 * **⏳ Historical Eras & Interactive Timeline (`/studio/timeline`)**:
   * Visual chronological timeline editor for world history, ancient wars, cosmic catastrophes, and historical schisms.
   * Era-based lore injection into AI prompts and history/arcana skill check resolutions.
@@ -68,7 +68,7 @@ This document outlines the upcoming feature roadmap and planned capabilities for
 ---
 
 ### 7. 🛡️ Narrative Consistency Hardening (Next Engineering Priority)
-* 📖 **[Full Audit & Implementation Plan](file:///g:/Code/StoryForge/docs/plans/08_CONSISTENCY_HARDENING_PLAN.md)**
+* 📖 **[Full Audit & Implementation Plan](file:///g:/Code/AfsanehSaz/docs/plans/08_CONSISTENCY_HARDENING_PLAN.md)**
 * Stop canon corruption: no silent mock-fallback persistence, post-validate AI choices/memories against the active RPG schema.
 * Server-authoritative PlayerState; write the Living World State Ledger at play time.
 * Implement the spec'd "World Lore Check" action guardrail and LoreAuditor v2 (saga graph, duplicate names, cross-vault references).

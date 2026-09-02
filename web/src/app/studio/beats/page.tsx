@@ -57,8 +57,8 @@ export default function StoryBeatsStudioPage() {
   const [sceneSystemPrompt, setSceneSystemPrompt] = useState(
     story.worldBible.aiSystemPrompt ||
       (isPersian
-        ? 'تو راوی ارشد بازی StoryForge هستی. صحنه را با تعلیق، انتخاب‌های معنادار و پیامدهای متناسب با قوانین جهان بنویس.'
-        : 'You are the Master Storyteller for StoryForge. Generate intense story beats with branching meaningful choices.')
+        ? 'تو راوی ارشد بازی افسانه‌ساز هستی. صحنه را با تعلیق، انتخاب‌های معنادار و پیامدهای متناسب با قوانین جهان بنویس.'
+        : 'You are the Master Storyteller for AfsanehSaz. Generate intense story beats with branching meaningful choices.')
   );
   const [isGeneratingScene, setIsGeneratingScene] = useState(false);
 
@@ -981,8 +981,8 @@ export default function StoryBeatsStudioPage() {
                       setSceneSystemPrompt(
                         story.worldBible.aiSystemPrompt ||
                           (isPersian
-                            ? 'تو راوی ارشد بازی StoryForge هستی. صحنه را با تعلیق و انتخاب‌های معنادار بنویس.'
-                            : 'You are the Master Storyteller for StoryForge.')
+                            ? 'تو راوی ارشد بازی افسانه‌ساز هستی. صحنه را با تعلیق و انتخاب‌های معنادار بنویس.'
+                            : 'You are the Master Storyteller for AfsanehSaz.')
                       )
                     }
                     className="text-[10px] text-zinc-400 hover:text-amber-300 flex items-center gap-1"

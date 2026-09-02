@@ -33,7 +33,7 @@ export function StoryCatalogModal({
           <div>
             <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
               <BookOpen className="h-4 w-4 text-amber-400" />
-              {isPersian ? 'کتابخانه داستان‌ها و دنیاها' : 'StoryForge World Library'}
+              {isPersian ? 'کتابخانه داستان‌ها و دنیاها' : 'AfsanehSaz World Library'}
             </span>
             <p className="mt-1 text-xs text-zinc-400">
               {isPersian ? 'ماجراجویی مورد نظر خود را برای تجربه انتخاب کنید' : 'Select an interactive adventure to begin your journey'}

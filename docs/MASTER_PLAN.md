@@ -1,4 +1,4 @@
-# StoryForge — Interactive RPG Novel
+# AfsanehSaz — Interactive RPG Novel
 ## Master Plan & Technical Specification
 
 > **Project Vision:**
@@ -13,7 +13,7 @@
 1. [Executive Summary & Core Philosophy](#1-executive-summary--core-philosophy)
 2. [Product & User Experience (UX)](#2-product--user-experience-ux)
 3. [System Architecture](#3-system-architecture)
-4. [StoryForge Studio (Authoring & World-Building Admin Suite)](#4-storyforge-studio-authoring--world-building-admin-suite)
+4. [AfsanehSaz Studio (Authoring & World-Building Admin Suite)](#4-storyforge-studio-authoring--world-building-admin-suite)
 5. [The 4 Core Engines](#5-the-4-core-engines)
    - [5.1 World Engine & World Bible](#51-world-engine--world-bible)
    - [5.2 Game Engine & Deterministic Mechanics](#52-game-engine--deterministic-mechanics)
@@ -29,13 +29,13 @@
 
 ## 1. Executive Summary & Core Philosophy
 
-StoryForge is not an AI chat app or a generic chatbot wrapper. It is an **Interactive Fiction + RPG Platform** designed with a **"Story First, Reader First"** ethos.
+AfsanehSaz is not an AI chat app or a generic chatbot wrapper. It is an **Interactive Fiction + RPG Platform** designed with a **"Story First, Reader First"** ethos.
 
 ```
 Story → Decision / Free Action → Validation → Deterministic Consequence → Dynamic Narrative
 ```
 
-### The 7 Pillars of StoryForge:
+### The 7 Pillars of AfsanehSaz:
 
 1. **Story First, RPG Second**: The product is primarily a rich literary novel. Stats, HP, and dice rolls exist to provide tangible stakes and mechanical consequence, not to turn the experience into an arcade game.
 2. **World Before Narrative**: Every world, its timeline, factions, geography, magic/tech limitations, and lore are immutable facts defined in a **World Bible** before generation begins. The AI cannot reinvent or break the world.
@@ -78,7 +78,7 @@ Combat is embedded seamlessly within the prose rather than switching to an arcad
 
 ```
                     ┌──────────────────────────────┐       ┌──────────────────────────────┐
-                    │      Flutter Mobile App      │       │     StoryForge Studio        │
+                    │      Flutter Mobile App      │       │     AfsanehSaz Studio        │
                     │   (Reader + Discreet HUD)    │       │ (Next.js Web Admin & Studio) │
                     └──────────────┬───────────────┘       └──────────────┬───────────────┘
                                    │ HTTPS / SSE                          │ HTTPS / REST
@@ -119,13 +119,13 @@ Combat is embedded seamlessly within the prose rather than switching to an arcad
 
 ---
 
-## 4. StoryForge Studio (Authoring & World-Building Admin Suite)
+## 4. AfsanehSaz Studio (Authoring & World-Building Admin Suite)
 
-While end-readers interact exclusively through the Flutter reading app, **StoryForge Studio** is the visual control room for the author/creator to build, configure, test, and balance stories and worlds without editing raw JSON files by hand.
+While end-readers interact exclusively through the Flutter reading app, **AfsanehSaz Studio** is the visual control room for the author/creator to build, configure, test, and balance stories and worlds without editing raw JSON files by hand.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│                             StoryForge Studio Suite                              │
+│                             AfsanehSaz Studio Suite                              │
 ├─────────────────┬──────────────────┬──────────────────┬──────────────────────────┤
 │ 🌍 World Bible  │ ⚔️ RPG Ruleset   │ 👤 NPC Dossiers  │ 🧪 AI Simulation Sandbox │
 │    Builder      │    Designer      │    & Secrets     │    & Prompt Inspector    │
@@ -268,7 +268,7 @@ The backend builds a focused, high-density context envelope for the LLM:
   "genre": ["Sci-Fi", "Cyberpunk", "Noir"],
   "language": "en",
   "cover_image": "assets/covers/solis.webp",
-  "author": "StoryForge Core",
+  "author": "AfsanehSaz Core",
   "rpg_schema": {
     "stats": [
       { "id": "logic", "name": "Logic", "description": "Deduction and hacking capability", "base": 12 },
@@ -327,7 +327,7 @@ The backend builds a focused, high-density context envelope for the LLM:
 ## 9. Project Directory Structure
 
 ```
-StoryForge/
+AfsanehSaz/
 ├── MASTER_PLAN.md                  # Comprehensive Master Plan
 ├── README.md                       # Repository overview
 │
@@ -337,7 +337,7 @@ StoryForge/
 │   ├── next.config.ts
 │   ├── src/
 │   │   ├── app/                    # Next.js App Router
-│   │   │   ├── (studio)/           # StoryForge Studio Admin Web Pages
+│   │   │   ├── (studio)/           # AfsanehSaz Studio Admin Web Pages
 │   │   │   │   ├── studio/
 │   │   │   │   │   ├── worlds/     # World Bible & Lore Graph Editor
 │   │   │   │   │   ├── rules/      # RPG Stats, Resources & DC Tables
@@ -389,7 +389,7 @@ StoryForge/
 - [ ] Implement deterministic Game Engine (Stats, Modifiers, DC table, Dice roller, Inventory/Resource Reducer).
 - [ ] Write unit tests to guarantee 100% deterministic state mutation independent of LLM outputs.
 
-### Phase 2: StoryForge Studio (Admin & World-Building Suite)
+### Phase 2: AfsanehSaz Studio (Admin & World-Building Suite)
 - [ ] Build Studio Web Dashboard (World Bible Builder, Faction & Timeline Editor).
 - [ ] Implement RPG Ruleset & Stat Schema Visual Configurator.
 - [ ] Build NPC Dossier & Secret Knowledge Manager.
@@ -411,8 +411,8 @@ StoryForge/
 - [ ] Implement 3-style choice selector, free-text action box, and dice roll animations.
 
 ### Phase 6: Pilot Stories & End-to-End Polish
-- [ ] Author Pilot Story 1 using StoryForge Studio: *The Obsidian Citadel* (Dark Fantasy).
-- [ ] Author Pilot Story 2 using StoryForge Studio: *Neon Requiem* (Cyberpunk Detective).
+- [ ] Author Pilot Story 1 using AfsanehSaz Studio: *The Obsidian Citadel* (Dark Fantasy).
+- [ ] Author Pilot Story 2 using AfsanehSaz Studio: *Neon Requiem* (Cyberpunk Detective).
 - [ ] Stress-test continuity, memory recall across 25+ turns, and anti-hallucination guardrails.
 
 ### Phase 7: Deep World-Building & Lore Engine (Evolution Goals)

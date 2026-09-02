@@ -45,7 +45,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
 
   Future<void> _navigateToNext() async {
     // Show cinematic splash for at least 2.2 seconds for atmospheric immersion
-    await Future.delayed(const Duration(milliseconds: 2200));
+    final splashDelay = Future.delayed(const Duration(milliseconds: 2200));
+
+    // Ensure persistent session check has completed before routing
+    await ref.read(authProvider.notifier).sessionCheckFuture;
+    await splashDelay;
+
     if (!mounted) return;
 
     final authState = ref.read(authProvider);
@@ -54,7 +59,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
         ? const AuthScreen(isFullScreen: true)
         : const StoryCatalogScreen();
 
-    Navigator.of(context).pushReplacement(
+    Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
         pageBuilder: (context, animation, secondaryAnimation) => targetScreen,
@@ -68,6 +73,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
           );
         },
       ),
+      (route) => false,
     );
   }
 

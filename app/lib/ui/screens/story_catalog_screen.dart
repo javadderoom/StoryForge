@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/story.dart';
 import '../../providers/game_session_provider.dart';
 import '../../services/game_api_service.dart';
 import '../widgets/story_cover_image.dart';
+import '../widgets/profile_drawer.dart';
 import 'reader_screen.dart';
 import 'character_creation_screen.dart';
 
@@ -20,6 +22,7 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   String? _startingStoryId;
+  DateTime? _lastBackPressTime;
 
   @override
   void initState() {
@@ -74,20 +77,60 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
     final hasActiveNarrative = session.currentNarrative.isNotEmpty;
     final isPersian = activeStoryId.isEmpty || session.isPersian;
 
-    return Directionality(
-      textDirection: isPersian ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        backgroundColor: const Color(0xFF090A10),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF0F111D),
-          elevation: 0,
-          leading: Navigator.canPop(context)
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFFF59E0B), size: 20),
-                  tooltip: isPersian ? 'بازگشت به خوانش' : 'Back to Reading',
-                  onPressed: () => Navigator.of(context).pop(),
-                )
-              : null,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        final scaffoldState = Scaffold.maybeOf(context);
+        if (scaffoldState?.isDrawerOpen == true) {
+          Navigator.of(context).pop();
+          return;
+        }
+        if (hasActiveNarrative && Navigator.canPop(context)) {
+          Navigator.of(context).pop();
+          return;
+        }
+        final now = DateTime.now();
+        if (_lastBackPressTime == null ||
+            now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              duration: const Duration(seconds: 2),
+              backgroundColor: const Color(0xFF1E2238),
+              content: Text(
+                isPersian
+                    ? 'برای خروج از برنامه، دوباره دکمه بازگشت را بزنید.'
+                    : 'Press back again to exit.',
+                style: GoogleFonts.vazirmatn(),
+              ),
+            ),
+          );
+        } else {
+          SystemNavigator.pop();
+        }
+      },
+      child: Directionality(
+        textDirection: isPersian ? TextDirection.rtl : TextDirection.ltr,
+        child: Scaffold(
+          backgroundColor: const Color(0xFF090A10),
+          drawer: const ProfileDrawer(),
+          appBar: AppBar(
+            backgroundColor: const Color(0xFF0F111D),
+            elevation: 0,
+            leading: (hasActiveNarrative && Navigator.canPop(context))
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFFF59E0B), size: 20),
+                    tooltip: isPersian ? 'بازگشت به خوانش' : 'Back to Reading',
+                    onPressed: () => Navigator.of(context).pop(),
+                  )
+                : Builder(
+                    builder: (ctx) => IconButton(
+                      icon: const Icon(Icons.menu_rounded, color: Color(0xFFF59E0B), size: 24),
+                      tooltip: isPersian ? 'پروفایل و تنظیمات' : 'Profile & Settings',
+                      onPressed: () => Scaffold.of(ctx).openDrawer(),
+                    ),
+                  ),
           title: Text(
             isPersian ? 'کتابخانه ماجراجویی‌ها' : 'ADVENTURE CATALOG',
             style: isPersian
@@ -109,6 +152,14 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
               tooltip: isPersian ? 'به‌روزرسانی فهرست' : 'Refresh Catalog',
               onPressed: _loadStories,
             ),
+            if (Navigator.canPop(context))
+              Builder(
+                builder: (ctx) => IconButton(
+                  icon: const Icon(Icons.person_outline_rounded, color: Color(0xFFF59E0B)),
+                  tooltip: isPersian ? 'پروفایل و تنظیمات' : 'Profile & Settings',
+                  onPressed: () => Scaffold.of(ctx).openDrawer(),
+                ),
+              ),
           ],
         ),
         body: _isLoading
@@ -264,6 +315,7 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
                       ],
                     ],
                   ),
+        ),
       ),
     );
   }

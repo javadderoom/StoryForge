@@ -1,15 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:storyforge/main.dart';
+import 'package:afsanehsaz/main.dart';
 
 void main() {
-  testWidgets('StoryForge initial widget render test', (WidgetTester tester) async {
+  testWidgets('AfsanehSaz initial widget render test', (WidgetTester tester) async {
     await tester.pumpWidget(
       const ProviderScope(
-        child: StoryForgeApp(),
+        child: AfsanehSazApp(),
       ),
     );
 
-    expect(find.byType(StoryForgeApp), findsOneWidget);
+    expect(find.byType(AfsanehSazApp), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 2500));
   });
 }

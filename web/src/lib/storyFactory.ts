@@ -13,7 +13,7 @@ export function getEmptyStoryManifest(language: 'en' | 'fa'): StoryManifest {
     genres: [],
     language,
     coverImageUrl: '',
-    author: 'StoryForge Author',
+    author: 'AfsanehSaz Author',
     version: '0.1.0',
     published: false,
     rpgSystem: {

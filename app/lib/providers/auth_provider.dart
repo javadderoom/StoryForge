@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
@@ -36,8 +37,12 @@ class AuthState {
 }
 
 class AuthNotifier extends Notifier<AuthState> {
+  Completer<void>? _sessionCheckCompleter;
+  Future<void> get sessionCheckFuture => _sessionCheckCompleter?.future ?? Future.value();
+
   @override
   AuthState build() {
+    _sessionCheckCompleter = Completer<void>();
     // Check saved session on initialization
     Future.microtask(() => checkSession());
     return const AuthState(isLoading: true);
@@ -46,6 +51,8 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> checkSession() async {
     state = state.copyWith(isLoading: true, clearError: true);
     final token = await AuthService.loadToken();
+    final cachedUser = await AuthService.loadCachedUser();
+
     if (token == null || token.isEmpty) {
       state = state.copyWith(
         isLoading: false,
@@ -53,24 +60,54 @@ class AuthNotifier extends Notifier<AuthState> {
         user: null,
         token: null,
       );
+      if (!(_sessionCheckCompleter?.isCompleted ?? true)) {
+        _sessionCheckCompleter?.complete();
+      }
       return;
     }
 
-    final profile = await AuthService.getProfile();
-    if (profile != null) {
+    // Immediately restore cached session so the player is recognized instantly!
+    if (cachedUser != null) {
       state = state.copyWith(
         isLoading: false,
         isAuthenticated: true,
-        user: profile,
+        user: cachedUser,
         token: token,
       );
-    } else {
-      state = state.copyWith(
-        isLoading: false,
-        isAuthenticated: false,
-        user: null,
-        token: null,
-      );
+    }
+
+    try {
+      final freshProfile = await AuthService.getProfile();
+      if (freshProfile != null) {
+        state = state.copyWith(
+          isLoading: false,
+          isAuthenticated: true,
+          user: freshProfile,
+          token: token,
+        );
+      } else if (AuthService.cachedToken == null) {
+        // Token was rejected with 401 and cleared
+        state = state.copyWith(
+          isLoading: false,
+          isAuthenticated: false,
+          user: null,
+          token: null,
+        );
+      } else if (cachedUser != null) {
+        // Network timeout / offline: keep user logged in with cached credentials!
+        state = state.copyWith(
+          isLoading: false,
+          isAuthenticated: true,
+          user: cachedUser,
+          token: token,
+        );
+      }
+    } catch (_) {
+      // Keep cached session on network errors
+    } finally {
+      if (!(_sessionCheckCompleter?.isCompleted ?? true)) {
+        _sessionCheckCompleter?.complete();
+      }
     }
   }
 

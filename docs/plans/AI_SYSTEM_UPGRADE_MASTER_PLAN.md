@@ -1,13 +1,13 @@
-# StoryForge — AI World-Building Upgrade Master Plan
+# AfsanehSaz — AI World-Building Upgrade Master Plan
 
 > **Quality-First Engineering & Implementation Roadmap**  
-> *A comprehensive technical blueprint for upgrading every AI engine, generator, and advisory workflow across StoryForge Studio.*
+> *A comprehensive technical blueprint for upgrading every AI engine, generator, and advisory workflow across AfsanehSaz Studio.*
 
 ---
 
 ## 🎯 1. The Quality & Co-Creation Mandate
 
-Quality in StoryForge is not measured by raw text quantity or speed, but by **literary depth, atmospheric gravitas, and author collaboration**:
+Quality in AfsanehSaz is not measured by raw text quantity or speed, but by **literary depth, atmospheric gravitas, and author collaboration**:
 
 ### A. The 4 Pillars of Literary Content Quality
 1. **Few-Shot Literary Exemplars**: Prompts assemble gold-standard excerpts written in high-register literary Persian (Farsi) and evocative English rather than generic robotic instructions.
@@ -70,12 +70,12 @@ To ensure thoroughness and modular implementation, the execution plans are parti
 
 | Plan Document | Scope & Modules Covered | Status |
 | :--- | :--- | :--- |
-| 📘 **[01_WORLD_GENESIS_AND_AUDITOR_PLAN.md](file:///g:/Code/StoryForge/docs/plans/01_WORLD_GENESIS_AND_AUDITOR_PLAN.md)** | Seed-to-Cosmos Genesis Generator, Contradiction Radar (Consistency Auditor), Global Aesthetic Presets. | ✅ **Completed & Verified** |
-| 🧙‍♂️ **[02_AI_ADVISER_AND_ORACLE_PLAN.md](file:///g:/Code/StoryForge/docs/plans/02_AI_ADVISER_AND_ORACLE_PLAN.md)** | Multi-Persona Advisory Council, `storyforge-action` protocol, Visual Diff Preview & Confirmation, Proactive Lore Gap Radar. | Ready for Execution |
-| 🏰 **[03_LOCATIONS_AND_ECOSYSTEM_PLAN.md](file:///g:/Code/StoryForge/docs/plans/03_LOCATIONS_AND_ECOSYSTEM_PLAN.md)** | Sub-Zone Dungeon Spawner, "Populate Location" Micro-Ecosystem Macro, Exploration POIs & Environmental Hazards. | Ready for Execution |
-| 👥 **[04_NPCS_AND_SOCIAL_DRAMA_PLAN.md](file:///g:/Code/StoryForge/docs/plans/04_NPCS_AND_SOCIAL_DRAMA_PLAN.md)** | Interpersonal Relationship Web Synthesizer, Voice & Dialogue Style Guides, Lore-to-RPG Stat Auto-Calibration. | Ready for Execution |
-| ⚔️ **[05_CHRONICLES_RELICS_BESTIARY_RELIGIONS_PLAN.md](file:///g:/Code/StoryForge/docs/plans/05_CHRONICLES_RELICS_BESTIARY_RELIGIONS_PLAN.md)** | 3-Era Epoch Arc & Ripple Effects, Double-Edged Relics & Vault Quests, Bestiary Ecology & Alchemical Yields, Divine Taboos & Holy Wars. | Ready for Execution |
-| 🎲 **[06_RPG_AND_BRANCHING_BEATS_PLAN.md](file:///g:/Code/StoryForge/docs/plans/06_RPG_AND_BRANCHING_BEATS_PLAN.md)** | Theme-to-RPG System Synthesizer, 3-Act Branching Plot Tree & 3-Style Choice Balancer, Persistent Contextual Oracle & Smart `@mentions`. | Ready for Execution |
+| 📘 **[01_WORLD_GENESIS_AND_AUDITOR_PLAN.md](file:///g:/Code/AfsanehSaz/docs/plans/01_WORLD_GENESIS_AND_AUDITOR_PLAN.md)** | Seed-to-Cosmos Genesis Generator, Contradiction Radar (Consistency Auditor), Global Aesthetic Presets. | ✅ **Completed & Verified** |
+| 🧙‍♂️ **[02_AI_ADVISER_AND_ORACLE_PLAN.md](file:///g:/Code/AfsanehSaz/docs/plans/02_AI_ADVISER_AND_ORACLE_PLAN.md)** | Multi-Persona Advisory Council, `storyforge-action` protocol, Visual Diff Preview & Confirmation, Proactive Lore Gap Radar. | Ready for Execution |
+| 🏰 **[03_LOCATIONS_AND_ECOSYSTEM_PLAN.md](file:///g:/Code/AfsanehSaz/docs/plans/03_LOCATIONS_AND_ECOSYSTEM_PLAN.md)** | Sub-Zone Dungeon Spawner, "Populate Location" Micro-Ecosystem Macro, Exploration POIs & Environmental Hazards. | Ready for Execution |
+| 👥 **[04_NPCS_AND_SOCIAL_DRAMA_PLAN.md](file:///g:/Code/AfsanehSaz/docs/plans/04_NPCS_AND_SOCIAL_DRAMA_PLAN.md)** | Interpersonal Relationship Web Synthesizer, Voice & Dialogue Style Guides, Lore-to-RPG Stat Auto-Calibration. | Ready for Execution |
+| ⚔️ **[05_CHRONICLES_RELICS_BESTIARY_RELIGIONS_PLAN.md](file:///g:/Code/AfsanehSaz/docs/plans/05_CHRONICLES_RELICS_BESTIARY_RELIGIONS_PLAN.md)** | 3-Era Epoch Arc & Ripple Effects, Double-Edged Relics & Vault Quests, Bestiary Ecology & Alchemical Yields, Divine Taboos & Holy Wars. | Ready for Execution |
+| 🎲 **[06_RPG_AND_BRANCHING_BEATS_PLAN.md](file:///g:/Code/AfsanehSaz/docs/plans/06_RPG_AND_BRANCHING_BEATS_PLAN.md)** | Theme-to-RPG System Synthesizer, 3-Act Branching Plot Tree & 3-Style Choice Balancer, Persistent Contextual Oracle & Smart `@mentions`. | Ready for Execution |
 
 
 ---
