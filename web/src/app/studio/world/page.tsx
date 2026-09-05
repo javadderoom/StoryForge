@@ -487,11 +487,7 @@ export default function WorldBiblePage() {
 
     // Persist all 5-state relations
     Object.entries(factionForm.relations).forEach(([otherId, rel]) => {
-      if (rel.value === 'neutral' && !rel.note) {
-        deleteFactionRelation(currentFacId, otherId);
-      } else {
-        setFactionRelation(currentFacId, otherId, rel.value, rel.note, rel.isPublic);
-      }
+      setFactionRelation(currentFacId, otherId, rel.value, rel.note, rel.isPublic);
     });
 
     setFactionModalOpen(false);
@@ -925,20 +921,21 @@ export default function WorldBiblePage() {
             const otherFactions = story.worldBible.factions.filter((f) => f.id !== faction.id);
             const relationsList = otherFactions
               .map((other) => {
-                const stance = getFactionRelation(story.worldBible, faction.id, other.id);
                 const rel = (story.worldBible.factionRelations || []).find(
                   (r) =>
                     (r.sourceFactionId === faction.id && r.targetFactionId === other.id) ||
                     (r.sourceFactionId === other.id && r.targetFactionId === faction.id)
                 );
+                const stance = rel ? rel.value : getFactionRelation(story.worldBible, faction.id, other.id);
                 return {
                   otherName: other.name,
                   stance,
                   note: rel?.note || '',
                   isPublic: rel?.isPublic ?? true,
+                  hasExplicitRelation: Boolean(rel),
                 };
               })
-              .filter((r) => r.stance !== 'neutral');
+              .filter((r) => r.hasExplicitRelation || r.stance !== 'neutral');
 
             return (
               <div

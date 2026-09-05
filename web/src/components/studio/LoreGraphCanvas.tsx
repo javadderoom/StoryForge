@@ -114,9 +114,6 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
       if (seenFactionPairs.has(edgeKey)) return;
       seenFactionPairs.add(edgeKey);
 
-      // Skip unnoted neutral relations to keep canvas readable
-      if (rel.value === 'neutral' && !rel.note) return;
-
       let color = '#94A3B8';
       let label = isPersian ? 'بی‌طرف' : 'Neutral';
       let dashed = true;
