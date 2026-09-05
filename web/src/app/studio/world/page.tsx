@@ -68,13 +68,37 @@ export default function WorldBiblePage() {
   // Plan 02 — Inline Entity Workshop Drawer
   const [workshopEntity, setWorkshopEntity] = useState<WorkshopEntity | null>(null);
 
-  const openWorkshop = (type: 'world_law' | 'faction', item: any) =>
+  const openWorkshop = (type: 'world_law' | 'faction', item: any) => {
+    let workshopData = item;
+    if (type === 'faction') {
+      const existingRelations = (story.worldBible.factionRelations || [])
+        .filter((r) => r.sourceFactionId === item.id || r.targetFactionId === item.id)
+        .map((r) => {
+          const otherId = r.sourceFactionId === item.id ? r.targetFactionId : r.sourceFactionId;
+          const otherFac = story.worldBible.factions.find((f) => f.id === otherId);
+          return {
+            targetFactionId: otherId,
+            targetFactionName: otherFac?.name || otherId,
+            value: r.value,
+            note: r.note || '',
+            isPublic: r.isPublic ?? true,
+          };
+        });
+      workshopData = {
+        ...item,
+        relations: existingRelations,
+        availableOtherFactions: story.worldBible.factions
+          .filter((f) => f.id !== item.id)
+          .map((f) => ({ id: f.id, name: f.name, alignment: f.alignment })),
+      };
+    }
     setWorkshopEntity({
       type,
       id: item.id,
       name: type === 'world_law' ? item.rule : item.name,
-      data: item,
+      data: workshopData,
     });
+  };
 
   const handleWorkshopApply = (entity: WorkshopEntity, data: any) => {
     if (entity.type === 'world_law') editWorldLaw(entity.id, data);

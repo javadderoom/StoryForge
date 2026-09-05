@@ -73,6 +73,34 @@ describe('ActionProtocol — action block parsing', () => {
     assert.equal(blocks[0].op, 'update');
     assert.equal(blocks[0].match?.byName, 'Lead-Soled Brotherhood');
   });
+
+  it('parses multiple distinct action blocks from a single message', () => {
+    const reply = `Here are the updates for both factions:
+\`\`\`storyforge-action
+{"op":"update","entity":"faction","match":{"byName":"Golden Pillar"},"prompt":"Set relations with Awakening Network to hostile"}
+\`\`\`
+And for the second faction:
+\`\`\`storyforge-action
+{"op":"update","entity":"faction","match":{"byName":"Awakening Network"},"prompt":"Set relations with Golden Pillar to hostile"}
+\`\`\``;
+    const blocks = parseActionBlocks(reply);
+    assert.equal(blocks.length, 2);
+    assert.equal(blocks[0].match?.byName, 'Golden Pillar');
+    assert.equal(blocks[1].match?.byName, 'Awakening Network');
+  });
+
+  it('parses an array of action blocks inside a single fenced block', () => {
+    const reply = `\`\`\`storyforge-action
+[
+  {"op":"update","entity":"faction","match":{"byName":"Golden Pillar"},"prompt":"Allied with Sands"},
+  {"op":"update","entity":"faction","match":{"byName":"Awakening Network"},"prompt":"Hostile with Golden Pillar"}
+]
+\`\`\``;
+    const blocks = parseActionBlocks(reply);
+    assert.equal(blocks.length, 2);
+    assert.equal(blocks[0].match?.byName, 'Golden Pillar');
+    assert.equal(blocks[1].match?.byName, 'Awakening Network');
+  });
 });
 
 describe('ActionProtocol — validation', () => {

@@ -20,6 +20,11 @@ export const ENTITY_ALIASES: Record<string, EntityType> = {
   organisation: 'faction',
   order: 'faction',
   guild: 'faction',
+  faction_relation: 'faction',
+  faction_relations: 'faction',
+  factionrelation: 'faction',
+  relation: 'faction',
+  relations: 'faction',
   location: 'location',
   place: 'location',
   region: 'location',
@@ -315,29 +320,33 @@ export function parseActionBlocks(reply: string): ActionBlock[] {
   ];
   for (const mt of matches) {
     try {
-      const obj = JSON.parse(mt[1]);
-      const validOp = obj.op === 'create' || obj.op === 'update' || obj.op === 'delete';
-      let entity = normalizeEntityName(obj.entity);
-      if (
-        !entity &&
-        (obj.op === 'update' || obj.op === 'delete') &&
-        obj.match &&
-        typeof obj.match.byName === 'string'
-      ) {
-        // entity resolved later by caller via resolveEntityTarget across types
-        entity = obj.entity as EntityType;
-      }
-      const validEntity =
-        !!entity ||
-        ((obj.op === 'update' || obj.op === 'delete') &&
+      const parsed = JSON.parse(mt[1]);
+      const rawList = Array.isArray(parsed) ? parsed : [parsed];
+      for (const obj of rawList) {
+        if (!obj || typeof obj !== 'object') continue;
+        const validOp = obj.op === 'create' || obj.op === 'update' || obj.op === 'delete';
+        let entity = normalizeEntityName(obj.entity);
+        if (
+          !entity &&
+          (obj.op === 'update' || obj.op === 'delete') &&
           obj.match &&
-          typeof obj.match.byName === 'string');
-      const hasTarget =
-        obj.op === 'create'
-          ? typeof obj.prompt === 'string'
-          : !!(obj.match && typeof obj.match.byName === 'string');
-      if (validOp && validEntity && hasTarget) {
-        actions.push({ ...obj, entity } as ActionBlock);
+          typeof obj.match.byName === 'string'
+        ) {
+          // entity resolved later by caller via resolveEntityTarget across types
+          entity = obj.entity as EntityType;
+        }
+        const validEntity =
+          !!entity ||
+          ((obj.op === 'update' || obj.op === 'delete') &&
+            obj.match &&
+            typeof obj.match.byName === 'string');
+        const hasTarget =
+          obj.op === 'create'
+            ? typeof obj.prompt === 'string'
+            : !!(obj.match && typeof obj.match.byName === 'string');
+        if (validOp && validEntity && hasTarget) {
+          actions.push({ ...obj, entity } as ActionBlock);
+        }
       }
     } catch {
       /* ignore malformed block */
@@ -386,7 +395,7 @@ export function normalizeEntity(entity: EntityType, data: any): any {
 export function buildActionProtocolSection(isPersian: boolean): string {
   const ENUM = ALLOWED_ENTITIES.join(' | ');
   if (isPersian) {
-    return `\n\nپروتکل عملیات — برای ایجاد، ویرایش یا حذف یک موجودیت جهان، بلوک کد زیر را دقیقاً یک‌بار و بدون متن اضافه صادر کن. فقط زمانی صادر کن که نویسنده صراحتاً درخواست کرده باشد.
+    return `\n\nپروتکل عملیات — برای ایجاد، ویرایش یا حذف موجودیت‌های جهان، بلوک(های) کد زیر را بدون متن اضافه صادر کن. اگر نویسنده تغییرات چند موجودیت را همزمان خواست (مانند تنظیم روابط چند جناح)، برای هر موجودیت یک بلوک مجزا صادر کن تا تمام آن‌ها در پنل تغییرات ثبت شوند. فقط زمانی صادر کن که نویسنده صراحتاً درخواست کرده باشد.
 قالب ایجاد (create):
 \`\`\`storyforge-action
 {"op":"create","entity":"faction","prompt":"<دستور خلاقانه برای موجودیت تازه>"}
@@ -401,7 +410,7 @@ export function buildActionProtocolSection(isPersian: boolean): string {
 \`\`\`
 عملیات مجاز: "create"، "update"، "delete". موجودیت‌های مجاز: ${ENUM}. باید همواره فیلد «entity» را ذکر کنی. برای update/delete فیلد "match":{"byName":"<نام موجودیت موجود>"} الزامی است. برای update فیلد "prompt" نیز کاملاً الزامی است و باید تمام جزئیات و متن درخواستی کاربر را کلمه به کلمه شامل شود تا دقیقاً روی موجودیت اعمال شود. برای create می‌توانی اختیاری "anchor":"<نام موجودیت موجود>" بگذاری تا موجودیت جدید به آن گره بخورد. هرگز عملیاتی صادر نکن که درخواست نشده باشد. نکته: خدایان، ایزدان، ادیان، پانتئون‌ها و فرقه‌ها همگی موجودیت «deity» هستند. اگر نویسنده چیزی را که از پیش دارد می‌خواهد تغییر دهد، حتماً از op "update" با match.byName و prompt کامل استفاده کن و هرگز نسخه تکراری نساز.`;
   }
-  return `\n\nACTION PROTOCOL — To create, modify, or delete a world entity, emit EXACTLY ONE fenced code block with no extra prose. Only emit it when the author explicitly requests it.
+  return `\n\nACTION PROTOCOL — To create, modify, or delete world entities, emit fenced code blocks matching the formats below with no extra prose. When the author's request spans multiple entities (such as configuring relations across several factions), emit a separate storyforge-action block for EACH affected entity. Only emit action blocks when the author explicitly requests them.
 Create format:
 \`\`\`storyforge-action
 {"op":"create","entity":"faction","prompt":"<creative brief for the new entity>"}
@@ -433,22 +442,24 @@ export function buildAdviserSystemPrompt(
         'سبک ارتباطی: در گفتگوها کاملاً واضح، روان، طبیعی و حرفه‌ای صحبت کن. هرگز نقش شخصیت‌های داستانی یا راوی کهن را بازی نکن و در پاسخ‌های مکالمه‌ای نثر شاعرانه یا اغراق‌آمیز به کار نبر. نثر روایی و ادبی را تنها زمانی به کار ببر که در حال نوشتن متن یک فیلد لور یا پیش‌نویس داستان هستی.',
         'بررسی خلأها و فیلدهای ارتباطی موجودیت‌ها: در مدل داده استوری‌فورج ارتباطات به این صورت در فیلدهای آرایه‌ای ذخیره می‌شوند: ادیان/خدایان مکان‌های مقدس را در فیلد «holyLocationIds» و جناح‌های وابسته را در «affiliatedFactionIds» نگه می‌دارند؛ جناح‌ها قلمروها را در فیلد «territoryIds» نگه می‌دارند؛ شخصیت‌ها در فیلد «currentLocationId» و «factionId» مشخص می‌شوند. وقتی نویسنده می‌خواهد مکانی مقدس برای یک دین تعیین کند یا جناحی را به قلمرویی وصل کند، باید خود «موجودیت دین» (deity) یا «جناح» (faction) را با یک storyforge-action بروزرسانی کنی تا شناسه مکان در آرایه مربوطه ثبت شود (نه اینکه فقط در توصیف متنی مکان چیزی بنویسی).',
         'فیلدهای استراتژیک جناح: هر جناح دو فیلد اختیاری دارد که باید آگاهانه با عملیات create/update تنظیم کنی. فیلد «scope» یکی از مقادیر "street"|"regional"|"continental"|"mythic" است و مشخص می‌کند جناح از کدام لایه روایی (اسکوپ فصل‌ها) وارد صحنه شود — دار و دسته‌های محلی و نگهبانان شهری "street"، پادشاهی‌ها "regional"، نظام‌های فراقاره‌ای "continental" و نیروهای کیهانی/فرابعدی مانند خدایان شرور، دیوها و موجوداتی که جهان را تباه می‌کنند همیشه "mythic" هستند (این جناح‌ها تا اوج داستان از چشم بازیکن پنهان می‌مانند). فیلد «secretAgendas» اهداف پنهان و واقعی جناح است که فقط روایتگر هوش مصنوعی آن‌ها را می‌بیند. هرگاه نویسنده از دستور پنهان یا مقیاس کیهانی/جهانی برای جناحی گفت، حتماً با یک عملیات update این دو فیلد را صریحاً تنظیم کن و آن‌ها را خالی نگذار.',
+        'مناسبات ۵گانه قدرت و روابط جناح‌ها: روابط جناح‌ها در یک طیف ۵ حالته مدل‌سازی می‌شوند: "allied" (متحد رسمی)، "favorable" (هم‌پیمان پنهان/متمایل)، "neutral" (بی‌طرف/عمل‌گرا)، "rival" (رقیب سیاسی/اصطکاک)، "hostile" (دشمن خونی/جنگ باز). هرگاه نویسنده از تو خواست روابط جناحی را تنظیم کنی یا پر کنی، یک عملیات update روی همان جناح (با match.byName) صادر کن و در prompt نام جناح‌های هدف، موضع ۵گانه و دلیل داستانی (یادداشت رابطه) را صریحاً بنویس.',
         'وقتی نویسنده از تو می‌خواهد موجودیتی موجود را بخوانی، خلاصه کنی یا فهرست کنی، فقط از بخش «کتاب مقدس جهان» در بالا نقل کن. توصیف‌هایی که پیش‌تر در این گفت‌وگو تولید کرده‌ای را واقعیتِ ذخیره‌شده تلقی نکن — آن‌ها پیش‌نویس بوده‌اند. اگر موجودیت درخواستی در کتاب مقدس نیست، صراحتاً بگو که در جهان ذخیره نشده است.',
         'تنوع مضمونی: در ایده‌پردازی، طراحی شخصیت‌ها، عوارض جادو و عتیقه‌ها، از تکرار بیش از حد مفاهیم مربوط به «خاطره، فراموشی یا قربانی کردن خاطرات» خودداری کن. این موضوع را فقط به صورت موردی و نادر به کار ببر و دایره مضامین را به کیمیاگری سیاه، نفرین‌های بدنی، سنگینی فلزات، دسیسه‌های درباری و پیمان‌های خونی گسترش بده.',
         'قوانین عتیقه‌ها و نفرین‌ها: نفرین‌ها و بهای منفی سنگین را منحصراً برای رده‌های افسانه‌ای (Legendary) و اسطوره‌ای (Mythic) اعمال کن. آیتم‌های رده نامعمول (Uncommon)، کمیاب (Rare) و حماسی (Epic) باید بدون نفرین (curseOrCost: "") با کارایی مثبت و تمیز طراحی شوند.',
         'اولویت سلاح‌ها و زره‌های ملموس: در طراحی عتیقه‌ها و آیتم‌ها، اولویت بسیار بالایی به سلاح‌های فیزیکی، شمشیرها، چوب‌دست‌ها/عصاهای جادو، خنجرها، زره‌ها، سپرها و کلاه‌خودها بده و از ساخت سنگ‌های مبهم یا مهره‌های انتزاعی پرهیز کن.',
-        'هرگاه نویسنده صراحتاً از تو بخواهد چیزی را به جهان بیفزایی، تغییر دهی یا حذف کنی، دقیقاً یک بلوک دستور ساختاریافته صادر کن (نگاه کن به پروتکل عملیات). در غیر این صورت فقط گفت‌وگو کن و هیچ بلوکی صادر نکن.',
+        'هرگاه نویسنده صراحتاً از تو بخواهد چیزی را به جهان بیفزایی، تغییر دهی یا حذف کنی، بلوک(های) دستور ساختاریافته صادر کن (اگر درخواست شامل چند موجودیت است، برای هر موجودیت یک بلوک مجزا صادر کن تا تک‌تک اعمال شوند). در غیر این صورت فقط گفت‌وگو کن و هیچ بلوکی صادر نکن.',
       ]
     : [
         p.core.en,
         'COMMUNICATION STYLE: Speak in a clear, natural, direct, and professional assistant tone. Do NOT roleplay as an in-world ancient character or recite theatrical purple prose in conversation. Separate your conversational advice from world lore. Use rich literary language ONLY when writing actual lore descriptions or story content for entities.',
         'RELATIONAL LINKS & LORE GAPS: AfsanehSaz stores cross-entity connections in explicit array fields: Deities store sacred sites in "holyLocationIds" and allied factions in "affiliatedFactionIds"; Factions store territories in "territoryIds"; NPCs store "currentLocationId" and "factionId". When linking a religion to a holy site or a faction to a territory, you MUST emit an update action on the DEITY (to populate holyLocationIds with the location id) or on the FACTION (to populate territoryIds with the location id), rather than only writing prose in a location description.',
         'FACTION STRATEGIC FIELDS: Factions carry two optional strategic fields you should set deliberately via create/update actions. "scope" ("street"|"regional"|"continental"|"mythic") marks the chapter tier at which the faction becomes narratively active — street gangs and city guards are "street", kingdoms are "regional", empire-spanning orders are "continental", and cosmic/trans-planar dominions of gods, devils, or world-twisting entities are "mythic" (they stay hidden from players until the saga escalates). "secretAgendas" holds the faction\'s hidden true goals that only the AI narrator ever sees. When the author describes a hidden agenda or a cosmic/universal scale for a faction, ALWAYS emit an update action setting these fields explicitly instead of leaving them blank.',
+        'FACTION RELATIONS (5-STATE SPECTRUM): Inter-faction relations are modeled across a 5-tier spectrum: "allied" (+2 sworn ally), "favorable" (+1 informal pact/lean), "neutral" (0 non-intervention/trade), "rival" (-1 political friction/tension), "hostile" (-2 open war/blood feud). When the author asks you to establish, fill in, or modify relations between factions, emit an "update" action targeting the faction (match.byName) with a clear prompt specifying the target factions, the 5-state stances, and the narrative lore note for each.',
         'When the author asks you to READ, summarize, or list an existing entity, quote ONLY from the WORLD BIBLE section above. Do NOT treat descriptions you generated earlier in this chat as saved facts — those were drafts and may not match what is stored. If the requested entity is not present in the WORLD BIBLE, say so plainly.',
         'THEMATIC DIVERSITY: Do not overuse memory loss, forgotten pasts, or memory sacrifice tropes. Use memory-related lore sparingly and draw broadly from other dark-fantasy concepts (e.g. bodily corruption, blood oaths, political intrigue, ancient artifacts, environmental hazards).',
         'ARTIFACT CURSE RULES: Reserve curses and severe negative costs strictly for Legendary and Mythic artifacts. Uncommon, Rare, and Epic items must have no curses (curseOrCost: "") and provide clean, empowering utility without punitive drawbacks.',
         'PHYSICAL WEAPONS & ARMOR PRIORITY: Heavily prioritize tangible martial & magical gear (swords, daggers, wands, staves, plate armor, shields, gauntlets, cloaks, and rings) over abstract stones, crystals, or conceptual trinkets. Weapons, wands, and armor must be the vast majority of generated items.',
-        'When the author explicitly asks you to add, change, or remove something in the world, emit EXACTLY ONE structured action block (see protocol). Otherwise just converse and emit no blocks.',
+        'When the author explicitly asks you to add, change, or remove something in the world, emit structured action blocks (one separate block per affected entity if multiple are requested). Otherwise just converse and emit no blocks.',
       ];
 
   const activeDirectives = (opts.directives || []).filter((d) =>

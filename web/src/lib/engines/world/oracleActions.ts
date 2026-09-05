@@ -130,7 +130,31 @@ export async function prepareWorldChanges(opts: {
           });
         } else {
           const changeBrief = a.prompt?.trim() ? a.prompt.trim() : userText || 'Update entity based on user prompt';
-          const editPrompt = `Current entity JSON:\n${JSON.stringify(target, null, 2)}\n\nRequested changes to apply:\n${changeBrief}\n\nReturn the COMPLETE updated entity as a JSON object with ALL original fields preserved and only the requested changes applied. Output valid JSON only matching the entity schema.`;
+          let targetForPrompt = target;
+          if (entity === 'faction' && worldBible) {
+            const existingRelations = (worldBible.factionRelations || [])
+              .filter((r) => r.sourceFactionId === target.id || r.targetFactionId === target.id)
+              .map((r) => {
+                const otherId = r.sourceFactionId === target.id ? r.targetFactionId : r.sourceFactionId;
+                const otherFac = (worldBible.factions || []).find((f) => f.id === otherId);
+                return {
+                  targetFactionId: otherId,
+                  targetFactionName: otherFac?.name || otherId,
+                  value: r.value,
+                  note: r.note || '',
+                  isPublic: r.isPublic ?? true,
+                };
+              });
+            const otherFactions = (worldBible.factions || [])
+              .filter((f) => f.id !== target.id)
+              .map((f) => ({ id: f.id, name: f.name, alignment: f.alignment }));
+            targetForPrompt = {
+              ...target,
+              relations: existingRelations,
+              availableOtherFactions: otherFactions,
+            };
+          }
+          const editPrompt = `Current entity JSON:\n${JSON.stringify(targetForPrompt, null, 2)}\n\nRequested changes to apply:\n${changeBrief}\n\nReturn the COMPLETE updated entity as a JSON object with ALL original fields preserved and only the requested changes applied. Output valid JSON only matching the entity schema.`;
           const editSystem = isPersian
             ? 'تو در حال ویرایش یک موجودیت موجود هستی. خروجی را به صورت شیء JSON کامل شامل تمام فیلدهای پیشین (با اعمال تغییرات) برگردان. نام و شناسه را حفظ کن. فقط JSON معتبر خروجی بده.\n\n'
             : 'You are editing an EXISTING world entity. Return the COMPLETE updated entity as a JSON object with ALL original fields preserved and only the requested changes applied. Preserve name and id. Output valid JSON only.\n\n';

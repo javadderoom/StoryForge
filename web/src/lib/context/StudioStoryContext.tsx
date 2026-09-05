@@ -26,6 +26,7 @@ import {
   FactionRelationValue,
   deriveLegacyFactionLinks,
 } from '@/lib/types';
+import { mergeFactionRelations, syncLegacyFactionLinks } from '@/lib/engines/world/factionRelations';
 import { notify } from '@/lib/notify';
 
 // Resolve a reference (entity id OR human-readable name) to the canonical
@@ -234,8 +235,8 @@ interface StudioStoryContextType {
   editWorldLaw: (id: string, updated: Partial<WorldLaw>) => void;
   deleteWorldLaw: (id: string) => void;
   // Factions CRUD
-  addFaction: (faction: Faction) => void;
-  editFaction: (id: string, updated: Partial<Faction>) => void;
+  addFaction: (faction: Faction & { relations?: any; factionRelations?: any }) => void;
+  editFaction: (id: string, updated: Partial<Faction> & { relations?: any; factionRelations?: any }) => void;
   deleteFaction: (id: string) => void;
   setFactionRelation: (
     sourceFactionId: string,
@@ -795,12 +796,27 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
 
   // Factions CRUD
   const addFaction = useCallback(
-    (faction: Faction) => {
+    (faction: Faction & { relations?: any; factionRelations?: any }) => {
       updateWorldBible((prev) => {
         if (prev.factions.some((f) => f.id === faction.id)) return prev;
+
+        const cleanFaction = { ...faction };
+        delete (cleanFaction as any).relations;
+        delete (cleanFaction as any).factionRelations;
+
+        const allFactionsWithNew = [...prev.factions, cleanFaction];
+        const nextRelations = mergeFactionRelations(
+          faction.id,
+          faction,
+          allFactionsWithNew,
+          prev.factionRelations || []
+        );
+        const syncedFactions = syncLegacyFactionLinks(allFactionsWithNew, nextRelations);
+
         return {
           ...prev,
-          factions: [...prev.factions, faction],
+          factions: syncedFactions,
+          factionRelations: nextRelations,
         };
       });
       notify.success(isPersian ? 'جناح جدید افزوده شد' : 'New faction registered');
@@ -809,11 +825,33 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   );
 
   const editFaction = useCallback(
-    (id: string, updated: Partial<Faction>) => {
-      updateWorldBible((prev) => ({
-        ...prev,
-        factions: prev.factions.map((f) => (f.id === id ? { ...f, ...updated } : f)),
-      }));
+    (id: string, updated: Partial<Faction> & { relations?: any; factionRelations?: any }) => {
+      updateWorldBible((prev) => {
+        const nextRelations = mergeFactionRelations(
+          id,
+          updated,
+          prev.factions,
+          prev.factionRelations || []
+        );
+
+        const updatedFactions = prev.factions.map((f) => {
+          if (f.id === id) {
+            const merged = { ...f, ...updated };
+            delete (merged as any).relations;
+            delete (merged as any).factionRelations;
+            return merged;
+          }
+          return f;
+        });
+
+        const syncedFactions = syncLegacyFactionLinks(updatedFactions, nextRelations);
+
+        return {
+          ...prev,
+          factions: syncedFactions,
+          factionRelations: nextRelations,
+        };
+      });
       notify.success(isPersian ? 'مشخصات جناح ذخیره شد' : 'Faction updated');
     },
     [isPersian, updateWorldBible]
