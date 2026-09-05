@@ -29,7 +29,18 @@ function buildPlayLore(story: any) {
       name: f.name,
       description: f.description || '',
       alignment: f.alignment || '',
+      alliedFactionIds: f.alliedFactionIds || [],
+      rivalFactionIds: f.rivalFactionIds || [],
     })),
+    factionRelations: (wb.factionRelations ?? [])
+      .filter((r: any) => r.isPublic !== false)
+      .map((r: any) => ({
+        id: r.id,
+        sourceFactionId: r.sourceFactionId,
+        targetFactionId: r.targetFactionId,
+        value: r.value,
+        note: r.note || '',
+      })),
     bestiary: (wb.bestiary ?? []).map((c: any) => ({
       id: c.id,
       name: c.name,

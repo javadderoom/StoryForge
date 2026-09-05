@@ -383,3 +383,144 @@ describe('Plan 08 — Saga graph audit (auditSaga)', () => {
     assert.ok(report.findings.some((f) => f.title === 'Scope tier regression'));
   });
 });
+
+describe('5-State Faction Relation Spectrum Audit', () => {
+  it('accepts clean 5-state spectrum relations without false positives', () => {
+    const world = baseWorld({
+      factions: [
+        {
+          id: 'fac_order',
+          name: 'The Golden Order',
+          description: 'Noble paladins.',
+          alignment: 'Lawful',
+          territoryIds: ['loc_a'],
+          rivalFactionIds: [],
+          alliedFactionIds: [],
+          publicGoals: 'Uphold the light',
+        },
+        {
+          id: 'fac_shadows',
+          name: 'The Shadow Guild',
+          description: 'Covert rogues.',
+          alignment: 'Chaotic',
+          territoryIds: ['loc_a'],
+          rivalFactionIds: [],
+          alliedFactionIds: [],
+          publicGoals: 'Freedom of information',
+        },
+      ],
+      factionRelations: [
+        {
+          id: 'frel_1',
+          sourceFactionId: 'fac_order',
+          targetFactionId: 'fac_shadows',
+          value: 'favorable',
+          note: 'Secret treaty between masters',
+          isPublic: true,
+        },
+      ],
+      locations: [
+        {
+          id: 'loc_a',
+          name: 'Capital',
+          description: 'A grand city.',
+          dangerLevel: 1,
+          region: 'Core',
+          atmosphere: 'Bustling',
+          connectedLocationIds: [],
+        },
+      ],
+    });
+
+    const report = LoreAuditor.audit(world);
+    const spectrumFindings = report.findings.filter((f) => f.category === 'faction_rivalry');
+    assert.equal(spectrumFindings.length, 0, 'expected zero faction rivalry findings for valid spectrum');
+  });
+
+  it('detects allied vs hostile contradiction between factions', () => {
+    const world = baseWorld({
+      factions: [
+        {
+          id: 'fac_a',
+          name: 'Faction Alpha',
+          description: 'Alpha.',
+          alignment: 'Lawful',
+          territoryIds: [],
+          rivalFactionIds: [],
+          alliedFactionIds: [],
+          publicGoals: 'Rule',
+        },
+        {
+          id: 'fac_b',
+          name: 'Faction Beta',
+          description: 'Beta.',
+          alignment: 'Rebel',
+          territoryIds: [],
+          rivalFactionIds: [],
+          alliedFactionIds: [],
+          publicGoals: 'Rebel',
+        },
+      ],
+      factionRelations: [
+        {
+          id: 'frel_1',
+          sourceFactionId: 'fac_a',
+          targetFactionId: 'fac_b',
+          value: 'allied',
+        },
+        {
+          id: 'frel_2',
+          sourceFactionId: 'fac_b',
+          targetFactionId: 'fac_a',
+          value: 'hostile',
+        },
+      ],
+    });
+
+    const report = LoreAuditor.audit(world);
+    const clash = report.findings.find((f) => f.title === 'Allied↔hostile contradiction');
+    assert.ok(clash, 'expected Allied↔hostile contradiction finding');
+    assert.equal(clash?.severity, 'error');
+  });
+
+  it('detects legacy array vs spectrum contradiction', () => {
+    const world = baseWorld({
+      factions: [
+        {
+          id: 'fac_a',
+          name: 'Faction Alpha',
+          description: 'Alpha.',
+          alignment: 'Lawful',
+          territoryIds: [],
+          rivalFactionIds: [],
+          alliedFactionIds: ['fac_b'],
+          publicGoals: 'Rule',
+        },
+        {
+          id: 'fac_b',
+          name: 'Faction Beta',
+          description: 'Beta.',
+          alignment: 'Rebel',
+          territoryIds: [],
+          rivalFactionIds: [],
+          alliedFactionIds: [],
+          publicGoals: 'Rebel',
+        },
+      ],
+      factionRelations: [
+        {
+          id: 'frel_1',
+          sourceFactionId: 'fac_a',
+          targetFactionId: 'fac_b',
+          value: 'hostile',
+        },
+      ],
+    });
+
+    const report = LoreAuditor.audit(world);
+    const clash = report.findings.find((f) => f.title === 'Legacy ally vs spectrum enemy');
+    assert.ok(clash, 'expected Legacy ally vs spectrum enemy finding');
+    assert.equal(clash?.severity, 'warning');
+  });
+});
+

@@ -17,6 +17,7 @@ describe('Publish gate + placeholder + saga-stat checks', () => {
       factions: [{ id: 'fac_001', name: 'Faction', description: '', alignment: 'neutral', publicGoals: '', secretAgendas: '', rivalFactionIds: [], alliedFactionIds: [], territoryIds: [] }],
       locations: [{ id: 'loc_001', name: 'Location', region: '', description: '', atmosphere: '', dangerLevel: 3, specialRules: [], connectedLocationIds: [] }],
       religions: [{ id: 'deity_001', name: 'Deity', title: '', domain: 'light', sacredSymbol: '', coreDogma: '', taboos: [], divineBlessings: [] }],
+      factionRelations: [],
       coreCampaignMystery: '',
     });
     assert.ok(issues.length > 0);

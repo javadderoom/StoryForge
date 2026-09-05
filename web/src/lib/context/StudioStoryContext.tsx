@@ -22,6 +22,9 @@ import {
   WorldDeity,
   NPCDramaBond,
   SagaManifest,
+  FactionRelation,
+  FactionRelationValue,
+  deriveLegacyFactionLinks,
 } from '@/lib/types';
 import { notify } from '@/lib/notify';
 
@@ -234,6 +237,14 @@ interface StudioStoryContextType {
   addFaction: (faction: Faction) => void;
   editFaction: (id: string, updated: Partial<Faction>) => void;
   deleteFaction: (id: string) => void;
+  setFactionRelation: (
+    sourceFactionId: string,
+    targetFactionId: string,
+    value: FactionRelationValue,
+    note?: string,
+    isPublic?: boolean
+  ) => void;
+  deleteFactionRelation: (sourceFactionId: string, targetFactionId: string) => void;
   // RPG System CRUD
   updateRpgSystem: (updater: (prev: RPGSystemSchema) => RPGSystemSchema) => void;
   // NPCs CRUD
@@ -821,13 +832,120 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
 
   const deleteFaction = useCallback(
     (id: string) => {
-      updateWorldBible((prev) => ({
-        ...prev,
-        factions: prev.factions.filter((f) => f.id !== id),
-      }));
+      updateWorldBible((prev) => {
+        const remainingFactions = prev.factions.filter((f) => f.id !== id);
+        const updatedRelations = (prev.factionRelations || []).filter(
+          (r) => r.sourceFactionId !== id && r.targetFactionId !== id
+        );
+        const links = deriveLegacyFactionLinks(updatedRelations);
+        const syncedFactions = remainingFactions.map((f) => {
+          const link = links.get(f.id);
+          return {
+            ...f,
+            alliedFactionIds: link ? Array.from(new Set(link.allies)) : (f.alliedFactionIds || []).filter((aid) => aid !== id),
+            rivalFactionIds: link ? Array.from(new Set(link.rivals)) : (f.rivalFactionIds || []).filter((rid) => rid !== id),
+          };
+        });
+
+        return {
+          ...prev,
+          factions: syncedFactions,
+          factionRelations: updatedRelations,
+        };
+      });
       notify.info(isPersian ? 'جناح حذف شد' : 'Faction removed');
     },
     [isPersian, updateWorldBible]
+  );
+
+  const setFactionRelation = useCallback(
+    (
+      sourceFactionId: string,
+      targetFactionId: string,
+      value: FactionRelationValue,
+      note?: string,
+      isPublic: boolean = true
+    ) => {
+      updateWorldBible((prev) => {
+        const existingRelations = prev.factionRelations || [];
+        const matchIdx = existingRelations.findIndex(
+          (r) =>
+            (r.sourceFactionId === sourceFactionId && r.targetFactionId === targetFactionId) ||
+            (r.sourceFactionId === targetFactionId && r.targetFactionId === sourceFactionId)
+        );
+
+        let updatedRelations: FactionRelation[];
+        if (matchIdx >= 0) {
+          const updatedItem: FactionRelation = {
+            ...existingRelations[matchIdx],
+            sourceFactionId,
+            targetFactionId,
+            value,
+            note: note !== undefined ? note : existingRelations[matchIdx].note,
+            isPublic: isPublic !== undefined ? isPublic : existingRelations[matchIdx].isPublic ?? true,
+          };
+          updatedRelations = [...existingRelations];
+          updatedRelations[matchIdx] = updatedItem;
+        } else {
+          const newItem: FactionRelation = {
+            id: `frel_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+            sourceFactionId,
+            targetFactionId,
+            value,
+            note: note || '',
+            isPublic,
+          };
+          updatedRelations = [...existingRelations, newItem];
+        }
+
+        const links = deriveLegacyFactionLinks(updatedRelations);
+        const syncedFactions = prev.factions.map((f) => {
+          const link = links.get(f.id);
+          return {
+            ...f,
+            alliedFactionIds: link ? Array.from(new Set(link.allies)) : [],
+            rivalFactionIds: link ? Array.from(new Set(link.rivals)) : [],
+          };
+        });
+
+        return {
+          ...prev,
+          factions: syncedFactions,
+          factionRelations: updatedRelations,
+        };
+      });
+    },
+    [updateWorldBible]
+  );
+
+  const deleteFactionRelation = useCallback(
+    (sourceFactionId: string, targetFactionId: string) => {
+      updateWorldBible((prev) => {
+        const updatedRelations = (prev.factionRelations || []).filter(
+          (r) =>
+            !(
+              (r.sourceFactionId === sourceFactionId && r.targetFactionId === targetFactionId) ||
+              (r.sourceFactionId === targetFactionId && r.targetFactionId === sourceFactionId)
+            )
+        );
+        const links = deriveLegacyFactionLinks(updatedRelations);
+        const syncedFactions = prev.factions.map((f) => {
+          const link = links.get(f.id);
+          return {
+            ...f,
+            alliedFactionIds: link ? Array.from(new Set(link.allies)) : [],
+            rivalFactionIds: link ? Array.from(new Set(link.rivals)) : [],
+          };
+        });
+
+        return {
+          ...prev,
+          factions: syncedFactions,
+          factionRelations: updatedRelations,
+        };
+      });
+    },
+    [updateWorldBible]
   );
 
   // RPG System CRUD
@@ -985,19 +1103,21 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         const npcId = isNpc(sourceId) ? sourceId : targetId;
         const locId = isLocation(sourceId) ? sourceId : targetId;
         editNpc(npcId, { currentLocationId: locId });
-      } else if (relationType === 'faction_ally' || (relationType === 'ally' && isFaction(sourceId) && isFaction(targetId))) {
-        const fac1 = factions.find((f) => f.id === sourceId);
-        const fac2 = factions.find((f) => f.id === targetId);
-        if (fac1) {
-          editFaction(sourceId, {
-            alliedFactionIds: Array.from(new Set([...(fac1.alliedFactionIds || []), targetId])),
-          });
-        }
-        if (fac2) {
-          editFaction(targetId, {
-            alliedFactionIds: Array.from(new Set([...(fac2.alliedFactionIds || []), sourceId])),
-          });
-        }
+      } else if (
+        relationType === 'faction_allied' ||
+        relationType === 'faction_ally' ||
+        (relationType === 'ally' && isFaction(sourceId) && isFaction(targetId))
+      ) {
+        setFactionRelation(sourceId, targetId, 'allied');
+      } else if (relationType === 'faction_favorable') {
+        setFactionRelation(sourceId, targetId, 'favorable');
+      } else if (relationType === 'faction_rival') {
+        setFactionRelation(sourceId, targetId, 'rival');
+      } else if (
+        relationType === 'faction_hostile' ||
+        (relationType === 'rival' && isFaction(sourceId) && isFaction(targetId))
+      ) {
+        setFactionRelation(sourceId, targetId, 'hostile');
       } else if (relationType === 'ally' || (isNpc(sourceId) && isFaction(targetId)) || (isFaction(sourceId) && isNpc(targetId))) {
         const npcId = isNpc(sourceId) ? sourceId : targetId;
         const facId = isFaction(sourceId) ? sourceId : targetId;
@@ -1009,19 +1129,6 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         if (fac) {
           editFaction(facId, {
             territoryIds: Array.from(new Set([...(fac.territoryIds || []), locId])),
-          });
-        }
-      } else if (relationType === 'rival' || (isFaction(sourceId) && isFaction(targetId))) {
-        const fac1 = factions.find((f) => f.id === sourceId);
-        const fac2 = factions.find((f) => f.id === targetId);
-        if (fac1) {
-          editFaction(sourceId, {
-            rivalFactionIds: Array.from(new Set([...(fac1.rivalFactionIds || []), targetId])),
-          });
-        }
-        if (fac2) {
-          editFaction(targetId, {
-            rivalFactionIds: Array.from(new Set([...(fac2.rivalFactionIds || []), sourceId])),
           });
         }
       } else {
@@ -1095,11 +1202,23 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
       } else if (relationType.includes('استقرار') || relationType.includes('Stationed') || relationType === 'residence' || (isNpc(sourceId) && isLocation(targetId))) {
         const npcId = isNpc(sourceId) ? sourceId : targetId;
         editNpc(npcId, { currentLocationId: '' });
-      } else if (relationType.includes('هم‌پیمان') || relationType.includes('Treaty') || relationType === 'faction_ally') {
-        const fac1 = factions.find((f) => f.id === sourceId);
-        const fac2 = factions.find((f) => f.id === targetId);
-        if (fac1) editFaction(sourceId, { alliedFactionIds: (fac1.alliedFactionIds || []).filter((id) => id !== targetId) });
-        if (fac2) editFaction(targetId, { alliedFactionIds: (fac2.alliedFactionIds || []).filter((id) => id !== sourceId) });
+      } else if (
+        relationType.includes('هم‌پیمان') ||
+        relationType.includes('متحد') ||
+        relationType.includes('Allied') ||
+        relationType.includes('Treaty') ||
+        relationType === 'faction_allied' ||
+        relationType === 'faction_favorable' ||
+        relationType === 'faction_ally' ||
+        relationType.includes('دشمن') ||
+        relationType.includes('رقیب') ||
+        relationType.includes('Rival') ||
+        relationType.includes('Hostile') ||
+        relationType === 'faction_rival' ||
+        relationType === 'faction_hostile' ||
+        (isFaction(sourceId) && isFaction(targetId))
+      ) {
+        deleteFactionRelation(sourceId, targetId);
       } else if (relationType.includes('جناح') || relationType.includes('Member') || relationType === 'ally') {
         const npcId = isNpc(sourceId) ? sourceId : targetId;
         editNpc(npcId, { factionId: undefined });
@@ -1110,11 +1229,6 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         if (fac) {
           editFaction(facId, { territoryIds: (fac.territoryIds || []).filter((id) => id !== locId) });
         }
-      } else if (relationType.includes('دشمن') || relationType.includes('Rival') || relationType === 'rival' || (isFaction(sourceId) && isFaction(targetId))) {
-        const fac1 = factions.find((f) => f.id === sourceId);
-        const fac2 = factions.find((f) => f.id === targetId);
-        if (fac1) editFaction(sourceId, { rivalFactionIds: (fac1.rivalFactionIds || []).filter((id) => id !== targetId) });
-        if (fac2) editFaction(targetId, { rivalFactionIds: (fac2.rivalFactionIds || []).filter((id) => id !== sourceId) });
       } else {
         // Remove from customRelations (resolve stored refs too, so links the
         // AI adviser authored by name can still be deleted).
@@ -1719,6 +1833,8 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         addFaction,
         editFaction,
         deleteFaction,
+        setFactionRelation,
+        deleteFactionRelation,
         updateRpgSystem,
         updateNpcs,
         addNpc,

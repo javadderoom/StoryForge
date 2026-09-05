@@ -16,6 +16,13 @@ export const GenesisLocationSchema = z.object({
 });
 
 
+export const GenesisFactionRelationSchema = z.object({
+  sourceFactionId: z.string().default(''),
+  targetFactionId: z.string().default(''),
+  value: z.enum(['allied', 'favorable', 'neutral', 'rival', 'hostile']).default('neutral'),
+  note: z.string().default(''),
+});
+
 export const GenesisFactionSchema = z.object({
   id: z.string().default(() => `fac_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`),
   name: z.string().min(1).default('Unnamed Faction'),
@@ -56,6 +63,7 @@ export const GenesisWorldSchema = z.object({
   aiSystemPrompt: z.string().default(''),
   laws: z.array(GenesisLawSchema).default([]),
   factions: z.array(GenesisFactionSchema).default([]),
+  factionRelations: z.array(GenesisFactionRelationSchema).optional().default([]),
   locations: z.array(GenesisLocationSchema).default([]),
   religions: z.array(GenesisReligionSchema).default([]),
   coreCampaignMystery: z.string().default(''),
@@ -206,6 +214,18 @@ export function normalizeGenesisData(raw: any): GenesisWorldData {
 
   const coreCampaignMystery = raw.coreCampaignMystery || raw.mystery || raw.campaignMystery || '';
 
+  const rawRelations = Array.isArray(raw.factionRelations)
+    ? raw.factionRelations
+    : Array.isArray(raw.relations)
+    ? raw.relations
+    : [];
+  const factionRelations = rawRelations.map((r: any) => ({
+    sourceFactionId: r?.sourceFactionId || '',
+    targetFactionId: r?.targetFactionId || '',
+    value: ['allied', 'favorable', 'neutral', 'rival', 'hostile'].includes(r?.value) ? r.value : 'neutral',
+    note: r?.note || '',
+  }));
+
   return GenesisWorldSchema.parse({
     worldName,
     tagline,
@@ -214,6 +234,7 @@ export function normalizeGenesisData(raw: any): GenesisWorldData {
     aiSystemPrompt,
     laws,
     factions,
+    factionRelations,
     locations,
     religions,
     coreCampaignMystery,

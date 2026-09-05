@@ -925,6 +925,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
     final relationships = player.relationships;
     final worldNpcs = (session.lore?['npcs'] as List<dynamic>?) ?? [];
     final factions = (session.lore?['factions'] as List<dynamic>?) ?? [];
+    final factionRelations = (session.lore?['factionRelations'] as List<dynamic>?) ?? [];
 
     if (relationships.isEmpty && worldNpcs.isEmpty && factions.isEmpty) {
       return Center(
@@ -1042,54 +1043,201 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
           ),
           const SizedBox(height: 12),
           for (final fac in factions) ...[
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF10121D),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF272A3C)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            Builder(
+              builder: (context) {
+                final facId = fac['id'] as String? ?? '';
+                final rels = <Map<String, dynamic>>[];
+
+                for (final r in factionRelations) {
+                  if (r is! Map) continue;
+                  final src = r['sourceFactionId'] as String? ?? '';
+                  final tgt = r['targetFactionId'] as String? ?? '';
+                  if (src == facId || tgt == facId) {
+                    final otherId = src == facId ? tgt : src;
+                    final otherFac = factions.firstWhere(
+                      (f) => f is Map && f['id'] == otherId,
+                      orElse: () => null,
+                    );
+                    if (otherFac != null) {
+                      final val = r['value'] as String? ?? 'neutral';
+                      final note = r['note'] as String? ?? '';
+                      if (val != 'neutral' || note.isNotEmpty) {
+                        rels.add({
+                          'otherName': otherFac['name'] ?? otherId,
+                          'value': val,
+                          'note': note,
+                        });
+                      }
+                    }
+                  }
+                }
+
+                // Fallback to legacy fields if no explicit spectrum relations
+                if (rels.isEmpty) {
+                  final allies = (fac['alliedFactionIds'] as List<dynamic>?) ?? [];
+                  for (final aid in allies) {
+                    final otherFac = factions.firstWhere((f) => f is Map && f['id'] == aid, orElse: () => null);
+                    if (otherFac != null) {
+                      rels.add({
+                        'otherName': otherFac['name'] ?? aid,
+                        'value': 'allied',
+                        'note': '',
+                      });
+                    }
+                  }
+                  final rivals = (fac['rivalFactionIds'] as List<dynamic>?) ?? [];
+                  for (final rid in rivals) {
+                    final otherFac = factions.firstWhere((f) => f is Map && f['id'] == rid, orElse: () => null);
+                    if (otherFac != null) {
+                      rels.add({
+                        'otherName': otherFac['name'] ?? rid,
+                        'value': 'rival',
+                        'note': '',
+                      });
+                    }
+                  }
+                }
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10121D),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF272A3C)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.shield_outlined, color: Color(0xFF60A5FA), size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          fac['name'] ?? '',
-                          style: GoogleFonts.vazirmatn(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                      Row(
+                        children: [
+                          const Icon(Icons.shield_outlined, color: Color(0xFF60A5FA), size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              fac['name'] ?? '',
+                              style: GoogleFonts.vazirmatn(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
-                        ),
+                          if ((fac['alignment'] as String?)?.isNotEmpty == true)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF60A5FA).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                fac['alignment'],
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF60A5FA)),
+                              ),
+                            ),
+                        ],
                       ),
-                      if ((fac['alignment'] as String?)?.isNotEmpty == true)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF60A5FA).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            fac['alignment'],
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF60A5FA)),
-                          ),
+                      if ((fac['description'] as String?)?.isNotEmpty == true) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          fac['description'],
+                          style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white70, height: 1.5),
                         ),
+                      ],
+                      if (rels.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: rels.map((rel) {
+                            final stance = rel['value'] as String;
+                            final otherName = rel['otherName'] as String;
+                            Color badgeColor;
+                            IconData badgeIcon;
+                            String badgeLabel;
+
+                            switch (stance) {
+                              case 'allied':
+                                badgeColor = const Color(0xFF10B981);
+                                badgeIcon = Icons.handshake_rounded;
+                                badgeLabel = isPersian ? 'متحد رسمی: $otherName' : 'Ally: $otherName';
+                                break;
+                              case 'favorable':
+                                badgeColor = const Color(0xFF38BDF8);
+                                badgeIcon = Icons.shield_outlined;
+                                badgeLabel = isPersian ? 'هم‌پیمان پنهان: $otherName' : 'Favorable: $otherName';
+                                break;
+                              case 'rival':
+                                badgeColor = const Color(0xFFF59E0B);
+                                badgeIcon = Icons.compare_arrows_rounded;
+                                badgeLabel = isPersian ? 'رقیب: $otherName' : 'Rival: $otherName';
+                                break;
+                              case 'hostile':
+                                badgeColor = const Color(0xFFEF4444);
+                                badgeIcon = Icons.local_fire_department_rounded;
+                                badgeLabel = isPersian ? 'دشمن خونی: $otherName' : 'Blood Enemy: $otherName';
+                                break;
+                              case 'neutral':
+                                badgeColor = const Color(0xFF94A3B8);
+                                badgeIcon = Icons.remove_circle_outline_rounded;
+                                badgeLabel = isPersian ? 'بی‌طرف: $otherName' : 'Neutral: $otherName';
+                                break;
+                              default:
+                                badgeColor = Colors.white54;
+                                badgeIcon = Icons.circle_outlined;
+                                badgeLabel = otherName;
+                            }
+
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: badgeColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(badgeIcon, size: 13, color: badgeColor),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    badgeLabel,
+                                    style: GoogleFonts.vazirmatn(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: badgeColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        for (final rel in rels.where((r) => (r['note'] as String? ?? '').isNotEmpty))
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.subdirectory_arrow_left_rounded, size: 12, color: Colors.white38),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    '${rel['otherName']}: ${rel['note']}',
+                                    style: GoogleFonts.vazirmatn(
+                                      fontSize: 10.5,
+                                      color: Colors.white54,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
                     ],
                   ),
-                  if ((fac['description'] as String?)?.isNotEmpty == true) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      fac['description'],
-                      style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white70, height: 1.5),
-                    ),
-                  ],
-                ],
-              ),
+                );
+              },
             ),
           ],
         ],

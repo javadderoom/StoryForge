@@ -45,6 +45,7 @@ export interface GraphEdge {
   target: string;
   label: string;
   color: string;
+  dashed?: boolean;
 }
 
 interface LoreGraphCanvasProps {
@@ -105,8 +106,49 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
     const laws = worldBible.laws || [];
 
     // 1. Factions (Top Row: Y = 90)
-    const seenRivals = new Set<string>();
-    const seenAllies = new Set<string>();
+    const seenFactionPairs = new Set<string>();
+
+    // 1a. Explicit 5-state spectrum relations
+    (worldBible.factionRelations || []).forEach((rel) => {
+      const edgeKey = [rel.sourceFactionId, rel.targetFactionId].sort().join('--');
+      if (seenFactionPairs.has(edgeKey)) return;
+      seenFactionPairs.add(edgeKey);
+
+      // Skip unnoted neutral relations to keep canvas readable
+      if (rel.value === 'neutral' && !rel.note) return;
+
+      let color = '#94A3B8';
+      let label = isPersian ? 'بی‌طرف' : 'Neutral';
+      let dashed = true;
+
+      if (rel.value === 'allied') {
+        color = '#10B981'; // Emerald
+        label = isPersian ? 'متحد رسمی' : 'Sworn Ally';
+        dashed = false;
+      } else if (rel.value === 'favorable') {
+        color = '#38BDF8'; // Sky Blue
+        label = isPersian ? 'هم‌پیمان پنهان' : 'Favorable';
+        dashed = true;
+      } else if (rel.value === 'rival') {
+        color = '#F59E0B'; // Amber
+        label = isPersian ? 'رقیب' : 'Rival';
+        dashed = true;
+      } else if (rel.value === 'hostile') {
+        color = '#EF4444'; // Red
+        label = isPersian ? 'دشمن خونی' : 'Blood Enemy';
+        dashed = false;
+      }
+
+      edgesList.push({
+        id: `edge-fac-rel-${edgeKey}`,
+        source: rel.sourceFactionId,
+        target: rel.targetFactionId,
+        label: rel.note ? `${label}: ${rel.note}` : label,
+        color,
+        dashed,
+      });
+    });
+
     factions.forEach((fac, idx) => {
       const x = 240 + idx * 360;
       const y = 90;
@@ -131,32 +173,34 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
         });
       });
 
-      // Faction alliances (Treaty Allies)
+      // Fallback: Legacy alliances if not in factionRelations
       (fac.alliedFactionIds || []).forEach((aId) => {
         const edgeKey = [fac.id, aId].sort().join('--');
-        if (!seenAllies.has(edgeKey)) {
-          seenAllies.add(edgeKey);
+        if (!seenFactionPairs.has(edgeKey)) {
+          seenFactionPairs.add(edgeKey);
           edgesList.push({
             id: `edge-fac-ally-${edgeKey}`,
             source: fac.id,
             target: aId,
-            label: isPersian ? 'هم‌پیمان رسمی' : 'Treaty Ally',
+            label: isPersian ? 'متحد رسمی' : 'Sworn Ally',
             color: '#10B981', // Emerald Green
+            dashed: false,
           });
         }
       });
 
-      // Faction rivalries
+      // Fallback: Legacy rivalries if not in factionRelations
       (fac.rivalFactionIds || []).forEach((rId) => {
         const edgeKey = [fac.id, rId].sort().join('--');
-        if (!seenRivals.has(edgeKey)) {
-          seenRivals.add(edgeKey);
+        if (!seenFactionPairs.has(edgeKey)) {
+          seenFactionPairs.add(edgeKey);
           edgesList.push({
             id: `edge-fac-rival-${edgeKey}`,
             source: fac.id,
             target: rId,
-            label: isPersian ? 'دشمن خونی' : 'Rival Enemy',
+            label: isPersian ? 'دشمن خونی' : 'Blood Enemy',
             color: '#EF4444', // Red
+            dashed: false,
           });
         }
       });
@@ -875,15 +919,15 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
                     stroke={edge.color}
                     strokeWidth={isHighlighted ? 3.5 : 2.2}
                     strokeOpacity={isHighlighted ? 1 : 0.75}
-                    strokeDasharray={edge.label.includes('دشمن') || edge.label.includes('Rival') ? '6,6' : 'none'}
+                    strokeDasharray={edge.dashed ? '6,6' : edge.label.includes('دشمن') || edge.label.includes('Rival') ? '6,6' : 'none'}
                   />
 
                   {/* Relationship Label Pill Badge */}
                   <g transform={`translate(${cx}, ${cy})`}>
                     <rect
-                      x={-46}
+                      x={-Math.max(46, edge.label.length * 3.5 + 8)}
                       y={-11}
-                      width={92}
+                      width={Math.max(92, edge.label.length * 7 + 16)}
                       height={22}
                       rx={11}
                       fill="#0D1022"
@@ -957,9 +1001,11 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
           {(worldBible.ontology?.relationTypes || [
             { id: 'path', name: t.path, color: '#38BDF8' },
             { id: 'residence', name: t.residence, color: '#F59E0B' },
-            { id: 'faction_ally', name: isPersian ? 'هم‌پیمان رسمی' : 'Treaty Ally', color: '#10B981' },
+            { id: 'faction_allied', name: isPersian ? 'متحد رسمی' : 'Sworn Ally', color: '#10B981' },
+            { id: 'faction_favorable', name: isPersian ? 'هم‌پیمان پنهان' : 'Favorable', color: '#38BDF8' },
+            { id: 'faction_rival', name: isPersian ? 'رقیب' : 'Rival', color: '#F59E0B' },
+            { id: 'faction_hostile', name: isPersian ? 'دشمن خونی' : 'Blood Enemy', color: '#EF4444' },
             { id: 'territory', name: t.territory, color: '#A855F7' },
-            { id: 'rival', name: t.rival, color: '#EF4444' },
           ]).map((rt) => (
             <span key={rt.id} className="flex items-center gap-1.5" style={{ color: rt.color }}>
               <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: rt.color }} /> {rt.name}
@@ -1072,9 +1118,11 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
                         { id: 'path', name: isPersian ? 'مسیر ارتباطی (بین ۲ مکان)' : 'Travel Path (Location <-> Location)' },
                         { id: 'residence', name: isPersian ? 'محل استقرار (شخصیت در مکان)' : 'Stationed At (NPC -> Location)' },
                         { id: 'ally', name: isPersian ? 'عضو ارشد جناح (شخصیت در جناح)' : 'Faction Member (NPC -> Faction)' },
-                        { id: 'faction_ally', name: isPersian ? 'هم‌پیمان رسمی (بین ۲ جناح)' : 'Treaty Alliance (Faction <-> Faction)' },
+                        { id: 'faction_allied', name: isPersian ? 'متحد رسمی (بین ۲ جناح)' : 'Sworn Ally (Faction <-> Faction)' },
+                        { id: 'faction_favorable', name: isPersian ? 'هم‌پیمان پنهان (بین ۲ جناح)' : 'Favorable (Faction <-> Faction)' },
+                        { id: 'faction_rival', name: isPersian ? 'رقیب ایدئولوژیک (بین ۲ جناح)' : 'Rival (Faction <-> Faction)' },
+                        { id: 'faction_hostile', name: isPersian ? 'دشمن خونی / جنگ علنی (بین ۲ جناح)' : 'Blood Enemy (Faction <-> Faction)' },
                         { id: 'territory', name: isPersian ? 'قلمرو حاکمیت (جناح در مکان)' : 'Territory (Faction -> Location)' },
-                        { id: 'rival', name: isPersian ? 'دشمن خونی (جناح علیه جناح)' : 'Rivalry (Faction <-> Faction)' },
                       ]).map((rt) => (
                         <option key={rt.id} value={rt.id}>
                           {rt.name}

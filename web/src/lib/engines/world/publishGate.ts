@@ -41,6 +41,7 @@ export function canPublish(
     factions: (worldBible.factions || []) as unknown as GenesisWorldData['factions'],
     locations: (worldBible.locations || []) as unknown as GenesisWorldData['locations'],
     religions: (worldBible.religions || []) as unknown as GenesisWorldData['religions'],
+    factionRelations: (worldBible.factionRelations || []) as unknown as GenesisWorldData['factionRelations'],
     coreCampaignMystery: '',
   });
 

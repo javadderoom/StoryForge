@@ -12,6 +12,7 @@ import {
   WorldLaw,
   NPCDramaBond,
   WorldOntology,
+  FactionRelation,
 } from '@/lib/types/world';
 
 const isDatabaseActive = process.env.ENABLE_DB === 'true';
@@ -117,6 +118,7 @@ export class StoryRepository {
         bestiary: (wb.bestiary as unknown as WorldCreature[]) || [],
         religions: (wb.religions as unknown as WorldDeity[]) || [],
         dramaBonds: (wb.dramaBonds as unknown as NPCDramaBond[]) || [],
+        factionRelations: ((wb as any).factionRelations as unknown as FactionRelation[]) || [],
         ontology: (wb.ontology as unknown as WorldOntology) || undefined,
         customRelations: [],
       };
@@ -297,6 +299,23 @@ export class StoryRepository {
   }
 
   /**
+   * Selectively fetches only the 5-state Faction Relations for a story.
+   */
+  static async getFactionRelations(storyId: string): Promise<FactionRelation[]> {
+    if (!isDatabaseActive) return [];
+    try {
+      const wb = await prisma.worldBible.findUnique({
+        where: { storyId },
+        select: { factionRelations: true },
+      });
+      return ((wb as any)?.factionRelations as unknown as FactionRelation[]) || [];
+    } catch (e) {
+      console.warn(`Database fetch error for factionRelations ${storyId}:`, e);
+      return [];
+    }
+  }
+
+  /**
    * Performs an atomic partial update on a specific lore collection,
    * keeping both the PostgreSQL column and Story.manifest in 100% sync.
    */
@@ -312,7 +331,8 @@ export class StoryRepository {
       | 'bestiary'
       | 'religions'
       | 'dramaBonds'
-      | 'ontology',
+      | 'ontology'
+      | 'factionRelations',
     data: any
   ) {
     if (!isDatabaseActive) {
@@ -431,6 +451,7 @@ export class StoryRepository {
             bestiary: (manifest.worldBible.bestiary || []) as any,
             religions: (manifest.worldBible.religions || []) as any,
             dramaBonds: (manifest.worldBible.dramaBonds || []) as any,
+            factionRelations: (manifest.worldBible.factionRelations || []) as any,
             ontology: (manifest.worldBible.ontology || {}) as any,
           },
           create: {
@@ -447,6 +468,7 @@ export class StoryRepository {
             bestiary: (manifest.worldBible.bestiary || []) as any,
             religions: (manifest.worldBible.religions || []) as any,
             dramaBonds: (manifest.worldBible.dramaBonds || []) as any,
+            factionRelations: (manifest.worldBible.factionRelations || []) as any,
             ontology: (manifest.worldBible.ontology || {}) as any,
           },
         });

@@ -281,8 +281,16 @@ export class LoreAuditor {
   // Faction A lists B as rival but B does not list A → asymmetry suggestion
   private static checkFactionRivalryAsymmetry(world: WorldBible, findings: ContradictionFinding[]): void {
     const byId = new Map(world.factions.map((f) => [f.id, f]));
+    const spectrumPairs = new Set<string>();
+    for (const r of world.factionRelations || []) {
+      spectrumPairs.add([r.sourceFactionId, r.targetFactionId].sort().join('↔'));
+    }
+
     for (const fac of world.factions) {
       for (const rivalId of fac.rivalFactionIds || []) {
+        const pairKey = [fac.id, rivalId].sort().join('↔');
+        if (spectrumPairs.has(pairKey)) continue;
+
         const rival = byId.get(rivalId);
         if (rival && !(rival.rivalFactionIds || []).includes(fac.id)) {
           findings.push({
@@ -303,8 +311,8 @@ export class LoreAuditor {
   }
 
   /**
-   * 5-state spectrum audit: reverse-entry symmetry, allied↔hostile
-   * contradictions, duplicate pairs, and legacy-array conflicts.
+   * 5-state spectrum audit: allied↔hostile contradictions,
+   * duplicate pairs, and legacy-array conflicts.
    */
   private static checkFactionRelationSpectrum(world: WorldBible, findings: ContradictionFinding[]): void {
     const byId = new Map(world.factions.map((f) => [f.id, f]));
@@ -340,20 +348,6 @@ export class LoreAuditor {
           suggestedFix: clash
             ? 'Keep either the alliance or the blood enmity and delete the other entry.'
             : 'Set both directions to the same spectrum value (allied/favorable/neutral/rival/hostile).',
-        });
-      }
-      if (group.length === 1) {
-        findings.push({
-          id: `faction_spectrum_onesided_${group[0].id}`,
-          severity: 'suggestion',
-          category: 'faction_rivalry',
-          title: 'One-sided spectrum entry',
-          description: `Relation "${xn} → ${yn}" (${group[0].value}) has no reverse entry. Undirected pairs read cleaner with both directions recorded.`,
-          involvedEntities: [
-            { entityType: 'faction', name: xn },
-            { entityType: 'faction', name: yn },
-          ],
-          suggestedFix: `Add the reverse "${yn} → ${xn}" entry with the same value, or confirm one-sidedness is intentional.`,
         });
       }
     }
