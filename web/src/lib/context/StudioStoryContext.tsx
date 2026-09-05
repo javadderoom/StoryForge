@@ -27,6 +27,7 @@ import {
   deriveLegacyFactionLinks,
 } from '@/lib/types';
 import { mergeFactionRelations, syncLegacyFactionLinks } from '@/lib/engines/world/factionRelations';
+import type { WorldActionChange } from '@/lib/engines/world/oracleActions';
 import { notify } from '@/lib/notify';
 
 // Resolve a reference (entity id OR human-readable name) to the canonical
@@ -246,6 +247,7 @@ interface StudioStoryContextType {
     isPublic?: boolean
   ) => void;
   deleteFactionRelation: (sourceFactionId: string, targetFactionId: string) => void;
+  batchApplyWorldChanges: (changes: WorldActionChange[]) => void;
   // RPG System CRUD
   updateRpgSystem: (updater: (prev: RPGSystemSchema) => RPGSystemSchema) => void;
   // NPCs CRUD
@@ -809,9 +811,12 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
           faction.id,
           faction,
           allFactionsWithNew,
-          prev.factionRelations || []
+          prev.factionRelations || [],
+          { deities: prev.religions, autoProvision: true }
         );
-        const syncedFactions = syncLegacyFactionLinks(allFactionsWithNew, nextRelations);
+        const autoCreated = ((nextRelations as any).autoCreatedFactions as Faction[]) || [];
+        const combinedFactions = autoCreated.length > 0 ? [...allFactionsWithNew, ...autoCreated] : allFactionsWithNew;
+        const syncedFactions = syncLegacyFactionLinks(combinedFactions, nextRelations);
 
         return {
           ...prev,
@@ -831,8 +836,10 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
           id,
           updated,
           prev.factions,
-          prev.factionRelations || []
+          prev.factionRelations || [],
+          { deities: prev.religions, autoProvision: true }
         );
+        const autoCreated = ((nextRelations as any).autoCreatedFactions as Faction[]) || [];
 
         const updatedFactions = prev.factions.map((f) => {
           if (f.id === id) {
@@ -844,7 +851,8 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
           return f;
         });
 
-        const syncedFactions = syncLegacyFactionLinks(updatedFactions, nextRelations);
+        const combinedFactions = autoCreated.length > 0 ? [...updatedFactions, ...autoCreated] : updatedFactions;
+        const syncedFactions = syncLegacyFactionLinks(combinedFactions, nextRelations);
 
         return {
           ...prev,
@@ -984,6 +992,152 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
       });
     },
     [updateWorldBible]
+  );
+
+  const batchApplyWorldChanges = useCallback(
+    (changes: WorldActionChange[]) => {
+      if (!changes.length) return;
+      updateWorldBible((prev) => {
+        const laws = [...(prev.laws || [])];
+        let factions = [...(prev.factions || [])];
+        let factionRelations = [...(prev.factionRelations || [])];
+        let locations = [...(prev.locations || [])];
+        let npcs = [...(prev.npcs || [])];
+        let artifacts = [...(prev.artifacts || [])];
+        let bestiary = [...(prev.bestiary || [])];
+        let religions = [...(prev.religions || [])];
+        let timeline = [...(prev.timeline || [])];
+
+        for (const c of changes) {
+          if (c.entity === 'faction') {
+            if (c.op === 'create') {
+              const clean = { ...c.newData };
+              delete (clean as any).relations;
+              delete (clean as any).factionRelations;
+              if (!factions.some((f) => f.id === clean.id)) {
+                factions.push(clean);
+              }
+              const nextRelations = mergeFactionRelations(
+                clean.id,
+                c.newData,
+                factions,
+                factionRelations,
+                { deities: religions, autoProvision: true }
+              );
+              factionRelations = nextRelations;
+              const autoCreated = ((nextRelations as any).autoCreatedFactions as Faction[]) || [];
+              if (autoCreated.length > 0) {
+                factions.push(...autoCreated);
+              }
+            } else if (c.op === 'delete') {
+              factions = factions.filter((f) => f.id !== c.targetId);
+              factionRelations = factionRelations.filter(
+                (r) => r.sourceFactionId !== c.targetId && r.targetFactionId !== c.targetId
+              );
+            } else if (c.op === 'update') {
+              const nextRelations = mergeFactionRelations(
+                c.targetId!,
+                c.newData,
+                factions,
+                factionRelations,
+                { deities: religions, autoProvision: true }
+              );
+              factionRelations = nextRelations;
+              const autoCreated = ((nextRelations as any).autoCreatedFactions as Faction[]) || [];
+
+              factions = factions.map((f) => {
+                if (f.id === c.targetId) {
+                  const merged = { ...f, ...c.newData };
+                  delete (merged as any).relations;
+                  delete (merged as any).factionRelations;
+                  return merged;
+                }
+                return f;
+              });
+              if (autoCreated.length > 0) {
+                factions.push(...autoCreated);
+              }
+            }
+            factions = syncLegacyFactionLinks(factions, factionRelations);
+          } else if (c.entity === 'location') {
+            if (c.op === 'create') {
+              if (!locations.some((l) => l.id === c.newData.id)) locations.push(c.newData);
+            } else if (c.op === 'delete') {
+              locations = locations.filter((l) => l.id !== c.targetId);
+            } else if (c.op === 'update') {
+              locations = locations.map((l) => (l.id === c.targetId ? { ...l, ...c.newData } : l));
+            }
+          } else if (c.entity === 'npc') {
+            if (c.op === 'create') {
+              if (!npcs.some((n) => n.id === c.newData.id)) npcs.push(c.newData);
+            } else if (c.op === 'delete') {
+              npcs = npcs.filter((n) => n.id !== c.targetId);
+            } else if (c.op === 'update') {
+              npcs = npcs.map((n) => (n.id === c.targetId ? { ...n, ...c.newData } : n));
+            }
+          } else if (c.entity === 'artifact') {
+            if (c.op === 'create') {
+              if (!artifacts.some((a) => a.id === c.newData.id)) artifacts.push(c.newData);
+            } else if (c.op === 'delete') {
+              artifacts = artifacts.filter((a) => a.id !== c.targetId);
+            } else if (c.op === 'update') {
+              artifacts = artifacts.map((a) => (a.id === c.targetId ? { ...a, ...c.newData } : a));
+            }
+          } else if (c.entity === 'creature') {
+            if (c.op === 'create') {
+              if (!bestiary.some((b) => b.id === c.newData.id)) bestiary.push(c.newData);
+            } else if (c.op === 'delete') {
+              bestiary = bestiary.filter((b) => b.id !== c.targetId);
+            } else if (c.op === 'update') {
+              bestiary = bestiary.map((b) => (b.id === c.targetId ? { ...b, ...c.newData } : b));
+            }
+          } else if (c.entity === 'deity') {
+            if (c.op === 'create') {
+              if (!religions.some((r) => r.id === c.newData.id)) religions.push(c.newData);
+            } else if (c.op === 'delete') {
+              religions = religions.filter((r) => r.id !== c.targetId);
+            } else if (c.op === 'update') {
+              religions = religions.map((r) => (r.id === c.targetId ? { ...r, ...c.newData } : r));
+            }
+          } else if (c.entity === 'timeline_event') {
+            if (c.op === 'create') {
+              if (!timeline.some((t) => t.id === c.newData.id)) timeline.push(c.newData);
+            } else if (c.op === 'delete') {
+              timeline = timeline.filter((t) => t.id !== c.targetId);
+            } else if (c.op === 'update') {
+              timeline = timeline.map((t) => (t.id === c.targetId ? { ...t, ...c.newData } : t));
+            }
+          } else if (c.entity === 'world_law') {
+            if (c.op === 'create') {
+              if (!laws.some((l) => l.id === c.newData.id)) laws.push(c.newData);
+            } else if (c.op === 'delete') {
+              const targetIdx = laws.findIndex((l) => l.id === c.targetId);
+              if (targetIdx >= 0) laws.splice(targetIdx, 1);
+            } else if (c.op === 'update') {
+              const targetIdx = laws.findIndex((l) => l.id === c.targetId);
+              if (targetIdx >= 0) laws[targetIdx] = { ...laws[targetIdx], ...c.newData };
+            }
+          }
+        }
+
+        return {
+          ...prev,
+          laws,
+          factions,
+          factionRelations,
+          locations,
+          npcs,
+          artifacts,
+          bestiary,
+          religions,
+          timeline,
+        };
+      });
+      notify.success(
+        isPersian ? `${changes.length} تغییر با موفقیت اعمال شد` : `Applied ${changes.length} change(s)`
+      );
+    },
+    [isPersian, updateWorldBible]
   );
 
   // RPG System CRUD
@@ -1875,6 +2029,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         deleteFaction,
         setFactionRelation,
         deleteFactionRelation,
+        batchApplyWorldChanges,
         updateRpgSystem,
         updateNpcs,
         addNpc,

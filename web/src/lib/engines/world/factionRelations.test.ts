@@ -178,4 +178,100 @@ describe('factionRelations — normalization, target resolution & merging', () =
     assert.deepEqual(cabal.alliedFactionIds, []);
     assert.deepEqual(cabal.rivalFactionIds, ['fac_vanguard']);
   });
+
+  it('resolves compound Persian names with parenthetical aliases and slashes', () => {
+    const persianFactions: Faction[] = [
+      {
+        id: 'fac_artawan',
+        name: 'ستون زرین',
+        description: 'کلیسای خورشید و نظم',
+        alignment: 'Lawful Order',
+        territoryIds: [],
+        rivalFactionIds: [],
+        alliedFactionIds: [],
+        publicGoals: 'نظم جهانی',
+      },
+      {
+        id: 'fac_azawan',
+        name: 'شبکه‌ی بیداری',
+        description: 'شورش و آزادی پیروان آزاوان',
+        alignment: 'Rebel',
+        territoryIds: [],
+        rivalFactionIds: [],
+        alliedFactionIds: [],
+        publicGoals: 'بیداری ارواح',
+      },
+      {
+        id: 'fac_zarwan',
+        name: 'نگهبانان شن طلایی',
+        description: 'پیروان زروان و زمان',
+        alignment: 'Neutral',
+        territoryIds: [],
+        rivalFactionIds: [],
+        alliedFactionIds: [],
+        publicGoals: 'پاسداری از شن‌ها',
+      },
+      {
+        id: 'fac_iron',
+        name: 'پایوران آهن',
+        description: 'صنعتگران و کیمیاگران گروان',
+        alignment: 'Industrial',
+        territoryIds: [],
+        rivalFactionIds: [],
+        alliedFactionIds: [],
+        publicGoals: 'استقلال صنعتی',
+      },
+    ];
+
+    // Parenthetical outside or inside name
+    assert.equal(resolveTargetFactionId('ستون زرین (آرتاوان)', 'fac_azawan', persianFactions), 'fac_artawan');
+    assert.equal(resolveTargetFactionId('آزاوان', 'fac_artawan', persianFactions), 'fac_azawan');
+    assert.equal(resolveTargetFactionId('شبکه بیداری (آزاوان)', 'fac_artawan', persianFactions), 'fac_azawan');
+    assert.equal(resolveTargetFactionId('نگهبانان شن طلایی (زروان)', 'fac_artawan', persianFactions), 'fac_zarwan');
+    // Compound slash target
+    assert.equal(resolveTargetFactionId('پایوران آهن / پیروان گروان (ماده)', 'fac_artawan', persianFactions), 'fac_iron');
+    assert.equal(resolveTargetFactionId('پیروان گروان', 'fac_artawan', persianFactions), 'fac_iron');
+  });
+
+  it('auto-provisions missing factions when relations specify uncreated entities', () => {
+    const startingFactions: Faction[] = [
+      {
+        id: 'fac_sun',
+        name: 'ستون زرین',
+        description: 'کلیسای آرتاوان',
+        alignment: 'Order',
+        territoryIds: [],
+        rivalFactionIds: [],
+        alliedFactionIds: [],
+        publicGoals: 'نظم',
+      },
+    ];
+
+    const updated = {
+      relations: [
+        {
+          targetFactionId: 'نگهبانان بیشه‌ی کهن (آروشا)',
+          value: 'favorable',
+          note: 'پیمان حفاظت از بیشه‌ها',
+        },
+        {
+          targetFactionId: 'پیروان نیلا (مرگ و رویا)',
+          value: 'favorable',
+          note: 'مراسم‌های تدفین رسمی',
+        },
+      ],
+    };
+
+    const merged = mergeFactionRelations('fac_sun', updated, startingFactions, [], {
+      autoProvision: true,
+    });
+
+    assert.equal(merged.length, 2);
+    const autoCreated = (merged as any).autoCreatedFactions as Faction[];
+    assert.ok(autoCreated);
+    assert.equal(autoCreated.length, 2);
+    assert.ok(autoCreated.some((f) => f.name.includes('بیشه‌ی کهن') || f.name.includes('نگهبانان بیشه‌ی کهن')));
+    assert.ok(autoCreated.some((f) => f.name.includes('نیلا') || f.name.includes('پیروان نیلا')));
+  });
 });
+

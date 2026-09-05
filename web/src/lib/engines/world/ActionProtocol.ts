@@ -313,43 +313,84 @@ export function resolveEntityTarget(
 }
 
 
-export function parseActionBlocks(reply: string): ActionBlock[] {
-  const actions: ActionBlock[] = [];
-  const matches = [
-    ...reply.matchAll(/```(?:storyforge-action|json|jsonc)?\s*\n([\s\S]*?)```/g),
-  ];
-  for (const mt of matches) {
-    try {
-      const parsed = JSON.parse(mt[1]);
-      const rawList = Array.isArray(parsed) ? parsed : [parsed];
-      for (const obj of rawList) {
-        if (!obj || typeof obj !== 'object') continue;
-        const validOp = obj.op === 'create' || obj.op === 'update' || obj.op === 'delete';
-        let entity = normalizeEntityName(obj.entity);
-        if (
-          !entity &&
-          (obj.op === 'update' || obj.op === 'delete') &&
-          obj.match &&
-          typeof obj.match.byName === 'string'
-        ) {
-          // entity resolved later by caller via resolveEntityTarget across types
-          entity = obj.entity as EntityType;
-        }
-        const validEntity =
-          !!entity ||
-          ((obj.op === 'update' || obj.op === 'delete') &&
-            obj.match &&
-            typeof obj.match.byName === 'string');
-        const hasTarget =
-          obj.op === 'create'
-            ? typeof obj.prompt === 'string'
-            : !!(obj.match && typeof obj.match.byName === 'string');
-        if (validOp && validEntity && hasTarget) {
-          actions.push({ ...obj, entity } as ActionBlock);
+function sanitizeJsonSnippet(str: string): string {
+  return str
+    // Remove single-line comments
+    .replace(/\/\/.*$/gm, '')
+    // Remove trailing commas before closing braces/brackets
+    .replace(/,\s*([}\]])/g, '$1')
+    .trim();
+}
+
+function extractJsonObjectsFromBlock(blockText: string): any[] {
+  const sanitized = sanitizeJsonSnippet(blockText);
+  try {
+    const parsed = JSON.parse(sanitized);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch {
+    // Fallback: multiple concatenated JSON objects e.g. { "op": ... } { "op": ... }
+    const objects: any[] = [];
+    const braceRegex = /\{[\s\S]*?\}(?=\s*(?:\{|$))/g;
+    const matches = sanitized.match(braceRegex);
+    if (matches) {
+      for (const m of matches) {
+        try {
+          const p = JSON.parse(sanitizeJsonSnippet(m));
+          if (p && typeof p === 'object') objects.push(p);
+        } catch {
+          /* skip unparseable slice */
         }
       }
-    } catch {
-      /* ignore malformed block */
+    }
+    return objects;
+  }
+}
+
+export function parseActionBlocks(reply: string): ActionBlock[] {
+  const actions: ActionBlock[] = [];
+  // Match fenced blocks with storyforge-action / json / jsonc or no tag
+  const matches = [
+    ...reply.matchAll(/```(?:storyforge-action|json|jsonc)?[\s\r\n]*([\s\S]*?)```/gi),
+  ];
+
+  const rawBlocks = matches.map((m) => m[1]);
+
+  // If no fenced blocks found, attempt to find raw action JSON structures
+  if (rawBlocks.length === 0) {
+    const rawActionRegex = /\{\s*"op"\s*:\s*"(?:create|update|delete)"[\s\S]*?\}/g;
+    const rawMatches = reply.match(rawActionRegex);
+    if (rawMatches) {
+      rawBlocks.push(...rawMatches);
+    }
+  }
+
+  for (const block of rawBlocks) {
+    const rawList = extractJsonObjectsFromBlock(block);
+    for (const obj of rawList) {
+      if (!obj || typeof obj !== 'object') continue;
+      const validOp = obj.op === 'create' || obj.op === 'update' || obj.op === 'delete';
+      let entity = normalizeEntityName(obj.entity);
+      if (
+        !entity &&
+        (obj.op === 'update' || obj.op === 'delete') &&
+        obj.match &&
+        typeof obj.match.byName === 'string'
+      ) {
+        // entity resolved later by caller via resolveEntityTarget across types
+        entity = obj.entity as EntityType;
+      }
+      const validEntity =
+        !!entity ||
+        ((obj.op === 'update' || obj.op === 'delete') &&
+          obj.match &&
+          typeof obj.match.byName === 'string');
+      const hasTarget =
+        obj.op === 'create'
+          ? typeof obj.prompt === 'string'
+          : !!(obj.match && typeof obj.match.byName === 'string');
+      if (validOp && validEntity && hasTarget) {
+        actions.push({ ...obj, entity } as ActionBlock);
+      }
     }
   }
   return actions;

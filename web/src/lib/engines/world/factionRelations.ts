@@ -12,39 +12,126 @@ export function normalizeRelationValue(raw: unknown): FactionRelationValue {
   return 'neutral';
 }
 
+/**
+ * Extracts multiple candidate names from compound or parenthetical entity names.
+ * Examples:
+ * - "ستون زرین (آرتاوان)" -> ["ستون زرین", "آرتاوان"]
+ * - "پایوران آهن / پیروان گروان (ماده)" -> ["پایوران آهن", "پیروان گروان", "گروان"]
+ * - "پیروان نیلا (مرگ و رویا)" -> ["پیروان نیلا", "نیلا"]
+ */
+export function extractTargetCandidateNames(raw: string): string[] {
+  if (!raw) return [];
+  const text = raw.trim();
+  const set = new Set<string>();
+  set.add(text);
+
+  // 1. Extract text outside and inside parentheses: e.g. "ستون زرین (آرتاوان)"
+  const parenMatch = text.match(/^([^(]+)\s*\(([^)]+)\)$/);
+  if (parenMatch) {
+    const outside = parenMatch[1].trim();
+    const inside = parenMatch[2].trim();
+    if (outside) set.add(outside);
+    if (inside) set.add(inside);
+  } else {
+    // Strip internal parentheticals: "پایوران آهن (ماده)" -> "پایوران آهن"
+    const stripped = text.replace(/\([^)]*\)/g, '').trim();
+    if (stripped && stripped !== text) set.add(stripped);
+  }
+
+  // 2. Split by slash / dash / comma / "یا" / "|"
+  const parts = text.split(/[/،|\-]|(\s+یا\s+)/);
+  for (const part of parts) {
+    if (!part) continue;
+    const clean = part.replace(/\([^)]*\)/g, '').trim();
+    if (clean && clean.length > 1) {
+      set.add(clean);
+    }
+  }
+
+  // 3. Strip prefix phrases: "پیروان ", "فرقه ", "مکتب ", "پایوران ", "نگهبانان ", "شبکه‌ی ", "شبکه "
+  const prefixRegex = /^(پیروان|فرقه|مکتب|فرقهٔ|پایوران|نگهبانان|شبکه‌ی|شبکه|یاران|سربازان|انجمن)\s+/;
+  const currentItems = Array.from(set);
+  for (const item of currentItems) {
+    if (prefixRegex.test(item)) {
+      const strippedPrefix = item.replace(prefixRegex, '').trim();
+      if (strippedPrefix && strippedPrefix.length > 1) {
+        set.add(strippedPrefix);
+      }
+    }
+  }
+
+  return Array.from(set).filter((c) => c.length > 0);
+}
+
+/**
+ * Gets the cleanest, primary display name from a compound reference.
+ */
+export function getPrimaryCleanName(raw: string): string {
+  if (!raw) return 'جناح ناشناس';
+  const candidates = extractTargetCandidateNames(raw);
+  // Pick the first clean candidate without trailing parentheticals
+  const primary = candidates[1] || candidates[0] || raw;
+  return primary.replace(/\([^)]*\)/g, '').trim() || raw.trim();
+}
+
 export function resolveTargetFactionId(
   rawTarget: unknown,
   sourceId: string,
-  allFactions: Faction[]
+  allFactions: Faction[],
+  deities?: Array<{ id: string; name: string; affiliatedFactionIds?: string[] }>
 ): string | null {
   if (typeof rawTarget !== 'string') return null;
   const ref = rawTarget.trim();
   if (!ref || ref === sourceId) return null;
 
-  // 1. Exact ID match
+  // 1. Direct exact ID match
   const byId = allFactions.find((f) => f.id === ref && f.id !== sourceId);
   if (byId) return byId.id;
 
-  // 2. Exact name match (case-insensitive)
-  const byName = allFactions.find(
-    (f) => f.id !== sourceId && f.name.toLowerCase() === ref.toLowerCase()
-  );
-  if (byName) return byName.id;
+  const candidates = extractTargetCandidateNames(ref);
 
-  // 3. Loose name match via ActionProtocol nameMatch (handles Persian ZWNJ, etc.)
-  const byLoose = allFactions.find(
-    (f) => f.id !== sourceId && nameMatch(f.name, ref)
-  );
-  if (byLoose) return byLoose.id;
+  for (const cand of candidates) {
+    // 2. Exact name match (case-insensitive)
+    const byName = allFactions.find(
+      (f) => f.id !== sourceId && f.name.toLowerCase() === cand.toLowerCase()
+    );
+    if (byName) return byName.id;
 
-  // 4. Substring / contains match
-  const bySub = allFactions.find(
-    (f) =>
-      f.id !== sourceId &&
-      (f.name.toLowerCase().includes(ref.toLowerCase()) ||
-        ref.toLowerCase().includes(f.name.toLowerCase()))
-  );
-  if (bySub) return bySub.id;
+    // 3. Loose name match via ActionProtocol nameMatch (handles Persian ZWNJ, etc.)
+    const byLoose = allFactions.find(
+      (f) => f.id !== sourceId && nameMatch(f.name, cand)
+    );
+    if (byLoose) return byLoose.id;
+
+    // 4. Substring / contains match
+    const bySub = allFactions.find(
+      (f) =>
+        f.id !== sourceId &&
+        (f.name.toLowerCase().includes(cand.toLowerCase()) ||
+          cand.toLowerCase().includes(f.name.toLowerCase()))
+    );
+    if (bySub) return bySub.id;
+
+    // 5. Check description / public goals for mentions of this candidate
+    const byContext = allFactions.find(
+      (f) =>
+        f.id !== sourceId &&
+        ((f.description && nameMatch(f.description, cand)) ||
+          (f.publicGoals && nameMatch(f.publicGoals, cand)))
+    );
+    if (byContext) return byContext.id;
+
+    // 6. Check deities / religions if provided
+    if (deities && deities.length > 0) {
+      const matchingDeity = deities.find((d) => nameMatch(d.name, cand));
+      if (matchingDeity && Array.isArray(matchingDeity.affiliatedFactionIds)) {
+        const affId = matchingDeity.affiliatedFactionIds.find(
+          (id) => id !== sourceId && allFactions.some((f) => f.id === id)
+        );
+        if (affId) return affId;
+      }
+    }
+  }
 
   return null;
 }
@@ -56,24 +143,35 @@ export interface IncomingFactionUpdate {
   rivalFactionIds?: unknown;
 }
 
+export interface MergeFactionRelationsOptions {
+  deities?: Array<{ id: string; name: string; affiliatedFactionIds?: string[] }>;
+  autoProvision?: boolean;
+}
+
+export interface DetailedMergeResult {
+  relations: FactionRelation[];
+  allFactions: Faction[];
+  autoCreatedFactions: Faction[];
+}
+
 /**
- * Robustly merges relation updates from AI generation, Studio Oracle actions,
- * or UI forms into the WorldBible factionRelations array.
- *
- * Handles:
- * - Array-based relations: [{ targetFactionId, value, note, isPublic }]
- * - Record-based relations: { [targetId]: { value, note, isPublic } }
- * - Target resolution by ID or natural name (e.g. "Silver Dawn")
- * - Fallbacks from alliedFactionIds / rivalFactionIds arrays
- * - Preserves existing relations with other factions
+ * Detailed faction relations merge with full candidate matching and auto-provisioning
+ * of missing factions so inter-faction relational networks are never dropped.
  */
-export function mergeFactionRelations(
+export function mergeFactionRelationsDetailed(
   factionId: string,
   updated: IncomingFactionUpdate | null | undefined,
   allFactions: Faction[],
-  currentRelations: FactionRelation[] = []
-): FactionRelation[] {
-  if (!updated || typeof updated !== 'object') return currentRelations;
+  currentRelations: FactionRelation[] = [],
+  options: MergeFactionRelationsOptions = {}
+): DetailedMergeResult {
+  const workingFactions = [...allFactions];
+  const autoCreatedFactions: Faction[] = [];
+  const autoProvision = options.autoProvision ?? true;
+
+  if (!updated || typeof updated !== 'object') {
+    return { relations: currentRelations, allFactions: workingFactions, autoCreatedFactions };
+  }
 
   const rawRelations = updated.relations ?? updated.factionRelations;
   const rawAllies = Array.isArray(updated.alliedFactionIds) ? updated.alliedFactionIds : null;
@@ -81,7 +179,7 @@ export function mergeFactionRelations(
 
   // If no relation data was provided in the update, keep existing relations intact.
   if (rawRelations === undefined && rawAllies === null && rawRivals === null) {
-    return currentRelations;
+    return { relations: currentRelations, allFactions: workingFactions, autoCreatedFactions };
   }
 
   const incomingEntries: Array<{
@@ -93,7 +191,52 @@ export function mergeFactionRelations(
 
   const seenTargets = new Set<string>();
 
-  // 1. Process explicit relations
+  const resolveOrProvision = (
+    targetRef: unknown,
+    val: FactionRelationValue,
+    note?: string,
+    isPublic: boolean = true
+  ) => {
+    if (typeof targetRef !== 'string') return;
+    const cleanRef = targetRef.trim();
+    if (!cleanRef) return;
+
+    let targetId = resolveTargetFactionId(cleanRef, factionId, workingFactions, options.deities);
+
+    // Auto-provision missing faction if it doesn't exist yet
+    if (!targetId && autoProvision && cleanRef !== factionId) {
+      const cleanName = getPrimaryCleanName(cleanRef);
+      const newFac: Faction = {
+        id: `fac_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+        name: cleanName,
+        description: note ? `جناح در مناسبات قدرت جهان: ${note}` : `جناح در مناسبات قدرت جهان`,
+        alignment:
+          val === 'hostile'
+            ? 'Hostile Order'
+            : val === 'rival'
+            ? 'Rival Order'
+            : val === 'allied'
+            ? 'Allied Order'
+            : val === 'favorable'
+            ? 'Favorable Order'
+            : 'Neutral',
+        publicGoals: note || '',
+        territoryIds: [],
+        alliedFactionIds: [],
+        rivalFactionIds: [],
+      };
+      workingFactions.push(newFac);
+      autoCreatedFactions.push(newFac);
+      targetId = newFac.id;
+    }
+
+    if (targetId && targetId !== factionId && !seenTargets.has(targetId)) {
+      incomingEntries.push({ targetId, value: val, note, isPublic });
+      seenTargets.add(targetId);
+    }
+  };
+
+  // 1. Process explicit relations array or map
   if (Array.isArray(rawRelations)) {
     for (const item of rawRelations) {
       if (!item || typeof item !== 'object') continue;
@@ -108,9 +251,6 @@ export function mergeFactionRelations(
         anyItem.name ??
         anyItem.target;
 
-      const targetId = resolveTargetFactionId(targetRef, factionId, allFactions);
-      if (!targetId || targetId === factionId) continue;
-
       const value = normalizeRelationValue(
         anyItem.value ?? anyItem.stance ?? anyItem.relation ?? anyItem.type
       );
@@ -122,14 +262,10 @@ export function mergeFactionRelations(
           : undefined;
       const isPublic = anyItem.isPublic !== undefined ? Boolean(anyItem.isPublic) : true;
 
-      incomingEntries.push({ targetId, value, note, isPublic });
-      seenTargets.add(targetId);
+      resolveOrProvision(targetRef, value, note, isPublic);
     }
   } else if (rawRelations && typeof rawRelations === 'object') {
     for (const [key, item] of Object.entries(rawRelations as Record<string, unknown>)) {
-      const targetId = resolveTargetFactionId(key, factionId, allFactions);
-      if (!targetId || targetId === factionId) continue;
-
       let value: FactionRelationValue = 'neutral';
       let note: string | undefined;
       let isPublic = true;
@@ -143,30 +279,21 @@ export function mergeFactionRelations(
         if (anyItem.isPublic !== undefined) isPublic = Boolean(anyItem.isPublic);
       }
 
-      incomingEntries.push({ targetId, value, note, isPublic });
-      seenTargets.add(targetId);
+      resolveOrProvision(key, value, note, isPublic);
     }
   }
 
   // 2. Fallbacks from alliedFactionIds
   if (rawAllies) {
     for (const ref of rawAllies) {
-      const targetId = resolveTargetFactionId(ref, factionId, allFactions);
-      if (targetId && !seenTargets.has(targetId)) {
-        incomingEntries.push({ targetId, value: 'allied', note: '', isPublic: true });
-        seenTargets.add(targetId);
-      }
+      resolveOrProvision(ref, 'allied', '', true);
     }
   }
 
   // 3. Fallbacks from rivalFactionIds
   if (rawRivals) {
     for (const ref of rawRivals) {
-      const targetId = resolveTargetFactionId(ref, factionId, allFactions);
-      if (targetId && !seenTargets.has(targetId)) {
-        incomingEntries.push({ targetId, value: 'rival', note: '', isPublic: true });
-        seenTargets.add(targetId);
-      }
+      resolveOrProvision(ref, 'rival', '', true);
     }
   }
 
@@ -201,7 +328,46 @@ export function mergeFactionRelations(
     }
   }
 
-  return result;
+  return {
+    relations: result,
+    allFactions: workingFactions,
+    autoCreatedFactions,
+  };
+}
+
+/**
+ * Robustly merges relation updates from AI generation, Studio Oracle actions,
+ * or UI forms into the WorldBible factionRelations array.
+ *
+ * Handles:
+ * - Array-based relations: [{ targetFactionId, value, note, isPublic }]
+ * - Record-based relations: { [targetId]: { value, note, isPublic } }
+ * - Target resolution by ID, compound name, or deity patron (e.g. "ستون زرین (آرتاوان)")
+ * - Auto-provisions missing factions so rich webs are preserved
+ * - Preserves existing relations with other factions
+ */
+export function mergeFactionRelations(
+  factionId: string,
+  updated: IncomingFactionUpdate | null | undefined,
+  allFactions: Faction[],
+  currentRelations: FactionRelation[] = [],
+  options?: MergeFactionRelationsOptions
+): FactionRelation[] {
+  const res = mergeFactionRelationsDetailed(
+    factionId,
+    updated,
+    allFactions,
+    currentRelations,
+    options
+  );
+  // Attach auto-created factions to the returned array for caller access
+  const relations = res.relations as FactionRelation[] & {
+    autoCreatedFactions?: Faction[];
+    allFactions?: Faction[];
+  };
+  relations.autoCreatedFactions = res.autoCreatedFactions;
+  relations.allFactions = res.allFactions;
+  return relations;
 }
 
 /**

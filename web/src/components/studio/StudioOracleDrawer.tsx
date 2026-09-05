@@ -100,6 +100,7 @@ export default function StudioOracleDrawer() {
     isPersian,
     isRtl,
     updateWorldBible,
+    batchApplyWorldChanges,
     addFaction,
     editFaction,
     deleteFaction,
@@ -265,17 +266,9 @@ export default function StudioOracleDrawer() {
       if (json.success && json.reply) {
         // Never render raw action fences; route them into the review pipeline.
         const cleanReply = json.reply.replace(/```[\s\S]*?```/g, '').trim();
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `msg_${Date.now().toString(36)}_rep`,
-            role: 'assistant',
-            content: cleanReply,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          },
-        ]);
-
         const actions = parseActionBlocks(json.reply);
+        let actionNote = '';
+
         if (actions.length > 0) {
           setPreparingActions(true);
           try {
@@ -295,6 +288,9 @@ export default function StudioOracleDrawer() {
             }
             if (ready.length > 0) {
               setPendingChanges((prev) => [...prev, ...ready]);
+              actionNote = isPersian
+                ? `\n\n*(⚡ ${ready.length} تغییر در بخش پایین آماده تأیید است — لطفاً روی دکمه «اعمال همه» بزنید تا در جهان ثبت شود)*`
+                : `\n\n*(⚡ ${ready.length} change(s) queued below — click "Apply all" to commit to the world)*`;
               notify.info(
                 isPersian
                   ? `${ready.length} تغییر جهانی برای بررسی و تأیید شما آماده شد`
@@ -307,6 +303,16 @@ export default function StudioOracleDrawer() {
             setPreparingActions(false);
           }
         }
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `msg_${Date.now().toString(36)}_rep`,
+            role: 'assistant',
+            content: cleanReply + actionNote,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ]);
       } else {
         notify.error(json.error || (isPersian ? 'خطا در پاسخ پیشگو' : 'Failed to fetch Oracle advice'));
       }
@@ -435,13 +441,18 @@ export default function StudioOracleDrawer() {
 
   const applyOneChange = (change: WorldActionChange) => {
     try {
-      applyWorldChange(change, buildMutators());
+      batchApplyWorldChanges([change]);
       setPendingChanges((prev) => prev.filter((c) => c !== change));
-      notify.success(
-        isPersian ? `روی جهان اعمال شد: ${change.label}` : `Applied to world: ${change.label}`
-      );
-    } catch (err) {
-      notify.error((err as Error)?.message || (isPersian ? 'اعمال ناموفق بود' : 'Failed to apply change'));
+    } catch {
+      try {
+        applyWorldChange(change, buildMutators());
+        setPendingChanges((prev) => prev.filter((c) => c !== change));
+        notify.success(
+          isPersian ? `روی جهان اعمال شد: ${change.label}` : `Applied to world: ${change.label}`
+        );
+      } catch (innerErr) {
+        notify.error((innerErr as Error)?.message || (isPersian ? 'اعمال ناموفق بود' : 'Failed to apply change'));
+      }
     }
   };
 
@@ -450,18 +461,25 @@ export default function StudioOracleDrawer() {
   };
 
   const applyAllChanges = () => {
-    const mutators = buildMutators();
-    let ok = 0;
-    for (const c of pendingChanges) {
-      try {
-        applyWorldChange(c, mutators);
-        ok += 1;
-      } catch {
-        /* leave unapplied ones visible */
+    if (!pendingChanges.length) return;
+    try {
+      batchApplyWorldChanges(pendingChanges);
+      setPendingChanges([]);
+    } catch {
+      // Fallback to individual mutators if batch fails
+      const mutators = buildMutators();
+      let ok = 0;
+      for (const c of pendingChanges) {
+        try {
+          applyWorldChange(c, mutators);
+          ok += 1;
+        } catch {
+          /* leave unapplied ones visible */
+        }
       }
+      setPendingChanges((prev) => prev.slice(ok));
+      if (ok > 0) notify.success(isPersian ? `${ok} تغییر اعمال شد` : `Applied ${ok} change(s)`);
     }
-    setPendingChanges((prev) => prev.slice(ok));
-    if (ok > 0) notify.success(isPersian ? `${ok} تغییر اعمال شد` : `Applied ${ok} change(s)`);
   };
 
   const dismissAllChanges = () => setPendingChanges([]);
@@ -482,6 +500,11 @@ export default function StudioOracleDrawer() {
         >
           <Sparkles className="w-4 h-4 animate-pulse" />
           <span>{isPersian ? 'پیشگوی استودیو' : 'Studio Oracle'}</span>
+          {pendingChanges.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-emerald-400 text-zinc-950 text-[10px] font-black border border-emerald-300 animate-pulse">
+              ⚡ {pendingChanges.length} {isPersian ? 'آماده اعمال' : 'ready'}
+            </span>
+          )}
           {activeDirectivesCount > 0 && (
             <span className="px-1.5 py-0.2 rounded-full bg-zinc-950 text-amber-300 text-[10px] font-mono border border-amber-400/40">
               🧠 {activeDirectivesCount}
@@ -730,19 +753,26 @@ export default function StudioOracleDrawer() {
                       <Sparkles className="w-3 h-3" />
                       {isPersian ? 'تغییرات جهانی در انتظار تأیید' : 'WORLD CHANGES AWAITING REVIEW'}
                     </span>
-                    {pendingChanges.length > 1 && (
-                      <div className="flex items-center gap-1 shrink-0">
+                    {pendingChanges.length > 0 && (
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           type="button"
                           onClick={applyAllChanges}
-                          className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold hover:bg-emerald-500/25"
+                          className="px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-[11px] font-bold shadow-md shadow-emerald-500/20 transition-all flex items-center gap-1 cursor-pointer"
                         >
-                          {isPersian ? 'اعمال همه' : 'Apply all'}
+                          <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                          {isPersian
+                            ? pendingChanges.length > 1
+                              ? `اعمال همه (${pendingChanges.length})`
+                              : 'اعمال تغییر'
+                            : pendingChanges.length > 1
+                              ? `Apply all (${pendingChanges.length})`
+                              : 'Apply change'}
                         </button>
                         <button
                           type="button"
                           onClick={dismissAllChanges}
-                          className="px-2 py-0.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-400 text-[10px] font-bold hover:text-white"
+                          className="px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-400 text-[10px] font-bold hover:text-white cursor-pointer"
                         >
                           {isPersian ? 'رد همه' : 'Dismiss all'}
                         </button>
