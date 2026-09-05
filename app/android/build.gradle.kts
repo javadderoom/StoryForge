@@ -1,8 +1,9 @@
 allprojects {
     repositories {
-        maven { url = uri("https://storage.flutter-io.cn/download.flutter.io") }
         google()
         mavenCentral()
+        // Flutter CN mirror as fallback only
+        maven { url = uri("https://storage.flutter-io.cn/download.flutter.io") }
     }
 }
 

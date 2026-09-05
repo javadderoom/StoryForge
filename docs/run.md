@@ -129,6 +129,7 @@ flutter run -d chrome
 
    # Launch your configured emulator (e.g. Medium_Phone_API_36.0)
    flutter emulators --launch Medium_Phone_API_36.0
+   flutter emulators --launch Pixel_API36
    ```
    *(Alternatively, launch it directly from Android Studio > Device Manager or the IDE status bar).*
 

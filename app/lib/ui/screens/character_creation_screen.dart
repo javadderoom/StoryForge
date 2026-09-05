@@ -32,8 +32,8 @@ class CharacterCreationScreen extends ConsumerStatefulWidget {
 
 class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScreen> {
   int _currentStep = 0; // 0: Archetype, 1: Background, 2: Attributes, 3: Name & Embark
-  late String _selectedArchetypeId;
-  late String _selectedBackgroundId;
+  String? _selectedArchetypeId;
+  String? _selectedBackgroundId;
   final TextEditingController _nameController = TextEditingController();
 
   static const int _totalFreePoints = 4;
@@ -46,8 +46,8 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
     final archetypes = _getEffectiveArchetypes();
     final backgrounds = _getEffectiveBackgrounds();
 
-    _selectedArchetypeId = archetypes.isNotEmpty ? archetypes.first.id : 'shadowblade';
-    _selectedBackgroundId = backgrounds.isNotEmpty ? backgrounds.first.id : 'lone_wanderer';
+    _selectedArchetypeId = archetypes.isNotEmpty ? archetypes.first.id : null;
+    _selectedBackgroundId = backgrounds.isNotEmpty ? backgrounds.first.id : null;
 
     _allocatedPoints = {};
     for (final stat in _getEffectiveStats()) {
@@ -358,9 +358,27 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
           style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white60),
         ),
         const SizedBox(height: 18),
-        for (final arch in archetypes) ...[
-          _buildArchetypeCard(arch, isPersian),
-          const SizedBox(height: 14),
+        if (archetypes.isEmpty) ...[
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131524),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF27272A)),
+            ),
+            child: Center(
+              child: Text(
+                isPersian ? 'هیچ تخصصی برای این سرگذشت تعریف نشده است.' : 'No combat archetypes defined for this story.',
+                style: GoogleFonts.vazirmatn(fontSize: 13, color: Colors.white54),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ] else ...[
+          for (final arch in archetypes) ...[
+            _buildArchetypeCard(arch, isPersian),
+            const SizedBox(height: 14),
+          ],
         ],
       ],
     );
@@ -504,9 +522,27 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
           style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white60),
         ),
         const SizedBox(height: 18),
-        for (final bg in backgrounds) ...[
-          _buildBackgroundCard(bg, isPersian),
-          const SizedBox(height: 14),
+        if (backgrounds.isEmpty) ...[
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131524),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF27272A)),
+            ),
+            child: Center(
+              child: Text(
+                isPersian ? 'هیچ پیشینه‌ای برای این سرگذشت تعریف نشده است.' : 'No background origins defined for this story.',
+                style: GoogleFonts.vazirmatn(fontSize: 13, color: Colors.white54),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ] else ...[
+          for (final bg in backgrounds) ...[
+            _buildBackgroundCard(bg, isPersian),
+            const SizedBox(height: 14),
+          ],
         ],
       ],
     );
@@ -753,8 +789,12 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
   Widget _buildIdentityStep(RealmTheme theme, bool isPersian) {
     final archetypes = _getEffectiveArchetypes();
     final backgrounds = _getEffectiveBackgrounds();
-    final arch = archetypes.firstWhere((a) => a.id == _selectedArchetypeId, orElse: () => archetypes.first);
-    final bg = backgrounds.firstWhere((b) => b.id == _selectedBackgroundId, orElse: () => backgrounds.first);
+    final arch = archetypes.isNotEmpty
+        ? archetypes.firstWhere((a) => a.id == _selectedArchetypeId, orElse: () => archetypes.first)
+        : null;
+    final bg = backgrounds.isNotEmpty
+        ? backgrounds.firstWhere((b) => b.id == _selectedBackgroundId, orElse: () => backgrounds.first)
+        : null;
 
     return ListView(
       key: const ValueKey('step_identity'),
@@ -794,48 +834,62 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(_getIconData(arch.iconName), color: const Color(0xFFF59E0B), size: 24),
-                  const SizedBox(width: 10),
+              if (arch != null || bg != null) ...[
+                Row(
+                  children: [
+                    if (arch != null) ...[
+                      Icon(_getIconData(arch.iconName), color: const Color(0xFFF59E0B), size: 24),
+                      const SizedBox(width: 10),
+                      Text(
+                        arch.name,
+                        style: GoogleFonts.vazirmatn(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFFF59E0B)),
+                      ),
+                    ],
+                    if (arch != null && bg != null)
+                      const SizedBox(width: 8),
+                    if (bg != null)
+                      Text(
+                        arch != null ? '•  ${bg.name}' : bg.name,
+                        style: GoogleFonts.vazirmatn(fontSize: 13, color: Colors.white70),
+                      ),
+                  ],
+                ),
+                if (bg != null && bg.trait.isNotEmpty) ...[
+                  const Divider(color: Color(0xFF27272A), height: 20),
                   Text(
-                    arch.name,
-                    style: GoogleFonts.vazirmatn(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFFF59E0B)),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '•  ${bg.name}',
-                    style: GoogleFonts.vazirmatn(fontSize: 13, color: Colors.white70),
+                    '${isPersian ? 'ویژگی تبار: ' : 'Origin Trait: '}${bg.trait}',
+                    style: GoogleFonts.vazirmatn(fontSize: 11.5, color: const Color(0xFF818CF8)),
                   ),
                 ],
-              ),
-              const Divider(color: Color(0xFF27272A), height: 20),
-              Text(
-                '${isPersian ? 'ویژگی تبار: ' : 'Origin Trait: '}${bg.trait}',
-                style: GoogleFonts.vazirmatn(fontSize: 11.5, color: const Color(0xFF818CF8)),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  for (final s in _getEffectiveStats())
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E2235),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Directionality(
-                        textDirection: TextDirection.ltr,
-                        child: Text(
-                          '${_formatStatName(s.id, isPersian)}: ${_calculateTotalStat(s.id)}',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                const SizedBox(height: 12),
+              ],
+              if (_getEffectiveStats().isNotEmpty)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    for (final s in _getEffectiveStats())
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E2235),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Directionality(
+                          textDirection: TextDirection.ltr,
+                          child: Text(
+                            '${_formatStatName(s.id, isPersian)}: ${_calculateTotalStat(s.id)}',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              ),
+                  ],
+                )
+              else
+                Text(
+                  isPersian ? 'آماده برای آغاز ماجراجویی' : 'Ready to begin your journey',
+                  style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white60),
+                ),
             ],
           ),
         ),
