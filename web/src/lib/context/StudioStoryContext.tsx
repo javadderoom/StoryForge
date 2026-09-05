@@ -1063,7 +1063,9 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
             if (c.op === 'create') {
               if (!locations.some((l) => l.id === c.newData.id)) locations.push(c.newData);
             } else if (c.op === 'delete') {
-              locations = locations.filter((l) => l.id !== c.targetId);
+              locations = locations
+                .filter((l) => l.id !== c.targetId)
+                .map((l) => (l.parentLocationId === c.targetId ? { ...l, parentLocationId: undefined } : l));
             } else if (c.op === 'update') {
               locations = locations.map((l) => (l.id === c.targetId ? { ...l, ...c.newData } : l));
             }
@@ -1223,7 +1225,11 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
 
   const deleteLocation = useCallback(
     (id: string) => {
-      updateLocations((prev) => prev.filter((l) => l.id !== id));
+      updateLocations((prev) =>
+        prev
+          .filter((l) => l.id !== id)
+          .map((l) => (l.parentLocationId === id ? { ...l, parentLocationId: undefined } : l))
+      );
       notify.info(isPersian ? 'مکان حذف شد' : 'Location removed');
     },
     [isPersian, updateLocations]

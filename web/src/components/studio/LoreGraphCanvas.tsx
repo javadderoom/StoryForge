@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useRef } from 'react';
-import { WorldBible, WorldLocation, NPCDossier, Faction, WorldLaw } from '@/lib/types';
+import { WorldBible, WorldLocation, NPCDossier, Faction, WorldLaw, getLocationBreadcrumb } from '@/lib/types';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import {
   MapPin,
@@ -208,15 +208,28 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
     locs.forEach((loc, idx) => {
       const x = 160 + idx * 300;
       const y = 280;
+      const breadcrumb = loc.parentLocationId ? getLocationBreadcrumb(locs, loc.id) : loc.region;
       nodesList.push({
         id: loc.id,
         label: loc.name,
-        sublabel: loc.region,
+        sublabel: breadcrumb,
         type: 'location',
         x,
         y,
         data: loc,
       });
+
+      // Hierarchical Parent Edge
+      if (loc.parentLocationId && locs.some((l) => l.id === loc.parentLocationId)) {
+        edgesList.push({
+          id: `edge-loc-parent-${loc.id}-${loc.parentLocationId}`,
+          source: loc.id,
+          target: loc.parentLocationId,
+          label: isPersian ? 'واقع در (والد)' : 'Enclosed in (Parent)',
+          color: '#F59E0B', // Amber
+          dashed: true,
+        });
+      }
 
       // Location Paths
       (loc.connectedLocationIds || []).forEach((tId) => {

@@ -193,7 +193,9 @@ export class ActionValidator {
       const connected =
         !!current &&
         ((current.connectedLocationIds || []).includes(loc.id) ||
-          (loc.connectedLocationIds || []).includes(current.id));
+          (loc.connectedLocationIds || []).includes(current.id) ||
+          current.parentLocationId === loc.id ||
+          loc.parentLocationId === current.id);
       if (!connected) {
         return `"${loc.name}" is not directly reachable from ${
           current?.name ?? 'your current position'

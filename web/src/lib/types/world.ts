@@ -168,6 +168,7 @@ export interface WorldLocation {
   name: string;
   description: string;
   region: string;
+  parentLocationId?: string; // Enclosing parent location (e.g. desert parent of city, city parent of citadel)
   category?: string; // e.g. 'stronghold', 'dungeon', 'ruins', 'settlement', 'wilderness'
   dangerLevel: 1 | 2 | 3 | 4 | 5;
   connectedLocationIds: string[];
@@ -175,6 +176,79 @@ export interface WorldLocation {
   specialRules?: string[];
   subZones?: LocationSubZone[];
   pointsOfInterest?: LocationPointOfInterest[];
+}
+
+/**
+ * Safely traverses parentLocationId upwards with cycle detection.
+ * Returns ancestors in ascending order: [parent, grandparent, great-grandparent, ...]
+ */
+export function getLocationAncestry(
+  locations: WorldLocation[] | undefined,
+  locationId: string
+): WorldLocation[] {
+  if (!locations || !locationId) return [];
+  const result: WorldLocation[] = [];
+  const visited = new Set<string>([locationId]);
+  let currentId: string | undefined = locationId;
+
+  while (currentId) {
+    const loc = locations.find((l) => l.id === currentId);
+    if (!loc || !loc.parentLocationId) break;
+    if (visited.has(loc.parentLocationId)) {
+      // Cycle detected — prevent infinite loop
+      break;
+    }
+    const parent = locations.find((l) => l.id === loc.parentLocationId);
+    if (!parent) break;
+    result.push(parent);
+    visited.add(parent.id);
+    currentId = parent.id;
+  }
+
+  return result;
+}
+
+/**
+ * Returns all descendant IDs (children, grandchildren, etc.) of a location.
+ * Used for cycle prevention when selecting parents in UI.
+ */
+export function getDescendantLocationIds(
+  locations: WorldLocation[] | undefined,
+  locationId: string
+): Set<string> {
+  const descendants = new Set<string>();
+  if (!locations || !locationId) return descendants;
+
+  const queue = [locationId];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const loc of locations) {
+      if (loc.parentLocationId === current && !descendants.has(loc.id)) {
+        descendants.add(loc.id);
+        queue.push(loc.id);
+      }
+    }
+  }
+
+  return descendants;
+}
+
+/**
+ * Returns a breadcrumb string representing the hierarchy chain:
+ * e.g. "قاره کهن > کویر زروان > شهر فیروزه"
+ */
+export function getLocationBreadcrumb(
+  locations: WorldLocation[] | undefined,
+  locationId: string,
+  separator: string = ' > '
+): string {
+  if (!locations || !locationId) return '';
+  const target = locations.find((l) => l.id === locationId);
+  if (!target) return '';
+  const ancestors = getLocationAncestry(locations, locationId);
+  if (ancestors.length === 0) return target.name;
+  const chain = [...ancestors.slice().reverse().map((l) => l.name), target.name];
+  return chain.join(separator);
 }
 
 
@@ -720,6 +794,7 @@ export const WorldLocationSchema = z.object({
   name: z.string().min(2),
   description: z.string(),
   region: z.string(),
+  parentLocationId: z.string().optional(),
   category: z.string().optional(),
   dangerLevel: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
   connectedLocationIds: z.array(z.string()).default([]),

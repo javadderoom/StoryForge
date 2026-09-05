@@ -30,6 +30,8 @@ import {
   LocationSubZone,
   PopulateLocationPayload,
   LocationPointOfInterest,
+  getLocationBreadcrumb,
+  getDescendantLocationIds,
 } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import AiFillSection from '@/components/studio/AiFillSection';
@@ -93,6 +95,7 @@ export default function LocationsStudioPage() {
 
   const [locName, setLocName] = useState('');
   const [locRegion, setLocRegion] = useState('');
+  const [locParentLocationId, setLocParentLocationId] = useState('');
   const [locDesc, setLocDesc] = useState('');
   const [locAtmosphere, setLocAtmosphere] = useState('');
   const [locCategory, setLocCategory] = useState('dungeon');
@@ -125,10 +128,20 @@ export default function LocationsStudioPage() {
     };
   };
 
+  const eligibleParentLocations = React.useMemo(() => {
+    if (!editingLocationId) return locations;
+    const invalidIds = new Set<string>([
+      editingLocationId,
+      ...Array.from(getDescendantLocationIds(locations, editingLocationId)),
+    ]);
+    return locations.filter((l) => !invalidIds.has(l.id));
+  }, [locations, editingLocationId]);
+
   const handleOpenAddModal = () => {
     setEditingLocationId(null);
     setLocName('');
     setLocRegion('');
+    setLocParentLocationId('');
     setLocDesc('');
     setLocAtmosphere('');
     setLocCategory('dungeon');
@@ -142,6 +155,7 @@ export default function LocationsStudioPage() {
     setEditingLocationId(loc.id);
     setLocName(loc.name);
     setLocRegion(loc.region);
+    setLocParentLocationId(loc.parentLocationId || '');
     setLocDesc(loc.description);
     setLocAtmosphere(loc.atmosphere);
     setLocCategory(loc.category || 'dungeon');
@@ -183,6 +197,7 @@ export default function LocationsStudioPage() {
       id: editingLocationId || `loc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
       name: locName.trim(),
       region: locRegion.trim() || (isPersian ? 'ناشناخته' : 'Unknown'),
+      parentLocationId: locParentLocationId || undefined,
       description: locDesc.trim(),
       atmosphere: locAtmosphere.trim(),
       category: locCategory,
@@ -469,9 +484,15 @@ export default function LocationsStudioPage() {
 
                   <div>
                     <h3 className="text-base font-bold text-zinc-100">{loc.name}</h3>
-                    <p className="text-xs text-zinc-400 mt-0.5 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
-                      {loc.region}
+                    <p className="text-xs text-zinc-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 shrink-0" />
+                      {loc.parentLocationId ? (
+                        <span className="text-amber-300 font-mono text-[11px] flex items-center gap-1">
+                          <span>📍 {getLocationBreadcrumb(locations, loc.id)}</span>
+                        </span>
+                      ) : (
+                        <span>{loc.region}</span>
+                      )}
                     </p>
                     {loc.description && <p className="text-xs text-zinc-400 leading-relaxed mt-2">{loc.description}</p>}
                   </div>
@@ -718,6 +739,41 @@ export default function LocationsStudioPage() {
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-zinc-300 block mb-1.5 flex items-center justify-between">
+                  <span>{isPersian ? 'موقعیت بالادست / در بر گیرنده (Parent Location):' : 'Parent / Enclosing Location:'}</span>
+                  {locParentLocationId && (
+                    <span className="text-[10px] font-mono text-amber-400">
+                      {getLocationBreadcrumb(locations, locParentLocationId)}
+                    </span>
+                  )}
+                </label>
+                <select
+                  value={locParentLocationId}
+                  onChange={(e) => {
+                    const nextParentId = e.target.value;
+                    setLocParentLocationId(nextParentId);
+                    if (nextParentId && !locRegion) {
+                      const pLoc = locations.find((l) => l.id === nextParentId);
+                      if (pLoc) setLocRegion(pLoc.name);
+                    }
+                  }}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                >
+                  <option value="">{isPersian ? '— بدون موقعیت بالادست (سطح ریشه / مستقل) —' : '— None (Root / Independent) —'}</option>
+                  {eligibleParentLocations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {getLocationBreadcrumb(locations, l.id)}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10.5px] text-zinc-500 mt-1">
+                  {isPersian
+                    ? 'مثلاً اگر این مکان یک شهر است، موقعیت بالادست آن می‌تواند کویر، دشت یا اقلیم باشد.'
+                    : 'e.g. If this location is a city, its enclosing parent can be the surrounding desert or realm.'}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

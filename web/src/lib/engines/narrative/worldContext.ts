@@ -1,4 +1,4 @@
-import { WorldBible, ScopeTier, StoryChapter, WorldStateLedger, FACTION_RELATION_META } from '@/lib/types/world';
+import { WorldBible, ScopeTier, StoryChapter, WorldStateLedger, FACTION_RELATION_META, getLocationAncestry } from '@/lib/types/world';
 
 export interface WorldContextBlocks {
   worldSummary?: string;
@@ -89,11 +89,13 @@ export function pruneWorldBibleToScope(
 ): WorldBible {
   const { scopeTier, locationIds = [], npcIds = [] } = options;
 
-  // 1-hop neighborhood of the active locations (travel-adjacent context).
+  // 1-hop neighborhood of the active locations (travel-adjacent context) + full ancestry hierarchy.
   const activeLocSet = new Set(locationIds);
   for (const locId of locationIds) {
     const loc = (wb.locations ?? []).find((l) => l.id === locId);
     loc?.connectedLocationIds?.forEach((id) => activeLocSet.add(id));
+    const ancestors = getLocationAncestry(wb.locations ?? [], locId);
+    ancestors.forEach((a) => activeLocSet.add(a.id));
   }
   const activeNpcSet = new Set(npcIds);
 
@@ -301,10 +303,15 @@ export function buildWorldContextBlocks(
 
   const locations = takeRanked(
     wb.locations ?? [],
-    (l) =>
-      `${l.name} (${l.region || 'unknown region'}, danger ${l.dangerLevel}${
+    (l) => {
+      const ancestry = getLocationAncestry(wb.locations ?? [], l.id);
+      const hierarchyPath = ancestry.length > 0
+        ? `inside: ${ancestry.map((a) => a.name).join(' ⊂ ')}`
+        : l.region || 'unknown region';
+      return `${l.name} (${hierarchyPath}, danger ${l.dangerLevel}${
         l.category ? `, ${l.category}` : ''
-      }) — ${l.description}`,
+      }) — ${l.description}`;
+    },
     caps.locations,
     pinLocs
   );
