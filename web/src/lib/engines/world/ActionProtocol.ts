@@ -61,6 +61,7 @@ export interface ActionBlock {
   op: 'create' | 'update' | 'delete';
   entity: EntityType;
   prompt?: string;
+  data?: Record<string, any>;
   anchor?: string;
   match?: { byName: string };
 }
@@ -386,7 +387,7 @@ export function parseActionBlocks(reply: string): ActionBlock[] {
           typeof obj.match.byName === 'string');
       const hasTarget =
         obj.op === 'create'
-          ? typeof obj.prompt === 'string'
+          ? typeof obj.prompt === 'string' || (obj.data && typeof obj.data === 'object')
           : !!(obj.match && typeof obj.match.byName === 'string');
       if (validOp && validEntity && hasTarget) {
         actions.push({ ...obj, entity } as ActionBlock);
@@ -406,18 +407,107 @@ export function validateActionBlock(block: ActionBlock): ValidationResult {
   if (!ops.includes(block.op)) return { valid: false, error: `invalid op: ${block.op}` };
   if (!ALLOWED_ENTITIES.includes(block.entity))
     return { valid: false, error: `invalid entity: ${block.entity}` };
-  if (block.op === 'create' && !block.prompt)
-    return { valid: false, error: 'create requires a prompt' };
+  if (block.op === 'create' && !block.prompt && (!block.data || typeof block.data !== 'object'))
+    return { valid: false, error: 'create requires a prompt or data' };
   if ((block.op === 'update' || block.op === 'delete') && !block.match?.byName)
     return { valid: false, error: `${block.op} requires match.byName` };
-  if (block.op === 'update' && !block.prompt)
-    return { valid: false, error: 'update requires a prompt' };
+  if (block.op === 'update' && !block.prompt && (!block.data || typeof block.data !== 'object'))
+    return { valid: false, error: 'update requires a prompt or data' };
   return { valid: true };
 }
 
+export const PERSIAN_FIELD_MAP: Record<string, string> = {
+  'نام': 'name',
+  'عنوان': 'title',
+  'لقب': 'title',
+  'شرح': 'description',
+  'توصیف': 'description',
+  'توضیح': 'description',
+  'توضیحات': 'description',
+  'شرح مکان و ظاهر': 'description',
+  'شرح مکان': 'description',
+  'ناحیه': 'region',
+  'منطقه': 'region',
+  'ناحیه / منطقه': 'region',
+  'سطح خطر': 'dangerLevel',
+  'سطح_خطر': 'dangerLevel',
+  'خطر': 'dangerLevel',
+  'فضاسازی': 'atmosphere',
+  'فضاسازی و لحن': 'atmosphere',
+  'لحن': 'atmosphere',
+  'جو': 'atmosphere',
+  'اتمسفر': 'atmosphere',
+  'دسته‌بندی': 'category',
+  'دستهبندی': 'category',
+  'دسته‌بندی مکان': 'category',
+  'دستهبندی مکان': 'category',
+  'دسته': 'category',
+  'والد': 'parentLocationName',
+  'مکان والد': 'parentLocationName',
+  'موقعیت بالادست': 'parentLocationName',
+  'موقعیت بالادست / در بر گیرنده': 'parentLocationName',
+  'در بر گیرنده': 'parentLocationName',
+  'قوانین خاص': 'specialRules',
+  'قوانین': 'specialRules',
+  'قلمرو': 'territoryIds',
+  'قلمروها': 'territoryIds',
+  'اهداف علنی': 'publicGoals',
+  'اهداف': 'publicGoals',
+  'دستور کار پنهان': 'secretAgendas',
+  'اهداف پنهان': 'secretAgendas',
+  'گرایش': 'alignment',
+  'نقش': 'role',
+  'گونه': 'speciesCategory',
+  'دسته موجود': 'speciesCategory',
+  'حوزه': 'domain',
+  'قلمرو ایزدی': 'domain',
+  'نماد مقدس': 'sacredSymbol',
+  'باور اصلی': 'coreDogma',
+  'اصول': 'coreDogma',
+  'خطوط قرمز': 'taboos',
+  'حرمت‌ها': 'taboos',
+  'مواهب': 'divineBlessings',
+  'برکت‌ها': 'divineBlessings',
+  'نادرستی': 'rarity',
+  'کمیابی': 'rarity',
+  'قدرت‌ها': 'powers',
+  'قدرت': 'powers',
+  'نفرین': 'curseOrCost',
+  'هزینه': 'curseOrCost',
+  'قانون': 'rule',
+  'اصل': 'rule',
+  'سال یا دوره': 'yearOrEra',
+  'دوره': 'yearOrEra',
+  'اهمیت': 'significance',
+};
+
 export function normalizeEntity(entity: EntityType, data: any): any {
   if (!data || typeof data !== 'object') return data;
-  if (!data.id) {
+  const res: Record<string, any> = { ...data };
+
+  // Map Persian / natural language keys to canonical schema keys
+  for (const [k, v] of Object.entries(data)) {
+    const rawTrimmed = k.trim();
+    const cleanKey = rawTrimmed.replace(/\s*\(.*?\)\s*/g, '').trim();
+    let mapped = PERSIAN_FIELD_MAP[cleanKey] || PERSIAN_FIELD_MAP[rawTrimmed];
+
+    if (!mapped) {
+      if (/^نام(\s+|$)/.test(cleanKey)) mapped = 'name';
+      else if (/^(شرح|توصیف|توضیح)/.test(cleanKey)) mapped = 'description';
+      else if (/^(ناحیه|منطقه)/.test(cleanKey)) mapped = 'region';
+      else if (/خطر/.test(cleanKey)) mapped = 'dangerLevel';
+      else if (/^(فضاسازی|لحن|اتمسفر|جو)/.test(cleanKey)) mapped = 'atmosphere';
+      else if (/^(والد|بالادست|در\s*بر\s*گیرنده|موقعیت\s*بالادست)/.test(cleanKey) || /بالادست/.test(cleanKey)) mapped = 'parentLocationName';
+      else if (/^(دسته|دسته‌بندی|دستهبندی)/.test(cleanKey)) mapped = 'category';
+    }
+
+    if (mapped && !(mapped in res)) {
+      res[mapped] = v;
+    }
+  }
+
+  // Ensure unique canonical ID if not present
+  if (!res.id) {
     const prefix: Record<EntityType, string> = {
       faction: 'fac',
       location: 'loc',
@@ -428,43 +518,122 @@ export function normalizeEntity(entity: EntityType, data: any): any {
       timeline_event: 'evt',
       world_law: 'law',
     };
-    data.id = `${prefix[entity]}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    res.id = `${prefix[entity]}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   }
-  return data;
+
+  // Type-specific field sanitation & normalization
+  if (entity === 'location') {
+    if (typeof res.dangerLevel === 'string') {
+      const parsedNum = parseInt(res.dangerLevel.match(/\d+/)?.[0] || '1', 10);
+      res.dangerLevel = Math.max(1, Math.min(5, isNaN(parsedNum) ? 1 : parsedNum));
+    } else if (typeof res.dangerLevel === 'number') {
+      res.dangerLevel = Math.max(1, Math.min(5, Math.round(res.dangerLevel)));
+    } else {
+      res.dangerLevel = 1;
+    }
+
+    const validCategories = ['settlement', 'wilderness', 'dungeon', 'sanctuary', 'ruin', 'anomaly'];
+    if (res.category) {
+      const catLower = String(res.category).toLowerCase();
+      if (catLower.includes('طبیعت') || catLower.includes('بیابان') || catLower.includes('wild')) {
+        res.category = 'wilderness';
+      } else if (catLower.includes('شهر') || catLower.includes('روستا') || catLower.includes('آبادی') || catLower.includes('settle')) {
+        res.category = 'settlement';
+      } else if (catLower.includes('سیاه‌چال') || catLower.includes('دخمه') || catLower.includes('dungeon')) {
+        res.category = 'dungeon';
+      } else if (catLower.includes('مقدس') || catLower.includes('معبد') || catLower.includes('پناهگاه') || catLower.includes('sanct')) {
+        res.category = 'sanctuary';
+      } else if (catLower.includes('ویرانه') || catLower.includes('خرابه') || catLower.includes('ruin')) {
+        res.category = 'ruin';
+      } else if (catLower.includes('ناهنجاری') || catLower.includes('جادویی') || catLower.includes('anom')) {
+        res.category = 'anomaly';
+      } else if (!validCategories.includes(res.category)) {
+        res.category = 'settlement';
+      }
+    } else {
+      res.category = 'settlement';
+    }
+
+    if (!Array.isArray(res.specialRules)) res.specialRules = [];
+    if (!Array.isArray(res.connectedLocationIds)) res.connectedLocationIds = [];
+  } else if (entity === 'faction') {
+    if (!Array.isArray(res.territoryIds)) res.territoryIds = [];
+    if (!Array.isArray(res.alliedFactionIds)) res.alliedFactionIds = [];
+    if (!Array.isArray(res.rivalFactionIds)) res.rivalFactionIds = [];
+    const validScopes = ['street', 'regional', 'continental', 'mythic'];
+    if (!validScopes.includes(res.scope)) res.scope = 'regional';
+  } else if (entity === 'npc') {
+    if (!Array.isArray(res.personalityTraits)) res.personalityTraits = [];
+    if (!Array.isArray(res.goals)) res.goals = [];
+    if (!Array.isArray(res.secrets)) res.secrets = [];
+    if (typeof res.initialTrust !== 'number') res.initialTrust = 0;
+  } else if (entity === 'artifact') {
+    if (!Array.isArray(res.powers)) res.powers = [];
+    const validRarities = ['uncommon', 'rare', 'epic', 'legendary', 'mythic'];
+    if (!validRarities.includes(res.rarity)) res.rarity = 'rare';
+  } else if (entity === 'creature') {
+    if (!Array.isArray(res.weaknesses)) res.weaknesses = [];
+    if (!Array.isArray(res.resistances)) res.resistances = [];
+    if (!Array.isArray(res.harvestableLoot)) res.harvestableLoot = [];
+    if (typeof res.dangerLevel === 'number') {
+      res.dangerLevel = Math.max(1, Math.min(5, Math.round(res.dangerLevel)));
+    } else {
+      res.dangerLevel = 2;
+    }
+  } else if (entity === 'deity') {
+    if (!Array.isArray(res.taboos)) res.taboos = [];
+    if (!Array.isArray(res.divineBlessings)) res.divineBlessings = [];
+    if (!Array.isArray(res.holyLocationIds)) res.holyLocationIds = [];
+    if (!Array.isArray(res.affiliatedFactionIds)) res.affiliatedFactionIds = [];
+  } else if (entity === 'timeline_event') {
+    if (res.knownByPublic === undefined) res.knownByPublic = true;
+  } else if (entity === 'world_law') {
+    res.isImmutable = true;
+  }
+
+  return res;
 }
 
 export function buildActionProtocolSection(isPersian: boolean): string {
   const ENUM = ALLOWED_ENTITIES.join(' | ');
   if (isPersian) {
-    return `\n\nپروتکل عملیات — برای ایجاد، ویرایش یا حذف موجودیت‌های جهان، بلوک(های) کد زیر را بدون متن اضافه صادر کن. اگر نویسنده تغییرات چند موجودیت را همزمان خواست (مانند تنظیم روابط چند جناح)، برای هر موجودیت یک بلوک مجزا صادر کن تا تمام آن‌ها در پنل تغییرات ثبت شوند. فقط زمانی صادر کن که نویسنده صراحتاً درخواست کرده باشد.
-قالب ایجاد (create):
+    return `\n\nپروتکل عملیات — برای ایجاد، ویرایش یا حذف موجودیت‌های جهان، بلوک(های) کد زیر را بدون متن اضافه صادر کن. اگر نویسنده تغییرات چند موجودیت را همزمان خواست، برای هر موجودیت یک بلوک مجزا صادر کن تا تمام آن‌ها در پنل تغییرات ثبت شوند. فقط زمانی صادر کن که نویسنده صراحتاً درخواست کرده باشد.
+۱) قالب ثبت مستقیم با داده‌های کاربر (Easy Insert — وقتی کاربر فیلدها یا مشخصات را خودش آماده کرده است):
+\`\`\`storyforge-action
+{"op":"create","entity":"location","data":{"name":"نام موجودیت","description":"شرح کامل کاربر","region":"نام منطقه","dangerLevel":3,"atmosphere":"فضاسازی کاربر","parentLocationName":"نام مکان والد"}}
+\`\`\`
+۲) قالب ایجاد خلاقانه (وقتی کاربر ایده یا دستور کلی می‌دهد تا هوش مصنوعی خودش بسازد):
 \`\`\`storyforge-action
 {"op":"create","entity":"faction","prompt":"<دستور خلاقانه برای موجودیت تازه>"}
 \`\`\`
-قالب ویرایش (update):
+۳) قالب ویرایش (update):
 \`\`\`storyforge-action
 {"op":"update","entity":"deity","match":{"byName":"<نام موجودیت موجود>"},"prompt":"<شرح دقیق و کامل تغییرات درخواستی کاربر، شامل متن کامل اصول، ویژگی‌ها یا فیلدهایی که باید جایگزین یا ویرایش شوند>"}
 \`\`\`
-قالب حذف (delete):
+۴) قالب حذف (delete):
 \`\`\`storyforge-action
 {"op":"delete","entity":"faction","match":{"byName":"<نام موجودیت موجود>"}}
 \`\`\`
-عملیات مجاز: "create"، "update"، "delete". موجودیت‌های مجاز: ${ENUM}. باید همواره فیلد «entity» را ذکر کنی. برای update/delete فیلد "match":{"byName":"<نام موجودیت موجود>"} الزامی است. برای update فیلد "prompt" نیز کاملاً الزامی است و باید تمام جزئیات و متن درخواستی کاربر را کلمه به کلمه شامل شود تا دقیقاً روی موجودیت اعمال شود. برای create می‌توانی اختیاری "anchor":"<نام موجودیت موجود>" بگذاری تا موجودیت جدید به آن گره بخورد. هرگز عملیاتی صادر نکن که درخواست نشده باشد. نکته: خدایان، ایزدان، ادیان، پانتئون‌ها و فرقه‌ها همگی موجودیت «deity» هستند. اگر نویسنده چیزی را که از پیش دارد می‌خواهد تغییر دهد، حتماً از op "update" با match.byName و prompt کامل استفاده کن و هرگز نسخه تکراری نساز.`;
+عملیات مجاز: "create"، "update"، "delete". موجودیت‌های مجاز: ${ENUM}. باید همواره فیلد «entity» را ذکر کنی. برای ایجاد مستقیم وقتی کاربر مشخصات ارائه کرده، حتماً از فیلد "data" استفاده کن تا دقیقاً همان داده‌ها ثبت شوند و نیاز به بازنویسی مجدد نباشد. برای create خلاقانه از "prompt" استفاده کن. برای update/delete فیلد "match":{"byName":"<نام موجودیت موجود>"} الزامی است. نکته: خدایان، ایزدان، ادیان، پانتئون‌ها و فرقه‌ها همگی موجودیت «deity» هستند.`;
   }
   return `\n\nACTION PROTOCOL — To create, modify, or delete world entities, emit fenced code blocks matching the formats below with no extra prose. When the author's request spans multiple entities (such as configuring relations across several factions), emit a separate storyforge-action block for EACH affected entity. Only emit action blocks when the author explicitly requests them.
-Create format:
+1) Direct Insert format (Easy Insert — when the author provides explicit fields or pre-written text):
+\`\`\`storyforge-action
+{"op":"create","entity":"location","data":{"name":"Entity Name","description":"Author text","region":"Region","dangerLevel":3,"atmosphere":"Atmosphere","parentLocationName":"Parent Name"}}
+\`\`\`
+2) Creative Generation format (when the author gives a brief idea for the AI to brainstorm):
 \`\`\`storyforge-action
 {"op":"create","entity":"faction","prompt":"<creative brief for the new entity>"}
 \`\`\`
-Update format:
+3) Update format:
 \`\`\`storyforge-action
 {"op":"update","entity":"deity","match":{"byName":"<existing entity name>"},"prompt":"<exact and full description of the changes requested, including all replacement text, tenets, or modified fields>"}
 \`\`\`
-Delete format:
+4) Delete format:
 \`\`\`storyforge-action
 {"op":"delete","entity":"faction","match":{"byName":"<existing entity name>"}}
 \`\`\`
-Ops: "create", "update", "delete". Entities: ${ENUM}. You MUST include the "entity" field in every action. For update/delete add "match":{"byName":"<existing entity name>"}. For update, the "prompt" field is also MANDATORY and MUST contain the complete details and text of what to change or replace. For create you may optionally add "anchor":"<existing entity name>" to tie it to existing lore. Never emit actions you were not asked for. Note: gods, deities, religions, pantheons, and cults are all the 'deity' entity. To change something the author already has, use op 'update' with match.byName and full prompt — never create a duplicate.`;
+Ops: "create", "update", "delete". Entities: ${ENUM}. You MUST include the "entity" field in every action. For direct insertion where the author already drafted fields, use "data" to register their exact text with zero AI drift. For creative generation use "prompt". For update/delete add "match":{"byName":"<existing entity name>"}. Note: gods, deities, religions, pantheons, and cults are all the 'deity' entity.`;
 }
 
 export function buildAdviserSystemPrompt(
@@ -481,6 +650,7 @@ export function buildAdviserSystemPrompt(
     ? [
         p.core.fa,
         'سبک ارتباطی: در گفتگوها کاملاً واضح، روان، طبیعی و حرفه‌ای صحبت کن. هرگز نقش شخصیت‌های داستانی یا راوی کهن را بازی نکن و در پاسخ‌های مکالمه‌ای نثر شاعرانه یا اغراق‌آمیز به کار نبر. نثر روایی و ادبی را تنها زمانی به کار ببر که در حال نوشتن متن یک فیلد لور یا پیش‌نویس داستان هستی.',
+        'ثبت مستقیم موجودیت‌ها (Easy Insert) و حفظ کلان‌مکان‌ها: هرگاه نویسنده مشخصات یا فیلدهای آماده یک موجودیت را ارائه داد (مانند فرم یا متن حاوی نام مکان، ناحیه، شرح، سطح خطر، مکان بالادست/والد، یا مشخصات یک جناح یا شخصیت)، تو باید به عنوان سیستم ثبت مستقیم (Easy Insert) عمل کنی: تمام مقادیر نویسنده را مستقیماً در شیء «data» در یک بلوک create قرار بده (نه در prompt) تا بدون تحریف و بدون تولید محتوای تصادفی ذخیره شوند. همچنین اگر نویسنده یک مکان کلان (مانند قاره، سیاره، پادشاهی یا قلمرو) را معرفی کرد، دقیقاً همان یک مکان کلان را ثبت کن؛ هرگز آن را به مکان‌های تصادفی درونش خرد نکن مگر اینکه صراحتاً چنین درخواستی شده باشد.',
         'بررسی خلأها و فیلدهای ارتباطی موجودیت‌ها: در مدل داده استوری‌فورج ارتباطات به این صورت در فیلدهای آرایه‌ای ذخیره می‌شوند: ادیان/خدایان مکان‌های مقدس را در فیلد «holyLocationIds» و جناح‌های وابسته را در «affiliatedFactionIds» نگه می‌دارند؛ جناح‌ها قلمروها را در فیلد «territoryIds» نگه می‌دارند؛ شخصیت‌ها در فیلد «currentLocationId» و «factionId» مشخص می‌شوند. وقتی نویسنده می‌خواهد مکانی مقدس برای یک دین تعیین کند یا جناحی را به قلمرویی وصل کند، باید خود «موجودیت دین» (deity) یا «جناح» (faction) را با یک storyforge-action بروزرسانی کنی تا شناسه مکان در آرایه مربوطه ثبت شود (نه اینکه فقط در توصیف متنی مکان چیزی بنویسی).',
         'فیلدهای استراتژیک جناح: هر جناح دو فیلد اختیاری دارد که باید آگاهانه با عملیات create/update تنظیم کنی. فیلد «scope» یکی از مقادیر "street"|"regional"|"continental"|"mythic" است و مشخص می‌کند جناح از کدام لایه روایی (اسکوپ فصل‌ها) وارد صحنه شود — دار و دسته‌های محلی و نگهبانان شهری "street"، پادشاهی‌ها "regional"، نظام‌های فراقاره‌ای "continental" و نیروهای کیهانی/فرابعدی مانند خدایان شرور، دیوها و موجوداتی که جهان را تباه می‌کنند همیشه "mythic" هستند (این جناح‌ها تا اوج داستان از چشم بازیکن پنهان می‌مانند). فیلد «secretAgendas» اهداف پنهان و واقعی جناح است که فقط روایتگر هوش مصنوعی آن‌ها را می‌بیند. هرگاه نویسنده از دستور پنهان یا مقیاس کیهانی/جهانی برای جناحی گفت، حتماً با یک عملیات update این دو فیلد را صریحاً تنظیم کن و آن‌ها را خالی نگذار.',
         'مناسبات ۵گانه قدرت و روابط جناح‌ها: روابط جناح‌ها در یک طیف ۵ حالته مدل‌سازی می‌شوند: "allied" (متحد رسمی)، "favorable" (هم‌پیمان پنهان/متمایل)، "neutral" (بی‌طرف/عمل‌گرا)، "rival" (رقیب سیاسی/اصطکاک)، "hostile" (دشمن خونی/جنگ باز). هرگاه نویسنده از تو خواست روابط جناحی را تنظیم کنی یا پر کنی، یک عملیات update روی همان جناح (با match.byName) صادر کن و در prompt نام جناح‌های هدف، موضع ۵گانه و دلیل داستانی (یادداشت رابطه) را صریحاً بنویس.',
@@ -493,6 +663,7 @@ export function buildAdviserSystemPrompt(
     : [
         p.core.en,
         'COMMUNICATION STYLE: Speak in a clear, natural, direct, and professional assistant tone. Do NOT roleplay as an in-world ancient character or recite theatrical purple prose in conversation. Separate your conversational advice from world lore. Use rich literary language ONLY when writing actual lore descriptions or story content for entities.',
+        'EASY INSERT & MACRO-ENTITY INTEGRITY: Whenever the author provides an entity template, filled specifications, or drafted fields (such as location name, region, description, danger level, parent location, or faction attributes), act as an Easy Insert ingestion system: output their exact authored values directly inside the "data" object of a create action block (rather than a vague prompt) so their data is registered verbatim without creative drift or random hallucinations. Furthermore, when the author defines a macro-location (continent, planet, realm, kingdom), create that single macro-entity; do NOT fragment it into unsolicited sub-locations unless explicitly instructed.',
         'RELATIONAL LINKS & LORE GAPS: AfsanehSaz stores cross-entity connections in explicit array fields: Deities store sacred sites in "holyLocationIds" and allied factions in "affiliatedFactionIds"; Factions store territories in "territoryIds"; NPCs store "currentLocationId" and "factionId". When linking a religion to a holy site or a faction to a territory, you MUST emit an update action on the DEITY (to populate holyLocationIds with the location id) or on the FACTION (to populate territoryIds with the location id), rather than only writing prose in a location description.',
         'FACTION STRATEGIC FIELDS: Factions carry two optional strategic fields you should set deliberately via create/update actions. "scope" ("street"|"regional"|"continental"|"mythic") marks the chapter tier at which the faction becomes narratively active — street gangs and city guards are "street", kingdoms are "regional", empire-spanning orders are "continental", and cosmic/trans-planar dominions of gods, devils, or world-twisting entities are "mythic" (they stay hidden from players until the saga escalates). "secretAgendas" holds the faction\'s hidden true goals that only the AI narrator ever sees. When the author describes a hidden agenda or a cosmic/universal scale for a faction, ALWAYS emit an update action setting these fields explicitly instead of leaving them blank.',
         'FACTION RELATIONS (5-STATE SPECTRUM): Inter-faction relations are modeled across a 5-tier spectrum: "allied" (+2 sworn ally), "favorable" (+1 informal pact/lean), "neutral" (0 non-intervention/trade), "rival" (-1 political friction/tension), "hostile" (-2 open war/blood feud). When the author asks you to establish, fill in, or modify relations between factions, emit an "update" action targeting the faction (match.byName) with a clear prompt specifying the target factions, the 5-state stances, and the narrative lore note for each.',

@@ -105,16 +105,33 @@ export async function prepareWorldChanges(opts: {
 
     try {
       if (a.op === 'create') {
-        const json = await callGenerate({
-          type: entity,
-          prompt: a.prompt || userText,
-          worldContext,
-          isPersian,
-          anchor: a.anchor,
-          themeContext,
-        });
-        if (!json.success || !json.data) throw new Error(json.error || t.failed);
-        const data = normalizeEntity(entity, json.data);
+        let data: any;
+        if (a.data && typeof a.data === 'object' && Object.keys(a.data).length > 0) {
+          // Direct Easy Insert: bypass AI generation and preserve author's exact data
+          data = normalizeEntity(entity, { ...a.data });
+
+          // Automatically resolve parent location reference if provided by name
+          if (entity === 'location' && !data.parentLocationId && worldBible?.locations) {
+            const pName = data.parentLocationName || data.parentLocation || data.parent;
+            if (typeof pName === 'string' && pName.trim()) {
+              const matchedParent = worldBible.locations.find((l) => nameMatch(l.name, pName));
+              if (matchedParent) {
+                data.parentLocationId = matchedParent.id;
+              }
+            }
+          }
+        } else {
+          const json = await callGenerate({
+            type: entity,
+            prompt: a.prompt || userText,
+            worldContext,
+            isPersian,
+            anchor: a.anchor,
+            themeContext,
+          });
+          if (!json.success || !json.data) throw new Error(json.error || t.failed);
+          data = normalizeEntity(entity, json.data);
+        }
         ready.push({ op: 'create', entity, label: labelOf(data), newData: data });
       } else {
         const target = resolveEntityTarget(worldBible, entity, a.match!.byName);
@@ -129,46 +146,62 @@ export async function prepareWorldChanges(opts: {
             targetId: target.id,
           });
         } else {
-          const changeBrief = a.prompt?.trim() ? a.prompt.trim() : userText || 'Update entity based on user prompt';
-          let targetForPrompt = target;
-          if (entity === 'faction' && worldBible) {
-            const existingRelations = (worldBible.factionRelations || [])
-              .filter((r) => r.sourceFactionId === target.id || r.targetFactionId === target.id)
-              .map((r) => {
-                const otherId = r.sourceFactionId === target.id ? r.targetFactionId : r.sourceFactionId;
-                const otherFac = (worldBible.factions || []).find((f) => f.id === otherId);
-                return {
-                  targetFactionId: otherId,
-                  targetFactionName: otherFac?.name || otherId,
-                  value: r.value,
-                  note: r.note || '',
-                  isPublic: r.isPublic ?? true,
-                };
-              });
-            const otherFactions = (worldBible.factions || [])
-              .filter((f) => f.id !== target.id)
-              .map((f) => ({ id: f.id, name: f.name, alignment: f.alignment }));
-            targetForPrompt = {
-              ...target,
-              relations: existingRelations,
-              availableOtherFactions: otherFactions,
-            };
+          let data: any;
+          if (a.data && typeof a.data === 'object' && Object.keys(a.data).length > 0) {
+            // Direct update: merge provided fields directly onto the target entity
+            const merged = { ...target, ...a.data, id: target.id };
+            data = normalizeEntity(entity, merged);
+            if (entity === 'location' && !data.parentLocationId && worldBible?.locations) {
+              const pName = a.data.parentLocationName || a.data.parentLocation || a.data.parent;
+              if (typeof pName === 'string' && pName.trim()) {
+                const matchedParent = worldBible.locations.find((l) => nameMatch(l.name, pName));
+                if (matchedParent) {
+                  data.parentLocationId = matchedParent.id;
+                }
+              }
+            }
+          } else {
+            const changeBrief = a.prompt?.trim() ? a.prompt.trim() : userText || 'Update entity based on user prompt';
+            let targetForPrompt = target;
+            if (entity === 'faction' && worldBible) {
+              const existingRelations = (worldBible.factionRelations || [])
+                .filter((r) => r.sourceFactionId === target.id || r.targetFactionId === target.id)
+                .map((r) => {
+                  const otherId = r.sourceFactionId === target.id ? r.targetFactionId : r.sourceFactionId;
+                  const otherFac = (worldBible.factions || []).find((f) => f.id === otherId);
+                  return {
+                    targetFactionId: otherId,
+                    targetFactionName: otherFac?.name || otherId,
+                    value: r.value,
+                    note: r.note || '',
+                    isPublic: r.isPublic ?? true,
+                  };
+                });
+              const otherFactions = (worldBible.factions || [])
+                .filter((f) => f.id !== target.id)
+                .map((f) => ({ id: f.id, name: f.name, alignment: f.alignment }));
+              targetForPrompt = {
+                ...target,
+                relations: existingRelations,
+                availableOtherFactions: otherFactions,
+              };
+            }
+            const editPrompt = `Current entity JSON:\n${JSON.stringify(targetForPrompt, null, 2)}\n\nRequested changes to apply:\n${changeBrief}\n\nReturn the COMPLETE updated entity as a JSON object with ALL original fields preserved and only the requested changes applied. Output valid JSON only matching the entity schema.`;
+            const editSystem = isPersian
+              ? 'تو در حال ویرایش یک موجودیت موجود هستی. خروجی را به صورت شیء JSON کامل شامل تمام فیلدهای پیشین (با اعمال تغییرات) برگردان. نام و شناسه را حفظ کن. فقط JSON معتبر خروجی بده.\n\n'
+              : 'You are editing an EXISTING world entity. Return the COMPLETE updated entity as a JSON object with ALL original fields preserved and only the requested changes applied. Preserve name and id. Output valid JSON only.\n\n';
+            const json = await callGenerate({
+              type: entity,
+              prompt: changeBrief,
+              worldContext,
+              isPersian,
+              themeContext,
+              customSystemPrompt: editSystem + editPrompt,
+            });
+            if (!json.success || !json.data) throw new Error(json.error || t.failed);
+            const merged = { ...target, ...json.data, id: target.id };
+            data = normalizeEntity(entity, merged);
           }
-          const editPrompt = `Current entity JSON:\n${JSON.stringify(targetForPrompt, null, 2)}\n\nRequested changes to apply:\n${changeBrief}\n\nReturn the COMPLETE updated entity as a JSON object with ALL original fields preserved and only the requested changes applied. Output valid JSON only matching the entity schema.`;
-          const editSystem = isPersian
-            ? 'تو در حال ویرایش یک موجودیت موجود هستی. خروجی را به صورت شیء JSON کامل شامل تمام فیلدهای پیشین (با اعمال تغییرات) برگردان. نام و شناسه را حفظ کن. فقط JSON معتبر خروجی بده.\n\n'
-            : 'You are editing an EXISTING world entity. Return the COMPLETE updated entity as a JSON object with ALL original fields preserved and only the requested changes applied. Preserve name and id. Output valid JSON only.\n\n';
-          const json = await callGenerate({
-            type: entity,
-            prompt: changeBrief,
-            worldContext,
-            isPersian,
-            themeContext,
-            customSystemPrompt: editSystem + editPrompt,
-          });
-          if (!json.success || !json.data) throw new Error(json.error || t.failed);
-          const merged = { ...target, ...json.data, id: target.id };
-          const data = normalizeEntity(entity, merged);
           ready.push({
             op: 'update',
             entity,
