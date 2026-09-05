@@ -24,6 +24,8 @@ import {
   Award,
   Skull,
   Sun,
+  Tag,
+  LayoutGrid,
 } from 'lucide-react';
 import { WorldArtifact, WorldCreature, WorldDeity } from '@/lib/types';
 
@@ -44,8 +46,411 @@ export interface GraphEdge {
   source: string;
   target: string;
   label: string;
+  note?: string;
   color: string;
   dashed?: boolean;
+}
+
+/**
+ * Computes a clean, spacious, collision-free layout for the Lore Graph.
+ * Organizes entities into dedicated non-overlapping horizontal and vertical tiers
+ * with 4-column multi-row wrapping, so nodes never overlap regardless of entity counts.
+ */
+export function computeCleanGraphLayout(
+  worldBible: WorldBible,
+  isPersian: boolean
+): { initialNodes: GraphNode[]; initialEdges: GraphEdge[] } {
+  const nodesList: GraphNode[] = [];
+  const edgesList: GraphEdge[] = [];
+
+  const locs = worldBible.locations || [];
+  const npcs = worldBible.npcs || [];
+  const factions = worldBible.factions || [];
+  const laws = worldBible.laws || [];
+  const artifacts = worldBible.artifacts || [];
+  const creatures = worldBible.bestiary || [];
+  const religions = worldBible.religions || [];
+  const dramaBonds = worldBible.dramaBonds || [];
+
+  const seenFactionPairs = new Set<string>();
+
+  // 1a. Explicit 5-state spectrum relations
+  // Note: Only the concise status label is placed on the edge label; the full note is saved in edge.note
+  (worldBible.factionRelations || []).forEach((rel) => {
+    const edgeKey = [rel.sourceFactionId, rel.targetFactionId].sort().join('--');
+    if (seenFactionPairs.has(edgeKey)) return;
+    seenFactionPairs.add(edgeKey);
+
+    let color = '#94A3B8';
+    let label = isPersian ? 'بی‌طرف' : 'Neutral';
+    let dashed = true;
+
+    if (rel.value === 'allied') {
+      color = '#10B981'; // Emerald
+      label = isPersian ? 'متحد رسمی' : 'Sworn Ally';
+      dashed = false;
+    } else if (rel.value === 'favorable') {
+      color = '#38BDF8'; // Sky Blue
+      label = isPersian ? 'هم‌پیمان پنهان' : 'Favorable';
+      dashed = true;
+    } else if (rel.value === 'rival') {
+      color = '#F59E0B'; // Amber
+      label = isPersian ? 'رقیب' : 'Rival';
+      dashed = true;
+    } else if (rel.value === 'hostile') {
+      color = '#EF4444'; // Red
+      label = isPersian ? 'دشمن خونی' : 'Blood Enemy';
+      dashed = false;
+    }
+
+    edgesList.push({
+      id: `edge-fac-rel-${edgeKey}`,
+      source: rel.sourceFactionId,
+      target: rel.targetFactionId,
+      label,
+      note: rel.note || undefined,
+      color,
+      dashed,
+    });
+  });
+
+  const COL_WIDTH = 380;
+  const ROW_HEIGHT = 180;
+  const COLS = 4;
+  let currentY = 100;
+
+  // 1. Pantheons & Deities (Tier 0: Celestial Orbit)
+  religions.forEach((d, idx) => {
+    const col = idx % COLS;
+    const row = Math.floor(idx / COLS);
+    const x = 200 + col * COL_WIDTH;
+    const y = currentY + row * ROW_HEIGHT;
+    nodesList.push({
+      id: d.id,
+      label: d.name,
+      sublabel: isPersian ? `ایزد ${d.domain}` : `${d.domain} Deity`,
+      type: 'deity',
+      x,
+      y,
+      data: d,
+    });
+
+    (d.affiliatedFactionIds || []).forEach((fId) => {
+      edgesList.push({
+        id: `edge-deity-fac-${d.id}-${fId}`,
+        source: d.id,
+        target: fId,
+        label: isPersian ? 'آیین جناح' : 'Patron Of',
+        color: '#F59E0B',
+      });
+    });
+
+    (d.holyLocationIds || []).forEach((lId) => {
+      edgesList.push({
+        id: `edge-deity-loc-${d.id}-${lId}`,
+        source: d.id,
+        target: lId,
+        label: isPersian ? 'معبد مقدس' : 'Holy Site',
+        color: '#A855F7',
+      });
+    });
+  });
+
+  if (religions.length > 0) {
+    currentY += Math.ceil(religions.length / COLS) * ROW_HEIGHT + 60;
+  }
+
+  // 2. Factions (Tier 1: Political Power Centers)
+  factions.forEach((fac, idx) => {
+    const col = idx % COLS;
+    const row = Math.floor(idx / COLS);
+    const x = 200 + col * COL_WIDTH;
+    const y = currentY + row * ROW_HEIGHT;
+    nodesList.push({
+      id: fac.id,
+      label: fac.name,
+      sublabel: fac.alignment,
+      type: 'faction',
+      x,
+      y,
+      data: fac,
+    });
+
+    // Faction territories
+    (fac.territoryIds || []).forEach((tId) => {
+      edgesList.push({
+        id: `edge-fac-terr-${fac.id}-${tId}`,
+        source: fac.id,
+        target: tId,
+        label: isPersian ? 'قلمرو حاکمیت' : 'Controls Territory',
+        color: '#A855F7',
+      });
+    });
+
+    // Fallback: Legacy alliances if not in factionRelations
+    (fac.alliedFactionIds || []).forEach((aId) => {
+      const edgeKey = [fac.id, aId].sort().join('--');
+      if (!seenFactionPairs.has(edgeKey)) {
+        seenFactionPairs.add(edgeKey);
+        edgesList.push({
+          id: `edge-fac-ally-${edgeKey}`,
+          source: fac.id,
+          target: aId,
+          label: isPersian ? 'متحد رسمی' : 'Sworn Ally',
+          color: '#10B981',
+          dashed: false,
+        });
+      }
+    });
+
+    // Fallback: Legacy rivalries if not in factionRelations
+    (fac.rivalFactionIds || []).forEach((rId) => {
+      const edgeKey = [fac.id, rId].sort().join('--');
+      if (!seenFactionPairs.has(edgeKey)) {
+        seenFactionPairs.add(edgeKey);
+        edgesList.push({
+          id: `edge-fac-rival-${edgeKey}`,
+          source: fac.id,
+          target: rId,
+          label: isPersian ? 'دشمن خونی' : 'Blood Enemy',
+          color: '#EF4444',
+          dashed: false,
+        });
+      }
+    });
+  });
+
+  if (factions.length > 0) {
+    currentY += Math.ceil(factions.length / COLS) * ROW_HEIGHT + 80;
+  }
+
+  // 3. Locations (Tier 2: Hierarchical Geography - Roots, Children, Grandchildren)
+  const seenPaths = new Set<string>();
+  const rootLocs = locs.filter((l) => !l.parentLocationId || !locs.some((p) => p.id === l.parentLocationId));
+  const childLocs = locs.filter((l) => l.parentLocationId && rootLocs.some((p) => p.id === l.parentLocationId));
+  const deepLocs = locs.filter((l) => !rootLocs.includes(l) && !childLocs.includes(l));
+
+  const placeLocationGroup = (group: WorldLocation[]) => {
+    group.forEach((loc, idx) => {
+      const col = idx % COLS;
+      const row = Math.floor(idx / COLS);
+      const x = 200 + col * COL_WIDTH;
+      const y = currentY + row * ROW_HEIGHT;
+      const breadcrumb = loc.parentLocationId ? getLocationBreadcrumb(locs, loc.id) : loc.region;
+      nodesList.push({
+        id: loc.id,
+        label: loc.name,
+        sublabel: breadcrumb,
+        type: 'location',
+        x,
+        y,
+        data: loc,
+      });
+
+      // Hierarchical Parent Edge
+      if (loc.parentLocationId && locs.some((l) => l.id === loc.parentLocationId)) {
+        edgesList.push({
+          id: `edge-loc-parent-${loc.id}-${loc.parentLocationId}`,
+          source: loc.id,
+          target: loc.parentLocationId,
+          label: isPersian ? 'واقع در (والد)' : 'Enclosed in (Parent)',
+          color: '#F59E0B',
+          dashed: true,
+        });
+      }
+
+      // Location Paths
+      (loc.connectedLocationIds || []).forEach((tId) => {
+        const edgeKey = [loc.id, tId].sort().join('--');
+        if (!seenPaths.has(edgeKey)) {
+          seenPaths.add(edgeKey);
+          edgesList.push({
+            id: `edge-loc-path-${edgeKey}`,
+            source: loc.id,
+            target: tId,
+            label: isPersian ? 'مسیر پیوسته' : 'Connected Path',
+            color: '#38BDF8',
+          });
+        }
+      });
+    });
+
+    if (group.length > 0) {
+      currentY += Math.ceil(group.length / COLS) * ROW_HEIGHT + 60;
+    }
+  };
+
+  placeLocationGroup(rootLocs);
+  placeLocationGroup(childLocs);
+  placeLocationGroup(deepLocs);
+
+  currentY += 20;
+
+  // 4. NPCs (Tier 3: Dramatis Personae)
+  npcs.forEach((npc, idx) => {
+    const col = idx % COLS;
+    const row = Math.floor(idx / COLS);
+    const x = 200 + col * COL_WIDTH;
+    const y = currentY + row * ROW_HEIGHT;
+    nodesList.push({
+      id: npc.id,
+      label: npc.name,
+      sublabel: npc.title,
+      type: 'npc',
+      x,
+      y,
+      data: npc,
+    });
+
+    if (npc.currentLocationId) {
+      edgesList.push({
+        id: `edge-npc-loc-${npc.id}-${npc.currentLocationId}`,
+        source: npc.id,
+        target: npc.currentLocationId,
+        label: isPersian ? 'محل استقرار' : 'Stationed At',
+        color: '#F59E0B',
+      });
+    }
+
+    if (npc.factionId) {
+      edgesList.push({
+        id: `edge-npc-fac-${npc.id}-${npc.factionId}`,
+        source: npc.id,
+        target: npc.factionId,
+        label: isPersian ? 'عضو جناح' : 'Member Of',
+        color: '#818CF8',
+      });
+    }
+  });
+
+  if (npcs.length > 0) {
+    currentY += Math.ceil(npcs.length / COLS) * ROW_HEIGHT + 80;
+  }
+
+  // 5. Bestiary Creatures (Tier 4: Habitats & Monsters - Cleanly separated from NPCs!)
+  creatures.forEach((c, idx) => {
+    const col = idx % COLS;
+    const row = Math.floor(idx / COLS);
+    const x = 200 + col * COL_WIDTH;
+    const y = currentY + row * ROW_HEIGHT;
+    nodesList.push({
+      id: c.id,
+      label: c.name,
+      sublabel: isPersian ? `هیولا (خطر ${c.dangerLevel})` : `${c.speciesCategory} (D:${c.dangerLevel})`,
+      type: 'creature',
+      x,
+      y,
+      data: c,
+    });
+
+    (c.habitatLocationIds || []).forEach((locId) => {
+      edgesList.push({
+        id: `edge-creature-habitat-${c.id}-${locId}`,
+        source: c.id,
+        target: locId,
+        label: isPersian ? 'زیستگاه' : 'Habitat',
+        color: '#F43F5E',
+      });
+    });
+  });
+
+  if (creatures.length > 0) {
+    currentY += Math.ceil(creatures.length / COLS) * ROW_HEIGHT + 80;
+  }
+
+  // 6. Mythic Relics & Artifacts (Tier 5: Sacred Vaults & Relics)
+  artifacts.forEach((art, idx) => {
+    const col = idx % COLS;
+    const row = Math.floor(idx / COLS);
+    const x = 200 + col * COL_WIDTH;
+    const y = currentY + row * ROW_HEIGHT;
+    nodesList.push({
+      id: art.id,
+      label: art.name,
+      sublabel: isPersian ? `عتیقه ${art.rarity}` : `${art.rarity} Relic`,
+      type: 'artifact',
+      x,
+      y,
+      data: art,
+    });
+
+    if (art.currentHolderId && art.currentHolderId !== 'unknown') {
+      edgesList.push({
+        id: `edge-art-holder-${art.id}-${art.currentHolderId}`,
+        source: art.id,
+        target: art.currentHolderId,
+        label: isPersian ? 'مقر نگهداری' : 'Held At',
+        color: '#F59E0B',
+      });
+    }
+  });
+
+  if (artifacts.length > 0) {
+    currentY += Math.ceil(artifacts.length / COLS) * ROW_HEIGHT + 80;
+  }
+
+  // 7. Laws (Tier 6: Foundational World Axioms)
+  laws.forEach((law, idx) => {
+    const col = idx % COLS;
+    const row = Math.floor(idx / COLS);
+    const x = 200 + col * COL_WIDTH;
+    const y = currentY + row * ROW_HEIGHT;
+    nodesList.push({
+      id: law.id,
+      label: law.rule,
+      sublabel: law.category,
+      type: 'law',
+      x,
+      y,
+      data: law,
+    });
+  });
+
+  // 8. Drama Bonds
+  dramaBonds.forEach((bond) => {
+    const color = bond.affinity < 0 ? '#F43F5E' : bond.affinity > 0 ? '#10B981' : '#A855F7';
+    edgesList.push({
+      id: `edge-drama-${bond.id}`,
+      source: bond.sourceNpcId,
+      target: bond.targetNpcId,
+      label: `${bond.relationTypeId} (${bond.affinity > 0 ? `+${bond.affinity}` : bond.affinity})`,
+      note: bond.secretTension || undefined,
+      color,
+    });
+  });
+
+  // 9. Custom Lore Relations
+  const relTypeMap = new Map((worldBible.ontology?.relationTypes || []).map((r) => [r.id, r]));
+  (worldBible.customRelations || []).forEach((cRel) => {
+    const relMeta = relTypeMap.get(cRel.relationTypeId);
+    edgesList.push({
+      id: `edge-custom-${cRel.id}`,
+      source: cRel.sourceId,
+      target: cRel.targetId,
+      label: cRel.customLabel || relMeta?.name || cRel.relationTypeId,
+      note: relMeta?.description || undefined,
+      color: relMeta?.color || '#38BDF8',
+    });
+  });
+
+  // Resolve human-readable aliases
+  const nodeAlias = new Map<string, string>();
+  nodesList.forEach((n) => {
+    nodeAlias.set(n.id, n.id);
+    if (n.label) nodeAlias.set(n.label.toLowerCase(), n.id);
+  });
+  const resolveRef = (ref: string): string =>
+    nodeAlias.get(ref) || nodeAlias.get((ref || '').toLowerCase()) || ref;
+
+  const remappedEdges = edgesList
+    .map((e) => ({
+      ...e,
+      source: resolveRef(e.source),
+      target: resolveRef(e.target),
+    }))
+    .filter((e) => e.source !== e.target);
+
+  return { initialNodes: nodesList, initialEdges: remappedEdges };
 }
 
 interface LoreGraphCanvasProps {
@@ -59,6 +464,8 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
   const [searchQuery, setSearchQuery] = useState('');
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 40, y: 30 });
+  const [showEdgeLabels, setShowEdgeLabels] = useState(false);
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
 
   // Relation creation state
   const [isAddingLink, setIsAddingLink] = useState(false);
@@ -96,344 +503,18 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // Build clean deterministic graph layout
-  const { initialNodes, initialEdges } = useMemo(() => {
-    const nodesList: GraphNode[] = [];
-    const edgesList: GraphEdge[] = [];
+  const { initialNodes, initialEdges } = useMemo(
+    () => computeCleanGraphLayout(worldBible, isPersian),
+    [worldBible, isPersian]
+  );
 
-    const locs = worldBible.locations || [];
-    const npcs = worldBible.npcs || [];
-    const factions = worldBible.factions || [];
-    const laws = worldBible.laws || [];
+  const handleAutoArrange = () => {
+    const { initialNodes: freshNodes } = computeCleanGraphLayout(worldBible, isPersian);
+    setNodes(freshNodes);
+    setZoom(1);
+    setPan({ x: 40, y: 30 });
+  };
 
-    // 1. Factions (Top Row: Y = 90)
-    const seenFactionPairs = new Set<string>();
-
-    // 1a. Explicit 5-state spectrum relations
-    (worldBible.factionRelations || []).forEach((rel) => {
-      const edgeKey = [rel.sourceFactionId, rel.targetFactionId].sort().join('--');
-      if (seenFactionPairs.has(edgeKey)) return;
-      seenFactionPairs.add(edgeKey);
-
-      let color = '#94A3B8';
-      let label = isPersian ? 'بی‌طرف' : 'Neutral';
-      let dashed = true;
-
-      if (rel.value === 'allied') {
-        color = '#10B981'; // Emerald
-        label = isPersian ? 'متحد رسمی' : 'Sworn Ally';
-        dashed = false;
-      } else if (rel.value === 'favorable') {
-        color = '#38BDF8'; // Sky Blue
-        label = isPersian ? 'هم‌پیمان پنهان' : 'Favorable';
-        dashed = true;
-      } else if (rel.value === 'rival') {
-        color = '#F59E0B'; // Amber
-        label = isPersian ? 'رقیب' : 'Rival';
-        dashed = true;
-      } else if (rel.value === 'hostile') {
-        color = '#EF4444'; // Red
-        label = isPersian ? 'دشمن خونی' : 'Blood Enemy';
-        dashed = false;
-      }
-
-      edgesList.push({
-        id: `edge-fac-rel-${edgeKey}`,
-        source: rel.sourceFactionId,
-        target: rel.targetFactionId,
-        label: rel.note ? `${label}: ${rel.note}` : label,
-        color,
-        dashed,
-      });
-    });
-
-    factions.forEach((fac, idx) => {
-      const x = 240 + idx * 360;
-      const y = 90;
-      nodesList.push({
-        id: fac.id,
-        label: fac.name,
-        sublabel: fac.alignment,
-        type: 'faction',
-        x,
-        y,
-        data: fac,
-      });
-
-      // Faction territories
-      (fac.territoryIds || []).forEach((tId) => {
-        edgesList.push({
-          id: `edge-fac-terr-${fac.id}-${tId}`,
-          source: fac.id,
-          target: tId,
-          label: isPersian ? 'قلمرو حاکمیت' : 'Controls Territory',
-          color: '#A855F7', // Purple
-        });
-      });
-
-      // Fallback: Legacy alliances if not in factionRelations
-      (fac.alliedFactionIds || []).forEach((aId) => {
-        const edgeKey = [fac.id, aId].sort().join('--');
-        if (!seenFactionPairs.has(edgeKey)) {
-          seenFactionPairs.add(edgeKey);
-          edgesList.push({
-            id: `edge-fac-ally-${edgeKey}`,
-            source: fac.id,
-            target: aId,
-            label: isPersian ? 'متحد رسمی' : 'Sworn Ally',
-            color: '#10B981', // Emerald Green
-            dashed: false,
-          });
-        }
-      });
-
-      // Fallback: Legacy rivalries if not in factionRelations
-      (fac.rivalFactionIds || []).forEach((rId) => {
-        const edgeKey = [fac.id, rId].sort().join('--');
-        if (!seenFactionPairs.has(edgeKey)) {
-          seenFactionPairs.add(edgeKey);
-          edgesList.push({
-            id: `edge-fac-rival-${edgeKey}`,
-            source: fac.id,
-            target: rId,
-            label: isPersian ? 'دشمن خونی' : 'Blood Enemy',
-            color: '#EF4444', // Red
-            dashed: false,
-          });
-        }
-      });
-    });
-
-    // 2. Locations (Middle Row: Y = 280)
-    const seenPaths = new Set<string>();
-    locs.forEach((loc, idx) => {
-      const x = 160 + idx * 300;
-      const y = 280;
-      const breadcrumb = loc.parentLocationId ? getLocationBreadcrumb(locs, loc.id) : loc.region;
-      nodesList.push({
-        id: loc.id,
-        label: loc.name,
-        sublabel: breadcrumb,
-        type: 'location',
-        x,
-        y,
-        data: loc,
-      });
-
-      // Hierarchical Parent Edge
-      if (loc.parentLocationId && locs.some((l) => l.id === loc.parentLocationId)) {
-        edgesList.push({
-          id: `edge-loc-parent-${loc.id}-${loc.parentLocationId}`,
-          source: loc.id,
-          target: loc.parentLocationId,
-          label: isPersian ? 'واقع در (والد)' : 'Enclosed in (Parent)',
-          color: '#F59E0B', // Amber
-          dashed: true,
-        });
-      }
-
-      // Location Paths
-      (loc.connectedLocationIds || []).forEach((tId) => {
-        const edgeKey = [loc.id, tId].sort().join('--');
-        if (!seenPaths.has(edgeKey)) {
-          seenPaths.add(edgeKey);
-          edgesList.push({
-            id: `edge-loc-path-${edgeKey}`,
-            source: loc.id,
-            target: tId,
-            label: isPersian ? 'مسیر پیوسته' : 'Connected Path',
-            color: '#38BDF8', // Cyan
-          });
-        }
-      });
-    });
-
-    // 3. NPCs (Row between locations & laws: Y = 460)
-    npcs.forEach((npc, idx) => {
-      const x = 200 + idx * 340;
-      const y = 460;
-      nodesList.push({
-        id: npc.id,
-        label: npc.name,
-        sublabel: npc.title,
-        type: 'npc',
-        x,
-        y,
-        data: npc,
-      });
-
-      // NPC in Location
-      if (npc.currentLocationId) {
-        edgesList.push({
-          id: `edge-npc-loc-${npc.id}-${npc.currentLocationId}`,
-          source: npc.id,
-          target: npc.currentLocationId,
-          label: isPersian ? 'محل استقرار' : 'Stationed At',
-          color: '#F59E0B', // Amber
-        });
-      }
-
-      // NPC in Faction
-      if (npc.factionId) {
-        edgesList.push({
-          id: `edge-npc-fac-${npc.id}-${npc.factionId}`,
-          source: npc.id,
-          target: npc.factionId,
-          label: isPersian ? 'عضو جناح' : 'Member Of',
-          color: '#818CF8', // Indigo
-        });
-      }
-    });
-
-    // 4. Laws (Bottom Row: Y = 620 - Global Standalone World Laws)
-    laws.forEach((law, idx) => {
-      const x = 220 + idx * 380;
-      const y = 620;
-      nodesList.push({
-        id: law.id,
-        label: law.rule,
-        sublabel: law.category,
-        type: 'law',
-        x,
-        y,
-        data: law,
-      });
-    });
-
-    // 5. Mythic Relics & Artifacts (Y = 360 - Stationed with Holders)
-    const artifacts = worldBible.artifacts || [];
-    artifacts.forEach((art, idx) => {
-      const x = 280 + idx * 380;
-      const y = 370;
-      nodesList.push({
-        id: art.id,
-        label: art.name,
-        sublabel: isPersian ? `عتیقه ${art.rarity}` : `${art.rarity} Relic`,
-        type: 'artifact',
-        x,
-        y,
-        data: art,
-      });
-
-      if (art.currentHolderId && art.currentHolderId !== 'unknown') {
-        edgesList.push({
-          id: `edge-art-holder-${art.id}-${art.currentHolderId}`,
-          source: art.id,
-          target: art.currentHolderId,
-          label: isPersian ? 'مقر نگهداری' : 'Held At',
-          color: '#F59E0B', // Amber
-        });
-      }
-    });
-
-    // 6. Bestiary Creatures (Y = 490 - Stationed at Habitat Locations)
-    const creatures = worldBible.bestiary || [];
-    creatures.forEach((c, idx) => {
-      const x = 200 + idx * 360;
-      const y = 490;
-      nodesList.push({
-        id: c.id,
-        label: c.name,
-        sublabel: isPersian ? `هیولا (خطر ${c.dangerLevel})` : `${c.speciesCategory} (D:${c.dangerLevel})`,
-        type: 'creature',
-        x,
-        y,
-        data: c,
-      });
-
-      (c.habitatLocationIds || []).forEach((locId) => {
-        edgesList.push({
-          id: `edge-creature-habitat-${c.id}-${locId}`,
-          source: c.id,
-          target: locId,
-          label: isPersian ? 'زیستگاه' : 'Habitat',
-          color: '#F43F5E', // Rose
-        });
-      });
-    });
-
-    // 7. Pantheons & Deities (Y = 20 - Celestial Orbit)
-    const religions = worldBible.religions || [];
-    religions.forEach((d, idx) => {
-      const x = 320 + idx * 400;
-      const y = 20;
-      nodesList.push({
-        id: d.id,
-        label: d.name,
-        sublabel: isPersian ? `ایزد ${d.domain}` : `${d.domain} Deity`,
-        type: 'deity',
-        x,
-        y,
-        data: d,
-      });
-
-      (d.affiliatedFactionIds || []).forEach((fId) => {
-        edgesList.push({
-          id: `edge-deity-fac-${d.id}-${fId}`,
-          source: d.id,
-          target: fId,
-          label: isPersian ? 'آیین جناح' : 'Patron Of',
-          color: '#F59E0B', // Gold
-        });
-      });
-
-      (d.holyLocationIds || []).forEach((lId) => {
-        edgesList.push({
-          id: `edge-deity-loc-${d.id}-${lId}`,
-          source: d.id,
-          target: lId,
-          label: isPersian ? 'معبد مقدس' : 'Holy Site',
-          color: '#A855F7', // Purple
-        });
-      });
-    });
-
-    // 8. Interpersonal Drama Bonds (NPC Chords)
-    const dramaBonds = worldBible.dramaBonds || [];
-    dramaBonds.forEach((bond) => {
-      const color = bond.affinity < 0 ? '#F43F5E' : bond.affinity > 0 ? '#10B981' : '#A855F7';
-      edgesList.push({
-        id: `edge-drama-${bond.id}`,
-        source: bond.sourceNpcId,
-        target: bond.targetNpcId,
-        label: `${bond.relationTypeId} (${bond.affinity > 0 ? `+${bond.affinity}` : bond.affinity})`,
-        color,
-      });
-    });
-
-    // 9. Custom Lore Relations (Author Defined)
-    const relTypeMap = new Map((worldBible.ontology?.relationTypes || []).map((r) => [r.id, r]));
-    (worldBible.customRelations || []).forEach((cRel) => {
-      const relMeta = relTypeMap.get(cRel.relationTypeId);
-      edgesList.push({
-        id: `edge-custom-${cRel.id}`,
-        source: cRel.sourceId,
-        target: cRel.targetId,
-        label: cRel.customLabel || relMeta?.name || cRel.relationTypeId,
-        color: relMeta?.color || '#38BDF8',
-      });
-    });
-
-    // Build an id-or-name -> nodeId resolver so relations authored with a
-    // human-readable name (e.g. by the AI adviser) still attach to the right
-    // graph node instead of being silently dropped.
-    const nodeAlias = new Map<string, string>();
-    nodesList.forEach((n) => {
-      nodeAlias.set(n.id, n.id);
-      if (n.label) nodeAlias.set(n.label.toLowerCase(), n.id);
-    });
-    const resolveRef = (ref: string): string =>
-      nodeAlias.get(ref) || nodeAlias.get((ref || '').toLowerCase()) || ref;
-
-    const remappedEdges = edgesList
-      .map((e) => ({
-        ...e,
-        source: resolveRef(e.source),
-        target: resolveRef(e.target),
-      }))
-      .filter((e) => e.source !== e.target);
-
-    return { initialNodes: nodesList, initialEdges: remappedEdges };
-  }, [worldBible, isPersian]);
 
   const [nodes, setNodes] = useState<GraphNode[]>(initialNodes);
   const edges = initialEdges;
@@ -781,8 +862,27 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
             })}
           </div>
 
-          {/* Zoom / Reset */}
+          {/* Controls: Auto-Arrange, Toggle Labels, Zoom, Fullscreen */}
           <div className="flex items-center gap-1 bg-zinc-900/90 border border-zinc-700/80 rounded-2xl p-1 shadow-xl backdrop-blur-md pointer-events-auto">
+            <button
+              onClick={handleAutoArrange}
+              title={isPersian ? 'چیدمان هوشمند و خودکار' : 'Auto-Arrange Layout'}
+              className="p-2 rounded-xl text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition-all"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowEdgeLabels((v) => !v)}
+              title={showEdgeLabels ? (isPersian ? 'پنهان‌سازی برچسب پیوندها' : 'Hide Link Labels') : (isPersian ? 'نمایش برچسب پیوندها' : 'Show Link Labels')}
+              className={`p-2 rounded-xl transition-all ${
+                showEdgeLabels
+                  ? 'text-amber-400 bg-amber-500/10'
+                  : 'text-zinc-400 hover:text-amber-400 hover:bg-zinc-800'
+              }`}
+            >
+              <Tag className="w-4 h-4" />
+            </button>
+            <div className="w-[1px] h-4 bg-zinc-700/60 mx-0.5" />
             <button
               onClick={() => setZoom((z) => Math.min(z + 0.15, 2.2))}
               title={t.zoomIn}
@@ -896,6 +996,8 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
 
               const isHighlighted =
                 selectedNodeId === edge.source || selectedNodeId === edge.target;
+              const isHovered = hoveredEdgeId === edge.id;
+              const shouldShowPill = isHighlighted || isHovered || showEdgeLabels;
 
               const midX = (srcNode.x + tgtNode.x) / 2;
               const midY = (srcNode.y + tgtNode.y) / 2;
@@ -909,15 +1011,28 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
               const pathD = `M ${srcNode.x} ${srcNode.y} Q ${cx} ${cy} ${tgtNode.x} ${tgtNode.y}`;
 
               return (
-                <g key={edge.id}>
-                  {/* Outer Glow on Highlight */}
-                  {isHighlighted && (
+                <g
+                  key={edge.id}
+                  className="pointer-events-auto cursor-pointer"
+                  onPointerEnter={() => setHoveredEdgeId(edge.id)}
+                  onPointerLeave={() => setHoveredEdgeId((curr) => (curr === edge.id ? null : curr))}
+                >
+                  {/* Invisible wide hit stroke for smooth hovering */}
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={20}
+                  />
+
+                  {/* Outer Glow on Highlight or Hover */}
+                  {(isHighlighted || isHovered) && (
                     <path
                       d={pathD}
                       fill="none"
                       stroke={edge.color}
-                      strokeWidth={8}
-                      strokeOpacity={0.4}
+                      strokeWidth={isHighlighted ? 8 : 6}
+                      strokeOpacity={isHighlighted ? 0.4 : 0.25}
                       strokeLinecap="round"
                     />
                   )}
@@ -927,36 +1042,38 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
                     d={pathD}
                     fill="none"
                     stroke={edge.color}
-                    strokeWidth={isHighlighted ? 3.5 : 2.2}
-                    strokeOpacity={isHighlighted ? 1 : 0.75}
+                    strokeWidth={isHighlighted ? 3.5 : isHovered ? 3 : 2}
+                    strokeOpacity={isHighlighted ? 1 : isHovered ? 0.95 : 0.65}
                     strokeDasharray={edge.dashed ? '6,6' : edge.label.includes('دشمن') || edge.label.includes('Rival') ? '6,6' : 'none'}
                   />
 
-                  {/* Relationship Label Pill Badge */}
-                  <g transform={`translate(${cx}, ${cy})`}>
-                    <rect
-                      x={-Math.max(46, edge.label.length * 3.5 + 8)}
-                      y={-11}
-                      width={Math.max(92, edge.label.length * 7 + 16)}
-                      height={22}
-                      rx={11}
-                      fill="#0D1022"
-                      stroke={edge.color}
-                      strokeWidth={isHighlighted ? 2 : 1.2}
-                      strokeOpacity={isHighlighted ? 1 : 0.85}
-                    />
-                    <text
-                      x={0}
-                      y={4}
-                      fill={edge.color}
-                      fontSize="9.5"
-                      fontWeight="bold"
-                      textAnchor="middle"
-                      className="select-none font-sans"
-                    >
-                      {edge.label}
-                    </text>
-                  </g>
+                  {/* Relationship Label Pill Badge - Only visible on hover, selection, or toolbar toggle */}
+                  {shouldShowPill && (
+                    <g transform={`translate(${cx}, ${cy})`}>
+                      <rect
+                        x={-Math.max(46, edge.label.length * 3.5 + 8)}
+                        y={-11}
+                        width={Math.max(92, edge.label.length * 7 + 16)}
+                        height={22}
+                        rx={11}
+                        fill="#0D1022"
+                        stroke={edge.color}
+                        strokeWidth={isHighlighted || isHovered ? 2 : 1.2}
+                        strokeOpacity={isHighlighted || isHovered ? 1 : 0.85}
+                      />
+                      <text
+                        x={0}
+                        y={4}
+                        fill={edge.color}
+                        fontSize="9.5"
+                        fontWeight="bold"
+                        textAnchor="middle"
+                        className="select-none font-sans"
+                      >
+                        {edge.label}
+                      </text>
+                    </g>
+                  )}
                 </g>
               );
             })}
@@ -1170,38 +1287,47 @@ export function LoreGraphCanvas({ worldBible, isPersian = false }: LoreGraphCanv
                     return (
                       <div
                         key={e.id}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-300 hover:border-zinc-700 transition-all gap-2"
+                        className="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-300 hover:border-zinc-700 transition-all space-y-1.5"
                       >
-                        <div
-                          onClick={() => setSelectedNodeId(otherId)}
-                          className="flex items-center gap-2 cursor-pointer truncate flex-1"
-                        >
-                          <span className="truncate max-w-[130px] font-medium text-zinc-200 hover:text-amber-400">
-                            {otherNode?.label || otherId}
-                          </span>
-                          <span
-                            className="text-[9.5px] font-bold px-2 py-0.5 rounded-lg border font-mono shrink-0"
-                            style={{
-                              color: e.color,
-                              backgroundColor: `${e.color}15`,
-                              borderColor: `${e.color}40`,
-                            }}
+                        <div className="flex items-center justify-between gap-2">
+                          <div
+                            onClick={() => setSelectedNodeId(otherId)}
+                            className="flex items-center gap-2 cursor-pointer truncate flex-1"
                           >
-                            {e.label}
-                          </span>
+                            <span className="truncate max-w-[130px] font-medium text-zinc-200 hover:text-amber-400">
+                              {otherNode?.label || otherId}
+                            </span>
+                            <span
+                              className="text-[9.5px] font-bold px-2 py-0.5 rounded-lg border font-mono shrink-0"
+                              style={{
+                                color: e.color,
+                                backgroundColor: `${e.color}15`,
+                                borderColor: `${e.color}40`,
+                              }}
+                            >
+                              {e.label}
+                            </span>
+                          </div>
+
+                          {/* Delete Relation Button */}
+                          <button
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              deleteRelation(e.source, e.target, e.label);
+                            }}
+                            title={isPersian ? 'حذف پیوند' : 'Delete Link'}
+                            className="p-1 text-zinc-500 hover:text-rose-400 transition-colors rounded-lg hover:bg-rose-500/10 shrink-0"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
 
-                        {/* Delete Relation Button */}
-                        <button
-                          onClick={(ev) => {
-                            ev.stopPropagation();
-                            deleteRelation(e.source, e.target, e.label);
-                          }}
-                          title={isPersian ? 'حذف پیوند' : 'Delete Link'}
-                          className="p-1 text-zinc-500 hover:text-rose-400 transition-colors rounded-lg hover:bg-rose-500/10 shrink-0"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {/* Relation Description / Lore Note */}
+                        {e.note && (
+                          <div className="text-[11px] text-zinc-400 italic bg-zinc-950/60 p-2 rounded-lg border border-zinc-800/60 leading-relaxed">
+                            {e.note}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
