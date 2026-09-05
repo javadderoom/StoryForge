@@ -421,11 +421,12 @@ export class GameEngine {
 
     for (const [npcId, change] of Object.entries(diff.relationshipChanges || {})) {
       const npc = npcById.get(npcId);
+      const explicit = (diff.npcStatusChanges || []).find((s) => s.npcId === npcId);
       npcStatuses.push({
         npcId,
         npcName: npc?.name || npcId,
-        status: 'alive',
-        note: change.newSecret ? `Learned secret: ${change.newSecret}` : undefined,
+        status: explicit?.status || 'alive',
+        note: explicit?.note || (change.newSecret ? `Learned secret: ${change.newSecret}` : undefined),
       });
       const factionId = npc?.factionId;
       if (factionId && change.trustDelta !== 0) {
@@ -443,6 +444,18 @@ export class GameEngine {
       const stance =
         delta >= 25 ? 'friendly' : delta <= -25 ? 'hostile' : 'neutral';
       factionReputations.push({ factionId, factionName: name || factionId, score: delta, stance });
+    }
+
+    // Status-only changes (death/transform without trust delta) still ledger.
+    for (const s of diff.npcStatusChanges || []) {
+      if (npcStatuses.some((n) => n.npcId === s.npcId)) continue;
+      const npc = npcById.get(s.npcId);
+      npcStatuses.push({
+        npcId: s.npcId,
+        npcName: npc?.name || s.npcId,
+        status: s.status,
+        note: s.note,
+      });
     }
 
     const keyItems: WorldStateLedger['keyItems'] = (diff.itemsAdded || [])

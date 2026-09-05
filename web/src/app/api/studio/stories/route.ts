@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
 import { StoryManifest } from '@/lib/types';
+import { canPublish } from '@/lib/engines/world/publishGate';
 
 export async function OPTIONS() {
   return handleCorsPreflight();
@@ -36,6 +37,27 @@ export async function POST(req: NextRequest) {
         { success: false, error: 'id and title are required' },
         { status: 400, headers: corsHeaders }
       );
+    }
+
+    if ((body as StoryManifest).published === true) {
+      const statIds = ((body as StoryManifest).rpgSystem?.stats || []).map((s) => s.id).filter(Boolean);
+      const gate = canPublish(
+        (body as StoryManifest).worldBible as unknown as Parameters<typeof canPublish>[0],
+        ((body as StoryManifest) as { saga?: Parameters<typeof canPublish>[1] }).saga ?? null,
+        statIds
+      );
+      if (!gate.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Story failed consistency publish gate.',
+            score: gate.score,
+            errors: gate.errors,
+            warnings: gate.warnings.slice(0, 20),
+          },
+          { status: 409, headers: corsHeaders }
+        );
+      }
     }
 
     const saved = await StoryRepository.saveStory(body);

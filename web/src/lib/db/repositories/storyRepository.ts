@@ -356,9 +356,35 @@ export class StoryRepository {
   /**
    * Saves or updates a full StoryManifest in the database
    */
-  static async saveStory(manifest: StoryManifest) {
+  static async saveStory(input: StoryManifest) {
     if (!isDatabaseActive) {
-      return { id: manifest.id, title: manifest.title, isMock: true };
+      return { id: input.id, title: input.title, isMock: true };
+    }
+
+    // Version-on-publish: bump canon version on false→true transitions.
+    let manifest = input;
+    if (input.published === true) {
+      try {
+        const existing = await prisma.story.findUnique({ where: { id: input.id } });
+        const wasPublished = (existing?.manifest as unknown as StoryManifest | null)?.published === true;
+        if (!wasPublished) {
+          const prevVersion =
+            (existing?.manifest as unknown as StoryManifest | null)?.worldBibleVersion || 0;
+          const nextVersion = Math.max(prevVersion + 1, input.worldBibleVersion || 1, 1);
+          const history = [
+            ...((input.worldBibleHistory || []).slice(-4)),
+            { version: nextVersion, publishedAt: new Date().toISOString() },
+          ];
+          manifest = {
+            ...input,
+            worldBibleVersion: nextVersion,
+            worldBibleHistory: history,
+            worldBible: { ...input.worldBible, worldBibleVersion: nextVersion },
+          };
+        }
+      } catch {
+        // Version bump is best-effort; publish gate already passed.
+      }
     }
 
     try {

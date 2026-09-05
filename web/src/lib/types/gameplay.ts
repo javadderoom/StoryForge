@@ -72,6 +72,7 @@ export interface StateMutationDiff {
   locationChange?: string;
   relationshipChanges?: Record<string, { trustDelta: number; newSecret?: string }>;
   questUpdates?: { questId: string; status: 'active' | 'completed' | 'failed' }[];
+  npcStatusChanges?: Array<{ npcId: string; status: 'alive' | 'dead' | 'missing' | 'transformed' | 'companion' | 'imprisoned'; note?: string }>;
 }
 
 export interface CheckResolution {

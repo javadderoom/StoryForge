@@ -24,6 +24,9 @@ export interface StoryManifest {
   author: string;
   version: string;
   published?: boolean;
+  /** Canon version snapshot at publish time. */
+  worldBibleVersion?: number;
+  worldBibleHistory?: Array<{ version: number; publishedAt: string; note?: string }>;
   rpgSystem: RPGSystemSchema;
   worldBible: WorldBible;
   initialSceneId: string;
@@ -57,6 +60,8 @@ export const StoryManifestSchema = z.object({
   author: z.string().default('AfsanehSaz'),
   version: z.string().default('1.0.0'),
   published: z.boolean().optional().default(false),
+  worldBibleVersion: z.number().int().min(1).default(1),
+  worldBibleHistory: z.array(z.object({ version: z.number().int().min(1), publishedAt: z.string(), note: z.string().optional() })).default([]),
   rpgSystem: RPGSystemSchemaValidator,
   worldBible: WorldBibleSchema,
   initialSceneId: z.string(),

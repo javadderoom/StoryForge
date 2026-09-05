@@ -4,6 +4,7 @@ import { SessionRepository } from '@/lib/db/repositories/sessionRepository';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import { GameEngine } from '@/lib/engines/game/GameEngine';
 import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
+import { validateProse, buildProseRepairInstruction } from '@/lib/engines/narrative/ProseValidator';
 import { buildWorldContextBlocks } from '@/lib/engines/narrative/worldContext';
 import { MemoryEngine } from '@/lib/engines/memory/MemoryEngine';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
@@ -153,12 +154,6 @@ export async function POST(req: NextRequest) {
       null;
 
     const currentLocationId = updatedPlayerState.currentLocationId;
-    const world = activeChapter
-      ? buildWorldContextBlocks(story, {
-          scopeTier: activeChapter.scopeTier,
-          locationIds: [currentLocationId],
-        })
-      : buildWorldContextBlocks(story);
 
     const currentLocation =
       story.worldBible.locations.find((l) => l.id === currentLocationId) ||
@@ -172,6 +167,18 @@ export async function POST(req: NextRequest) {
       (npc) => npc.currentLocationId === currentLocationId
     );
     const activeNpcIds = activeNPCs.map((n) => n.id);
+
+    const world = activeChapter
+      ? buildWorldContextBlocks(story, {
+          scopeTier: activeChapter.scopeTier,
+          locationIds: [currentLocationId],
+          npcIds: activeNpcIds,
+        })
+      : buildWorldContextBlocks(story, {
+          scopeTier: 'regional',
+          locationIds: [currentLocationId],
+          npcIds: activeNpcIds,
+        });
 
     // Hierarchical memory retrieval from the persisted session log
     const turnSceneByNumber = new Map<number, string>();
@@ -252,12 +259,15 @@ export async function POST(req: NextRequest) {
       worldSummary: world.worldSummary,
       themeNotes: world.themeNotes,
       factions: world.factions,
+      factionRelations: world.factionRelations,
       timeline: world.timeline,
       artifacts: world.artifacts,
       bestiary: world.bestiary,
       religions: world.religions,
       dramaBonds: world.dramaBonds,
       ontologySummary: world.ontologySummary,
+      locations: world.locations,
+      npcs: world.npcs,
       // Plan 08 saga grounding
       activeChapterTitle: activeChapter
         ? `${activeChapter.chapterNumber}. ${activeChapter.title}`
@@ -273,7 +283,9 @@ export async function POST(req: NextRequest) {
 
     // 4. Build prompt and generate prose with Gemini
     const promptPayload = PromptAssembler.buildNarrativePrompt(contextEnvelope);
-    const aiResponse = await geminiAdapter.generateScene(promptPayload);
+    let aiResponse = await geminiAdapter.generateScene(promptPayload);
+    let proseRepaired = false;
+    let proseFindings: ReturnType<typeof validateProse>['findings'] = [];
 
     // ------------------------------------------------------------------
     // Plan 08 Phase 1: NEVER persist mock/offline output as story canon.
@@ -290,6 +302,53 @@ export async function POST(req: NextRequest) {
         },
         { status: 503, headers: corsHeaders }
       );
+    }
+
+    // Post-generation prose validation with one auto-repair attempt.
+    const firstCheck = validateProse(aiResponse.narrative, {
+      ledger: nextLedger,
+      resolution,
+      worldBible: story.worldBible,
+    });
+    proseFindings = firstCheck.findings;
+    if (!firstCheck.ok) {
+      const repairPayload = {
+        ...promptPayload,
+        userPrompt: `${promptPayload.userPrompt}\n\n${buildProseRepairInstruction(firstCheck.findings)}\n\nPREVIOUS PROSE:\n${aiResponse.narrative}`,
+      };
+      const repaired = await geminiAdapter.generateScene(repairPayload);
+      if (!repaired.isMock) {
+        const secondCheck = validateProse(repaired.narrative, {
+          ledger: nextLedger,
+          resolution,
+          worldBible: story.worldBible,
+        });
+        if (secondCheck.ok) {
+          aiResponse = repaired;
+          proseFindings = secondCheck.findings;
+          proseRepaired = true;
+        } else {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'Generated prose violated world canon and could not be repaired. The turn was NOT recorded. Please retry.',
+              proseInvalid: true,
+              proseFindings: secondCheck.findings,
+            },
+            { status: 503, headers: corsHeaders }
+          );
+        }
+      } else {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Prose repair unavailable (AI offline). The turn was NOT recorded. Please retry.',
+            proseInvalid: true,
+            proseFindings: firstCheck.findings,
+          },
+          { status: 503, headers: corsHeaders }
+        );
+      }
     }
 
     // Carry the real authored scene id when the client/session knows it;
@@ -375,11 +434,16 @@ export async function POST(req: NextRequest) {
         success: true,
         data: {
           beat: newBeat,
-          resolution,
+          resolution: {
+            ...resolution,
+            proseFindings: proseFindings.length ? proseFindings : undefined,
+            proseRepaired: proseRepaired || undefined,
+          },
           updatedPlayerState,
           sagaLedger: nextLedger,
           activeChapterId: activeChapter?.id ?? null,
           remainingCredits,
+          proseRepaired,
         },
       },
       { headers: corsHeaders }

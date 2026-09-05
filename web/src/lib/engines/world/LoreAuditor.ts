@@ -24,6 +24,10 @@ export class LoreAuditor {
     this.checkBestiaryHabitats(world, findings);
     this.checkDramaBondEndpoints(world, findings);
     this.checkDuplicateNames(world, findings);
+    this.checkDuplicateIds(world, findings);
+    this.checkLawConflicts(world, findings);
+    this.checkTimelineOrder(world, findings);
+    this.checkFactionRelationSpectrum(world, findings);
 
     const score = LoreAuditor.computeScore(world, findings);
     return {
@@ -161,6 +165,31 @@ export class LoreAuditor {
       }
     }
 
+    for (const rel of world.factionRelations || []) {
+      for (const [label, id] of [['source', rel.sourceFactionId], ['target', rel.targetFactionId]] as const) {
+        if (!factionIds.has(id)) {
+          push(
+            'warning',
+            'Faction relation references missing faction',
+            `Faction relation "${rel.id}" ${label} "${id}" does not exist.`,
+            'missing_link',
+            [{ entityType: 'faction', name: id }],
+            `Create the faction "${id}" or delete/fix the relation.`
+          );
+        }
+      }
+      if (rel.sourceFactionId === rel.targetFactionId) {
+        push(
+          'warning',
+          'Self-referential faction relation',
+          `Faction relation "${rel.id}" links a faction to itself.`,
+          'missing_link',
+          [{ entityType: 'faction', name: rel.sourceFactionId }],
+          'Delete the self-relation.'
+        );
+      }
+    }
+
     for (const npc of world.npcs) {
       if (npc.factionId && !factionIds.has(npc.factionId)) {
         push(
@@ -273,6 +302,109 @@ export class LoreAuditor {
     }
   }
 
+  /**
+   * 5-state spectrum audit: reverse-entry symmetry, allied↔hostile
+   * contradictions, duplicate pairs, and legacy-array conflicts.
+   */
+  private static checkFactionRelationSpectrum(world: WorldBible, findings: ContradictionFinding[]): void {
+    const byId = new Map(world.factions.map((f) => [f.id, f]));
+    const rels = world.factionRelations || [];
+    const pairKey = (a: string, b: string) => [a, b].sort().join('↔');
+    const seenPairs = new Map<string, (typeof rels)[number][]>();
+    for (const r of rels) {
+      const k = pairKey(r.sourceFactionId, r.targetFactionId);
+      seenPairs.set(k, [...(seenPairs.get(k) || []), r]);
+    }
+
+    for (const [key, group] of seenPairs) {
+      const [x, y] = key.split('↔');
+      const xn = byId.get(x)?.name || x;
+      const yn = byId.get(y)?.name || y;
+      if (group.length > 2 || (group.length === 2 && group[0].value !== group[1].value)) {
+        const values = group.map((g) => g.value).join(' vs ');
+        const clash =
+          group.some((g) => g.value === 'allied') && group.some((g) => g.value === 'hostile');
+        findings.push({
+          id: `faction_spectrum_clash_${key.replace(/[^a-z0-9]+/gi, '_')}`,
+          severity: clash ? 'error' : 'warning',
+          category: 'faction_rivalry',
+          title: clash ? 'Allied↔hostile contradiction' : 'Asymmetric faction relation',
+          description:
+            clash
+              ? `Factions "${xn}" and "${yn}" are simultaneously allied and blood enemies (${values}). A pact and open war cannot coexist.`
+              : `Factions "${xn}" and "${yn}" disagree on their relation (${values}). Align both directions to one spectrum value.`,
+          involvedEntities: [
+            { entityType: 'faction', name: xn },
+            { entityType: 'faction', name: yn },
+          ],
+          suggestedFix: clash
+            ? 'Keep either the alliance or the blood enmity and delete the other entry.'
+            : 'Set both directions to the same spectrum value (allied/favorable/neutral/rival/hostile).',
+        });
+      }
+      if (group.length === 1) {
+        findings.push({
+          id: `faction_spectrum_onesided_${group[0].id}`,
+          severity: 'suggestion',
+          category: 'faction_rivalry',
+          title: 'One-sided spectrum entry',
+          description: `Relation "${xn} → ${yn}" (${group[0].value}) has no reverse entry. Undirected pairs read cleaner with both directions recorded.`,
+          involvedEntities: [
+            { entityType: 'faction', name: xn },
+            { entityType: 'faction', name: yn },
+          ],
+          suggestedFix: `Add the reverse "${yn} → ${xn}" entry with the same value, or confirm one-sidedness is intentional.`,
+        });
+      }
+    }
+
+    // Legacy arrays vs explicit spectrum conflicts.
+    for (const fac of world.factions) {
+      for (const allyId of fac.alliedFactionIds || []) {
+        const rel = rels.find(
+          (r) =>
+            (r.sourceFactionId === fac.id && r.targetFactionId === allyId) ||
+            (r.sourceFactionId === allyId && r.targetFactionId === fac.id)
+        );
+        if (rel && (rel.value === 'rival' || rel.value === 'hostile')) {
+          findings.push({
+            id: `faction_legacy_clash_${fac.id}_${allyId}`,
+            severity: 'warning',
+            category: 'faction_rivalry',
+            title: 'Legacy ally vs spectrum enemy',
+            description: `Faction "${fac.name}" lists "${byId.get(allyId)?.name || allyId}" as legacy ally but the spectrum says ${rel.value}.`,
+            involvedEntities: [
+              { entityType: 'faction', name: fac.name },
+              { entityType: 'faction', name: byId.get(allyId)?.name || allyId },
+            ],
+            suggestedFix: 'Remove the legacy ally link or change the spectrum value to allied/favorable.',
+          });
+        }
+      }
+      for (const rivalId of fac.rivalFactionIds || []) {
+        const rel = rels.find(
+          (r) =>
+            (r.sourceFactionId === fac.id && r.targetFactionId === rivalId) ||
+            (r.sourceFactionId === rivalId && r.targetFactionId === fac.id)
+        );
+        if (rel && (rel.value === 'allied' || rel.value === 'favorable')) {
+          findings.push({
+            id: `faction_legacy_clash_${fac.id}_${rivalId}`,
+            severity: 'warning',
+            category: 'faction_rivalry',
+            title: 'Legacy rival vs spectrum friend',
+            description: `Faction "${fac.name}" lists "${byId.get(rivalId)?.name || rivalId}" as legacy rival but the spectrum says ${rel.value}.`,
+            involvedEntities: [
+              { entityType: 'faction', name: fac.name },
+              { entityType: 'faction', name: byId.get(rivalId)?.name || rivalId },
+            ],
+            suggestedFix: 'Remove the legacy rival link or change the spectrum value to rival/hostile.',
+          });
+        }
+      }
+    }
+  }
+
   // Orphaned entities that have no inbound or outbound relationships
   private static checkOrphanedEntities(world: WorldBible, findings: ContradictionFinding[]): void {
     if (world.factions.length === 0) return;
@@ -289,12 +421,18 @@ export class LoreAuditor {
     for (const t of world.timeline) {
       (t.linkedFactionIds || []).forEach((id) => referencedFactionIds.add(id));
     }
+    const spectrumIds = new Set<string>();
+    for (const r of world.factionRelations || []) {
+      spectrumIds.add(r.sourceFactionId);
+      spectrumIds.add(r.targetFactionId);
+    }
 
     for (const fac of world.factions) {
       const referenced =
         (fac.territoryIds || []).length > 0 ||
         (fac.rivalFactionIds || []).length > 0 ||
         (fac.alliedFactionIds || []).length > 0 ||
+        spectrumIds.has(fac.id) ||
         referencedFactionIds.has(fac.id);
       if (!referenced) {
         findings.push({
@@ -474,6 +612,183 @@ export class LoreAuditor {
         }
       }
     }
+  }
+
+  /**
+   * Duplicate ids within or across vaults collide in prompt injection and
+   * memory entityIds. Model-generated `law_001`-style ids are the top source.
+   */
+  private static checkDuplicateIds(world: WorldBible, findings: ContradictionFinding[]): void {
+    const seen = new Map<string, string>();
+    const vaults: Array<{ kind: string; entities: Array<{ id?: string; name?: string }> }> = [
+      { kind: 'law', entities: world.laws || [] },
+      { kind: 'faction', entities: world.factions || [] },
+      { kind: 'location', entities: world.locations || [] },
+      { kind: 'npc', entities: world.npcs || [] },
+      { kind: 'artifact', entities: world.artifacts || [] },
+      { kind: 'creature', entities: world.bestiary || [] },
+      { kind: 'deity', entities: world.religions || [] },
+      { kind: 'timeline', entities: world.timeline || [] },
+    ];
+    for (const { kind, entities } of vaults) {
+      for (const e of entities) {
+        const id = (e.id || '').trim();
+        if (!id) continue;
+        const prev = seen.get(id);
+        if (prev) {
+          findings.push({
+            id: `dup_id_${id}`,
+            severity: 'error',
+            category: 'missing_link',
+            title: 'Duplicate entity id',
+            description: `Id "${id}" is used by both ${prev} and ${kind}. Id collisions corrupt lore references and memory linkage.`,
+            involvedEntities: [{ entityType: kind, name: (e as { name?: string }).name || id }],
+            suggestedFix: `Assign a unique stable id to one of the "${id}" entities.`,
+          });
+        } else {
+          seen.set(id, kind);
+        }
+      }
+    }
+  }
+
+  /**
+   * Lightweight law-vs-law conflict scan (first use of the `law_conflict`
+   * category). Detects negation pairs within the same category, EN + FA.
+   */
+  private static checkLawConflicts(world: WorldBible, findings: ContradictionFinding[]): void {
+    const laws = world.laws || [];
+    const pairs: Array<[RegExp, RegExp]> = [
+      [/requires?|demands?|must/i, /forbids?|bans?|prohibits?|never|illegal/i],
+      [/always/i, /never/i],
+      [/ممکن|باید|الزامی/i, /ممنوع|قدغن|حرام|غیرقانونی/i],
+    ];
+    for (let i = 0; i < laws.length; i++) {
+      for (let j = i + 1; j < laws.length; j++) {
+        const a = `${laws[i].rule} ${laws[i].description || ''}`;
+        const b = `${laws[j].rule} ${laws[j].description || ''}`;
+        const hit = pairs.some(([p, n]) => (p.test(a) && n.test(b)) || (p.test(b) && n.test(a)));
+        if (hit) {
+          findings.push({
+            id: `law_conflict_${laws[i].id}_${laws[j].id}`,
+            severity: 'warning',
+            category: 'law_conflict',
+            title: 'Potentially conflicting world laws',
+            description: `Laws "${laws[i].rule}" and "${laws[j].rule}" may contradict (require vs forbid). Clarify precedence or scope.`,
+            involvedEntities: [
+              { entityType: 'world_law', name: laws[i].rule },
+              { entityType: 'world_law', name: laws[j].rule },
+            ],
+            suggestedFix: 'Define which law takes precedence, or scope each to a distinct domain.',
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * Timeline ordering + ripple-target resolution. Era regressions and
+   * free-text ripple targets that match no entity are the main drift sources.
+   */
+  private static checkTimelineOrder(world: WorldBible, findings: ContradictionFinding[]): void {
+    const rank: Record<string, number> = { ancient: 0, war: 1, reign: 2, cataclysm: 2, present: 3, recent: 3 };
+    const events = world.timeline || [];
+    let last = -1;
+    for (const e of events) {
+      const r = rank[(e.eraCategory as string) || ''] ?? -1;
+      if (r >= 0 && last >= 0 && r < last) {
+        findings.push({
+          id: `timeline_order_${e.id}`,
+          severity: 'warning',
+          category: 'timeline_paradox',
+          title: 'Timeline era regression',
+          description: `Event "${e.title}" (${e.eraCategory}) is ordered after a later era. Keep eras chronological.`,
+          involvedEntities: [{ entityType: 'timeline_event', name: e.title }],
+          suggestedFix: 'Re-order timeline events so eras progress ancient → war/reign → present.',
+        });
+      }
+      if (r >= 0) last = Math.max(last, r);
+    }
+    const names = new Set<string>();
+    for (const arr of [world.factions, world.locations, world.npcs, world.artifacts || [], world.religions || [], world.bestiary || []]) {
+      for (const e of arr as Array<{ name?: string }>) {
+        if (e.name) names.add(e.name.trim().toLowerCase());
+      }
+    }
+    for (const e of events) {
+      for (const ripple of (e as { ripples?: Array<{ targetName?: string }> }).ripples || []) {
+        const t = (ripple.targetName || '').trim().toLowerCase();
+        if (t && ![...names].some((n) => n.includes(t) || t.includes(n))) {
+          findings.push({
+            id: `timeline_ripple_${e.id}`,
+            severity: 'suggestion',
+            category: 'timeline_paradox',
+            title: 'Ripple targets unknown entity',
+            description: `Timeline event "${e.title}" ripples to "${ripple.targetName}", which matches no world entity.`,
+            involvedEntities: [{ entityType: 'timeline_event', name: e.title }],
+            suggestedFix: 'Point the ripple at an existing entity or create it.',
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * Validates saga choice stat ids + DCs against the active RPG system.
+   * Mirrors playtime `normalizeChoices` so bad sagas fail at author time.
+   */
+  public static auditSagaStats(
+    saga: SagaManifest,
+    validStatIds: string[]
+  ): ContradictionFinding[] {
+    const out: ContradictionFinding[] = [];
+    const stats = new Set(validStatIds.map((s) => s.toLowerCase()));
+    for (const ch of saga.chapters || []) {
+      for (const sc of ch.scenes || []) {
+        if (!sc.choices || sc.choices.length === 0) {
+          out.push({
+            id: `saga_empty_choices_${sc.sceneId}`,
+            severity: 'warning',
+            category: 'missing_link',
+            title: 'Scene has no choices',
+            description: `Scene "${sc.sceneId}" offers no player choices. Every scene needs 3 archetypes.`,
+            involvedEntities: [{ entityType: 'story_beat', name: sc.sceneId }],
+            suggestedFix: 'Add defensive_diplomatic, tactical_agile, and aggressive_daring choices.',
+          });
+          continue;
+        }
+        for (const c of (sc.choices || []) as Array<Record<string, any>>) {
+          const stat = String(c.statCheck?.stat || c.requiredStatId || '').toLowerCase();
+          if (stat && ![...stats].some((s) => s && stat.includes(s))) {
+            // Only flag when a stat vocabulary exists; otherwise playtime default applies.
+            if (stats.size > 0) {
+              out.push({
+                id: `saga_stat_${sc.sceneId}_${stat}`,
+                severity: 'error',
+                category: 'missing_link',
+                title: 'Saga choice references unknown stat',
+                description: `Choice in "${sc.sceneId}" requires stat "${stat}" which is not in the RPG system [${[...stats].join(', ')}].`,
+                involvedEntities: [{ entityType: 'story_beat', name: sc.sceneId }],
+                suggestedFix: 'Point the choice at a real stat id from the RPG system.',
+              });
+            }
+          }
+          const dc = (c.statCheck?.dc ?? c.targetDC) as number | undefined;
+          if (typeof dc === 'number' && (dc < 5 || dc > 30)) {
+            out.push({
+              id: `saga_dc_${sc.sceneId}`,
+              severity: 'warning',
+              category: 'missing_link',
+              title: 'Saga DC out of range',
+              description: `Scene "${sc.sceneId}" uses DC ${dc}; sane range is 5-30 (prompt contract 9-16).`,
+              involvedEntities: [{ entityType: 'story_beat', name: sc.sceneId }],
+              suggestedFix: 'Clamp DCs to 5-30, ideally 10-20.',
+            });
+          }
+        }
+      }
+    }
+    return out;
   }
 
   private static computeScore(world: WorldBible, findings: ContradictionFinding[]): number {

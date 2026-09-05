@@ -10,6 +10,7 @@ import {
   GenesisWorldData,
   ContradictionFinding,
   normalizeGenesisData,
+  hasPlaceholders,
 } from '@/lib/engines/world/GenesisSchemas';
 import { LoreAuditor } from '@/lib/engines/world/LoreAuditor';
 import { WorldBible, SagaManifest } from '@/lib/types/world';
@@ -63,6 +64,8 @@ interface GenerateRequest {
   anchor?: string;
   // Plan 08: optional saga payload for deterministic saga-graph auditing
   saga?: SagaManifest;
+  // Valid RPG stat ids for saga choice validation (sent by Studio beats page)
+  rpgStatIds?: string[];
 }
 
 export async function POST(req: NextRequest) {
@@ -105,10 +108,85 @@ export async function POST(req: NextRequest) {
       );
 
       if (aiResult && aiResult.data) {
-        const normalized = normalizeGenesisData(aiResult.data);
+        const toBible = (g: GenesisWorldData): WorldBible =>
+          ({
+            worldId: 'genesis_draft',
+            worldName: g.worldName,
+            summary: g.summary,
+            themeNotes: g.themeNotes,
+            aiSystemPrompt: g.aiSystemPrompt,
+            laws: (g.laws || []) as unknown as WorldBible['laws'],
+            factions: (g.factions || []) as unknown as WorldBible['factions'],
+            locations: (g.locations || []) as unknown as WorldBible['locations'],
+            religions: (g.religions || []) as unknown as WorldBible['religions'],
+            npcs: [],
+            timeline: [],
+            artifacts: [],
+            bestiary: [],
+            dramaBonds: [],
+          } as unknown as WorldBible);
+        let normalized = normalizeGenesisData(aiResult.data);
+        let audit = LoreAuditor.audit(toBible(normalized));
+        let placeholders = hasPlaceholders(normalized);
+        let repaired = false;
+        let attempts = 1;
+
+        const needsRepair =
+          placeholders.length > 0 || audit.score < 85 || audit.findings.some((f) => f.severity === 'error');
+        if (needsRepair) {
+          const repairPrompt =
+            `Your previous Genesis output has consistency issues. Fix ONLY the listed issues, preserving all valid ids, names, and cross-references.\n\n` +
+            `PREVIOUS OUTPUT:\n${JSON.stringify(normalized)}\n\n` +
+            `PLACEHOLDER ISSUES:\n${placeholders.join('\n') || 'none'}\n\n` +
+            `AUDIT FINDINGS:\n${JSON.stringify(audit.findings.slice(0, 20))}\n\n` +
+            `Return the FULL corrected Genesis JSON matching the original schema. Output valid JSON only.`;
+          const retry = await generateStructuredJson<GenesisWorldData>(
+            repairPrompt,
+            systemInstruction,
+            { temperature: 0.4, taskType: 'world', maxOutputTokens: 8000 }
+          );
+          if (retry && retry.data) {
+            const reNormalized = normalizeGenesisData(retry.data);
+            const reAudit = LoreAuditor.audit(toBible(reNormalized));
+            const rePlaceholders = hasPlaceholders(reNormalized);
+            const improved =
+              reAudit.score > audit.score || rePlaceholders.length < placeholders.length;
+            if (improved) {
+              normalized = reNormalized;
+              audit = reAudit;
+              placeholders = rePlaceholders;
+            }
+            repaired = true;
+            attempts = 2;
+          }
+        }
+
+        const stillBlocked =
+          placeholders.length > 0 || audit.score < 85 || audit.findings.some((f) => f.severity === 'error');
+        if (stillBlocked) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: isPersian
+                ? 'خروجی جهان نیاز به بازبینی دارد. یافته‌های حسابرسی را برطرف کنید.'
+                : 'Genesis output needs revision. Resolve the audit findings.',
+              data: normalized,
+              audit,
+              placeholderIssues: placeholders,
+              repaired,
+              attempts,
+            },
+            { status: 422 }
+          );
+        }
+
         return NextResponse.json({
           success: true,
           data: normalized,
+          audit,
+          placeholderIssues: placeholders,
+          repaired,
+          attempts,
           isAiGenerated: true,
           modelUsed: aiResult.modelUsed,
         });
@@ -145,6 +223,14 @@ export async function POST(req: NextRequest) {
       // Plan 08: union deterministic saga-graph findings when a saga is sent.
       const sagaAudit = body.saga ? LoreAuditor.auditSaga(body.saga as SagaManifest) : null;
       if (sagaAudit) {
+        const statIds = Array.isArray(body.rpgStatIds)
+          ? body.rpgStatIds.filter((s): s is string => typeof s === 'string')
+          : [];
+        sagaAudit.findings.push(...LoreAuditor.auditSagaStats(body.saga as SagaManifest, statIds));
+        sagaAudit.score = Math.max(
+          0,
+          sagaAudit.score - sagaAudit.findings.filter((f) => f.severity === 'error').length * 10
+        );
         deterministic.findings.push(...sagaAudit.findings);
         deterministic.score = Math.max(0, Math.min(deterministic.score, sagaAudit.score));
         deterministic.summary =
@@ -303,11 +389,84 @@ Strictly output a valid JSON object matching the requested schema. Do not enclos
       systemPrompt,
       {
         temperature: customSystemPrompt?.trim() ? 0.7 : 0.8,
-        taskType: type === 'world' ? 'world' : taskType,
+        taskType: type === 'world' || type === 'epic_saga_synthesis' ? 'world' : taskType,
       }
     );
 
     if (aiResult && aiResult.data) {
+      // Saga/branch repair loop: validate graph + stats, retry once on failure.
+      if (type === 'epic_saga_synthesis' || type === 'branching_story_tree' || type === 'chapter_scenes') {
+        const statIds: string[] = Array.isArray((body as { rpgStatIds?: unknown }).rpgStatIds)
+          ? ((body as { rpgStatIds?: unknown }).rpgStatIds as string[]).filter((s) => typeof s === 'string')
+          : [];
+        const asSaga = coerceToSagaManifest(aiResult.data);
+        if (asSaga) {
+          let sagaAudit = LoreAuditor.auditSaga(asSaga);
+          sagaAudit.findings.push(...LoreAuditor.auditSagaStats(asSaga, statIds));
+          const blocked =
+            sagaAudit.findings.some((f) => f.severity === 'error') ||
+            sagaAudit.score < 70;
+          if (blocked) {
+            const repairPrompt =
+              `Your previous saga output has structural issues. Fix ONLY the listed issues, preserving all valid scene ids, titles, and choice text.\n\n` +
+              `PREVIOUS OUTPUT:\n${JSON.stringify(aiResult.data)}\n\n` +
+              `FINDINGS:\n${JSON.stringify(sagaAudit.findings.slice(0, 20))}\n\n` +
+              `SCHEMA:\n${effectiveSchemaInstruction}\n\nReturn the FULL corrected JSON only.`;
+            const retry = await generateStructuredJson(
+              repairPrompt,
+              systemPrompt,
+              { temperature: 0.4, taskType: 'world' }
+            );
+            if (retry && retry.data) {
+              const reSaga = coerceToSagaManifest(retry.data);
+              if (reSaga) {
+                const reAudit = LoreAuditor.auditSaga(reSaga);
+                reAudit.findings.push(...LoreAuditor.auditSagaStats(reSaga, statIds));
+                const reBlocked =
+                  reAudit.findings.some((f) => f.severity === 'error') || reAudit.score < 70;
+                if (!reBlocked) {
+                  return NextResponse.json({
+                    success: true,
+                    data: retry.data,
+                    sagaAudit: reAudit,
+                    repaired: true,
+                    isAiGenerated: true,
+                    modelUsed: retry.modelUsed,
+                  });
+                }
+                return NextResponse.json(
+                  {
+                    success: false,
+                    error: isPersian ? 'ساختار ساگا نیاز به بازبینی دارد.' : 'Saga structure needs revision.',
+                    data: retry.data,
+                    sagaAudit: reAudit,
+                    repaired: true,
+                  },
+                  { status: 422 }
+                );
+              }
+            }
+            return NextResponse.json(
+              {
+                success: false,
+                error: isPersian ? 'ساختار ساگا نیاز به بازبینی دارد.' : 'Saga structure needs revision.',
+                data: aiResult.data,
+                sagaAudit,
+                repaired: false,
+              },
+              { status: 422 }
+            );
+          }
+          return NextResponse.json({
+            success: true,
+            data: aiResult.data,
+            sagaAudit,
+            repaired: false,
+            isAiGenerated: true,
+            modelUsed: aiResult.modelUsed,
+          });
+        }
+      }
       return NextResponse.json({
         success: true,
         data: aiResult.data,
@@ -350,6 +509,67 @@ function mergeFindings(
     merged.push(f);
   }
   return merged;
+}
+
+/**
+ * Coerces epic_saga / branching-tree / chapter payloads into a SagaManifest
+ * shape for deterministic auditing. Returns null when the shape is unknown.
+ */
+function coerceToSagaManifest(data: unknown): SagaManifest | null {
+  if (!data || typeof data !== 'object') return null;
+  const d = data as Record<string, unknown>;
+  if (Array.isArray(d.chapters)) {
+    const chapters = (d.chapters as Array<Record<string, unknown>>).map((ch, ci) => ({
+      id: String(ch.id || `ch_${ci + 1}`),
+      chapterNumber: typeof ch.chapterNumber === 'number' ? ch.chapterNumber : ci + 1,
+      title: String(ch.title || `Chapter ${ci + 1}`),
+      scopeTier: (['street', 'regional', 'continental', 'mythic'] as const).includes(ch.scopeTier as never)
+        ? (ch.scopeTier as SagaManifest['chapters'][number]['scopeTier'])
+        : 'regional',
+      narrativeGoal: String(ch.narrativeGoal || ''),
+      prerequisiteFlags: Array.isArray(ch.prerequisiteFlags) ? (ch.prerequisiteFlags as string[]) : [],
+      completionSummaryPrompt: String(ch.completionSummaryPrompt || ''),
+      scenes: Array.isArray(ch.scenes)
+        ? (ch.scenes as Array<Record<string, unknown>>).map((sc) => ({
+            sceneId: String(sc.sceneId || sc.id || ''),
+            locationId: String(sc.locationId || ''),
+            narrativeText: String(sc.narrativeText || ''),
+            imageUrl: typeof sc.imageUrl === 'string' ? sc.imageUrl : undefined,
+            choices: Array.isArray(sc.choices)
+              ? (sc.choices as Array<Record<string, unknown>>).map((c) => ({
+                  id: String(c.id || 'choice'),
+                  text: String(c.textFa || c.textEn || c.text || ''),
+                  style: 'inquisitive' as const,
+                  riskLevel: 'medium' as const,
+                  targetDC: typeof c.statCheck === 'object' && c.statCheck !== null
+                    ? (c.statCheck as Record<string, unknown>).dc as number | undefined
+                    : (c.targetDC as number | undefined),
+                  requiredStatId: typeof c.statCheck === 'object' && c.statCheck !== null
+                    ? (c.statCheck as Record<string, unknown>).stat as string | undefined
+                    : (c.requiredStatId as string | undefined),
+                  targetSceneId: (c.leadToSceneId || c.targetSceneId) as string | undefined,
+                }))
+              : Array.isArray(sc.presentedChoices)
+              ? (sc.presentedChoices as Array<Record<string, unknown>>).map((c) => ({
+                  id: String(c.id || 'choice'),
+                  text: String(c.textFa || c.textEn || c.text || ''),
+                  style: 'inquisitive' as const,
+                  riskLevel: 'medium' as const,
+                  targetDC: typeof c.statCheck === 'object' && c.statCheck !== null
+                    ? (c.statCheck as Record<string, unknown>).dc as number | undefined
+                    : undefined,
+                  requiredStatId: typeof c.statCheck === 'object' && c.statCheck !== null
+                    ? (c.statCheck as Record<string, unknown>).stat as string | undefined
+                    : undefined,
+                  targetSceneId: (c.leadToSceneId || c.targetSceneId) as string | undefined,
+                }))
+              : [],
+          }))
+        : [],
+    }));
+    return { chapters } as unknown as SagaManifest;
+  }
+  return null;
 }
 
 

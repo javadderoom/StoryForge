@@ -16,6 +16,8 @@ export function getEmptyStoryManifest(language: 'en' | 'fa'): StoryManifest {
     author: 'AfsanehSaz Author',
     version: '0.1.0',
     published: false,
+    worldBibleVersion: 1,
+    worldBibleHistory: [],
     rpgSystem: {
       hasCombat: true,
       diceType: 'd20',
@@ -40,6 +42,7 @@ export function getEmptyStoryManifest(language: 'en' | 'fa'): StoryManifest {
       worldName: language === 'fa' ? 'جهان بی‌نام' : 'Unnamed Realm',
       summary: language === 'fa' ? 'سرزمینی ناشناخته که منتظر خلق شدن است.' : 'An uncharted realm awaiting creation.',
       themeNotes: language === 'fa' ? 'فضایی تاریک و رازآلود.' : 'Dark and mysterious atmosphere.',
+      worldBibleVersion: 1,
       laws: [],
       factions: [],
       locations: [],

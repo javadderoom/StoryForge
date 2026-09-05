@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +5,7 @@ import '../../core/utils/persian_numbers.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/audio_service.dart';
+import '../../services/bazaar_billing_service.dart';
 import '../../services/billing_service.dart';
 import 'auth_screen.dart';
 
@@ -34,6 +34,13 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
   void initState() {
     super.initState();
     _loadPackages();
+    BazaarBillingService().init();
+  }
+
+  @override
+  void dispose() {
+    BazaarBillingService().dispose();
+    super.dispose();
   }
 
   Future<void> _loadPackages() async {
@@ -59,30 +66,25 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     setState(() => _purchasingPackageId = pack.id);
     AudioService().playSfx(SfxType.buttonClick);
 
-    // Cafe Bazaar In-App Purchase Flow
-    // In production, the Cafe Bazaar IAP SDK (Poolakey) triggers the native purchase sheet and returns purchaseToken.
-    // For development / initial release, we generate a verified token payload to verify against Bazaar API.
-    final mockPurchaseToken = 'bazaar_tok_${pack.sku}_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(99999)}';
-
-    final result = await BillingService.verifyBazaarPurchase(
+    // Cafe Bazaar In-App Purchase Flow (Native via Poolakey with simulation fallback)
+    final result = await BazaarBillingService().purchaseProduct(
       sku: pack.sku,
-      purchaseToken: mockPurchaseToken,
       packageId: pack.id,
     );
 
     if (mounted) {
       setState(() => _purchasingPackageId = null);
 
-      if (result['success'] == true) {
+      if (result.success) {
         AudioService().playSfx(SfxType.diceSuccess);
-        final newBalance = (result['newBalance'] as num?)?.toInt() ?? (authState.user?.creditBalance ?? 0) + pack.credits;
+        final newBalance = result.newBalance ?? (authState.user?.creditBalance ?? 0) + pack.credits;
         ref.read(authProvider.notifier).updateCreditBalance(newBalance);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: const Color(0xFF10B981),
             content: Text(
-              result['message'] ?? 'خرید با موفقیت انجام شد! ${pack.credits} صحنه به حسابتان اضافه شد.',
+              result.message ?? 'خرید با موفقیت انجام شد! ${pack.credits} صحنه به حسابتان اضافه شد.',
               style: GoogleFonts.vazirmatn(),
             ),
           ),
@@ -93,7 +95,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
           SnackBar(
             backgroundColor: Colors.redAccent,
             content: Text(
-              result['error'] ?? 'خطا در انجام تراکنش کافه‌بازار.',
+              result.error ?? 'خطا در انجام تراکنش کافه‌بازار.',
               style: GoogleFonts.vazirmatn(),
             ),
           ),

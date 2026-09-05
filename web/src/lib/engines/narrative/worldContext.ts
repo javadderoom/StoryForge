@@ -1,10 +1,12 @@
-import { WorldBible, ScopeTier, StoryChapter, WorldStateLedger } from '@/lib/types/world';
+import { WorldBible, ScopeTier, StoryChapter, WorldStateLedger, FACTION_RELATION_META } from '@/lib/types/world';
 
 export interface WorldContextBlocks {
   worldSummary?: string;
   themeNotes?: string;
   authoredSystemPrompt?: string;
   factions: string[];
+  /** 5-state inter-faction spectrum lines: `A ↔ B: hostile (دشمن خونی) — note`. */
+  factionRelations: string[];
   timeline: string[];
   artifacts: string[];
   bestiary: string[];
@@ -32,6 +34,7 @@ export interface ScopedContextOptions {
  */
 const SCOPE_CAPS: Record<ScopeTier, {
   factions: number;
+  factionRelations: number;
   timeline: number;
   artifacts: number;
   bestiary: number;
@@ -41,13 +44,29 @@ const SCOPE_CAPS: Record<ScopeTier, {
   npcs: number;
   laws: number;
 }> = {
-  street: { factions: 3, timeline: 4, artifacts: 4, bestiary: 4, religions: 3, dramaBonds: 4, locations: 4, npcs: 6, laws: 10 },
-  regional: { factions: 6, timeline: 8, artifacts: 8, bestiary: 8, religions: 6, dramaBonds: 6, locations: 8, npcs: 9, laws: 10 },
-  continental: { factions: 10, timeline: 10, artifacts: 10, bestiary: 10, religions: 9, dramaBonds: 7, locations: 10, npcs: 12, laws: 10 },
-  mythic: { factions: 10, timeline: 12, artifacts: 12, bestiary: 12, religions: 12, dramaBonds: 8, locations: 12, npcs: 12, laws: 10 },
+  street: { factions: 3, factionRelations: 4, timeline: 4, artifacts: 4, bestiary: 4, religions: 3, dramaBonds: 4, locations: 4, npcs: 6, laws: 10 },
+  regional: { factions: 6, factionRelations: 8, timeline: 8, artifacts: 8, bestiary: 8, religions: 6, dramaBonds: 6, locations: 8, npcs: 9, laws: 10 },
+  continental: { factions: 10, factionRelations: 10, timeline: 10, artifacts: 10, bestiary: 10, religions: 9, dramaBonds: 7, locations: 10, npcs: 12, laws: 10 },
+  mythic: { factions: 10, factionRelations: 12, timeline: 12, artifacts: 12, bestiary: 12, religions: 12, dramaBonds: 8, locations: 12, npcs: 12, laws: 10 },
 };
 
 const cap = (arr: string[], max: number): string[] => (arr.length > max ? arr.slice(0, max) : arr);
+
+/**
+ * Relevance-ranked take: pinned ids first (active location/NPCs can never be
+ * truncated out), then the rest in insertion order. Replaces blind slice.
+ */
+function takeRanked<T extends { id?: string }>(
+  entities: T[],
+  toLine: (e: T) => string,
+  max: number,
+  pinIds: Set<string> = new Set()
+): string[] {
+  if (entities.length <= max) return entities.map(toLine);
+  const pinned = entities.filter((e) => e.id && pinIds.has(e.id));
+  const rest = entities.filter((e) => !e.id || !pinIds.has(e.id));
+  return [...pinned, ...rest].slice(0, max).map(toLine);
+}
 
 const TIER_RANK: Record<ScopeTier, number> = { street: 0, regional: 1, continental: 2, mythic: 3 };
 
@@ -144,6 +163,10 @@ export function pruneWorldBibleToScope(
     (b) => keptNpcIds.has(b.sourceNpcId) || keptNpcIds.has(b.targetNpcId)
   );
 
+  const keepFactionRelations = (wb.factionRelations ?? []).filter(
+    (r) => keptFactionIds.has(r.sourceFactionId) || keptFactionIds.has(r.targetFactionId)
+  );
+
   return {
     ...wb,
     npcs: keepNpcs,
@@ -153,6 +176,7 @@ export function pruneWorldBibleToScope(
     artifacts: keepArtifacts,
     religions: keepReligions,
     dramaBonds: keepDramaBonds,
+    factionRelations: keepFactionRelations,
   };
 }
 
@@ -171,6 +195,7 @@ export function buildWorldContextBlocks(
   if (!wb) {
     return {
       factions: [],
+      factionRelations: [],
       timeline: [],
       artifacts: [],
       bestiary: [],
@@ -187,18 +212,40 @@ export function buildWorldContextBlocks(
     wb = pruneWorldBibleToScope(wb, options);
   }
   const caps = SCOPE_CAPS[scopeTier];
+  const pinLocs = new Set(options?.locationIds || []);
+  const pinNpcs = new Set(options?.npcIds || []);
+  // Factions pinned when they hold a pinned territory or member NPC.
+  const pinFactions = new Set<string>();
+  for (const f of wb.factions ?? []) {
+    if ((f.territoryIds || []).some((t) => pinLocs.has(t))) pinFactions.add(f.id);
+  }
+  for (const n of wb.npcs ?? []) {
+    if (pinNpcs.has(n.id) && n.factionId) pinFactions.add(n.factionId);
+  }
 
   const npcName = new Map<string, string>();
   for (const n of wb.npcs ?? []) npcName.set(n.id, n.name);
 
-  const factions = cap(
-    (wb.factions ?? []).map(
-      (f) =>
-        `${f.name} — ${f.alignment}. Goals: ${f.publicGoals}${
-          f.secretAgendas ? ` | Hidden agenda: ${f.secretAgendas}` : ''
-        }`
-    ),
-    caps.factions
+  const factions = takeRanked(
+    wb.factions ?? [],
+    (f) =>
+      `${f.name} — ${f.alignment}. Goals: ${f.publicGoals}${
+        f.secretAgendas ? ` | Hidden agenda: ${f.secretAgendas}` : ''
+      }`,
+    caps.factions,
+    pinFactions
+  );
+
+  const facName = new Map<string, string>();
+  for (const f of wb.factions ?? []) facName.set(f.id, f.name);
+  const factionRelations = cap(
+    (wb.factionRelations ?? []).map((r) => {
+      const meta = FACTION_RELATION_META[r.value];
+      const a = facName.get(r.sourceFactionId) ?? r.sourceFactionId;
+      const b = facName.get(r.targetFactionId) ?? r.targetFactionId;
+      return `${a} ↔ ${b}: ${r.value} (${meta?.labelFa || r.value})${r.note ? ` — ${r.note}` : ''}`;
+    }),
+    caps.factionRelations
   );
 
   const timeline = cap(
@@ -252,24 +299,24 @@ export function buildWorldContextBlocks(
     caps.dramaBonds
   );
 
-  const locations = cap(
-    (wb.locations ?? []).map(
-      (l) =>
-        `${l.name} (${l.region || 'unknown region'}, danger ${l.dangerLevel}${
-          l.category ? `, ${l.category}` : ''
-        }) — ${l.description}`
-    ),
-    caps.locations
+  const locations = takeRanked(
+    wb.locations ?? [],
+    (l) =>
+      `${l.name} (${l.region || 'unknown region'}, danger ${l.dangerLevel}${
+        l.category ? `, ${l.category}` : ''
+      }) — ${l.description}`,
+    caps.locations,
+    pinLocs
   );
 
-  const npcs = cap(
-    (wb.npcs ?? []).map(
-      (n) =>
-        `${n.name} (${n.role || 'unknown role'}) — ${n.title || ''}; goals: ${
-          n.goals.join(', ') || 'unknown'
-        }`
-    ),
-    caps.npcs
+  const npcs = takeRanked(
+    wb.npcs ?? [],
+    (n) =>
+      `${n.name} (${n.role || 'unknown role'}) — ${n.title || ''}; goals: ${
+        n.goals.join(', ') || 'unknown'
+      }`,
+    caps.npcs,
+    pinNpcs
   );
 
   const laws = cap(
@@ -291,6 +338,7 @@ export function buildWorldContextBlocks(
     themeNotes: wb.themeNotes || undefined,
     authoredSystemPrompt: wb.aiSystemPrompt || undefined,
     factions,
+    factionRelations,
     timeline,
     artifacts,
     bestiary,
@@ -313,6 +361,7 @@ export function formatWorldContext(blocks: WorldContextBlocks): string {
   if (blocks.themeNotes) sections.push(`Theme Notes: ${blocks.themeNotes}`);
   if (blocks.authoredSystemPrompt) sections.push(`Author's Directive: ${blocks.authoredSystemPrompt}`);
   if (blocks.factions.length) sections.push(`Factions:\n- ${blocks.factions.join('\n- ')}`);
+  if (blocks.factionRelations.length) sections.push(`Faction Relations (allied/favorable/neutral/rival/hostile):\n- ${blocks.factionRelations.join('\n- ')}`);
   if (blocks.timeline.length) sections.push(`Timeline:\n- ${blocks.timeline.join('\n- ')}`);
   if (blocks.artifacts.length) sections.push(`Artifacts:\n- ${blocks.artifacts.join('\n- ')}`);
   if (blocks.bestiary.length) sections.push(`Bestiary:\n- ${blocks.bestiary.join('\n- ')}`);

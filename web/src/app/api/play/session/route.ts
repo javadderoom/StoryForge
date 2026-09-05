@@ -289,6 +289,16 @@ export async function POST(req: NextRequest) {
       currentSceneId: initialBeat.sceneId,
       turnCount: 1,
       playerState,
+      sagaLedger: {
+        factionReputations: [],
+        npcStatuses: [],
+        keyItems: [],
+        chapterSummaries: [],
+        openPlotThreads: [],
+        worldBibleVersion: (story as unknown as { worldBibleVersion?: number }).worldBibleVersion
+          || story.worldBible.worldBibleVersion
+          || 1,
+      },
       history: [
         {
           turnNumber: 1,

@@ -56,12 +56,16 @@ export interface WorkingContextEnvelope {
   worldSummary?: string;
   themeNotes?: string;
   factions?: string[];
+  /** 5-state faction spectrum lines (`A ↔ B: hostile (دشمن خونی) — note`). */
+  factionRelations?: string[];
   timeline?: string[];
   artifacts?: string[];
   bestiary?: string[];
   religions?: string[];
   dramaBonds?: string[];
   ontologySummary?: string;
+  locations?: string[];
+  npcs?: string[];
   // Plan 07/08: long-form saga grounding
   activeChapterTitle?: string;
   activeChapterGoal?: string;

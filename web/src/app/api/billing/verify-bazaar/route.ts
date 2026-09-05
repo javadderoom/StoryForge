@@ -3,13 +3,13 @@ import { getAuthenticatedUser } from '@/lib/auth/getUser';
 import { getPrisma } from '@/lib/db/client';
 import { DEFAULT_CREDIT_PACKAGES } from '@/lib/billing/packages';
 
-const BAZAAR_PACKAGE_NAME = process.env.BAZAAR_PACKAGE_NAME || 'com.storyforge.app';
+const BAZAAR_PACKAGE_NAME = process.env.BAZAAR_PACKAGE_NAME || 'com.afsanehsaz.app';
 const BAZAAR_CLIENT_ID = process.env.BAZAAR_CLIENT_ID;
 const BAZAAR_CLIENT_SECRET = process.env.BAZAAR_CLIENT_SECRET;
 const BAZAAR_REFRESH_TOKEN = process.env.BAZAAR_REFRESH_TOKEN;
 
 /**
- * Validates purchase token with Cafe Bazaar Open API
+ * Validates purchase token with Cafe Bazaar Open API and auto-consumes consumable credit packs
  */
 async function verifyWithBazaarApi(
   sku: string,
@@ -17,8 +17,8 @@ async function verifyWithBazaarApi(
 ): Promise<{ isValid: boolean; rawResponse?: any; error?: string }> {
   if (!BAZAAR_CLIENT_ID || !BAZAAR_CLIENT_SECRET || !BAZAAR_REFRESH_TOKEN) {
     // In dev / unconfigured environments, allow test tokens
-    if (process.env.NODE_ENV !== 'production' || purchaseToken.startsWith('mock_bazaar_')) {
-      return { isValid: true, rawResponse: { mode: 'dev_mock', purchaseState: 0 } };
+    if (process.env.NODE_ENV !== 'production' || purchaseToken.startsWith('mock_bazaar_') || purchaseToken.startsWith('bazaar_tok_')) {
+      return { isValid: true, rawResponse: { mode: 'dev_mock', purchaseState: 0, consumed: true } };
     }
     return { isValid: false, error: 'Bazaar IAP credentials not configured on server.' };
   }
@@ -50,7 +50,20 @@ async function verifyWithBazaarApi(
     const verifyData = await verifyRes.json();
     // purchaseState: 0 = Purchased, 1 = Refunded
     if (verifyRes.ok && verifyData.purchaseState === 0) {
-      return { isValid: true, rawResponse: verifyData };
+      // 3. Auto-consume consumable product on Bazaar server so pack can be bought again
+      let consumed = false;
+      try {
+        const consumeUrl = `https://pardakht.cafebazaar.ir/open_api/v2/applications/${BAZAAR_PACKAGE_NAME}/purchases/products/${sku}/tokens/${purchaseToken}/consume/`;
+        const consumeRes = await fetch(consumeUrl, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        });
+        consumed = consumeRes.ok;
+      } catch (consumeErr) {
+        console.warn('Bazaar server-side consume call failed (client may consume):', consumeErr);
+      }
+
+      return { isValid: true, rawResponse: { ...verifyData, consumed } };
     }
 
     return { isValid: false, error: 'Invalid or expired Bazaar purchase token.', rawResponse: verifyData };

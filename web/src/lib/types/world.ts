@@ -14,6 +14,7 @@ export interface Faction {
   description: string;
   alignment: string; // e.g. "Lawful Authoritarian", "Rebel Underground"
   territoryIds: string[];
+  /** Legacy binary links (kept for backwards compat; see factionRelations). */
   rivalFactionIds: string[];
   alliedFactionIds: string[];
   publicGoals: string;
@@ -25,6 +26,121 @@ export interface Faction {
    * Omitted = always relevant (backwards compatible).
    */
   scope?: ScopeTier;
+}
+
+/**
+ * 5-state faction Relation Spectrum (base layer of inter-faction dynamics).
+ * Ordered from warmest to coldest: allied > favorable > neutral > rival > hostile.
+ */
+export const FACTION_RELATION_VALUES = ['allied', 'favorable', 'neutral', 'rival', 'hostile'] as const;
+export type FactionRelationValue = (typeof FACTION_RELATION_VALUES)[number];
+
+export const FACTION_RELATION_META: Record<
+  FactionRelationValue,
+  { rank: number; labelFa: string; labelEn: string; meaning: string }
+> = {
+  allied: {
+    rank: 2,
+    labelFa: 'متحد رسمی',
+    labelEn: 'Sworn Ally',
+    meaning: 'پیمان مشترک، تبادل منابع و نبرد در یک جبهه — shared pact, resource exchange, fighting on one front.',
+  },
+  favorable: {
+    rank: 1,
+    labelFa: 'هم‌پیمان پنهان / متمایل',
+    labelEn: 'Favorable',
+    meaning: 'توافقات غیررسمی، اشتراکات فکری یا هم‌پوشانی اهداف بدون اعلام برادری آشکار — informal accords and overlapping goals, no open brotherhood.',
+  },
+  neutral: {
+    rank: 0,
+    labelFa: 'بی‌طرف / عمل‌گرا',
+    labelEn: 'Neutral',
+    meaning: 'عدم مداخله؛ رابطه صرفاً تجاری، نظاره‌گر یا سرد بر اساس منافع لحظه‌ای — non-intervention, transactional or cold by momentary interest.',
+  },
+  rival: {
+    rank: -1,
+    labelFa: 'رقیب / اصطکاک ایدئولوژیک',
+    labelEn: 'Rival',
+    meaning: 'رقابت بر سر نفوذ و پیروان، تنش کلامی و سیاسی بدون جنگ باز — contest over influence, verbal/political tension short of open war.',
+  },
+  hostile: {
+    rank: -2,
+    labelFa: 'دشمن خونی / جنگ علنی',
+    labelEn: 'Blood Enemy',
+    meaning: 'ارتداد قطعی، فتوای نابودی، نبرد مسلحانه در میدان — definitive rupture, writ of destruction, armed battle in the field.',
+  },
+};
+
+export interface FactionRelation {
+  id: string;
+  sourceFactionId: string;
+  targetFactionId: string;
+  value: FactionRelationValue;
+  /** In-world note: treaties, grievances, blood debts behind the stance. */
+  note?: string;
+  /** Secret relations are hidden from the player compendium but seen by the narrator. */
+  isPublic?: boolean;
+}
+
+export function factionRelationRank(v: FactionRelationValue | undefined): number {
+  if (!v) return 0;
+  return FACTION_RELATION_META[v]?.rank ?? 0;
+}
+
+/**
+ * Resolves the effective relation between two factions.
+ * Precedence: explicit factionRelations entry (either direction) >
+ * legacy alliedFactionIds/rivalFactionIds > neutral default.
+ */
+export function getFactionRelation(
+  wb: { factions?: Faction[]; factionRelations?: FactionRelation[] },
+  aId: string,
+  bId: string
+): FactionRelationValue {
+  for (const r of wb.factionRelations || []) {
+    const match =
+      (r.sourceFactionId === aId && r.targetFactionId === bId) ||
+      (r.sourceFactionId === bId && r.targetFactionId === aId);
+    if (match) return r.value;
+  }
+  const a = (wb.factions || []).find((f) => f.id === aId);
+  if (a) {
+    if ((a.alliedFactionIds || []).includes(bId)) return 'allied';
+    if ((a.rivalFactionIds || []).includes(bId)) return 'rival';
+  }
+  const b = (wb.factions || []).find((f) => f.id === bId);
+  if (b) {
+    if ((b.alliedFactionIds || []).includes(aId)) return 'allied';
+    if ((b.rivalFactionIds || []).includes(aId)) return 'rival';
+  }
+  return 'neutral';
+}
+
+/**
+ * Derives legacy rival/allied id arrays from the spectrum (compat writer).
+ * favorable/neutral dissolve into no legacy link; hostile maps to rival
+ * (open war implies rivalry) so legacy readers stay safe.
+ */
+export function deriveLegacyFactionLinks(relations: FactionRelation[]): Map<string, { rivals: string[]; allies: string[] }> {
+  const out = new Map<string, { rivals: string[]; allies: string[] }>();
+  const ensure = (id: string) => {
+    let e = out.get(id);
+    if (!e) {
+      e = { rivals: [], allies: [] };
+      out.set(id, e);
+    }
+    return e;
+  };
+  for (const r of relations) {
+    if (r.value === 'allied') {
+      ensure(r.sourceFactionId).allies.push(r.targetFactionId);
+      ensure(r.targetFactionId).allies.push(r.sourceFactionId);
+    } else if (r.value === 'rival' || r.value === 'hostile') {
+      ensure(r.sourceFactionId).rivals.push(r.targetFactionId);
+      ensure(r.targetFactionId).rivals.push(r.sourceFactionId);
+    }
+  }
+  return out;
 }
 
 export interface LocationPointOfInterest {
@@ -321,6 +437,8 @@ export interface WorldBible {
   summary: string;
   themeNotes: string; // Overarching artistic guidelines for the AI
   aiSystemPrompt?: string; // Master AI System Prompt editable by author
+  /** Canon version, bumped on every publish. Sessions pin to it. */
+  worldBibleVersion?: number;
   laws: WorldLaw[];
   factions: Faction[];
   locations: WorldLocation[];
@@ -330,6 +448,8 @@ export interface WorldBible {
   bestiary?: WorldCreature[];
   religions?: WorldDeity[];
   dramaBonds?: NPCDramaBond[];
+  /** 5-state inter-faction relation spectrum (new) + legacy rival/allied arrays. */
+  factionRelations?: FactionRelation[];
   ontology?: WorldOntology;
   customRelations?: CustomLoreRelation[];
   oracleDirectives?: OracleMemoryDirective[];
@@ -559,6 +679,17 @@ export const FactionSchema = z.object({
   scope: z.enum(['street', 'regional', 'continental', 'mythic']).optional(),
 });
 
+export const FactionRelationValueSchema = z.enum(['allied', 'favorable', 'neutral', 'rival', 'hostile']);
+
+export const FactionRelationSchema = z.object({
+  id: z.string().min(1),
+  sourceFactionId: z.string().min(1),
+  targetFactionId: z.string().min(1),
+  value: FactionRelationValueSchema,
+  note: z.string().default(''),
+  isPublic: z.boolean().default(true),
+});
+
 export const LocationPointOfInterestSchema = z.object({
   name: z.string().min(1),
   description: z.string(),
@@ -688,6 +819,7 @@ export const WorldBibleSchema = z.object({
   summary: z.string(),
   themeNotes: z.string(),
   aiSystemPrompt: z.string().optional(),
+  worldBibleVersion: z.number().int().min(1).default(1),
   laws: z.array(WorldLawSchema).default([]),
   factions: z.array(FactionSchema).default([]),
   locations: z.array(WorldLocationSchema).default([]),
@@ -697,6 +829,7 @@ export const WorldBibleSchema = z.object({
   bestiary: z.array(WorldCreatureSchema).default([]),
   religions: z.array(WorldDeitySchema).default([]),
   dramaBonds: z.array(NPCDramaBondSchema).default([]),
+  factionRelations: z.array(FactionRelationSchema).default([]),
   ontology: WorldOntologySchema.optional(),
   customRelations: z.array(CustomLoreRelationSchema).default([]),
 });
@@ -877,6 +1010,8 @@ export interface WorldStateLedger {
   /** Tier 2 episodic milestone rollups, one per completed chapter */
   chapterSummaries: ChapterSummaryEntry[];
   openPlotThreads: string[];
+  /** Canon Bible version this session is pinned to (set at session start). */
+  worldBibleVersion?: number;
 }
 
 export interface SagaManifest {
@@ -924,6 +1059,7 @@ export const WorldStateLedgerSchema = z.object({
   keyItems: z.array(KeyItemLedgerEntrySchema).default([]),
   chapterSummaries: z.array(ChapterSummaryEntrySchema).default([]),
   openPlotThreads: z.array(z.string()).default([]),
+  worldBibleVersion: z.number().int().min(1).optional(),
 });
 
 export const StoryChapterSchema = z.object({

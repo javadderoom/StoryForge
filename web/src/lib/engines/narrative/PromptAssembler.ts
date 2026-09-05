@@ -19,29 +19,38 @@ function worldContextBlock(context: WorkingContextEnvelope, isEnglish: boolean):
         summary: 'WORLD SUMMARY',
         theme: 'THEMATIC DIRECTION',
         factions: 'FACTIONS & POWER BLOCS',
+        factionRelations: 'FACTION RELATIONS',
         timeline: 'TIMELINE & HISTORY',
         artifacts: 'ARTIFACTS & RELICS',
         bestiary: 'BESTIARY & CREATURES',
         religions: 'RELIGIONS & DEITIES',
         bonds: 'NPC RELATIONSHIPS',
         ontology: 'WORLD ONTOLOGY',
+        locations: 'KNOWN LOCATIONS',
+        npcs: 'KNOWN NPCS',
       }
     : {
         summary: 'خلاصه جهان / WORLD SUMMARY',
         theme: 'جهت تماتیک / THEMATIC DIRECTION',
         factions: 'گروه‌ها و قدرت‌ها / FACTIONS',
+        factionRelations: 'روابط جناح‌ها / FACTION RELATIONS',
         timeline: 'تاریخ و زمان / TIMELINE',
         artifacts: 'اشیاء و یادگارها / ARTIFACTS',
         bestiary: 'موجودات / BESTIARY',
         religions: 'ادیان و خدایان / RELIGIONS',
         bonds: 'روابط شخصیت‌ها / NPC RELATIONSHIPS',
         ontology: 'ساختار جهان / ONTOLOGY',
+        locations: 'مکان‌های شناخته‌شده / LOCATIONS',
+        npcs: 'شخصیت‌های شناخته‌شده / NPCS',
       };
 
   const out: string[] = [];
   if (context.worldSummary) out.push(`[${labels.summary}]\n${context.worldSummary}`);
   if (context.themeNotes) out.push(`[${labels.theme}]\n${context.themeNotes}`);
   if (context.factions?.length) out.push(`[${labels.factions}]\n${context.factions.map((x) => `• ${x}`).join('\n')}`);
+  if (context.factionRelations?.length) out.push(`[${labels.factionRelations} — honor these stances: allied fights together, favorable cooperates quietly, neutral does not intervene, rival contests without open war, hostile wages open war]\n${context.factionRelations.map((x) => `• ${x}`).join('\n')}`);
+  if (context.locations?.length) out.push(`[${labels.locations}]\n${context.locations.map((x) => `• ${x}`).join('\n')}`);
+  if (context.npcs?.length) out.push(`[${labels.npcs}]\n${context.npcs.map((x) => `• ${x}`).join('\n')}`);
   if (context.timeline?.length) out.push(`[${labels.timeline}]\n${context.timeline.map((x) => `• ${x}`).join('\n')}`);
   if (context.artifacts?.length) out.push(`[${labels.artifacts}]\n${context.artifacts.map((x) => `• ${x}`).join('\n')}`);
   if (context.bestiary?.length) out.push(`[${labels.bestiary}]\n${context.bestiary.map((x) => `• ${x}`).join('\n')}`);

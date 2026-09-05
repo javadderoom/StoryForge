@@ -63,6 +63,71 @@ export const GenesisWorldSchema = z.object({
 
 export type GenesisWorldData = z.infer<typeof GenesisWorldSchema>;
 
+export const GENESIS_EXPECTED_COUNTS = {
+  laws: 4,
+  factions: 3,
+  locations: 4,
+  religions: 2,
+} as const;
+
+const PLACEHOLDER_NAMES = new Set(
+  ['world law', 'faction', 'location', 'deity', 'unnamed location', 'unnamed faction', 'unnamed deity', 'immutable world law', 'new world', 'new realm'].map((s) =>
+    s.toLowerCase()
+  )
+);
+
+const PLACEHOLDER_ID_PATTERN = /^(law|fac|loc|deity)_00\d+$/;
+
+/**
+ * Detects low-quality placeholder entities that normalizeGenesisData fills in
+ * when the model under-generates (e.g. name "Faction", id "fac_001").
+ * Returns human-readable issue strings; empty = clean.
+ */
+export function hasPlaceholders(data: GenesisWorldData): string[] {
+  const issues: string[] = [];
+  if (!data) return ['empty genesis payload'];
+  const checkCount = (label: string, arr: unknown[], expected: number) => {
+    if (!Array.isArray(arr) || arr.length !== expected) {
+      issues.push(`${label}: expected ${expected}, got ${Array.isArray(arr) ? arr.length : 0}`);
+    }
+  };
+  checkCount('laws', data.laws as unknown[], GENESIS_EXPECTED_COUNTS.laws);
+  checkCount('factions', data.factions as unknown[], GENESIS_EXPECTED_COUNTS.factions);
+  checkCount('locations', data.locations as unknown[], GENESIS_EXPECTED_COUNTS.locations);
+  checkCount('religions', data.religions as unknown[], GENESIS_EXPECTED_COUNTS.religions);
+
+  for (const l of data.laws || []) {
+    if (!l.rule || l.rule.trim().length < 8 || PLACEHOLDER_NAMES.has(l.rule.trim().toLowerCase())) {
+      issues.push(`law "${l.id}": placeholder rule`);
+    }
+    if (PLACEHOLDER_ID_PATTERN.test(l.id || '')) issues.push(`law "${l.id}": auto id (model did not assign stable id)`);
+    if (!l.description || l.description.trim().length < 10) issues.push(`law "${l.id}": thin description`);
+  }
+  for (const f of data.factions || []) {
+    if (!f.name || PLACEHOLDER_NAMES.has(f.name.trim().toLowerCase())) {
+      issues.push(`faction "${f.id}": placeholder name`);
+    }
+    if (PLACEHOLDER_ID_PATTERN.test(f.id || '')) issues.push(`faction "${f.id}": auto id`);
+  }
+  for (const l of data.locations || []) {
+    if (!l.name || PLACEHOLDER_NAMES.has(l.name.trim().toLowerCase())) {
+      issues.push(`location "${l.id}": placeholder name`);
+    }
+    if (PLACEHOLDER_ID_PATTERN.test(l.id || '')) issues.push(`location "${l.id}": auto id`);
+    if (!l.description || l.description.trim().length < 10) issues.push(`location "${l.id}": thin description`);
+  }
+  for (const r of data.religions || []) {
+    if (!r.name || PLACEHOLDER_NAMES.has(r.name.trim().toLowerCase())) {
+      issues.push(`religion "${r.id}": placeholder name`);
+    }
+    if (PLACEHOLDER_ID_PATTERN.test(r.id || '')) issues.push(`religion "${r.id}": auto id`);
+  }
+  if (!data.worldName || PLACEHOLDER_NAMES.has(data.worldName.trim().toLowerCase())) {
+    issues.push('worldName: placeholder');
+  }
+  return issues;
+}
+
 /**
  * Normalizes raw AI output into a strictly valid GenesisWorldData structure,
  * handling variations like nested "meta" objects, "deities" instead of "religions",
