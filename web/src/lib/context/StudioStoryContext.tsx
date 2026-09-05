@@ -1111,6 +1111,8 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         setFactionRelation(sourceId, targetId, 'allied');
       } else if (relationType === 'faction_favorable') {
         setFactionRelation(sourceId, targetId, 'favorable');
+      } else if (relationType === 'faction_neutral') {
+        setFactionRelation(sourceId, targetId, 'neutral');
       } else if (relationType === 'faction_rival') {
         setFactionRelation(sourceId, targetId, 'rival');
       } else if (

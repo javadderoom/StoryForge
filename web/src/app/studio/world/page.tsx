@@ -1055,6 +1055,10 @@ export default function WorldBiblePage() {
                             badgeCls = 'bg-rose-500/10 text-rose-300 border-rose-500/20';
                             label = `${isPersian ? 'دشمن خونی' : 'Hostile'}: ${rel.otherName}`;
                             icon = <Flame className="w-2.5 h-2.5 text-rose-400" />;
+                          } else if (rel.stance === 'neutral') {
+                            badgeCls = 'bg-zinc-800 text-zinc-400 border-zinc-700';
+                            label = `${isPersian ? 'بی‌طرف' : 'Neutral'}: ${rel.otherName}`;
+                            icon = <Globe className="w-2.5 h-2.5 text-zinc-400" />;
                           }
 
                           return (
@@ -1393,6 +1397,8 @@ export default function WorldBiblePage() {
                             value: FactionRelationValue;
                             labelFa: string;
                             labelEn: string;
+                            descFa: string;
+                            descEn: string;
                             icon: React.ReactNode;
                             activeCls: string;
                             hoverCls: string;
@@ -1401,6 +1407,8 @@ export default function WorldBiblePage() {
                               value: 'allied',
                               labelFa: 'متحد رسمی',
                               labelEn: 'Sworn Ally',
+                              descFa: 'پیمان مشترک، تبادل منابع و نبرد در یک جبهه',
+                              descEn: 'Shared pact, resource exchange, and fighting on one front',
                               icon: <Handshake className="w-3 h-3" />,
                               activeCls: 'bg-emerald-500 text-zinc-950 font-bold border-emerald-400 shadow-md shadow-emerald-950/50',
                               hoverCls: 'hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
@@ -1409,6 +1417,8 @@ export default function WorldBiblePage() {
                               value: 'favorable',
                               labelFa: 'هم‌پیمان',
                               labelEn: 'Favorable',
+                              descFa: 'توافقات غیررسمی، اشتراکات فکری یا هم‌پوشانی اهداف، بدون اعلام برادری آشکار',
+                              descEn: 'Informal accords, shared ideals or overlapping goals without open brotherhood',
                               icon: <Shield className="w-3 h-3" />,
                               activeCls: 'bg-sky-500 text-zinc-950 font-bold border-sky-400 shadow-md shadow-sky-950/50',
                               hoverCls: 'hover:bg-sky-500/20 text-sky-300 border-sky-500/30',
@@ -1417,6 +1427,8 @@ export default function WorldBiblePage() {
                               value: 'neutral',
                               labelFa: 'بی‌طرف',
                               labelEn: 'Neutral',
+                              descFa: 'عدم مداخله؛ رابطه صرفاً تجاری، نظاره‌گر یا سرد بر اساس منافع لحظه‌ای',
+                              descEn: 'Non-intervention; transactional, observant, or cold based on momentary interests',
                               icon: <Globe className="w-3 h-3" />,
                               activeCls: 'bg-zinc-200 text-zinc-950 font-bold border-zinc-100',
                               hoverCls: 'hover:bg-zinc-800 text-zinc-400 border-zinc-700',
@@ -1425,6 +1437,8 @@ export default function WorldBiblePage() {
                               value: 'rival',
                               labelFa: 'رقیب',
                               labelEn: 'Rival',
+                              descFa: 'رقابت بر سر نفوذ و پیروان، تنش کلامی و سیاسی بدون ورود به جنگ باز',
+                              descEn: 'Contest over influence and followers, verbal and political friction without open war',
                               icon: <Swords className="w-3 h-3" />,
                               activeCls: 'bg-amber-500 text-zinc-950 font-bold border-amber-400 shadow-md shadow-amber-950/50',
                               hoverCls: 'hover:bg-amber-500/20 text-amber-300 border-amber-500/30',
@@ -1433,11 +1447,15 @@ export default function WorldBiblePage() {
                               value: 'hostile',
                               labelFa: 'دشمن خونی',
                               labelEn: 'Hostile',
+                              descFa: 'ارتداد قطعی، فتوای نابودی، نبرد مسلحانه در میدان',
+                              descEn: 'Definitive rupture, writ of destruction, armed battle in the field',
                               icon: <Flame className="w-3 h-3" />,
                               activeCls: 'bg-rose-500 text-zinc-950 font-bold border-rose-400 shadow-md shadow-rose-950/50',
                               hoverCls: 'hover:bg-rose-500/20 text-rose-300 border-rose-500/30',
                             },
                           ];
+
+                          const activeStance = STANCE_BUTTONS.find((b) => b.value === rel.value);
 
                           return (
                             <div
@@ -1479,7 +1497,7 @@ export default function WorldBiblePage() {
                                           ? btn.activeCls
                                           : `bg-transparent border-transparent ${btn.hoverCls}`
                                       }`}
-                                      title={isPersian ? btn.labelFa : btn.labelEn}
+                                      title={`${isPersian ? btn.labelFa : btn.labelEn} — ${isPersian ? btn.descFa : btn.descEn}`}
                                     >
                                       {btn.icon}
                                       <span className="truncate">{isPersian ? btn.labelFa : btn.labelEn}</span>
@@ -1488,70 +1506,76 @@ export default function WorldBiblePage() {
                                 })}
                               </div>
 
-                              {/* Context Note & Secret Toggle (visible when non-neutral or has text) */}
-                              {(rel.value !== 'neutral' || Boolean(rel.note)) && (
-                                <div className="space-y-1.5 pt-1">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <input
-                                      type="text"
-                                      value={rel.note}
-                                      onChange={(e) =>
-                                        setFactionForm((prev) => ({
-                                          ...prev,
-                                          relations: {
-                                            ...prev.relations,
-                                            [otherFac.id]: {
-                                              ...rel,
-                                              note: e.target.value,
-                                            },
-                                          },
-                                        }))
-                                      }
-                                      placeholder={
-                                        isPersian
-                                          ? 'علت، پیمان‌نامه، بدهی خونی یا پیش‌زمینه این موضع...'
-                                          : 'Treaty, grievance, ancient debt, or stance rationale...'
-                                      }
-                                      className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1 text-[11px] text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-500/50"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setFactionForm((prev) => ({
-                                          ...prev,
-                                          relations: {
-                                            ...prev.relations,
-                                            [otherFac.id]: {
-                                              ...rel,
-                                              isPublic: !rel.isPublic,
-                                            },
-                                          },
-                                        }))
-                                      }
-                                      title={
-                                        rel.isPublic
-                                          ? isPersian
-                                            ? 'نمایش در دانشنامه خواننده'
-                                            : 'Visible in Reader Compendium'
-                                          : isPersian
-                                          ? 'مخفی از خواننده (فقط راوی هوش مصنوعی)'
-                                          : 'Hidden from Reader (Narrator Only)'
-                                      }
-                                      className={`px-2 py-1 rounded-lg text-[10px] font-mono border transition-all cursor-pointer flex items-center gap-1 ${
-                                        rel.isPublic
-                                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-                                          : 'bg-rose-500/10 text-rose-300 border-rose-500/20 hover:bg-rose-500/20'
-                                      }`}
-                                    >
-                                      {rel.isPublic ? (
-                                        <>👁️ {isPersian ? 'عمومی' : 'Public'}</>
-                                      ) : (
-                                        <>🔒 {isPersian ? 'محرمانه' : 'Secret'}</>
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
+                              {/* Stance Definition Text */}
+                              {activeStance && (
+                                <p className="text-[10px] text-zinc-400 px-1 leading-tight">
+                                  <span className="text-zinc-300 font-medium">{isPersian ? activeStance.labelFa : activeStance.labelEn}: </span>
+                                  {isPersian ? activeStance.descFa : activeStance.descEn}
+                                </p>
                               )}
+
+                              {/* Context Note & Secret Toggle (always available for all stances including neutral) */}
+                              <div className="space-y-1.5 pt-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <input
+                                    type="text"
+                                    value={rel.note || ''}
+                                    onChange={(e) =>
+                                      setFactionForm((prev) => ({
+                                        ...prev,
+                                        relations: {
+                                          ...prev.relations,
+                                          [otherFac.id]: {
+                                            ...rel,
+                                            note: e.target.value,
+                                          },
+                                        },
+                                      }))
+                                    }
+                                    placeholder={
+                                      isPersian
+                                        ? 'علت، پیمان‌نامه، بدهی خونی یا پیش‌زمینه این موضع...'
+                                        : 'Treaty, grievance, ancient debt, or stance rationale...'
+                                    }
+                                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1 text-[11px] text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-500/50"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setFactionForm((prev) => ({
+                                        ...prev,
+                                        relations: {
+                                          ...prev.relations,
+                                          [otherFac.id]: {
+                                            ...rel,
+                                            isPublic: !rel.isPublic,
+                                          },
+                                        },
+                                      }))
+                                    }
+                                    title={
+                                      rel.isPublic
+                                        ? isPersian
+                                          ? 'نمایش در دانشنامه خواننده'
+                                          : 'Visible in Reader Compendium'
+                                        : isPersian
+                                        ? 'مخفی از خواننده (فقط راوی هوش مصنوعی)'
+                                        : 'Hidden from Reader (Narrator Only)'
+                                    }
+                                    className={`px-2 py-1 rounded-lg text-[10px] font-mono border transition-all cursor-pointer flex items-center gap-1 ${
+                                      rel.isPublic
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                                        : 'bg-rose-500/10 text-rose-300 border-rose-500/20 hover:bg-rose-500/20'
+                                    }`}
+                                  >
+                                    {rel.isPublic ? (
+                                      <>👁️ {isPersian ? 'عمومی' : 'Public'}</>
+                                    ) : (
+                                      <>🔒 {isPersian ? 'محرمانه' : 'Secret'}</>
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           );
                         })}
