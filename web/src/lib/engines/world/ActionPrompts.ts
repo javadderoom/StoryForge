@@ -32,7 +32,7 @@ export function buildActionProtocolSection(isPersian: boolean): string {
 نکات کلیدی ثبت مستقیم (Easy Insert):
 - برای ایجاد مستقیم وقتی کاربر مشخصات ارائه کرده، حتماً از فیلد "data" استفاده کن و تمام فیلدهای نویسنده را کلمه به کلمه کپی کن.
 - هرگز فیلد "description" (شرح مکان و ظاهر) را حذف یا خالی نگذار.
-- اگر نویسنده دسته‌بندی مکان (Category) را ارائه داد (مانند طبیعت وحشی، بیابان، کویر، دشت، کوهستان، جنگل)، مقدار مناسب از دسته‌های مجاز را در "category" بگذار: "wilderness" (برای طبیعت وحشی/بیابان/دشت/کوهستان)، "settlement" (برای شهر/روستا/آبادی)، "dungeon" (برای سیاهچال/دخمه/غار)، "sanctuary" (برای معبد/مکان مقدس)، "ruin" (برای خرابه/ویرانه)، یا "anomaly" (برای ناهنجاری جادویی).
+- اگر نویسنده دسته‌بندی مکان (Category) را ارائه داد، مقدار متناسب از ۹ دسته رسمی را در "category" بگذار: "settlement" (شهرک/بندر/کانون مدنی)، "stronghold" (دژ/بارو/استحکامات/پادگان)، "ruins" (خرابه‌ها/معابد/یادمان‌های کهن)، "dungeon" (سیاه‌چال/دخمه/غار/هزارتو)، "plains" (اراضی زیستی/دشت‌ها/جلگه‌ها/چراگاه‌ها)، "waterway" (شاهراه‌ها و آبراه‌ها/رودخانه‌ها/دریاچه‌ها/کانال‌ها)، "seas" (پهنه‌های آبی/دریاها/اقیانوس‌ها/خلیج‌ها/مجمع‌الجزایر)، "wilderness" (پهنه‌های خشن/کویر/استپ/جنگل‌های انبوه/کوهستان)، یا "anomaly" (ناهنجاری‌ها/شگفتی‌های غریب/گسله‌ها).
 - اگر نویسنده «قوانین ویژه مکان» یا قوانین خاصی تعیین کرده است، آن‌ها را حتماً در آرایه "specialRules" در شیء data قرار بده.
 - برای create خلاقانه از "prompt" استفاده کن. برای update/delete فیلد "match":{"byName":"<نام موجودیت موجود>"} الزامی است. نکته: خدایان، ایزدان، ادیان، پانتئون‌ها و فرقه‌ها همگی موجودیت «deity» هستند.`;
   }
@@ -60,7 +60,7 @@ Ops: "create", "update", "delete". Entities: ${ENUM}. You MUST include the "enti
 Easy Insert rules:
 - For direct insertion where the author already drafted fields, use "data" to register their exact text with zero AI drift.
 - NEVER drop the "description" field when provided by the author.
-- Map the location category accurately: "wilderness" (wilds, deserts, plains, mountains, forests), "settlement" (cities, towns, villages), "dungeon" (caves, dungeons), "sanctuary" (holy sites, temples), "ruin" (ruins), "anomaly" (magical anomalies).
+- Map the location category accurately using the 9 canonical categories: "settlement" (towns, ports, cities), "stronghold" (fortresses, citadels, garrisons), "ruins" (ancient ruins, shrines, sunken temples), "dungeon" (crypts, dungeons, caves), "plains" (fertile lowlands, pastures, plains), "waterway" (continental rivers, lakes, canals), "seas" (open seas, oceans, gulfs, archipelagos), "wilderness" (harsh deserts, mountains, primordial forests, steppes), "anomaly" (magical anomalies, rifts, wonders).
 - If the author provides special rules, preserve them verbatim in the "specialRules" array inside "data".
 - For creative generation use "prompt". For update/delete add "match":{"byName":"<existing entity name>"}. Note: gods, deities, religions, pantheons, and cults are all the 'deity' entity.`;
 }

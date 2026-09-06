@@ -121,36 +121,143 @@ export function normalizeEntity(entity: EntityType, data: any): any {
       res.dangerLevel = 1;
     }
 
-    const validCategories = ['settlement', 'wilderness', 'dungeon', 'sanctuary', 'ruin', 'anomaly'];
+    const validCategories = [
+      'settlement',
+      'stronghold',
+      'ruins',
+      'dungeon',
+      'plains',
+      'waterway',
+      'seas',
+      'wilderness',
+      'anomaly',
+    ];
     if (res.category) {
       const catLower = String(res.category).toLowerCase();
       if (
+        catLower.includes('دریا') ||
+        catLower.includes('اقیانوس') ||
+        catLower.includes('خلیج') ||
+        catLower.includes('تنگه') ||
+        catLower.includes('مجمع‌الجزایر') ||
+        catLower.includes('جزیره') ||
+        catLower.includes('sea') ||
+        catLower.includes('ocean') ||
+        catLower.includes('gulf') ||
+        catLower.includes('bay') ||
+        catLower.includes('strait') ||
+        catLower.includes('archipelago')
+      ) {
+        res.category = 'seas';
+      } else if (
+        catLower.includes('رودخانه') ||
+        catLower.includes('رود') ||
+        catLower.includes('دریاچه') ||
+        catLower.includes('آبراه') ||
+        catLower.includes('هور') ||
+        catLower.includes('سرچشمه') ||
+        catLower.includes('river') ||
+        catLower.includes('lake') ||
+        catLower.includes('waterway') ||
+        catLower.includes('canal')
+      ) {
+        res.category = 'waterway';
+      } else if (
+        catLower.includes('دشت') ||
+        catLower.includes('جلگه') ||
+        catLower.includes('چراگاه') ||
+        catLower.includes('مرتع') ||
+        catLower.includes('تپه‌ماهور') ||
+        catLower.includes('plain') ||
+        catLower.includes('pasture') ||
+        catLower.includes('meadow')
+      ) {
+        res.category = 'plains';
+      } else if (
+        catLower.includes('قلعه') ||
+        catLower.includes('دژ') ||
+        catLower.includes('بارو') ||
+        catLower.includes('پادگان') ||
+        catLower.includes('برج') ||
+        catLower.includes('استحکامات') ||
+        catLower.includes('پاسگاه') ||
+        catLower.includes('stronghold') ||
+        catLower.includes('fortress') ||
+        catLower.includes('citadel') ||
+        catLower.includes('outpost')
+      ) {
+        res.category = 'stronghold';
+      } else if (
+        catLower.includes('ویرانه') ||
+        catLower.includes('خرابه') ||
+        catLower.includes('معبد') ||
+        catLower.includes('محراب') ||
+        catLower.includes('زیارتگاه') ||
+        catLower.includes('یادمان') ||
+        catLower.includes('مدفون') ||
+        catLower.includes('متروکه') ||
+        catLower.includes('ruin') ||
+        catLower.includes('shrine') ||
+        catLower.includes('temple')
+      ) {
+        res.category = 'ruins';
+      } else if (
+        catLower.includes('سیاه‌چال') ||
+        catLower.includes('دخمه') ||
+        catLower.includes('غار') ||
+        catLower.includes('سرداب') ||
+        catLower.includes('هزارتو') ||
+        catLower.includes('dungeon') ||
+        catLower.includes('cave') ||
+        catLower.includes('crypt')
+      ) {
+        res.category = 'dungeon';
+      } else if (
+        catLower.includes('ناهنجاری') ||
+        catLower.includes('گرداب') ||
+        catLower.includes('گسله') ||
+        catLower.includes('شگفتی') ||
+        catLower.includes('نامتعارف') ||
+        catLower.includes('جادویی') ||
+        catLower.includes('پرتگاه') ||
+        catLower.includes('anomaly') ||
+        catLower.includes('rift')
+      ) {
+        res.category = 'anomaly';
+      } else if (
         catLower.includes('طبیعت') ||
         catLower.includes('بیابان') ||
         catLower.includes('wild') ||
         catLower.includes('کویر') ||
-        catLower.includes('دشت') ||
+        catLower.includes('استپ') ||
         catLower.includes('جنگل') ||
         catLower.includes('کوه') ||
         catLower.includes('گذرگاه') ||
-        catLower.includes('دره')
+        catLower.includes('دره') ||
+        catLower.includes('لجنزار') ||
+        catLower.includes('مرداب') ||
+        catLower.includes('صخره')
       ) {
         res.category = 'wilderness';
-      } else if (catLower.includes('سیاه‌چال') || catLower.includes('دخمه') || catLower.includes('غار') || catLower.includes('dungeon') || catLower.includes('cave')) {
-        res.category = 'dungeon';
-      } else if (catLower.includes('مقدس') || catLower.includes('معبد') || catLower.includes('پناهگاه') || catLower.includes('آرامگاه') || catLower.includes('sanct')) {
-        res.category = 'sanctuary';
-      } else if (catLower.includes('ویرانه') || catLower.includes('خرابه') || catLower.includes('متروکه') || catLower.includes('ruin')) {
-        res.category = 'ruin';
-      } else if (catLower.includes('ناهنجاری') || catLower.includes('جادویی') || catLower.includes('پرتگاه') || catLower.includes('anom')) {
-        res.category = 'anomaly';
-      } else if (catLower.includes('شهر') || catLower.includes('روستا') || catLower.includes('آبادی') || catLower.includes('قلعه') || catLower.includes('دژ') || catLower.includes('بندر') || catLower.includes('settle')) {
+      } else if (
+        catLower.includes('شهر') ||
+        catLower.includes('روستا') ||
+        catLower.includes('آبادی') ||
+        catLower.includes('بندر') ||
+        catLower.includes('بازار') ||
+        catLower.includes('بارانداز') ||
+        catLower.includes('کانون') ||
+        catLower.includes('settle') ||
+        catLower.includes('town') ||
+        catLower.includes('city') ||
+        catLower.includes('port')
+      ) {
         res.category = 'settlement';
       } else if (!validCategories.includes(res.category)) {
-        res.category = 'settlement';
+        res.category = 'wilderness';
       }
     } else {
-      res.category = 'settlement';
+      res.category = 'wilderness';
     }
 
     if (typeof res.specialRules === 'string') {

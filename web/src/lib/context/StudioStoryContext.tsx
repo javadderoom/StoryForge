@@ -149,11 +149,87 @@ export function getDefaultOntology(isPersian: boolean): WorldOntology {
       },
     ],
     placeCategories: [
-      { id: 'stronghold', name: isPersian ? 'دژ و قلعه باستانی' : 'Stronghold / Citadel', description: isPersian ? 'استحکامات نظامی و مقر فرماندهی' : 'Fortified citadel or military command post', color: '#6366F1', isDefault: true },
-      { id: 'dungeon', name: isPersian ? 'سیاه‌چال و دخمه' : 'Dungeon / Vault', description: isPersian ? 'سلول‌های سنگی، راهروهای تاریک و سرداب' : 'Subterranean cells, torture pits, or vaults', color: '#EC4899', isDefault: true },
-      { id: 'ruins', name: isPersian ? 'خرابه‌ها و معابد کهن' : 'Ancient Ruins & Shrines', description: isPersian ? 'بقایای تمدن‌های پیشین و محراب‌های جادو' : 'Remnants of fallen eras and forgotten altars', color: '#14B8A6', isDefault: true },
-      { id: 'settlement', name: isPersian ? 'شهرک و بازار' : 'Settlement / Outpost', description: isPersian ? 'تجمع مدنی، اسکله بازرگانان یا بازارچه' : 'Civilian hubs, trading posts, or inns', color: '#F59E0B', isDefault: true },
-      { id: 'wilderness', name: isPersian ? 'طبیعت وحشی و بیابان' : 'Wilderness / Wastes', description: isPersian ? 'کویر سوزان، جنگل‌های مه‌آلود و مناطق خطرناک' : 'Uncharted wilds, foggy marshes, or badlands', color: '#10B981', isDefault: true },
+      {
+        id: 'settlement',
+        name: isPersian ? 'شهرک، بندر و کانون مدنی' : 'Settlement / Urban Hub',
+        description: isPersian
+          ? 'شهرها، دهکده‌ها، باراندازهای تجاری و بازارهای متمرکز'
+          : 'Cities, towns, trade docks, and concentrated civilian markets',
+        color: '#F59E0B',
+        isDefault: true,
+      },
+      {
+        id: 'stronghold',
+        name: isPersian ? 'دژ، بارو و استحکامات' : 'Stronghold / Citadel',
+        description: isPersian
+          ? 'قلعه‌های نظامی، برج‌های دیدبانی، پاسگاه‌های مرزی و پادگان‌ها'
+          : 'Military fortresses, watchtowers, frontier outposts, and garrisons',
+        color: '#6366F1',
+        isDefault: true,
+      },
+      {
+        id: 'ruins',
+        name: isPersian ? 'خرابه‌ها، معابد و یادمان‌های کهن' : 'Ancient Ruins & Shrines',
+        description: isPersian
+          ? 'آثار تمدن‌های نابودشده، زیارتگاه‌ها، محراب‌های جادو و شهرهای مدفون'
+          : 'Remnants of fallen civilizations, sacred shrines, occult altars, and sunken cities',
+        color: '#14B8A6',
+        isDefault: true,
+      },
+      {
+        id: 'dungeon',
+        name: isPersian ? 'سیاه‌چال، دخمه و هزارتوهای زیرزمینی' : 'Dungeon & Underworld',
+        description: isPersian
+          ? 'سرداب‌های سنگی، زندان‌های باستانی، معادن متروکه و شبکه‌های غاری تاریک'
+          : 'Subterranean crypts, ancient prisons, abandoned mines, and dark cave networks',
+        color: '#EC4899',
+        isDefault: true,
+      },
+      {
+        id: 'plains',
+        name: isPersian ? 'اراضی زیستی و جلگه‌های هموار' : 'Plains & Pastures',
+        description: isPersian
+          ? 'دشت‌های حاصلخیز، چراگاه‌ها، تپه‌ماهورهای سبز و نوار کرانه‌ای آرام'
+          : 'Fertile lowlands, grazing pastures, rolling green hills, and tranquil shorelines',
+        color: '#84CC16',
+        isDefault: true,
+      },
+      {
+        id: 'waterway',
+        name: isPersian ? 'شاهراه‌ها و آبراه‌های قاره‌ای' : 'Continental Waterways & Valleys',
+        description: isPersian
+          ? 'رودخانه‌های بزرگ، دریاچه‌های باز، آبراه‌ها و دره‌های مواصلاتی'
+          : 'Major rivers, open freshwater lakes, navigation corridors, and transit valleys',
+        color: '#38BDF8',
+        isDefault: true,
+      },
+      {
+        id: 'seas',
+        name: isPersian ? 'پهنه‌های آبی و دریای باز' : 'Open Seas & Oceans',
+        description: isPersian
+          ? 'دریاهای پیرامونی، خلیج‌ها، تنگه‌های جزرومدی، مجمع‌الجزایر و اقیانوس‌ها'
+          : 'Peripheral seas, gulfs, tidal straits, archipelagos, and open oceans',
+        color: '#0284C7',
+        isDefault: true,
+      },
+      {
+        id: 'wilderness',
+        name: isPersian ? 'پهنه‌های خشن و طبیعت وحشی' : 'Harsh Wilderness & Badlands',
+        description: isPersian
+          ? 'کویرهای بایر، استپ‌های خشک، جنگل‌های کهن انبوه، لجنزارها و ستیغ‌های یخی'
+          : 'Barren deserts, arid steppes, primordial forests, wetlands, and frozen ridges',
+        color: '#10B981',
+        isDefault: true,
+      },
+      {
+        id: 'anomaly',
+        name: isPersian ? 'ناهنجاری‌ها و شگفتی‌های غریب' : 'Anomalies & Wonders',
+        description: isPersian
+          ? 'گرداب‌های دائمی، گسله‌های دگرگون‌شده، پدیده‌های فیزیکی نامتعارف و رازهای بوم‌شناختی'
+          : 'Perpetual whirlpools, warped rifts, exotic physical phenomena, and ecological enigmas',
+        color: '#A855F7',
+        isDefault: true,
+      },
     ],
     lawCategories: [
       { id: 'magic', name: isPersian ? 'جادو و ماوراءالطبیعه' : 'Magic & Metaphysics', description: isPersian ? 'محدودیت‌ها و بهای استفاده از نیروهای جادویی' : 'Costs and limitations of occult or mystical arts', color: '#A855F7', isDefault: true },
