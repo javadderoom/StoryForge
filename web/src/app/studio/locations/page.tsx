@@ -204,10 +204,6 @@ export default function LocationsStudioPage() {
 
   const handleCategoryChange = (catId: string) => {
     setLocCategory(catId);
-    const found = categories.find((c) => c.id === catId);
-    if (found?.defaultDangerLevel) {
-      setLocDangerLevel(found.defaultDangerLevel);
-    }
   };
 
   const handleSaveLocation = (e: React.FormEvent) => {

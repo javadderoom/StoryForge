@@ -75,7 +75,6 @@ export default function TypesStudioPage() {
   const [newPlaceId, setNewPlaceId] = useState('');
   const [newPlaceDesc, setNewPlaceDesc] = useState('');
   const [newPlaceColor, setNewPlaceColor] = useState('#6366F1');
-  const [newPlaceDanger, setNewPlaceDanger] = useState<1 | 2 | 3 | 4 | 5>(3);
 
   const [showAddLaw, setShowAddLaw] = useState(false);
   const [editingLaw, setEditingLaw] = useState<CustomLawCategory | null>(null);
@@ -197,7 +196,6 @@ export default function TypesStudioPage() {
     setNewPlaceId('');
     setNewPlaceDesc('');
     setNewPlaceColor('#6366F1');
-    setNewPlaceDanger(3);
     setEditingPlace(null);
   };
   const openPlaceAdd = () => {
@@ -209,7 +207,6 @@ export default function TypesStudioPage() {
     setNewPlaceId(cat.id);
     setNewPlaceDesc(cat.description);
     setNewPlaceColor(cat.color);
-    setNewPlaceDanger(cat.defaultDangerLevel || 3);
     setEditingPlace(cat);
     setShowAddPlace(true);
   };
@@ -226,7 +223,6 @@ export default function TypesStudioPage() {
       name: newPlaceName.trim(),
       description: newPlaceDesc.trim(),
       color: newPlaceColor,
-      defaultDangerLevel: newPlaceDanger,
     };
     if (editingPlace) editPlaceCategory(editingPlace.id, payload);
     else addPlaceCategory(payload);
@@ -776,41 +772,22 @@ export default function TypesStudioPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'سطح خطر پیش‌فرض (۱ تا ۵):' : 'Default Danger Level (1-5):'}
-                  </label>
-                  <select
-                    value={newPlaceDanger}
-                    onChange={(e) => setNewPlaceDanger(Number(e.target.value) as 1 | 2 | 3 | 4 | 5)}
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
-                  >
-                    <option value={1}>1 - {isPersian ? 'بسیار امن (Safe)' : 'Safe'}</option>
-                    <option value={2}>2 - {isPersian ? 'کم‌خطر (Low)' : 'Low'}</option>
-                    <option value={3}>3 - {isPersian ? 'متوسط (Moderate)' : 'Moderate'}</option>
-                    <option value={4}>4 - {isPersian ? 'خطرناک (High)' : 'High'}</option>
-                    <option value={5}>5 - {isPersian ? 'مرگبار (Deadly)' : 'Deadly'}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'رنگ شاخص:' : 'Theme Color:'}
-                  </label>
-                  <div className="flex items-center gap-1.5">
-                    {QUICK_COLORS.slice(0, 6).map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setNewPlaceColor(c)}
-                        style={{ backgroundColor: c }}
-                        className={`w-6 h-6 rounded-full border-2 transition-all ${
-                          newPlaceColor === c ? 'border-white scale-110 shadow-md' : 'border-transparent hover:scale-105'
-                        }`}
-                      />
-                    ))}
-                  </div>
+              <div>
+                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                  {isPersian ? 'رنگ شاخص:' : 'Theme Color:'}
+                </label>
+                <div className="flex items-center gap-2">
+                  {QUICK_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setNewPlaceColor(c)}
+                      style={{ backgroundColor: c }}
+                      className={`w-6 h-6 rounded-full border-2 transition-all ${
+                        newPlaceColor === c ? 'border-white scale-110 shadow-md' : 'border-transparent hover:scale-105'
+                      }`}
+                    />
+                  ))}
                 </div>
               </div>
 
@@ -877,9 +854,7 @@ export default function TypesStudioPage() {
                 </div>
 
                 <div className="pt-3 border-t border-zinc-800/60 flex items-center justify-between text-[11px] text-zinc-500 font-mono">
-                  <span className="text-amber-400 font-bold">
-                    {isPersian ? `خطر: ${cat.defaultDangerLevel || 1}/5` : `Danger: ${cat.defaultDangerLevel || 1}/5`}
-                  </span>
+                  <span className="text-zinc-400">{isPersian ? 'دسته‌بندی مکان' : 'Place Category'}</span>
                   <span>{cat.id}</span>
                 </div>
               </div>

@@ -149,11 +149,11 @@ export function getDefaultOntology(isPersian: boolean): WorldOntology {
       },
     ],
     placeCategories: [
-      { id: 'stronghold', name: isPersian ? 'دژ و قلعه باستانی' : 'Stronghold / Citadel', description: isPersian ? 'استحکامات نظامی و مقر فرماندهی' : 'Fortified citadel or military command post', color: '#6366F1', defaultDangerLevel: 3, isDefault: true },
-      { id: 'dungeon', name: isPersian ? 'سیاه‌چال و دخمه' : 'Dungeon / Vault', description: isPersian ? 'سلول‌های سنگی، راهروهای تاریک و سرداب' : 'Subterranean cells, torture pits, or vaults', color: '#EC4899', defaultDangerLevel: 4, isDefault: true },
-      { id: 'ruins', name: isPersian ? 'خرابه‌ها و معابد کهن' : 'Ancient Ruins & Shrines', description: isPersian ? 'بقایای تمدن‌های پیشین و محراب‌های جادو' : 'Remnants of fallen eras and forgotten altars', color: '#14B8A6', defaultDangerLevel: 4, isDefault: true },
-      { id: 'settlement', name: isPersian ? 'شهرک و بازار' : 'Settlement / Outpost', description: isPersian ? 'تجمع مدنی، اسکله بازرگانان یا بازارچه' : 'Civilian hubs, trading posts, or inns', color: '#F59E0B', defaultDangerLevel: 1, isDefault: true },
-      { id: 'wilderness', name: isPersian ? 'طبیعت وحشی و بیابان' : 'Wilderness / Wastes', description: isPersian ? 'کویر سوزان، جنگل‌های مه‌آلود و مناطق خطرناک' : 'Uncharted wilds, foggy marshes, or badlands', color: '#10B981', defaultDangerLevel: 5, isDefault: true },
+      { id: 'stronghold', name: isPersian ? 'دژ و قلعه باستانی' : 'Stronghold / Citadel', description: isPersian ? 'استحکامات نظامی و مقر فرماندهی' : 'Fortified citadel or military command post', color: '#6366F1', isDefault: true },
+      { id: 'dungeon', name: isPersian ? 'سیاه‌چال و دخمه' : 'Dungeon / Vault', description: isPersian ? 'سلول‌های سنگی، راهروهای تاریک و سرداب' : 'Subterranean cells, torture pits, or vaults', color: '#EC4899', isDefault: true },
+      { id: 'ruins', name: isPersian ? 'خرابه‌ها و معابد کهن' : 'Ancient Ruins & Shrines', description: isPersian ? 'بقایای تمدن‌های پیشین و محراب‌های جادو' : 'Remnants of fallen eras and forgotten altars', color: '#14B8A6', isDefault: true },
+      { id: 'settlement', name: isPersian ? 'شهرک و بازار' : 'Settlement / Outpost', description: isPersian ? 'تجمع مدنی، اسکله بازرگانان یا بازارچه' : 'Civilian hubs, trading posts, or inns', color: '#F59E0B', isDefault: true },
+      { id: 'wilderness', name: isPersian ? 'طبیعت وحشی و بیابان' : 'Wilderness / Wastes', description: isPersian ? 'کویر سوزان، جنگل‌های مه‌آلود و مناطق خطرناک' : 'Uncharted wilds, foggy marshes, or badlands', color: '#10B981', isDefault: true },
     ],
     lawCategories: [
       { id: 'magic', name: isPersian ? 'جادو و ماوراءالطبیعه' : 'Magic & Metaphysics', description: isPersian ? 'محدودیت‌ها و بهای استفاده از نیروهای جادویی' : 'Costs and limitations of occult or mystical arts', color: '#A855F7', isDefault: true },
