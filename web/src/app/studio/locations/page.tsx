@@ -15,6 +15,7 @@ import {
   Compass,
   ChevronDown,
   ChevronUp,
+  ChevronsUpDown,
   Users,
   Skull,
   Crown,
@@ -119,6 +120,31 @@ export default function LocationsStudioPage() {
 
   const locations = story.worldBible.locations || [];
   const categories = story.worldBible.ontology?.placeCategories || [];
+
+  // Card collapse state
+  const [collapsedLocationIds, setCollapsedLocationIds] = useState<Record<string, boolean>>({});
+
+  const isAllCollapsed =
+    locations.length > 0 && locations.every((l) => Boolean(collapsedLocationIds[l.id]));
+
+  const toggleCollapseLocation = (id: string) => {
+    setCollapsedLocationIds((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const toggleAllCollapse = () => {
+    if (isAllCollapsed) {
+      setCollapsedLocationIds({});
+    } else {
+      const all: Record<string, boolean> = {};
+      locations.forEach((l) => {
+        all[l.id] = true;
+      });
+      setCollapsedLocationIds(all);
+    }
+  };
 
   const getCategoryMeta = (catId: string) => {
     const found = categories.find((c) => c.id === catId);
@@ -407,11 +433,38 @@ export default function LocationsStudioPage() {
               : 'Manage strongholds, dungeons, ruins, settlements and wastes with danger tiers, atmosphere, and spatial connections.'}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <span className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 px-3.5 py-1.5 rounded-xl font-mono flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-amber-400" />
             {locations.length} {isPersian ? 'مکان ثبت‌شده' : 'Registered Locations'}
           </span>
+          {locations.length > 0 && (
+            <button
+              type="button"
+              onClick={toggleAllCollapse}
+              className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700/80 border border-zinc-700 text-zinc-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+              title={
+                isAllCollapsed
+                  ? isPersian
+                    ? 'گسترش تمام کارت‌ها'
+                    : 'Expand All Cards'
+                  : isPersian
+                    ? 'جمع‌کردن تمام کارت‌ها'
+                    : 'Collapse All Cards'
+              }
+            >
+              <ChevronsUpDown className="w-3.5 h-3.5 text-amber-400" />
+              <span>
+                {isPersian
+                  ? isAllCollapsed
+                    ? 'گسترش همه'
+                    : 'جمع‌کردن همه'
+                  : isAllCollapsed
+                    ? 'Expand All'
+                    : 'Collapse All'}
+              </span>
+            </button>
+          )}
           <button
             onClick={handleOpenAddModal}
             className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition-all"
@@ -438,13 +491,14 @@ export default function LocationsStudioPage() {
           locations.map((loc) => {
             const danger = DANGER_MAP[loc.dangerLevel] || DANGER_MAP[3];
             const cat = getCategoryMeta(loc.category || '');
+            const isCollapsed = Boolean(collapsedLocationIds[loc.id]);
 
             return (
               <div
                 key={loc.id}
-                className={`bg-zinc-900/70 border-2 rounded-3xl p-6 backdrop-blur-xl shadow-2xl flex flex-col justify-between transition-all ${danger.borderClass}`}
+                className={`bg-zinc-900/70 border-2 rounded-3xl p-5 md:p-6 backdrop-blur-xl shadow-2xl flex flex-col justify-between transition-all duration-200 ${danger.borderClass}`}
               >
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {/* Card Header */}
                   <div className="flex items-center justify-between gap-2 border-b border-zinc-800 pb-3">
                     <span
@@ -452,13 +506,34 @@ export default function LocationsStudioPage() {
                       style={{ color: cat.color, borderColor: `${cat.color}55`, backgroundColor: `${cat.color}1a` }}
                     >
                       <MapPin className="w-3.5 h-3.5" />
-                      {isPersian ? cat.name : cat.name}
+                      {cat.name}
                     </span>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => toggleCollapseLocation(loc.id)}
+                        className="text-zinc-400 hover:text-amber-300 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+                        title={
+                          isCollapsed
+                            ? isPersian
+                              ? 'گسترش کارت'
+                              : 'Expand card'
+                            : isPersian
+                              ? 'جمع‌کردن کارت'
+                              : 'Collapse card'
+                        }
+                      >
+                        {isCollapsed ? (
+                          <ChevronDown className="w-4 h-4 text-amber-400" />
+                        ) : (
+                          <ChevronUp className="w-4 h-4 text-zinc-400" />
+                        )}
+                      </button>
                       <button
                         onClick={() => handleOpenEditModal(loc)}
-                        className="text-zinc-400 hover:text-amber-300 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+                        className="text-zinc-400 hover:text-amber-300 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+                        title={isPersian ? 'ویرایش' : 'Edit'}
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
@@ -475,15 +550,30 @@ export default function LocationsStudioPage() {
                           });
                           if (conf) deleteLocation(loc.id);
                         }}
-                        className="text-zinc-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+                        className="text-zinc-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+                        title={isPersian ? 'حذف' : 'Delete'}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
 
-                  <div>
-                    <h3 className="text-base font-bold text-zinc-100">{loc.name}</h3>
+                  {/* Title & Region / Breadcrumb (Clickable to toggle collapse) */}
+                  <div
+                    onClick={() => toggleCollapseLocation(loc.id)}
+                    className="cursor-pointer group select-none"
+                    title={isCollapsed ? (isPersian ? 'برای دیدن جزئیات کلیک کنید' : 'Click to expand') : undefined}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-base font-bold text-zinc-100 group-hover:text-amber-300 transition-colors">
+                        {loc.name}
+                      </h3>
+                      {isCollapsed && loc.description && (
+                        <span className="text-[11px] text-zinc-500 font-mono italic truncate max-w-[150px]">
+                          {loc.description}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-zinc-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
                       <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 shrink-0" />
                       {loc.parentLocationId ? (
@@ -494,174 +584,183 @@ export default function LocationsStudioPage() {
                         <span>{loc.region}</span>
                       )}
                     </p>
-                    {loc.description && <p className="text-xs text-zinc-400 leading-relaxed mt-2">{loc.description}</p>}
                   </div>
 
-                  {/* Atmosphere */}
-                  {loc.atmosphere && (
-                    <div className="text-[11.5px] text-zinc-400 bg-zinc-950/40 border border-zinc-800/80 rounded-xl px-3 py-2">
-                      <span className="text-zinc-300 font-bold flex items-center gap-1 mb-0.5">
-                        <Sparkles className="w-3 h-3 text-amber-400" />
-                        {isPersian ? 'فضاسازی:' : 'Atmosphere:'}
-                      </span>
-                      {loc.atmosphere}
-                    </div>
-                  )}
-
-                  {/* Special Rules */}
-                  {loc.specialRules && loc.specialRules.length > 0 && (
-                    <div className="space-y-1.5 bg-rose-950/10 border border-rose-500/20 rounded-2xl p-3.5">
-                      <span className="text-[11px] font-bold text-rose-300 flex items-center gap-1.5">
-                        <ShieldAlert className="w-3.5 h-3.5" />
-                        {isPersian ? 'قوانین ویژه مکان:' : 'Site Special Rules:'}
-                      </span>
-                      <ul className="space-y-1 text-xs text-rose-200/90">
-                        {loc.specialRules.map((r, i) => (
-                          <li key={i} className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0" />
-                            <span>{r}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {/* Sub-Zones & Ecosystem Actions */}
-                  <div className="pt-2 flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={() =>
-                        setOpenSubZoneLocationId(
-                          openSubZoneLocationId === loc.id ? null : loc.id
-                        )
-                      }
-                      className="flex-1 py-1.5 px-3 rounded-xl bg-zinc-950/80 hover:bg-zinc-800 border border-zinc-800 text-xs font-bold text-zinc-300 flex items-center justify-between transition-all"
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <Compass className="w-3.5 h-3.5 text-amber-400" />
-                        <span>{isPersian ? 'زیربخش‌ها و سیاه‌چال‌ها' : 'Sub-Zones & Dungeons'}</span>
-                        <span className="px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 text-[10px]">
-                          {loc.subZones?.length || 0}
-                        </span>
-                      </span>
-                      {openSubZoneLocationId === loc.id ? (
-                        <ChevronUp className="w-3.5 h-3.5 text-zinc-400" />
-                      ) : (
-                        <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+                  {/* Collapsible Details Body */}
+                  {!isCollapsed && (
+                    <div className="space-y-4 pt-1 animate-fadeIn">
+                      {loc.description && (
+                        <p className="text-xs text-zinc-400 leading-relaxed">{loc.description}</p>
                       )}
-                    </button>
 
-                    <button
-                      onClick={() => handleGenerateEcosystem(loc)}
-                      disabled={isGeneratingEcosystem === loc.id}
-                      className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-amber-500/20 hover:from-purple-500/30 hover:to-amber-500/30 border border-purple-500/40 text-purple-200 text-xs font-bold flex items-center gap-1.5 transition-all disabled:opacity-50"
-                      title={isPersian ? 'تولید ۲ شخصیت، ۱ هیولا و ۱ عتیقه بومی این مکان' : 'Populate 2 NPCs, 1 Creature, and 1 Relic native to this place'}
-                    >
-                      {isGeneratingEcosystem === loc.id ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
-                      ) : (
-                        <Zap className="w-3.5 h-3.5 text-purple-400" />
-                      )}
-                      <span>{isPersian ? 'زیست‌بوم' : 'Populate'}</span>
-                    </button>
-                  </div>
-
-                  {/* Sub-Zones Collapsible Panel */}
-                  {openSubZoneLocationId === loc.id && (
-                    <div className="space-y-3 pt-3 border-t border-zinc-800/80 animate-fadeIn">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-zinc-400 flex items-center gap-1">
-                          <Compass className="w-3 h-3 text-amber-400" />
-                          {isPersian ? 'زیربخش‌های کشف‌شده:' : 'Discovered Sub-Zones:'}
-                        </span>
-                        <button
-                          onClick={() => handleGenerateSubZones(loc)}
-                          disabled={isGeneratingSubZones === loc.id}
-                          className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[11px] font-bold flex items-center gap-1 transition-all disabled:opacity-50"
-                        >
-                          {isGeneratingSubZones === loc.id ? (
-                            <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
-                          ) : (
+                      {/* Atmosphere */}
+                      {loc.atmosphere && (
+                        <div className="text-[11.5px] text-zinc-400 bg-zinc-950/40 border border-zinc-800/80 rounded-xl px-3 py-2">
+                          <span className="text-zinc-300 font-bold flex items-center gap-1 mb-0.5">
                             <Sparkles className="w-3 h-3 text-amber-400" />
+                            {isPersian ? 'فضاسازی:' : 'Atmosphere:'}
+                          </span>
+                          {loc.atmosphere}
+                        </div>
+                      )}
+
+                      {/* Special Rules */}
+                      {loc.specialRules && loc.specialRules.length > 0 && (
+                        <div className="space-y-1.5 bg-rose-950/10 border border-rose-500/20 rounded-2xl p-3.5">
+                          <span className="text-[11px] font-bold text-rose-300 flex items-center gap-1.5">
+                            <ShieldAlert className="w-3.5 h-3.5" />
+                            {isPersian ? 'قوانین ویژه مکان:' : 'Site Special Rules:'}
+                          </span>
+                          <ul className="space-y-1 text-xs text-rose-200/90">
+                            {loc.specialRules.map((r, i) => (
+                              <li key={i} className="flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0" />
+                                <span>{r}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Sub-Zones & Ecosystem Actions */}
+                      <div className="pt-2 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() =>
+                            setOpenSubZoneLocationId(
+                              openSubZoneLocationId === loc.id ? null : loc.id
+                            )
+                          }
+                          className="flex-1 py-1.5 px-3 rounded-xl bg-zinc-950/80 hover:bg-zinc-800 border border-zinc-800 text-xs font-bold text-zinc-300 flex items-center justify-between transition-all"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Compass className="w-3.5 h-3.5 text-amber-400" />
+                            <span>{isPersian ? 'زیربخش‌ها و سیاه‌چال‌ها' : 'Sub-Zones & Dungeons'}</span>
+                            <span className="px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 text-[10px]">
+                              {loc.subZones?.length || 0}
+                            </span>
+                          </span>
+                          {openSubZoneLocationId === loc.id ? (
+                            <ChevronUp className="w-3.5 h-3.5 text-zinc-400" />
+                          ) : (
+                            <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
                           )}
-                          <span>{isPersian ? 'تولید با AI' : 'AI Generate'}</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleGenerateEcosystem(loc)}
+                          disabled={isGeneratingEcosystem === loc.id}
+                          className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-amber-500/20 hover:from-purple-500/30 hover:to-amber-500/30 border border-purple-500/40 text-purple-200 text-xs font-bold flex items-center gap-1.5 transition-all disabled:opacity-50"
+                          title={isPersian ? 'تولید ۲ شخصیت، ۱ هیولا و ۱ عتیقه بومی این مکان' : 'Populate 2 NPCs, 1 Creature, and 1 Relic native to this place'}
+                        >
+                          {isGeneratingEcosystem === loc.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
+                          ) : (
+                            <Zap className="w-3.5 h-3.5 text-purple-400" />
+                          )}
+                          <span>{isPersian ? 'زیست‌بوم' : 'Populate'}</span>
                         </button>
                       </div>
 
-                      {loc.subZones && loc.subZones.length > 0 ? (
-                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                          {loc.subZones.map((sz) => {
-                            const subTypeMeta = SUBZONE_TYPE_LABELS[sz.subType] || SUBZONE_TYPE_LABELS.dungeon;
-                            return (
-                              <div
-                                key={sz.id}
-                                className="bg-zinc-950/60 border border-zinc-800/80 rounded-2xl p-3 space-y-1.5 text-xs"
-                              >
-                                <div className="flex items-center justify-between gap-1">
-                                  <div className="flex items-center gap-1.5 font-bold text-zinc-200">
-                                    <span>{sz.name}</span>
-                                    <span className={`px-2 py-0.5 rounded-lg text-[10px] border ${subTypeMeta.color}`}>
-                                      {isPersian ? subTypeMeta.fa : subTypeMeta.en}
-                                    </span>
-                                  </div>
-                                  <button
-                                    onClick={() => handleDeleteSubZone(loc, sz.id)}
-                                    className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
+                      {/* Sub-Zones Collapsible Panel */}
+                      {openSubZoneLocationId === loc.id && (
+                        <div className="space-y-3 pt-3 border-t border-zinc-800/80 animate-fadeIn">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-zinc-400 flex items-center gap-1">
+                              <Compass className="w-3 h-3 text-amber-400" />
+                              {isPersian ? 'زیربخش‌های کشف‌شده:' : 'Discovered Sub-Zones:'}
+                            </span>
+                            <button
+                              onClick={() => handleGenerateSubZones(loc)}
+                              disabled={isGeneratingSubZones === loc.id}
+                              className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[11px] font-bold flex items-center gap-1 transition-all disabled:opacity-50"
+                            >
+                              {isGeneratingSubZones === loc.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+                              ) : (
+                                <Sparkles className="w-3 h-3 text-amber-400" />
+                              )}
+                              <span>{isPersian ? 'تولید با AI' : 'AI Generate'}</span>
+                            </button>
+                          </div>
+
+                          {loc.subZones && loc.subZones.length > 0 ? (
+                            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                              {loc.subZones.map((sz) => {
+                                const subTypeMeta = SUBZONE_TYPE_LABELS[sz.subType] || SUBZONE_TYPE_LABELS.dungeon;
+                                return (
+                                  <div
+                                    key={sz.id}
+                                    className="bg-zinc-950/60 border border-zinc-800/80 rounded-2xl p-3 space-y-1.5 text-xs"
                                   >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                </div>
-
-                                {sz.atmosphere && (
-                                  <p className="text-[11px] text-zinc-400 italic">
-                                    "{sz.atmosphere}"
-                                  </p>
-                                )}
-
-                                {sz.pointsOfInterest && sz.pointsOfInterest.length > 0 && (
-                                  <div className="space-y-1 pt-1">
-                                    <span className="text-[10px] text-zinc-500 font-bold flex items-center gap-1">
-                                      <Target className="w-2.5 h-2.5 text-amber-400" />
-                                      {isPersian ? 'نقاط تعاملی و چالش‌ها:' : 'POIs & Skill Gates:'}
-                                    </span>
-                                    {sz.pointsOfInterest.map((poi, pIdx) => (
-                                      <div
-                                        key={pIdx}
-                                        className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-2 text-[11px] space-y-0.5"
-                                      >
-                                        <div className="flex items-center justify-between">
-                                          <span className="font-semibold text-zinc-300">{poi.name}</span>
-                                          {poi.skillCheck && (
-                                            <span
-                                              dir="ltr"
-                                              className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 font-mono text-[10px] border border-amber-500/20"
-                                            >
-                                              {poi.skillCheck.attribute} DC {poi.skillCheck.dc}
-                                            </span>
-                                          )}
-                                        </div>
-                                        <p className="text-zinc-400 text-[10.5px] leading-tight">
-                                          {poi.description}
-                                        </p>
-                                        {poi.skillCheck?.failureConsequence && (
-                                          <p className="text-rose-300/80 text-[10px]">
-                                            ⚠️ {isPersian ? 'پیامد شکست: ' : 'Failure: '}
-                                            {poi.skillCheck.failureConsequence}
-                                          </p>
-                                        )}
+                                    <div className="flex items-center justify-between gap-1">
+                                      <div className="flex items-center gap-1.5 font-bold text-zinc-200">
+                                        <span>{sz.name}</span>
+                                        <span className={`px-2 py-0.5 rounded-lg text-[10px] border ${subTypeMeta.color}`}>
+                                          {isPersian ? subTypeMeta.fa : subTypeMeta.en}
+                                        </span>
                                       </div>
-                                    ))}
+                                      <button
+                                        onClick={() => handleDeleteSubZone(loc, sz.id)}
+                                        className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </div>
+
+                                    {sz.atmosphere && (
+                                      <p className="text-[11px] text-zinc-400 italic">
+                                        "{sz.atmosphere}"
+                                      </p>
+                                    )}
+
+                                    {sz.pointsOfInterest && sz.pointsOfInterest.length > 0 && (
+                                      <div className="space-y-1 pt-1">
+                                        <span className="text-[10px] text-zinc-500 font-bold flex items-center gap-1">
+                                          <Target className="w-2.5 h-2.5 text-amber-400" />
+                                          {isPersian ? 'نقاط تعاملی و چالش‌ها:' : 'POIs & Skill Gates:'}
+                                        </span>
+                                        {sz.pointsOfInterest.map((poi, pIdx) => (
+                                          <div
+                                            key={pIdx}
+                                            className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-2 text-[11px] space-y-0.5"
+                                          >
+                                            <div className="flex items-center justify-between">
+                                              <span className="font-semibold text-zinc-300">{poi.name}</span>
+                                              {poi.skillCheck && (
+                                                <span
+                                                  dir="ltr"
+                                                  className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 font-mono text-[10px] border border-amber-500/20"
+                                                >
+                                                  {poi.skillCheck.attribute} DC {poi.skillCheck.dc}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <p className="text-zinc-400 text-[10.5px] leading-tight">
+                                              {poi.description}
+                                            </p>
+                                            {poi.skillCheck?.failureConsequence && (
+                                              <p className="text-rose-300/80 text-[10px]">
+                                                ⚠️ {isPersian ? 'پیامد شکست: ' : 'Failure: '}
+                                                {poi.skillCheck.failureConsequence}
+                                              </p>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="text-center py-4 bg-zinc-950/30 border border-zinc-800/50 rounded-2xl p-3">
-                          <p className="text-xs text-zinc-500">
-                            {isPersian
-                              ? 'هنوز زیربخشی برای این مکان ساخته نشده است.'
-                              : 'No sub-zones charted for this location yet.'}
-                          </p>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="text-center py-4 bg-zinc-950/30 border border-zinc-800/50 rounded-2xl p-3">
+                              <p className="text-xs text-zinc-500">
+                                {isPersian
+                                  ? 'هنوز زیربخشی برای این مکان ساخته نشده است.'
+                                  : 'No sub-zones charted for this location yet.'}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -669,15 +768,22 @@ export default function LocationsStudioPage() {
                 </div>
 
                 {/* Card Footer: Danger Tier + Connections */}
-                <div className="pt-4 mt-4 border-t border-zinc-800/80 flex items-center justify-between text-xs">
+                <div className={`pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs ${isCollapsed ? 'mt-3' : 'mt-4'}`}>
                   <span className={`px-2.5 py-1 rounded-xl font-bold border ${danger.badgeClass}`}>
                     {isPersian ? danger.labelFa : danger.labelEn} · {loc.dangerLevel}/5
                   </span>
-                  <span className="text-[11px] font-mono text-zinc-500 flex items-center gap-1">
-                    <Flame className="w-3.5 h-3.5 text-zinc-500" />
-                    {(loc.connectedLocationIds || []).filter((id) => id !== loc.id).length}{' '}
-                    {isPersian ? 'پیوند' : 'links'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {isCollapsed && (loc.subZones?.length || 0) > 0 && (
+                      <span className="text-[10px] text-amber-400/90 font-mono bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
+                        {loc.subZones?.length} {isPersian ? 'زیربخش' : 'sub-zones'}
+                      </span>
+                    )}
+                    <span className="text-[11px] font-mono text-zinc-500 flex items-center gap-1">
+                      <Flame className="w-3.5 h-3.5 text-zinc-500" />
+                      {(loc.connectedLocationIds || []).filter((id) => id !== loc.id).length}{' '}
+                      {isPersian ? 'پیوند' : 'links'}
+                    </span>
+                  </div>
                 </div>
               </div>
             );
