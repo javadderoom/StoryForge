@@ -138,8 +138,24 @@ export default function StudioOracleDrawer() {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [pinnedIndex, setPinnedIndex] = useState<number | null>(null);
 
+  const storageKey = `storyforge_oracle_history_${story.id}`;
+  const pendingStorageKey = `storyforge_oracle_pending_${story.id}`;
+
   // World-alteration review queue (storyforge-action pipeline)
-  const [pendingChanges, setPendingChanges] = useState<WorldActionChange[]>([]);
+  const [pendingChanges, setPendingChanges] = useState<WorldActionChange[]>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem(`storyforge_oracle_pending_${story.id}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      }
+    } catch {
+      /* ignore storage read error */
+    }
+    return [];
+  });
   const [preparingActions, setPreparingActions] = useState(false);
   const [expandedDebugIndices, setExpandedDebugIndices] = useState<Record<number, boolean>>({});
 
@@ -148,7 +164,6 @@ export default function StudioOracleDrawer() {
   const [newDirectiveCategory, setNewDirectiveCategory] = useState<OracleMemoryDirective['category']>('canon_fact');
 
   const chatBottomRef = useRef<HTMLDivElement>(null);
-  const storageKey = `storyforge_oracle_history_${story.id}`;
 
   const activePersonaMeta =
     ADVISER_PERSONAS.find((p) => p.id === selectedPersona) || ADVISER_PERSONAS[0];
@@ -181,6 +196,19 @@ export default function StudioOracleDrawer() {
       // Ignore local storage error
     }
   }, [messages, storageKey]);
+
+  // Persist pending world changes to localStorage so page refresh doesn't drop them
+  useEffect(() => {
+    try {
+      if (pendingChanges.length > 0) {
+        localStorage.setItem(pendingStorageKey, JSON.stringify(pendingChanges));
+      } else {
+        localStorage.removeItem(pendingStorageKey);
+      }
+    } catch {
+      // Ignore local storage error
+    }
+  }, [pendingChanges, pendingStorageKey]);
 
   const getRouteLabel = () => {
     if (pathname.includes('/timeline')) return isPersian ? 'گاه‌شمار' : 'Timeline';
@@ -252,7 +280,10 @@ export default function StudioOracleDrawer() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: newHistory.map((m) => ({ role: m.role, content: m.content })),
+          messages: newHistory.map((m) => ({
+            role: m.role,
+            content: m.content.replace(/\n*\*\([⚡⚠️\d].*?\)\*/g, '').trim(),
+          })),
           persona: selectedPersona,
           worldContext,
           activeEntityContext: `Active Studio Route: ${pathname} (${getRouteLabel()}). Story Title: ${story.title}`,
@@ -267,8 +298,11 @@ export default function StudioOracleDrawer() {
 
       const json = await res.json();
       if (json.success && json.reply) {
-        // Never render raw action fences; route them into the review pipeline.
-        const cleanReply = json.reply.replace(/```[\s\S]*?```/g, '').trim();
+        // Never render raw action fences or hallucinated UI footers in the chat bubble.
+        const cleanReply = json.reply
+          .replace(/```[\s\S]*?```/g, '')
+          .replace(/\n*\*\([⚡⚠️\d].*?\)\*/g, '')
+          .trim();
         const actions = parseActionBlocks(json.reply);
         let actionNote = '';
 
@@ -288,6 +322,11 @@ export default function StudioOracleDrawer() {
               notify.error(
                 (isPersian ? 'برخی تغییرات آماده نشد:\n' : 'Some changes could not be prepared:\n') + list
               );
+              if (ready.length === 0) {
+                actionNote = isPersian
+                  ? `\n\n*(⚠️ خطا در آماده‌سازی تغییرات: ${failed.map((f) => f.label).join('، ')})*`
+                  : `\n\n*(⚠️ Could not prepare change(s): ${failed.map((f) => f.label).join(', ')})*`;
+              }
             }
             if (ready.length > 0) {
               setPendingChanges((prev) => [...prev, ...ready]);

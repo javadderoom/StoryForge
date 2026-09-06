@@ -26,17 +26,44 @@ export function extractJsonObjectsFromBlock(blockText: string): any[] {
     const parsed = JSON.parse(sanitized);
     return Array.isArray(parsed) ? parsed : [parsed];
   } catch {
-    // Fallback: multiple concatenated JSON objects e.g. { "op": ... } { "op": ... }
+    // Robust fallback: depth-counting parser to extract complete top-level JSON objects
+    // while correctly handling nested braces inside "data": { ... } or "match": { ... }
     const objects: any[] = [];
-    const braceRegex = /\{[\s\S]*?\}(?=\s*(?:\{|$))/g;
-    const matches = sanitized.match(braceRegex);
-    if (matches) {
-      for (const m of matches) {
-        try {
-          const p = JSON.parse(sanitizeJsonSnippet(m));
-          if (p && typeof p === 'object') objects.push(p);
-        } catch {
-          /* skip unparseable slice */
+    let depth = 0;
+    let start = -1;
+    let inString = false;
+    let escape = false;
+
+    for (let i = 0; i < sanitized.length; i++) {
+      const char = sanitized[i];
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (char === '\\') {
+        escape = true;
+        continue;
+      }
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (!inString) {
+        if (char === '{') {
+          if (depth === 0) start = i;
+          depth++;
+        } else if (char === '}') {
+          depth--;
+          if (depth === 0 && start !== -1) {
+            const chunk = sanitized.slice(start, i + 1);
+            try {
+              const p = JSON.parse(sanitizeJsonSnippet(chunk));
+              if (p && typeof p === 'object') objects.push(p);
+            } catch {
+              /* skip unparseable slice */
+            }
+            start = -1;
+          }
         }
       }
     }
@@ -44,22 +71,36 @@ export function extractJsonObjectsFromBlock(blockText: string): any[] {
   }
 }
 
+/** Helper to infer entity type from payload fields when omitted or unrecognized */
+function inferEntityFromData(data: any): EntityType | null {
+  if (!data || typeof data !== 'object') return null;
+  if ('parentLocationName' in data || 'parentLocationId' in data || 'category' in data) return 'location';
+  if ('scope' in data || 'secretAgendas' in data || 'alignment' in data) return 'faction';
+  if ('rarity' in data || 'curseOrCost' in data || 'powers' in data) return 'artifact';
+  if ('dangerLevel' in data && ('habitat' in data || 'loot' in data)) return 'creature';
+  if ('dogma' in data || 'holyLocationIds' in data || 'blessings' in data) return 'deity';
+  if ('immutable' in data || 'consequence' in data) return 'world_law';
+  if ('eraCategory' in data || 'yearOrEra' in data) return 'timeline_event';
+  if ('role' in data || 'personality' in data || 'currentLocationId' in data) return 'npc';
+  return null;
+}
+
 export function parseActionBlocks(reply: string): ActionBlock[] {
   const actions: ActionBlock[] = [];
-  // Match fenced blocks with storyforge-action / json / jsonc or no tag
-  const matches = [
-    ...reply.matchAll(/```(?:storyforge-action|json|jsonc)?[\s\r\n]*([\s\S]*?)```/gi),
-  ];
+  // 1. Match fenced code blocks with any tag (storyforge-action, storyforge_action, json, etc.)
+  // or unclosed code fence at end of reply.
+  const fenceRegex = /```[^\n\r]*[\r\n]+([\s\S]*?)(?:```|$)/g;
+  const rawBlocks: string[] = [];
 
-  const rawBlocks = matches.map((m) => m[1]);
-
-  // If no fenced blocks found, attempt to find raw action JSON structures
-  if (rawBlocks.length === 0) {
-    const rawActionRegex = /\{\s*"op"\s*:\s*"(?:create|update|delete)"[\s\S]*?\}/g;
-    const rawMatches = reply.match(rawActionRegex);
-    if (rawMatches) {
-      rawBlocks.push(...rawMatches);
+  for (const match of reply.matchAll(fenceRegex)) {
+    if (match[1]?.trim()) {
+      rawBlocks.push(match[1].trim());
     }
+  }
+
+  // 2. If no fenced blocks found, parse raw reply text directly
+  if (rawBlocks.length === 0) {
+    rawBlocks.push(reply);
   }
 
   for (const block of rawBlocks) {
@@ -67,7 +108,12 @@ export function parseActionBlocks(reply: string): ActionBlock[] {
     for (const obj of rawList) {
       if (!obj || typeof obj !== 'object') continue;
       const validOp = obj.op === 'create' || obj.op === 'update' || obj.op === 'delete';
+      if (!validOp) continue;
+
       let entity = normalizeEntityName(obj.entity);
+      if (!entity && obj.data) {
+        entity = inferEntityFromData(obj.data);
+      }
       if (
         !entity &&
         (obj.op === 'update' || obj.op === 'delete') &&

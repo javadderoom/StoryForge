@@ -101,6 +101,35 @@ And for the second faction:
     assert.equal(blocks[0].match?.byName, 'Golden Pillar');
     assert.equal(blocks[1].match?.byName, 'Awakening Network');
   });
+
+  it('parses fence tag variations such as storyforge_action and json', () => {
+    const reply = `\`\`\`storyforge_action
+{"op":"create","entity":"مکان","data":{"name":"گذرگاه هیرام","region":"ارژن"}}
+\`\`\``;
+    const blocks = parseActionBlocks(reply);
+    assert.equal(blocks.length, 1);
+    assert.equal(blocks[0].op, 'create');
+    assert.equal(blocks[0].entity, 'location');
+    assert.equal(blocks[0].data?.name, 'گذرگاه هیرام');
+  });
+
+  it('handles unclosed fences and infers entity from nested data fields', () => {
+    const reply = `درود نویسنده!
+\`\`\`storyforge-action
+{
+  "op": "create",
+  "data": {
+    "name": "فلات صخره‌ای",
+    "category": "wilderness",
+    "specialRules": ["طوفان شن"]
+  }
+}`;
+    const blocks = parseActionBlocks(reply);
+    assert.equal(blocks.length, 1);
+    assert.equal(blocks[0].op, 'create');
+    assert.equal(blocks[0].entity, 'location');
+    assert.equal(blocks[0].data?.name, 'فلات صخره‌ای');
+  });
 });
 
 describe('ActionProtocol — validation', () => {
