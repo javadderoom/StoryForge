@@ -25,6 +25,8 @@ import {
   Zap,
   Target,
   FileText,
+  Link2,
+  Search,
 } from 'lucide-react';
 import {
   WorldLocation,
@@ -103,6 +105,7 @@ export default function LocationsStudioPage() {
   const [locDangerLevel, setLocDangerLevel] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [locSpecialRules, setLocSpecialRules] = useState('');
   const [locConnectedIds, setLocConnectedIds] = useState<string[]>([]);
+  const [connectedSearch, setConnectedSearch] = useState('');
 
   // Sub-zones and Micro-Ecosystem state
   const [openSubZoneLocationId, setOpenSubZoneLocationId] = useState<string | null>(null);
@@ -121,28 +124,28 @@ export default function LocationsStudioPage() {
   const locations = story.worldBible.locations || [];
   const categories = story.worldBible.ontology?.placeCategories || [];
 
-  // Card collapse state
-  const [collapsedLocationIds, setCollapsedLocationIds] = useState<Record<string, boolean>>({});
+  // Card collapse state - default to collapsed
+  const [expandedLocationIds, setExpandedLocationIds] = useState<Record<string, boolean>>({});
 
-  const isAllCollapsed =
-    locations.length > 0 && locations.every((l) => Boolean(collapsedLocationIds[l.id]));
+  const isAllExpanded =
+    locations.length > 0 && locations.every((l) => Boolean(expandedLocationIds[l.id]));
 
   const toggleCollapseLocation = (id: string) => {
-    setCollapsedLocationIds((prev) => ({
+    setExpandedLocationIds((prev) => ({
       ...prev,
       [id]: !prev[id],
     }));
   };
 
   const toggleAllCollapse = () => {
-    if (isAllCollapsed) {
-      setCollapsedLocationIds({});
+    if (isAllExpanded) {
+      setExpandedLocationIds({});
     } else {
       const all: Record<string, boolean> = {};
       locations.forEach((l) => {
         all[l.id] = true;
       });
-      setCollapsedLocationIds(all);
+      setExpandedLocationIds(all);
     }
   };
 
@@ -174,6 +177,7 @@ export default function LocationsStudioPage() {
     setLocDangerLevel(3);
     setLocSpecialRules('');
     setLocConnectedIds([]);
+    setConnectedSearch('');
     setShowAddModal(true);
   };
 
@@ -188,6 +192,7 @@ export default function LocationsStudioPage() {
     setLocDangerLevel(loc.dangerLevel);
     setLocSpecialRules((loc.specialRules || []).join('\n'));
     setLocConnectedIds(loc.connectedLocationIds || []);
+    setConnectedSearch('');
     setShowAddModal(true);
   };
 
@@ -444,24 +449,24 @@ export default function LocationsStudioPage() {
               onClick={toggleAllCollapse}
               className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700/80 border border-zinc-700 text-zinc-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
               title={
-                isAllCollapsed
+                isAllExpanded
                   ? isPersian
-                    ? 'گسترش تمام کارت‌ها'
-                    : 'Expand All Cards'
-                  : isPersian
                     ? 'جمع‌کردن تمام کارت‌ها'
                     : 'Collapse All Cards'
+                  : isPersian
+                    ? 'گسترش تمام کارت‌ها'
+                    : 'Expand All Cards'
               }
             >
               <ChevronsUpDown className="w-3.5 h-3.5 text-amber-400" />
               <span>
                 {isPersian
-                  ? isAllCollapsed
-                    ? 'گسترش همه'
-                    : 'جمع‌کردن همه'
-                  : isAllCollapsed
-                    ? 'Expand All'
-                    : 'Collapse All'}
+                  ? isAllExpanded
+                    ? 'جمع‌کردن همه'
+                    : 'گسترش همه'
+                  : isAllExpanded
+                    ? 'Collapse All'
+                    : 'Expand All'}
               </span>
             </button>
           )}
@@ -491,7 +496,12 @@ export default function LocationsStudioPage() {
           locations.map((loc) => {
             const danger = DANGER_MAP[loc.dangerLevel] || DANGER_MAP[3];
             const cat = getCategoryMeta(loc.category || '');
-            const isCollapsed = Boolean(collapsedLocationIds[loc.id]);
+            const isExpanded = Boolean(expandedLocationIds[loc.id]);
+            const isCollapsed = !isExpanded;
+            const connectedLocs = (loc.connectedLocationIds || [])
+              .filter((id) => id !== loc.id)
+              .map((id) => locations.find((l) => l.id === id))
+              .filter((l): l is WorldLocation => Boolean(l));
 
             return (
               <div
@@ -568,11 +578,26 @@ export default function LocationsStudioPage() {
                       <h3 className="text-base font-bold text-zinc-100 group-hover:text-amber-300 transition-colors">
                         {loc.name}
                       </h3>
-                      {isCollapsed && loc.description && (
-                        <span className="text-[11px] text-zinc-500 font-mono italic truncate max-w-[150px]">
-                          {loc.description}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isCollapsed && connectedLocs.length > 0 && (
+                          <span
+                            className="text-[10px] font-mono text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded-md flex items-center gap-1"
+                            title={
+                              isPersian
+                                ? `${connectedLocs.length} مکان متصل`
+                                : `${connectedLocs.length} connected locations`
+                            }
+                          >
+                            <Link2 className="w-3 h-3 text-amber-400" />
+                            {connectedLocs.length}
+                          </span>
+                        )}
+                        {isCollapsed && loc.description && (
+                          <span className="text-[11px] text-zinc-500 font-mono italic truncate max-w-[150px]">
+                            {loc.description}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <p className="text-xs text-zinc-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
                       <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 shrink-0" />
@@ -621,6 +646,57 @@ export default function LocationsStudioPage() {
                           </ul>
                         </div>
                       )}
+
+                      {/* Connected Locations Section */}
+                      <div className="space-y-2 bg-zinc-950/60 border border-zinc-800/80 rounded-2xl p-3.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                            <Link2 className="w-3.5 h-3.5 text-amber-400" />
+                            {isPersian ? 'مکان‌های متصل / پیوندها:' : 'Connected Locations:'}
+                          </span>
+                          <span className="text-[10px] font-mono bg-zinc-800/90 text-zinc-300 px-2 py-0.5 rounded-lg border border-zinc-700/60">
+                            {connectedLocs.length} {isPersian ? 'مکان' : 'locations'}
+                          </span>
+                        </div>
+
+                        {connectedLocs.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5 pt-0.5">
+                            {connectedLocs.map((cl) => {
+                              const cDanger = DANGER_MAP[cl.dangerLevel] || DANGER_MAP[3];
+                              const cCat = getCategoryMeta(cl.category || '');
+                              return (
+                                <button
+                                  type="button"
+                                  key={cl.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenEditModal(cl);
+                                  }}
+                                  className="group/item inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-700/80 hover:border-amber-500/60 hover:bg-zinc-800/90 text-zinc-200 transition-all cursor-pointer shadow-sm text-left"
+                                  title={isPersian ? `مشاهده و ویرایش "${cl.name}"` : `View and edit "${cl.name}"`}
+                                >
+                                  <span
+                                    className="w-2 h-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: cCat.color }}
+                                  />
+                                  <span className="text-xs font-semibold group-hover/item:text-amber-300 transition-colors">
+                                    {cl.name}
+                                  </span>
+                                  <span className={`text-[9.5px] px-1.5 py-0.2 rounded font-mono border ${cDanger.badgeClass}`}>
+                                    {cl.dangerLevel}/5
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-zinc-500 italic">
+                            {isPersian
+                              ? 'هیچ مکانی به این نقطه متصل نشده است.'
+                              : 'No spatial connections established yet.'}
+                          </p>
+                        )}
+                      </div>
 
                       {/* Sub-Zones & Ecosystem Actions */}
                       <div className="pt-2 flex flex-wrap items-center gap-2">
@@ -778,9 +854,13 @@ export default function LocationsStudioPage() {
                         {loc.subZones?.length} {isPersian ? 'زیربخش' : 'sub-zones'}
                       </span>
                     )}
-                    <span className="text-[11px] font-mono text-zinc-500 flex items-center gap-1">
-                      <Flame className="w-3.5 h-3.5 text-zinc-500" />
-                      {(loc.connectedLocationIds || []).filter((id) => id !== loc.id).length}{' '}
+                    <span
+                      className={`text-[11px] font-mono flex items-center gap-1 ${
+                        connectedLocs.length > 0 ? 'text-amber-300 font-semibold' : 'text-zinc-500'
+                      }`}
+                    >
+                      <Link2 className={`w-3.5 h-3.5 ${connectedLocs.length > 0 ? 'text-amber-400' : 'text-zinc-500'}`} />
+                      {connectedLocs.length}{' '}
                       {isPersian ? 'پیوند' : 'links'}
                     </span>
                   </div>
@@ -962,37 +1042,170 @@ export default function LocationsStudioPage() {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                  {isPersian ? 'مکان‌های پیوند خورده (Connected Locations):' : 'Connected Locations:'}
-                </label>
-                <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-3 max-h-40 overflow-y-auto space-y-1.5">
-                  {locations.filter((l) => l.id !== editingLocationId).length === 0 ? (
-                    <p className="text-xs text-zinc-500">
-                      {isPersian ? 'هنوز مکان دیگری برای پیوند وجود ندارد.' : 'No other locations available to link yet.'}
-                    </p>
-                  ) : (
-                    locations
-                      .filter((l) => l.id !== editingLocationId)
-                      .map((l) => {
-                        const checked = locConnectedIds.includes(l.id);
-                        return (
-                          <label
-                            key={l.id}
-                            className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer hover:text-amber-200 transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleConnected(l.id)}
-                              className="accent-amber-500"
-                            />
-                            <MapPin className="w-3.5 h-3.5 text-zinc-500" />
-                            <span>{l.name}</span>
-                          </label>
-                        );
-                      })
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{isPersian ? 'مکان‌های پیوند خورده (Connected Locations):' : 'Connected Locations:'}</span>
+                  </label>
+                  {locConnectedIds.length > 0 && (
+                    <span className="text-[11px] font-mono text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-lg flex items-center gap-1 font-bold">
+                      <Check className="w-3 h-3 text-amber-400" />
+                      {locConnectedIds.length} {isPersian ? 'مکان متصل' : 'connected'}
+                    </span>
                   )}
                 </div>
+
+                {(() => {
+                  const candidateLocations = locations.filter((l) => l.id !== editingLocationId);
+                  const checkedLocations = candidateLocations.filter((l) => locConnectedIds.includes(l.id));
+
+                  return (
+                    <div className="space-y-2">
+                      {/* Active Connected Locations Tag Cloud */}
+                      {checkedLocations.length > 0 && (
+                        <div className="p-3 bg-gradient-to-r from-amber-500/15 to-amber-500/5 border border-amber-500/35 rounded-2xl space-y-1.5 shadow-sm">
+                          <div className="text-[10.5px] font-bold text-amber-300 flex items-center justify-between">
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-amber-400" />
+                              {isPersian ? 'پیوندهای فعلی این مکان (علامت‌خورده‌ها):' : 'Active Connected Locations:'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setLocConnectedIds([])}
+                              className="text-[10px] text-zinc-400 hover:text-red-400 transition-colors cursor-pointer"
+                            >
+                              {isPersian ? 'پاک کردن همه' : 'Clear all'}
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {checkedLocations.map((cl) => {
+                              const cCat = getCategoryMeta(cl.category || '');
+                              const cDanger = DANGER_MAP[cl.dangerLevel] || DANGER_MAP[3];
+                              return (
+                                <span
+                                  key={cl.id}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-zinc-900 border border-amber-500/50 text-amber-200 shadow-sm"
+                                >
+                                  <span
+                                    className="w-2 h-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: cCat.color }}
+                                  />
+                                  <span>{cl.name}</span>
+                                  <span className={`text-[9.5px] px-1 rounded font-mono border ${cDanger.badgeClass}`}>
+                                    {cl.dangerLevel}/5
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleConnected(cl.id)}
+                                    className="p-0.5 hover:bg-amber-500/30 rounded text-amber-400 hover:text-white transition-colors cursor-pointer ml-1"
+                                    title={isPersian ? 'حذف پیوند' : 'Remove connection'}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Filter Search Input (shown when candidate locations > 4) */}
+                      {candidateLocations.length > 4 && (
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-zinc-500 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={connectedSearch}
+                            onChange={(e) => setConnectedSearch(e.target.value)}
+                            placeholder={isPersian ? 'جستجو در مکان‌ها برای ایجاد پیوند...' : 'Search locations to link...'}
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-amber-400/70"
+                          />
+                        </div>
+                      )}
+
+                      {/* Candidate Checkbox List */}
+                      <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-2 max-h-52 overflow-y-auto space-y-1.5">
+                        {candidateLocations.length === 0 ? (
+                          <p className="text-xs text-zinc-500 py-3 text-center">
+                            {isPersian ? 'هنوز مکان دیگری برای پیوند وجود ندارد.' : 'No other locations available to link yet.'}
+                          </p>
+                        ) : (() => {
+                          const filtered = candidateLocations
+                            .filter((l) => {
+                              if (!connectedSearch.trim()) return true;
+                              const q = connectedSearch.trim().toLowerCase();
+                              return l.name.toLowerCase().includes(q) || l.region.toLowerCase().includes(q);
+                            })
+                            .sort((a, b) => {
+                              const aChecked = locConnectedIds.includes(a.id) ? 1 : 0;
+                              const bChecked = locConnectedIds.includes(b.id) ? 1 : 0;
+                              if (aChecked !== bChecked) return bChecked - aChecked; // checked first!
+                              return a.name.localeCompare(b.name);
+                            });
+
+                          if (filtered.length === 0) {
+                            return (
+                              <p className="text-xs text-zinc-500 py-3 text-center">
+                                {isPersian ? 'مکانی مطابق با جستجو پیدا نشد.' : 'No matching locations found.'}
+                              </p>
+                            );
+                          }
+
+                          return filtered.map((l) => {
+                            const isChecked = locConnectedIds.includes(l.id);
+                            const cDanger = DANGER_MAP[l.dangerLevel] || DANGER_MAP[3];
+                            const cCat = getCategoryMeta(l.category || '');
+
+                            return (
+                              <label
+                                key={l.id}
+                                className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                                  isChecked
+                                    ? 'bg-amber-950/30 border-amber-500/60 text-amber-100 shadow-sm ring-1 ring-amber-500/25'
+                                    : 'bg-zinc-900/40 border-zinc-800/80 text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => toggleConnected(l.id)}
+                                    className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                                  />
+                                  <span
+                                    className="w-2 h-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: cCat.color }}
+                                  />
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={`text-xs truncate ${isChecked ? 'font-bold text-amber-200' : 'font-medium'}`}>
+                                        {l.name}
+                                      </span>
+                                      {isChecked && (
+                                        <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded font-mono font-bold">
+                                          ✓ {isPersian ? 'متصل' : 'Connected'}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-[10.5px] text-zinc-500 truncate block">
+                                      {l.region}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono border ${cDanger.badgeClass}`}>
+                                    {l.dangerLevel}/5
+                                  </span>
+                                </div>
+                              </label>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
