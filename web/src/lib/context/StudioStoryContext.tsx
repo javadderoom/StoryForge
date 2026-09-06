@@ -25,6 +25,7 @@ import {
   FactionRelation,
   FactionRelationValue,
   deriveLegacyFactionLinks,
+  StoryNpcOverride,
 } from '@/lib/types';
 import { mergeFactionRelations, syncLegacyFactionLinks } from '@/lib/engines/world/factionRelations';
 import type { WorldActionChange } from '@/lib/engines/world/oracleActions';
@@ -385,6 +386,8 @@ interface StudioStoryContextType {
   addNpc: (npc: NPCDossier) => void;
   editNpc: (id: string, updated: Partial<NPCDossier>) => void;
   deleteNpc: (id: string) => void;
+  setStoryNpcOverride: (npcId: string, override: Partial<StoryNpcOverride>) => void;
+  removeStoryNpcOverride: (npcId: string) => void;
   // Locations CRUD
   addLocation: (location: WorldLocation) => void;
   editLocation: (id: string, updated: Partial<WorldLocation>) => void;
@@ -1406,6 +1409,49 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     [isPersian, updateNpcs]
   );
 
+  const setStoryNpcOverride = useCallback(
+    (npcId: string, override: Partial<StoryNpcOverride>) => {
+      setStory((prev) => {
+        const currentOverrides = prev.storyNpcOverrides || {};
+        const existing = currentOverrides[npcId] || { npcId };
+        const updated: StoryNpcOverride = {
+          ...existing,
+          ...override,
+          npcId,
+        };
+        const nextOverrides = {
+          ...currentOverrides,
+          [npcId]: updated,
+        };
+        const updatedStory = {
+          ...prev,
+          storyNpcOverrides: nextOverrides,
+        };
+        persistToStorage(updatedStory);
+        return updatedStory;
+      });
+      notify.success(isPersian ? 'نقش اختصاصی شخصیت در این داستان ذخیره شد' : 'Story role override saved for NPC');
+    },
+    [isPersian, persistToStorage]
+  );
+
+  const removeStoryNpcOverride = useCallback(
+    (npcId: string) => {
+      setStory((prev) => {
+        const currentOverrides = { ...(prev.storyNpcOverrides || {}) };
+        delete currentOverrides[npcId];
+        const updatedStory = {
+          ...prev,
+          storyNpcOverrides: currentOverrides,
+        };
+        persistToStorage(updatedStory);
+        return updatedStory;
+      });
+      notify.info(isPersian ? 'نقش اختصاصی حذف شد (بازگشت به هویت جهان)' : 'Reset to World Bible default role');
+    },
+    [isPersian, persistToStorage]
+  );
+
   // Locations CRUD
   const updateLocations = useCallback(
     (updater: (prev: WorldLocation[]) => WorldLocation[]) => {
@@ -2258,6 +2304,8 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         addNpc,
         editNpc,
         deleteNpc,
+        setStoryNpcOverride,
+        removeStoryNpcOverride,
         addLocation,
         editLocation,
         deleteLocation,

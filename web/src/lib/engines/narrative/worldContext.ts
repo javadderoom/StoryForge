@@ -1,4 +1,5 @@
 import { WorldBible, ScopeTier, StoryChapter, WorldStateLedger, FACTION_RELATION_META, getLocationAncestry } from '@/lib/types/world';
+import { StoryNpcOverride } from '@/lib/types/story';
 
 export interface WorldContextBlocks {
   worldSummary?: string;
@@ -190,7 +191,10 @@ export function pruneWorldBibleToScope(
  * chapters; omit it to compress the whole bible at mythic-tier budgets.
  */
 export function buildWorldContextBlocks(
-  story: { worldBible?: WorldBible | null },
+  story: {
+    worldBible?: WorldBible | null;
+    storyNpcOverrides?: Record<string, StoryNpcOverride>;
+  },
   options?: ScopedContextOptions
 ): WorldContextBlocks {
   let wb = story.worldBible;
@@ -210,12 +214,28 @@ export function buildWorldContextBlocks(
   }
 
   const scopeTier: ScopeTier = options?.scopeTier ?? 'mythic';
-  if (options) {
-    wb = pruneWorldBibleToScope(wb, options);
+  const overrides = story.storyNpcOverrides || {};
+  const centralNpcIds: string[] = [];
+  for (const [npcId, ov] of Object.entries(overrides)) {
+    if (ov.narrativeImportance === 'central') {
+      centralNpcIds.push(npcId);
+    }
+  }
+
+  let effectiveOptions = options;
+  if (options && centralNpcIds.length > 0) {
+    effectiveOptions = {
+      ...options,
+      npcIds: Array.from(new Set([...(options.npcIds || []), ...centralNpcIds])),
+    };
+  }
+
+  if (effectiveOptions) {
+    wb = pruneWorldBibleToScope(wb, effectiveOptions);
   }
   const caps = SCOPE_CAPS[scopeTier];
   const pinLocs = new Set(options?.locationIds || []);
-  const pinNpcs = new Set(options?.npcIds || []);
+  const pinNpcs = new Set([...(options?.npcIds || []), ...centralNpcIds]);
   // Factions pinned when they hold a pinned territory or member NPC.
   const pinFactions = new Set<string>();
   for (const f of wb.factions ?? []) {
@@ -318,10 +338,19 @@ export function buildWorldContextBlocks(
 
   const npcs = takeRanked(
     wb.npcs ?? [],
-    (n) =>
-      `${n.name} (${n.role || 'unknown role'}) — ${n.title || ''}; goals: ${
-        n.goals.join(', ') || 'unknown'
-      }`,
+    (n) => {
+      const ov = overrides[n.id];
+      if (!ov) {
+        return `${n.name} (${n.role || 'unknown role'}) — ${n.title || ''}; goals: ${
+          n.goals.join(', ') || 'unknown'
+        }`;
+      }
+      const roleStr = ov.storyRole ? `Story Role: ${ov.storyRole}` : (n.role || 'unknown role');
+      const relStr = ov.relationshipToProtagonist ? ` | Relation to Protagonist: ${ov.relationshipToProtagonist}` : '';
+      const goalStr = ov.storyGoal ? ` | Story Goal: ${ov.storyGoal}` : (n.goals?.length ? ` | goals: ${n.goals.join(', ')}` : '');
+      const secretStr = ov.storySecret ? ` | Secret: ${ov.storySecret}` : '';
+      return `${n.name} [${roleStr}] — ${n.title || ''}${relStr}${goalStr}${secretStr}`;
+    },
     caps.npcs,
     pinNpcs
   );
@@ -382,7 +411,10 @@ export function formatWorldContext(blocks: WorldContextBlocks): string {
 }
 
 /** Convenience: build the context blocks and format them in one call. */
-export function buildWorldContextString(story: { worldBible?: WorldBible | null }): string {
+export function buildWorldContextString(story: {
+  worldBible?: WorldBible | null;
+  storyNpcOverrides?: Record<string, StoryNpcOverride>;
+}): string {
   return formatWorldContext(buildWorldContextBlocks(story));
 }
 
@@ -425,7 +457,10 @@ export function formatLivingWorldLedger(ledger?: WorldStateLedger | null): strin
  * living-world ledger.
  */
 export function buildChapterContextString(
-  story: { worldBible?: WorldBible | null },
+  story: {
+    worldBible?: WorldBible | null;
+    storyNpcOverrides?: Record<string, StoryNpcOverride>;
+  },
   chapter: Pick<StoryChapter, 'scopeTier' | 'scenes'>,
   ledger?: WorldStateLedger | null
 ): string {

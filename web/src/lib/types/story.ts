@@ -13,6 +13,26 @@ export type Genre =
   | 'romance'
   | 'post_apocalyptic';
 
+export interface StoryNpcOverride {
+  npcId: string;
+  storyRole?: string;
+  relationshipToProtagonist?: string;
+  storyGoal?: string;
+  storySecret?: string;
+  customInitialTrust?: number;
+  narrativeImportance?: 'central' | 'supporting' | 'incidental';
+}
+
+export const StoryNpcOverrideSchema = z.object({
+  npcId: z.string().min(1),
+  storyRole: z.string().optional(),
+  relationshipToProtagonist: z.string().optional(),
+  storyGoal: z.string().optional(),
+  storySecret: z.string().optional(),
+  customInitialTrust: z.number().int().min(-100).max(100).optional(),
+  narrativeImportance: z.enum(['central', 'supporting', 'incidental']).optional().default('supporting'),
+});
+
 export interface StoryManifest {
   id: string;
   /** Shared-world link: many stories can live in one world. Absent = legacy solo story. */
@@ -34,6 +54,8 @@ export interface StoryManifest {
   initialSceneId: string;
   activeMilestoneGoal?: string;
   saga?: SagaManifest;
+  /** Optional story-level NPC role overrides (keyed by npcId) */
+  storyNpcOverrides?: Record<string, StoryNpcOverride>;
   initialStoryBeats: Array<{
     sceneId: string;
     locationId: string;
@@ -70,5 +92,6 @@ export const StoryManifestSchema = z.object({
   initialSceneId: z.string(),
   activeMilestoneGoal: z.string().optional(),
   saga: SagaManifestSchema.optional(),
+  storyNpcOverrides: z.record(z.string(), StoryNpcOverrideSchema).optional().default({}),
   initialStoryBeats: z.array(z.any()).default([]),
 });

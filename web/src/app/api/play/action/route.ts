@@ -236,12 +236,15 @@ export async function POST(req: NextRequest) {
       worldLaws: story.worldBible.laws.map((l) => `${l.rule}: ${l.description}`),
       currentLocationName: currentLocation.name,
       currentLocationDescription: currentLocation.description,
-      activeNpcDossiers: activeNPCs.map((npc) => ({
-        name: npc.name,
-        trust: updatedPlayerState.relationships[npc.id]?.trust || 0,
-        knownSecrets: updatedPlayerState.relationships[npc.id]?.knownSecrets || [],
-        speechStyle: npc.speechStyle,
-      })),
+      activeNpcDossiers: activeNPCs.map((npc) => {
+        const ov = story.storyNpcOverrides?.[npc.id];
+        return {
+          name: npc.name,
+          trust: updatedPlayerState.relationships[npc.id]?.trust ?? ov?.customInitialTrust ?? npc.initialTrust ?? 0,
+          knownSecrets: updatedPlayerState.relationships[npc.id]?.knownSecrets || [],
+          speechStyle: ov?.storyRole ? `[Role in this story: ${ov.storyRole}] ${npc.speechStyle}` : npc.speechStyle,
+        };
+      }),
       relevantMemories,
       playerStatus: {
         stats: updatedPlayerState.stats,

@@ -55,6 +55,8 @@ export default function NpcDossiersPage() {
     addDramaBond,
     editDramaBond,
     deleteDramaBond,
+    setStoryNpcOverride,
+    removeStoryNpcOverride,
   } = useStudioStory();
 
   const [activeTab, setActiveTab] = useState<'dossiers' | 'drama'>('dossiers');
@@ -77,6 +79,56 @@ export default function NpcDossiersPage() {
 
   const [traitInput, setTraitInput] = useState('');
   const [goalInput, setGoalInput] = useState('');
+
+  // Story Override Modal
+  const [overrideModalOpen, setOverrideModalOpen] = useState(false);
+  const [targetNpcForOverride, setTargetNpcForOverride] = useState<NPCDossier | null>(null);
+  const [overrideForm, setOverrideForm] = useState<{
+    storyRole: string;
+    relationshipToProtagonist: string;
+    storyGoal: string;
+    storySecret: string;
+    customInitialTrust?: number;
+    narrativeImportance: 'central' | 'supporting' | 'incidental';
+  }>({
+    storyRole: '',
+    relationshipToProtagonist: '',
+    storyGoal: '',
+    storySecret: '',
+    customInitialTrust: undefined,
+    narrativeImportance: 'supporting',
+  });
+
+  const openOverrideModal = (npc: NPCDossier) => {
+    setTargetNpcForOverride(npc);
+    const existing = story.storyNpcOverrides?.[npc.id];
+    setOverrideForm({
+      storyRole: existing?.storyRole || '',
+      relationshipToProtagonist: existing?.relationshipToProtagonist || '',
+      storyGoal: existing?.storyGoal || '',
+      storySecret: existing?.storySecret || '',
+      customInitialTrust: existing?.customInitialTrust,
+      narrativeImportance: existing?.narrativeImportance || 'supporting',
+    });
+    setOverrideModalOpen(true);
+  };
+
+  const handleSaveOverride = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetNpcForOverride) return;
+    setStoryNpcOverride(targetNpcForOverride.id, {
+      storyRole: overrideForm.storyRole.trim() || undefined,
+      relationshipToProtagonist: overrideForm.relationshipToProtagonist.trim() || undefined,
+      storyGoal: overrideForm.storyGoal.trim() || undefined,
+      storySecret: overrideForm.storySecret.trim() || undefined,
+      customInitialTrust:
+        typeof overrideForm.customInitialTrust === 'number' && !isNaN(overrideForm.customInitialTrust)
+          ? overrideForm.customInitialTrust
+          : undefined,
+      narrativeImportance: overrideForm.narrativeImportance,
+    });
+    setOverrideModalOpen(false);
+  };
 
   // Secret Modal attached to an NPC
   const [secretModalOpen, setSecretModalOpen] = useState(false);
@@ -673,6 +725,88 @@ export default function NpcDossiersPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Story Lens / Override Banner */}
+                  {(() => {
+                    const override = story.storyNpcOverrides?.[npc.id];
+                    if (override && (override.storyRole || override.relationshipToProtagonist || override.storyGoal || override.storySecret)) {
+                      return (
+                        <div className="rounded-2xl bg-indigo-950/40 border border-indigo-500/30 p-3 mb-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                              <span className="text-xs font-bold text-indigo-300">
+                                {isPersian ? 'نقش اختصاصی در این داستان' : 'Story Lens (Active Override)'}
+                              </span>
+                              {override.narrativeImportance === 'central' && (
+                                <span className="text-[10px] bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded border border-rose-500/30 font-medium">
+                                  {isPersian ? 'شخصیت محوری (پین‌شده)' : 'Central Pinned'}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => openOverrideModal(npc)}
+                                className="text-[11px] text-indigo-300 hover:text-indigo-200 underline cursor-pointer"
+                              >
+                                {isPersian ? 'ویرایش' : 'Edit'}
+                              </button>
+                              <span className="text-zinc-600 text-xs">•</span>
+                              <button
+                                type="button"
+                                onClick={() => removeStoryNpcOverride(npc.id)}
+                                className="text-[11px] text-zinc-400 hover:text-rose-400 underline cursor-pointer"
+                              >
+                                {isPersian ? 'حذف' : 'Reset'}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            {override.storyRole && (
+                              <div>
+                                <span className="text-zinc-500 block text-[10px]">{isPersian ? 'نقش در داستان:' : 'Story Role:'}</span>
+                                <span className="text-zinc-200 font-medium">{override.storyRole}</span>
+                              </div>
+                            )}
+                            {override.relationshipToProtagonist && (
+                              <div>
+                                <span className="text-zinc-500 block text-[10px]">{isPersian ? 'ارتباط با قهرمان:' : 'Relation to Protagonist:'}</span>
+                                <span className="text-zinc-200">{override.relationshipToProtagonist}</span>
+                              </div>
+                            )}
+                            {override.storyGoal && (
+                              <div className="sm:col-span-2">
+                                <span className="text-zinc-500 block text-[10px]">{isPersian ? 'هدف در این داستان:' : 'Story Plot Goal:'}</span>
+                                <span className="text-zinc-200">{override.storyGoal}</span>
+                              </div>
+                            )}
+                            {override.storySecret && (
+                              <div className="sm:col-span-2">
+                                <span className="text-zinc-500 block text-[10px]">{isPersian ? 'راز این داستان:' : 'Story Secret:'}</span>
+                                <span className="text-indigo-200 italic">{override.storySecret}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-950/40 border border-dashed border-zinc-800 text-xs mb-3">
+                        <span className="text-zinc-500 text-[11px]">
+                          {isPersian ? 'نقش پیش‌فرض جهان فعال است' : 'Using World Bible default role'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => openOverrideModal(npc)}
+                          className="text-amber-400 hover:text-amber-300 text-xs flex items-center gap-1 font-medium cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" />
+                          {isPersian ? 'تنظیم نقش اختصاصی' : 'Customize for this Story'}
+                        </button>
+                      </div>
+                    );
+                  })()}
 
                   {/* Personality Traits Chips */}
                   {npc.personalityTraits && npc.personalityTraits.length > 0 && (
@@ -1956,6 +2090,144 @@ export default function NpcDossiersPage() {
                     : isPersian
                     ? 'ثبت پیوند'
                     : 'Save Bond'}
+                </button>
+      {/* Story Role Override Modal */}
+      {overrideModalOpen && targetNpcForOverride && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-indigo-400" />
+                  {isPersian ? 'نقش اختصاصی در این داستان' : 'Story-Specific Role Override'}
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  {targetNpcForOverride.name} ({targetNpcForOverride.title || targetNpcForOverride.role || 'NPC'})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOverrideModalOpen(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-indigo-300/80 bg-indigo-950/30 border border-indigo-500/20 rounded-xl p-3 leading-relaxed">
+              {isPersian
+                ? 'این تنظیمات بدون دستکاری پرونده اصلی شخصیت در جهان، لنز روایت و نقش شخصیت را منحصراً در این داستان بازتعریف می‌کنند.'
+                : 'These settings redefine the narrative lens and function of this NPC specifically for this story without modifying the shared World Bible.'}
+            </p>
+
+            <form onSubmit={handleSaveOverride} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-300 mb-1">
+                  {isPersian ? 'نقش در این داستان (Story Role)' : 'Role in this Story'}
+                </label>
+                <input
+                  type="text"
+                  value={overrideForm.storyRole}
+                  onChange={(e) => setOverrideForm((prev) => ({ ...prev, storyRole: e.target.value }))}
+                  placeholder={isPersian ? 'مثال: مظنون اصلی پرونده، هدف سرقت، مربی خیانت‌دیده...' : 'e.g. Prime Suspect, Heist Target, Reluctant Mentor...'}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-zinc-300 mb-1">
+                  {isPersian ? 'ارتباط با شخصیت اصلی / قهرمان' : 'Relationship to Protagonist'}
+                </label>
+                <input
+                  type="text"
+                  value={overrideForm.relationshipToProtagonist}
+                  onChange={(e) => setOverrideForm((prev) => ({ ...prev, relationshipToProtagonist: e.target.value }))}
+                  placeholder={isPersian ? 'مثال: شریک قدیمی که از گذشته شما باخبر است...' : 'e.g. Former partner who knows your dark secret...'}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-zinc-300 mb-1">
+                  {isPersian ? 'انگیزه و هدف در این داستان' : 'Goal / Agenda in this Story'}
+                </label>
+                <input
+                  type="text"
+                  value={overrideForm.storyGoal}
+                  onChange={(e) => setOverrideForm((prev) => ({ ...prev, storyGoal: e.target.value }))}
+                  placeholder={isPersian ? 'مثال: تلاش برای امحای مدارک قبل از بازجویی...' : 'e.g. Trying to destroy the evidence before interrogation...'}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-zinc-300 mb-1">
+                  {isPersian ? 'راز داستانی منحصربه‌فرد' : 'Story-Specific Secret'}
+                </label>
+                <textarea
+                  rows={2}
+                  value={overrideForm.storySecret}
+                  onChange={(e) => setOverrideForm((prev) => ({ ...prev, storySecret: e.target.value }))}
+                  placeholder={isPersian ? 'رازی که فقط در این پی‌رنگ و سناریو اهمیت پیدا می‌کند...' : 'A secret relevant specifically to this plot arc...'}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">
+                    {isPersian ? 'میزان اعتماد اولیه (-100 تا 100)' : 'Custom Initial Trust (-100 to 100)'}
+                  </label>
+                  <input
+                    type="number"
+                    min={-100}
+                    max={100}
+                    value={overrideForm.customInitialTrust !== undefined ? overrideForm.customInitialTrust : ''}
+                    onChange={(e) =>
+                      setOverrideForm((prev) => ({
+                        ...prev,
+                        customInitialTrust: e.target.value === '' ? undefined : parseInt(e.target.value, 10),
+                      }))
+                    }
+                    placeholder={`Default: ${targetNpcForOverride.initialTrust ?? 0}`}
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-zinc-300 mb-1">
+                    {isPersian ? 'اهمیت روایی در این داستان' : 'Narrative Importance'}
+                  </label>
+                  <select
+                    value={overrideForm.narrativeImportance}
+                    onChange={(e) =>
+                      setOverrideForm((prev) => ({
+                        ...prev,
+                        narrativeImportance: e.target.value as 'central' | 'supporting' | 'incidental',
+                      }))
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="central">{isPersian ? 'محوری (پین‌شده در پرامپت)' : 'Central (Always Pinned in AI Prompt)'}</option>
+                    <option value="supporting">{isPersian ? 'مکمل (Supporting)' : 'Supporting'}</option>
+                    <option value="incidental">{isPersian ? 'فرعی (Incidental)' : 'Incidental'}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setOverrideModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700 cursor-pointer"
+                >
+                  {isPersian ? 'انصراف' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-500 cursor-pointer shadow-lg shadow-indigo-600/30"
+                >
+                  {isPersian ? 'ذخیره نقش اختصاصی' : 'Save Override'}
                 </button>
               </div>
             </form>
