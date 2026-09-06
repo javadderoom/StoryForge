@@ -25,6 +25,8 @@ import {
   Shield,
   Lightbulb,
   Cpu,
+  Terminal,
+  Code,
 } from 'lucide-react';
 import { notify } from '@/lib/notify';
 import { PersonaId, parseActionBlocks } from '@/lib/engines/world/ActionProtocol';
@@ -139,6 +141,7 @@ export default function StudioOracleDrawer() {
   // World-alteration review queue (storyforge-action pipeline)
   const [pendingChanges, setPendingChanges] = useState<WorldActionChange[]>([]);
   const [preparingActions, setPreparingActions] = useState(false);
+  const [expandedDebugIndices, setExpandedDebugIndices] = useState<Record<number, boolean>>({});
 
   // Memory Vault Form State
   const [newDirectiveText, setNewDirectiveText] = useState('');
@@ -797,40 +800,82 @@ export default function StudioOracleDrawer() {
                           ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
                           : 'bg-amber-500/15 text-amber-300 border-amber-500/30';
                     const fields = summarizeChangeFields(c);
+                    const isDebugOpen = Boolean(expandedDebugIndices[i]);
                     return (
                       <div
                         key={`${c.op}-${c.targetId ?? c.label}-${i}`}
-                        className="rounded-xl border border-zinc-700/70 bg-zinc-950 p-2.5 flex items-start justify-between gap-2"
+                        className="rounded-xl border border-zinc-700/70 bg-zinc-950 p-2.5 space-y-2"
                       >
-                        <div className="min-w-0 space-y-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase border ${badge}`}>
-                              {c.op}
-                            </span>
-                            <span className="text-[11px] font-bold text-zinc-100 truncate">{c.label}</span>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase border ${badge}`}>
+                                {c.op}
+                              </span>
+                              <span className="text-[11px] font-bold text-zinc-100 truncate">{c.label}</span>
+                            </div>
+                            {fields && (
+                              <p className="text-[10px] text-zinc-400 font-mono break-words leading-relaxed">{fields}</p>
+                            )}
                           </div>
-                          {fields && (
-                            <p className="text-[10px] text-zinc-400 font-mono break-words leading-relaxed">{fields}</p>
-                          )}
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedDebugIndices((prev) => ({ ...prev, [i]: !prev[i] }))}
+                              title={isPersian ? 'نمایش لاگ دیباگ' : 'Inspect payload'}
+                              className={`p-1.5 rounded-lg border transition-colors ${
+                                isDebugOpen
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'
+                              }`}
+                            >
+                              <Code className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => applyOneChange(c)}
+                              title={isPersian ? 'اعمال روی جهان' : 'Apply to world'}
+                              className="p-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 transition-colors"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => dismissOneChange(c)}
+                              title={isPersian ? 'نادیده گرفتن' : 'Dismiss'}
+                              className="p-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white transition-colors"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => applyOneChange(c)}
-                            title={isPersian ? 'اعمال روی جهان' : 'Apply to world'}
-                            className="p-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 transition-colors"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => dismissOneChange(c)}
-                            title={isPersian ? 'نادیده گرفتن' : 'Dismiss'}
-                            className="p-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white transition-colors"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+
+                        {/* Collapsible Action Debug Inspector */}
+                        {isDebugOpen && (
+                          <div className="pt-2 border-t border-zinc-800/80 space-y-1.5">
+                            <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono">
+                              <span className="flex items-center gap-1 text-amber-400 font-semibold">
+                                <Terminal className="w-3 h-3" />
+                                {c.entity} ({c.op})
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const payload = JSON.stringify(c.newData || c.oldData || c, null, 2);
+                                  navigator.clipboard.writeText(payload);
+                                  notify.success(isPersian ? 'پی‌لود کپی شد' : 'Payload copied to clipboard');
+                                }}
+                                className="flex items-center gap-1 hover:text-zinc-200 transition-colors"
+                              >
+                                <Copy className="w-3 h-3" />
+                                {isPersian ? 'کپی جیسون' : 'Copy JSON'}
+                              </button>
+                            </div>
+                            <pre className="text-[10px] font-mono text-emerald-400/90 bg-black/60 p-2 rounded-lg overflow-x-auto max-h-48 border border-zinc-800/60 selection:bg-zinc-800">
+                              {JSON.stringify(c.newData || c.oldData || c, null, 2)}
+                            </pre>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
