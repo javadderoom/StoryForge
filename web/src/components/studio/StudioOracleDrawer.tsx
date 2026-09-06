@@ -29,7 +29,7 @@ import {
   Code,
 } from 'lucide-react';
 import { notify } from '@/lib/notify';
-import { PersonaId, parseActionBlocks } from '@/lib/engines/world/ActionProtocol';
+import { PersonaId, parseActionBlocks, nameOf, nameMatch } from '@/lib/engines/world/ActionProtocol';
 import {
   applyWorldChange,
   prepareWorldChanges,
@@ -282,7 +282,14 @@ export default function StudioOracleDrawer() {
         body: JSON.stringify({
           messages: newHistory.map((m) => ({
             role: m.role,
-            content: m.content.replace(/\n*\*\([⚡⚠️\d].*?\)\*/g, '').trim(),
+            content: m.content
+              .replace(
+                /\n*\*\([⚡⚠️\d].*?\)\*/g,
+                isPersian
+                  ? '\n[سیستم: عملیات‌های جهان قبلاً پردازش و در کتاب مقدس جهان ثبت شده‌اند. لطفاً آن‌ها را مجدداً ایجاد نکنید.]'
+                  : '\n[System: The requested world action(s) were already processed and committed to the World Bible. Do not recreate them.]'
+              )
+              .trim(),
           })),
           persona: selectedPersona,
           worldContext,
@@ -329,7 +336,18 @@ export default function StudioOracleDrawer() {
               }
             }
             if (ready.length > 0) {
-              setPendingChanges((prev) => [...prev, ...ready]);
+              setPendingChanges((prev) => {
+                const isDuplicate = (change: WorldActionChange) => {
+                  return prev.some((p) => {
+                    if (p.entity !== change.entity || p.op !== change.op) return false;
+                    const pName = nameOf(p.entity, p.newData || p.oldData);
+                    const cName = nameOf(change.entity, change.newData || change.oldData);
+                    return nameMatch(pName, cName);
+                  });
+                };
+                const uniqueReady = ready.filter((r) => !isDuplicate(r));
+                return [...prev, ...uniqueReady];
+              });
               actionNote = isPersian
                 ? `\n\n*(⚡ ${ready.length} تغییر در بخش پایین آماده تأیید است — لطفاً روی دکمه «اعمال همه» بزنید تا در جهان ثبت شود)*`
                 : `\n\n*(⚡ ${ready.length} change(s) queued below — click "Apply all" to commit to the world)*`;
@@ -337,6 +355,16 @@ export default function StudioOracleDrawer() {
                 isPersian
                   ? `${ready.length} تغییر جهانی برای بررسی و تأیید شما آماده شد`
                   : `${ready.length} world change(s) ready for your review`
+              );
+            } else if (failed.length === 0) {
+              // All actions were already present in the World Bible!
+              actionNote = isPersian
+                ? '\n\n*(ℹ️ این موجودیت(ها) قبلاً در جهان ثبت شده است و نیازی به ایجاد مجدد ندارد)*'
+                : '\n\n*(ℹ️ This entity already exists in the World Bible and does not need to be recreated)*';
+              notify.info(
+                isPersian
+                  ? 'این موجودیت از قبل در جهان وجود دارد'
+                  : 'This entity is already registered in the world'
               );
             }
           } catch (e: any) {

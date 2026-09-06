@@ -9,6 +9,7 @@ import {
   nameOf,
   normalizeEntity,
   resolveEntityTarget,
+  findExistingEntityByName,
 } from './ActionProtocol';
 
 export interface WorldActionChange {
@@ -105,6 +106,35 @@ export async function prepareWorldChanges(opts: {
 
     try {
       if (a.op === 'create') {
+        const candidateName = a.data?.name || (a.data as any)?.title || (a.data as any)?.rule;
+
+        // De-duplication Guard 1: Skip create if entity already exists in World Bible
+        if (candidateName && worldBible) {
+          const existing = findExistingEntityByName(worldBible, entity, candidateName);
+          if (existing) {
+            console.warn(
+              `[prepareWorldChanges] Skipping duplicate create for already-existing ${entity}: "${nameOf(entity, existing)}"`
+            );
+            continue;
+          }
+        }
+
+        // De-duplication Guard 2: Skip create if already in ready queue for this batch
+        if (
+          candidateName &&
+          ready.some(
+            (r) =>
+              r.entity === entity &&
+              r.op === 'create' &&
+              nameMatch(nameOf(entity, r.newData), candidateName)
+          )
+        ) {
+          console.warn(
+            `[prepareWorldChanges] Skipping duplicate create in same batch for ${entity}: "${candidateName}"`
+          );
+          continue;
+        }
+
         let data: any;
         if (a.data && typeof a.data === 'object' && Object.keys(a.data).length > 0) {
           // Direct Easy Insert: bypass AI generation and preserve author's exact data
@@ -131,6 +161,18 @@ export async function prepareWorldChanges(opts: {
           });
           if (!json.success || !json.data) throw new Error(json.error || t.failed);
           data = normalizeEntity(entity, json.data);
+
+          // De-duplication Guard 3: Check AI-generated name against existing entities
+          const genName = nameOf(entity, data);
+          if (genName && worldBible) {
+            const existing = findExistingEntityByName(worldBible, entity, genName);
+            if (existing) {
+              console.warn(
+                `[prepareWorldChanges] Skipping duplicate create for AI-generated ${entity}: "${genName}"`
+              );
+              continue;
+            }
+          }
         }
         ready.push({ op: 'create', entity, label: labelOf(data), newData: data });
       } else {

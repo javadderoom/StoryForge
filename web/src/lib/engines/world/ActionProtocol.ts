@@ -177,6 +177,45 @@ export function resolveEntityTarget(
   return undefined;
 }
 
+/**
+ * Checks if an entity with the given name (or close alias) already exists
+ * in the WorldBible. Prevents duplicate creations in multi-turn Oracle sessions.
+ */
+export function findExistingEntityByName(
+  wb: WorldBible | undefined,
+  entity: EntityType,
+  name: string
+): any | undefined {
+  if (!wb || !name || !name.trim()) return undefined;
+  const arr = getEntityArray(wb, entity);
+  if (!arr || arr.length === 0) return undefined;
+
+  const targetRaw = name.trim();
+  const targetNorm = normalizeSearchText(targetRaw);
+  const targetBase = targetRaw.replace(/\([^)]*\)/g, '').trim().toLowerCase();
+
+  return arr.find((item) => {
+    const itemName = nameOf(entity, item);
+    if (!itemName) return false;
+
+    // 1. Direct case-insensitive match
+    if (itemName.trim().toLowerCase() === targetRaw.toLowerCase()) return true;
+
+    // 2. Normalized search text match (strips ZWNJ, diacritics, punctuation, Arabic/Persian variants)
+    const itemNorm = normalizeSearchText(itemName);
+    if (itemNorm && targetNorm && itemNorm === targetNorm) return true;
+
+    // 3. Base name match (stripping parenthetical translations like "گذرگاه هیرام (Hiram Pass)")
+    const itemBase = itemName.replace(/\([^)]*\)/g, '').trim().toLowerCase();
+    if (itemBase && targetBase) {
+      if (itemBase === targetBase) return true;
+      if (normalizeSearchText(itemBase) === normalizeSearchText(targetBase)) return true;
+    }
+
+    return false;
+  });
+}
+
 // Lightweight, deterministic lore-gap detector used for the proactive
 // "Lore Gap Radar" chips in the chat UI.
 export function detectLoreGaps(

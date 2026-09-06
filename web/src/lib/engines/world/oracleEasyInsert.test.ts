@@ -4,6 +4,7 @@ import {
   parseActionBlocks,
   validateActionBlock,
   normalizeEntity,
+  findExistingEntityByName,
 } from './ActionProtocol';
 import { prepareWorldChanges } from './oracleActions';
 import type { WorldBible } from '@/lib/types/world';
@@ -239,5 +240,164 @@ I have prepared the direct insertion for you.`;
     assert.equal(normalized.specialRules.length, 4);
     assert.ok(normalized.specialRules[0].includes('نوسان شدید دما'));
     assert.ok(normalized.specialRules[3].includes('فقر منابع آب سطحی'));
+  });
+
+  it('findExistingEntityByName correctly matches existing entities across aliases and diacritics', () => {
+    const wb: WorldBible = {
+      worldId: 'wb_1',
+      worldName: 'تست جهان',
+      summary: 'خلاصه',
+      themeNotes: 'تم',
+      locations: [
+        {
+          id: 'loc_1',
+          name: 'گذرگاه هیرام (Hiram Pass / Western Foothills)',
+          region: 'غرب',
+          dangerLevel: 3,
+          description: 'توضیحات',
+          atmosphere: 'بادگیر و سرد',
+          connectedLocationIds: [],
+        },
+        {
+          id: 'loc_2',
+          name: 'The Obsidian Spire',
+          region: 'North',
+          dangerLevel: 4,
+          description: 'A tall black tower',
+          atmosphere: 'Dark and menacing',
+          connectedLocationIds: [],
+        },
+      ],
+      factions: [],
+      npcs: [],
+      artifacts: [],
+      bestiary: [],
+      religions: [],
+      timeline: [],
+      laws: [],
+      dramaBonds: [],
+    };
+
+    // 1. Matches exact base name
+    const m1 = findExistingEntityByName(wb, 'location', 'گذرگاه هیرام');
+    assert.ok(m1);
+    assert.equal(m1.id, 'loc_1');
+
+    // 2. Matches full name
+    const m2 = findExistingEntityByName(wb, 'location', 'گذرگاه هیرام (Hiram Pass / Western Foothills)');
+    assert.ok(m2);
+    assert.equal(m2.id, 'loc_1');
+
+    // 3. Matches English location with different casing
+    const m3 = findExistingEntityByName(wb, 'location', 'the obsidian spire');
+    assert.ok(m3);
+    assert.equal(m3.id, 'loc_2');
+
+    // 4. Does NOT match different location
+    const m4 = findExistingEntityByName(wb, 'location', 'دشت هیرام');
+    assert.equal(m4, undefined);
+  });
+
+  it('prevents recreating already available locations in prepareWorldChanges (multi-turn de-duplication)', async () => {
+    // World already has Location X ("گذرگاه هیرام")
+    const existingBible: WorldBible = {
+      worldId: 'wb_test',
+      worldName: 'دنیای تست',
+      summary: 'خلاصه تست',
+      themeNotes: 'تم آزمایشی',
+      locations: [
+        {
+          id: 'loc_x',
+          name: 'گذرگاه هیرام (Hiram Pass)',
+          region: 'جنوب باختری',
+          dangerLevel: 3,
+          description: 'گذرگاه سنگی',
+          atmosphere: 'بادگیر و خشک',
+          connectedLocationIds: [],
+        },
+      ],
+      factions: [],
+      npcs: [],
+      artifacts: [],
+      bestiary: [],
+      religions: [],
+      timeline: [],
+      laws: [],
+      dramaBonds: [],
+    };
+
+    // Oracle emitted both create X (already exists) and create Y ("دشت نمک" - new)
+    const actionRecreateX = {
+      op: 'create' as const,
+      entity: 'location' as const,
+      data: {
+        name: 'گذرگاه هیرام',
+        region: 'جنوب باختری',
+        description: 'تکرار گذرگاه قبلی',
+      },
+    };
+
+    const actionCreateY = {
+      op: 'create' as const,
+      entity: 'location' as const,
+      data: {
+        name: 'دشت نمک',
+        region: 'خاور',
+        description: 'دشت سپید و شور',
+      },
+    };
+
+    const res = await prepareWorldChanges({
+      actions: [actionRecreateX, actionCreateY],
+      worldBible: existingBible,
+      worldContext: '',
+      isPersian: true,
+    });
+
+    // Action X must be skipped, ONLY Action Y must be in ready
+    assert.equal(res.failed.length, 0);
+    assert.equal(res.ready.length, 1);
+    assert.equal(res.ready[0].newData.name, 'دشت نمک');
+  });
+
+  it('drops duplicate create actions in the same batch', async () => {
+    const emptyBible: WorldBible = {
+      worldId: 'wb_test',
+      worldName: 'دنیای خالی',
+      summary: 'خلاصه',
+      themeNotes: 'تم',
+      locations: [],
+      factions: [],
+      npcs: [],
+      artifacts: [],
+      bestiary: [],
+      religions: [],
+      timeline: [],
+      laws: [],
+      dramaBonds: [],
+    };
+
+    const action1 = {
+      op: 'create' as const,
+      entity: 'location' as const,
+      data: { name: 'برج خاموش', region: 'شمال' },
+    };
+
+    const actionDuplicate = {
+      op: 'create' as const,
+      entity: 'location' as const,
+      data: { name: 'برج خاموش', region: 'شمال' },
+    };
+
+    const res = await prepareWorldChanges({
+      actions: [action1, actionDuplicate],
+      worldBible: emptyBible,
+      worldContext: '',
+      isPersian: true,
+    });
+
+    assert.equal(res.failed.length, 0);
+    assert.equal(res.ready.length, 1);
+    assert.equal(res.ready[0].newData.name, 'برج خاموش');
   });
 });
