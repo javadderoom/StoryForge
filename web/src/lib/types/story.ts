@@ -15,6 +15,8 @@ export type Genre =
 
 export interface StoryManifest {
   id: string;
+  /** Shared-world link: many stories can live in one world. Absent = legacy solo story. */
+  worldId?: string;
   title: string;
   tagline: string;
   synopsis: string;
@@ -51,6 +53,7 @@ export interface StoryManifest {
 
 export const StoryManifestSchema = z.object({
   id: z.string().min(2),
+  worldId: z.string().min(1).optional(),
   title: z.string().min(2),
   tagline: z.string(),
   synopsis: z.string().min(10),

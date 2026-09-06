@@ -3,10 +3,19 @@ import { StoryManifest } from '@/lib/types';
 // Builds a fully valid (schema-conformant) empty StoryManifest used both by the
 // Studio "Create New Story" flow and by tests. Kept framework-free (no React/Next
 // imports) so it can be consumed from node:test runners.
+let factoryCounter = 0;
+function uniqueTs(): string {
+  factoryCounter += 1;
+  return `${Date.now().toString(36)}${factoryCounter.toString(36)}${Math.random()
+    .toString(36)
+    .slice(2, 6)}`;
+}
+
 export function getEmptyStoryManifest(language: 'en' | 'fa'): StoryManifest {
-  const ts = Date.now().toString(36);
+  const ts = uniqueTs();
   return {
     id: `story_${ts}`,
+    worldId: `world_${ts}`,
     title: language === 'fa' ? 'داستان جدید' : 'New Story',
     tagline: language === 'fa' ? 'خلاصه‌ای کوتاه از ماجرا...' : 'A brief tale synopsis...',
     synopsis: language === 'fa' ? 'روایت شگفت‌انگیزی که در دل تاریکی آغاز می‌شود.' : 'An untold saga waiting to unfold in the darkness.',
@@ -59,6 +68,39 @@ export function getEmptyStoryManifest(language: 'en' | 'fa'): StoryManifest {
         sceneId: `scene_${ts}_1`,
         locationId: '',
         narrativeText: language === 'fa' ? 'نقطه شروع داستان. اینجا روایت آغاز می‌شود...' : 'The story begins here. Write the opening narrative...',
+        choices: [],
+      },
+    ],
+  };
+}
+
+/**
+ * Builds a fresh story shell inside an EXISTING shared world.
+ * Lore + RPG are inherited live from the world (never copied); only the
+ * story-specific entry point (beats/saga/meta) is new. The caller is
+ * responsible for persisting via StoryRepository.saveStory().
+ */
+export function getEmptyStoryInWorld(
+  world: { worldId: string; worldBible: StoryManifest['worldBible']; rpgSystem?: StoryManifest['rpgSystem'] },
+  language: 'en' | 'fa'
+): StoryManifest {
+  const ts = uniqueTs();
+  const base = getEmptyStoryManifest(language);
+  return {
+    ...base,
+    id: `story_${ts}`,
+    worldId: world.worldId,
+    worldBible: world.worldBible,
+    rpgSystem: world.rpgSystem ?? base.rpgSystem,
+    initialSceneId: `scene_${ts}_1`,
+    initialStoryBeats: [
+      {
+        sceneId: `scene_${ts}_1`,
+        locationId: world.worldBible.locations[0]?.id || '',
+        narrativeText:
+          language === 'fa'
+            ? 'نقطه شروع داستان. اینجا روایت آغاز می‌شود...'
+            : 'The story begins here. Write the opening narrative...',
         choices: [],
       },
     ],

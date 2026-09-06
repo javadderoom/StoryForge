@@ -23,16 +23,19 @@ import {
   Globe,
   Eye,
   EyeOff,
+  Layers,
 } from 'lucide-react';
 
 export default function StoriesListPage() {
   const router = useRouter();
   const {
     storiesList,
+    worldsList,
     selectedStoryId,
     setSelectedStoryId,
     isPersian,
     createStory,
+    createStoryInWorld,
     duplicateStory,
     deleteStory,
     setStoryPublished,
@@ -70,8 +73,31 @@ export default function StoriesListPage() {
       : true
   );
 
+  // Group stories by their shared world (legacy stories without a world
+  // link each form their own single-story group).
+  const worldGroups = (() => {
+    const groups = new Map<string, { worldId: string; worldName: string; items: StoryListItem[] }>();
+    for (const s of filteredStories) {
+      const wid = s.worldId || s.id;
+      const known = worldsList.find((w) => w.id === wid);
+      const wname = s.worldName || known?.name || s.title;
+      let g = groups.get(wid);
+      if (!g) {
+        g = { worldId: wid, worldName: wname, items: [] };
+        groups.set(wid, g);
+      }
+      g.items.push(s);
+    }
+    return [...groups.values()];
+  })();
+
   const handleOpenStory = (storyId: string) => {
     setSelectedStoryId(storyId);
+    router.push('/studio/world');
+  };
+
+  const handleCreateInWorld = (worldId: string) => {
+    createStoryInWorld(worldId);
     router.push('/studio/world');
   };
 
@@ -162,22 +188,46 @@ export default function StoriesListPage() {
         </div>
       </div>
 
-      {/* Stories Grid */}
+      {/* Stories grouped by shared world */}
+      {worldGroups.map((group) => (
+        <div key={group.worldId} className="space-y-4">
+          <div className="flex items-center justify-between gap-3 px-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <Layers className="w-4 h-4 text-amber-400 shrink-0" />
+              <h3 className="text-sm font-bold text-zinc-200 truncate">
+                {group.worldName}
+              </h3>
+              <span className="text-[10px] font-mono text-zinc-500 bg-zinc-800/80 border border-zinc-700/60 rounded-md px-1.5 py-0.5 shrink-0">
+                {group.items.length} {group.items.length === 1 ? 'story' : 'stories'}
+              </span>
+            </div>
+            <button
+              onClick={() => handleCreateInWorld(group.worldId)}
+              className="flex items-center gap-1 text-[11px] font-bold text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer shrink-0"
+              title={isPersian ? 'داستان جدید در همین جهان' : 'New story in this world'}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {isPersian ? 'داستان جدید در این جهان' : 'New story in this world'}
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {group.items.map((item) => (
+              <StoryCard
+                key={item.id}
+                item={item}
+                isActive={item.id === selectedStoryId}
+                isPersian={isPersian}
+                t={t}
+                onOpen={() => handleOpenStory(item.id)}
+                onDuplicate={() => duplicateStory(item.id)}
+                onTogglePublish={() => setStoryPublished(item.id, !item.published)}
+                onDelete={() => deleteStory(item.id)}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {filteredStories.map((item) => (
-          <StoryCard
-            key={item.id}
-            item={item}
-            isActive={item.id === selectedStoryId}
-            isPersian={isPersian}
-            t={t}
-            onOpen={() => handleOpenStory(item.id)}
-            onDuplicate={() => duplicateStory(item.id)}
-            onTogglePublish={() => setStoryPublished(item.id, !item.published)}
-            onDelete={() => deleteStory(item.id)}
-          />
-        ))}
-
         {filteredStories.length === 0 && (
           <div className="col-span-full flex flex-col items-center justify-center py-16 text-zinc-500">
             <BookOpen className="w-12 h-12 mb-4 opacity-30" />

@@ -4,12 +4,13 @@ import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const storyId = searchParams.get('storyId');
+    // worldId preferred (shared world); storyId resolves to its world for compat.
+    const storyId = searchParams.get('worldId') || searchParams.get('storyId');
     const resource = searchParams.get('resource');
 
     if (!storyId) {
       return NextResponse.json(
-        { success: false, error: 'storyId parameter is required' },
+        { success: false, error: 'worldId (or storyId) parameter is required' },
         { status: 400 }
       );
     }
@@ -81,11 +82,13 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { storyId, resource, data } = body;
+    const { resource, data } = body;
+    // worldId preferred (shared world); storyId resolves to its world for compat.
+    const storyId = body.worldId || body.storyId;
 
     if (!storyId || !resource || data === undefined) {
       return NextResponse.json(
-        { success: false, error: 'storyId, resource, and data fields are required' },
+        { success: false, error: 'worldId (or storyId), resource, and data fields are required' },
         { status: 400 }
       );
     }
@@ -123,6 +126,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({
       success: true,
       storyId,
+      worldId: 'worldId' in result ? result.worldId : undefined,
       resource,
       isMock: 'isMock' in result ? result.isMock : false,
     });

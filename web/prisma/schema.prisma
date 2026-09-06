@@ -6,6 +6,23 @@ datasource db {
   provider = "postgresql"
 }
 
+model World {
+  id                 String   @id @default(uuid())
+  name               String
+  summary            String   @default("")
+  themeNotes         String   @default("")
+  worldBibleVersion  Int      @default(1)
+  worldBibleHistory  Json     @default("[]")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  worldBible         WorldBible?
+  rpgSystem          RpgSystem?
+  stories            Story[]
+
+  @@map("worlds")
+}
+
 model Story {
   id            String   @id
   title         String
@@ -19,17 +36,23 @@ model Story {
   updatedAt     DateTime @updatedAt
   published     Boolean  @default(false)
   manifest      Json     @default("{}")
+  worldId       String?
 
-  worldBible    WorldBible?
-  rpgSystem     RpgSystem?
+  world         World?   @relation(fields: [worldId], references: [id], onDelete: SetNull)
+  // Legacy 1:1 links — kept for backwards compat during World 1:N transition.
+  // New code resolves lore/RPG via Story.worldId -> World.
+  worldBible    WorldBible? @relation("LegacyStoryWorldBible")
+  rpgSystem     RpgSystem?  @relation("LegacyStoryRpgSystem")
   sessions      PlaythroughSession[]
 
+  @@index([worldId])
   @@map("stories")
 }
 
 model WorldBible {
   id          String   @id @default(uuid())
-  storyId     String   @unique
+  storyId     String?  @unique
+  worldId     String?  @unique
   worldName   String
   summary     String
   themeNotes  String
@@ -47,14 +70,16 @@ model WorldBible {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  story       Story?   @relation("LegacyStoryWorldBible", fields: [storyId], references: [id], onDelete: Cascade)
+  world       World?   @relation(fields: [worldId], references: [id], onDelete: Cascade)
 
   @@map("world_bibles")
 }
 
 model RpgSystem {
   id                 String   @id @default(uuid())
-  storyId            String   @unique
+  storyId            String?  @unique
+  worldId            String?  @unique
   hasCombat          Boolean  @default(true)
   diceType           String   @default("d20")
   inventoryCapacity  Int      @default(10)
@@ -67,7 +92,8 @@ model RpgSystem {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  story              Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  story              Story?   @relation("LegacyStoryRpgSystem", fields: [storyId], references: [id], onDelete: Cascade)
+  world              World?   @relation(fields: [worldId], references: [id], onDelete: Cascade)
 
   @@map("rpg_systems")
 }

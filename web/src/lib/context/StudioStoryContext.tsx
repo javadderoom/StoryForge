@@ -28,6 +28,7 @@ import {
 } from '@/lib/types';
 import { mergeFactionRelations, syncLegacyFactionLinks } from '@/lib/engines/world/factionRelations';
 import type { WorldActionChange } from '@/lib/engines/world/oracleActions';
+import { getEmptyStoryInWorld } from '@/lib/storyFactory';
 import { notify } from '@/lib/notify';
 
 // Resolve a reference (entity id OR human-readable name) to the canonical
@@ -207,6 +208,17 @@ export interface StoryListItem {
   version: string;
   published?: boolean;
   updatedAt?: string;
+  /** Shared-world link (many stories per world). Absent = legacy solo story. */
+  worldId?: string;
+  worldName?: string;
+}
+
+export interface WorldListItem {
+  id: string;
+  name: string;
+  summary: string;
+  storyCount: number;
+  worldBibleVersion: number;
 }
 
 interface StudioStoryContextType {
@@ -224,9 +236,16 @@ interface StudioStoryContextType {
   saveToServer: (manifestToSave?: StoryManifest) => Promise<boolean>;
   // Story Registry CRUD
   createStory: (manifest: StoryManifest) => void;
+  /** New story shell inside an existing shared world (lore + RPG inherited live). */
+  createStoryInWorld: (worldId: string, language?: 'en' | 'fa') => void;
   duplicateStory: (storyId: string) => void;
   deleteStory: (storyId: string) => Promise<void>;
   setStoryPublished: (id: string, published: boolean) => void;
+  // Shared worlds
+  worldsList: WorldListItem[];
+  /** World id of the currently selected story (falls back to story id for legacy). */
+  selectedWorldId: string;
+  refreshWorlds: () => Promise<void>;
   // Updaters
   updateStoryMeta: (updates: Partial<Pick<StoryManifest, 'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'coverImageUrl' | 'activeMilestoneGoal'>>) => void;
   updateWorldBible: (updater: (prev: WorldBible) => WorldBible) => void;
@@ -380,6 +399,20 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastServerSynced, setLastServerSynced] = useState<Date | null>(null);
   const [customStories, setCustomStories] = useState<StoryListItem[]>([]);
+  const [worldsList, setWorldsList] = useState<WorldListItem[]>([]);
+
+  const refreshWorlds = useCallback(async () => {
+    try {
+      const res = await fetch('/api/studio/worlds');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.data)) {
+        setWorldsList(data.data as WorldListItem[]);
+      }
+    } catch {
+      // Server unreachable: worlds grouping falls back to per-story display.
+    }
+  }, []);
 
   // Client-only mount gate. The server can't read localStorage, so without this
   // the first paint would show the empty placeholder before the client restores
@@ -407,10 +440,13 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Load custom stories from the server (DB is the source of truth for discovery).
+  // Load custom stories + shared worlds from the server (DB is the source of
+  // truth for discovery). Worlds power the library grouping and the
+  // "new story in this world" flow; failures fall back to per-story display.
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      if (!cancelled) refreshWorlds();
       try {
         const res = await fetch('/api/studio/stories');
         if (!res.ok) return;
@@ -426,6 +462,8 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
           author: s.author,
           version: s.version || '1.0.0',
           published: s.published ?? false,
+          worldId: s.worldId || undefined,
+          worldName: s.worldName || undefined,
         }));
         if (!cancelled) setCustomStories(custom);
       } catch {
@@ -435,10 +473,14 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshWorlds]);
 
   // Compute unified stories list (server is the source of truth for discovery).
   const storiesList: StoryListItem[] = customStories;
+
+  // World of the currently open story (legacy stories fall back to their own id).
+  const selectedWorldId: string =
+    story.worldId || story.worldBible?.worldId || selectedStoryId;
 
   // Load from localStorage on story change.
   // Intentional setState-in-effect: `story` is also mutated in place by ~40 CRUD
@@ -523,10 +565,12 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         version: newStory.version,
         published: false,
         updatedAt: new Date().toISOString(),
+        worldId: newStory.worldId || newStory.worldBible?.worldId || undefined,
       };
 
       // Persist to the server (DB is the source of truth).
       saveToServer(newStory);
+      refreshWorlds();
 
       // Keep the in-memory custom list in sync without a round-trip.
       setCustomStories((prev) => [...prev.filter((s) => s.id !== newStory.id), newListItem]);
@@ -537,7 +581,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
       setLastSaved(new Date());
       notify.success(isPersian ? `داستان "${newStory.title}" با موفقیت ایجاد شد` : `Story "${newStory.title}" created`);
     },
-    [isPersian]
+    [isPersian, refreshWorlds]
   );
 
   // Duplicate Story
@@ -577,14 +621,20 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
 
       const timestamp = Date.now().toString(36);
       const newId = `story_${timestamp}`;
+      // Shared live world: the duplicate stays on the SAME world (lore + RPG
+      // inherited live). Only the story shell (beats/saga/meta) is copied.
+      // Use world fork (API /api/studio/worlds) to diverge the universe itself.
+      const worldId =
+        sourceManifest.worldId || sourceManifest.worldBible.worldId;
       const cloned: StoryManifest = {
         ...sourceManifest,
         id: newId,
+        worldId,
         title: `${sourceManifest.title} (${isPersian ? 'رونوشت' : 'Copy'})`,
-        worldBible: {
-          ...sourceManifest.worldBible,
-          worldId: `${sourceManifest.worldBible.worldId}_copy_${timestamp}`,
-        },
+        published: false,
+        worldBibleVersion: sourceManifest.worldBibleVersion,
+        worldBibleHistory: sourceManifest.worldBibleHistory,
+        initialSceneId: `scene_${timestamp}_1`,
       };
 
       createStory(cloned);
@@ -593,14 +643,65 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     [createStory, isPersian]
   );
 
+  // New story shell inside an existing shared world (lore + RPG inherited live).
+  const createStoryInWorld = useCallback(
+    async (worldId: string, language?: 'en' | 'fa') => {
+      const lang = language || story.language || 'en';
+      // Prefer the in-memory world when it is already open; otherwise fetch it.
+      let worldBible = story.worldBible;
+      let rpgSystem = story.rpgSystem;
+      const openWorldId = story.worldId || story.worldBible?.worldId;
+      if (openWorldId !== worldId || !worldBible?.worldName) {
+        try {
+          const res = await fetch(
+            `/api/studio/worlds?worldId=${encodeURIComponent(worldId)}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.success && data?.data?.worldBible) {
+              const manifest = await (async () => {
+                // Reuse the composed story fetch so RPG comes along for free.
+                const stories: StoryListItem[] = storiesList;
+                const sibling = stories.find(
+                  (s) => s.worldId === worldId || s.id === worldId
+                );
+                if (!sibling) return null;
+                const r = await fetch(
+                  `/api/studio/story?storyId=${encodeURIComponent(sibling.id)}`
+                );
+                if (!r.ok) return null;
+                const d = await r.json();
+                return (d?.success ? d.data : null) as StoryManifest | null;
+              })();
+              worldBible = data.data.worldBible;
+              rpgSystem = manifest?.rpgSystem || rpgSystem;
+            }
+          }
+        } catch {
+          // fall through to in-memory world below
+        }
+      }
+      if (!worldBible?.worldName) {
+        notify.error(isPersian ? 'جهان مورد نظر یافت نشد' : 'Target world not found');
+        return;
+      }
+      const shell = getEmptyStoryInWorld(
+        { worldId, worldBible, rpgSystem },
+        lang
+      );
+      createStory(shell);
+    },
+    [createStory, isPersian, storiesList, story]
+  );
+
   // Delete Story
   const deleteStory = useCallback(
     async (targetStoryId: string) => {
       const confirmed = await notify.confirm({
         title: isPersian ? 'حذف داستان از استودیو' : 'Delete Story Manifest',
         message: isPersian
-          ? 'آیا از حذف کامل این داستان و تمام داده‌های جهان آن اطمینان دارید؟'
-          : 'Are you sure you want to permanently delete this story and all its world assets?',
+          ? 'آیا از حذف کامل این داستان اطمینان دارید؟ (جهان مشترک و داستان‌های دیگر حفظ می‌شوند.)'
+          : 'Permanently delete this story? (The shared world and sibling stories are kept.)',
         confirmText: isPersian ? 'بله، حذف شود' : 'Delete Permanently',
         cancelText: isPersian ? 'انصراف' : 'Cancel',
         isDestructive: true,
@@ -610,6 +711,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem(getStorageKey(targetStoryId));
 
         // Remove from the server (DB is the source of truth).
+        // Note: only the story shell is deleted — the shared world survives.
         try {
           await fetch(`/api/studio/story?storyId=${encodeURIComponent(targetStoryId)}`, {
             method: 'DELETE',
@@ -620,6 +722,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
 
         // Keep the in-memory custom list in sync.
         setCustomStories((prev) => prev.filter((s) => s.id !== targetStoryId));
+        refreshWorlds();
 
         if (selectedStoryId === targetStoryId) {
           setSelectedStoryId('');
@@ -627,7 +730,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         notify.info(isPersian ? 'داستان با موفقیت حذف شد' : 'Story deleted');
       }
     },
-    [isPersian, selectedStoryId]
+    [isPersian, selectedStoryId, refreshWorlds]
   );
 
   // Direct backend sync helper
@@ -2021,9 +2124,13 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         lastServerSynced,
         saveToServer,
         createStory,
+        createStoryInWorld,
         duplicateStory,
         deleteStory,
         setStoryPublished,
+        worldsList,
+        selectedWorldId,
+        refreshWorlds,
         updateStoryMeta,
         updateWorldBible,
         updateWorldMeta,
