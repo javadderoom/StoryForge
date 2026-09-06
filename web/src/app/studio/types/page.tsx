@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useStudioStory } from '@/lib/context/StudioStoryContext';
+import { useStudioStory, normalizeOntology } from '@/lib/context/StudioStoryContext';
 import {
   Tag,
   Share2,
@@ -97,13 +97,7 @@ export default function TypesStudioPage() {
   const [newDomainDesc, setNewDomainDesc] = useState('');
   const [newDomainColor, setNewDomainColor] = useState('#F59E0B');
 
-  const ontology = story.worldBible.ontology || {
-    relationTypes: [],
-    placeCategories: [],
-    lawCategories: [],
-    npcRoles: [],
-    domains: [],
-  };
+  const ontology = normalizeOntology(story.worldBible?.ontology, isPersian);
 
   // How many world entities reference a given type (used to warn before deletion)
   const relationUsage = (id: string) =>

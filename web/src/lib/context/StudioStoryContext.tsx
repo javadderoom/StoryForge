@@ -258,18 +258,53 @@ export function getDefaultOntology(isPersian: boolean): WorldOntology {
 }
 
 /**
- * Guarantees every ontology array is present, falling back to defaults for any
- * field missing from persisted/legacy data (e.g. a story saved before `domains`
- * existed would otherwise have `ontology.domains === undefined`).
+ * Guarantees every ontology array is present, upgrading default categories
+ * to canonical taxonomy names/descriptions while preserving custom author types.
  */
-function normalizeOntology(ont: WorldOntology | undefined, isPersian: boolean): WorldOntology {
+export function normalizeOntology(ont: WorldOntology | undefined, isPersian: boolean): WorldOntology {
   const base = getDefaultOntology(isPersian);
+  if (!ont) return base;
+
+  // Smart merge for placeCategories:
+  // 1. For canonical categories, upgrade their names/descriptions to current taxonomy and strip legacy fields.
+  // 2. Preserve any custom categories created by the author.
+  // 3. Add any newly added canonical categories (e.g. plains, waterway, seas, anomaly).
+  const basePlaceMap = new Map(base.placeCategories.map((b) => [b.id, b]));
+  const existingPlaceCategories = ont.placeCategories || [];
+  const mergedPlaceCategories: CustomPlaceCategory[] = [];
+  const seenPlaceIds = new Set<string>();
+
+  for (const cat of existingPlaceCategories) {
+    seenPlaceIds.add(cat.id);
+    const b = basePlaceMap.get(cat.id);
+    if (b) {
+      const { defaultDangerLevel: _, ...cleanCat } = cat as any;
+      mergedPlaceCategories.push({
+        ...cleanCat,
+        name: b.name,
+        description: b.description,
+        color: b.color || cleanCat.color,
+        isDefault: true,
+      });
+    } else {
+      const { defaultDangerLevel: _, ...cleanCat } = cat as any;
+      mergedPlaceCategories.push(cleanCat);
+    }
+  }
+
+  for (const b of base.placeCategories) {
+    if (!seenPlaceIds.has(b.id)) {
+      mergedPlaceCategories.push(b);
+      seenPlaceIds.add(b.id);
+    }
+  }
+
   return {
-    relationTypes: ont?.relationTypes ?? base.relationTypes,
-    placeCategories: ont?.placeCategories ?? base.placeCategories,
-    lawCategories: ont?.lawCategories ?? base.lawCategories,
-    npcRoles: ont?.npcRoles ?? base.npcRoles,
-    domains: ont?.domains ?? base.domains,
+    relationTypes: ont.relationTypes?.length ? ont.relationTypes : base.relationTypes,
+    placeCategories: mergedPlaceCategories,
+    lawCategories: ont.lawCategories?.length ? ont.lawCategories : base.lawCategories,
+    npcRoles: ont.npcRoles?.length ? ont.npcRoles : base.npcRoles,
+    domains: ont.domains?.length ? ont.domains : base.domains,
   };
 }
 
@@ -579,8 +614,8 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
       const stored = localStorage.getItem(key);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (!parsed.worldBible.ontology) {
-          parsed.worldBible.ontology = getDefaultOntology(parsed.language === 'fa');
+        if (parsed?.worldBible) {
+          parsed.worldBible.ontology = normalizeOntology(parsed.worldBible.ontology, parsed.language === 'fa');
         }
         setStory(parsed);
         setHasLocalDraft(true);
@@ -602,9 +637,8 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         const data = await res.json();
         if (data?.success && data?.data && !cancelled) {
           const m = data.data as StoryManifest;
-          if (!m.worldBible?.ontology) {
-            m.worldBible = m.worldBible || ({} as any);
-            m.worldBible.ontology = getDefaultOntology(m.language === 'fa');
+          if (m.worldBible) {
+            m.worldBible.ontology = normalizeOntology(m.worldBible.ontology, m.language === 'fa');
           }
           setStory(m);
           setHasLocalDraft(false);

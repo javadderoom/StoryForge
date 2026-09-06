@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useStudioStory } from '@/lib/context/StudioStoryContext';
+import { useStudioStory, normalizeOntology } from '@/lib/context/StudioStoryContext';
 import {
   Sparkles,
   Plus,
@@ -122,7 +122,7 @@ export default function LocationsStudioPage() {
   } | null>(null);
 
   const locations = story.worldBible.locations || [];
-  const categories = story.worldBible.ontology?.placeCategories || [];
+  const categories = normalizeOntology(story.worldBible?.ontology, isPersian).placeCategories;
 
   // Card collapse state - default to collapsed
   const [expandedLocationIds, setExpandedLocationIds] = useState<Record<string, boolean>>({});
