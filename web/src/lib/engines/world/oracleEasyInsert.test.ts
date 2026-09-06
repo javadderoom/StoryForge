@@ -210,4 +210,34 @@ I have prepared the direct insertion for you.`;
     assert.equal(law.rule, 'هیچ آب شیرینی در هامون بدون اذن پیران زروان تقسیم نمی‌شود');
     assert.equal(law.isImmutable, true);
   });
+
+  it('correctly ingests user complex location data with category, special rules, and description', () => {
+    const rawUserData = {
+      'نام مکان': 'گذرگاه هیرام (Hiram Pass / Western Foothills)',
+      'ناحیه / منطقه': 'حدفاصل جنوب باختری ارژن و دشت هیرام',
+      'موقعیت بالادست / در بر گیرنده (Parent Location)': 'قارهٔ فراوند (Faravand Continent)',
+      'دستهبندی مکان (Category)': 'طبیعت وحشی و بیابان',
+      'سطح خطر (Danger 1–5)': '3 · خطرناک',
+      'شرح مکان و ظاهر':
+        'منطقهای ناهموار و بادگیر از تپهماهورهای خشک، درههای سنگلاخی فرسایشیافته و شکافهای کمعمق...',
+      'فضاسازی و لحن (Atmosphere)':
+        'برهوت، غبارآلود، فرساینده و بلاتکلیف میان دو اقلیم متضاد...',
+      'قوانین ویژه مکان':
+        'نوسان شدید دمای شبانهروز؛ تغییرات سریع دما\nطوفانهای غبار ناگهانی؛ جریانهای بادی\nمعبر کاروانهای گریزپا\nفقر منابع آب سطحی',
+    };
+
+    const normalized = normalizeEntity('location', rawUserData);
+
+    assert.equal(normalized.name, 'گذرگاه هیرام (Hiram Pass / Western Foothills)');
+    assert.equal(normalized.region, 'حدفاصل جنوب باختری ارژن و دشت هیرام');
+    assert.equal(normalized.parentLocationName, 'قارهٔ فراوند (Faravand Continent)');
+    assert.equal(normalized.category, 'wilderness');
+    assert.equal(normalized.dangerLevel, 3);
+    assert.ok(normalized.description.startsWith('منطقهای ناهموار'));
+    assert.ok(normalized.atmosphere.startsWith('برهوت، غبارآلود'));
+    assert.equal(Array.isArray(normalized.specialRules), true);
+    assert.equal(normalized.specialRules.length, 4);
+    assert.ok(normalized.specialRules[0].includes('نوسان شدید دما'));
+    assert.ok(normalized.specialRules[3].includes('فقر منابع آب سطحی'));
+  });
 });
