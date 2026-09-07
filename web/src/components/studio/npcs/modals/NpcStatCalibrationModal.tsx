@@ -1,0 +1,448 @@
+import React, { useState, useEffect } from 'react';
+import { Sword, X, Plus, Trash2, Check } from 'lucide-react';
+import { NPCDossier, NpcStatCalibration, NpcEquippedGear } from '@/lib/types';
+
+export interface NpcStatCalibrationModalProps {
+  open: boolean;
+  targetNpc: NPCDossier | null;
+  isPersian: boolean;
+  onClose: () => void;
+  onSave: (calibration: NpcStatCalibration) => void;
+}
+
+export function NpcStatCalibrationModal({
+  open,
+  targetNpc,
+  isPersian,
+  onClose,
+  onSave,
+}: NpcStatCalibrationModalProps) {
+  const [statForm, setStatForm] = useState<NpcStatCalibration>({
+    npcName: '',
+    combatTier: 'civilian',
+    challengeRating: 1,
+    statRatings: { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 },
+    signatureAbilities: [],
+    equippedGear: [],
+  });
+  const [statAbilityInput, setStatAbilityInput] = useState('');
+  const [newStatKey, setNewStatKey] = useState('');
+  const [newStatVal, setNewStatVal] = useState<number>(10);
+  const [newGearName, setNewGearName] = useState('');
+  const [newGearType, setNewGearType] = useState<string>('weapon');
+  const [newGearDesc, setNewGearDesc] = useState('');
+
+  useEffect(() => {
+    if (open && targetNpc) {
+      if (targetNpc.statCalibration) {
+        setStatForm({
+          npcId: targetNpc.id,
+          npcName: targetNpc.statCalibration.npcName || targetNpc.name,
+          combatTier: targetNpc.statCalibration.combatTier || 'civilian',
+          challengeRating: targetNpc.statCalibration.challengeRating ?? 1,
+          statRatings: targetNpc.statCalibration.statRatings
+            ? { ...targetNpc.statCalibration.statRatings }
+            : { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 },
+          signatureAbilities: [...(targetNpc.statCalibration.signatureAbilities || [])],
+          equippedGear: (targetNpc.statCalibration.equippedGear || []).map((g: NpcEquippedGear) => ({ ...g })),
+        });
+      } else {
+        setStatForm({
+          npcId: targetNpc.id,
+          npcName: targetNpc.name,
+          combatTier: 'civilian',
+          challengeRating: 1,
+          statRatings: { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 },
+          signatureAbilities: [],
+          equippedGear: [],
+        });
+      }
+      setStatAbilityInput('');
+      setNewStatKey('');
+      setNewStatVal(10);
+      setNewGearName('');
+      setNewGearType('weapon');
+      setNewGearDesc('');
+    }
+  }, [open, targetNpc]);
+
+  if (!open || !targetNpc) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(statForm);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+          <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+            <Sword className="w-5 h-5 text-amber-400" />
+            <span>
+              {targetNpc.statCalibration
+                ? isPersian
+                  ? `ویرایش ویژگی‌های رزمی: ${targetNpc.name}`
+                  : `Edit Combat Stats: ${targetNpc.name}`
+                : isPersian
+                ? `ثبت ویژگی‌های رزمی: ${targetNpc.name}`
+                : `Create Combat Stats: ${targetNpc.name}`}
+            </span>
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-zinc-400 hover:text-white p-1 rounded-lg cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Combat Tier & Challenge Rating */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-zinc-400 mb-1">
+                {isPersian ? 'رده رزمی (Combat Tier):' : 'Combat Tier:'}
+              </label>
+              <select
+                value={statForm.combatTier}
+                onChange={(e) =>
+                  setStatForm((prev: NpcStatCalibration) => ({
+                    ...prev,
+                    combatTier: e.target.value as NpcStatCalibration['combatTier'],
+                  }))
+                }
+                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+              >
+                <option value="civilian">{isPersian ? 'غیرنظامی (Civilian)' : 'Civilian'}</option>
+                <option value="apprentice">{isPersian ? 'تازه‌کار / شاگرد (Apprentice)' : 'Apprentice'}</option>
+                <option value="veteran">{isPersian ? 'کهنه‌کار (Veteran)' : 'Veteran'}</option>
+                <option value="elite">{isPersian ? 'نخبه / سردار (Elite)' : 'Elite'}</option>
+                <option value="boss">{isPersian ? 'غول / هماورد (Boss)' : 'Boss'}</option>
+                <option value="mythic">{isPersian ? 'افسانه‌ای (Mythic)' : 'Mythic'}</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs text-zinc-400 mb-1">
+                {isPersian ? 'درجه سختی چالش (CR 1-20):' : 'Challenge Rating (CR 1-20):'}
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={statForm.challengeRating}
+                  onChange={(e) =>
+                    setStatForm((prev: NpcStatCalibration) => ({
+                      ...prev,
+                      challengeRating: Math.max(1, Math.min(20, parseInt(e.target.value) || 1)),
+                    }))
+                  }
+                  className="w-20 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-500 text-center"
+                />
+                <input
+                  type="range"
+                  min={1}
+                  max={20}
+                  value={statForm.challengeRating}
+                  onChange={(e) =>
+                    setStatForm((prev: NpcStatCalibration) => ({
+                      ...prev,
+                      challengeRating: parseInt(e.target.value) || 1,
+                    }))
+                  }
+                  className="flex-1 accent-amber-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Attributes Grid */}
+          <div>
+            <label className="block text-xs text-zinc-300 font-bold mb-1.5">
+              {isPersian ? 'امتیاز ویژگی‌ها و صفات:' : 'Attributes / Stat Ratings:'}
+            </label>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" dir="ltr">
+              {Object.entries(statForm.statRatings).map(([stKey, stVal]) => (
+                <div
+                  key={stKey}
+                  className="bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-center relative group"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = { ...statForm.statRatings };
+                      delete updated[stKey];
+                      setStatForm((prev: NpcStatCalibration) => ({ ...prev, statRatings: updated }));
+                    }}
+                    className="absolute top-1 right-1 text-zinc-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 cursor-pointer"
+                    title="Remove"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                  <span className="text-[10px] text-zinc-400 font-mono block uppercase">{stKey}</span>
+                  <input
+                    type="number"
+                    value={stVal}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value) || 0;
+                      setStatForm((prev: NpcStatCalibration) => ({
+                        ...prev,
+                        statRatings: { ...prev.statRatings, [stKey]: v },
+                      }));
+                    }}
+                    className="w-full bg-transparent text-center font-bold text-amber-300 text-xs focus:outline-none font-mono"
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Add Custom Attribute */}
+            <div className="flex gap-2 mt-2">
+              <input
+                type="text"
+                value={newStatKey}
+                onChange={(e) => setNewStatKey(e.target.value)}
+                placeholder={isPersian ? 'نام ویژگی جدید (مثلا PER)' : 'Stat code (e.g. AGI)'}
+                className="w-32 bg-zinc-950 border border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-100 font-mono uppercase focus:outline-none focus:border-amber-500"
+              />
+              <input
+                type="number"
+                value={newStatVal}
+                onChange={(e) => setNewStatVal(parseInt(e.target.value) || 10)}
+                className="w-16 bg-zinc-950 border border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-100 font-mono text-center focus:outline-none focus:border-amber-500"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (newStatKey.trim()) {
+                    setStatForm((prev: NpcStatCalibration) => ({
+                      ...prev,
+                      statRatings: { ...prev.statRatings, [newStatKey.trim().toUpperCase()]: newStatVal },
+                    }));
+                    setNewStatKey('');
+                    setNewStatVal(10);
+                  }
+                }}
+                className="px-3 py-1.5 bg-zinc-800 text-zinc-200 text-xs font-bold rounded-xl hover:bg-zinc-700 cursor-pointer"
+              >
+                + {isPersian ? 'ویژگی' : 'Add Stat'}
+              </button>
+            </div>
+          </div>
+
+          {/* Signature Abilities */}
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">
+              {isPersian ? 'توانایی‌های ویژه رزمی:' : 'Signature Combat Abilities:'}
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={statAbilityInput}
+                onChange={(e) => setStatAbilityInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (statAbilityInput.trim()) {
+                      setStatForm((prev: NpcStatCalibration) => ({
+                        ...prev,
+                        signatureAbilities: [...prev.signatureAbilities, statAbilityInput.trim()],
+                      }));
+                      setStatAbilityInput('');
+                    }
+                  }
+                }}
+                placeholder={isPersian ? 'مثال: ضربه گیج‌کننده، رقص شمشیر باد' : 'e.g. Blinding Smoke, Cleave, Arcane Ward'}
+                className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (statAbilityInput.trim()) {
+                    setStatForm((prev: NpcStatCalibration) => ({
+                      ...prev,
+                      signatureAbilities: [...prev.signatureAbilities, statAbilityInput.trim()],
+                    }));
+                    setStatAbilityInput('');
+                  }
+                }}
+                className="px-3 py-2 bg-zinc-800 text-zinc-200 text-xs font-bold rounded-xl hover:bg-zinc-700 cursor-pointer"
+              >
+                +
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {statForm.signatureAbilities.map((ab: string, abIdx: number) => (
+                <span
+                  key={abIdx}
+                  className="bg-zinc-950 text-amber-200 border border-amber-500/20 text-[11px] px-2 py-0.5 rounded-lg flex items-center gap-1"
+                >
+                  ⚡ {ab}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setStatForm((prev: NpcStatCalibration) => ({
+                        ...prev,
+                        signatureAbilities: prev.signatureAbilities.filter((_: string, idx: number) => idx !== abIdx),
+                      }))
+                    }
+                    className="text-zinc-500 hover:text-rose-400 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Equipped Gear */}
+          <div className="space-y-2">
+            <label className="block text-xs text-zinc-300 font-bold">
+              {isPersian ? 'تجهیزات و سلاح‌های مجهز:' : 'Equipped Gear & Weapons:'}
+            </label>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              {statForm.equippedGear.map((gear: NpcEquippedGear, gIdx: number) => (
+                <div
+                  key={gIdx}
+                  className="p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-between gap-2"
+                >
+                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      value={gear.name}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setStatForm((prev: NpcStatCalibration) => ({
+                          ...prev,
+                          equippedGear: prev.equippedGear.map((g: NpcEquippedGear, idx: number) =>
+                            idx === gIdx ? { ...g, name: val } : g
+                          ),
+                        }));
+                      }}
+                      placeholder={isPersian ? 'نام سلاح / پوشش' : 'Item name'}
+                      className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-100 font-bold focus:outline-none"
+                    />
+                    <select
+                      value={gear.type}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setStatForm((prev: NpcStatCalibration) => ({
+                          ...prev,
+                          equippedGear: prev.equippedGear.map((g: NpcEquippedGear, idx: number) =>
+                            idx === gIdx ? { ...g, type: val } : g
+                          ),
+                        }));
+                      }}
+                      className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-300 focus:outline-none"
+                    >
+                      <option value="weapon">{isPersian ? 'سلاح (Weapon)' : 'Weapon'}</option>
+                      <option value="armor">{isPersian ? 'زره (Armor)' : 'Armor'}</option>
+                      <option value="shield">{isPersian ? 'سپر (Shield)' : 'Shield'}</option>
+                      <option value="focus">{isPersian ? 'کانون جادو (Focus)' : 'Focus'}</option>
+                      <option value="trinket">{isPersian ? 'طلسم / زیور (Trinket)' : 'Trinket'}</option>
+                      <option value="potion">{isPersian ? 'معجون (Potion)' : 'Potion'}</option>
+                    </select>
+                    <input
+                      type="text"
+                      value={gear.description || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setStatForm((prev: NpcStatCalibration) => ({
+                          ...prev,
+                          equippedGear: prev.equippedGear.map((g: NpcEquippedGear, idx: number) =>
+                            idx === gIdx ? { ...g, description: val } : g
+                          ),
+                        }));
+                      }}
+                      placeholder={isPersian ? 'توضیح کوتاه...' : 'Description...'}
+                      className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-400 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setStatForm((prev: NpcStatCalibration) => ({
+                        ...prev,
+                        equippedGear: prev.equippedGear.filter((_: NpcEquippedGear, idx: number) => idx !== gIdx),
+                      }))
+                    }
+                    className="text-zinc-500 hover:text-rose-400 p-1 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+              {statForm.equippedGear.length === 0 && (
+                <div className="text-center py-2 text-xs text-zinc-500 italic">
+                  {isPersian ? 'هیچ سلاح یا ابزاری ثبت نشده است.' : 'No gear equipped.'}
+                </div>
+              )}
+            </div>
+
+            {/* Add New Gear row */}
+            <div className="flex gap-2 pt-1">
+              <input
+                type="text"
+                value={newGearName}
+                onChange={(e) => setNewGearName(e.target.value)}
+                placeholder={isPersian ? 'نام وسیله یا سلاح...' : 'New gear name...'}
+                className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+              />
+              <select
+                value={newGearType}
+                onChange={(e) => setNewGearType(e.target.value)}
+                className="bg-zinc-950 border border-zinc-700 rounded-xl px-2 py-1.5 text-xs text-zinc-300 focus:outline-none"
+              >
+                <option value="weapon">{isPersian ? 'سلاح' : 'Weapon'}</option>
+                <option value="armor">{isPersian ? 'زره' : 'Armor'}</option>
+                <option value="shield">{isPersian ? 'سپر' : 'Shield'}</option>
+                <option value="focus">{isPersian ? 'کانون' : 'Focus'}</option>
+                <option value="trinket">{isPersian ? 'طلسم' : 'Trinket'}</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  if (newGearName.trim()) {
+                    setStatForm((prev: NpcStatCalibration) => ({
+                      ...prev,
+                      equippedGear: [
+                        ...prev.equippedGear,
+                        { name: newGearName.trim(), type: newGearType, description: newGearDesc.trim() || undefined },
+                      ],
+                    }));
+                    setNewGearName('');
+                    setNewGearDesc('');
+                  }
+                }}
+                className="px-3 py-1.5 bg-zinc-800 text-zinc-200 text-xs font-bold rounded-xl hover:bg-zinc-700 flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>{isPersian ? '+ سلاح/تجهیزات' : '+ Add'}</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700 cursor-pointer"
+            >
+              {isPersian ? 'انصراف' : 'Cancel'}
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 rounded-xl bg-amber-600 text-zinc-950 text-xs font-bold hover:bg-amber-500 cursor-pointer shadow-lg shadow-amber-600/30 flex items-center gap-1.5"
+            >
+              <Check className="w-4 h-4" />
+              <span>{isPersian ? 'ذخیره ویژگی‌های رزمی' : 'Save RPG Stats'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
