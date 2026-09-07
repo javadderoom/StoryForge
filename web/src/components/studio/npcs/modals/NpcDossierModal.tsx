@@ -47,9 +47,20 @@ export function NpcDossierModal({
   const [traitInput, setTraitInput] = useState('');
   const [goalInput, setGoalInput] = useState('');
 
+  const splitCommaSeparated = (text: string): string[] => {
+    return text
+      .split(/[,،\n]+/)
+      .map((s) => s.trim().replace(/^[•\-\*]\s*/, ''))
+      .filter((s) => s.length > 0);
+  };
+
   useEffect(() => {
     if (editingNpc) {
-      setNpcForm({ ...editingNpc });
+      setNpcForm({
+        ...editingNpc,
+        personalityTraits: (editingNpc.personalityTraits || []).flatMap((t) => splitCommaSeparated(t)),
+        goals: (editingNpc.goals || []).flatMap((g) => splitCommaSeparated(g)),
+      });
     } else {
       setNpcForm({
         id: `npc_${Date.now().toString(36)}`,
@@ -70,10 +81,49 @@ export function NpcDossierModal({
 
   if (!open) return null;
 
+  const handleAddTrait = () => {
+    if (!traitInput.trim()) return;
+    const split = splitCommaSeparated(traitInput);
+    if (split.length > 0) {
+      setNpcForm((prev) => ({
+        ...prev,
+        personalityTraits: [...prev.personalityTraits, ...split],
+      }));
+      setTraitInput('');
+    }
+  };
+
+  const handleAddGoal = () => {
+    if (!goalInput.trim()) return;
+    const split = splitCommaSeparated(goalInput);
+    if (split.length > 0) {
+      setNpcForm((prev) => ({
+        ...prev,
+        goals: [...prev.goals, ...split],
+      }));
+      setGoalInput('');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!npcForm.name.trim()) return;
-    onSave(npcForm);
+
+    let finalTraits = [...npcForm.personalityTraits];
+    if (traitInput.trim()) {
+      finalTraits = [...finalTraits, ...splitCommaSeparated(traitInput)];
+    }
+
+    let finalGoals = [...npcForm.goals];
+    if (goalInput.trim()) {
+      finalGoals = [...finalGoals, ...splitCommaSeparated(goalInput)];
+    }
+
+    onSave({
+      ...npcForm,
+      personalityTraits: finalTraits,
+      goals: finalGoals,
+    });
     onClose();
   };
 
@@ -221,20 +271,18 @@ export function NpcDossierModal({
                 type="text"
                 value={traitInput}
                 onChange={(e) => setTraitInput(e.target.value)}
-                placeholder="e.g. Paranoid"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddTrait();
+                  }
+                }}
+                placeholder={isPersian ? 'مثلاً: کینهتوز، خوددار، بدبین...' : 'e.g. Paranoid, Patient, Ruthless...'}
                 className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
               />
               <button
                 type="button"
-                onClick={() => {
-                  if (traitInput.trim()) {
-                    setNpcForm((prev) => ({
-                      ...prev,
-                      personalityTraits: [...prev.personalityTraits, traitInput.trim()],
-                    }));
-                    setTraitInput('');
-                  }
-                }}
+                onClick={handleAddTrait}
                 className="px-3 py-2 bg-zinc-800 text-zinc-200 text-xs font-bold rounded-xl hover:bg-zinc-700 cursor-pointer"
               >
                 +
@@ -272,20 +320,18 @@ export function NpcDossierModal({
                 type="text"
                 value={goalInput}
                 onChange={(e) => setGoalInput(e.target.value)}
-                placeholder="e.g. Find proof of corruption"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddGoal();
+                  }
+                }}
+                placeholder={isPersian ? 'مثلاً: احیای کوره باستانی، کشف خیانت...' : 'e.g. Find proof of corruption...'}
                 className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
               />
               <button
                 type="button"
-                onClick={() => {
-                  if (goalInput.trim()) {
-                    setNpcForm((prev) => ({
-                      ...prev,
-                      goals: [...prev.goals, goalInput.trim()],
-                    }));
-                    setGoalInput('');
-                  }
-                }}
+                onClick={handleAddGoal}
                 className="px-3 py-2 bg-zinc-800 text-zinc-200 text-xs font-bold rounded-xl hover:bg-zinc-700 cursor-pointer"
               >
                 +

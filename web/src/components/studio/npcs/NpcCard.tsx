@@ -240,15 +240,19 @@ export function NpcCard({
         {/* Personality Traits Chips */}
         {npc.personalityTraits && npc.personalityTraits.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-3">
-            {npc.personalityTraits.map((trait: string, i: number) => (
-              <span
-                key={i}
-                className="text-[11px] bg-zinc-800/80 text-zinc-300 px-2.5 py-0.5 rounded-lg border border-zinc-700/60 flex items-center gap-1"
-              >
-                <Tag className="w-2.5 h-2.5 text-amber-400" />
-                {trait}
-              </span>
-            ))}
+            {npc.personalityTraits
+              .flatMap((trait: string) =>
+                trait.split(/[,،]+/).map((s) => s.trim().replace(/^[•\-\*]\s*/, '')).filter(Boolean)
+              )
+              .map((trait: string, i: number) => (
+                <span
+                  key={i}
+                  className="text-[11px] bg-zinc-800/80 text-zinc-300 px-2.5 py-0.5 rounded-lg border border-zinc-700/60 flex items-center gap-1"
+                >
+                  <Tag className="w-2.5 h-2.5 text-amber-400" />
+                  {trait}
+                </span>
+              ))}
           </div>
         )}
 
