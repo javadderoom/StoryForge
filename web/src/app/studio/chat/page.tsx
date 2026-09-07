@@ -186,6 +186,21 @@ export default function AiOraclePage() {
     addWorldLaw,
     editWorldLaw,
     deleteWorldLaw,
+    addPlaceCategory,
+    editPlaceCategory,
+    deletePlaceCategory,
+    addLawCategory,
+    editLawCategory,
+    deleteLawCategory,
+    addNpcRole,
+    editNpcRole,
+    deleteNpcRole,
+    addDomain,
+    editDomain,
+    deleteDomain,
+    addCustomRelationType,
+    editCustomRelationType,
+    deleteCustomRelationType,
   } = useStudioStory();
 
   const worldContext = useMemo(() => buildWorldContextString(story), [story]);
@@ -297,6 +312,11 @@ export default function AiOraclePage() {
         deity: 'ایزد',
         timeline_event: 'رویداد',
         world_law: 'قانون',
+        place_category: 'دسته‌بندی مکان',
+        law_category: 'دسته‌بندی قانون',
+        npc_role: 'نقش شخصیت',
+        domain: 'حوزه کیهانی',
+        relation_type: 'نوع پیوند',
       }
     : {
         faction: 'Faction',
@@ -307,6 +327,11 @@ export default function AiOraclePage() {
         deity: 'Deity',
         timeline_event: 'Event',
         world_law: 'Law',
+        place_category: 'Place Category',
+        law_category: 'Law Category',
+        npc_role: 'NPC Role',
+        domain: 'Domain',
+        relation_type: 'Relation Type',
       };
 
   const MUTATORS: Record<
@@ -321,6 +346,11 @@ export default function AiOraclePage() {
     deity: { add: addDeity, edit: editDeity, del: deleteDeity },
     timeline_event: { add: addTimelineEvent, edit: editTimelineEvent, del: deleteTimelineEvent },
     world_law: { add: addWorldLaw, edit: editWorldLaw, del: deleteWorldLaw },
+    place_category: { add: addPlaceCategory, edit: editPlaceCategory, del: deletePlaceCategory },
+    law_category: { add: addLawCategory, edit: editLawCategory, del: deleteLawCategory },
+    npc_role: { add: addNpcRole, edit: editNpcRole, del: deleteNpcRole },
+    domain: { add: addDomain, edit: editDomain, del: deleteDomain },
+    relation_type: { add: addCustomRelationType, edit: editCustomRelationType, del: deleteCustomRelationType },
   };
 
   const PERSONA_ORDER: PersonaId[] = [

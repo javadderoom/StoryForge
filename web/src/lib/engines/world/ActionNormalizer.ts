@@ -67,6 +67,13 @@ export const PERSIAN_FIELD_MAP: Record<string, string> = {
   'سال یا دوره': 'yearOrEra',
   'دوره': 'yearOrEra',
   'اهمیت': 'significance',
+  'رنگ': 'color',
+  'کد رنگ': 'color',
+  'جهت‌دار': 'isDirected',
+  'جهت دار': 'isDirected',
+  'مبدا': 'sourceCategory',
+  'مبدأ': 'sourceCategory',
+  'مقصد': 'targetCategory',
 };
 
 export function normalizeEntity(entity: EntityType, data: any): any {
@@ -88,6 +95,7 @@ export function normalizeEntity(entity: EntityType, data: any): any {
       else if (/^(والد|بالادست|در\s*بر\s*گیرنده|موقعیت\s*بالادست)/.test(cleanKey) || /بالادست/.test(cleanKey)) mapped = 'parentLocationName';
       else if (/^(دسته|دسته‌بندی|دستهبندی)/.test(cleanKey)) mapped = 'category';
       else if (/^قوانین(\s+|$)/.test(cleanKey) || /قوانین/.test(cleanKey)) mapped = 'specialRules';
+      else if (/^رنگ/.test(cleanKey)) mapped = 'color';
     }
 
     if (mapped && !(mapped in res)) {
@@ -106,8 +114,24 @@ export function normalizeEntity(entity: EntityType, data: any): any {
       deity: 'deity',
       timeline_event: 'evt',
       world_law: 'law',
+      place_category: 'cat_place',
+      law_category: 'cat_law',
+      npc_role: 'role',
+      domain: 'dom',
+      relation_type: 'rel',
     };
-    res.id = `${prefix[entity]}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    const isOntology = [
+      'place_category',
+      'law_category',
+      'npc_role',
+      'domain',
+      'relation_type',
+    ].includes(entity);
+
+    const slug = isOntology && typeof res.name === 'string'
+      ? res.name.trim().toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '_').slice(0, 24)
+      : '';
+    res.id = slug || `${prefix[entity] || 'ent'}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   }
 
   // Type-specific field sanitation & normalization
@@ -253,8 +277,10 @@ export function normalizeEntity(entity: EntityType, data: any): any {
         catLower.includes('port')
       ) {
         res.category = 'settlement';
-      } else if (!validCategories.includes(res.category)) {
+      } else if (!res.category || typeof res.category !== 'string' || !res.category.trim()) {
         res.category = 'wilderness';
+      } else {
+        res.category = res.category.trim();
       }
     } else {
       res.category = 'wilderness';
@@ -302,6 +328,19 @@ export function normalizeEntity(entity: EntityType, data: any): any {
     if (res.knownByPublic === undefined) res.knownByPublic = true;
   } else if (entity === 'world_law') {
     res.isImmutable = true;
+  } else if (entity === 'place_category') {
+    if (!res.color) res.color = '#F59E0B';
+  } else if (entity === 'law_category') {
+    if (!res.color) res.color = '#A855F7';
+  } else if (entity === 'npc_role') {
+    if (!res.color) res.color = '#6366F1';
+  } else if (entity === 'domain') {
+    if (!res.color) res.color = '#10B981';
+  } else if (entity === 'relation_type') {
+    if (!res.color) res.color = '#38BDF8';
+    if (res.isDirected === undefined) res.isDirected = true;
+    if (!res.sourceCategory) res.sourceCategory = 'any';
+    if (!res.targetCategory) res.targetCategory = 'any';
   }
 
   return res;

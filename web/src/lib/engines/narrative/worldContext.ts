@@ -381,11 +381,20 @@ export function buildWorldContextBlocks(
   );
 
   const ontologyLines: string[] = [];
-  if (wb.ontology?.relationTypes?.length) {
-    ontologyLines.push(`Relation types: ${wb.ontology.relationTypes.map((r) => r.name).join(', ')}.`);
+  if (wb.ontology?.placeCategories?.length) {
+    ontologyLines.push(`Place categories: ${wb.ontology.placeCategories.map((p) => p.name).join(', ')}.`);
+  }
+  if (wb.ontology?.lawCategories?.length) {
+    ontologyLines.push(`Law categories: ${wb.ontology.lawCategories.map((l) => l.name).join(', ')}.`);
+  }
+  if (wb.ontology?.npcRoles?.length) {
+    ontologyLines.push(`Character roles: ${wb.ontology.npcRoles.map((r) => r.name).join(', ')}.`);
   }
   if (wb.ontology?.domains?.length) {
     ontologyLines.push(`Domains of gods: ${wb.ontology.domains.map((d) => d.name).join(', ')}.`);
+  }
+  if (wb.ontology?.relationTypes?.length) {
+    ontologyLines.push(`Relation types: ${wb.ontology.relationTypes.map((r) => r.name).join(', ')}.`);
   }
   const ontologySummary = ontologyLines.length ? ontologyLines.join(' ') : undefined;
 

@@ -43,6 +43,11 @@ export const ORACLE_ENTITY_LABELS: Record<EntityType, { en: string; fa: string }
   deity: { en: 'Deity', fa: 'ایزد' },
   timeline_event: { en: 'Event', fa: 'رویداد' },
   world_law: { en: 'World Law', fa: 'قانون جهان' },
+  place_category: { en: 'Place Category', fa: 'دسته‌بندی مکان' },
+  law_category: { en: 'Law Category', fa: 'دسته‌بندی قانون' },
+  npc_role: { en: 'NPC Role', fa: 'نقش شخصیت' },
+  domain: { en: 'Domain', fa: 'حوزه کیهانی' },
+  relation_type: { en: 'Relation Type', fa: 'نوع پیوند' },
 };
 
 async function callGenerate(payload: any): Promise<any> {
@@ -103,6 +108,13 @@ export async function prepareWorldChanges(opts: {
     }
 
     const labelOf = (item: any) => `${entityLabel}: ${nameOf(entity, item)}`;
+    const isOntologyType = [
+      'place_category',
+      'law_category',
+      'npc_role',
+      'domain',
+      'relation_type',
+    ].includes(entity);
 
     try {
       if (a.op === 'create') {
@@ -150,6 +162,13 @@ export async function prepareWorldChanges(opts: {
               }
             }
           }
+        } else if (isOntologyType) {
+          const rawPrompt = (a.prompt || userText).trim();
+          const cleanName = rawPrompt.replace(/^(create|add|new|ایجاد|بساز|افزودن)\s+/i, '').trim();
+          data = normalizeEntity(entity, {
+            name: cleanName || (isPersian ? 'دسته جدید' : 'New Category'),
+            description: rawPrompt,
+          });
         } else {
           const json = await callGenerate({
             type: entity,
@@ -202,6 +221,10 @@ export async function prepareWorldChanges(opts: {
                 }
               }
             }
+          } else if (isOntologyType) {
+            const cleanDesc = (a.prompt || userText || '').trim();
+            const merged = { ...target, description: cleanDesc || target.description, id: target.id };
+            data = normalizeEntity(entity, merged);
           } else {
             const changeBrief = a.prompt?.trim() ? a.prompt.trim() : userText || 'Update entity based on user prompt';
             let targetForPrompt = target;

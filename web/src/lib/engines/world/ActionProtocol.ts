@@ -99,6 +99,16 @@ export function getEntityArray(wb: WorldBible | undefined, entity: EntityType): 
       return (w as any).timeline || [];
     case 'world_law':
       return (w as any).laws || [];
+    case 'place_category':
+      return (w as any).ontology?.placeCategories || [];
+    case 'law_category':
+      return (w as any).ontology?.lawCategories || [];
+    case 'npc_role':
+      return (w as any).ontology?.npcRoles || [];
+    case 'domain':
+      return (w as any).ontology?.domains || [];
+    case 'relation_type':
+      return (w as any).ontology?.relationTypes || [];
     default:
       return [];
   }

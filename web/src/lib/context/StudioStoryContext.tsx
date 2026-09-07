@@ -1223,6 +1223,12 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         let bestiary = [...(prev.bestiary || [])];
         let religions = [...(prev.religions || [])];
         let timeline = [...(prev.timeline || [])];
+        const ont = normalizeOntology(prev.ontology, isPersian);
+        let placeCategories = [...ont.placeCategories];
+        let lawCategories = [...ont.lawCategories];
+        let npcRoles = [...ont.npcRoles];
+        let domains = [...ont.domains];
+        let relationTypes = [...ont.relationTypes];
 
         for (const c of changes) {
           if (c.entity === 'faction') {
@@ -1335,6 +1341,46 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
               const targetIdx = laws.findIndex((l) => l.id === c.targetId);
               if (targetIdx >= 0) laws[targetIdx] = { ...laws[targetIdx], ...c.newData };
             }
+          } else if (c.entity === 'place_category') {
+            if (c.op === 'create') {
+              if (!placeCategories.some((p) => p.id === c.newData.id)) placeCategories.push(c.newData);
+            } else if (c.op === 'delete') {
+              placeCategories = placeCategories.filter((p) => p.id !== c.targetId);
+            } else if (c.op === 'update') {
+              placeCategories = placeCategories.map((p) => (p.id === c.targetId ? { ...p, ...c.newData } : p));
+            }
+          } else if (c.entity === 'law_category') {
+            if (c.op === 'create') {
+              if (!lawCategories.some((l) => l.id === c.newData.id)) lawCategories.push(c.newData);
+            } else if (c.op === 'delete') {
+              lawCategories = lawCategories.filter((l) => l.id !== c.targetId);
+            } else if (c.op === 'update') {
+              lawCategories = lawCategories.map((l) => (l.id === c.targetId ? { ...l, ...c.newData } : l));
+            }
+          } else if (c.entity === 'npc_role') {
+            if (c.op === 'create') {
+              if (!npcRoles.some((r) => r.id === c.newData.id)) npcRoles.push(c.newData);
+            } else if (c.op === 'delete') {
+              npcRoles = npcRoles.filter((r) => r.id !== c.targetId);
+            } else if (c.op === 'update') {
+              npcRoles = npcRoles.map((r) => (r.id === c.targetId ? { ...r, ...c.newData } : r));
+            }
+          } else if (c.entity === 'domain') {
+            if (c.op === 'create') {
+              if (!domains.some((d) => d.id === c.newData.id)) domains.push(c.newData);
+            } else if (c.op === 'delete') {
+              domains = domains.filter((d) => d.id !== c.targetId);
+            } else if (c.op === 'update') {
+              domains = domains.map((d) => (d.id === c.targetId ? { ...d, ...c.newData } : d));
+            }
+          } else if (c.entity === 'relation_type') {
+            if (c.op === 'create') {
+              if (!relationTypes.some((r) => r.id === c.newData.id)) relationTypes.push(c.newData);
+            } else if (c.op === 'delete') {
+              relationTypes = relationTypes.filter((r) => r.id !== c.targetId);
+            } else if (c.op === 'update') {
+              relationTypes = relationTypes.map((r) => (r.id === c.targetId ? { ...r, ...c.newData } : r));
+            }
           }
         }
 
@@ -1349,6 +1395,14 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
           bestiary,
           religions,
           timeline,
+          ontology: {
+            ...ont,
+            placeCategories,
+            lawCategories,
+            npcRoles,
+            domains,
+            relationTypes,
+          },
         };
       });
       notify.success(

@@ -29,10 +29,19 @@ export function buildActionProtocolSection(isPersian: boolean): string {
 {"op":"delete","entity":"faction","match":{"byName":"<نام موجودیت موجود>"}}
 \`\`\`
 عملیات مجاز: "create"، "update"، "delete". موجودیت‌های مجاز: ${ENUM}. باید همواره فیلد «entity» را ذکر کنی.
-نکات کلیدی ثبت مستقیم (Easy Insert):
+نکات کلیدی ثبت مستقیم (Easy Insert) و مدیریت هستی‌شناسی (Ontology):
 - برای ایجاد مستقیم وقتی کاربر مشخصات ارائه کرده، حتماً از فیلد "data" استفاده کن و تمام فیلدهای نویسنده را کلمه به کلمه کپی کن.
 - هرگز فیلد "description" (شرح مکان و ظاهر) را حذف یا خالی نگذار.
-- اگر نویسنده دسته‌بندی مکان (Category) را ارائه داد، مقدار متناسب از ۹ دسته رسمی را در "category" بگذار: "settlement" (شهرک/بندر/کانون مدنی)، "stronghold" (دژ/بارو/استحکامات/پادگان)، "ruins" (خرابه‌ها/معابد/یادمان‌های کهن)، "dungeon" (سیاه‌چال/دخمه/غار/هزارتو)، "plains" (اراضی زیستی/دشت‌ها/جلگه‌ها/چراگاه‌ها)، "waterway" (شاهراه‌ها و آبراه‌ها/رودخانه‌ها/دریاچه‌ها/کانال‌ها)، "seas" (پهنه‌های آبی/دریاها/اقیانوس‌ها/خلیج‌ها/مجمع‌الجزایر)، "wilderness" (پهنه‌های خشن/کویر/استپ/جنگل‌های انبوه/کوهستان)، یا "anomaly" (ناهنجاری‌ها/شگفتی‌های غریب/گسله‌ها).
+- دسته‌بندی‌ها و هستی‌شناسی سفارشی جهان (Ontology Categories): سیستم استوری‌فورج علاوه بر ۹ دسته‌بندی پیش‌فرض مکان‌ها، امکان ساخت، ویرایش و حذف کامل دسته‌بندی‌های سفارشی را دارد:
+  * "place_category": دسته‌بندی مکان‌ها و زیست‌بوم‌ها (مانند capital، metropolis، oasis، یا ۹ پیش‌فرض settlement، stronghold، ruins، dungeon، plains، waterway، seas، wilderness، anomaly). هرگاه نویسنده خواست دسته جدیدی در مکان‌ها یا زیست‌بوم‌ها بسازد (مانند پایتخت)، یک بلوک create برای entity: "place_category" صادر کن:
+    \`\`\`storyforge-action
+    {"op":"create","entity":"place_category","data":{"name":"پایتخت و کرسی حکومت","description":"شهرها و کانون‌های مرکزی حکومت و فرمانروایی","color":"#EAB308"}}
+    \`\`\`
+  * "law_category": دسته‌بندی قوانین جهان (مانند magic، physics، society، corruption).
+  * "npc_role": نقش‌های شخصیتی (مانند chancellor، inquisitor، merchant).
+  * "domain": حوزه‌های کیهانی و ایزدی (مانند light، war، secrets).
+  * "relation_type": انواع پیوندهای ارتباطی سفارشی میان موجودیت‌ها.
+- هنگام ثبت مکان با یک دسته‌بندی سفارشی (مانند capital یا پایتخت)، همان شناسه یا نام دسته را مستقیماً در "category" مکان قرار بده.
 - اگر نویسنده «قوانین ویژه مکان» یا قوانین خاصی تعیین کرده است، آن‌ها را حتماً در آرایه "specialRules" در شیء data قرار بده.
 - برای create خلاقانه از "prompt" استفاده کن. برای update/delete فیلد "match":{"byName":"<نام موجودیت موجود>"} الزامی است. نکته: خدایان، ایزدان، ادیان، پانتئون‌ها و فرقه‌ها همگی موجودیت «deity» هستند.`;
   }
@@ -57,10 +66,19 @@ CRITICAL MULTI-TURN & DE-DUPLICATION RULES:
 {"op":"delete","entity":"faction","match":{"byName":"<existing entity name>"}}
 \`\`\`
 Ops: "create", "update", "delete". Entities: ${ENUM}. You MUST include the "entity" field in every action.
-Easy Insert rules:
+Easy Insert & Ontology rules:
 - For direct insertion where the author already drafted fields, use "data" to register their exact text with zero AI drift.
 - NEVER drop the "description" field when provided by the author.
-- Map the location category accurately using the 9 canonical categories: "settlement" (towns, ports, cities), "stronghold" (fortresses, citadels, garrisons), "ruins" (ancient ruins, shrines, sunken temples), "dungeon" (crypts, dungeons, caves), "plains" (fertile lowlands, pastures, plains), "waterway" (continental rivers, lakes, canals), "seas" (open seas, oceans, gulfs, archipelagos), "wilderness" (harsh deserts, mountains, primordial forests, steppes), "anomaly" (magical anomalies, rifts, wonders).
+- ONTOLOGY & CATEGORY MANAGEMENT: StoryForge supports full creation, modification, and deletion of custom ontology categories alongside primary world entities:
+  * "place_category": Place & Biome categories (e.g., 'capital', 'metropolis', 'oasis', or custom biomes alongside the 9 defaults). Whenever the author asks to create or register a new place/biome category (e.g. capital), emit a create block with entity: "place_category":
+    \`\`\`storyforge-action
+    {"op":"create","entity":"place_category","data":{"name":"Capital / Sovereign Seat","description":"Central seat of government and royal power","color":"#EAB308"}}
+    \`\`\`
+  * "law_category": World law classifications (e.g., magic, physics, society, theology).
+  * "npc_role": Archetypal character roles (e.g., chancellor, inquisitor, smuggler).
+  * "domain": Cosmic and divine domains (e.g., light, war, secrets).
+  * "relation_type": Custom inter-entity relation links with name, description, sourceCategory, targetCategory, isDirected.
+- When creating or updating a location with a custom category (e.g. 'capital'), store that category identifier directly in the location's "category" field.
 - If the author provides special rules, preserve them verbatim in the "specialRules" array inside "data".
 - For creative generation use "prompt". For update/delete add "match":{"byName":"<existing entity name>"}. Note: gods, deities, religions, pantheons, and cults are all the 'deity' entity.`;
 }
