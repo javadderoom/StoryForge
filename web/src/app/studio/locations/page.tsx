@@ -107,6 +107,13 @@ export default function LocationsStudioPage() {
   const [locConnectedIds, setLocConnectedIds] = useState<string[]>([]);
   const [connectedSearch, setConnectedSearch] = useState('');
 
+  // Directory controls: text search + category / region facets + sort + grouping.
+  const [dirSearch, setDirSearch] = useState('');
+  const [dirCategory, setDirCategory] = useState<string | null>(null);
+  const [dirRegion, setDirRegion] = useState<string | null>(null);
+  const [dirSort, setDirSort] = useState<'name' | 'danger' | 'category'>('name');
+  const [dirGroup, setDirGroup] = useState<'none' | 'category' | 'region'>('none');
+
   // Sub-zones and Micro-Ecosystem state
   const [openSubZoneLocationId, setOpenSubZoneLocationId] = useState<string | null>(null);
   const [isGeneratingSubZones, setIsGeneratingSubZones] = useState<string | null>(null);
@@ -121,7 +128,10 @@ export default function LocationsStudioPage() {
     payload: PopulateLocationPayload;
   } | null>(null);
 
-  const locations = story.worldBible.locations || [];
+  const locations = React.useMemo(
+    () => story.worldBible.locations || [],
+    [story.worldBible.locations]
+  );
   const categories = normalizeOntology(story.worldBible?.ontology, isPersian).placeCategories;
 
   // Card collapse state - default to collapsed
@@ -155,6 +165,94 @@ export default function LocationsStudioPage() {
       name: found?.name || catId,
       color: found?.color || '#a1a1aa',
     };
+  };
+
+  // --- Directory facets: every category id actually used in data (plus the
+  // ontology registry) so ad-hoc ids like "plains"/"waterway" stay filterable.
+  const UNCATEGORIZED_KEY = '__uncategorized__';
+  const catKeyOf = (l: WorldLocation) => (l.category && l.category.trim() ? l.category : UNCATEGORIZED_KEY);
+
+  const categoryFacets = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    locations.forEach((l) => counts.set(catKeyOf(l), (counts.get(catKeyOf(l)) || 0) + 1));
+    const seen = new Set(counts.keys());
+    categories.forEach((c) => {
+      if (!seen.has(c.id)) {
+        counts.set(c.id, 0);
+        seen.add(c.id);
+      }
+    });
+    return [...counts.entries()]
+      .map(([id, count]) => ({ id, count }))
+      .sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
+  }, [locations, categories]);
+
+  const regionFacets = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    locations.forEach((l) => {
+      const r = (l.region && l.region.trim()) || (isPersian ? 'نامشخص' : 'Unknown');
+      counts.set(r, (counts.get(r) || 0) + 1);
+    });
+    return [...counts.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  }, [locations, isPersian]);
+
+  const filteredLocations = React.useMemo(() => {
+    const q = dirSearch.trim().toLowerCase();
+    const out = locations.filter((l) => {
+      if (dirCategory && catKeyOf(l) !== dirCategory) return false;
+      if (dirRegion) {
+        const r = (l.region && l.region.trim()) || (isPersian ? 'نامشخص' : 'Unknown');
+        if (r !== dirRegion) return false;
+      }
+      if (q) {
+        const hay = `${l.name} ${l.region || ''} ${l.description || ''} ${l.atmosphere || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    const catName = (id: string) => getCategoryMeta(id === UNCATEGORIZED_KEY ? '' : id).name;
+    out.sort((a, b) => {
+      if (dirSort === 'danger') return b.dangerLevel - a.dangerLevel || a.name.localeCompare(b.name);
+      if (dirSort === 'category')
+        return catName(catKeyOf(a)).localeCompare(catName(catKeyOf(b))) || a.name.localeCompare(b.name);
+      return a.name.localeCompare(b.name);
+    });
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locations, dirSearch, dirCategory, dirRegion, dirSort, isPersian]);
+
+  const locationGroups = React.useMemo(() => {
+    if (dirGroup === 'none') return [{ key: 'all', title: '', items: filteredLocations }];
+    const buckets = new Map<string, WorldLocation[]>();
+    filteredLocations.forEach((l) => {
+      const key =
+        dirGroup === 'category'
+          ? catKeyOf(l)
+          : (l.region && l.region.trim()) || (isPersian ? 'نامشخص' : 'Unknown');
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key)!.push(l);
+    });
+    const titleOf = (key: string) =>
+      dirGroup === 'category'
+        ? key === UNCATEGORIZED_KEY
+          ? (isPersian ? 'بدون دسته‌بندی' : 'Uncategorized')
+          : getCategoryMeta(key).name
+        : key;
+    return [...buckets.entries()]
+      .map(([key, items]) => ({ key, title: titleOf(key), items }))
+      .sort((a, b) => b.items.length - a.items.length || a.title.localeCompare(b.title));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredLocations, dirGroup, isPersian]);
+
+  const isDirectoryFiltered =
+    dirSearch.trim() !== '' || dirCategory !== null || dirRegion !== null;
+
+  const clearDirectoryFilters = () => {
+    setDirSearch('');
+    setDirCategory(null);
+    setDirRegion(null);
   };
 
   const eligibleParentLocations = React.useMemo(() => {
@@ -476,10 +574,134 @@ export default function LocationsStudioPage() {
         </div>
       </div>
 
+      {/* Directory Toolbar: search + category / region facets + sort + grouping */}
+      {locations.length > 0 && (
+        <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-4 md:p-5 backdrop-blur-sm shadow-xl space-y-3.5">
+          <div className="flex flex-col md:flex-row gap-2.5">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+              <input
+                type="text"
+                value={dirSearch}
+                onChange={(e) => setDirSearch(e.target.value)}
+                placeholder={isPersian ? 'جستجو در نام، ناحیه، توصیف یا فضاسازی...' : 'Search name, region, description, atmosphere...'}
+                className="w-full bg-zinc-950/80 border border-zinc-700/80 rounded-xl pl-10 pr-9 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-amber-500/60 placeholder:text-zinc-600"
+              />
+              {dirSearch && (
+                <button
+                  onClick={() => setDirSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                  title={isPersian ? 'پاک‌کردن جستجو' : 'Clear search'}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={dirRegion || ''}
+                onChange={(e) => setDirRegion(e.target.value || null)}
+                className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 cursor-pointer"
+                title={isPersian ? 'پالایش بر اساس ناحیه' : 'Filter by region'}
+              >
+                <option value="">{isPersian ? 'همه نواحی' : 'All regions'}</option>
+                {regionFacets.map((r) => (
+                  <option key={r.name} value={r.name}>
+                    {r.name} ({r.count})
+                  </option>
+                ))}
+              </select>
+              <select
+                value={dirSort}
+                onChange={(e) => setDirSort(e.target.value as 'name' | 'danger' | 'category')}
+                className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 cursor-pointer"
+                title={isPersian ? 'مرتب‌سازی' : 'Sort by'}
+              >
+                <option value="name">{isPersian ? 'مرتب: نام' : 'Sort: Name'}</option>
+                <option value="danger">{isPersian ? 'مرتب: سطح خطر' : 'Sort: Danger'}</option>
+                <option value="category">{isPersian ? 'مرتب: دسته‌بندی' : 'Sort: Category'}</option>
+              </select>
+              <select
+                value={dirGroup}
+                onChange={(e) => setDirGroup(e.target.value as 'none' | 'category' | 'region')}
+                className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 cursor-pointer"
+                title={isPersian ? 'گروه‌بندی' : 'Group by'}
+              >
+                <option value="none">{isPersian ? 'بدون گروه‌بندی' : 'No grouping'}</option>
+                <option value="category">{isPersian ? 'گروه: دسته‌بندی' : 'Group: Category'}</option>
+                <option value="region">{isPersian ? 'گروه: ناحیه' : 'Group: Region'}</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Category chips with live counts */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={() => setDirCategory(null)}
+              className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer ${
+                dirCategory === null
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  : 'bg-zinc-800/60 text-zinc-400 border-zinc-700/60 hover:text-zinc-200'
+              }`}
+            >
+              {isPersian ? 'همه' : 'All'} ({locations.length})
+            </button>
+            {categoryFacets.map((f) => {
+              const meta = f.id === UNCATEGORIZED_KEY
+                ? { name: isPersian ? 'بدون دسته‌بندی' : 'Uncategorized', color: '#a1a1aa' }
+                : getCategoryMeta(f.id);
+              const active = dirCategory === f.id;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => setDirCategory(active ? null : f.id)}
+                  className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+                    active
+                      ? 'bg-zinc-800 text-zinc-100 border-zinc-500'
+                      : 'bg-zinc-800/60 text-zinc-400 border-zinc-700/60 hover:text-zinc-200'
+                  }`}
+                  style={active ? { borderColor: meta.color, color: meta.color } : undefined}
+                  title={meta.name}
+                >
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: meta.color }}
+                  />
+                  <span className="max-w-[140px] truncate">{meta.name}</span>
+                  <span className="font-mono opacity-70">({f.count})</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Result count + clear */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-zinc-500 font-mono">
+              {isDirectoryFiltered
+                ? isPersian
+                  ? `${filteredLocations.length} از ${locations.length} مکان`
+                  : `${filteredLocations.length} of ${locations.length} locations`
+                : isPersian
+                  ? `${locations.length} مکان`
+                  : `${locations.length} locations`}
+            </span>
+            {isDirectoryFiltered && (
+              <button
+                onClick={clearDirectoryFilters}
+                className="text-[11px] font-bold text-zinc-400 hover:text-amber-300 flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                {isPersian ? 'پاک‌کردن پالایه‌ها' : 'Clear filters'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Locations Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="space-y-8">
         {locations.length === 0 ? (
-          <div className="col-span-full text-center py-16 bg-zinc-900/40 border border-zinc-800/60 rounded-3xl p-8">
+          <div className="text-center py-16 bg-zinc-900/40 border border-zinc-800/60 rounded-3xl p-8">
             <MapPin className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
             <h4 className="text-sm font-bold text-zinc-300">
               {isPersian ? 'هنوز مکانی در این جهان ثبت نشده است' : 'No locations registered in this world yet'}
@@ -488,8 +710,34 @@ export default function LocationsStudioPage() {
               {isPersian ? 'برای ترسیم نقشه جهان روی دکمه ثبت مکان جدید کلیک کنید.' : 'Click "+ Add Location" to begin charting the world map.'}
             </p>
           </div>
+        ) : filteredLocations.length === 0 ? (
+          <div className="text-center py-16 bg-zinc-900/40 border border-zinc-800/60 rounded-3xl p-8">
+            <Search className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
+            <h4 className="text-sm font-bold text-zinc-300">
+              {isPersian ? 'مکانی با این پالایه‌ها یافت نشد' : 'No locations match these filters'}
+            </h4>
+            <button
+              onClick={clearDirectoryFilters}
+              className="mt-3 text-xs font-bold text-amber-300 hover:text-amber-200 transition-colors cursor-pointer"
+            >
+              {isPersian ? 'پاک‌کردن پالایه‌ها' : 'Clear filters'}
+            </button>
+          </div>
         ) : (
-          locations.map((loc) => {
+          locationGroups.map((group) => (
+            <div key={group.key} className="space-y-4">
+              {dirGroup !== 'none' && (
+                <div className="flex items-center gap-2 px-1">
+                  <Layers className="w-4 h-4 text-amber-400 shrink-0" />
+                  <h3 className="text-sm font-bold text-zinc-200 truncate">{group.title}</h3>
+                  <span className="text-[10px] font-mono text-zinc-500 bg-zinc-800/80 border border-zinc-700/60 rounded-md px-1.5 py-0.5 shrink-0">
+                    {group.items.length}
+                  </span>
+                  <div className="flex-1 h-px bg-zinc-800/80" />
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {group.items.map((loc) => {
             const danger = DANGER_MAP[loc.dangerLevel] || DANGER_MAP[3];
             const cat = getCategoryMeta(loc.category || '');
             const isExpanded = Boolean(expandedLocationIds[loc.id]);
@@ -863,8 +1111,10 @@ export default function LocationsStudioPage() {
                 </div>
               </div>
             );
-          })
-        )}
+              })}
+              </div>
+            </div>
+          )))}
       </div>
 
 

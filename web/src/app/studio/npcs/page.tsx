@@ -2091,6 +2091,12 @@ export default function NpcDossiersPage() {
                     ? 'ثبت پیوند'
                     : 'Save Bond'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Story Role Override Modal */}
       {overrideModalOpen && targetNpcForOverride && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">

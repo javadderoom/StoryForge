@@ -7,7 +7,6 @@ import {
   Sparkles,
   RefreshCw,
   Send,
-  Sliders,
   Palette,
   BookOpen,
   Dices,
@@ -506,13 +505,6 @@ export default function Home() {
             <span className="hidden sm:inline">{isRtl ? 'شروع مجدد' : 'Restart'}</span>
           </button>
 
-          <a
-            href="/studio"
-            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-rose-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-amber-500/20 transition-all hover:from-amber-400 hover:to-rose-500"
-          >
-            <Sliders className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{isRtl ? 'استودیو' : 'Studio'}</span>
-          </a>
         </div>
       </header>
 
