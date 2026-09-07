@@ -5,6 +5,7 @@ import {
   validateActionBlock,
   normalizeEntity,
   findExistingEntityByName,
+  resolveEntityTarget,
 } from './ActionProtocol';
 import { prepareWorldChanges } from './oracleActions';
 import type { WorldBible } from '@/lib/types/world';
@@ -267,6 +268,24 @@ I have prepared the direct insertion for you.`;
           atmosphere: 'Dark and menacing',
           connectedLocationIds: [],
         },
+        {
+          id: 'loc_3',
+          name: 'سروستان کهن (Old Sarvestan)',
+          region: 'مرکز',
+          dangerLevel: 2,
+          description: 'جنگل سروهای کهنسال',
+          atmosphere: 'مه‌آلود',
+          connectedLocationIds: [],
+        },
+        {
+          id: 'loc_4',
+          name: 'کهن\u200cدژ',
+          region: 'شمال',
+          dangerLevel: 5,
+          description: 'دژ باستانی متروکه',
+          atmosphere: 'ساکت و باستانی',
+          connectedLocationIds: [],
+        },
       ],
       factions: [],
       npcs: [],
@@ -296,6 +315,24 @@ I have prepared the direct insertion for you.`;
     // 4. Does NOT match different location
     const m4 = findExistingEntityByName(wb, 'location', 'دشت هیرام');
     assert.equal(m4, undefined);
+
+    // 5. Persian ZWNJ (half-space) matches space and collapsed forms
+    const m5 = findExistingEntityByName(wb, 'location', 'کهن دژ');
+    assert.ok(m5);
+    assert.equal(m5.id, 'loc_4');
+
+    const m6 = findExistingEntityByName(wb, 'location', 'کهندژ');
+    assert.ok(m6);
+    assert.equal(m6.id, 'loc_4');
+
+    const m7 = findExistingEntityByName(wb, 'location', 'کهن\u200cدژ');
+    assert.ok(m7);
+    assert.equal(m7.id, 'loc_4');
+
+    // 6. resolveEntityTarget prioritizes exact/collapsed match for "کهن دژ" over earlier "سروستان کهن"
+    const target = resolveEntityTarget(wb, 'location', 'کهن دژ');
+    assert.ok(target);
+    assert.equal(target.id, 'loc_4');
   });
 
   it('prevents recreating already available locations in prepareWorldChanges (multi-turn de-duplication)', async () => {

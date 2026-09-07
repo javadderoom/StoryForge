@@ -21,15 +21,17 @@ export interface WorldContextBlocks {
 
 export interface ScopedContextOptions {
   /** Active chapter scope tier — drives how much lore is injected. */
-  scopeTier: ScopeTier;
+  scopeTier?: ScopeTier;
   /** Location ids relevant to the active scene(s). */
   locationIds?: string[];
   /** NPC ids present in the active scene(s). */
   npcIds?: string[];
+  /** When true, bypasses scope-pruning and tight caps (for full Studio generation / chat / audits). */
+  unconstrained?: boolean;
 }
 
 /**
- * Token budgets per scope tier. Early "street" chapters stay strictly grounded
+ * Token budgets per scope tier for gameplay scene generation. Early "street" chapters stay strictly grounded
  * by injecting only a sliver of the World Bible; mythic scopes may cite most
  * of it.
  */
@@ -49,6 +51,23 @@ const SCOPE_CAPS: Record<ScopeTier, {
   regional: { factions: 6, factionRelations: 8, timeline: 8, artifacts: 8, bestiary: 8, religions: 6, dramaBonds: 6, locations: 8, npcs: 9, laws: 10 },
   continental: { factions: 10, factionRelations: 10, timeline: 10, artifacts: 10, bestiary: 10, religions: 9, dramaBonds: 7, locations: 10, npcs: 12, laws: 10 },
   mythic: { factions: 10, factionRelations: 12, timeline: 12, artifacts: 12, bestiary: 12, religions: 12, dramaBonds: 8, locations: 12, npcs: 12, laws: 10 },
+};
+
+/**
+ * Generous budgets for Studio authoring, Oracle copilot, audits, and entity workshops
+ * where the entire World Bible must be visible to the AI.
+ */
+const STUDIO_CAPS = {
+  factions: 100,
+  factionRelations: 150,
+  timeline: 100,
+  artifacts: 100,
+  bestiary: 100,
+  religions: 100,
+  dramaBonds: 100,
+  locations: 150,
+  npcs: 150,
+  laws: 100,
 };
 
 const cap = (arr: string[], max: number): string[] => (arr.length > max ? arr.slice(0, max) : arr);
@@ -88,7 +107,7 @@ export function pruneWorldBibleToScope(
   wb: WorldBible,
   options: ScopedContextOptions
 ): WorldBible {
-  const { scopeTier, locationIds = [], npcIds = [] } = options;
+  const { scopeTier = 'mythic', locationIds = [], npcIds = [] } = options;
 
   // 1-hop neighborhood of the active locations (travel-adjacent context) + full ancestry hierarchy.
   const activeLocSet = new Set(locationIds);
@@ -213,6 +232,7 @@ export function buildWorldContextBlocks(
     };
   }
 
+  const isStudioMode = !options || options.unconstrained === true;
   const scopeTier: ScopeTier = options?.scopeTier ?? 'mythic';
   const overrides = story.storyNpcOverrides || {};
   const centralNpcIds: string[] = [];
@@ -230,10 +250,10 @@ export function buildWorldContextBlocks(
     };
   }
 
-  if (effectiveOptions) {
+  if (effectiveOptions && !effectiveOptions.unconstrained) {
     wb = pruneWorldBibleToScope(wb, effectiveOptions);
   }
-  const caps = SCOPE_CAPS[scopeTier];
+  const caps = isStudioMode ? STUDIO_CAPS : SCOPE_CAPS[scopeTier];
   const pinLocs = new Set(options?.locationIds || []);
   const pinNpcs = new Set([...(options?.npcIds || []), ...centralNpcIds]);
   // Factions pinned when they hold a pinned territory or member NPC.

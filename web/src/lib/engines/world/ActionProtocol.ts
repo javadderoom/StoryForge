@@ -16,7 +16,8 @@ export function nameOf(entity: EntityType, item: any): string {
 }
 
 /**
- * Robust text normalizer that strips Zero-Width characters (ZWNJ \u200c),
+ * Robust text normalizer that converts Zero-Width characters (ZWNJ \u200c, ZWJ \u200d) to space,
+ * strips directional marks (LRM \u200e, RLM \u200f, BOM \ufeff),
  * normalizes Arabic/Persian letter variants (ی/ي, ک/ك, هٔ/ه),
  * strips diacritics/harakat, and collapses punctuation/whitespace.
  */
@@ -24,8 +25,11 @@ export function normalizeSearchText(str: string): string {
   if (!str) return '';
   return str
     .toLowerCase()
-    // Strip Zero-Width characters (ZWNJ \u200c, ZWJ \u200d, LRM \u200e, RLM \u200f, BOM \ufeff)
-    .replace(/[\u200c\u200d\u200e\u200f\ufeff]/g, '')
+    // Treat Zero-Width Non-Joiner (ZWNJ \u200c) & Joiner (ZWJ \u200d) as word-boundary spaces
+    // so compound words like "کهن‌دژ" normalize identically to "کهن دژ"
+    .replace(/[\u200c\u200d]/g, ' ')
+    // Strip directional marks & BOM (LRM \u200e, RLM \u200f, BOM \ufeff)
+    .replace(/[\u200e\u200f\ufeff]/g, '')
     // Normalize Arabic Yeh (ي, ى, ئ) to Persian Yeh (ی)
     .replace(/[\u0649\u064a\u0626]/g, 'ی')
     // Normalize Arabic Kaf (ك) to Persian Kaf (ک)
@@ -53,6 +57,13 @@ export function nameMatch(a: string, b: string): boolean {
   const nb = normalizeSearchText(rawB);
   if (!na || !nb) return false;
   if (na === nb || na.includes(nb) || nb.includes(na)) return true;
+
+  // Space-collapsed match (e.g. "کهندژ" vs "کهن دژ" vs "کهن‌دژ")
+  const collapsedA = na.replace(/\s+/g, '');
+  const collapsedB = nb.replace(/\s+/g, '');
+  if (collapsedA && collapsedB && (collapsedA === collapsedB || collapsedA.includes(collapsedB) || collapsedB.includes(collapsedA))) {
+    return true;
+  }
 
   // Word token overlap for robust partial/fuzzy matches
   const wordsA = na.split(' ').filter((w) => w.length > 1);
@@ -135,18 +146,31 @@ export function resolveEntityTarget(
 ): any | undefined {
   if (!byName) return undefined;
   const arr = getEntityArray(wb, entity);
-  const searchable = (it: any) =>
-    `${nameOf(entity, it)} ${it?.title || ''} ${it?.domain || ''} ${it?.name || ''}`.trim();
+  const targetNorm = normalizeSearchText(byName);
+  const targetCollapsed = targetNorm.replace(/\s+/g, '');
 
-  // 1. Direct match in targeted entity array
-  let found = arr.find((it) => nameMatch(searchable(it), byName));
+  // 1. Exact or collapsed-exact match in targeted entity array (prioritizes "کهن‌دژ" over loose matches)
+  let found = arr.find((it) => {
+    const name = nameOf(entity, it);
+    if (!name) return false;
+    const n = normalizeSearchText(name);
+    if (n && targetNorm && n === targetNorm) return true;
+    const c = n.replace(/\s+/g, '');
+    return Boolean(c && targetCollapsed && c === targetCollapsed);
+  });
   if (found) return found;
 
   // 2. Exact ID match
   found = arr.find((it) => it?.id === byName.trim());
   if (found) return found;
 
-  // 3. Stripped ordinals/prefixes match
+  // 3. Searchable direct/fuzzy match in targeted entity array
+  const searchable = (it: any) =>
+    `${nameOf(entity, it)} ${it?.title || ''} ${it?.domain || ''} ${it?.name || ''}`.trim();
+  found = arr.find((it) => nameMatch(searchable(it), byName));
+  if (found) return found;
+
+  // 4. Stripped ordinals/prefixes match
   const stripped = byName
     .replace(
       /\b(first|second|third|fourth|fifth|sixth|seventh|last|\d{1,2}(?:st|nd|rd|th))\b/gi,
@@ -164,7 +188,7 @@ export function resolveEntityTarget(
     if (i >= 0 && i < arr.length) return arr[i];
   }
 
-  // 4. Cross-collection fallback in case the entity type was loosely classified
+  // 5. Cross-collection fallback in case the entity type was loosely classified
   for (const otherType of ALLOWED_ENTITIES) {
     if (otherType === entity) continue;
     const otherArr = getEntityArray(wb, otherType);
@@ -192,6 +216,7 @@ export function findExistingEntityByName(
 
   const targetRaw = name.trim();
   const targetNorm = normalizeSearchText(targetRaw);
+  const targetCollapsed = targetNorm.replace(/\s+/g, '');
   const targetBase = targetRaw.replace(/\([^)]*\)/g, '').trim().toLowerCase();
 
   return arr.find((item) => {
@@ -201,15 +226,20 @@ export function findExistingEntityByName(
     // 1. Direct case-insensitive match
     if (itemName.trim().toLowerCase() === targetRaw.toLowerCase()) return true;
 
-    // 2. Normalized search text match (strips ZWNJ, diacritics, punctuation, Arabic/Persian variants)
+    // 2. Normalized search text match (handles ZWNJ, diacritics, punctuation, Arabic/Persian variants)
     const itemNorm = normalizeSearchText(itemName);
     if (itemNorm && targetNorm && itemNorm === targetNorm) return true;
+    const itemCollapsed = itemNorm.replace(/\s+/g, '');
+    if (itemCollapsed && targetCollapsed && itemCollapsed === targetCollapsed) return true;
 
     // 3. Base name match (stripping parenthetical translations like "گذرگاه هیرام (Hiram Pass)")
     const itemBase = itemName.replace(/\([^)]*\)/g, '').trim().toLowerCase();
     if (itemBase && targetBase) {
       if (itemBase === targetBase) return true;
-      if (normalizeSearchText(itemBase) === normalizeSearchText(targetBase)) return true;
+      const ibNorm = normalizeSearchText(itemBase);
+      const tbNorm = normalizeSearchText(targetBase);
+      if (ibNorm === tbNorm) return true;
+      if (ibNorm.replace(/\s+/g, '') === tbNorm.replace(/\s+/g, '')) return true;
     }
 
     return false;

@@ -413,4 +413,32 @@ describe('Plan 07 — Living World Ledger & Chapter Context Envelope', () => {
     assert.ok(!context.includes('Episodic Milestone Rollup:'));
     assert.ok(!context.includes('Living World Ledger:'));
   });
+
+  it('studio / unconstrained mode includes all locations without tight gameplay scope truncation', () => {
+    // Generate a world with 37 locations (like the user's Faravand world)
+    const bigWorld: WorldBible = {
+      ...worldBible,
+      locations: Array.from({ length: 37 }, (_, i) => ({
+        id: `loc_${i}`,
+        name: i === 36 ? 'کهن\u200cدژ' : `Location ${i}`,
+        region: 'Test Region',
+        dangerLevel: 1,
+        description: `Description of location ${i}`,
+        connectedLocationIds: [],
+        atmosphere: 'Calm',
+      })),
+    };
+
+    // Default call without options (as called in StudioOracleDrawer, EntityWorkshop, AI Fill)
+    const studioBlocks = buildWorldContextBlocks({ worldBible: bigWorld });
+    assert.equal(studioBlocks.locations.length, 37);
+    assert.ok(studioBlocks.locations.some((l) => l.includes('کهن\u200cدژ')));
+
+    // Scoped call for gameplay scene still respects street scope caps
+    const streetBlocks = buildWorldContextBlocks(
+      { worldBible: bigWorld },
+      { scopeTier: 'street', locationIds: ['loc_0'] }
+    );
+    assert.ok(streetBlocks.locations.length <= 4);
+  });
 });

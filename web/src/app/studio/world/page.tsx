@@ -33,6 +33,26 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
+function safeTrim(val: unknown): string {
+  if (typeof val === 'string') return val.trim();
+  if (Array.isArray(val)) {
+    return val
+      .map((item) => safeTrim(item))
+      .filter(Boolean)
+      .join('\n');
+  }
+  if (val && typeof val === 'object') {
+    const obj = val as Record<string, unknown>;
+    if (typeof obj.text === 'string') return obj.text.trim();
+    if (typeof obj.description === 'string') return obj.description.trim();
+    if (typeof obj.goal === 'string') return obj.goal.trim();
+    if (typeof obj.agenda === 'string') return obj.agenda.trim();
+    if (typeof obj.name === 'string') return obj.name.trim();
+  }
+  if (val != null) return String(val).trim();
+  return '';
+}
+
 export default function WorldBiblePage() {
   const {
     story,
@@ -239,8 +259,8 @@ export default function WorldBiblePage() {
       setEditingLawId(law.id);
       setLawForm({
         id: law.id,
-        rule: law.rule,
-        description: law.description,
+        rule: safeTrim(law.rule),
+        description: safeTrim(law.description),
         category: law.category,
       });
     } else {
@@ -257,19 +277,20 @@ export default function WorldBiblePage() {
 
   const handleSaveLaw = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!lawForm.rule.trim()) return;
+    const rule = safeTrim(lawForm.rule);
+    if (!rule) return;
 
     if (editingLawId) {
       editWorldLaw(editingLawId, {
-        rule: lawForm.rule,
-        description: lawForm.description,
+        rule,
+        description: safeTrim(lawForm.description),
         category: lawForm.category,
       });
     } else {
       addWorldLaw({
         id: lawForm.id,
-        rule: lawForm.rule,
-        description: lawForm.description,
+        rule,
+        description: safeTrim(lawForm.description),
         category: lawForm.category,
         isImmutable: true,
       });
@@ -365,11 +386,11 @@ export default function WorldBiblePage() {
       setEditingFactionId(faction.id);
       setFactionForm({
         id: faction.id,
-        name: faction.name,
-        description: faction.description,
-        alignment: faction.alignment,
-        publicGoals: faction.publicGoals,
-        secretAgendas: faction.secretAgendas ?? '',
+        name: safeTrim(faction.name),
+        description: safeTrim(faction.description),
+        alignment: safeTrim(faction.alignment),
+        publicGoals: safeTrim(faction.publicGoals),
+        secretAgendas: safeTrim(faction.secretAgendas),
         scope: faction.scope ?? '',
         territoryIds: Array.isArray(faction.territoryIds)
           ? faction.territoryIds.filter((id) => locSet.has(id))
@@ -416,7 +437,7 @@ export default function WorldBiblePage() {
               : 'neutral';
             updatedRelations[targetId] = {
               value: val,
-              note: typeof item.note === 'string' ? item.note : '',
+              note: safeTrim(item.note as string),
               isPublic: typeof item.isPublic === 'boolean' ? item.isPublic : true,
             };
           }
@@ -425,15 +446,12 @@ export default function WorldBiblePage() {
 
       return {
         ...prev,
-        name: typeof data.name === 'string' && data.name ? data.name : prev.name,
-        description:
-          typeof data.description === 'string' && data.description ? data.description : prev.description,
-        alignment: typeof data.alignment === 'string' && data.alignment ? data.alignment : prev.alignment,
-        publicGoals:
-          typeof data.publicGoals === 'string' && data.publicGoals ? data.publicGoals : prev.publicGoals,
-        secretAgendas:
-          typeof data.secretAgendas === 'string' ? data.secretAgendas : prev.secretAgendas,
-        scope: typeof data.scope === 'string' ? data.scope : prev.scope,
+        name: data.name !== undefined ? safeTrim(data.name as string) : prev.name,
+        description: data.description !== undefined ? safeTrim(data.description as string) : prev.description,
+        alignment: data.alignment !== undefined ? safeTrim(data.alignment as string) : prev.alignment,
+        publicGoals: data.publicGoals !== undefined ? safeTrim(data.publicGoals as string) : prev.publicGoals,
+        secretAgendas: data.secretAgendas !== undefined ? safeTrim(data.secretAgendas as string) : prev.secretAgendas,
+        scope: data.scope !== undefined ? safeTrim(data.scope as string) : prev.scope,
         territoryIds: Array.isArray(data.territoryIds)
           ? data.territoryIds.filter((x): x is string => typeof x === 'string' && locSet.has(x))
           : prev.territoryIds,
@@ -466,11 +484,15 @@ export default function WorldBiblePage() {
 
   const handleSaveFaction = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!factionForm.name.trim()) return;
+    const name = safeTrim(factionForm.name);
+    if (!name) return;
 
     const currentFacId = editingFactionId || factionForm.id;
     const scope = (factionForm.scope || undefined) as Faction['scope'];
-    const secretAgendas = factionForm.secretAgendas.trim();
+    const secretAgendas = safeTrim(factionForm.secretAgendas);
+    const description = safeTrim(factionForm.description);
+    const alignment = safeTrim(factionForm.alignment);
+    const publicGoals = safeTrim(factionForm.publicGoals);
 
     // Derive legacy allies and rivals
     const derivedAllies: string[] = [];
@@ -482,10 +504,10 @@ export default function WorldBiblePage() {
 
     if (editingFactionId) {
       editFaction(editingFactionId, {
-        name: factionForm.name.trim(),
-        description: factionForm.description.trim(),
-        alignment: factionForm.alignment.trim(),
-        publicGoals: factionForm.publicGoals.trim(),
+        name,
+        description,
+        alignment,
+        publicGoals,
         secretAgendas: secretAgendas || undefined,
         scope,
         territoryIds: factionForm.territoryIds,
@@ -496,10 +518,10 @@ export default function WorldBiblePage() {
     } else {
       addFaction({
         id: factionForm.id,
-        name: factionForm.name.trim(),
-        description: factionForm.description.trim(),
-        alignment: factionForm.alignment.trim(),
-        publicGoals: factionForm.publicGoals.trim(),
+        name,
+        description,
+        alignment,
+        publicGoals,
         secretAgendas: secretAgendas || undefined,
         scope,
         territoryIds: factionForm.territoryIds,
@@ -978,7 +1000,7 @@ export default function WorldBiblePage() {
                           {faction.scope}+
                         </span>
                       )}
-                      {faction.secretAgendas && (
+                      {Boolean(safeTrim(faction.secretAgendas)) && (
                         <span
                           title={isPersian ? 'دستور پنهان ثبت شده' : 'Has a secret agenda'}
                           className="text-[10px] font-mono bg-rose-500/10 border border-rose-500/20 text-rose-300 px-2 py-0.5 rounded-md"
@@ -1018,15 +1040,15 @@ export default function WorldBiblePage() {
                   <p className="text-xs text-zinc-400 leading-relaxed mb-3">{faction.description}</p>
                   <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-3 text-xs text-zinc-300 mb-3">
                     <span className="text-amber-400 font-semibold block mb-1">{t.goals}</span>
-                    <p>{faction.publicGoals}</p>
+                    <p className="whitespace-pre-line">{safeTrim(faction.publicGoals)}</p>
                   </div>
 
-                  {faction.secretAgendas && (
+                  {Boolean(safeTrim(faction.secretAgendas)) && (
                     <div className="bg-rose-950/20 border border-rose-900/40 rounded-xl p-2.5 text-xs text-rose-300/90 mb-3">
                       <span className="text-rose-400 font-semibold block mb-0.5 text-[11px]">
                         🔒 {isPersian ? 'دستور پنهان (فقط راوی هوش مصنوعی):' : 'Secret Agenda (AI Narrator only):'}
                       </span>
-                      <p className="text-zinc-300 text-[11px]">{faction.secretAgendas}</p>
+                      <p className="text-zinc-300 text-[11px] whitespace-pre-line">{safeTrim(faction.secretAgendas)}</p>
                     </div>
                   )}
 
