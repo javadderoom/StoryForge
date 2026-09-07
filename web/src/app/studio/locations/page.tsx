@@ -107,10 +107,11 @@ export default function LocationsStudioPage() {
   const [locConnectedIds, setLocConnectedIds] = useState<string[]>([]);
   const [connectedSearch, setConnectedSearch] = useState('');
 
-  // Directory controls: text search + category / region facets + sort + grouping.
+  // Directory controls: text search + category facet + focus-location
+  // (connections & children) + sort + grouping.
   const [dirSearch, setDirSearch] = useState('');
   const [dirCategory, setDirCategory] = useState<string | null>(null);
-  const [dirRegion, setDirRegion] = useState<string | null>(null);
+  const [dirFocus, setDirFocus] = useState<string | null>(null);
   const [dirSort, setDirSort] = useState<'name' | 'danger' | 'category'>('name');
   const [dirGroup, setDirGroup] = useState<'none' | 'category' | 'region'>('none');
 
@@ -187,25 +188,49 @@ export default function LocationsStudioPage() {
       .sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
   }, [locations, categories]);
 
-  const regionFacets = React.useMemo(() => {
-    const counts = new Map<string, number>();
+  // Focus neighborhood: the picked location itself + its bidirectional
+  // connections + its direct children. Precomputed per location for the picker.
+  const focusStats = React.useMemo(() => {
+    const stats = new Map<string, { links: number; children: number }>();
     locations.forEach((l) => {
-      const r = (l.region && l.region.trim()) || (isPersian ? 'نامشخص' : 'Unknown');
-      counts.set(r, (counts.get(r) || 0) + 1);
+      const linked = new Set<string>(l.connectedLocationIds || []);
+      locations.forEach((o) => {
+        if (o.id !== l.id && (o.connectedLocationIds || []).includes(l.id)) linked.add(o.id);
+      });
+      const children = locations.filter((o) => o.parentLocationId === l.id).length;
+      stats.set(l.id, { links: linked.size, children });
     });
-    return [...counts.entries()]
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-  }, [locations, isPersian]);
+    return stats;
+  }, [locations]);
+
+  const focusOptions = React.useMemo(
+    () =>
+      [...locations]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((l) => ({
+          id: l.id,
+          name: l.name,
+          links: focusStats.get(l.id)?.links || 0,
+          children: focusStats.get(l.id)?.children || 0,
+        })),
+    [locations, focusStats]
+  );
 
   const filteredLocations = React.useMemo(() => {
     const q = dirSearch.trim().toLowerCase();
+    let neighborhood: Set<string> | null = null;
+    if (dirFocus) {
+      neighborhood = new Set<string>([dirFocus]);
+      const focus = locations.find((l) => l.id === dirFocus);
+      (focus?.connectedLocationIds || []).forEach((id) => neighborhood!.add(id));
+      locations.forEach((l) => {
+        if ((l.connectedLocationIds || []).includes(dirFocus)) neighborhood!.add(l.id);
+        if (l.parentLocationId === dirFocus) neighborhood!.add(l.id);
+      });
+    }
     const out = locations.filter((l) => {
       if (dirCategory && catKeyOf(l) !== dirCategory) return false;
-      if (dirRegion) {
-        const r = (l.region && l.region.trim()) || (isPersian ? 'نامشخص' : 'Unknown');
-        if (r !== dirRegion) return false;
-      }
+      if (neighborhood && !neighborhood.has(l.id)) return false;
       if (q) {
         const hay = `${l.name} ${l.region || ''} ${l.description || ''} ${l.atmosphere || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -221,7 +246,7 @@ export default function LocationsStudioPage() {
     });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locations, dirSearch, dirCategory, dirRegion, dirSort, isPersian]);
+  }, [locations, dirSearch, dirCategory, dirFocus, dirSort, isPersian]);
 
   const locationGroups = React.useMemo(() => {
     if (dirGroup === 'none') return [{ key: 'all', title: '', items: filteredLocations }];
@@ -247,12 +272,12 @@ export default function LocationsStudioPage() {
   }, [filteredLocations, dirGroup, isPersian]);
 
   const isDirectoryFiltered =
-    dirSearch.trim() !== '' || dirCategory !== null || dirRegion !== null;
+    dirSearch.trim() !== '' || dirCategory !== null || dirFocus !== null;
 
   const clearDirectoryFilters = () => {
     setDirSearch('');
     setDirCategory(null);
-    setDirRegion(null);
+    setDirFocus(null);
   };
 
   const eligibleParentLocations = React.useMemo(() => {
@@ -599,15 +624,15 @@ export default function LocationsStudioPage() {
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <select
-                value={dirRegion || ''}
-                onChange={(e) => setDirRegion(e.target.value || null)}
-                className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 cursor-pointer"
-                title={isPersian ? 'پالایش بر اساس ناحیه' : 'Filter by region'}
+                value={dirFocus || ''}
+                onChange={(e) => setDirFocus(e.target.value || null)}
+                className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 cursor-pointer max-w-[220px]"
+                title={isPersian ? 'نمایش مکان، پیوندها و زیرمکان‌های یک نقطه' : 'Show a place plus its links and children'}
               >
-                <option value="">{isPersian ? 'همه نواحی' : 'All regions'}</option>
-                {regionFacets.map((r) => (
-                  <option key={r.name} value={r.name}>
-                    {r.name} ({r.count})
+                <option value="">{isPersian ? 'همه مکان‌ها' : 'All places'}</option>
+                {focusOptions.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name} ({o.links} {isPersian ? 'پیوند' : 'links'}, {o.children} {isPersian ? 'زیرمکان' : 'children'})
                   </option>
                 ))}
               </select>

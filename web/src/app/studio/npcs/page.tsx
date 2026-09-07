@@ -482,12 +482,27 @@ export default function NpcDossiersPage() {
     try {
       setGeneratingVoiceNpcId(npc.id);
       const worldContext = buildWorldContextString(story);
+
+      // Collect all secrets (both base World Bible secrets and story-level override secrets)
+      const secretsList = [
+        ...(npc.secrets?.map((s) => s.description) || []),
+        ...(story.storyNpcOverrides?.[npc.id]?.storySecret ? [story.storyNpcOverrides[npc.id].storySecret!] : []),
+      ].filter(Boolean);
+      const secretsSection = secretsList.length
+        ? ` Hidden Secrets: ${secretsList.join('; ')}.`
+        : '';
+      const goalsSection = npc.goals?.length ? ` Core Goals: ${npc.goals.join(', ')}.` : '';
+      const storyOverride = story.storyNpcOverrides?.[npc.id];
+      const storySection = storyOverride
+        ? ` Story Role: ${storyOverride.storyRole || 'N/A'}.${storyOverride.storyGoal ? ` Story Goal: ${storyOverride.storyGoal}.` : ''}`
+        : '';
+
       const res = await fetch('/api/studio/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'npc_voice_guide',
-          prompt: `Generate a rich, distinct Voice & Dialogue Guide with 4 situational quotes for "${npc.name}" (${npc.title || 'NPC'}). Speech tone: ${npc.speechStyle || 'distinct'}. Personality: ${npc.personalityTraits?.join(', ')}.`,
+          prompt: `Generate a rich, distinct Voice & Dialogue Guide with 4 situational quotes for "${npc.name}" (${npc.title || npc.role || 'NPC'}). Speech tone: ${npc.speechStyle || 'distinct'}. Personality: ${npc.personalityTraits?.join(', ')}.${goalsSection}${secretsSection}${storySection}`,
           themeContext: story.worldBible.themeNotes,
           worldContext,
           isPersian,
