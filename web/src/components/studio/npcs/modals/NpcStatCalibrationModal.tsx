@@ -1,18 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { Sword, X, Plus, Trash2, Check } from 'lucide-react';
-import { NPCDossier, NpcStatCalibration, NpcEquippedGear } from '@/lib/types';
+import { NPCDossier, NpcStatCalibration, NpcEquippedGear, StoryManifest } from '@/lib/types';
 
 export interface NpcStatCalibrationModalProps {
   open: boolean;
   targetNpc: NPCDossier | null;
+  story?: StoryManifest;
   isPersian: boolean;
   onClose: () => void;
   onSave: (calibration: NpcStatCalibration) => void;
 }
 
+function getDefaultStatRatings(story?: StoryManifest): Record<string, number> {
+  if (story?.rpgSystem?.stats?.length) {
+    const map: Record<string, number> = {};
+    for (const s of story.rpgSystem.stats) {
+      map[s.id] = s.baseValue ?? 3;
+    }
+    return map;
+  }
+  return { might: 3, cunning: 3, agility: 3, arcana: 2 };
+}
+
 export function NpcStatCalibrationModal({
   open,
   targetNpc,
+  story,
   isPersian,
   onClose,
   onSave,
@@ -21,13 +34,13 @@ export function NpcStatCalibrationModal({
     npcName: '',
     combatTier: 'civilian',
     challengeRating: 1,
-    statRatings: { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 },
+    statRatings: getDefaultStatRatings(story),
     signatureAbilities: [],
     equippedGear: [],
   });
   const [statAbilityInput, setStatAbilityInput] = useState('');
   const [newStatKey, setNewStatKey] = useState('');
-  const [newStatVal, setNewStatVal] = useState<number>(10);
+  const [newStatVal, setNewStatVal] = useState<number>(3);
   const [newGearName, setNewGearName] = useState('');
   const [newGearType, setNewGearType] = useState<string>('weapon');
   const [newGearDesc, setNewGearDesc] = useState('');
@@ -42,7 +55,7 @@ export function NpcStatCalibrationModal({
           challengeRating: targetNpc.statCalibration.challengeRating ?? 1,
           statRatings: targetNpc.statCalibration.statRatings
             ? { ...targetNpc.statCalibration.statRatings }
-            : { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 },
+            : getDefaultStatRatings(story),
           signatureAbilities: [...(targetNpc.statCalibration.signatureAbilities || [])],
           equippedGear: (targetNpc.statCalibration.equippedGear || []).map((g: NpcEquippedGear) => ({ ...g })),
         });
@@ -52,19 +65,19 @@ export function NpcStatCalibrationModal({
           npcName: targetNpc.name,
           combatTier: 'civilian',
           challengeRating: 1,
-          statRatings: { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 },
+          statRatings: getDefaultStatRatings(story),
           signatureAbilities: [],
           equippedGear: [],
         });
       }
       setStatAbilityInput('');
       setNewStatKey('');
-      setNewStatVal(10);
+      setNewStatVal(3);
       setNewGearName('');
       setNewGearType('weapon');
       setNewGearDesc('');
     }
-  }, [open, targetNpc]);
+  }, [open, targetNpc, story]);
 
   if (!open || !targetNpc) return null;
 

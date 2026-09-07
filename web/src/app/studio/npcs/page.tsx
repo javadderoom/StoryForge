@@ -510,10 +510,12 @@ ${
       setGeneratingStatsNpcId(npc.id);
       const worldContext = buildWorldContextString(story);
 
-      // Extract story's active RPG system attributes
+      // Extract story's active RPG system attributes with scale/base grounding
       const storyStats = story.rpgSystem?.stats?.length
-        ? story.rpgSystem.stats.map((s) => `${s.id} (${s.name || s.id})`).join(', ')
-        : 'STR, DEX, CON, INT, WIS, CHA';
+        ? story.rpgSystem.stats
+            .map((s) => `${s.id} (${s.name || s.id}: base ${s.baseValue ?? 3}, range ${s.minValue ?? 1}-${s.maxValue ?? 20})`)
+            .join(', ')
+        : 'might (base 3, range 1-20), cunning (base 3, range 1-20), agility (base 3, range 1-20), arcana (base 2, range 1-20)';
 
       const roleDesc = npc.role ? `Role: ${npc.role}.` : '';
       const titleDesc = npc.title ? `Title: ${npc.title}.` : '';
@@ -529,10 +531,16 @@ ${
         ? `FORCED COMBAT TIER DIRECTIVE: You MUST calibrate this character strictly as tier "${tierHint}".`
         : `COMBAT TIER DIRECTIVE: Carefully evaluate if "${npc.name}" is an ordinary civilian (merchant, scholar, servant, citizen), a regular guard/militia, a veteran knight, or a high-threat antagonist. Ground the tier and CR in their vocation. Do NOT default civilians or non-combatants to elite or boss tiers.`;
 
+      const asymmetryDirective = `VOCATIONAL ASYMMETRY & PHYSICAL REALISM:
+Evaluate "${npc.name}"'s age, physical stature, and daily occupation.
+- Civilians, youth, children, brokers, clerks, and scholars MUST have low physical Might (1 to 4) and concentrate any higher numbers into vocational strengths (such as Cunning: 5-7).
+- Never assign flat or uniform numbers across all attributes.`;
+
       const prompt = `Calibrate RPG combat rating, attributes, signature abilities, and equipped gear for "${npc.name}".
 ${titleDesc} ${roleDesc} ${storyRoleDesc} ${importanceDesc} ${traitsDesc} ${goalsDesc}
 Active RPG Attributes to rate: [${storyStats}].
-${tierDirective}`;
+${tierDirective}
+${asymmetryDirective}`;
 
       const res = await fetch('/api/studio/generate', {
         method: 'POST',
@@ -746,6 +754,7 @@ ${tierDirective}`;
       <NpcStatCalibrationModal
         open={statModalOpen}
         targetNpc={targetNpcForStat}
+        story={story}
         isPersian={isPersian}
         onClose={() => setStatModalOpen(false)}
         onSave={handleSaveStatCalibration}

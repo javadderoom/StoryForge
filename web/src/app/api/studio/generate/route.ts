@@ -351,16 +351,20 @@ Strictly output a valid JSON object matching the requested schema. Do not enclos
     } else if (type === 'npc_voice_guide') {
       schemaInstruction = `Schema: { "npcName": string, "speechQuirks": string[], "sampleDialogue": [{ "context": "greeting"|"bargaining"|"threatened"|"dying", "quote": string }], "negotiationVulnerabilities": string[], "psychologicalBreakingPoint": string } (Generate a Voice & Dialogue Style Guide with 4 distinct sample quotes for greeting, bargaining, threatened, and dying contexts. IMPORTANT: Connect the "psychologicalBreakingPoint" and high-pressure quotes ("threatened" and "dying") directly to the character's hidden secrets, core fears, and personal goals — show how their composure cracks when their secret is at risk or when facing irrevocable failure)`;
     } else if (type === 'npc_stat_calibration') {
-      schemaInstruction = `Schema: { "npcId": string, "npcName": string, "combatTier": "civilian"|"apprentice"|"veteran"|"elite"|"boss"|"mythic", "challengeRating": number (1 to 20), "statRatings": { [stat: string]: number }, "signatureAbilities": string[], "equippedGear": [{ "name": string, "type": string, "description": string }] } (👑 REALISTIC RPG STAT CALIBRATION:
-Strictly ground combat tier, CR, attributes, and equipment in the NPC's actual vocation, background, and narrative role. Do NOT inflate ordinary civilians or non-combatants.
+      schemaInstruction = `Schema: { "npcId": string, "npcName": string, "combatTier": "civilian"|"apprentice"|"veteran"|"elite"|"boss"|"mythic", "challengeRating": number (1 to 20), "statRatings": { [stat: string]: number }, "signatureAbilities": string[], "equippedGear": [{ "name": string, "type": string, "description": string }] } (👑 REALISTIC LONG-SAGA RPG STAT CALIBRATION (Scale: 1 to 20+):
+The story is a long-running narrative saga with extensive progression runway. Starting values for ordinary mortals MUST be grounded much lower than 10 so there is room for long-term growth.
 TIER & CR BRACKETS:
-- "civilian" (CR 1): Commoners, scholars, merchants, magistrates, innkeepers, artisans, elders, children. Baseline human stats (8-11). Abilities: [] (none, or 1 non-combat trade craft trick). Gear: simple clothes, everyday tools, walking stick, or eating knife.
-- "apprentice" (CR 2-4): Town watch, militia, novice acolytes, petty thieves, squires, junior scouts. Stats (10-13). Abilities: 1 basic discipline/stance. Gear: basic iron weapon, padded or leather armor.
-- "veteran" (CR 5-8): Seasoned mercenary captains, knight lieutenants, court battlemages, veteran rangers, assassins. Stats (12-15). Abilities: 1-2 tactical maneuvers. Gear: forged steel arms, chain/mail or plate armor.
-- "elite" (CR 9-12): Royal champions, archmages, inquisitors, guildmasters, master monks. Stats (14-17). Abilities: 2-3 formidable signature powers. Gear: masterwork or enchanted gear.
-- "boss" (CR 13-16): Sovereign warlords, ancient monstrosities, high arch-villains, faction heads. Stats (16-19). Abilities: 3-4 phase-defining powers.
-- "mythic" (CR 17-20): Primordial titans, demigods, world-ending entities. Stats (18-20+).
-If specific RPG stats are provided in the prompt, generate ratings strictly for those stats with realistic distribution. If a target tier hint is given, obey it.)`;
+- "civilian" (CR 1): Everyday commoners, clerks, young merchants, brokers, scholars, servants, elders, children. Typical stats range 2 to 6. Abilities: [] (0 combat abilities; at most 1 mundane trade trick). Gear: simple clothes, ledgers, everyday tools, eating knife.
+- "apprentice" (CR 2-4): Town watch recruits, militia, novice acolytes, petty cutpurses, junior scouts. Typical stats range 5 to 8. Abilities: 1 basic technique or stance. Gear: basic iron weapon, padded or leather armor.
+- "veteran" (CR 5-8): Seasoned mercenaries, knight lieutenants, court battlemages, veteran rangers. Typical stats range 8 to 12 (reaching double digits only through years of combat/discipline). Abilities: 1-2 tactical maneuvers. Gear: forged steel arms, mail/chain armor.
+- "elite" (CR 9-12): Royal champions, archmages, inquisitors, guildmasters, master monks. Peak mortal mastery. Typical stats range 12 to 15. Abilities: 2-3 formidable signature powers. Gear: masterwork or enchanted arms.
+- "boss" (CR 13-16): Sovereign warlords, elder monstrosities, high arch-villains, faction heads. Typical stats range 15 to 18. Abilities: 3-4 phase-defining powers.
+- "mythic" (CR 17-20+): Primordial titans, avatars, demigods, epoch-ending entities. Stats 18 to 22+.
+VOCATIONAL REALISM & ATTRIBUTE ASYMMETRY:
+- Stats must NEVER be flat or uniform across all attributes.
+- Reflect physical build, age, and occupation: non-combatants, youth, children, brokers, and scholars MUST have low physical Might (1 to 4) while allocating points to mental, social, or agility strengths (e.g. Cunning: 5-7).
+- Burly laborers, smiths, and guards invert this (Might: 5-8, lower Arcana/Cunning).
+- If specific RPG stats with base values are provided in the prompt, rate strictly those stats. If a target tier hint is given, obey it.)`;
     } else if (type === 'epoch_arc') {
       schemaInstruction = `Schema: { "eras": [{ "eraName": string, "timeframe": string, "description": string, "majorCataclysm": string, "legacyFactions": string[] }], "keyEvents": [{ "title": string, "eraName": string, "narrativeSummary": string, "lastingConsequences": string }] } (Generate a cohesive 3-era historical macro-arc: 1. Age of Creation / Mythic Dawn, 2. The Great Cataclysm / War of Ruin, 3. The Present Ash / Modern Age, along with at least 4 key turning point events across these eras)`;
     } else if (type === 'timeline_ripple') {
