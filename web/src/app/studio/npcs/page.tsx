@@ -182,6 +182,44 @@ export default function NpcDossiersPage() {
     calibration: NpcStatCalibration;
   } | null>(null);
 
+  // Voice & Dialogue Guide Modal State
+  const [voiceGuideModalOpen, setVoiceGuideModalOpen] = useState(false);
+  const [targetNpcForVoiceGuide, setTargetNpcForVoiceGuide] = useState<NPCDossier | null>(null);
+  const [voiceGuideForm, setVoiceGuideForm] = useState<NpcVoiceGuide>({
+    npcName: '',
+    speechQuirks: [],
+    sampleDialogue: [],
+    negotiationVulnerabilities: [],
+    psychologicalBreakingPoint: '',
+  });
+  const [voiceQuirkInput, setVoiceQuirkInput] = useState('');
+  const [voiceVulnInput, setVoiceVulnInput] = useState('');
+
+  // RPG Combat & Stats Modal State
+  const [statModalOpen, setStatModalOpen] = useState(false);
+  const [targetNpcForStat, setTargetNpcForStat] = useState<NPCDossier | null>(null);
+  const [statForm, setStatForm] = useState<NpcStatCalibration>({
+    npcName: '',
+    combatTier: 'veteran',
+    challengeRating: 5,
+    statRatings: {
+      STR: 12,
+      DEX: 12,
+      CON: 12,
+      INT: 10,
+      WIS: 10,
+      CHA: 10,
+    },
+    signatureAbilities: [],
+    equippedGear: [],
+  });
+  const [statAbilityInput, setStatAbilityInput] = useState('');
+  const [newStatKey, setNewStatKey] = useState('');
+  const [newStatVal, setNewStatVal] = useState<number>(10);
+  const [newGearName, setNewGearName] = useState('');
+  const [newGearType, setNewGearType] = useState('weapon');
+  const [newGearDesc, setNewGearDesc] = useState('');
+
   const npcs = story.worldBible.npcs || [];
   const dramaBonds = story.worldBible.dramaBonds || [];
   const relationTypes = story.worldBible.ontology?.relationTypes || [];
@@ -209,6 +247,12 @@ export default function NpcDossiersPage() {
     voiceGuide: isPersian ? 'راهنمای گفتار و دیالوگ' : 'Voice & Dialogue Guide',
     rpgStats: isPersian ? 'کالیبراسیون رزمی و ویژگی‌ها' : 'RPG Combat & Stats',
     socialBonds: isPersian ? 'پیوندهای درام اجتماعی' : 'Social Drama Bonds',
+    editVoiceGuide: isPersian ? 'ویرایش راهنمای گفتار' : 'Edit Voice Guide',
+    createVoiceGuide: isPersian ? '+ ایجاد دستی راهنما' : '+ Create Voice Guide',
+    deleteVoiceGuide: isPersian ? 'حذف راهنمای گفتار' : 'Delete Voice Guide',
+    editStats: isPersian ? 'ویرایش ویژگی‌های رزمی' : 'Edit RPG Stats',
+    createStats: isPersian ? '+ ثبت دستی ویژگی‌ها' : '+ Create RPG Stats',
+    deleteStats: isPersian ? 'حذف ویژگی‌های رزمی' : 'Delete RPG Stats',
   };
 
   const toggleAccordion = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) => {
@@ -344,6 +388,143 @@ export default function NpcDossiersPage() {
       if (npc) {
         editNpc(npcId, { secrets: npc.secrets.filter((s) => s.id !== secretId) });
       }
+    }
+  };
+
+  // Voice & Dialogue Guide Handlers
+  const openVoiceGuideModal = (npc: NPCDossier) => {
+    setTargetNpcForVoiceGuide(npc);
+    if (npc.voiceGuide) {
+      setVoiceGuideForm({
+        npcName: npc.voiceGuide.npcName || npc.name,
+        speechQuirks: [...(npc.voiceGuide.speechQuirks || [])],
+        sampleDialogue: (npc.voiceGuide.sampleDialogue || []).map((d) => ({ ...d })),
+        negotiationVulnerabilities: [...(npc.voiceGuide.negotiationVulnerabilities || [])],
+        psychologicalBreakingPoint: npc.voiceGuide.psychologicalBreakingPoint || '',
+      });
+    } else {
+      setVoiceGuideForm({
+        npcName: npc.name,
+        speechQuirks: [],
+        sampleDialogue: [
+          { context: 'greeting', quote: '' },
+          { context: 'bargaining', quote: '' },
+          { context: 'threatened', quote: '' },
+          { context: 'dying', quote: '' },
+        ],
+        negotiationVulnerabilities: [],
+        psychologicalBreakingPoint: '',
+      });
+    }
+    setVoiceQuirkInput('');
+    setVoiceVulnInput('');
+    setVoiceGuideModalOpen(true);
+  };
+
+  const handleSaveVoiceGuide = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetNpcForVoiceGuide) return;
+    const cleanDialogue = voiceGuideForm.sampleDialogue.filter((d) => d.quote.trim().length > 0);
+    const updatedGuide: NpcVoiceGuide = {
+      ...voiceGuideForm,
+      npcName: targetNpcForVoiceGuide.name,
+      sampleDialogue: cleanDialogue.length > 0 ? cleanDialogue : [
+        { context: 'greeting', quote: isPersian ? 'درود بر شما.' : 'Greetings.' },
+      ],
+    };
+    editNpc(targetNpcForVoiceGuide.id, {
+      voiceGuide: updatedGuide,
+    });
+    setExpandedVoiceGuideIds((prev) => new Set(prev).add(targetNpcForVoiceGuide.id));
+    setVoiceGuideModalOpen(false);
+    notify.success(isPersian ? 'راهنمای گفتار و دیالوگ با موفقیت ثبت شد' : 'Voice & Dialogue guide saved');
+  };
+
+  const handleDeleteVoiceGuide = async (npc: NPCDossier) => {
+    const confirmed = await notify.confirm({
+      title: isPersian ? 'حذف راهنمای گفتار' : 'Delete Voice & Dialogue Guide',
+      message: isPersian
+        ? `آیا از حذف راهنمای گفتار و نمونه دیالوگ‌های "${npc.name}" اطمینان دارید؟`
+        : `Are you sure you want to delete the Voice & Dialogue guide for "${npc.name}"?`,
+      confirmText: isPersian ? 'حذف شود' : 'Delete',
+      cancelText: isPersian ? 'انصراف' : 'Cancel',
+      isDestructive: true,
+    });
+    if (confirmed) {
+      editNpc(npc.id, { voiceGuide: undefined });
+      notify.info(isPersian ? 'راهنمای گفتار حذف شد' : 'Voice guide removed');
+    }
+  };
+
+  // RPG Combat & Stats Handlers
+  const openStatModal = (npc: NPCDossier) => {
+    setTargetNpcForStat(npc);
+    if (npc.statCalibration) {
+      setStatForm({
+        npcId: npc.id,
+        npcName: npc.statCalibration.npcName || npc.name,
+        combatTier: npc.statCalibration.combatTier || 'veteran',
+        challengeRating: npc.statCalibration.challengeRating || 5,
+        statRatings: { ...(npc.statCalibration.statRatings || { STR: 12, DEX: 12, CON: 12, INT: 10, WIS: 10, CHA: 10 }) },
+        signatureAbilities: [...(npc.statCalibration.signatureAbilities || [])],
+        equippedGear: (npc.statCalibration.equippedGear || []).map((g) => ({ ...g })),
+      });
+    } else {
+      setStatForm({
+        npcId: npc.id,
+        npcName: npc.name,
+        combatTier: 'veteran',
+        challengeRating: 5,
+        statRatings: {
+          STR: 12,
+          DEX: 12,
+          CON: 12,
+          INT: 10,
+          WIS: 10,
+          CHA: 10,
+        },
+        signatureAbilities: [],
+        equippedGear: [],
+      });
+    }
+    setStatAbilityInput('');
+    setNewStatKey('');
+    setNewStatVal(10);
+    setNewGearName('');
+    setNewGearType('weapon');
+    setNewGearDesc('');
+    setStatModalOpen(true);
+  };
+
+  const handleSaveStatCalibration = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetNpcForStat) return;
+    const updatedCalibration: NpcStatCalibration = {
+      ...statForm,
+      npcId: targetNpcForStat.id,
+      npcName: targetNpcForStat.name,
+    };
+    editNpc(targetNpcForStat.id, {
+      statCalibration: updatedCalibration,
+    });
+    setExpandedStatIds((prev) => new Set(prev).add(targetNpcForStat.id));
+    setStatModalOpen(false);
+    notify.success(isPersian ? 'کالیبراسیون رزمی و ویژگی‌ها ذخیره شد' : 'RPG stats saved');
+  };
+
+  const handleDeleteStatCalibration = async (npc: NPCDossier) => {
+    const confirmed = await notify.confirm({
+      title: isPersian ? 'حذف ویژگی‌های رزمی' : 'Delete RPG Stats',
+      message: isPersian
+        ? `آیا از حذف کالیبراسیون رزمی "${npc.name}" اطمینان دارید؟`
+        : `Are you sure you want to delete RPG stats for "${npc.name}"?`,
+      confirmText: isPersian ? 'حذف شود' : 'Delete',
+      cancelText: isPersian ? 'انصراف' : 'Cancel',
+      isDestructive: true,
+    });
+    if (confirmed) {
+      editNpc(npc.id, { statCalibration: undefined });
+      notify.info(isPersian ? 'ویژگی‌های رزمی حذف شد' : 'RPG stats removed');
     }
   };
 
@@ -938,7 +1119,47 @@ export default function NpcDossiersPage() {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          {npc.voiceGuide ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openVoiceGuideModal(npc);
+                                }}
+                                className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors"
+                                title={t.editVoiceGuide}
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteVoiceGuide(npc);
+                                }}
+                                className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-rose-900/50 text-zinc-400 hover:text-rose-400 transition-colors"
+                                title={t.deleteVoiceGuide}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openVoiceGuideModal(npc);
+                              }}
+                              className="px-2 py-1 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10.5px] font-bold flex items-center gap-1 transition-all"
+                              title={t.createVoiceGuide}
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>{isPersian ? 'دستی' : 'Manual'}</span>
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={(e) => {
@@ -955,7 +1176,7 @@ export default function NpcDossiersPage() {
                                   ? 'تولید...'
                                   : 'Generating...'
                                 : isPersian
-                                ? '✨ تولید با هوش مصنوعی'
+                                ? '✨ هوش مصنوعی'
                                 : '✨ AI Generate'}
                             </span>
                           </button>
@@ -991,9 +1212,19 @@ export default function NpcDossiersPage() {
 
                               {/* Sample Quotes */}
                               <div className="space-y-1.5">
-                                <span className="text-[10.5px] text-purple-400/90 font-bold block">
-                                  {isPersian ? 'نمونه دیالوگ‌های موقعیتی:' : 'Situational Sample Dialogue:'}
-                                </span>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10.5px] text-purple-400/90 font-bold block">
+                                    {isPersian ? 'نمونه دیالوگ‌های موقعیتی:' : 'Situational Sample Dialogue:'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => openVoiceGuideModal(npc)}
+                                    className="text-[10.5px] text-purple-400 hover:text-purple-300 font-bold flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                    <span>{isPersian ? 'ویرایش دیالوگ‌ها' : 'Edit Quotes'}</span>
+                                  </button>
+                                </div>
                                 <div className="grid grid-cols-1 gap-1.5">
                                   {npc.voiceGuide.sampleDialogue.map((diag, dIdx) => (
                                     <div
@@ -1006,14 +1237,16 @@ export default function NpcDossiersPage() {
                                         </span>
                                         <p className="mt-1 text-zinc-300 italic">"{diag.quote}"</p>
                                       </div>
-                                      <button
-                                        type="button"
-                                        onClick={() => copyToClipboard(diag.quote)}
-                                        className="text-zinc-500 hover:text-zinc-300 p-1"
-                                        title="Copy"
-                                      >
-                                        <Copy className="w-3 h-3" />
-                                      </button>
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => copyToClipboard(diag.quote)}
+                                          className="text-zinc-500 hover:text-zinc-300 p-1"
+                                          title="Copy"
+                                        >
+                                          <Copy className="w-3 h-3" />
+                                        </button>
+                                      </div>
                                     </div>
                                   ))}
                                 </div>
@@ -1034,15 +1267,26 @@ export default function NpcDossiersPage() {
                               )}
                             </>
                           ) : (
-                            <div className="text-center py-3 text-zinc-500 text-xs space-y-1">
-                              <p>{isPersian ? 'راهنمای صوتی برای این شخصیت تعریف نشده است.' : 'No voice guide generated.'}</p>
-                              <button
-                                type="button"
-                                onClick={() => handleGenerateVoiceGuide(npc)}
-                                className="text-purple-400 font-bold hover:underline"
-                              >
-                                {isPersian ? 'اکنون با هوش مصنوعی تولید کنید' : 'Generate with AI now'}
-                              </button>
+                            <div className="text-center py-3 text-zinc-500 text-xs space-y-2">
+                              <p>{isPersian ? 'راهنمای صوتی برای این شخصیت تعریف نشده است.' : 'No voice guide configured.'}</p>
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => openVoiceGuideModal(npc)}
+                                  className="px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span>{isPersian ? 'ایجاد دستی راهنما' : 'Create Manually'}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleGenerateVoiceGuide(npc)}
+                                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                                >
+                                  <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                                  <span>{isPersian ? 'تولید با هوش مصنوعی' : 'Generate with AI'}</span>
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1068,7 +1312,47 @@ export default function NpcDossiersPage() {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          {npc.statCalibration ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openStatModal(npc);
+                                }}
+                                className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors"
+                                title={t.editStats}
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteStatCalibration(npc);
+                                }}
+                                className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-rose-900/50 text-zinc-400 hover:text-rose-400 transition-colors"
+                                title={t.deleteStats}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openStatModal(npc);
+                              }}
+                              className="px-2 py-1 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10.5px] font-bold flex items-center gap-1 transition-all"
+                              title={t.createStats}
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>{isPersian ? 'دستی' : 'Manual'}</span>
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={(e) => {
@@ -1104,9 +1388,19 @@ export default function NpcDossiersPage() {
                               {/* Stat Ratings Grid */}
                               {Object.keys(npc.statCalibration.statRatings).length > 0 && (
                                 <div>
-                                  <span className="text-[10.5px] text-zinc-500 font-bold block mb-1">
-                                    {isPersian ? 'امتیاز ویژگی‌های نقش‌آفرینی:' : 'Attributes:'}
-                                  </span>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[10.5px] text-zinc-500 font-bold block">
+                                      {isPersian ? 'امتیاز ویژگی‌های نقش‌آفرینی:' : 'Attributes:'}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => openStatModal(npc)}
+                                      className="text-[10.5px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <Edit2 className="w-3 h-3" />
+                                      <span>{isPersian ? 'ویرایش مشخصات رزمی' : 'Edit Stats & Gear'}</span>
+                                    </button>
+                                  </div>
                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5" dir="ltr">
                                     {Object.entries(npc.statCalibration.statRatings).map(([stName, val]) => (
                                       <div
@@ -1161,15 +1455,26 @@ export default function NpcDossiersPage() {
                               )}
                             </>
                           ) : (
-                            <div className="text-center py-3 text-zinc-500 text-xs space-y-1">
+                            <div className="text-center py-3 text-zinc-500 text-xs space-y-2">
                               <p>{isPersian ? 'ویژگی‌های رزمی کالیبره نشده است.' : 'Stats not calibrated.'}</p>
-                              <button
-                                type="button"
-                                onClick={() => handleGenerateStatCalibration(npc)}
-                                className="text-amber-400 font-bold hover:underline"
-                              >
-                                {isPersian ? 'اکنون کالیبره کنید' : 'Calibrate with AI now'}
-                              </button>
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => openStatModal(npc)}
+                                  className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span>{isPersian ? 'ثبت دستی ویژگی‌ها' : 'Create Manually'}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleGenerateStatCalibration(npc)}
+                                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                                >
+                                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                                  <span>{isPersian ? 'کالیبراسیون با هوش مصنوعی' : 'Calibrate with AI'}</span>
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1542,14 +1847,31 @@ export default function NpcDossiersPage() {
               <button
                 type="button"
                 onClick={() => setVoiceGuidePreview(null)}
-                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700"
+                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700 cursor-pointer"
               >
                 {t.cancel}
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  if (!voiceGuidePreview) return;
+                  const targetNpc = npcs.find((n) => n.id === voiceGuidePreview.targetNpcId);
+                  if (targetNpc) {
+                    setTargetNpcForVoiceGuide(targetNpc);
+                    setVoiceGuideForm({ ...voiceGuidePreview.guide });
+                    setVoiceGuidePreview(null);
+                    setVoiceGuideModalOpen(true);
+                  }
+                }}
+                className="px-3.5 py-2 rounded-xl bg-purple-500/20 text-purple-300 text-xs font-bold hover:bg-purple-500/30 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span>{isPersian ? 'ویرایش قبل از ثبت' : 'Edit First'}</span>
+              </button>
+              <button
+                type="button"
                 onClick={handleCommitVoiceGuide}
-                className="px-5 py-2 rounded-xl bg-purple-500 text-zinc-950 text-xs font-bold shadow-lg shadow-purple-500/20 flex items-center gap-1.5"
+                className="px-5 py-2 rounded-xl bg-purple-500 text-zinc-950 text-xs font-bold shadow-lg shadow-purple-500/20 flex items-center gap-1.5 cursor-pointer hover:bg-purple-400"
               >
                 <Check className="w-4 h-4" />
                 <span>{isPersian ? '📥 ثبت برای این شخصیت' : '📥 Save to NPC'}</span>
@@ -1647,14 +1969,31 @@ export default function NpcDossiersPage() {
               <button
                 type="button"
                 onClick={() => setStatCalibrationPreview(null)}
-                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700"
+                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700 cursor-pointer"
               >
                 {t.cancel}
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  if (!statCalibrationPreview) return;
+                  const targetNpc = npcs.find((n) => n.id === statCalibrationPreview.targetNpcId);
+                  if (targetNpc) {
+                    setTargetNpcForStat(targetNpc);
+                    setStatForm({ ...statCalibrationPreview.calibration });
+                    setStatCalibrationPreview(null);
+                    setStatModalOpen(true);
+                  }
+                }}
+                className="px-3.5 py-2 rounded-xl bg-amber-500/20 text-amber-300 text-xs font-bold hover:bg-amber-500/30 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span>{isPersian ? 'ویرایش قبل از ثبت' : 'Edit First'}</span>
+              </button>
+              <button
+                type="button"
                 onClick={handleCommitStatCalibration}
-                className="px-5 py-2 rounded-xl bg-amber-500 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5"
+                className="px-5 py-2 rounded-xl bg-amber-500 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5 cursor-pointer hover:bg-amber-400"
               >
                 <Check className="w-4 h-4" />
                 <span>{isPersian ? '📥 ثبت کالیبراسیون' : '📥 Save Calibration'}</span>
@@ -2249,6 +2588,666 @@ export default function NpcDossiersPage() {
                   className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-500 cursor-pointer shadow-lg shadow-indigo-600/30"
                 >
                   {isPersian ? 'ذخیره نقش اختصاصی' : 'Save Override'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Voice & Dialogue Guide Modal */}
+      {voiceGuideModalOpen && targetNpcForVoiceGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+                <Volume2 className="w-5 h-5 text-purple-400" />
+                <span>
+                  {targetNpcForVoiceGuide.voiceGuide
+                    ? isPersian
+                      ? `ویرایش راهنمای گفتار: ${targetNpcForVoiceGuide.name}`
+                      : `Edit Voice Guide: ${targetNpcForVoiceGuide.name}`
+                    : isPersian
+                    ? `ایجاد راهنمای گفتار: ${targetNpcForVoiceGuide.name}`
+                    : `Create Voice Guide: ${targetNpcForVoiceGuide.name}`}
+                </span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setVoiceGuideModalOpen(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveVoiceGuide} className="space-y-4">
+              {/* Speech Quirks */}
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">
+                  {isPersian ? 'تکیه‌کلام‌ها و ویژگی‌های لحن گفتار:' : 'Speech Quirks & Habits:'}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={voiceQuirkInput}
+                    onChange={(e) => setVoiceQuirkInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (voiceQuirkInput.trim()) {
+                          setVoiceGuideForm((prev) => ({
+                            ...prev,
+                            speechQuirks: [...prev.speechQuirks, voiceQuirkInput.trim()],
+                          }));
+                          setVoiceQuirkInput('');
+                        }
+                      }
+                    }}
+                    placeholder={isPersian ? 'مثال: با لحن شمرده و آمرانه سخن می‌گوید' : 'e.g. Speaks curtly, avoids eye contact'}
+                    className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-purple-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (voiceQuirkInput.trim()) {
+                        setVoiceGuideForm((prev) => ({
+                          ...prev,
+                          speechQuirks: [...prev.speechQuirks, voiceQuirkInput.trim()],
+                        }));
+                        setVoiceQuirkInput('');
+                      }
+                    }}
+                    className="px-3 py-2 bg-zinc-800 text-zinc-200 text-xs font-bold rounded-xl hover:bg-zinc-700 cursor-pointer"
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {voiceGuideForm.speechQuirks.map((q, qIdx) => (
+                    <span
+                      key={qIdx}
+                      className="bg-zinc-800 text-purple-200 text-[11px] px-2 py-0.5 rounded-lg flex items-center gap-1 border border-purple-500/20"
+                    >
+                      {q}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setVoiceGuideForm((prev) => ({
+                            ...prev,
+                            speechQuirks: prev.speechQuirks.filter((_, idx) => idx !== qIdx),
+                          }))
+                        }
+                        className="text-zinc-500 hover:text-rose-400 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Situational Sample Quotes */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-zinc-300 font-bold flex items-center gap-1.5">
+                    <Quote className="w-3.5 h-3.5 text-purple-400" />
+                    <span>{isPersian ? 'نمونه دیالوگ‌های موقعیتی:' : 'Situational Sample Dialogues:'}</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setVoiceGuideForm((prev) => ({
+                        ...prev,
+                        sampleDialogue: [
+                          ...prev.sampleDialogue,
+                          { context: 'greeting', quote: '' },
+                        ],
+                      }))
+                    }
+                    className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1 font-bold cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>{isPersian ? '+ دیالوگ جدید' : '+ Add Dialogue'}</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {voiceGuideForm.sampleDialogue.map((diag, dIdx) => (
+                    <div
+                      key={dIdx}
+                      className="p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <select
+                          value={diag.context}
+                          onChange={(e) => {
+                            const val = e.target.value as 'greeting' | 'bargaining' | 'threatened' | 'dying';
+                            setVoiceGuideForm((prev) => ({
+                              ...prev,
+                              sampleDialogue: prev.sampleDialogue.map((d, idx) =>
+                                idx === dIdx ? { ...d, context: val } : d
+                              ),
+                            }));
+                          }}
+                          className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-[11px] text-purple-300 font-mono focus:outline-none"
+                        >
+                          <option value="greeting">{isPersian ? 'درود و آغاز سخن (greeting)' : 'Greeting'}</option>
+                          <option value="bargaining">{isPersian ? 'مذاکره و چانه‌زنی (bargaining)' : 'Bargaining'}</option>
+                          <option value="threatened">{isPersian ? 'هنگام تهدید و فشار (threatened)' : 'Threatened'}</option>
+                          <option value="dying">{isPersian ? 'لحظه مرگ یا شکست (dying)' : 'Dying'}</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setVoiceGuideForm((prev) => ({
+                              ...prev,
+                              sampleDialogue: prev.sampleDialogue.filter((_, idx) => idx !== dIdx),
+                            }))
+                          }
+                          className="text-zinc-500 hover:text-rose-400 p-1 cursor-pointer"
+                          title={isPersian ? 'حذف این دیالوگ' : 'Remove dialogue'}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <textarea
+                        rows={2}
+                        value={diag.quote}
+                        onChange={(e) => {
+                          const text = e.target.value;
+                          setVoiceGuideForm((prev) => ({
+                            ...prev,
+                            sampleDialogue: prev.sampleDialogue.map((d, idx) =>
+                              idx === dIdx ? { ...d, quote: text } : d
+                            ),
+                          }));
+                        }}
+                        placeholder={isPersian ? 'متن دیالوگ نمونه...' : 'Enter sample quote...'}
+                        className="w-full bg-zinc-900/90 border border-zinc-700/80 rounded-lg p-2 text-xs text-zinc-100 italic focus:outline-none focus:border-purple-500"
+                      />
+                    </div>
+                  ))}
+                  {voiceGuideForm.sampleDialogue.length === 0 && (
+                    <div className="text-center py-4 text-xs text-zinc-500 italic">
+                      {isPersian ? 'هیچ دیالوگی افزوده نشده است. روی + دیالوگ جدید کلیک کنید.' : 'No dialogues added. Click + Add Dialogue.'}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Negotiation Vulnerabilities */}
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">
+                  {isPersian ? 'نقاط اثرپذیری و آسیب‌پذیری در مذاکره:' : 'Negotiation Vulnerabilities:'}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={voiceVulnInput}
+                    onChange={(e) => setVoiceVulnInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (voiceVulnInput.trim()) {
+                          setVoiceGuideForm((prev) => ({
+                            ...prev,
+                            negotiationVulnerabilities: [...prev.negotiationVulnerabilities, voiceVulnInput.trim()],
+                          }));
+                          setVoiceVulnInput('');
+                        }
+                      }
+                    }}
+                    placeholder={isPersian ? 'مثال: وسوسه‌پذیر در برابر شمشیرهای باستانی' : 'e.g. Easily tempted by rare ancient artifacts'}
+                    className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (voiceVulnInput.trim()) {
+                        setVoiceGuideForm((prev) => ({
+                          ...prev,
+                          negotiationVulnerabilities: [...prev.negotiationVulnerabilities, voiceVulnInput.trim()],
+                        }));
+                        setVoiceVulnInput('');
+                      }
+                    }}
+                    className="px-3 py-2 bg-zinc-800 text-zinc-200 text-xs font-bold rounded-xl hover:bg-zinc-700 cursor-pointer"
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {voiceGuideForm.negotiationVulnerabilities.map((vuln, vIdx) => (
+                    <span
+                      key={vIdx}
+                      className="bg-emerald-950/40 text-emerald-300 text-[11px] px-2 py-0.5 rounded-lg flex items-center gap-1 border border-emerald-500/20"
+                    >
+                      {vuln}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setVoiceGuideForm((prev) => ({
+                            ...prev,
+                            negotiationVulnerabilities: prev.negotiationVulnerabilities.filter((_, idx) => idx !== vIdx),
+                          }))
+                        }
+                        className="text-zinc-500 hover:text-rose-400 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Psychological Breaking Point */}
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">
+                  {isPersian ? 'نقطه شکست روانی:' : 'Psychological Breaking Point:'}
+                </label>
+                <textarea
+                  rows={2}
+                  value={voiceGuideForm.psychologicalBreakingPoint}
+                  onChange={(e) =>
+                    setVoiceGuideForm((prev) => ({
+                      ...prev,
+                      psychologicalBreakingPoint: e.target.value,
+                    }))
+                  }
+                  placeholder={isPersian ? 'هنگامی که جان همراهانش در خطر باشد یا رازش برملا گردد...' : 'When his comrades are threatened or his past dishonor is exposed...'}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setVoiceGuideModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700 cursor-pointer"
+                >
+                  {isPersian ? 'انصراف' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-purple-600 text-white text-xs font-bold hover:bg-purple-500 cursor-pointer shadow-lg shadow-purple-600/30 flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{isPersian ? 'ذخیره راهنمای گفتار' : 'Save Voice Guide'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* RPG Combat & Stats Modal */}
+      {statModalOpen && targetNpcForStat && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+                <Sword className="w-5 h-5 text-amber-400" />
+                <span>
+                  {targetNpcForStat.statCalibration
+                    ? isPersian
+                      ? `ویرایش ویژگی‌های رزمی: ${targetNpcForStat.name}`
+                      : `Edit Combat Stats: ${targetNpcForStat.name}`
+                    : isPersian
+                    ? `ثبت ویژگی‌های رزمی: ${targetNpcForStat.name}`
+                    : `Create Combat Stats: ${targetNpcForStat.name}`}
+                </span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setStatModalOpen(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveStatCalibration} className="space-y-4">
+              {/* Combat Tier & Challenge Rating */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">
+                    {isPersian ? 'رده رزمی (Combat Tier):' : 'Combat Tier:'}
+                  </label>
+                  <select
+                    value={statForm.combatTier}
+                    onChange={(e) =>
+                      setStatForm((prev) => ({
+                        ...prev,
+                        combatTier: e.target.value as NpcStatCalibration['combatTier'],
+                      }))
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="civilian">{isPersian ? 'غیرنظامی (Civilian)' : 'Civilian'}</option>
+                    <option value="apprentice">{isPersian ? 'تازه‌کار / شاگرد (Apprentice)' : 'Apprentice'}</option>
+                    <option value="veteran">{isPersian ? 'کهنه‌کار (Veteran)' : 'Veteran'}</option>
+                    <option value="elite">{isPersian ? 'نخبه / سردار (Elite)' : 'Elite'}</option>
+                    <option value="boss">{isPersian ? 'غول / هماورد (Boss)' : 'Boss'}</option>
+                    <option value="mythic">{isPersian ? 'افسانه‌ای (Mythic)' : 'Mythic'}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">
+                    {isPersian ? 'درجه سختی چالش (CR 1-20):' : 'Challenge Rating (CR 1-20):'}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={statForm.challengeRating}
+                      onChange={(e) =>
+                        setStatForm((prev) => ({
+                          ...prev,
+                          challengeRating: Math.max(1, Math.min(20, parseInt(e.target.value) || 1)),
+                        }))
+                      }
+                      className="w-20 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-500 text-center"
+                    />
+                    <input
+                      type="range"
+                      min={1}
+                      max={20}
+                      value={statForm.challengeRating}
+                      onChange={(e) =>
+                        setStatForm((prev) => ({
+                          ...prev,
+                          challengeRating: parseInt(e.target.value) || 1,
+                        }))
+                      }
+                      className="flex-1 accent-amber-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Attributes Grid */}
+              <div>
+                <label className="block text-xs text-zinc-300 font-bold mb-1.5">
+                  {isPersian ? 'امتیاز ویژگی‌ها و صفات:' : 'Attributes / Stat Ratings:'}
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" dir="ltr">
+                  {Object.entries(statForm.statRatings).map(([stKey, stVal]) => (
+                    <div
+                      key={stKey}
+                      className="bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-center relative group"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = { ...statForm.statRatings };
+                          delete updated[stKey];
+                          setStatForm((prev) => ({ ...prev, statRatings: updated }));
+                        }}
+                        className="absolute top-1 right-1 text-zinc-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 cursor-pointer"
+                        title="Remove"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                      <span className="text-[10px] text-zinc-400 font-mono block uppercase">{stKey}</span>
+                      <input
+                        type="number"
+                        value={stVal}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value) || 0;
+                          setStatForm((prev) => ({
+                            ...prev,
+                            statRatings: { ...prev.statRatings, [stKey]: v },
+                          }));
+                        }}
+                        className="w-full bg-transparent text-center font-bold text-amber-300 text-xs focus:outline-none font-mono"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add Custom Attribute */}
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    value={newStatKey}
+                    onChange={(e) => setNewStatKey(e.target.value)}
+                    placeholder={isPersian ? 'نام ویژگی جدید (مثلا PER)' : 'Stat code (e.g. AGI)'}
+                    className="w-32 bg-zinc-950 border border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-100 font-mono uppercase focus:outline-none focus:border-amber-500"
+                  />
+                  <input
+                    type="number"
+                    value={newStatVal}
+                    onChange={(e) => setNewStatVal(parseInt(e.target.value) || 10)}
+                    className="w-16 bg-zinc-950 border border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-100 font-mono text-center focus:outline-none focus:border-amber-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newStatKey.trim()) {
+                        setStatForm((prev) => ({
+                          ...prev,
+                          statRatings: { ...prev.statRatings, [newStatKey.trim().toUpperCase()]: newStatVal },
+                        }));
+                        setNewStatKey('');
+                        setNewStatVal(10);
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-zinc-800 text-zinc-200 text-xs font-bold rounded-xl hover:bg-zinc-700 cursor-pointer"
+                  >
+                    + {isPersian ? 'ویژگی' : 'Add Stat'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Signature Abilities */}
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">
+                  {isPersian ? 'توانایی‌های ویژه رزمی:' : 'Signature Combat Abilities:'}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={statAbilityInput}
+                    onChange={(e) => setStatAbilityInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (statAbilityInput.trim()) {
+                          setStatForm((prev) => ({
+                            ...prev,
+                            signatureAbilities: [...prev.signatureAbilities, statAbilityInput.trim()],
+                          }));
+                          setStatAbilityInput('');
+                        }
+                      }
+                    }}
+                    placeholder={isPersian ? 'مثال: ضربه گیج‌کننده، رقص شمشیر باد' : 'e.g. Blinding Smoke, Cleave, Arcane Ward'}
+                    className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (statAbilityInput.trim()) {
+                        setStatForm((prev) => ({
+                          ...prev,
+                          signatureAbilities: [...prev.signatureAbilities, statAbilityInput.trim()],
+                        }));
+                        setStatAbilityInput('');
+                      }
+                    }}
+                    className="px-3 py-2 bg-zinc-800 text-zinc-200 text-xs font-bold rounded-xl hover:bg-zinc-700 cursor-pointer"
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {statForm.signatureAbilities.map((ab, abIdx) => (
+                    <span
+                      key={abIdx}
+                      className="bg-zinc-950 text-amber-200 border border-amber-500/20 text-[11px] px-2 py-0.5 rounded-lg flex items-center gap-1"
+                    >
+                      ⚡ {ab}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setStatForm((prev) => ({
+                            ...prev,
+                            signatureAbilities: prev.signatureAbilities.filter((_, idx) => idx !== abIdx),
+                          }))
+                        }
+                        className="text-zinc-500 hover:text-rose-400 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Equipped Gear */}
+              <div className="space-y-2">
+                <label className="block text-xs text-zinc-300 font-bold">
+                  {isPersian ? 'تجهیزات و سلاح‌های مجهز:' : 'Equipped Gear & Weapons:'}
+                </label>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                  {statForm.equippedGear.map((gear, gIdx) => (
+                    <div
+                      key={gIdx}
+                      className="p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-between gap-2"
+                    >
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <input
+                          type="text"
+                          value={gear.name}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setStatForm((prev) => ({
+                              ...prev,
+                              equippedGear: prev.equippedGear.map((g, idx) =>
+                                idx === gIdx ? { ...g, name: val } : g
+                              ),
+                            }));
+                          }}
+                          placeholder={isPersian ? 'نام سلاح / پوشش' : 'Item name'}
+                          className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-100 font-bold focus:outline-none"
+                        />
+                        <select
+                          value={gear.type}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setStatForm((prev) => ({
+                              ...prev,
+                              equippedGear: prev.equippedGear.map((g, idx) =>
+                                idx === gIdx ? { ...g, type: val } : g
+                              ),
+                            }));
+                          }}
+                          className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-300 focus:outline-none"
+                        >
+                          <option value="weapon">{isPersian ? 'سلاح (Weapon)' : 'Weapon'}</option>
+                          <option value="armor">{isPersian ? 'زره (Armor)' : 'Armor'}</option>
+                          <option value="shield">{isPersian ? 'سپر (Shield)' : 'Shield'}</option>
+                          <option value="focus">{isPersian ? 'کانون جادو (Focus)' : 'Focus'}</option>
+                          <option value="trinket">{isPersian ? 'طلسم / زیور (Trinket)' : 'Trinket'}</option>
+                          <option value="potion">{isPersian ? 'معجون (Potion)' : 'Potion'}</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={gear.description || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setStatForm((prev) => ({
+                              ...prev,
+                              equippedGear: prev.equippedGear.map((g, idx) =>
+                                idx === gIdx ? { ...g, description: val } : g
+                              ),
+                            }));
+                          }}
+                          placeholder={isPersian ? 'توضیح کوتاه...' : 'Description...'}
+                          className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-400 focus:outline-none"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setStatForm((prev) => ({
+                            ...prev,
+                            equippedGear: prev.equippedGear.filter((_, idx) => idx !== gIdx),
+                          }))
+                        }
+                        className="text-zinc-500 hover:text-rose-400 p-1 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  {statForm.equippedGear.length === 0 && (
+                    <div className="text-center py-2 text-xs text-zinc-500 italic">
+                      {isPersian ? 'هیچ سلاح یا ابزاری ثبت نشده است.' : 'No gear equipped.'}
+                    </div>
+                  )}
+                </div>
+
+                {/* Add New Gear row */}
+                <div className="flex gap-2 pt-1">
+                  <input
+                    type="text"
+                    value={newGearName}
+                    onChange={(e) => setNewGearName(e.target.value)}
+                    placeholder={isPersian ? 'نام وسیله یا سلاح...' : 'New gear name...'}
+                    className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+                  />
+                  <select
+                    value={newGearType}
+                    onChange={(e) => setNewGearType(e.target.value)}
+                    className="bg-zinc-950 border border-zinc-700 rounded-xl px-2 py-1.5 text-xs text-zinc-300 focus:outline-none"
+                  >
+                    <option value="weapon">{isPersian ? 'سلاح' : 'Weapon'}</option>
+                    <option value="armor">{isPersian ? 'زره' : 'Armor'}</option>
+                    <option value="shield">{isPersian ? 'سپر' : 'Shield'}</option>
+                    <option value="focus">{isPersian ? 'کانون' : 'Focus'}</option>
+                    <option value="trinket">{isPersian ? 'طلسم' : 'Trinket'}</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newGearName.trim()) {
+                        setStatForm((prev) => ({
+                          ...prev,
+                          equippedGear: [
+                            ...prev.equippedGear,
+                            { name: newGearName.trim(), type: newGearType, description: newGearDesc.trim() || undefined },
+                          ],
+                        }));
+                        setNewGearName('');
+                        setNewGearDesc('');
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-zinc-800 text-zinc-200 text-xs font-bold rounded-xl hover:bg-zinc-700 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>{isPersian ? '+ سلاح/تجهیزات' : '+ Add'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setStatModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700 cursor-pointer"
+                >
+                  {isPersian ? 'انصراف' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-amber-600 text-zinc-950 text-xs font-bold hover:bg-amber-500 cursor-pointer shadow-lg shadow-amber-600/30 flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{isPersian ? 'ذخیره ویژگی‌های رزمی' : 'Save RPG Stats'}</span>
                 </button>
               </div>
             </form>

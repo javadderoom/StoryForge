@@ -74,6 +74,27 @@ export const PERSIAN_FIELD_MAP: Record<string, string> = {
   'مبدا': 'sourceCategory',
   'مبدأ': 'sourceCategory',
   'مقصد': 'targetCategory',
+  'راهنمای گفتار': 'voiceGuide',
+  'راهنمای دیالوگ': 'voiceGuide',
+  'دیالوگ‌ها': 'sampleDialogue',
+  'دیالوگ': 'sampleDialogue',
+  'نمونه دیالوگ': 'sampleDialogue',
+  'تکیه‌کلام‌ها': 'speechQuirks',
+  'تکیه کلام‌ها': 'speechQuirks',
+  'تکیه‌کلام': 'speechQuirks',
+  'نقاط آسیب‌پذیری': 'negotiationVulnerabilities',
+  'نقاط اثرپذیری': 'negotiationVulnerabilities',
+  'نقطه شکست روانی': 'psychologicalBreakingPoint',
+  'کالیبراسیون رزمی': 'statCalibration',
+  'ویژگی‌های رزمی': 'statCalibration',
+  'درجه چالش': 'challengeRating',
+  'سطح نبرد': 'combatTier',
+  'رده رزمی': 'combatTier',
+  'توانایی‌های ویژه': 'signatureAbilities',
+  'توانایی‌ها': 'signatureAbilities',
+  'تجهیزات مجهز': 'equippedGear',
+  'تجهیزات': 'equippedGear',
+  'سلاح‌ها': 'equippedGear',
 };
 
 export function normalizeEntity(entity: EntityType, data: any): any {
@@ -306,6 +327,61 @@ export function normalizeEntity(entity: EntityType, data: any): any {
     if (!Array.isArray(res.goals)) res.goals = [];
     if (!Array.isArray(res.secrets)) res.secrets = [];
     if (typeof res.initialTrust !== 'number') res.initialTrust = 0;
+
+    // Normalize voiceGuide if present
+    if (res.voiceGuide && typeof res.voiceGuide === 'object') {
+      const rawVg = res.voiceGuide;
+      const vg: any = {};
+      for (const [k, v] of Object.entries(rawVg)) {
+        const cleanK = k.trim().replace(/\s*\(.*?\)\s*/g, '').trim();
+        const mapped = PERSIAN_FIELD_MAP[cleanK] || PERSIAN_FIELD_MAP[k.trim()] || cleanK;
+        vg[mapped] = v;
+      }
+      if (!Array.isArray(vg.speechQuirks)) vg.speechQuirks = [];
+      if (!Array.isArray(vg.sampleDialogue)) vg.sampleDialogue = [];
+      else {
+        vg.sampleDialogue = vg.sampleDialogue.map((d: any) => ({
+          context: ['greeting', 'bargaining', 'threatened', 'dying'].includes(d.context)
+            ? d.context
+            : 'greeting',
+          quote: String(d.quote || d.text || d.dialogue || ''),
+        }));
+      }
+      if (!Array.isArray(vg.negotiationVulnerabilities)) vg.negotiationVulnerabilities = [];
+      if (typeof vg.psychologicalBreakingPoint !== 'string') {
+        vg.psychologicalBreakingPoint = vg.psychologicalBreakingPoint ? String(vg.psychologicalBreakingPoint) : '';
+      }
+      res.voiceGuide = vg;
+    }
+
+    // Normalize statCalibration if present
+    if (res.statCalibration && typeof res.statCalibration === 'object') {
+      const rawSc = res.statCalibration;
+      const sc: any = {};
+      for (const [k, v] of Object.entries(rawSc)) {
+        const cleanK = k.trim().replace(/\s*\(.*?\)\s*/g, '').trim();
+        const mapped = PERSIAN_FIELD_MAP[cleanK] || PERSIAN_FIELD_MAP[k.trim()] || cleanK;
+        sc[mapped] = v;
+      }
+      const validTiers = ['civilian', 'apprentice', 'veteran', 'elite', 'boss', 'mythic'];
+      if (!validTiers.includes(sc.combatTier)) sc.combatTier = 'veteran';
+      const parsedCr = typeof sc.challengeRating === 'number'
+        ? sc.challengeRating
+        : (parseInt(sc.challengeRating) || 5);
+      sc.challengeRating = Math.max(1, Math.min(20, Math.round(parsedCr)));
+
+      if (!sc.statRatings || typeof sc.statRatings !== 'object') sc.statRatings = {};
+      if (!Array.isArray(sc.signatureAbilities)) sc.signatureAbilities = [];
+      if (!Array.isArray(sc.equippedGear)) sc.equippedGear = [];
+      else {
+        sc.equippedGear = sc.equippedGear.map((g: any) => ({
+          name: String(g.name || ''),
+          type: String(g.type || 'gear'),
+          description: g.description ? String(g.description) : undefined,
+        }));
+      }
+      res.statCalibration = sc;
+    }
   } else if (entity === 'artifact') {
     if (!Array.isArray(res.powers)) res.powers = [];
     const validRarities = ['uncommon', 'rare', 'epic', 'legendary', 'mythic'];
