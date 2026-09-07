@@ -445,16 +445,41 @@ export default function NpcDossiersPage() {
     notify.success(isPersian ? 'راهنمای گفتار برای این شخصیت ثبت شد' : 'Voice & Dialogue guide updated');
   };
 
-  const handleGenerateStatCalibration = async (npc: NPCDossier) => {
+  const handleGenerateStatCalibration = async (npc: NPCDossier, tierHint: string = 'auto') => {
     try {
       setGeneratingStatsNpcId(npc.id);
       const worldContext = buildWorldContextString(story);
+
+      // Extract story's active RPG system attributes
+      const storyStats = story.rpgSystem?.stats?.length
+        ? story.rpgSystem.stats.map((s) => `${s.id} (${s.name || s.id})`).join(', ')
+        : 'STR, DEX, CON, INT, WIS, CHA';
+
+      const roleDesc = npc.role ? `Role: ${npc.role}.` : '';
+      const titleDesc = npc.title ? `Title: ${npc.title}.` : '';
+      const traitsDesc = npc.personalityTraits?.length ? `Traits: ${npc.personalityTraits.join(', ')}.` : '';
+      const goalsDesc = npc.goals?.length ? `Goals: ${npc.goals.join(', ')}.` : '';
+      const override = story.storyNpcOverrides?.[npc.id];
+      const importanceDesc = override?.narrativeImportance
+        ? `Story Narrative Importance: ${override.narrativeImportance}.`
+        : '';
+      const storyRoleDesc = override?.storyRole ? `Story Role: ${override.storyRole}.` : '';
+
+      const tierDirective = tierHint && tierHint !== 'auto'
+        ? `FORCED COMBAT TIER DIRECTIVE: You MUST calibrate this character strictly as tier "${tierHint}".`
+        : `COMBAT TIER DIRECTIVE: Carefully evaluate if "${npc.name}" is an ordinary civilian (merchant, scholar, servant, citizen), a regular guard/militia, a veteran knight, or a high-threat antagonist. Ground the tier and CR in their vocation. Do NOT default civilians or non-combatants to elite or boss tiers.`;
+
+      const prompt = `Calibrate RPG combat rating, attributes, signature abilities, and equipped gear for "${npc.name}".
+${titleDesc} ${roleDesc} ${storyRoleDesc} ${importanceDesc} ${traitsDesc} ${goalsDesc}
+Active RPG Attributes to rate: [${storyStats}].
+${tierDirective}`;
+
       const res = await fetch('/api/studio/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'npc_stat_calibration',
-          prompt: `Calibrate RPG combat rating, attributes, signature abilities, and martial/spell gear for "${npc.name}" (${npc.title || 'NPC'}). Role: ${npc.role || npc.title}.`,
+          prompt,
           themeContext: story.worldBible.themeNotes,
           worldContext,
           isPersian,

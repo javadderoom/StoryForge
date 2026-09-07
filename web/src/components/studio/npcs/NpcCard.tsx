@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Heart,
   Edit2,
@@ -68,7 +68,7 @@ export interface NpcCardProps {
   onGenerateVoiceGuide: (npc: NPCDossier) => void;
   onOpenStatModal: (npc: NPCDossier) => void;
   onDeleteStatCalibration: (npc: NPCDossier) => void;
-  onGenerateStatCalibration: (npc: NPCDossier) => void;
+  onGenerateStatCalibration: (npc: NPCDossier, tierHint?: string) => void;
   onGenerateRelationships: (npc: NPCDossier) => void;
   onCopyToClipboard: (text: string) => void;
 }
@@ -104,6 +104,8 @@ export function NpcCard({
   onGenerateRelationships,
   onCopyToClipboard,
 }: NpcCardProps) {
+  const [selectedTierHint, setSelectedTierHint] = useState<string>('auto');
+
   const npcBonds = dramaBonds.filter(
     (b: NPCDramaBond) => b.sourceNpcId === npc.id || b.targetNpcId === npc.id
   );
@@ -584,26 +586,42 @@ export function NpcCard({
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onGenerateStatCalibration(npc);
-                  }}
-                  disabled={generatingStatsNpcId === npc.id}
-                  className="px-2.5 py-1 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10.5px] font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
-                >
-                  <Zap className="w-3 h-3" />
-                  <span>
-                    {generatingStatsNpcId === npc.id
-                      ? isPersian
-                        ? 'محاسبه...'
-                        : 'Calibrating...'
-                      : isPersian
-                      ? '⚡ کالیبراسیون'
-                      : '⚡ Calibrate'}
-                  </span>
-                </button>
+                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  <select
+                    value={selectedTierHint}
+                    onChange={(e) => setSelectedTierHint(e.target.value)}
+                    className="bg-zinc-900 border border-zinc-700/80 rounded-lg px-2 py-1 text-[10.5px] text-zinc-300 font-medium focus:outline-none focus:border-amber-500 cursor-pointer"
+                    title={isPersian ? 'تعیین سطح رزمی دلخواه برای هوش مصنوعی' : 'Combat Tier Target for AI'}
+                  >
+                    <option value="auto">{isPersian ? 'خودکار (بر اساس پیشه)' : 'Auto (From Role)'}</option>
+                    <option value="civilian">{isPersian ? 'غیرنظامی (CR 1)' : 'Civilian (CR 1)'}</option>
+                    <option value="apprentice">{isPersian ? 'تازه‌کار / نگهبان (CR 2-4)' : 'Apprentice (CR 2-4)'}</option>
+                    <option value="veteran">{isPersian ? 'کهنه‌کار (CR 5-8)' : 'Veteran (CR 5-8)'}</option>
+                    <option value="elite">{isPersian ? 'نخبه (CR 9-12)' : 'Elite (CR 9-12)'}</option>
+                    <option value="boss">{isPersian ? 'هماورد / غول (CR 13-16)' : 'Boss (CR 13-16)'}</option>
+                    <option value="mythic">{isPersian ? 'افسانه‌ای (CR 17-20)' : 'Mythic (CR 17-20)'}</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onGenerateStatCalibration(npc, selectedTierHint);
+                    }}
+                    disabled={generatingStatsNpcId === npc.id}
+                    className="px-2.5 py-1 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10.5px] font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Zap className="w-3 h-3" />
+                    <span>
+                      {generatingStatsNpcId === npc.id
+                        ? isPersian
+                          ? 'محاسبه...'
+                          : 'Calibrating...'
+                        : isPersian
+                        ? '⚡ کالیبراسیون'
+                        : '⚡ Calibrate'}
+                    </span>
+                  </button>
+                </div>
                 {isStatExpanded ? (
                   <ChevronUp className="w-4 h-4 text-zinc-400" />
                 ) : (
@@ -688,7 +706,7 @@ export function NpcCard({
                 ) : (
                   <div className="text-center py-3 text-zinc-500 text-xs space-y-2">
                     <p>{isPersian ? 'ویژگی‌های رزمی کالیبره نشده است.' : 'Stats not calibrated.'}</p>
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex flex-wrap items-center justify-center gap-2">
                       <button
                         type="button"
                         onClick={() => onOpenStatModal(npc)}
@@ -697,14 +715,41 @@ export function NpcCard({
                         <Plus className="w-3.5 h-3.5" />
                         <span>{isPersian ? 'ثبت دستی ویژگی‌ها' : 'Create Manually'}</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => onGenerateStatCalibration(npc)}
-                        className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-                      >
-                        <Zap className="w-3.5 h-3.5 text-amber-400" />
-                        <span>{isPersian ? 'کالیبراسیون با هوش مصنوعی' : 'Calibrate with AI'}</span>
-                      </button>
+
+                      <div className="flex items-center gap-1.5 bg-zinc-900/90 border border-zinc-800 rounded-xl p-1">
+                        <select
+                          value={selectedTierHint}
+                          onChange={(e) => setSelectedTierHint(e.target.value)}
+                          className="bg-zinc-950 border border-zinc-700/80 rounded-lg px-2 py-1 text-[10.5px] text-zinc-300 font-medium focus:outline-none focus:border-amber-500 cursor-pointer"
+                          title={isPersian ? 'تعیین سطح رزمی دلخواه برای هوش مصنوعی' : 'Combat Tier Target for AI'}
+                        >
+                          <option value="auto">{isPersian ? 'خودکار (بر اساس پیشه)' : 'Auto (From Role)'}</option>
+                          <option value="civilian">{isPersian ? 'غیرنظامی (CR 1)' : 'Civilian (CR 1)'}</option>
+                          <option value="apprentice">{isPersian ? 'تازه‌کار / نگهبان (CR 2-4)' : 'Apprentice (CR 2-4)'}</option>
+                          <option value="veteran">{isPersian ? 'کهنه‌کار (CR 5-8)' : 'Veteran (CR 5-8)'}</option>
+                          <option value="elite">{isPersian ? 'نخبه (CR 9-12)' : 'Elite (CR 9-12)'}</option>
+                          <option value="boss">{isPersian ? 'هماورد / غول (CR 13-16)' : 'Boss (CR 13-16)'}</option>
+                          <option value="mythic">{isPersian ? 'افسانه‌ای (CR 17-20)' : 'Mythic (CR 17-20)'}</option>
+                        </select>
+
+                        <button
+                          type="button"
+                          onClick={() => onGenerateStatCalibration(npc, selectedTierHint)}
+                          disabled={generatingStatsNpcId === npc.id}
+                          className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          <Zap className="w-3.5 h-3.5 text-amber-400" />
+                          <span>
+                            {generatingStatsNpcId === npc.id
+                              ? isPersian
+                                ? 'محاسبه...'
+                                : 'Calibrating...'
+                              : isPersian
+                              ? 'کالیبراسیون با هوش مصنوعی'
+                              : 'Calibrate with AI'}
+                          </span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
