@@ -202,4 +202,99 @@ describe('Story-Level NPC Role Overrides', () => {
     assert.ok(rendered.includes('Don Corvo [Story Role: Reluctant Employer]'));
     assert.ok(rendered.includes('Relation to Protagonist: Hired you to recover his stolen daughter'));
   });
+
+  it('respects firstAppearanceChapter gating during scoped chapter context build', () => {
+    const npcA: NPCDossier = {
+      id: 'npc_street_thug',
+      name: 'Garrick',
+      title: 'Cutpurse',
+      role: 'commoner',
+      currentLocationId: 'loc_market',
+      personalityTraits: ['Sneaky'],
+      speechStyle: 'Quick',
+      goals: ['Survive'],
+      secrets: [],
+      initialTrust: 0,
+    };
+
+    const npcB: NPCDossier = {
+      id: 'npc_high_inquisitor',
+      name: 'Inquisitor Malakor',
+      title: 'High Inquisitor',
+      role: 'ruler',
+      currentLocationId: 'loc_market',
+      personalityTraits: ['Ruthless'],
+      speechStyle: 'Authoritative',
+      goals: ['Purge heresy'],
+      secrets: [],
+      initialTrust: -20,
+    };
+
+    const worldBible: WorldBible = {
+      worldId: 'world_test',
+      worldName: 'Veridia',
+      summary: 'City',
+      themeNotes: 'Theme',
+      laws: [],
+      factions: [],
+      locations: [
+        {
+          id: 'loc_market',
+          name: 'Grand Bazaar',
+          dangerLevel: 2,
+          description: 'Bustling bazaar.',
+          region: 'Old Quarter',
+          connectedLocationIds: [],
+          atmosphere: 'Noisy and vibrant',
+        },
+      ],
+      timeline: [],
+      npcs: [npcA, npcB],
+    };
+
+    // Chapter 1 context: Garrick enters in Chapter 1, Malakor enters in Chapter 3
+    const ch1Blocks = buildWorldContextBlocks(
+      {
+        worldBible,
+        storyScale: 'urban',
+        storyNpcOverrides: {
+          npc_street_thug: { npcId: 'npc_street_thug', firstAppearanceChapter: 1 },
+          npc_high_inquisitor: { npcId: 'npc_high_inquisitor', firstAppearanceChapter: 3 },
+        },
+      },
+      { scopeTier: 'street', locationIds: ['loc_market'], currentChapterNumber: 1 }
+    );
+
+    // Ch1 must keep Garrick and defer Malakor
+    assert.ok(ch1Blocks.npcs.some((line) => line.includes('Garrick')));
+    assert.ok(!ch1Blocks.npcs.some((line) => line.includes('Malakor')));
+    assert.equal(ch1Blocks.storyScale, 'urban');
+
+    // Chapter 3 context: both Garrick and Malakor are eligible
+    const ch3Blocks = buildWorldContextBlocks(
+      {
+        worldBible,
+        storyScale: 'urban',
+        storyNpcOverrides: {
+          npc_street_thug: { npcId: 'npc_street_thug', firstAppearanceChapter: 1 },
+          npc_high_inquisitor: { npcId: 'npc_high_inquisitor', firstAppearanceChapter: 3 },
+        },
+      },
+      { scopeTier: 'street', locationIds: ['loc_market'], currentChapterNumber: 3 }
+    );
+
+    assert.ok(ch3Blocks.npcs.some((line) => line.includes('Garrick')));
+    assert.ok(ch3Blocks.npcs.some((line) => line.includes('Malakor')));
+    assert.ok(ch3Blocks.npcs.some((line) => line.includes('First Appears: Chapter 3')));
+  });
+
+  it('validates StoryScale across all supported scale tiers', () => {
+    const scales = ['localized', 'urban', 'regional', 'continental', 'mythic'] as const;
+    for (const scale of scales) {
+      const manifest = getEmptyStoryManifest('en');
+      manifest.storyScale = scale;
+      const parsed = StoryManifestSchema.parse(manifest);
+      assert.equal(parsed.storyScale, scale);
+    }
+  });
 });

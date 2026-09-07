@@ -25,6 +25,7 @@ export function getEmptyStoryManifest(language: 'en' | 'fa'): StoryManifest {
     author: 'AfsanehSaz Author',
     version: '0.1.0',
     published: false,
+    storyScale: 'urban',
     worldBibleVersion: 1,
     worldBibleHistory: [],
     rpgSystem: {

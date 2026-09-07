@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import {
   NPCDossier,
@@ -43,6 +43,7 @@ export default function NpcDossiersPage() {
   } = useStudioStory();
 
   const [activeTab, setActiveTab] = useState<'dossiers' | 'drama'>('dossiers');
+  const [chapterFilter, setChapterFilter] = useState<'all' | 'unassigned' | number>('all');
 
   // Modals visibility and active item targets
   const [npcModalOpen, setNpcModalOpen] = useState(false);
@@ -82,6 +83,29 @@ export default function NpcDossiersPage() {
   const npcs = story.worldBible.npcs || [];
   const dramaBonds = story.worldBible.dramaBonds || [];
   const relationTypes = story.worldBible.ontology?.relationTypes || [];
+
+  const availableChapters = useMemo(() => {
+    const set = new Set<number>();
+    story.saga?.chapters?.forEach((c) => set.add(c.chapterNumber));
+    Object.values(story.storyNpcOverrides || {}).forEach((o) => {
+      if (o.firstAppearanceChapter !== undefined) set.add(o.firstAppearanceChapter);
+    });
+    return Array.from(set).sort((a, b) => a - b);
+  }, [story.saga?.chapters, story.storyNpcOverrides]);
+
+  const filteredNpcs = useMemo(() => {
+    if (chapterFilter === 'all') return npcs;
+    if (chapterFilter === 'unassigned') {
+      return npcs.filter((npc) => {
+        const override = story.storyNpcOverrides?.[npc.id];
+        return override?.firstAppearanceChapter === undefined;
+      });
+    }
+    return npcs.filter((npc) => {
+      const override = story.storyNpcOverrides?.[npc.id];
+      return override?.firstAppearanceChapter === chapterFilter;
+    });
+  }, [npcs, chapterFilter, story.storyNpcOverrides]);
 
   const t = {
     heading: isPersian ? 'پرونده‌ها و شبکه درام اجتماعی شخصیت‌ها' : 'NPC Dossiers & Social Drama Web',
@@ -619,43 +643,82 @@ ${asymmetryDirective}`;
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-3 border-b border-zinc-800 pb-3">
-        <button
-          onClick={() => setActiveTab('dossiers')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'dossiers'
-              ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400 shadow-md'
-              : 'text-zinc-400 hover:text-zinc-200'
-          }`}
-        >
-          <User className="w-4 h-4" />
-          <span>{t.tabDossiers}</span>
-          <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-400 font-mono">
-            {npcs.length}
-          </span>
-        </button>
+      {/* Tabs & Chapter Entrance Filter */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setActiveTab('dossiers')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'dossiers'
+                ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400 shadow-md'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <User className="w-4 h-4" />
+            <span>{t.tabDossiers}</span>
+            <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-400 font-mono">
+              {npcs.length}
+            </span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('drama')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'drama'
-              ? 'bg-rose-500/10 border border-rose-500/30 text-rose-400 shadow-md'
-              : 'text-zinc-400 hover:text-zinc-200'
-          }`}
-        >
-          <ArrowLeftRight className="w-4 h-4" />
-          <span>{t.tabDrama}</span>
-          <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-400 font-mono">
-            {dramaBonds.length}
-          </span>
-        </button>
+          <button
+            onClick={() => setActiveTab('drama')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'drama'
+                ? 'bg-rose-500/10 border border-rose-500/30 text-rose-400 shadow-md'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <ArrowLeftRight className="w-4 h-4" />
+            <span>{t.tabDrama}</span>
+            <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-400 font-mono">
+              {dramaBonds.length}
+            </span>
+          </button>
+        </div>
+
+        {activeTab === 'dossiers' && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-400">
+              {isPersian ? 'ورود به داستان:' : 'Entrance Filter:'}
+            </span>
+            <select
+              value={chapterFilter}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'all' || val === 'unassigned') {
+                  setChapterFilter(val);
+                } else {
+                  setChapterFilter(Number(val));
+                }
+              }}
+              className="bg-zinc-900/90 border border-zinc-700/70 rounded-xl px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500"
+            >
+              <option value="all">{isPersian ? 'همه فصل‌ها' : 'All Chapters'}</option>
+              {availableChapters.map((num) => {
+                const chTitle = story.saga?.chapters?.find((c) => c.chapterNumber === num)?.title;
+                return (
+                  <option key={num} value={num}>
+                    {isPersian ? `فصل ${num}` : `Chapter ${num}`}
+                    {chTitle ? ` - ${chTitle}` : ''}
+                  </option>
+                );
+              })}
+              <option value="unassigned">{isPersian ? 'عمومی / نامشخص' : 'Unassigned / Any'}</option>
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Tab 1: NPC Dossiers Grid */}
       {activeTab === 'dossiers' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {npcs.map((npc) => (
+        filteredNpcs.length === 0 ? (
+          <div className="text-center py-12 text-zinc-500 text-sm border border-dashed border-zinc-800 rounded-2xl">
+            {isPersian ? 'هیچ شخصیتی با این فیلتر فصل یافت نشد.' : 'No NPCs match this chapter filter.'}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {filteredNpcs.map((npc) => (
             <NpcCard
               key={npc.id}
               npc={npc}
@@ -690,6 +753,7 @@ ${asymmetryDirective}`;
             />
           ))}
         </div>
+        )
       )}
 
       {/* Tab 2: Interpersonal Drama Bonds Grid */}

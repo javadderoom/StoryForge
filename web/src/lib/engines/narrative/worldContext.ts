@@ -1,7 +1,8 @@
 import { WorldBible, ScopeTier, StoryChapter, WorldStateLedger, FACTION_RELATION_META, getLocationAncestry } from '@/lib/types/world';
-import { StoryNpcOverride } from '@/lib/types/story';
+import { StoryNpcOverride, StoryScale } from '@/lib/types/story';
 
 export interface WorldContextBlocks {
+  storyScale?: string;
   worldSummary?: string;
   themeNotes?: string;
   authoredSystemPrompt?: string;
@@ -22,6 +23,8 @@ export interface WorldContextBlocks {
 export interface ScopedContextOptions {
   /** Active chapter scope tier — drives how much lore is injected. */
   scopeTier?: ScopeTier;
+  /** Active chapter sequence number (1-based), used to filter NPCs whose entrance is reserved for future chapters. */
+  currentChapterNumber?: number;
   /** Location ids relevant to the active scene(s). */
   locationIds?: string[];
   /** NPC ids present in the active scene(s). */
@@ -105,9 +108,10 @@ const passesFactionTierGate = (scope: ScopeTier | undefined, current: ScopeTier)
  */
 export function pruneWorldBibleToScope(
   wb: WorldBible,
-  options: ScopedContextOptions
+  options: ScopedContextOptions,
+  storyNpcOverrides?: Record<string, StoryNpcOverride>
 ): WorldBible {
-  const { scopeTier = 'mythic', locationIds = [], npcIds = [] } = options;
+  const { scopeTier = 'mythic', locationIds = [], npcIds = [], currentChapterNumber } = options;
 
   // 1-hop neighborhood of the active locations (travel-adjacent context) + full ancestry hierarchy.
   const activeLocSet = new Set(locationIds);
@@ -119,9 +123,16 @@ export function pruneWorldBibleToScope(
   }
   const activeNpcSet = new Set(npcIds);
 
-  const keepNpcs = (wb.npcs ?? []).filter(
-    (n) => activeNpcSet.has(n.id) || activeLocSet.has(n.currentLocationId)
-  );
+  const keepNpcs = (wb.npcs ?? []).filter((n) => {
+    if (activeNpcSet.has(n.id)) return true;
+    if (currentChapterNumber !== undefined) {
+      const ov = storyNpcOverrides?.[n.id];
+      if (ov?.firstAppearanceChapter !== undefined && ov.firstAppearanceChapter > currentChapterNumber) {
+        return false;
+      }
+    }
+    return activeLocSet.has(n.currentLocationId);
+  });
   const keptNpcIds = new Set(keepNpcs.map((n) => n.id));
 
   const keepFactions = (wb.factions ?? []).filter(
@@ -213,6 +224,7 @@ export function buildWorldContextBlocks(
   story: {
     worldBible?: WorldBible | null;
     storyNpcOverrides?: Record<string, StoryNpcOverride>;
+    storyScale?: StoryScale;
   },
   options?: ScopedContextOptions
 ): WorldContextBlocks {
@@ -251,7 +263,7 @@ export function buildWorldContextBlocks(
   }
 
   if (effectiveOptions && !effectiveOptions.unconstrained) {
-    wb = pruneWorldBibleToScope(wb, effectiveOptions);
+    wb = pruneWorldBibleToScope(wb, effectiveOptions, overrides);
   }
   const caps = isStudioMode ? STUDIO_CAPS : SCOPE_CAPS[scopeTier];
   const pinLocs = new Set(options?.locationIds || []);
@@ -369,7 +381,8 @@ export function buildWorldContextBlocks(
       const relStr = ov.relationshipToProtagonist ? ` | Relation to Protagonist: ${ov.relationshipToProtagonist}` : '';
       const goalStr = ov.storyGoal ? ` | Story Goal: ${ov.storyGoal}` : (n.goals?.length ? ` | goals: ${n.goals.join(', ')}` : '');
       const secretStr = ov.storySecret ? ` | Secret: ${ov.storySecret}` : '';
-      return `${n.name} [${roleStr}] — ${n.title || ''}${relStr}${goalStr}${secretStr}`;
+      const chEntrance = ov.firstAppearanceChapter !== undefined ? ` | First Appears: Chapter ${ov.firstAppearanceChapter}` : '';
+      return `${n.name} [${roleStr}] — ${n.title || ''}${relStr}${goalStr}${secretStr}${chEntrance}`;
     },
     caps.npcs,
     pinNpcs
@@ -399,6 +412,7 @@ export function buildWorldContextBlocks(
   const ontologySummary = ontologyLines.length ? ontologyLines.join(' ') : undefined;
 
   return {
+    storyScale: story.storyScale,
     worldSummary: wb.summary || undefined,
     themeNotes: wb.themeNotes || undefined,
     authoredSystemPrompt: wb.aiSystemPrompt || undefined,
@@ -422,6 +436,7 @@ export function buildWorldContextBlocks(
  */
 export function formatWorldContext(blocks: WorldContextBlocks): string {
   const sections: string[] = [];
+  if (blocks.storyScale) sections.push(`Story Canvas Scope: ${blocks.storyScale.toUpperCase()}`);
   if (blocks.worldSummary) sections.push(`World Summary: ${blocks.worldSummary}`);
   if (blocks.themeNotes) sections.push(`Theme Notes: ${blocks.themeNotes}`);
   if (blocks.authoredSystemPrompt) sections.push(`Author's Directive: ${blocks.authoredSystemPrompt}`);
@@ -443,6 +458,7 @@ export function formatWorldContext(blocks: WorldContextBlocks): string {
 export function buildWorldContextString(story: {
   worldBible?: WorldBible | null;
   storyNpcOverrides?: Record<string, StoryNpcOverride>;
+  storyScale?: StoryScale;
 }): string {
   return formatWorldContext(buildWorldContextBlocks(story));
 }
@@ -489,15 +505,20 @@ export function buildChapterContextString(
   story: {
     worldBible?: WorldBible | null;
     storyNpcOverrides?: Record<string, StoryNpcOverride>;
+    storyScale?: StoryScale;
   },
-  chapter: Pick<StoryChapter, 'scopeTier' | 'scenes'>,
+  chapter: Pick<StoryChapter, 'scopeTier' | 'scenes'> & { chapterNumber?: number },
   ledger?: WorldStateLedger | null
 ): string {
   const locationIds = Array.from(
     new Set((chapter.scenes ?? []).map((s) => s.locationId).filter(Boolean))
   );
 
-  const blocks = buildWorldContextBlocks(story, { scopeTier: chapter.scopeTier, locationIds });
+  const blocks = buildWorldContextBlocks(story, {
+    scopeTier: chapter.scopeTier,
+    locationIds,
+    currentChapterNumber: chapter.chapterNumber,
+  });
   const sections: string[] = [formatWorldContext(blocks)];
 
   if (ledger?.chapterSummaries?.length) {

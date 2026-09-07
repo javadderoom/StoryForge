@@ -13,6 +13,9 @@ export type Genre =
   | 'romance'
   | 'post_apocalyptic';
 
+export type StoryScale = 'localized' | 'urban' | 'regional' | 'continental' | 'mythic';
+export const StoryScaleSchema = z.enum(['localized', 'urban', 'regional', 'continental', 'mythic']);
+
 export interface StoryNpcOverride {
   npcId: string;
   storyRole?: string;
@@ -21,6 +24,7 @@ export interface StoryNpcOverride {
   storySecret?: string;
   customInitialTrust?: number;
   narrativeImportance?: 'central' | 'supporting' | 'incidental';
+  firstAppearanceChapter?: number;
 }
 
 export const StoryNpcOverrideSchema = z.object({
@@ -31,6 +35,7 @@ export const StoryNpcOverrideSchema = z.object({
   storySecret: z.string().optional(),
   customInitialTrust: z.number().int().min(-100).max(100).optional(),
   narrativeImportance: z.enum(['central', 'supporting', 'incidental']).optional().default('supporting'),
+  firstAppearanceChapter: z.number().int().min(1).max(20).optional(),
 });
 
 export interface StoryManifest {
@@ -54,6 +59,8 @@ export interface StoryManifest {
   initialSceneId: string;
   activeMilestoneGoal?: string;
   saga?: SagaManifest;
+  /** Physical / canvas scale of the story */
+  storyScale?: StoryScale;
   /** Optional story-level NPC role overrides (keyed by npcId) */
   storyNpcOverrides?: Record<string, StoryNpcOverride>;
   initialStoryBeats: Array<{
@@ -92,6 +99,7 @@ export const StoryManifestSchema = z.object({
   initialSceneId: z.string(),
   activeMilestoneGoal: z.string().optional(),
   saga: SagaManifestSchema.optional(),
+  storyScale: StoryScaleSchema.optional().default('urban'),
   storyNpcOverrides: z.record(z.string(), StoryNpcOverrideSchema).optional().default({}),
   initialStoryBeats: z.array(z.any()).default([]),
 });

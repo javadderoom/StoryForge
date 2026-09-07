@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { X, Check, Plus, Tag, Image as ImageIcon } from 'lucide-react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { GENRE_LABELS, GENRE_PRESETS } from '@/lib/genrePresets';
+import { StoryScale } from '@/lib/types';
 
 function StoryDetailsForm({
   onClose,
@@ -15,6 +16,7 @@ function StoryDetailsForm({
   const [title, setTitle] = useState(story.title);
   const [tagline, setTagline] = useState(story.tagline);
   const [synopsis, setSynopsis] = useState(story.synopsis);
+  const [storyScale, setStoryScale] = useState<StoryScale>(story.storyScale || 'urban');
   const [coverImageUrl, setCoverImageUrl] = useState(story.coverImageUrl || '');
   const [author, setAuthor] = useState(story.author);
   const [version, setVersion] = useState(story.version);
@@ -45,6 +47,7 @@ function StoryDetailsForm({
       title: title.trim() || story.title,
       tagline,
       synopsis,
+      storyScale,
       coverImageUrl: coverImageUrl.trim(),
       author: author.trim() || story.author,
       version: version.trim() || story.version,
@@ -86,7 +89,7 @@ function StoryDetailsForm({
 
         <div>
           <label className="block text-xs font-bold text-zinc-300 mb-1.5">
-            {isPersian ? 'شعار / خلاصه کوتاه:' : 'Tagline:'}
+            {isPersian ? 'شعار یا زیرعنوان کوتاه:' : 'Tagline / Hook:'}
           </label>
           <input
             type="text"
@@ -106,6 +109,49 @@ function StoryDetailsForm({
             rows={3}
             className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-amber-500 resize-none"
           />
+        </div>
+
+        {/* Story Scale Setting */}
+        <div>
+          <label className="block text-xs font-bold text-zinc-300 mb-1.5">
+            {isPersian ? 'مقیاس و گستره فیزیکی داستان:' : 'Story Physical Scale & Canvas:'}
+          </label>
+          <select
+            value={storyScale}
+            onChange={(e) => setStoryScale(e.target.value as StoryScale)}
+            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 cursor-pointer"
+          >
+            <option value="localized">
+              {isPersian
+                ? '📍 محلی / تک‌مکان (عمارت، صومعه، کشتی، دهکده)'
+                : '📍 Localized (Single manor, compound, ship, or village)'}
+            </option>
+            <option value="urban">
+              {isPersian
+                ? '🏙️ شهری (یک شهر، محله‌ها، فاضلاب و حومه)'
+                : '🏙️ Urban (Single city, districts, sewers, and immediate outskirts)'}
+            </option>
+            <option value="regional">
+              {isPersian
+                ? '🌲 منطقه‌ای (یک استان، قلمرو یا پادشاهی)'
+                : '🌲 Regional (A province, duchy, or kingdom)'}
+            </option>
+            <option value="continental">
+              {isPersian
+                ? '🗺️ قاره‌ای (چندین کشور، سفر طولانی، کارزار جنگی)'
+                : '🗺️ Continental (Multiple nations, world-spanning campaigns)'}
+            </option>
+            <option value="mythic">
+              {isPersian
+                ? '🌌 اسطوره‌ای / کیهانی (چندبعدی، قلمرو خدایان، نیروهای کیهانی)'
+                : '🌌 Mythic (Planar, cosmic, gods, or epoch-shaping scale)'}
+            </option>
+          </select>
+          <p className="text-[11px] text-zinc-500 mt-1">
+            {isPersian
+              ? 'هوش مصنوعی صحنه‌ها و چالش‌ها را متناسب با گستره فیزیکی انتخابی شما تنظیم می‌کند.'
+              : 'The AI adapts scene generation boundaries and travel stakes to this physical canvas.'}
+          </p>
         </div>
 
         {/* Cover Image URL */}

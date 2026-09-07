@@ -30,6 +30,7 @@ export function NpcStoryOverrideModal({
     storySecret: string;
     customInitialTrust?: number;
     narrativeImportance: 'central' | 'supporting' | 'incidental';
+    firstAppearanceChapter?: number;
   }>({
     storyRole: '',
     relationshipToProtagonist: '',
@@ -37,6 +38,7 @@ export function NpcStoryOverrideModal({
     storySecret: '',
     customInitialTrust: undefined,
     narrativeImportance: 'supporting',
+    firstAppearanceChapter: undefined,
   });
 
   useEffect(() => {
@@ -49,6 +51,7 @@ export function NpcStoryOverrideModal({
         storySecret: activeOverride?.storySecret || '',
         customInitialTrust: activeOverride?.customInitialTrust,
         narrativeImportance: activeOverride?.narrativeImportance || 'supporting',
+        firstAppearanceChapter: activeOverride?.firstAppearanceChapter,
       });
     }
   }, [targetNpc, existingOverride, story, open]);
@@ -67,6 +70,7 @@ export function NpcStoryOverrideModal({
           ? overrideForm.customInitialTrust
           : undefined,
       narrativeImportance: overrideForm.narrativeImportance,
+      firstAppearanceChapter: overrideForm.firstAppearanceChapter,
     });
   };
 
@@ -151,10 +155,10 @@ export function NpcStoryOverrideModal({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-zinc-300 mb-1">
-                {isPersian ? 'میزان اعتماد اولیه (-100 تا 100)' : 'Custom Initial Trust (-100 to 100)'}
+                {isPersian ? 'میزان اعتماد اولیه' : 'Custom Initial Trust'}
               </label>
               <input
                 type="number"
@@ -167,14 +171,14 @@ export function NpcStoryOverrideModal({
                     customInitialTrust: e.target.value === '' ? undefined : parseInt(e.target.value, 10),
                   }))
                 }
-                placeholder={`Default: ${targetNpc.initialTrust ?? 0}`}
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500 font-mono"
+                placeholder={`Def: ${targetNpc.initialTrust ?? 0}`}
+                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500 font-mono"
               />
             </div>
 
             <div>
               <label className="block text-xs font-medium text-zinc-300 mb-1">
-                {isPersian ? 'اهمیت روایی در این داستان' : 'Narrative Importance'}
+                {isPersian ? 'اهمیت روایی' : 'Importance'}
               </label>
               <select
                 value={overrideForm.narrativeImportance}
@@ -184,11 +188,44 @@ export function NpcStoryOverrideModal({
                     narrativeImportance: e.target.value as 'central' | 'supporting' | 'incidental',
                   }))
                 }
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500 cursor-pointer"
               >
-                <option value="central">{isPersian ? 'محوری (پین‌شده در پرامپت)' : 'Central (Always Pinned in AI Prompt)'}</option>
+                <option value="central">{isPersian ? 'محوری (پین‌شده)' : 'Central'}</option>
                 <option value="supporting">{isPersian ? 'مکمل (Supporting)' : 'Supporting'}</option>
                 <option value="incidental">{isPersian ? 'فرعی (Incidental)' : 'Incidental'}</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-zinc-300 mb-1">
+                {isPersian ? 'ورود به داستان' : 'First Entrance'}
+              </label>
+              <select
+                value={overrideForm.firstAppearanceChapter !== undefined ? overrideForm.firstAppearanceChapter : ''}
+                onChange={(e) =>
+                  setOverrideForm((prev) => ({
+                    ...prev,
+                    firstAppearanceChapter: e.target.value === '' ? undefined : parseInt(e.target.value, 10),
+                  }))
+                }
+                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500 cursor-pointer"
+              >
+                <option value="">{isPersian ? 'در هر فصلی' : 'Any Chapter'}</option>
+                {story?.saga?.chapters?.length ? (
+                  story.saga.chapters.map((ch) => (
+                    <option key={ch.chapterNumber} value={ch.chapterNumber}>
+                      {isPersian
+                        ? `فصل ${ch.chapterNumber}: ${ch.title || `فصل ${ch.chapterNumber}`}`
+                        : `Ch ${ch.chapterNumber}: ${ch.title || `Ch ${ch.chapterNumber}`}`}
+                    </option>
+                  ))
+                ) : (
+                  [1, 2, 3, 4, 5].map((num) => (
+                    <option key={num} value={num}>
+                      {isPersian ? `فصل ${num}` : `Chapter ${num}`}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
           </div>

@@ -158,11 +158,11 @@ export function NpcCard({
         {/* Story Lens / Override Banner */}
         {(() => {
           const override = story.storyNpcOverrides?.[npc.id];
-          if (override && (override.storyRole || override.relationshipToProtagonist || override.storyGoal || override.storySecret)) {
+          if (override && (override.storyRole || override.relationshipToProtagonist || override.storyGoal || override.storySecret || override.firstAppearanceChapter !== undefined)) {
             return (
               <div className="rounded-2xl bg-indigo-950/40 border border-indigo-500/30 p-3 mb-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                     <span className="text-xs font-bold text-indigo-300">
                       {isPersian ? 'نقش اختصاصی در این داستان' : 'Story Lens (Active Override)'}
@@ -170,6 +170,11 @@ export function NpcCard({
                     {override.narrativeImportance === 'central' && (
                       <span className="text-[10px] bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded border border-rose-500/30 font-medium">
                         {isPersian ? 'شخصیت محوری (پین‌شده)' : 'Central Pinned'}
+                      </span>
+                    )}
+                    {override.firstAppearanceChapter !== undefined && (
+                      <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30 font-medium" dir="ltr">
+                        📖 {isPersian ? `ورود: فصل ${override.firstAppearanceChapter}` : `First Appears: Ch. ${override.firstAppearanceChapter}`}
                       </span>
                     )}
                   </div>
@@ -202,6 +207,12 @@ export function NpcCard({
                     <div>
                       <span className="text-zinc-500 block text-[10px]">{isPersian ? 'ارتباط با قهرمان:' : 'Relation to Protagonist:'}</span>
                       <span className="text-zinc-200">{override.relationshipToProtagonist}</span>
+                    </div>
+                  )}
+                  {override.firstAppearanceChapter !== undefined && (
+                    <div>
+                      <span className="text-zinc-500 block text-[10px]">{isPersian ? 'ورود به داستان:' : 'First Appears:'}</span>
+                      <span className="text-amber-300 font-medium" dir="ltr">{isPersian ? `فصل ${override.firstAppearanceChapter}` : `Chapter ${override.firstAppearanceChapter}`}</span>
                     </div>
                   )}
                   {override.storyGoal && (

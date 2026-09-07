@@ -359,7 +359,7 @@ interface StudioStoryContextType {
   selectedWorldId: string;
   refreshWorlds: () => Promise<void>;
   // Updaters
-  updateStoryMeta: (updates: Partial<Pick<StoryManifest, 'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'coverImageUrl' | 'activeMilestoneGoal'>>) => void;
+  updateStoryMeta: (updates: Partial<Pick<StoryManifest, 'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'coverImageUrl' | 'activeMilestoneGoal' | 'storyScale'>>) => void;
   updateWorldBible: (updater: (prev: WorldBible) => WorldBible) => void;
   updateWorldMeta: (meta: Partial<Pick<WorldBible, 'worldName' | 'summary' | 'themeNotes' | 'aiSystemPrompt'>>) => void;
   // Laws CRUD
@@ -940,7 +940,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
       updates: Partial<
         Pick<
           StoryManifest,
-          'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'coverImageUrl' | 'activeMilestoneGoal'
+          'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'coverImageUrl' | 'activeMilestoneGoal' | 'storyScale'
         >
       >
     ) => {
