@@ -2,6 +2,7 @@ import React from 'react';
 import { Sparkles, Volume2, Sword, X, Check, Edit2 } from 'lucide-react';
 import {
   NPCDossier,
+  NPCDramaBond,
   NpcVoiceGuide,
   NpcStatCalibration,
   NpcSampleDialogue,
@@ -35,6 +36,8 @@ export interface StatCalibrationPreviewData {
 export interface NpcAiPreviewModalsProps {
   isPersian: boolean;
   cancelLabel: string;
+  dramaBonds?: NPCDramaBond[];
+  npcs?: NPCDossier[];
   // Relationship preview
   relationshipPreview: RelationshipPreviewData | null;
   onCloseRelationshipPreview: () => void;
@@ -54,6 +57,8 @@ export interface NpcAiPreviewModalsProps {
 export function NpcAiPreviewModals({
   isPersian,
   cancelLabel,
+  dramaBonds = [],
+  npcs = [],
   relationshipPreview,
   onCloseRelationshipPreview,
   onCommitRelationships,
@@ -96,12 +101,26 @@ export function NpcAiPreviewModals({
             <div className="space-y-3">
               {relationshipPreview.bonds.map((bond, idx) => {
                 const affinity = getAffinityBadge(bond.affinity, isPersian);
+
+                // Detect if an existing bond between these two characters exists
+                const targetNpc = npcs.find(
+                  (n) => n.id === bond.targetNpcId || n.name.toLowerCase() === bond.targetNpcName.toLowerCase()
+                );
+                const targetId = bond.targetNpcId || targetNpc?.id;
+                const sourceId = relationshipPreview.sourceNpc.id;
+
+                const existingBond = dramaBonds.find(
+                  (b) =>
+                    (b.sourceNpcId === sourceId && (b.targetNpcId === targetId || (targetNpc && b.targetNpcId === targetNpc.id))) ||
+                    (b.targetNpcId === sourceId && (b.sourceNpcId === targetId || (targetNpc && b.sourceNpcId === targetNpc.id)))
+                );
+
                 return (
                   <div
                     key={idx}
                     className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-2 text-xs"
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-zinc-200">
                           {relationshipPreview.sourceNpc.name} ↔ {bond.targetNpcName}
@@ -114,6 +133,23 @@ export function NpcAiPreviewModals({
                         {affinity.label} ({bond.affinity > 0 ? `+${bond.affinity}` : bond.affinity})
                       </span>
                     </div>
+
+                    {/* Existing Bond Detection Indicator */}
+                    {existingBond ? (
+                      <div className="flex items-center gap-1.5 text-[10.5px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg">
+                        <span>🔄</span>
+                        <span>
+                          {isPersian
+                            ? `بروزرسانی پیوند قبلی (${existingBond.relationTypeId}، گرایش: ${existingBond.affinity > 0 ? `+${existingBond.affinity}` : existingBond.affinity})`
+                            : `Updates existing bond (${existingBond.relationTypeId}, affinity: ${existingBond.affinity > 0 ? `+${existingBond.affinity}` : existingBond.affinity})`}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-[10.5px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md w-fit">
+                        <span>✨</span>
+                        <span>{isPersian ? 'پیوند جدید' : 'New connection'}</span>
+                      </div>
+                    )}
 
                     {bond.secretTension && (
                       <p className="text-zinc-400 italic text-[11px]">
@@ -140,7 +176,7 @@ export function NpcAiPreviewModals({
               >
                 <Check className="w-4 h-4" />
                 <span>
-                  {isPersian ? '📥 افزودن پیوندها به جهان' : '📥 Commit Bonds to World'}
+                  {isPersian ? '📥 اعمال و ادغام پیوندها در جهان' : '📥 Commit & Merge Bonds'}
                 </span>
               </button>
             </div>

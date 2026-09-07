@@ -330,12 +330,30 @@ export default function NpcDossiersPage() {
     try {
       setGeneratingRelationshipsNpcId(npc.id);
       const worldContext = buildWorldContextString(story);
+
+      // Find existing drama bonds involving this character to provide grounding
+      const existingBonds = dramaBonds.filter(
+        (b) => b.sourceNpcId === npc.id || b.targetNpcId === npc.id
+      );
+      const existingBondsSummary = existingBonds.map((b) => {
+        const otherId = b.sourceNpcId === npc.id ? b.targetNpcId : b.sourceNpcId;
+        const other = npcs.find((n) => n.id === otherId);
+        return `${other?.name || otherId} (${b.relationTypeId}, affinity ${b.affinity > 0 ? '+' : ''}${b.affinity}: "${b.secretTension || 'no secret tension'}")`;
+      });
+
+      const promptText = `Generate 2 to 4 dramatic interpersonal tension bonds for "${npc.name}" (${npc.title || 'NPC'}). Target other real NPCs in the world when possible.
+${
+  existingBondsSummary.length > 0
+    ? `CURRENT KNOWN BONDS FOR THIS NPC:\n- ${existingBondsSummary.join('\n- ')}\nGUIDELINES: Prioritize creating bonds with other existing NPCs who do NOT yet have an established connection with "${npc.name}". If you choose to reference an NPC from the list above, you MUST evolve and deepen the existing relationship without creating an inconsistent contradictory bond.`
+    : 'Prioritize forging meaningful connections with other existing NPCs currently in the world.'
+}`;
+
       const res = await fetch('/api/studio/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'npc_relationships',
-          prompt: `Generate 2 to 4 dramatic interpersonal tension bonds for "${npc.name}" (${npc.title || 'NPC'}). Target other real NPCs in the world when possible.`,
+          prompt: promptText,
           themeContext: story.worldBible.themeNotes,
           worldContext,
           isPersian,
@@ -365,26 +383,68 @@ export default function NpcDossiersPage() {
   const handleCommitRelationships = () => {
     if (!relationshipPreview) return;
     const { sourceNpc, bonds } = relationshipPreview;
-    let count = 0;
+    let addedCount = 0;
+    let updatedCount = 0;
+
     for (const b of bonds) {
-      const bondPayload: NPCDramaBond = {
-        id: (b as any).id || `bond_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-        sourceNpcId: sourceNpc.id,
-        targetNpcId: b.targetNpcId || (npcs.find((n) => n.name.toLowerCase() === b.targetNpcName.toLowerCase())?.id || `npc_${Date.now().toString(36)}`),
-        relationTypeId: b.relationTypeId || 'ally',
-        affinity: b.affinity ?? 0,
-        secretTension: b.secretTension || '',
-        isPublic: b.isPublic ?? true,
-      };
-      addDramaBond(bondPayload);
-      count++;
+      const targetNpc = npcs.find(
+        (n) => n.id === b.targetNpcId || n.name.toLowerCase() === b.targetNpcName.toLowerCase()
+      );
+      const targetId = b.targetNpcId || targetNpc?.id || `npc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+
+      // Check if a bond already exists between this pair (in either direction)
+      const existingBond = dramaBonds.find(
+        (existing) =>
+          (existing.sourceNpcId === sourceNpc.id && existing.targetNpcId === targetId) ||
+          (existing.targetNpcId === sourceNpc.id && existing.sourceNpcId === targetId)
+      );
+
+      if (existingBond) {
+        // Smart update existing bond to prevent duplicate or conflicting links
+        editDramaBond(existingBond.id, {
+          ...existingBond,
+          relationTypeId: b.relationTypeId || existingBond.relationTypeId,
+          affinity: b.affinity ?? existingBond.affinity,
+          secretTension: b.secretTension || existingBond.secretTension,
+          isPublic: b.isPublic ?? existingBond.isPublic,
+        });
+        updatedCount++;
+      } else {
+        // Add new unique bond
+        const bondPayload: NPCDramaBond = {
+          id: (b as any).id || `bond_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+          sourceNpcId: sourceNpc.id,
+          targetNpcId: targetId,
+          relationTypeId: b.relationTypeId || 'ally',
+          affinity: b.affinity ?? 0,
+          secretTension: b.secretTension || '',
+          isPublic: b.isPublic ?? true,
+        };
+        addDramaBond(bondPayload);
+        addedCount++;
+      }
     }
+
     setRelationshipPreview(null);
-    notify.success(
-      isPersian
-        ? `${count} پیوند درام جدید به جهان افزوده شد`
-        : `Added ${count} interpersonal drama bonds to world`
-    );
+    if (addedCount > 0 && updatedCount > 0) {
+      notify.success(
+        isPersian
+          ? `${addedCount} پیوند جدید افزوده و ${updatedCount} پیوند موجود بروزرسانی شد`
+          : `Added ${addedCount} new bonds and updated ${updatedCount} existing bonds`
+      );
+    } else if (updatedCount > 0) {
+      notify.success(
+        isPersian
+          ? `${updatedCount} پیوند موجود با موفقیت بروزرسانی شد`
+          : `Updated ${updatedCount} existing drama bonds`
+      );
+    } else {
+      notify.success(
+        isPersian
+          ? `${addedCount} پیوند درام جدید به جهان افزوده شد`
+          : `Added ${addedCount} interpersonal drama bonds to world`
+      );
+    }
   };
 
   const handleGenerateVoiceGuide = async (npc: NPCDossier) => {
@@ -694,6 +754,8 @@ ${tierDirective}`;
       <NpcAiPreviewModals
         isPersian={isPersian}
         cancelLabel={t.cancel}
+        dramaBonds={dramaBonds}
+        npcs={npcs}
         relationshipPreview={relationshipPreview}
         onCloseRelationshipPreview={() => setRelationshipPreview(null)}
         onCommitRelationships={handleCommitRelationships}
