@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { User, X } from 'lucide-react';
-import { NPCDossier, StoryManifest, Faction, WorldLocation } from '@/lib/types';
+import { User, Users, X, MapPin } from 'lucide-react';
+import { NPCDossier, StoryManifest, Faction, WorldLocation, NpcKind } from '@/lib/types';
 import AiFillSection from '@/components/studio/AiFillSection';
 
 export interface NpcDossierModalProps {
   open: boolean;
   editingNpc: NPCDossier | null;
+  defaultKind?: NpcKind;
   story: StoryManifest;
   isPersian: boolean;
   t?: {
@@ -25,6 +26,7 @@ export interface NpcDossierModalProps {
 export function NpcDossierModal({
   open,
   editingNpc,
+  defaultKind,
   story,
   isPersian,
   t,
@@ -35,8 +37,10 @@ export function NpcDossierModal({
     id: '',
     name: '',
     title: '',
+    kind: 'individual',
     factionId: '',
     currentLocationId: story.worldBible.locations[0]?.id || 'loc_dungeon_cell',
+    applicableLocationIds: [],
     personalityTraits: ['Honorable', 'Vigilant'],
     speechStyle: 'Speaks with measured authority.',
     goals: ['Protect the garrison'],
@@ -58,6 +62,8 @@ export function NpcDossierModal({
     if (editingNpc) {
       setNpcForm({
         ...editingNpc,
+        kind: editingNpc.kind || 'individual',
+        applicableLocationIds: editingNpc.applicableLocationIds || [],
         personalityTraits: (editingNpc.personalityTraits || []).flatMap((t) => splitCommaSeparated(t)),
         goals: (editingNpc.goals || []).flatMap((g) => splitCommaSeparated(g)),
       });
@@ -66,8 +72,10 @@ export function NpcDossierModal({
         id: `npc_${Date.now().toString(36)}`,
         name: '',
         title: '',
+        kind: defaultKind || 'individual',
         factionId: story.worldBible.factions[0]?.id || '',
         currentLocationId: story.worldBible.locations[0]?.id || 'loc_dungeon_cell',
+        applicableLocationIds: [],
         personalityTraits: ['Honorable', 'Vigilant'],
         speechStyle: 'Speaks with measured authority.',
         goals: ['Protect the garrison'],
@@ -77,7 +85,7 @@ export function NpcDossierModal({
     }
     setTraitInput('');
     setGoalInput('');
-  }, [editingNpc, story, open]);
+  }, [editingNpc, defaultKind, story, open]);
 
   if (!open) return null;
 
@@ -142,8 +150,14 @@ export function NpcDossierModal({
     }));
   };
 
-  const nameLabel = t?.npcName || (isPersian ? 'نام شخصیت' : 'Character Name');
-  const titleLabel = t?.npcTitle || (isPersian ? 'عنوان / پیشه' : 'Title / Role');
+  const nameLabel = npcForm.kind === 'template'
+    ? (isPersian ? 'عنوان الگو / نام گروه' : 'Template Title / Group Name')
+    : (t?.npcName || (isPersian ? 'نام شخصیت' : 'Character Name'));
+
+  const titleLabel = npcForm.kind === 'template'
+    ? (isPersian ? 'کارکرد / نقش کهن‌الگو' : 'Archetype Function / Role')
+    : (t?.npcTitle || (isPersian ? 'عنوان / پیشه' : 'Title / Role'));
+
   const traitsLabel = t?.traits || (isPersian ? 'ویژگی‌های شخصیتی' : 'Personality Traits');
   const goalsLabel = t?.goals || (isPersian ? 'اهداف و انگیزه‌ها' : 'Goals & Agendas');
   const cancelLabel = t?.cancel || (isPersian ? 'انصراف' : 'Cancel');
@@ -154,14 +168,52 @@ export function NpcDossierModal({
       <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
           <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
-            <User className="w-5 h-5 text-amber-400" />
-            {editingNpc ? (isPersian ? 'ویرایش پرونده شخصیت' : 'Edit NPC Dossier') : (isPersian ? 'ثبت شخصیت جدید' : 'New NPC Dossier')}
+            {npcForm.kind === 'template' ? (
+              <Users className="w-5 h-5 text-cyan-400" />
+            ) : (
+              <User className="w-5 h-5 text-amber-400" />
+            )}
+            {editingNpc
+              ? (npcForm.kind === 'template'
+                  ? (isPersian ? 'ویرایش الگوی شخصیت‌های فرعی' : 'Edit Archetype Template')
+                  : (isPersian ? 'ویرایش پرونده شخصیت' : 'Edit NPC Dossier'))
+              : (npcForm.kind === 'template'
+                  ? (isPersian ? 'ثبت الگوی گروهی جدید' : 'New Group Archetype Template')
+                  : (isPersian ? 'ثبت شخصیت جدید' : 'New NPC Dossier'))}
           </h3>
           <button
             onClick={onClose}
             className="text-zinc-400 hover:text-white p-1 rounded-lg cursor-pointer"
           >
             <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* NPC Kind Selector (Named Individual vs Group Archetype) */}
+        <div className="flex items-center gap-2 p-1 bg-zinc-950/60 rounded-2xl border border-zinc-800">
+          <button
+            type="button"
+            onClick={() => setNpcForm((prev) => ({ ...prev, kind: 'individual' }))}
+            className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              npcForm.kind !== 'template'
+                ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>{isPersian ? 'شخصیت نامدار / فردی' : 'Named Character (Individual)'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setNpcForm((prev) => ({ ...prev, kind: 'template' }))}
+            className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              npcForm.kind === 'template'
+                ? 'bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>{isPersian ? 'الگوی گروهی / شخصیت‌های فرعی' : 'Group Archetype / Mob Template'}</span>
           </button>
         </div>
 
@@ -179,7 +231,11 @@ export function NpcDossierModal({
                 type="text"
                 value={npcForm.name}
                 onChange={(e) => setNpcForm((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g. Captain Vane"
+                placeholder={
+                  npcForm.kind === 'template'
+                    ? (isPersian ? 'مثلاً: گشت نگهبانان دروازه' : 'e.g. City Gate Patrol')
+                    : 'e.g. Captain Vane'
+                }
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
                 required
               />
@@ -190,7 +246,11 @@ export function NpcDossierModal({
                 type="text"
                 value={npcForm.title}
                 onChange={(e) => setNpcForm((prev) => ({ ...prev, title: e.target.value }))}
-                placeholder="e.g. Garrison Commander"
+                placeholder={
+                  npcForm.kind === 'template'
+                    ? (isPersian ? 'دیده‌بان و نگهبان مسلح' : 'Armed Sentry Archetype')
+                    : 'e.g. Garrison Commander'
+                }
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
               />
             </div>
@@ -216,7 +276,9 @@ export function NpcDossierModal({
             </div>
             <div>
               <label className="block text-xs text-zinc-400 mb-1">
-                {isPersian ? 'مکان فعلی' : 'Current Location'}
+                {npcForm.kind === 'template'
+                  ? (isPersian ? 'مقر / پایگاه اصلی' : 'Primary Base / Headquarters')
+                  : (isPersian ? 'مکان فعلی' : 'Current Location')}
               </label>
               <select
                 value={npcForm.currentLocationId}
@@ -234,9 +296,51 @@ export function NpcDossierModal({
             </div>
           </div>
 
+          {/* Operating Locations for Templates */}
+          {npcForm.kind === 'template' && (
+            <div className="p-3 bg-zinc-950/50 border border-zinc-800 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+                  {isPersian ? 'مناطق حضور و گشت‌زنی این الگو:' : 'Operating Districts / Spawn Locations:'}
+                </label>
+                <span className="text-[11px] text-zinc-500">
+                  {(npcForm.applicableLocationIds || []).length} {isPersian ? 'مکان انتخاب شده' : 'selected'}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pt-1">
+                {story.worldBible.locations.map((loc: WorldLocation) => {
+                  const isSelected = (npcForm.applicableLocationIds || []).includes(loc.id);
+                  return (
+                    <button
+                      key={loc.id}
+                      type="button"
+                      onClick={() => {
+                        setNpcForm((prev) => {
+                          const curr = prev.applicableLocationIds || [];
+                          const next = isSelected ? curr.filter((id) => id !== loc.id) : [...curr, loc.id];
+                          return { ...prev, applicableLocationIds: next };
+                        });
+                      }}
+                      className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-200 font-medium'
+                          : 'bg-zinc-900/80 border-zinc-800 text-zinc-400 hover:text-zinc-300'
+                      }`}
+                    >
+                      {loc.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs text-zinc-400 mb-1">
-              {isPersian ? 'اعتماد اولیه:' : 'Initial Trust:'}
+              {npcForm.kind === 'template'
+                ? (isPersian ? 'گرایش و رویکرد اولیه گروه (-100 تا +100):' : 'Baseline Group Disposition (-100 to +100):')
+                : (isPersian ? 'اعتماد اولیه:' : 'Initial Trust:')}
             </label>
             <input
               type="number"

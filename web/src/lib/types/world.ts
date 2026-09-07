@@ -343,13 +343,17 @@ export interface NpcRelationshipWeb {
   bonds: NpcRelationshipBond[];
 }
 
+export type NpcKind = 'individual' | 'template';
+
 export interface NPCDossier {
   id: string;
   name: string;
   title: string;
   role?: string; // e.g. 'ruler', 'alchemist', 'smuggler', 'guard', 'scholar'
+  kind?: NpcKind; // 'individual' (default) or 'template' (crowd/mob archetype)
   factionId?: string;
-  currentLocationId: string;
+  currentLocationId: string; // Primary base or headquarters
+  applicableLocationIds?: string[]; // Multiple operating districts / spawn locations for templates
   personalityTraits: string[];
   speechStyle: string; // Directives for AI dialog tone (e.g. "Speaks curtly, rarely makes eye contact")
   goals: string[];
@@ -871,8 +875,10 @@ export const NPCDossierSchema = z.object({
   name: z.string().min(1),
   title: z.string().default(''),
   role: z.string().optional(),
+  kind: z.enum(['individual', 'template']).optional().default('individual'),
   factionId: z.string().optional(),
   currentLocationId: z.string(),
+  applicableLocationIds: z.array(z.string()).optional().default([]),
 
   personalityTraits: z.array(z.string()).default([]),
   speechStyle: z.string().default(''),

@@ -10,7 +10,7 @@ import {
 } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
-import { User, ArrowLeftRight, Plus } from 'lucide-react';
+import { User, Users, ArrowLeftRight, Plus } from 'lucide-react';
 
 // Extracted Subcomponents
 import { NpcCard } from '@/components/studio/npcs/NpcCard';
@@ -43,6 +43,7 @@ export default function NpcDossiersPage() {
   } = useStudioStory();
 
   const [activeTab, setActiveTab] = useState<'dossiers' | 'drama'>('dossiers');
+  const [kindFilter, setKindFilter] = useState<'all' | 'individual' | 'template'>('all');
   const [chapterFilter, setChapterFilter] = useState<'all' | 'unassigned' | number>('all');
 
   // Modals visibility and active item targets
@@ -84,6 +85,9 @@ export default function NpcDossiersPage() {
   const dramaBonds = story.worldBible.dramaBonds || [];
   const relationTypes = story.worldBible.ontology?.relationTypes || [];
 
+  const namedCount = useMemo(() => npcs.filter((n) => n.kind !== 'template').length, [npcs]);
+  const templateCount = useMemo(() => npcs.filter((n) => n.kind === 'template').length, [npcs]);
+
   const availableChapters = useMemo(() => {
     const set = new Set<number>();
     story.saga?.chapters?.forEach((c) => set.add(c.chapterNumber));
@@ -94,18 +98,22 @@ export default function NpcDossiersPage() {
   }, [story.saga?.chapters, story.storyNpcOverrides]);
 
   const filteredNpcs = useMemo(() => {
-    if (chapterFilter === 'all') return npcs;
+    let list = npcs;
+    if (kindFilter !== 'all') {
+      list = list.filter((npc) => (kindFilter === 'template' ? npc.kind === 'template' : npc.kind !== 'template'));
+    }
+    if (chapterFilter === 'all') return list;
     if (chapterFilter === 'unassigned') {
-      return npcs.filter((npc) => {
+      return list.filter((npc) => {
         const override = story.storyNpcOverrides?.[npc.id];
         return override?.firstAppearanceChapter === undefined;
       });
     }
-    return npcs.filter((npc) => {
+    return list.filter((npc) => {
       const override = story.storyNpcOverrides?.[npc.id];
       return override?.firstAppearanceChapter === chapterFilter;
     });
-  }, [npcs, chapterFilter, story.storyNpcOverrides]);
+  }, [npcs, kindFilter, chapterFilter, story.storyNpcOverrides]);
 
   const t = {
     heading: isPersian ? 'پرونده‌ها و شبکه درام اجتماعی شخصیت‌ها' : 'NPC Dossiers & Social Drama Web',
@@ -678,34 +686,78 @@ ${asymmetryDirective}`;
         </div>
 
         {activeTab === 'dossiers' && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-400">
-              {isPersian ? 'ورود به داستان:' : 'Entrance Filter:'}
-            </span>
-            <select
-              value={chapterFilter}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === 'all' || val === 'unassigned') {
-                  setChapterFilter(val);
-                } else {
-                  setChapterFilter(Number(val));
-                }
-              }}
-              className="bg-zinc-900/90 border border-zinc-700/70 rounded-xl px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500"
-            >
-              <option value="all">{isPersian ? 'همه فصل‌ها' : 'All Chapters'}</option>
-              {availableChapters.map((num) => {
-                const chTitle = story.saga?.chapters?.find((c) => c.chapterNumber === num)?.title;
-                return (
-                  <option key={num} value={num}>
-                    {isPersian ? `فصل ${num}` : `Chapter ${num}`}
-                    {chTitle ? ` - ${chTitle}` : ''}
-                  </option>
-                );
-              })}
-              <option value="unassigned">{isPersian ? 'عمومی / نامشخص' : 'Unassigned / Any'}</option>
-            </select>
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Kind Filter Pills: All / Named / Archetypes */}
+            <div className="flex items-center p-0.5 bg-zinc-900 rounded-xl border border-zinc-800 text-xs">
+              <button
+                type="button"
+                onClick={() => setKindFilter('all')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                  kindFilter === 'all'
+                    ? 'bg-zinc-800 text-zinc-100 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-300'
+                }`}
+              >
+                {isPersian ? 'همه' : 'All'} ({npcs.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setKindFilter('individual')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                  kindFilter === 'individual'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold'
+                    : 'text-zinc-400 hover:text-zinc-300'
+                }`}
+              >
+                <User className="w-3 h-3" />
+                <span>{isPersian ? 'شخصیت‌ها' : 'Named'}</span>
+                <span className="text-[10px] opacity-75 font-mono">({namedCount})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setKindFilter('template')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                  kindFilter === 'template'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold'
+                    : 'text-zinc-400 hover:text-zinc-300'
+                }`}
+              >
+                <Users className="w-3 h-3" />
+                <span>{isPersian ? 'الگوهای گروهی' : 'Archetypes'}</span>
+                <span className="text-[10px] opacity-75 font-mono">({templateCount})</span>
+              </button>
+            </div>
+
+            {/* Chapter Entrance Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-zinc-400">
+                {isPersian ? 'ورود:' : 'Entrance:'}
+              </span>
+              <select
+                value={chapterFilter}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'all' || val === 'unassigned') {
+                    setChapterFilter(val);
+                  } else {
+                    setChapterFilter(Number(val));
+                  }
+                }}
+                className="bg-zinc-900/90 border border-zinc-700/70 rounded-xl px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500"
+              >
+                <option value="all">{isPersian ? 'همه فصل‌ها' : 'All Chapters'}</option>
+                {availableChapters.map((num) => {
+                  const chTitle = story.saga?.chapters?.find((c) => c.chapterNumber === num)?.title;
+                  return (
+                    <option key={num} value={num}>
+                      {isPersian ? `فصل ${num}` : `Chapter ${num}`}
+                      {chTitle ? ` - ${chTitle}` : ''}
+                    </option>
+                  );
+                })}
+                <option value="unassigned">{isPersian ? 'عمومی / نامشخص' : 'Unassigned / Any'}</option>
+              </select>
+            </div>
           </div>
         )}
       </div>
@@ -714,7 +766,7 @@ ${asymmetryDirective}`;
       {activeTab === 'dossiers' && (
         filteredNpcs.length === 0 ? (
           <div className="text-center py-12 text-zinc-500 text-sm border border-dashed border-zinc-800 rounded-2xl">
-            {isPersian ? 'هیچ شخصیتی با این فیلتر فصل یافت نشد.' : 'No NPCs match this chapter filter.'}
+            {isPersian ? 'هیچ شخصیتی با این فیلترها یافت نشد.' : 'No NPCs match these filters.'}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -771,6 +823,7 @@ ${asymmetryDirective}`;
       <NpcDossierModal
         open={npcModalOpen}
         editingNpc={editingNpc}
+        defaultKind={kindFilter === 'template' ? 'template' : 'individual'}
         story={story}
         isPersian={isPersian}
         t={t}

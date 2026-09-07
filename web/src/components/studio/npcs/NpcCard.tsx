@@ -15,6 +15,9 @@ import {
   Sword,
   Zap,
   ArrowLeftRight,
+  Users,
+  User,
+  MapPin,
 } from 'lucide-react';
 import {
   NPCDossier,
@@ -116,19 +119,36 @@ export function NpcCard({
         {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-amber-500/20 to-rose-500/20 border border-amber-500/30 flex items-center justify-center font-bold text-amber-300 text-lg">
-              {npc.name[0] || 'N'}
+            <div
+              className={`h-11 w-11 rounded-2xl flex items-center justify-center font-bold text-lg ${
+                npc.kind === 'template'
+                  ? 'bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 border border-cyan-500/40 text-cyan-300'
+                  : 'bg-gradient-to-br from-amber-500/20 to-rose-500/20 border border-amber-500/30 text-amber-300'
+              }`}
+            >
+              {npc.kind === 'template' ? <Users className="w-5 h-5" /> : (npc.name[0] || 'N')}
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-base font-bold text-zinc-100">{npc.name}</h3>
+                {npc.kind === 'template' ? (
+                  <span className="px-2 py-0.5 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 text-[10px] font-medium flex items-center gap-1">
+                    <Users className="w-2.5 h-2.5" />
+                    {isPersian ? 'الگوی گروهی' : 'Group Archetype'}
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10px] font-medium flex items-center gap-1">
+                    <User className="w-2.5 h-2.5" />
+                    {isPersian ? 'شخصیت نامدار' : 'Named'}
+                  </span>
+                )}
                 {npc.role && (
-                  <span className="px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10px]">
+                  <span className="px-2 py-0.5 rounded-lg bg-zinc-800 text-zinc-300 border border-zinc-700 text-[10px]">
                     {npc.role}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-amber-400/90 font-medium">{npc.title}</p>
+              <p className="text-xs text-zinc-400 font-medium">{npc.title}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -247,6 +267,27 @@ export function NpcCard({
             </div>
           );
         })()}
+
+        {/* Operating Locations for Group Templates */}
+        {npc.kind === 'template' && npc.applicableLocationIds && npc.applicableLocationIds.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap mb-3 text-xs">
+            <span className="text-[11px] text-zinc-500 flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-cyan-400" />
+              {isPersian ? 'مناطق استقرار:' : 'Spawn Locations:'}
+            </span>
+            {npc.applicableLocationIds.map((locId) => {
+              const loc = story.worldBible.locations.find((l) => l.id === locId);
+              return (
+                <span
+                  key={locId}
+                  className="text-[10px] bg-cyan-950/40 text-cyan-300 border border-cyan-800/40 px-2 py-0.5 rounded-md"
+                >
+                  {loc?.name || locId}
+                </span>
+              );
+            })}
+          </div>
+        )}
 
         {/* Personality Traits Chips */}
         {npc.personalityTraits && npc.personalityTraits.length > 0 && (

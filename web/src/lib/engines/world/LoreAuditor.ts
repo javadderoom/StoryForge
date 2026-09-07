@@ -211,6 +211,20 @@ export class LoreAuditor {
           `Create the location or update the NPC's currentLocationId.`
         );
       }
+      if (npc.applicableLocationIds && npc.applicableLocationIds.length > 0) {
+        for (const locId of npc.applicableLocationIds) {
+          if (!locationIds.has(locId)) {
+            push(
+              'warning',
+              'NPC archetype references missing location',
+              `NPC archetype "${npc.name}" operates in location id "${locId}" that does not exist.`,
+              'missing_link',
+              [{ entityType: 'npc', name: npc.name }],
+              `Create the location or remove the invalid id from applicableLocationIds.`
+            );
+          }
+        }
+      }
     }
 
     for (const art of world.artifacts || []) {

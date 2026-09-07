@@ -131,7 +131,11 @@ export function pruneWorldBibleToScope(
         return false;
       }
     }
-    return activeLocSet.has(n.currentLocationId);
+    if (activeLocSet.has(n.currentLocationId)) return true;
+    if (n.applicableLocationIds && n.applicableLocationIds.some((locId) => activeLocSet.has(locId))) {
+      return true;
+    }
+    return false;
   });
   const keptNpcIds = new Set(keepNpcs.map((n) => n.id));
 
@@ -371,9 +375,10 @@ export function buildWorldContextBlocks(
   const npcs = takeRanked(
     wb.npcs ?? [],
     (n) => {
+      const kindPrefix = n.kind === 'template' ? '[GROUP ARCHETYPE] ' : '';
       const ov = overrides[n.id];
       if (!ov) {
-        return `${n.name} (${n.role || 'unknown role'}) — ${n.title || ''}; goals: ${
+        return `${kindPrefix}${n.name} (${n.role || 'unknown role'}) — ${n.title || ''}; goals: ${
           n.goals.join(', ') || 'unknown'
         }`;
       }
@@ -382,7 +387,7 @@ export function buildWorldContextBlocks(
       const goalStr = ov.storyGoal ? ` | Story Goal: ${ov.storyGoal}` : (n.goals?.length ? ` | goals: ${n.goals.join(', ')}` : '');
       const secretStr = ov.storySecret ? ` | Secret: ${ov.storySecret}` : '';
       const chEntrance = ov.firstAppearanceChapter !== undefined ? ` | First Appears: Chapter ${ov.firstAppearanceChapter}` : '';
-      return `${n.name} [${roleStr}] — ${n.title || ''}${relStr}${goalStr}${secretStr}${chEntrance}`;
+      return `${kindPrefix}${n.name} [${roleStr}] — ${n.title || ''}${relStr}${goalStr}${secretStr}${chEntrance}`;
     },
     caps.npcs,
     pinNpcs

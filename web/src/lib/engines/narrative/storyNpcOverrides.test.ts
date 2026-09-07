@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { StoryNpcOverrideSchema, StoryManifestSchema } from '@/lib/types/story';
-import { buildWorldContextBlocks, buildWorldContextString } from './worldContext';
-import type { NPCDossier, WorldBible } from '@/lib/types/world';
+import { buildWorldContextBlocks, buildWorldContextString, pruneWorldBibleToScope } from './worldContext';
+import { NPCDossierSchema, type NPCDossier, type WorldBible } from '@/lib/types/world';
 import { getEmptyStoryManifest } from '@/lib/storyFactory';
 
 describe('Story-Level NPC Role Overrides', () => {
@@ -298,3 +298,146 @@ describe('Story-Level NPC Role Overrides', () => {
     }
   });
 });
+
+describe('NPC Group Archetype & Mob Templates (Option A)', () => {
+  it('validates NPCDossierSchema defaults for individual characters', () => {
+    const parsed = NPCDossierSchema.parse({
+      id: 'npc_garrick',
+      name: 'Garrick',
+      currentLocationId: 'loc_market',
+    });
+
+    assert.equal(parsed.kind, 'individual');
+    assert.deepEqual(parsed.applicableLocationIds, []);
+  });
+
+  it('validates NPCDossierSchema for template mob archetypes with multiple locations', () => {
+    const parsed = NPCDossierSchema.parse({
+      id: 'npc_city_guard_mob',
+      name: 'City Watch Patrol',
+      title: 'City Guard Sentry',
+      role: 'guard',
+      kind: 'template',
+      currentLocationId: 'loc_barracks',
+      applicableLocationIds: ['loc_gates', 'loc_market', 'loc_docks'],
+      personalityTraits: ['Alert', 'Gruff'],
+      speechStyle: 'Halt in the name of the Watch!',
+      goals: ['Patrol the perimeter', 'Deter thieves'],
+      secrets: [],
+      initialTrust: -10,
+    });
+
+    assert.equal(parsed.kind, 'template');
+    assert.equal(parsed.name, 'City Watch Patrol');
+    assert.deepEqual(parsed.applicableLocationIds, ['loc_gates', 'loc_market', 'loc_docks']);
+  });
+
+  it('pruneWorldBibleToScope retains templates matching active locations through applicableLocationIds', () => {
+    const guardTemplate: NPCDossier = {
+      id: 'npc_guard_template',
+      name: 'City Watch Patrol',
+      title: 'Sentry Archetype',
+      role: 'guard',
+      kind: 'template',
+      currentLocationId: 'loc_barracks', // Primary base is NOT the market
+      applicableLocationIds: ['loc_market', 'loc_citadel'], // But operates in the market
+      personalityTraits: ['Vigilant'],
+      speechStyle: 'Move along.',
+      goals: ['Keep order'],
+      secrets: [],
+      initialTrust: 0,
+    };
+
+    const solitaryNoble: NPCDossier = {
+      id: 'npc_noble',
+      name: 'Lord Vane',
+      title: 'Patrician',
+      role: 'noble',
+      kind: 'individual',
+      currentLocationId: 'loc_manor',
+      applicableLocationIds: [],
+      personalityTraits: ['Arrogant'],
+      speechStyle: 'Do not address me.',
+      goals: ['Accumulate wealth'],
+      secrets: [],
+      initialTrust: -30,
+    };
+
+    const wb: WorldBible = {
+      worldId: 'w_test',
+      worldName: 'Veridia',
+      summary: 'City',
+      themeNotes: 'Theme',
+      laws: [],
+      factions: [],
+      locations: [
+        {
+          id: 'loc_market',
+          name: 'Grand Bazaar',
+          region: 'District A',
+          connectedLocationIds: [],
+          atmosphere: 'Busy',
+          dangerLevel: 2,
+          description: 'Market',
+        },
+        {
+          id: 'loc_barracks',
+          name: 'Garrison Barracks',
+          region: 'District A',
+          connectedLocationIds: [],
+          atmosphere: 'Disciplined',
+          dangerLevel: 1,
+          description: 'Barracks',
+        },
+      ],
+      timeline: [],
+      npcs: [guardTemplate, solitaryNoble],
+    };
+
+    // Prune to scope of loc_market
+    const scoped = pruneWorldBibleToScope(wb, {
+      scopeTier: 'street',
+      locationIds: ['loc_market'],
+    });
+
+    // Guard template should be retained because loc_market is in applicableLocationIds!
+    assert.ok(scoped.npcs.some((n) => n.id === 'npc_guard_template'));
+    // Solitary noble stationed at manor should be pruned
+    assert.ok(!scoped.npcs.some((n) => n.id === 'npc_noble'));
+  });
+
+  it('buildWorldContextBlocks labels templates with [GROUP ARCHETYPE]', () => {
+    const guardTemplate: NPCDossier = {
+      id: 'npc_guard_template',
+      name: 'City Watch Patrol',
+      title: 'Sentry Archetype',
+      role: 'guard',
+      kind: 'template',
+      currentLocationId: 'loc_market',
+      personalityTraits: ['Vigilant'],
+      speechStyle: 'Move along.',
+      goals: ['Keep order'],
+      secrets: [],
+      initialTrust: 0,
+    };
+
+    const blocks = buildWorldContextBlocks({
+      worldBible: {
+        worldId: 'w_test',
+        worldName: 'Veridia',
+        summary: 'City',
+        themeNotes: 'Theme',
+        laws: [],
+        factions: [],
+        locations: [],
+        timeline: [],
+        npcs: [guardTemplate],
+      },
+    });
+
+    const guardLine = blocks.npcs.find((l) => l.includes('City Watch Patrol'));
+    assert.ok(guardLine, 'Template line must exist in blocks.npcs');
+    assert.ok(guardLine.includes('[GROUP ARCHETYPE]'), 'Template line must be tagged with [GROUP ARCHETYPE]');
+  });
+});
+
