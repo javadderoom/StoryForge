@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildWorldContextBlocks } from './worldContext';
-import { WorldBible } from '../../types/world';
+import { buildWorldContextBlocks, formatNpcCombatSummary } from './worldContext';
+import { WorldBible, NPCDossier } from '../../types/world';
 
 const worldBible: WorldBible = {
   worldId: 'world_test',
@@ -159,5 +159,44 @@ describe('buildWorldContextBlocks', () => {
     const blocks = buildWorldContextBlocks({});
     assert.deepEqual(blocks.factions, []);
     assert.equal(blocks.authoredSystemPrompt, undefined);
+  });
+
+  it('appends combat, vitals, and pools to calibrated NPC lines', () => {
+    const npc: NPCDossier = {
+      id: 'npc_c',
+      name: 'Gor',
+      title: 'Warlord',
+      role: 'boss',
+      currentLocationId: 'loc_1',
+      personalityTraits: [],
+      speechStyle: 'Gruff',
+      goals: ['Conquer'],
+      secrets: [],
+      initialTrust: -20,
+      statCalibration: {
+        npcName: 'Gor',
+        combatTier: 'boss',
+        challengeRating: 14,
+        statRatings: {},
+        signatureAbilities: [],
+        equippedGear: [],
+        vitals: { health: { current: 120, max: 150 }, stamina: { current: 30, max: 30 } },
+        resourcePools: [{ id: 'rage', name: 'Rage', current: 3, max: 5 }],
+      },
+    };
+    assert.equal(
+      formatNpcCombatSummary(npc),
+      'boss CR14 — HP 120/150, Stamina 30/30, Rage 3/5 (honor these vitals and pools when narrating harm, fatigue, and ability costs)'
+    );
+    const blocks = buildWorldContextBlocks({ worldBible: { ...worldBible, npcs: [npc] } });
+    assert.equal(blocks.npcs.length, 1);
+    assert.ok(blocks.npcs[0].includes('Gor'));
+    assert.ok(blocks.npcs[0].includes('HP 120/150'));
+    assert.ok(blocks.npcs[0].includes('Rage 3/5'));
+  });
+
+  it('leaves uncalibrated NPC lines untouched', () => {
+    const blocks = buildWorldContextBlocks({ worldBible });
+    assert.ok(!blocks.npcs.some((line) => line.includes('combat:')));
   });
 });

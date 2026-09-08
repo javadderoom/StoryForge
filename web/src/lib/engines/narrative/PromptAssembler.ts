@@ -154,7 +154,7 @@ You MUST respond with a valid JSON object matching this schema:
 
       if (context.activeNpcDossiers.length > 0) {
         const npcs = context.activeNpcDossiers
-          .map((npc) => `• ${npc.name} (Trust: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - Speech: ${npc.speechStyle}`)
+          .map((npc) => `• ${npc.name} (Trust: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - Speech: ${npc.speechStyle}${npc.vitalsLine ? ` - Vitals: ${npc.vitalsLine}` : ''}`)
           .join('\n');
         parts.push(`[PRESENT NPCS]\n${npcs}`);
       }
@@ -212,7 +212,7 @@ You MUST respond with a valid JSON object matching this schema:
 
       if (context.activeNpcDossiers.length > 0) {
         const npcs = context.activeNpcDossiers
-          .map((npc) => `• ${npc.name} (میزان اعتماد: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - لحن صحبت: ${npc.speechStyle}`)
+          .map((npc) => `• ${npc.name} (میزان اعتماد: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - لحن صحبت: ${npc.speechStyle}${npc.vitalsLine ? ` - علائم حیاتی: ${npc.vitalsLine}` : ''}`)
           .join('\n');
         parts.push(`[شخصیت‌های حاضر / PRESENT NPCS]\n${npcs}`);
       }

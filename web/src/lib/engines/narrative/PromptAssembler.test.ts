@@ -51,6 +51,27 @@ describe('PromptAssembler - expanded world context', () => {
     assert.ok(userPrompt.includes('WORLD ONTOLOGY'));
   });
 
+  it('renders NPC vitals lines for calibrated present NPCs (EN + FA)', () => {
+    const dossiers = [{
+      name: 'Gor',
+      trust: -20,
+      knownSecrets: [],
+      speechStyle: 'Gruff',
+      vitalsLine: 'boss CR14 — HP 120/150, Rage 3/5',
+    }];
+    const en = PromptAssembler.buildNarrativePrompt(makeEnvelope({ activeNpcDossiers: dossiers }));
+    assert.ok(en.userPrompt.includes('PRESENT NPCS'));
+    assert.ok(en.userPrompt.includes('Vitals: boss CR14 — HP 120/150, Rage 3/5'));
+    const fa = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({ languageDirective: 'fa', activeNpcDossiers: dossiers })
+    );
+    assert.ok(fa.userPrompt.includes('علائم حیاتی: boss CR14 — HP 120/150, Rage 3/5'));
+    const plain = PromptAssembler.buildNarrativePrompt(makeEnvelope({
+      activeNpcDossiers: [{ name: 'Pip', trust: 5, knownSecrets: [], speechStyle: 'Squeaky' }],
+    }));
+    assert.ok(!plain.userPrompt.includes('Vitals:'));
+  });
+
   it('omits expanded sections when absent and works in Persian', () => {
     const env = makeEnvelope({ languageDirective: 'fa', authoredSystemPrompt: 'با لحن سوگوار بنویس.' });
     const { userPrompt, systemPrompt, isEnglish } = PromptAssembler.buildNarrativePrompt(env);

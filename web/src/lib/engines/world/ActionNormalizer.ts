@@ -95,6 +95,11 @@ export const PERSIAN_FIELD_MAP: Record<string, string> = {
   'تجهیزات مجهز': 'equippedGear',
   'تجهیزات': 'equippedGear',
   'سلاح‌ها': 'equippedGear',
+  'علائم حیاتی': 'vitals',
+  'جان': 'vitals',
+  'سلامتی': 'vitals',
+  'مخازن منابع': 'resourcePools',
+  'منابع': 'resourcePools',
 };
 
 export function normalizeEntity(entity: EntityType, data: any): any {
@@ -379,6 +384,58 @@ export function normalizeEntity(entity: EntityType, data: any): any {
           type: String(g.type || 'gear'),
           description: g.description ? String(g.description) : undefined,
         }));
+      }
+      // Normalize vitals & resource pools (clamp current into [0, max]).
+      // Nested Persian aliases are resolved here since the top-level key
+      // mapper only covers statCalibration's direct keys.
+      const pick = (obj: unknown, ...keys: string[]): unknown => {
+        if (!obj || typeof obj !== 'object') return undefined;
+        const rec = obj as Record<string, unknown>;
+        for (const k of keys) {
+          const v = rec[k];
+          if (v !== undefined && v !== null && v !== '') return v;
+        }
+        return undefined;
+      };
+      const normalizeBar = (raw: unknown, fallbackMax: number) => {
+        const max = Math.max(1, Math.round(Number(pick(raw, 'max', 'حداکثر', 'بیشینه')) || fallbackMax));
+        const rawCurrent = pick(raw, 'current', 'فعلی', 'کنونی');
+        // Absent current means fully rested; explicit values clamp into [0, max].
+        const current = rawCurrent === undefined
+          ? max
+          : Math.max(0, Math.min(max, Math.round(Number(rawCurrent) || 0)));
+        return { current, max };
+      };
+      const rawVitals: unknown = sc.vitals && typeof sc.vitals === 'object' ? sc.vitals : {};
+      const rawStamina = pick(rawVitals, 'stamina', 'استقامت');
+      const rawMana = pick(rawVitals, 'mana', 'مانا');
+      sc.vitals = {
+        health: normalizeBar(pick(rawVitals, 'health', 'جان', 'سلامتی'), 10),
+        ...(rawStamina ? { stamina: normalizeBar(rawStamina, 10) } : {}),
+        ...(rawMana ? { mana: normalizeBar(rawMana, 10) } : {}),
+      };
+      if (!Array.isArray(sc.resourcePools)) sc.resourcePools = [];
+      else {
+        sc.resourcePools = sc.resourcePools
+          .filter((p: unknown) => {
+            if (!p || typeof p !== 'object') return false;
+            const rec = p as Record<string, unknown>;
+            return Boolean(rec.name || rec.id || rec['نام']);
+          })
+          .map((p: unknown, idx: number) => {
+            const rec = p as Record<string, unknown>;
+            const name = String(pick(rec, 'name', 'نام') || rec.id || `Pool ${idx + 1}`);
+            const max = Math.max(1, Math.round(Number(pick(rec, 'max', 'حداکثر', 'بیشینه')) || 1));
+            const rawCurrent = pick(rec, 'current', 'فعلی', 'کنونی');
+            return {
+              id: String(rec.id || `pool_${idx}`),
+              name,
+              current: rawCurrent === undefined
+                ? max
+                : Math.max(0, Math.min(max, Math.round(Number(rawCurrent) || 0))),
+              max,
+            };
+          });
       }
       res.statCalibration = sc;
     }

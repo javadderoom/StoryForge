@@ -33,6 +33,8 @@ export interface WorkingContextEnvelope {
     trust: number;
     knownSecrets: string[];
     speechStyle: string;
+    /** Compact combat/vitals line (tier, CR, HP, pools) — omitted when uncalibrated. */
+    vitalsLine?: string;
   }>;
   relevantMemories: Array<{
     category: MemoryCategory;

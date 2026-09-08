@@ -1,5 +1,20 @@
-import { WorldBible, ScopeTier, StoryChapter, WorldStateLedger, FACTION_RELATION_META, getLocationAncestry } from '@/lib/types/world';
+import { WorldBible, ScopeTier, StoryChapter, WorldStateLedger, FACTION_RELATION_META, getLocationAncestry, NPCDossier } from '@/lib/types/world';
 import { StoryNpcOverride, StoryScale } from '@/lib/types/story';
+
+/**
+ * Compact combat summary for an NPC (`elite CR9 — HP 64/80, Rage 3/5`).
+ * Empty string when the NPC has no stat calibration. The trailing directive
+ * tells the narrator to treat vitals and pools as binding state.
+ */
+export function formatNpcCombatSummary(n: NPCDossier): string {
+  const sc = n.statCalibration;
+  if (!sc) return '';
+  const parts = [`HP ${sc.vitals?.health?.current ?? '?'}/${sc.vitals?.health?.max ?? '?'}`];
+  if (sc.vitals?.stamina) parts.push(`Stamina ${sc.vitals.stamina.current}/${sc.vitals.stamina.max}`);
+  if (sc.vitals?.mana) parts.push(`Mana ${sc.vitals.mana.current}/${sc.vitals.mana.max}`);
+  for (const p of sc.resourcePools ?? []) parts.push(`${p.name} ${p.current}/${p.max}`);
+  return `${sc.combatTier} CR${sc.challengeRating} — ${parts.join(', ')} (honor these vitals and pools when narrating harm, fatigue, and ability costs)`;
+}
 
 export interface WorldContextBlocks {
   storyScale?: string;
@@ -376,18 +391,20 @@ export function buildWorldContextBlocks(
     wb.npcs ?? [],
     (n) => {
       const kindPrefix = n.kind === 'template' ? '[GROUP ARCHETYPE] ' : '';
+      const combatStr = formatNpcCombatSummary(n);
+      const combatSuffix = combatStr ? ` | combat: ${combatStr}` : '';
       const ov = overrides[n.id];
       if (!ov) {
         return `${kindPrefix}${n.name} (${n.role || 'unknown role'}) — ${n.title || ''}; goals: ${
           n.goals.join(', ') || 'unknown'
-        }`;
+        }${combatSuffix}`;
       }
       const roleStr = ov.storyRole ? `Story Role: ${ov.storyRole}` : (n.role || 'unknown role');
       const relStr = ov.relationshipToProtagonist ? ` | Relation to Protagonist: ${ov.relationshipToProtagonist}` : '';
       const goalStr = ov.storyGoal ? ` | Story Goal: ${ov.storyGoal}` : (n.goals?.length ? ` | goals: ${n.goals.join(', ')}` : '');
       const secretStr = ov.storySecret ? ` | Secret: ${ov.storySecret}` : '';
       const chEntrance = ov.firstAppearanceChapter !== undefined ? ` | First Appears: Chapter ${ov.firstAppearanceChapter}` : '';
-      return `${kindPrefix}${n.name} [${roleStr}] — ${n.title || ''}${relStr}${goalStr}${secretStr}${chEntrance}`;
+      return `${kindPrefix}${n.name} [${roleStr}] — ${n.title || ''}${relStr}${goalStr}${secretStr}${chEntrance}${combatSuffix}`;
     },
     caps.npcs,
     pinNpcs

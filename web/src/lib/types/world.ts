@@ -316,6 +316,24 @@ export interface NpcEquippedGear {
   description?: string;
 }
 
+export interface NpcVitalBar {
+  current: number;
+  max: number;
+}
+
+export interface NpcVitals {
+  health: NpcVitalBar;
+  stamina?: NpcVitalBar;
+  mana?: NpcVitalBar;
+}
+
+export interface NpcResourcePool {
+  id: string;
+  name: string;
+  current: number;
+  max: number;
+}
+
 export interface NpcStatCalibration {
   npcId?: string;
   npcName: string;
@@ -324,6 +342,8 @@ export interface NpcStatCalibration {
   statRatings: Record<string, number>;
   signatureAbilities: string[];
   equippedGear: NpcEquippedGear[];
+  vitals: NpcVitals;
+  resourcePools: NpcResourcePool[];
 }
 
 export interface NpcRelationshipBond {
@@ -860,6 +880,24 @@ export const NpcEquippedGearSchema = z.object({
   description: z.string().optional(),
 });
 
+export const NpcVitalBarSchema = z.object({
+  current: z.number().int().min(0).default(0),
+  max: z.number().int().min(1).default(10),
+});
+
+export const NpcVitalsSchema = z.object({
+  health: NpcVitalBarSchema.default({ current: 10, max: 10 }),
+  stamina: NpcVitalBarSchema.optional(),
+  mana: NpcVitalBarSchema.optional(),
+});
+
+export const NpcResourcePoolSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  current: z.number().int().min(0).default(0),
+  max: z.number().int().min(1).default(1),
+});
+
 export const NpcStatCalibrationSchema = z.object({
   npcId: z.string().optional(),
   npcName: z.string(),
@@ -868,6 +906,8 @@ export const NpcStatCalibrationSchema = z.object({
   statRatings: z.record(z.string(), z.number()).default({}),
   signatureAbilities: z.array(z.string()).default([]),
   equippedGear: z.array(NpcEquippedGearSchema).default([]),
+  vitals: NpcVitalsSchema.default({ health: { current: 10, max: 10 } }),
+  resourcePools: z.array(NpcResourcePoolSchema).default([]),
 });
 
 export const NPCDossierSchema = z.object({

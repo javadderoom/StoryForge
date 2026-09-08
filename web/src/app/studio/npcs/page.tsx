@@ -568,11 +568,18 @@ Evaluate "${npc.name}"'s age, physical stature, and daily occupation.
 - Civilians, youth, children, brokers, clerks, and scholars MUST have low physical Might (1 to 4) and concentrate any higher numbers into vocational strengths (such as Cunning: 5-7).
 - Never assign flat or uniform numbers across all attributes.`;
 
-      const prompt = `Calibrate RPG combat rating, attributes, signature abilities, and equipped gear for "${npc.name}".
+      const vitalsDirective = `VITALS & RESOURCE POOLS:
+- Set "vitals.health" (current/max HP) scaled to tier and CR: civilians ~4-8, apprentice guards ~10-20, veterans ~25-45, elites ~50-90, bosses ~100-200, mythic 200+.
+- Add "vitals.stamina" for physically active characters; add "vitals.mana" ONLY for casters or supernatural beings (mundane fighters get no mana pool).
+- Add "resourcePools" for signature expendables fitting the archetype (e.g. Rage, Spell Slots, Focus, Grit, Faith). Each pool needs id, name, and max; civilians usually have none.
+- "current" values represent a fully-rested state (current = max) unless the concept implies starting wounded or drained.`;
+
+      const prompt = `Calibrate RPG combat rating, attributes, signature abilities, equipped gear, vitals, and resource pools for "${npc.name}".
 ${titleDesc} ${roleDesc} ${storyRoleDesc} ${importanceDesc} ${traitsDesc} ${goalsDesc}
 Active RPG Attributes to rate: [${storyStats}].
 ${tierDirective}
-${asymmetryDirective}`;
+${asymmetryDirective}
+${vitalsDirective}`;
 
       const res = await fetch('/api/studio/generate', {
         method: 'POST',

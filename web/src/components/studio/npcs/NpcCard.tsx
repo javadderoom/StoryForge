@@ -594,6 +594,9 @@ export function NpcCard({
                 {npc.statCalibration ? (
                   <span className={`text-[10px] px-2 py-0.5 rounded-lg border font-mono ${getCombatTierBadge(npc.statCalibration.combatTier)}`}>
                     {npc.statCalibration.combatTier.toUpperCase()} · CR {npc.statCalibration.challengeRating}
+                    {npc.statCalibration.vitals?.health
+                      ? ` · HP ${npc.statCalibration.vitals.health.current}/${npc.statCalibration.vitals.health.max}`
+                      : ''}
                   </span>
                 ) : (
                   <span className="text-[10px] text-zinc-500 italic">
@@ -690,6 +693,53 @@ export function NpcCard({
               <div className="p-3.5 pt-0 space-y-3 text-xs border-t border-zinc-900 animate-fadeIn">
                 {npc.statCalibration ? (
                   <>
+                    {/* Vitals & Resource Pools */}
+                    {npc.statCalibration.vitals && (
+                      <div>
+                        <span className="text-[10.5px] text-zinc-500 font-bold flex items-center gap-1 mb-1">
+                          <Heart className="w-3 h-3 text-rose-400" />
+                          {isPersian ? 'علائم حیاتی:' : 'Vitals:'}
+                        </span>
+                        <div className="space-y-1.5">
+                          {(
+                            [
+                              { key: 'health', label: isPersian ? 'جان' : 'HP' },
+                              { key: 'stamina', label: isPersian ? 'استقامت' : 'ST' },
+                              { key: 'mana', label: isPersian ? 'مانا' : 'MP' },
+                            ] as const
+                          ).map(({ key, label }) => {
+                            const bar = npc.statCalibration!.vitals?.[key];
+                            if (!bar) return null;
+                            return (
+                              <div key={key} className="flex items-center gap-2">
+                                <span className="text-[10px] text-zinc-400 font-mono w-8">{label}</span>
+                                <div className="flex-1 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                                  <div
+                                    className="h-full bg-gradient-to-r from-rose-600 to-rose-400"
+                                    style={{ width: `${bar.max > 0 ? Math.round((bar.current / bar.max) * 100) : 0}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] text-zinc-300 font-mono">
+                                  {bar.current}/{bar.max}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {(npc.statCalibration.resourcePools || []).length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {(npc.statCalibration.resourcePools || []).map((pool) => (
+                              <span
+                                key={pool.id}
+                                className="bg-zinc-950 text-sky-200 border border-sky-500/25 text-[10.5px] px-2 py-0.5 rounded-lg font-mono"
+                              >
+                                {pool.name} {pool.current}/{pool.max}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {/* Stat Ratings Grid */}
                     {Object.keys(npc.statCalibration.statRatings).length > 0 && (
                       <div>

@@ -72,6 +72,59 @@ describe('NPC Voice & Dialogue Guides and RPG Stats Normalization', () => {
     assert.equal(normalized.statCalibration.statRatings.STR, 18);
     assert.deepEqual(normalized.statCalibration.signatureAbilities, ['Flame Wave', 'Shield Slam']);
     assert.equal(normalized.statCalibration.equippedGear[0].name, 'Sunblade');
+    // Vitals default to fully-rested 10/10 health when absent
+    assert.deepEqual(normalized.statCalibration.vitals.health, { current: 10, max: 10 });
+    assert.deepEqual(normalized.statCalibration.resourcePools, []);
+  });
+
+  it('normalizes vitals and resource pools and clamps current into [0, max]', () => {
+    const rawNpc = {
+      name: 'Gor',
+      statCalibration: {
+        combatTier: 'elite',
+        challengeRating: 9,
+        vitals: {
+          health: { current: 999, max: 64 },
+          stamina: { current: 20, max: 20 },
+          mana: { current: 0, max: 0 }, // invalid max floors to 1
+        },
+        resourcePools: [
+          { id: 'rage', name: 'Rage', current: 7, max: 5 }, // overfull clamps
+          { name: 'Grit', max: 3 }, // missing current defaults to full
+          null,
+        ],
+      },
+    };
+
+    const normalized = normalizeEntity('npc', rawNpc);
+    assert.deepEqual(normalized.statCalibration.vitals.health, { current: 64, max: 64 });
+    assert.deepEqual(normalized.statCalibration.vitals.stamina, { current: 20, max: 20 });
+    assert.deepEqual(normalized.statCalibration.vitals.mana, { current: 0, max: 1 });
+    assert.equal(normalized.statCalibration.resourcePools.length, 2);
+    assert.deepEqual(normalized.statCalibration.resourcePools[0], { id: 'rage', name: 'Rage', current: 5, max: 5 });
+    assert.deepEqual(normalized.statCalibration.resourcePools[1], { id: 'pool_1', name: 'Grit', current: 3, max: 3 });
+  });
+
+  it('resolves nested Persian vitals keys', () => {
+    const rawNpc = {
+      name: 'گر',
+      statCalibration: {
+        combatTier: 'veteran',
+        'علائم حیاتی': {
+          'جان': { 'فعلی': 30, 'حداکثر': 40 },
+          'استقامت': { current: 12, max: 12 },
+        },
+        'مخازن منابع': [
+          { 'نام': 'خشم', 'فعلی': 2, 'حداکثر': 4 },
+        ],
+      },
+    };
+
+    const normalized = normalizeEntity('npc', rawNpc);
+    assert.deepEqual(normalized.statCalibration.vitals.health, { current: 30, max: 40 });
+    assert.deepEqual(normalized.statCalibration.vitals.stamina, { current: 12, max: 12 });
+    assert.equal(normalized.statCalibration.resourcePools[0].name, 'خشم');
+    assert.equal(normalized.statCalibration.resourcePools[0].current, 2);
   });
 
   it('allows cleanly setting, editing, and deleting voiceGuide and statCalibration on NPCDossier', () => {
@@ -108,6 +161,8 @@ describe('NPC Voice & Dialogue Guides and RPG Stats Normalization', () => {
       statRatings: { STR: 16, DEX: 12 },
       signatureAbilities: ['Parry'],
       equippedGear: [{ name: 'Iron Halberd', type: 'weapon' }],
+      vitals: { health: { current: 60, max: 60 }, stamina: { current: 20, max: 20 } },
+      resourcePools: [{ id: 'grit', name: 'Grit', current: 3, max: 3 }],
     };
     const withBoth = { ...withGuide, statCalibration: stats };
     assert.ok(withBoth.statCalibration);

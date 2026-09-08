@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Sword, X, Plus, Trash2, Check } from 'lucide-react';
-import { NPCDossier, NpcStatCalibration, NpcEquippedGear, StoryManifest } from '@/lib/types';
+import { Sword, X, Plus, Trash2, Check, Heart } from 'lucide-react';
+import { NPCDossier, NpcStatCalibration, NpcEquippedGear, NpcVitals, StoryManifest } from '@/lib/types';
+
+const DEFAULT_VITALS: NpcVitals = { health: { current: 10, max: 10 } };
+
+const VITAL_KEYS = [
+  { key: 'health', labelEn: 'Health', labelFa: 'جان' },
+  { key: 'stamina', labelEn: 'Stamina', labelFa: 'استقامت' },
+  { key: 'mana', labelEn: 'Mana', labelFa: 'مانا' },
+] as const;
 
 export interface NpcStatCalibrationModalProps {
   open: boolean;
@@ -37,6 +45,8 @@ export function NpcStatCalibrationModal({
     statRatings: getDefaultStatRatings(story),
     signatureAbilities: [],
     equippedGear: [],
+    vitals: { ...DEFAULT_VITALS },
+    resourcePools: [],
   });
   const [statAbilityInput, setStatAbilityInput] = useState('');
   const [newStatKey, setNewStatKey] = useState('');
@@ -44,6 +54,8 @@ export function NpcStatCalibrationModal({
   const [newGearName, setNewGearName] = useState('');
   const [newGearType, setNewGearType] = useState<string>('weapon');
   const [newGearDesc, setNewGearDesc] = useState('');
+  const [newPoolName, setNewPoolName] = useState('');
+  const [newPoolMax, setNewPoolMax] = useState<number>(3);
 
   useEffect(() => {
     if (open && targetNpc) {
@@ -58,6 +70,18 @@ export function NpcStatCalibrationModal({
             : getDefaultStatRatings(story),
           signatureAbilities: [...(targetNpc.statCalibration.signatureAbilities || [])],
           equippedGear: (targetNpc.statCalibration.equippedGear || []).map((g: NpcEquippedGear) => ({ ...g })),
+          vitals: targetNpc.statCalibration.vitals
+            ? {
+                health: { ...targetNpc.statCalibration.vitals.health },
+                ...(targetNpc.statCalibration.vitals.stamina
+                  ? { stamina: { ...targetNpc.statCalibration.vitals.stamina } }
+                  : {}),
+                ...(targetNpc.statCalibration.vitals.mana
+                  ? { mana: { ...targetNpc.statCalibration.vitals.mana } }
+                  : {}),
+              }
+            : { ...DEFAULT_VITALS },
+          resourcePools: (targetNpc.statCalibration.resourcePools || []).map((p) => ({ ...p })),
         });
       } else {
         setStatForm({
@@ -68,6 +92,8 @@ export function NpcStatCalibrationModal({
           statRatings: getDefaultStatRatings(story),
           signatureAbilities: [],
           equippedGear: [],
+          vitals: { ...DEFAULT_VITALS },
+          resourcePools: [],
         });
       }
       setStatAbilityInput('');
@@ -76,6 +102,8 @@ export function NpcStatCalibrationModal({
       setNewGearName('');
       setNewGearType('weapon');
       setNewGearDesc('');
+      setNewPoolName('');
+      setNewPoolMax(3);
     }
   }, [open, targetNpc, story]);
 
@@ -84,6 +112,35 @@ export function NpcStatCalibrationModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(statForm);
+  };
+
+  const setVitalBar = (
+    key: 'health' | 'stamina' | 'mana',
+    field: 'current' | 'max',
+    value: number
+  ) => {
+    setStatForm((prev: NpcStatCalibration) => {
+      const base = prev.vitals || { ...DEFAULT_VITALS };
+      const bar = base[key] || { current: 0, max: 10 };
+      const nextMax = field === 'max' ? Math.max(1, value) : bar.max;
+      const nextCurrent = Math.max(0, Math.min(nextMax, field === 'current' ? value : bar.current));
+      return { ...prev, vitals: { ...base, [key]: { current: nextCurrent, max: nextMax } } };
+    });
+  };
+
+  const addVitalBar = (key: 'stamina' | 'mana') => {
+    setStatForm((prev: NpcStatCalibration) => ({
+      ...prev,
+      vitals: { ...(prev.vitals || { ...DEFAULT_VITALS }), [key]: { current: 10, max: 10 } },
+    }));
+  };
+
+  const removeVitalBar = (key: 'stamina' | 'mana') => {
+    setStatForm((prev: NpcStatCalibration) => {
+      const next = { ...(prev.vitals || { ...DEFAULT_VITALS }) };
+      delete next[key];
+      return { ...prev, vitals: next };
+    });
   };
 
   return (
@@ -242,6 +299,195 @@ export function NpcStatCalibrationModal({
                 className="px-3 py-1.5 bg-zinc-800 text-zinc-200 text-xs font-bold rounded-xl hover:bg-zinc-700 cursor-pointer"
               >
                 + {isPersian ? 'ویژگی' : 'Add Stat'}
+              </button>
+            </div>
+          </div>
+
+          {/* Vitals & Resource Pools */}
+          <div>
+            <label className="block text-xs text-zinc-300 font-bold mb-1.5 flex items-center gap-1.5">
+              <Heart className="w-3.5 h-3.5 text-rose-400" />
+              {isPersian ? 'علائم حیاتی و مخازن منابع:' : 'Vitals & Resource Pools:'}
+            </label>
+            <div className="space-y-2">
+              {VITAL_KEYS.map(({ key, labelEn, labelFa }) => {
+                const bar = (statForm.vitals || DEFAULT_VITALS)[key];
+                if (!bar) {
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => addVitalBar(key as 'stamina' | 'mana')}
+                      className="text-[11px] text-zinc-500 hover:text-amber-300 border border-dashed border-zinc-700 hover:border-amber-500/50 rounded-xl px-3 py-1.5 cursor-pointer"
+                    >
+                      + {isPersian ? labelFa : labelEn}
+                    </button>
+                  );
+                }
+                return (
+                  <div
+                    key={key}
+                    className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 flex items-center gap-3"
+                  >
+                    <span className="text-[11px] text-zinc-300 font-bold w-16">
+                      {isPersian ? labelFa : labelEn}
+                    </span>
+                    <label className="flex items-center gap-1 text-[10px] text-zinc-500">
+                      {isPersian ? 'فعلی' : 'Cur'}
+                      <input
+                        type="number"
+                        min={0}
+                        max={bar.max}
+                        value={bar.current}
+                        onChange={(e) => setVitalBar(key, 'current', parseInt(e.target.value) || 0)}
+                        className="w-16 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-rose-200 font-mono text-center focus:outline-none focus:border-rose-500"
+                      />
+                    </label>
+                    <span className="text-zinc-600 font-mono">/</span>
+                    <label className="flex items-center gap-1 text-[10px] text-zinc-500">
+                      {isPersian ? 'حداکثر' : 'Max'}
+                      <input
+                        type="number"
+                        min={1}
+                        value={bar.max}
+                        onChange={(e) => setVitalBar(key, 'max', parseInt(e.target.value) || 1)}
+                        className="w-16 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-100 font-mono text-center focus:outline-none focus:border-rose-500"
+                      />
+                    </label>
+                    <div className="flex-1 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-rose-600 to-rose-400 transition-all"
+                        style={{ width: `${bar.max > 0 ? Math.round((bar.current / bar.max) * 100) : 0}%` }}
+                      />
+                    </div>
+                    {key !== 'health' && (
+                      <button
+                        type="button"
+                        onClick={() => removeVitalBar(key as 'stamina' | 'mana')}
+                        className="text-zinc-600 hover:text-rose-400 cursor-pointer"
+                        title="Remove"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Resource pools list */}
+            <div className="space-y-1.5 mt-2">
+              {(statForm.resourcePools || []).map((pool, pIdx) => (
+                <div
+                  key={pool.id || pIdx}
+                  className="p-2 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center gap-2"
+                >
+                  <input
+                    type="text"
+                    value={pool.name}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setStatForm((prev: NpcStatCalibration) => ({
+                        ...prev,
+                        resourcePools: (prev.resourcePools || []).map((p, idx) =>
+                          idx === pIdx ? { ...p, name: val } : p
+                        ),
+                      }));
+                    }}
+                    placeholder={isPersian ? 'نام منبع (مثلا خشم، مانا)...' : 'Pool name (e.g. Rage, Focus)...'}
+                    className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-100 font-bold focus:outline-none"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    max={pool.max}
+                    value={pool.current}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setStatForm((prev: NpcStatCalibration) => ({
+                        ...prev,
+                        resourcePools: (prev.resourcePools || []).map((p, idx) =>
+                          idx === pIdx
+                            ? { ...p, current: Math.max(0, Math.min(p.max, val)) }
+                            : p
+                        ),
+                      }));
+                    }}
+                    className="w-14 bg-zinc-900 border border-zinc-700 rounded-lg px-1.5 py-1 text-xs text-amber-200 font-mono text-center focus:outline-none"
+                  />
+                  <span className="text-zinc-600 font-mono text-xs">/</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={pool.max}
+                    onChange={(e) => {
+                      const val = Math.max(1, parseInt(e.target.value) || 1);
+                      setStatForm((prev: NpcStatCalibration) => ({
+                        ...prev,
+                        resourcePools: (prev.resourcePools || []).map((p, idx) =>
+                          idx === pIdx
+                            ? { ...p, max: val, current: Math.min(p.current, val) }
+                            : p
+                        ),
+                      }));
+                    }}
+                    className="w-14 bg-zinc-900 border border-zinc-700 rounded-lg px-1.5 py-1 text-xs text-zinc-100 font-mono text-center focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setStatForm((prev: NpcStatCalibration) => ({
+                        ...prev,
+                        resourcePools: (prev.resourcePools || []).filter((_, idx) => idx !== pIdx),
+                      }))
+                    }
+                    className="text-zinc-500 hover:text-rose-400 p-1 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-2">
+              <input
+                type="text"
+                value={newPoolName}
+                onChange={(e) => setNewPoolName(e.target.value)}
+                placeholder={isPersian ? 'منبع جدید (مثلا شکاف طلسم)...' : 'New pool (e.g. Spell Slots)...'}
+                className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+              />
+              <input
+                type="number"
+                min={1}
+                value={newPoolMax}
+                onChange={(e) => setNewPoolMax(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-16 bg-zinc-950 border border-zinc-700 rounded-xl px-2 py-1.5 text-xs text-zinc-100 font-mono text-center focus:outline-none focus:border-amber-500"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (newPoolName.trim()) {
+                    const name = newPoolName.trim();
+                    setStatForm((prev: NpcStatCalibration) => ({
+                      ...prev,
+                      resourcePools: [
+                        ...(prev.resourcePools || []),
+                        {
+                          id: `pool_${Date.now().toString(36)}`,
+                          name,
+                          current: newPoolMax,
+                          max: newPoolMax,
+                        },
+                      ],
+                    }));
+                    setNewPoolName('');
+                    setNewPoolMax(3);
+                  }
+                }}
+                className="px-3 py-1.5 bg-zinc-800 text-zinc-200 text-xs font-bold rounded-xl hover:bg-zinc-700 flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>{isPersian ? '+ منبع' : '+ Add'}</span>
               </button>
             </div>
           </div>

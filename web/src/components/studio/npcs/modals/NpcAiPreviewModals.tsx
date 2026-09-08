@@ -308,6 +308,36 @@ export function NpcAiPreviewModals({
                 </span>
               </div>
 
+              {statCalibrationPreview.calibration.vitals?.health && (
+                <div>
+                  <span className="text-[10.5px] text-zinc-400 font-bold block mb-1">
+                    {isPersian ? 'علائم حیاتی و مخازن منابع:' : 'Vitals & Resource Pools:'}
+                  </span>
+                  <div className="flex flex-wrap gap-1 font-mono text-[11px]">
+                    {(
+                      [
+                        { key: 'health', label: 'HP' },
+                        { key: 'stamina', label: 'ST' },
+                        { key: 'mana', label: 'MP' },
+                      ] as const
+                    ).map(({ key, label }) => {
+                      const bar = statCalibrationPreview.calibration.vitals?.[key];
+                      if (!bar) return null;
+                      return (
+                        <span key={key} className="px-2 py-0.5 rounded-lg bg-zinc-950 text-rose-200 border border-rose-500/25">
+                          {label} {bar.current}/{bar.max}
+                        </span>
+                      );
+                    })}
+                    {(statCalibrationPreview.calibration.resourcePools || []).map((pool) => (
+                      <span key={pool.id} className="px-2 py-0.5 rounded-lg bg-zinc-950 text-sky-200 border border-sky-500/25">
+                        {pool.name} {pool.current}/{pool.max}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {Object.keys(statCalibrationPreview.calibration.statRatings).length > 0 && (
                 <div>
                   <span className="text-[10.5px] text-zinc-400 font-bold block mb-1">

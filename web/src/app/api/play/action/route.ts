@@ -5,7 +5,7 @@ import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import { GameEngine } from '@/lib/engines/game/GameEngine';
 import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
 import { validateProse, buildProseRepairInstruction } from '@/lib/engines/narrative/ProseValidator';
-import { buildWorldContextBlocks } from '@/lib/engines/narrative/worldContext';
+import { buildWorldContextBlocks, formatNpcCombatSummary } from '@/lib/engines/narrative/worldContext';
 import { MemoryEngine } from '@/lib/engines/memory/MemoryEngine';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { PlayerState, ActionStyle, RiskLevel, TurnBeat } from '@/lib/types/gameplay';
@@ -243,6 +243,7 @@ export async function POST(req: NextRequest) {
           trust: updatedPlayerState.relationships[npc.id]?.trust ?? ov?.customInitialTrust ?? npc.initialTrust ?? 0,
           knownSecrets: updatedPlayerState.relationships[npc.id]?.knownSecrets || [],
           speechStyle: ov?.storyRole ? `[Role in this story: ${ov.storyRole}] ${npc.speechStyle}` : npc.speechStyle,
+          vitalsLine: formatNpcCombatSummary(npc) || undefined,
         };
       }),
       relevantMemories,
