@@ -574,7 +574,15 @@ ${
 - "combatTier": how dangerous this character is in a personal fight (training, strength, combat magic, gear).
 - "challengeRating" (1-20): how dangerous this character is OVERALL to confront, defy, or remove — including political influence, wealth, spy networks, secrets, faction backing, and non-combat leverage.
 - These axes are INDEPENDENT. Consider splits: a scheming grand vizier with no sword skill is combatTier "civilian" but CR 12+ (court control, assassins on call); a retired warlord turned barkeep is combatTier "veteran" but CR 3 (no power base left); a charming spymaster is "apprentice" tier with CR 10 via blackmail archives.
-- Set "crBasis" to a short phrase naming the non-combat threat source whenever CR exceeds what the combat tier alone implies (e.g. "controls the court and the watch payroll"); leave it "" when CR comes purely from fighting ability.`;
+- Set "crBasis" to a short phrase naming the non-combat threat source whenever CR exceeds what the combat tier alone implies (e.g. "controls the court and the watch payroll"); leave it "" when CR comes purely from fighting ability.
+CHALLENGE RATING RUBRIC (overall threat — anchor here, and when in doubt choose the LOWER end):
+- CR 1-2: harmless nobody; defying or removing them has no consequences.
+- CR 3-5: local nuisance; a few allies, minor resources, neighborhood pull.
+- CR 6-8: local power; commands a crew, holds an office, or has real wealth.
+- CR 9-12: regional player; faction backing, spy or trade networks, court access.
+- CR 13-16: moves kingdoms; armies, courts, or archmages answer to them.
+- CR 17-20: continental or epochal consequences; sovereigns, primordials, demigods.
+- CR above 8 REQUIRES concrete assets named in "crBasis". Title, story importance, or a HOSTILE attitude alone NEVER justify high CR — a beloved but powerless elder is CR 1-2 no matter how central they are.`;
 
       const asymmetryDirective = `VOCATIONAL ASYMMETRY & PHYSICAL REALISM:
 Evaluate "${npc.name}"'s age, physical stature, and daily occupation.

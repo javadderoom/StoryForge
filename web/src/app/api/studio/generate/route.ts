@@ -365,6 +365,14 @@ COMBAT TIER ≠ CHALLENGE RATING — two independent axes:
 - "combatTier" rates PERSONAL fighting ability only (training, strength, combat magic, gear).
 - "challengeRating" (1 to 20) rates OVERALL threat of confronting, defying, or removing the character: political influence, wealth, spy networks, secrets, faction backing, non-combat magic — NOT just swordplay. A civilian-tier schemer can be CR 12+; a veteran-tier drifter with no power base can be CR 3.
 - "crBasis": short phrase naming the non-combat threat source whenever CR outruns combat ability (e.g. "commands the city watch", "holds the heir's debts", "archmage patron"); "" when CR is pure combat.
+CHALLENGE RATING RUBRIC (anchor here; when in doubt choose the LOWER end):
+- CR 1-2: harmless nobody; defying or removing them has no consequences.
+- CR 3-5: local nuisance; a few allies, minor resources, neighborhood pull.
+- CR 6-8: local power; commands a crew, holds an office, or has real wealth.
+- CR 9-12: regional player; faction backing, spy or trade networks, court access.
+- CR 13-16: moves kingdoms; armies, courts, or archmages answer to them.
+- CR 17-20: continental or epochal consequences; sovereigns, primordials, demigods.
+- CR above 8 REQUIRES concrete assets named in "crBasis". Title, story importance, or hostility alone NEVER justify high CR.
 COMBAT TIERS (fighting ability only):
 - "civilian": Everyday commoners, clerks, young merchants, brokers, scholars, servants, elders, children. Typical stats range 2 to 6. Abilities: [] (0 combat abilities; at most 1 mundane trade trick). Gear: simple clothes, ledgers, everyday tools, eating knife.
 - "apprentice": Town watch recruits, militia, novice acolytes, petty cutpurses, junior scouts. Typical stats range 5 to 8. Abilities: 1 basic technique or stance. Gear: basic iron weapon, padded or leather armor.
@@ -414,11 +422,14 @@ VITALS & RESOURCE POOLS (mandatory — never omit):
       ? `Apply the requested changes to the existing ${type} entity and return the complete updated JSON strictly matching the schema:\n${effectiveSchemaInstruction}`
       : `Generate a ${type} entity with creative literary depth.\n${effectiveSchemaInstruction}`;
 
+    // Stat calibration is a rating task, not a creative one — keep it cool and stable.
+    const temperature =
+      type === 'npc_stat_calibration' ? 0.3 : customSystemPrompt?.trim() ? 0.7 : 0.8;
     const aiResult = await generateStructuredJson(
       userPromptText,
       systemPrompt,
       {
-        temperature: customSystemPrompt?.trim() ? 0.7 : 0.8,
+        temperature,
         taskType: type === 'world' || type === 'epic_saga_synthesis' ? 'world' : taskType,
       }
     );
