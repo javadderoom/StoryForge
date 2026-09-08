@@ -145,12 +145,37 @@ function extractPacificationEntities(text: string): Array<{ name: string; catego
 }
 
 /**
- * Checks whether an entity name matches an existing creature, alchemical yield, loot item, or artifact.
+ * Generic humanoid collective nouns and victim groups that should not be tracked
+ * as missing monsters, beasts, or flora in the bestiary ecology.
+ */
+const GENERIC_HUMANOID_COLLECTIVES = new Set([
+  'مسافران', 'مسافر', 'نیزارنشینان', 'کاروانیان', 'کاروان‌ها', 'کاروانها', 'کاروان', 'روستاییان', 'روستایی',
+  'قربانیان', 'قربانی', 'مردم', 'ساکنان', 'ساکنین', 'اهالی', 'انسان‌ها', 'انسانها', 'انسان', 'آدمیان',
+  'کودکان', 'فرزندان', 'سربازان', 'سرباز', 'نگهبانان', 'نگهبان', 'گشت‌ها', 'شکارچیان', 'شکارچی', 'شهروندان',
+  'غریبه‌ها', 'غریبه ها', 'غریبه', 'بیگانگان', 'بیگانه', 'دریانوردان', 'ملوانان', 'چوپانان', 'چوپان',
+  'معدنچیان', 'معدن‌چیان', 'زائران', 'مهاجمان', 'رهگذران', 'رهگذر',
+  'travelers', 'traveler', 'humans', 'human', 'mortals', 'mortal', 'victims', 'victim',
+  'wanderers', 'wanderer', 'settlers', 'settler', 'citizens', 'citizen', 'locals', 'local',
+  'patrols', 'patrol', 'hunters', 'hunter', 'dwellers', 'dweller', 'villagers', 'villager',
+  'guards', 'guard', 'soldiers', 'soldier', 'passersby', 'strangers', 'caravans', 'miners',
+  'pilgrims', 'shepherds', 'sailors', 'people', 'inhabitants'
+]);
+
+function isGenericHumanoidCollective(name: string): boolean {
+  if (!name) return false;
+  const clean = name.trim().toLowerCase();
+  if (GENERIC_HUMANOID_COLLECTIVES.has(clean)) return true;
+  return /^(?:مسافران|مسافر|نیزارنشینان|کاروانیان|روستاییان|قربانیان|انسان‌ها|انسانها|آدمیان|اهالی|ساکنان|رهگذران|travelers|humans|mortals|victims)\b/i.test(clean);
+}
+
+/**
+ * Checks whether an entity name matches an existing creature, alchemical yield, loot item, artifact, or NPC.
  */
 function isEntityKnown(
   name: string,
   bestiary: WorldCreature[],
-  artifacts: Array<{ name: string }> = []
+  artifacts: Array<{ name: string }> = [],
+  npcs: Array<{ name: string; title?: string }> = []
 ): boolean {
   if (!name) return false;
   const norm = name.trim().toLowerCase();
@@ -169,6 +194,14 @@ function isEntityKnown(
   for (const a of artifacts) {
     const aNorm = a.name.trim().toLowerCase();
     if (aNorm === norm || norm.includes(aNorm) || aNorm.includes(norm)) return true;
+  }
+  for (const n of npcs) {
+    const nNorm = n.name.trim().toLowerCase();
+    if (nNorm === norm || norm.includes(nNorm) || nNorm.includes(norm)) return true;
+    if (n.title) {
+      const tNorm = n.title.trim().toLowerCase();
+      if (tNorm === norm || norm.includes(tNorm) || tNorm.includes(norm)) return true;
+    }
   }
   return false;
 }
@@ -232,6 +265,7 @@ export default function BestiaryStudioPage() {
   // ----------------------------------------------------------------
   const ghostSpeciesList = useMemo(() => {
     const artifacts = story.worldBible.artifacts || [];
+    const npcs = story.worldBible.npcs || [];
     const ghosts: Array<{
       name: string;
       referencedByCreatureId: string;
@@ -247,7 +281,7 @@ export default function BestiaryStudioPage() {
         c.preySpecies.forEach((p) => {
           const clean = p.trim();
           const norm = clean.toLowerCase();
-          if (clean && !isEntityKnown(clean, bestiary, artifacts) && !seen.has(norm)) {
+          if (clean && !isEntityKnown(clean, bestiary, artifacts, npcs) && !isGenericHumanoidCollective(clean) && !seen.has(norm)) {
             seen.add(norm);
             ghosts.push({
               name: clean,
@@ -265,7 +299,7 @@ export default function BestiaryStudioPage() {
         c.predatorSpecies.forEach((p) => {
           const clean = p.trim();
           const norm = clean.toLowerCase();
-          if (clean && !isEntityKnown(clean, bestiary, artifacts) && !seen.has(norm)) {
+          if (clean && !isEntityKnown(clean, bestiary, artifacts, npcs) && !isGenericHumanoidCollective(clean) && !seen.has(norm)) {
             seen.add(norm);
             ghosts.push({
               name: clean,
@@ -285,7 +319,7 @@ export default function BestiaryStudioPage() {
           quoted.forEach((q) => {
             const clean = q.replace(/[«»"']/g, '').trim();
             const norm = clean.toLowerCase();
-            if (clean && !isEntityKnown(clean, bestiary, artifacts) && !seen.has(norm) && clean !== c.name.trim()) {
+            if (clean && !isEntityKnown(clean, bestiary, artifacts, npcs) && !isGenericHumanoidCollective(clean) && !seen.has(norm) && clean !== c.name.trim()) {
               seen.add(norm);
               ghosts.push({
                 name: clean,
@@ -304,7 +338,7 @@ export default function BestiaryStudioPage() {
         c.pacificationReagents.forEach((r) => {
           const clean = r.trim();
           const norm = clean.toLowerCase();
-          if (clean && !isEntityKnown(clean, bestiary, artifacts) && !seen.has(norm)) {
+          if (clean && !isEntityKnown(clean, bestiary, artifacts, npcs) && !isGenericHumanoidCollective(clean) && !seen.has(norm)) {
             seen.add(norm);
             ghosts.push({
               name: clean,
@@ -322,7 +356,7 @@ export default function BestiaryStudioPage() {
         const extracted = extractPacificationEntities(c.nonCombatPacificationMethod);
         extracted.forEach((ent) => {
           const norm = ent.name.toLowerCase();
-          if (!isEntityKnown(ent.name, bestiary, artifacts) && !seen.has(norm)) {
+          if (!isEntityKnown(ent.name, bestiary, artifacts, npcs) && !isGenericHumanoidCollective(ent.name) && !seen.has(norm)) {
             seen.add(norm);
             ghosts.push({
               name: ent.name,
@@ -337,7 +371,7 @@ export default function BestiaryStudioPage() {
     });
 
     return ghosts;
-  }, [bestiary, story.worldBible.artifacts]);
+  }, [bestiary, story.worldBible.artifacts, story.worldBible.npcs]);
 
   const filteredCreatures = bestiary.filter((c) => {
     if (filterCategory === 'all') return true;
@@ -1137,12 +1171,47 @@ export default function BestiaryStudioPage() {
                                 </span>
                                 <div className="flex flex-wrap gap-1">
                                   {c.preySpecies.map((p, pIdx) => {
-                                    const exists = bestiary.some((item) => item.name.trim().toLowerCase() === p.trim().toLowerCase());
-                                    return exists ? (
-                                      <span key={pIdx} className="px-2 py-0.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10.5px]">
-                                        {p}
-                                      </span>
-                                    ) : (
+                                    const pNorm = p.trim().toLowerCase();
+                                    const exists = bestiary.some((item) => item.name.trim().toLowerCase() === pNorm);
+                                    const matchingNpc = (story.worldBible.npcs || []).find(
+                                      (n) => n.name.trim().toLowerCase() === pNorm || n.name.toLowerCase().includes(pNorm) || pNorm.includes(n.name.toLowerCase())
+                                    );
+                                    const isGeneric = isGenericHumanoidCollective(p);
+
+                                    if (exists) {
+                                      return (
+                                        <span key={pIdx} className="px-2 py-0.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10.5px]">
+                                          {p}
+                                        </span>
+                                      );
+                                    }
+
+                                    if (matchingNpc) {
+                                      return (
+                                        <span
+                                          key={pIdx}
+                                          className="px-2 py-0.5 rounded-lg bg-indigo-950/40 border border-indigo-500/40 text-indigo-300 text-[10.5px] flex items-center gap-1"
+                                          title={isPersian ? `شخصیت مستقل (NPC): ${matchingNpc.name}` : `NPC: ${matchingNpc.name}`}
+                                        >
+                                          <span>👤</span>
+                                          <span>{p}</span>
+                                        </span>
+                                      );
+                                    }
+
+                                    if (isGeneric) {
+                                      return (
+                                        <span
+                                          key={pIdx}
+                                          className="px-2 py-0.5 rounded-lg bg-zinc-900/80 border border-zinc-800 text-zinc-400 text-[10.5px] flex items-center gap-1"
+                                        >
+                                          <span>👥</span>
+                                          <span>{p}</span>
+                                        </span>
+                                      );
+                                    }
+
+                                    return (
                                       <button
                                         type="button"
                                         key={pIdx}
@@ -1173,12 +1242,47 @@ export default function BestiaryStudioPage() {
                                 </span>
                                 <div className="flex flex-wrap gap-1">
                                   {c.predatorSpecies.map((p, pIdx) => {
-                                    const exists = bestiary.some((item) => item.name.trim().toLowerCase() === p.trim().toLowerCase());
-                                    return exists ? (
-                                      <span key={pIdx} className="px-2 py-0.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10.5px]">
-                                        {p}
-                                      </span>
-                                    ) : (
+                                    const pNorm = p.trim().toLowerCase();
+                                    const exists = bestiary.some((item) => item.name.trim().toLowerCase() === pNorm);
+                                    const matchingNpc = (story.worldBible.npcs || []).find(
+                                      (n) => n.name.trim().toLowerCase() === pNorm || n.name.toLowerCase().includes(pNorm) || pNorm.includes(n.name.toLowerCase())
+                                    );
+                                    const isGeneric = isGenericHumanoidCollective(p);
+
+                                    if (exists) {
+                                      return (
+                                        <span key={pIdx} className="px-2 py-0.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10.5px]">
+                                          {p}
+                                        </span>
+                                      );
+                                    }
+
+                                    if (matchingNpc) {
+                                      return (
+                                        <span
+                                          key={pIdx}
+                                          className="px-2 py-0.5 rounded-lg bg-indigo-950/40 border border-indigo-500/40 text-indigo-300 text-[10.5px] flex items-center gap-1"
+                                          title={isPersian ? `شخصیت مستقل (NPC): ${matchingNpc.name}` : `NPC: ${matchingNpc.name}`}
+                                        >
+                                          <span>👤</span>
+                                          <span>{p}</span>
+                                        </span>
+                                      );
+                                    }
+
+                                    if (isGeneric) {
+                                      return (
+                                        <span
+                                          key={pIdx}
+                                          className="px-2 py-0.5 rounded-lg bg-zinc-900/80 border border-zinc-800 text-zinc-400 text-[10.5px] flex items-center gap-1"
+                                        >
+                                          <span>👥</span>
+                                          <span>{p}</span>
+                                        </span>
+                                      );
+                                    }
+
+                                    return (
                                       <button
                                         type="button"
                                         key={pIdx}
@@ -1216,6 +1320,7 @@ export default function BestiaryStudioPage() {
                             {/* Detected Missing Pacification Reagents / Beasts */}
                             {(() => {
                               const artifacts = story.worldBible.artifacts || [];
+                              const npcs = story.worldBible.npcs || [];
                               const pacEntities = [
                                 ...(Array.isArray(c.pacificationReagents)
                                   ? c.pacificationReagents.map((r) => ({
@@ -1226,7 +1331,9 @@ export default function BestiaryStudioPage() {
                                 ...extractPacificationEntities(c.nonCombatPacificationMethod),
                               ].filter((item, idx, arr) => arr.findIndex((x) => x.name.trim().toLowerCase() === item.name.trim().toLowerCase()) === idx);
 
-                              const missingPacEntities = pacEntities.filter((item) => !isEntityKnown(item.name, bestiary, artifacts));
+                              const missingPacEntities = pacEntities.filter(
+                                (item) => !isEntityKnown(item.name, bestiary, artifacts, npcs) && !isGenericHumanoidCollective(item.name)
+                              );
                               if (missingPacEntities.length === 0) return null;
 
                               return (
