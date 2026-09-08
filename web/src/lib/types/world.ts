@@ -339,6 +339,12 @@ export interface NpcStatCalibration {
   npcName: string;
   combatTier: 'civilian' | 'apprentice' | 'veteran' | 'elite' | 'boss' | 'mythic';
   challengeRating: number; // 1 to 20
+  /**
+   * What actually drives the challenge rating when it diverges from raw
+   * combat ability (e.g. "court influence and spy network", "archmage patron").
+   * Empty when CR is purely a function of combat tier.
+   */
+  crBasis?: string;
   statRatings: Record<string, number>;
   signatureAbilities: string[];
   equippedGear: NpcEquippedGear[];
@@ -903,6 +909,7 @@ export const NpcStatCalibrationSchema = z.object({
   npcName: z.string(),
   combatTier: z.enum(['civilian', 'apprentice', 'veteran', 'elite', 'boss', 'mythic']).default('veteran'),
   challengeRating: z.number().min(1).max(20).default(1),
+  crBasis: z.string().default(''),
   statRatings: z.record(z.string(), z.number()).default({}),
   signatureAbilities: z.array(z.string()).default([]),
   equippedGear: z.array(NpcEquippedGearSchema).default([]),

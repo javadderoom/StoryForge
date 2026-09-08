@@ -10,6 +10,7 @@ import {
 } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
+import { normalizeEntity } from '@/lib/engines/world/ActionNormalizer';
 import { User, Users, ArrowLeftRight, Plus } from 'lucide-react';
 
 // Extracted Subcomponents
@@ -489,20 +490,23 @@ ${
         ...(story.storyNpcOverrides?.[npc.id]?.storySecret ? [story.storyNpcOverrides[npc.id].storySecret!] : []),
       ].filter(Boolean);
       const secretsSection = secretsList.length
-        ? ` Hidden Secrets: ${secretsList.join('; ')}.`
+        ? ` [AUTHOR-ONLY PSYCHOLOGY NOTES — DO NOT reveal in dialogue]: ${secretsList.join('; ')}.`
         : '';
       const goalsSection = npc.goals?.length ? ` Core Goals: ${npc.goals.join(', ')}.` : '';
       const storyOverride = story.storyNpcOverrides?.[npc.id];
       const storySection = storyOverride
         ? ` Story Role: ${storyOverride.storyRole || 'N/A'}.${storyOverride.storyGoal ? ` Story Goal: ${storyOverride.storyGoal}.` : ''}`
         : '';
+      const trustVal = story.storyNpcOverrides?.[npc.id]?.customInitialTrust ?? npc.initialTrust ?? 0;
+      const dispositionLabel = trustVal <= -60 ? 'HOSTILE' : trustVal <= -20 ? 'UNFRIENDLY' : trustVal <= 20 ? 'NEUTRAL' : trustVal <= 60 ? 'FRIENDLY' : 'DEVOTED';
+      const dispositionSection = ` Initial Disposition toward player: ${dispositionLabel} (trust: ${trustVal}).`;
 
       const res = await fetch('/api/studio/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'npc_voice_guide',
-          prompt: `Generate a rich, distinct Voice & Dialogue Guide with 4 situational quotes for "${npc.name}" (${npc.title || npc.role || 'NPC'}). Speech tone: ${npc.speechStyle || 'distinct'}. Personality: ${npc.personalityTraits?.join(', ')}.${goalsSection}${secretsSection}${storySection}`,
+          prompt: `Generate a rich, distinct Voice & Dialogue Guide with 4 situational quotes for "${npc.name}" (${npc.title || npc.role || 'NPC'}). Speech tone: ${npc.speechStyle || 'distinct'}. Personality: ${npc.personalityTraits?.join(', ')}.${dispositionSection}${goalsSection}${secretsSection}${storySection}`,
           themeContext: story.worldBible.themeNotes,
           worldContext,
           isPersian,
@@ -558,10 +562,19 @@ ${
         ? `Story Narrative Importance: ${override.narrativeImportance}.`
         : '';
       const storyRoleDesc = override?.storyRole ? `Story Role: ${override.storyRole}.` : '';
+      const statTrustVal = override?.customInitialTrust ?? npc.initialTrust ?? 0;
+      const statDispositionLabel = statTrustVal <= -60 ? 'HOSTILE' : statTrustVal <= -20 ? 'UNFRIENDLY' : statTrustVal <= 20 ? 'NEUTRAL' : statTrustVal <= 60 ? 'FRIENDLY' : 'DEVOTED';
+      const dispositionDesc = `Disposition toward player: ${statDispositionLabel} (trust: ${statTrustVal}).`;
 
       const tierDirective = tierHint && tierHint !== 'auto'
-        ? `FORCED COMBAT TIER DIRECTIVE: You MUST calibrate this character strictly as tier "${tierHint}".`
-        : `COMBAT TIER DIRECTIVE: Carefully evaluate if "${npc.name}" is an ordinary civilian (merchant, scholar, servant, citizen), a regular guard/militia, a veteran knight, or a high-threat antagonist. Ground the tier and CR in their vocation. Do NOT default civilians or non-combatants to elite or boss tiers.`;
+        ? `FORCED COMBAT TIER DIRECTIVE: You MUST calibrate this character's PERSONAL fighting ability strictly as tier "${tierHint}". (This constrains combatTier only — rate challengeRating independently per the axes below.)`
+        : `COMBAT TIER DIRECTIVE: Rate "${npc.name}"'s PERSONAL fighting ability only — an ordinary civilian (merchant, scholar, servant, citizen), a regular guard/militia, a veteran knight, etc. Do NOT default civilians or non-combatants to elite or boss tiers.`;
+
+      const threatAxesDirective = `TWO INDEPENDENT AXES — combatTier is NOT challengeRating:
+- "combatTier": how dangerous this character is in a personal fight (training, strength, combat magic, gear).
+- "challengeRating" (1-20): how dangerous this character is OVERALL to confront, defy, or remove — including political influence, wealth, spy networks, secrets, faction backing, and non-combat leverage.
+- These axes are INDEPENDENT. Consider splits: a scheming grand vizier with no sword skill is combatTier "civilian" but CR 12+ (court control, assassins on call); a retired warlord turned barkeep is combatTier "veteran" but CR 3 (no power base left); a charming spymaster is "apprentice" tier with CR 10 via blackmail archives.
+- Set "crBasis" to a short phrase naming the non-combat threat source whenever CR exceeds what the combat tier alone implies (e.g. "controls the court and the watch payroll"); leave it "" when CR comes purely from fighting ability.`;
 
       const asymmetryDirective = `VOCATIONAL ASYMMETRY & PHYSICAL REALISM:
 Evaluate "${npc.name}"'s age, physical stature, and daily occupation.
@@ -575,9 +588,10 @@ Evaluate "${npc.name}"'s age, physical stature, and daily occupation.
 - "current" values represent a fully-rested state (current = max) unless the concept implies starting wounded or drained.`;
 
       const prompt = `Calibrate RPG combat rating, attributes, signature abilities, equipped gear, vitals, and resource pools for "${npc.name}".
-${titleDesc} ${roleDesc} ${storyRoleDesc} ${importanceDesc} ${traitsDesc} ${goalsDesc}
+${titleDesc} ${roleDesc} ${storyRoleDesc} ${importanceDesc} ${traitsDesc} ${goalsDesc} ${dispositionDesc}
 Active RPG Attributes to rate: [${storyStats}].
 ${tierDirective}
+${threatAxesDirective}
 ${asymmetryDirective}
 ${vitalsDirective}`;
 
@@ -613,8 +627,14 @@ ${vitalsDirective}`;
 
   const handleCommitStatCalibration = () => {
     if (!statCalibrationPreview) return;
+    // Guarantee vitals/pools invariants even if the model omitted them.
+    const normalized =
+      normalizeEntity('npc', {
+        name: statCalibrationPreview.calibration.npcName,
+        statCalibration: statCalibrationPreview.calibration,
+      }).statCalibration ?? statCalibrationPreview.calibration;
     editNpc(statCalibrationPreview.targetNpcId, {
-      statCalibration: statCalibrationPreview.calibration,
+      statCalibration: normalized,
     });
     setExpandedStatIds((prev) => new Set(prev).add(statCalibrationPreview.targetNpcId));
     setStatCalibrationPreview(null);

@@ -88,6 +88,8 @@ export const PERSIAN_FIELD_MAP: Record<string, string> = {
   'کالیبراسیون رزمی': 'statCalibration',
   'ویژگی‌های رزمی': 'statCalibration',
   'درجه چالش': 'challengeRating',
+  'مبنای درجه چالش': 'crBasis',
+  'منشأ خطر': 'crBasis',
   'سطح نبرد': 'combatTier',
   'رده رزمی': 'combatTier',
   'توانایی‌های ویژه': 'signatureAbilities',
@@ -374,6 +376,9 @@ export function normalizeEntity(entity: EntityType, data: any): any {
         ? sc.challengeRating
         : (parseInt(sc.challengeRating) || 5);
       sc.challengeRating = Math.max(1, Math.min(20, Math.round(parsedCr)));
+      // What drives CR when it diverges from raw combat ability (may be '').
+      const rawBasis = sc.crBasis ?? sc['مبنای درجه چالش'] ?? sc['منشأ خطر'];
+      sc.crBasis = typeof rawBasis === 'string' ? rawBasis.trim() : '';
 
       if (!sc.statRatings || typeof sc.statRatings !== 'object') sc.statRatings = {};
       if (!Array.isArray(sc.signatureAbilities)) sc.signatureAbilities = [];

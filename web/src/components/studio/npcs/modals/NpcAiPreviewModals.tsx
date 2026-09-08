@@ -308,35 +308,47 @@ export function NpcAiPreviewModals({
                 </span>
               </div>
 
-              {statCalibrationPreview.calibration.vitals?.health && (
-                <div>
-                  <span className="text-[10.5px] text-zinc-400 font-bold block mb-1">
-                    {isPersian ? 'علائم حیاتی و مخازن منابع:' : 'Vitals & Resource Pools:'}
-                  </span>
-                  <div className="flex flex-wrap gap-1 font-mono text-[11px]">
-                    {(
-                      [
-                        { key: 'health', label: 'HP' },
-                        { key: 'stamina', label: 'ST' },
-                        { key: 'mana', label: 'MP' },
-                      ] as const
-                    ).map(({ key, label }) => {
-                      const bar = statCalibrationPreview.calibration.vitals?.[key];
-                      if (!bar) return null;
-                      return (
-                        <span key={key} className="px-2 py-0.5 rounded-lg bg-zinc-950 text-rose-200 border border-rose-500/25">
-                          {label} {bar.current}/{bar.max}
-                        </span>
-                      );
-                    })}
-                    {(statCalibrationPreview.calibration.resourcePools || []).map((pool) => (
-                      <span key={pool.id} className="px-2 py-0.5 rounded-lg bg-zinc-950 text-sky-200 border border-sky-500/25">
-                        {pool.name} {pool.current}/{pool.max}
-                      </span>
-                    ))}
-                  </div>
+              {statCalibrationPreview.calibration.crBasis?.trim() && (
+                <div className="text-[11px] text-zinc-400 bg-zinc-950 border border-zinc-800 rounded-2xl px-3 py-2">
+                  <span className="font-bold text-zinc-300">{isPersian ? 'منشأ تهدید: ' : 'Threat source: '}</span>
+                  {statCalibrationPreview.calibration.crBasis.trim()}
                 </div>
               )}
+
+              {(() => {
+                const cal = statCalibrationPreview.calibration;
+                const vitals = cal.vitals || { health: { current: 10, max: 10 } };
+                const pools = cal.resourcePools || [];
+                return (
+                  <div>
+                    <span className="text-[10.5px] text-zinc-400 font-bold block mb-1">
+                      {isPersian ? 'علائم حیاتی و مخازن منابع:' : 'Vitals & Resource Pools:'}
+                    </span>
+                    <div className="flex flex-wrap gap-1 font-mono text-[11px]">
+                      {(
+                        [
+                          { key: 'health', label: 'HP' },
+                          { key: 'stamina', label: 'ST' },
+                          { key: 'mana', label: 'MP' },
+                        ] as const
+                      ).map(({ key, label }) => {
+                        const bar = vitals[key];
+                        if (!bar) return null;
+                        return (
+                          <span key={key} className="px-2 py-0.5 rounded-lg bg-zinc-950 text-rose-200 border border-rose-500/25">
+                            {label} {bar.current}/{bar.max}
+                          </span>
+                        );
+                      })}
+                      {pools.map((pool) => (
+                        <span key={pool.id} className="px-2 py-0.5 rounded-lg bg-zinc-950 text-sky-200 border border-sky-500/25">
+                          {pool.name} {pool.current}/{pool.max}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {Object.keys(statCalibrationPreview.calibration.statRatings).length > 0 && (
                 <div>

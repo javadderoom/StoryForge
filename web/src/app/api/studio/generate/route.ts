@@ -13,6 +13,7 @@ import {
   hasPlaceholders,
 } from '@/lib/engines/world/GenesisSchemas';
 import { LoreAuditor } from '@/lib/engines/world/LoreAuditor';
+import { normalizeEntity } from '@/lib/engines/world/ActionNormalizer';
 import { WorldBible, SagaManifest } from '@/lib/types/world';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
 
@@ -349,22 +350,38 @@ Strictly output a valid JSON object matching the requested schema. Do not enclos
     } else if (type === 'npc_relationships') {
       schemaInstruction = `Schema: { "sourceNpcId": string, "sourceNpcName": string, "bonds": [{ "id": string, "sourceNpcId": string, "targetNpcId": string, "targetNpcName": string, "relationTypeId": "blood_debt"|"mentor_apprentice"|"ally"|"rival"|"faction_ally"|"custom", "affinity": number (-100 to 100), "secretTension": string, "isPublic": boolean }] } (Generate 2 to 4 dramatic interpersonal bonds between this character and other existing NPCs in the world context. MUST connect to real characters in the world when available. CONSISTENCY & DEDUPLICATION: If existing bonds are provided in the prompt, prioritize forging bonds with other world NPCs who lack existing ties. If synthesizing a bond with an already-linked NPC, evolve and deepen that dynamic without introducing jarring contradictions)`;
     } else if (type === 'npc_voice_guide') {
-      schemaInstruction = `Schema: { "npcName": string, "speechQuirks": string[], "sampleDialogue": [{ "context": "greeting"|"bargaining"|"threatened"|"dying", "quote": string }], "negotiationVulnerabilities": string[], "psychologicalBreakingPoint": string } (Generate a Voice & Dialogue Style Guide with 4 distinct sample quotes for greeting, bargaining, threatened, and dying contexts. IMPORTANT: Connect the "psychologicalBreakingPoint" and high-pressure quotes ("threatened" and "dying") directly to the character's hidden secrets, core fears, and personal goals — show how their composure cracks when their secret is at risk or when facing irrevocable failure)`;
+      schemaInstruction = `Schema: { "npcName": string, "speechQuirks": string[], "sampleDialogue": [{ "context": "greeting"|"bargaining"|"threatened"|"dying", "quote": string }], "negotiationVulnerabilities": string[], "psychologicalBreakingPoint": string } (Generate a Voice & Dialogue Style Guide with 4 distinct sample quotes for greeting, bargaining, threatened, and dying contexts.
+SECRET HANDLING — ABSOLUTE RULE: The character must NEVER directly reveal, confess, name, or explicitly reference their hidden secrets in ANY sample dialogue quote. Secrets are AUTHOR-ONLY context for shaping psychology and subtext. Instead:
+- "greeting" & "bargaining": Normal persona. Zero hint of secrets. Show their public mask.
+- "threatened": Show cracks through SUBTEXT — nervous deflection, overreaction to certain topics, cryptic slips, sudden aggression when a sensitive subject is touched. The player should sense something is off without being told what.
+- "dying": Anguish, regret, or cryptic final words that ALLUDE to hidden burdens without spelling them out. A dying spy might say "They'll never know what I carried..." not "I was a spy for the Shadow Court."
+- "psychologicalBreakingPoint": Describe the PRESSURE TYPE that breaks them (e.g. "exposure of disloyalty", "losing their protégé") — not the literal secret content.
+- "negotiationVulnerabilities": Behavioral tells and emotional leverage points, not secret reveals.
+DISPOSITION: If an initial trust/disposition value is provided, reflect it in tone — hostile NPCs should have cold, menacing, or contemptuous dialogue; friendly NPCs warm and open.)`;
     } else if (type === 'npc_stat_calibration') {
-      schemaInstruction = `Schema: { "npcId": string, "npcName": string, "combatTier": "civilian"|"apprentice"|"veteran"|"elite"|"boss"|"mythic", "challengeRating": number (1 to 20), "statRatings": { [stat: string]: number }, "signatureAbilities": string[], "equippedGear": [{ "name": string, "type": string, "description": string }] } (👑 REALISTIC LONG-SAGA RPG STAT CALIBRATION (Scale: 1 to 20+):
+      schemaInstruction = `Schema: { "npcId": string, "npcName": string, "combatTier": "civilian"|"apprentice"|"veteran"|"elite"|"boss"|"mythic", "challengeRating": number (1 to 20), "crBasis": string (non-combat threat source, or "" when CR is pure combat), "statRatings": { [stat: string]: number }, "signatureAbilities": string[], "equippedGear": [{ "name": string, "type": string, "description": string }], "vitals": { "health": { "current": number, "max": number }, "stamina"?: { "current": number, "max": number }, "mana"?: { "current": number, "max": number } }, "resourcePools": [{ "id": string, "name": string, "current": number, "max": number }] } (👑 REALISTIC LONG-SAGA RPG STAT CALIBRATION (Scale: 1 to 20+):
 The story is a long-running narrative saga with extensive progression runway. Starting values for ordinary mortals MUST be grounded much lower than 10 so there is room for long-term growth.
-TIER & CR BRACKETS:
-- "civilian" (CR 1): Everyday commoners, clerks, young merchants, brokers, scholars, servants, elders, children. Typical stats range 2 to 6. Abilities: [] (0 combat abilities; at most 1 mundane trade trick). Gear: simple clothes, ledgers, everyday tools, eating knife.
-- "apprentice" (CR 2-4): Town watch recruits, militia, novice acolytes, petty cutpurses, junior scouts. Typical stats range 5 to 8. Abilities: 1 basic technique or stance. Gear: basic iron weapon, padded or leather armor.
-- "veteran" (CR 5-8): Seasoned mercenaries, knight lieutenants, court battlemages, veteran rangers. Typical stats range 8 to 12 (reaching double digits only through years of combat/discipline). Abilities: 1-2 tactical maneuvers. Gear: forged steel arms, mail/chain armor.
-- "elite" (CR 9-12): Royal champions, archmages, inquisitors, guildmasters, master monks. Peak mortal mastery. Typical stats range 12 to 15. Abilities: 2-3 formidable signature powers. Gear: masterwork or enchanted arms.
-- "boss" (CR 13-16): Sovereign warlords, elder monstrosities, high arch-villains, faction heads. Typical stats range 15 to 18. Abilities: 3-4 phase-defining powers.
-- "mythic" (CR 17-20+): Primordial titans, avatars, demigods, epoch-ending entities. Stats 18 to 22+.
+COMBAT TIER ≠ CHALLENGE RATING — two independent axes:
+- "combatTier" rates PERSONAL fighting ability only (training, strength, combat magic, gear).
+- "challengeRating" (1 to 20) rates OVERALL threat of confronting, defying, or removing the character: political influence, wealth, spy networks, secrets, faction backing, non-combat magic — NOT just swordplay. A civilian-tier schemer can be CR 12+; a veteran-tier drifter with no power base can be CR 3.
+- "crBasis": short phrase naming the non-combat threat source whenever CR outruns combat ability (e.g. "commands the city watch", "holds the heir's debts", "archmage patron"); "" when CR is pure combat.
+COMBAT TIERS (fighting ability only):
+- "civilian": Everyday commoners, clerks, young merchants, brokers, scholars, servants, elders, children. Typical stats range 2 to 6. Abilities: [] (0 combat abilities; at most 1 mundane trade trick). Gear: simple clothes, ledgers, everyday tools, eating knife.
+- "apprentice": Town watch recruits, militia, novice acolytes, petty cutpurses, junior scouts. Typical stats range 5 to 8. Abilities: 1 basic technique or stance. Gear: basic iron weapon, padded or leather armor.
+- "veteran": Seasoned mercenaries, knight lieutenants, court battlemages, veteran rangers. Typical stats range 8 to 12 (reaching double digits only through years of combat/discipline). Abilities: 1-2 tactical maneuvers. Gear: forged steel arms, mail/chain armor.
+- "elite": Royal champions, archmages, inquisitors, guildmasters, master monks. Peak mortal mastery. Typical stats range 12 to 15. Abilities: 2-3 formidable signature powers. Gear: masterwork or enchanted arms.
+- "boss": Sovereign warlords, elder monstrosities, high arch-villains, faction heads. Typical stats range 15 to 18. Abilities: 3-4 phase-defining powers.
+- "mythic": Primordial titans, avatars, demigods, epoch-ending entities. Stats 18 to 22+.
 VOCATIONAL REALISM & ATTRIBUTE ASYMMETRY:
 - Stats must NEVER be flat or uniform across all attributes.
 - Reflect physical build, age, and occupation: non-combatants, youth, children, brokers, and scholars MUST have low physical Might (1 to 4) while allocating points to mental, social, or agility strengths (e.g. Cunning: 5-7).
 - Burly laborers, smiths, and guards invert this (Might: 5-8, lower Arcana/Cunning).
-- If specific RPG stats with base values are provided in the prompt, rate strictly those stats. If a target tier hint is given, obey it.)`;
+- If specific RPG stats with base values are provided in the prompt, rate strictly those stats. If a target tier hint is given, it constrains combatTier ONLY — still rate challengeRating and crBasis independently.
+VITALS & RESOURCE POOLS (mandatory — never omit):
+- "vitals.health" current/max HP scaled to tier and CR: civilians ~4-8, apprentices ~10-20, veterans ~25-45, elites ~50-90, bosses ~100-200, mythic 200+.
+- Add "vitals.stamina" for physically active characters; add "vitals.mana" ONLY for casters or supernatural beings.
+- Add "resourcePools" for signature expendables fitting the archetype (e.g. Rage, Spell Slots, Focus, Grit, Faith) with id, name, max; civilians usually have none.
+- "current" values represent a fully-rested state (current = max).)`;
     } else if (type === 'epoch_arc') {
       schemaInstruction = `Schema: { "eras": [{ "eraName": string, "timeframe": string, "description": string, "majorCataclysm": string, "legacyFactions": string[] }], "keyEvents": [{ "title": string, "eraName": string, "narrativeSummary": string, "lastingConsequences": string }] } (Generate a cohesive 3-era historical macro-arc: 1. Age of Creation / Mythic Dawn, 2. The Great Cataclysm / War of Ruin, 3. The Present Ash / Modern Age, along with at least 4 key turning point events across these eras)`;
     } else if (type === 'timeline_ripple') {
@@ -480,9 +497,15 @@ VOCATIONAL REALISM & ATTRIBUTE ASYMMETRY:
           });
         }
       }
+      // Stat calibrations pass through the normalizer so vitals/pools
+      // defaults and clamps hold even when the model omits them.
+      const responseData =
+        type === 'npc_stat_calibration'
+          ? normalizeEntity('npc', { name: '', statCalibration: aiResult.data }).statCalibration ?? aiResult.data
+          : aiResult.data;
       return NextResponse.json({
         success: true,
-        data: aiResult.data,
+        data: responseData,
         isAiGenerated: true,
         modelUsed: aiResult.modelUsed,
       });

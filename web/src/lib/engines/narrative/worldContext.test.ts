@@ -188,6 +188,22 @@ describe('buildWorldContextBlocks', () => {
       formatNpcCombatSummary(npc),
       'boss CR14 — HP 120/150, Stamina 30/30, Rage 3/5 (honor these vitals and pools when narrating harm, fatigue, and ability costs)'
     );
+    const schemer: NPCDossier = {
+      ...npc,
+      id: 'npc_d',
+      name: 'Vizier',
+      statCalibration: {
+        ...npc.statCalibration!,
+        combatTier: 'civilian',
+        challengeRating: 12,
+        crBasis: 'controls the court and the watch payroll',
+      },
+    };
+    assert.ok(
+      formatNpcCombatSummary(schemer).startsWith(
+        'civilian CR12 [threat: controls the court and the watch payroll] — HP 120/150'
+      )
+    );
     const blocks = buildWorldContextBlocks({ worldBible: { ...worldBible, npcs: [npc] } });
     assert.equal(blocks.npcs.length, 1);
     assert.ok(blocks.npcs[0].includes('Gor'));

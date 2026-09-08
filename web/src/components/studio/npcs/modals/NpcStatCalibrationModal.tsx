@@ -42,6 +42,7 @@ export function NpcStatCalibrationModal({
     npcName: '',
     combatTier: 'civilian',
     challengeRating: 1,
+    crBasis: '',
     statRatings: getDefaultStatRatings(story),
     signatureAbilities: [],
     equippedGear: [],
@@ -65,6 +66,7 @@ export function NpcStatCalibrationModal({
           npcName: targetNpc.statCalibration.npcName || targetNpc.name,
           combatTier: targetNpc.statCalibration.combatTier || 'civilian',
           challengeRating: targetNpc.statCalibration.challengeRating ?? 1,
+          crBasis: targetNpc.statCalibration.crBasis || '',
           statRatings: targetNpc.statCalibration.statRatings
             ? { ...targetNpc.statCalibration.statRatings }
             : getDefaultStatRatings(story),
@@ -89,6 +91,7 @@ export function NpcStatCalibrationModal({
           npcName: targetNpc.name,
           combatTier: 'civilian',
           challengeRating: 1,
+          crBasis: '',
           statRatings: getDefaultStatRatings(story),
           signatureAbilities: [],
           equippedGear: [],
@@ -196,7 +199,7 @@ export function NpcStatCalibrationModal({
 
             <div>
               <label className="block text-xs text-zinc-400 mb-1">
-                {isPersian ? 'درجه سختی چالش (CR 1-20):' : 'Challenge Rating (CR 1-20):'}
+                {isPersian ? 'درجه تهدید کلی (CR 1-20) — مستقل از رده رزمی:' : 'Overall Threat (CR 1-20) — independent of combat tier:'}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -227,6 +230,22 @@ export function NpcStatCalibrationModal({
                 />
               </div>
             </div>
+          </div>
+
+          {/* CR basis — what drives threat beyond raw fighting ability */}
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">
+              {isPersian ? 'منشأ تهدید (اگر CR از رزم فراتر است):' : 'Threat source (when CR outruns fighting ability):'}
+            </label>
+            <input
+              type="text"
+              value={statForm.crBasis || ''}
+              onChange={(e) =>
+                setStatForm((prev: NpcStatCalibration) => ({ ...prev, crBasis: e.target.value }))
+              }
+              placeholder={isPersian ? 'مثال: نفوذ در دربار، شبکه جاسوسان…' : 'e.g. court influence, spy network, archmage patron…'}
+              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+            />
           </div>
 
           {/* Attributes Grid */}

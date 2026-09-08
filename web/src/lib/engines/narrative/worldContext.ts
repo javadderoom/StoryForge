@@ -9,11 +9,12 @@ import { StoryNpcOverride, StoryScale } from '@/lib/types/story';
 export function formatNpcCombatSummary(n: NPCDossier): string {
   const sc = n.statCalibration;
   if (!sc) return '';
+  const basis = sc.crBasis?.trim() ? ` [threat: ${sc.crBasis.trim()}]` : '';
   const parts = [`HP ${sc.vitals?.health?.current ?? '?'}/${sc.vitals?.health?.max ?? '?'}`];
   if (sc.vitals?.stamina) parts.push(`Stamina ${sc.vitals.stamina.current}/${sc.vitals.stamina.max}`);
   if (sc.vitals?.mana) parts.push(`Mana ${sc.vitals.mana.current}/${sc.vitals.mana.max}`);
   for (const p of sc.resourcePools ?? []) parts.push(`${p.name} ${p.current}/${p.max}`);
-  return `${sc.combatTier} CR${sc.challengeRating} — ${parts.join(', ')} (honor these vitals and pools when narrating harm, fatigue, and ability costs)`;
+  return `${sc.combatTier} CR${sc.challengeRating}${basis} — ${parts.join(', ')} (honor these vitals and pools when narrating harm, fatigue, and ability costs)`;
 }
 
 export interface WorldContextBlocks {

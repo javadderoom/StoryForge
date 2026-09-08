@@ -653,12 +653,12 @@ export function NpcCard({
                     title={isPersian ? 'تعیین سطح رزمی دلخواه برای هوش مصنوعی' : 'Combat Tier Target for AI'}
                   >
                     <option value="auto">{isPersian ? 'خودکار (بر اساس پیشه)' : 'Auto (From Role)'}</option>
-                    <option value="civilian">{isPersian ? 'غیرنظامی (CR 1)' : 'Civilian (CR 1)'}</option>
-                    <option value="apprentice">{isPersian ? 'تازه‌کار / نگهبان (CR 2-4)' : 'Apprentice (CR 2-4)'}</option>
-                    <option value="veteran">{isPersian ? 'کهنه‌کار (CR 5-8)' : 'Veteran (CR 5-8)'}</option>
-                    <option value="elite">{isPersian ? 'نخبه (CR 9-12)' : 'Elite (CR 9-12)'}</option>
-                    <option value="boss">{isPersian ? 'هماورد / غول (CR 13-16)' : 'Boss (CR 13-16)'}</option>
-                    <option value="mythic">{isPersian ? 'افسانه‌ای (CR 17-20)' : 'Mythic (CR 17-20)'}</option>
+                    <option value="civilian">{isPersian ? 'غیرنظامی' : 'Civilian'}</option>
+                    <option value="apprentice">{isPersian ? 'تازه‌کار / نگهبان' : 'Apprentice / Guard'}</option>
+                    <option value="veteran">{isPersian ? 'کهنه‌کار' : 'Veteran'}</option>
+                    <option value="elite">{isPersian ? 'نخبه' : 'Elite'}</option>
+                    <option value="boss">{isPersian ? 'هماورد / غول' : 'Boss'}</option>
+                    <option value="mythic">{isPersian ? 'افسانه‌ای' : 'Mythic'}</option>
                   </select>
 
                   <button
@@ -736,6 +736,14 @@ export function NpcCard({
                                 {pool.name} {pool.current}/{pool.max}
                               </span>
                             ))}
+                          </div>
+                        )}
+                        {npc.statCalibration.crBasis?.trim() && (
+                          <div className="text-[10.5px] text-zinc-400 mt-1.5">
+                            <span className="font-bold text-zinc-300">
+                              {isPersian ? 'منشأ تهدید: ' : 'Threat source: '}
+                            </span>
+                            {npc.statCalibration.crBasis.trim()}
                           </div>
                         )}
                       </div>

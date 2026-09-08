@@ -97,6 +97,8 @@ describe('NPC Voice & Dialogue Guides and RPG Stats Normalization', () => {
     };
 
     const normalized = normalizeEntity('npc', rawNpc);
+    // crBasis defaults to '' when CR is pure combat
+    assert.equal(normalized.statCalibration.crBasis, '');
     assert.deepEqual(normalized.statCalibration.vitals.health, { current: 64, max: 64 });
     assert.deepEqual(normalized.statCalibration.vitals.stamina, { current: 20, max: 20 });
     assert.deepEqual(normalized.statCalibration.vitals.mana, { current: 0, max: 1 });
@@ -125,6 +127,34 @@ describe('NPC Voice & Dialogue Guides and RPG Stats Normalization', () => {
     assert.deepEqual(normalized.statCalibration.vitals.stamina, { current: 12, max: 12 });
     assert.equal(normalized.statCalibration.resourcePools[0].name, 'خشم');
     assert.equal(normalized.statCalibration.resourcePools[0].current, 2);
+  });
+
+  it('normalizes crBasis and its Persian aliases, coercing non-strings to empty', () => {
+    const withBasis = normalizeEntity('npc', {
+      name: 'Vizier',
+      statCalibration: {
+        combatTier: 'civilian',
+        challengeRating: 12,
+        crBasis: 'controls the court and the watch payroll',
+      },
+    });
+    assert.equal(withBasis.statCalibration.crBasis, 'controls the court and the watch payroll');
+
+    const persian = normalizeEntity('npc', {
+      name: 'وزیر',
+      statCalibration: {
+        combatTier: 'civilian',
+        challengeRating: 12,
+        'منشأ خطر': 'نفوذ در دربار',
+      },
+    });
+    assert.equal(persian.statCalibration.crBasis, 'نفوذ در دربار');
+
+    const numeric = normalizeEntity('npc', {
+      name: 'Barkeep',
+      statCalibration: { combatTier: 'veteran', challengeRating: 3, crBasis: 42 },
+    });
+    assert.equal(numeric.statCalibration.crBasis, '');
   });
 
   it('allows cleanly setting, editing, and deleting voiceGuide and statCalibration on NPCDossier', () => {
