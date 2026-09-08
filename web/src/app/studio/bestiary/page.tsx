@@ -24,6 +24,8 @@ import {
   HeartHandshake,
   Ghost,
   AlertTriangle,
+  Gem,
+  Pickaxe,
 } from 'lucide-react';
 import { WorldCreature, CreatureAlchemicalYield, EnhancedCreaturePayload } from '@/lib/types';
 import { notify } from '@/lib/notify';
@@ -36,6 +38,7 @@ const SPECIES_CATEGORIES = {
   undead: { labelFa: 'نامردگان و ارواح', labelEn: 'Undead', color: 'text-rose-400 bg-rose-500/10 border-rose-500/30' },
   beast: { labelFa: 'جانور وحشی', labelEn: 'Beast', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' },
   flora: { labelFa: 'گیاهان، قارچ‌ها و رستنی‌ها', labelEn: 'Flora & Botanicals', color: 'text-lime-400 bg-lime-500/10 border-lime-500/30' },
+  mineral: { labelFa: 'کانی‌ها، سنگ‌ها و نمک‌های معدنی', labelEn: 'Minerals & Ores', color: 'text-amber-300 bg-amber-500/10 border-amber-500/30' },
   draconic: { labelFa: 'اژدهایی و کهن', labelEn: 'Draconic', color: 'text-red-400 bg-red-500/10 border-red-500/30' },
   humanoid: { labelFa: 'انسان‌نما و قبیله‌ای', labelEn: 'Humanoid', color: 'text-sky-400 bg-sky-500/10 border-sky-500/30' },
 };
@@ -62,30 +65,54 @@ const RARITY_LABELS: Record<string, { en: string; fa: string }> = {
   legendary: { en: 'LEGENDARY', fa: 'افسانه‌ای' },
 };
 
+const isFloraName = (str: string) =>
+  /گیاه|قارچ|گل|ریشه|نیلوفر|سنبل|گون|گَوَن|خزه|درخت|بوته|پیچک|علف|بذر|برگ|بلوط|کاج|نسترن|پونه|سدر|بابونه|زعفران|lotus|lily|mushroom|fungus|root|moss|bloom|herb|fern|ivy|berry/i.test(str);
+
+const isMineralName = (str: string) =>
+  /نمک|گوگرد|بلور|کریستال|ابسیدین|معدنی|سنگ|جیوه|کانی|یاقوت|زمرد|عقیق|خاکستر|شفق|سیلیس|کوارتز|چخماق|آهک|شوره|salt|mineral|ore|crystal|obsidian|sulfur|brimstone|quartz|gem/i.test(str);
+
+const resolveSuggestedCategory = (str: string): 'flora' | 'mineral' | 'beast' => {
+  if (isMineralName(str)) return 'mineral';
+  if (isFloraName(str)) return 'flora';
+  return 'beast';
+};
+
 /**
  * Biological and Alchemical Pacification Entity Extractor
- * Extracts missing plant, animal, or reagent entities from nonCombatPacificationMethod text.
+ * Extracts missing plant, mineral, animal, or reagent entities from nonCombatPacificationMethod text.
  */
-function extractPacificationEntities(text: string): Array<{ name: string; category: 'flora' | 'beast' }> {
+function extractPacificationEntities(text: string): Array<{ name: string; category: 'flora' | 'beast' | 'mineral' }> {
   if (!text || typeof text !== 'string') return [];
-  const results: Array<{ name: string; category: 'flora' | 'beast' }> = [];
+  const results: Array<{ name: string; category: 'flora' | 'beast' | 'mineral' }> = [];
   const seen = new Set<string>();
 
-  const isFloraName = (str: string) =>
-    /گیاه|قارچ|گل|ریشه|نیلوفر|سنبل|خزه|درخت|بوته|پیچک|علف|بذر|برگ|بلوط|کاج|نسترن|پونه|سدر|بابونه|زعفران|lotus|lily|mushroom|fungus|root|moss|bloom|herb|fern|ivy|berry/i.test(str);
+  const add = (rawName: string, explicitCat?: 'flora' | 'beast' | 'mineral') => {
+    let clean = rawName
+      .replace(/[\u064B-\u065F\u0670]/g, '') // strip diacritics like Fat-ha in گَوَن
+      .replace(/[«»"'״]/g, '')
+      .trim();
 
-  const add = (rawName: string, explicitCat?: 'flora' | 'beast') => {
-    let clean = rawName.replace(/[«»"'״]/g, '').trim();
-    // Strip common action and preparation prefixes
-    clean = clean.replace(/^(پاشیدن|مالیدن|خوراندن|تعارف|دود کردن|سوزاندن|عصارهٔ?|روغن|پودر|شیرهٔ?|دم‌کردهٔ?|جوشاندهٔ?|تخم|ریشه(?:های|‌های)?|ریشهٔ?|برگ(?:های|‌های)?|گلبرگ(?:های|‌های)?|تخمیرشدهٔ?|تخمیرشده|غلیظ شدهٔ?|غلیظ‌شدهٔ?|خشک شدهٔ?|خشک‌شدهٔ?|ساییده شدهٔ?|ساییدهٔ?|پختهٔ?|خام|تازهٔ?)\s+/gu, '').trim();
+    // Strip common action, preparation, and sensory adjective prefixes iteratively
+    const prefixRegex = /^(?:پاشیدن|مالیدن|خوراندن|تعارف|دود کردن|سوزاندن|استخراج|ریختن|آغشتن|عصارهٔ?|روغن|پودر|شیرهٔ?|دم‌کردهٔ?|جوشاندهٔ?|تخم|ریشه(?:های|‌های)?|ریشهٔ?|برگ(?:های|‌های)?|گلبرگ(?:های|‌های)?|بلور(?:های|‌های)?|بلور|گیاه|قارچ|تخمیرشدهٔ?|تخمیرشده|غلیظ شدهٔ?|غلیظ‌شدهٔ?|خشک شدهٔ?|خشک‌شدهٔ?|ساییده شدهٔ?|ساییدهٔ?|پختهٔ?|خام|تازهٔ?|تلخ|غلیظ|شور|تند|خالص|ناخالص|و)\s+/gu;
+    let prev = '';
+    while (prev !== clean) {
+      prev = clean;
+      clean = clean.replace(prefixRegex, '').trim();
+    }
+
+    // Strip trailing sensory adjectives
+    const suffixAdjectives = /\s+(?:خالص|ناخالص|تلخ|شیرین|غلیظ|شور|تند|تازه|کهنه|خام|پخته|ساییده|آسیاب‌شده)$/gu;
+    clean = clean.replace(suffixAdjectives, '').trim();
+
     // Strip trailing prepositional particles and stop words
-    clean = clean.replace(/\s+(بر روی|روی|در|برای|به|با|که|تا|و|از|سپس|جهت|را).*$/gu, '').trim();
+    clean = clean.replace(/\s+(?:بر روی|روی|در|برای|به|با|که|تا|از|سپس|جهت|را).*$/gu, '').trim();
+
     if (!clean || clean.length < 2 || clean.length > 35) return;
     const norm = clean.toLowerCase();
     if (seen.has(norm)) return;
     seen.add(norm);
 
-    const category = explicitCat || (isFloraName(clean) ? 'flora' : 'beast');
+    const category = explicitCat || resolveSuggestedCategory(clean);
     results.push({ name: clean, category });
   };
 
@@ -95,19 +122,23 @@ function extractPacificationEntities(text: string): Array<{ name: string; catego
     quotes.forEach((q) => add(q));
   }
 
-  // 2. Persian Ezafe / Biological patterns (e.g. "عصارهٔ غلیظ شدهٔ ریشه‌های تخمیرشدهٔ نیلوفر مردابی")
-  const bioAnchorsRegex = /(?:عصارهٔ?|روغن|پودر|شیرهٔ?|دم‌کردهٔ?|جوشاندهٔ?|ریشه(?:های|‌های)?|ریشهٔ?|برگ(?:های|‌های)?|گلبرگ(?:های|‌های)?|بذر|گوشت|خون|زهر)\s+(?:(?:غلیظ شدهٔ?|غلیظ‌شدهٔ?|تخمیرشدهٔ?|تخمیرشده|خشک شدهٔ?|خشک‌شدهٔ?|ساییدهٔ?|پختهٔ?|تازهٔ?|خام)\s+)*(?:(?:ریشه(?:های|‌های)?|ریشهٔ?|برگ(?:های|‌های)?|تخم)\s+)*(?:(?:تخمیرشدهٔ?|تخمیرشده|غلیظ شدهٔ?|غلیظ‌شدهٔ?)\s+)*([\u0600-\u06FF\s]{2,30}?)(?=\s+(?:بر روی|روی|در|برای|به|با|که|تا|و|از|جهت|را|[.,،]|$))/gu;
-  let match;
-  while ((match = bioAnchorsRegex.exec(text)) !== null) {
-    if (match[1]) {
-      add(match[1]);
+  // 2. Split clauses on conjunctions (یا / و) and punctuation to prevent bleeding
+  const fragments = text.split(/\s+یا\s+|[;؛\n]+/u);
+  for (const frag of fragments) {
+    // Direct Anchor words followed by regional/descriptive modifiers (e.g. "نمک معدنی", "گون کوهی", "نیلوفر مردابی")
+    const directAnchorRegex = /(?:^|[\s«"'(،,;؛])(نیلوفر|سنبل|قارچ|خزه|پیچک|گَ?وَن|گون|گوزن|گرگ|خرس|گراز|شاهین|عقاب|افعی|مانتیکور|نمک|گوگرد|بلور|کوارتز|ابسیدین)\s+([\u0600-\u06FF]{2,20})(?=$|[\s»"')،,;؛])/gu;
+    let match;
+    while ((match = directAnchorRegex.exec(frag)) !== null) {
+      add(`${match[1]} ${match[2]}`);
     }
-  }
 
-  // 3. Direct Anchor words followed by regional/descriptive modifiers (e.g. "نیلوفر مردابی", "سنبل آبی")
-  const directAnchorRegex = /\b(نیلوفر|سنبل|قارچ|خزه|پیچک|گوزن|گرگ|خرس|گراز|شاهین|عقاب|افعی|مانتیکور)\s+([\u0600-\u06FF]{2,20})\b/gu;
-  while ((match = directAnchorRegex.exec(text)) !== null) {
-    add(`${match[1]} ${match[2]}`);
+    // Bio / Mineral prep patterns
+    const bioAnchorsRegex = /(?:عصارهٔ?|روغن|پودر|شیرهٔ?|دم‌کردهٔ?|جوشاندهٔ?|ریشه(?:های|‌های)?|ریشهٔ?|برگ(?:های|‌های)?|گلبرگ(?:های|‌های)?|بذر|گوشت|خون|زهر|بلور|سنگ|نمک|کانی)\s+(?:(?:غلیظ شدهٔ?|غلیظ‌شدهٔ?|تخمیرشدهٔ?|تخمیرشده|خشک شدهٔ?|خشک‌شدهٔ?|ساییدهٔ?|پختهٔ?|تازهٔ?|خام|تلخ|غلیظ|شور|تند|خالص|ناخالص|و)\s+)*(?:(?:ریشه(?:های|‌های)?|ریشهٔ?|برگ(?:های|‌های)?|تخم|گیاه|سنگ|بلور)\s+)*([\u0600-\u06FF\s]{2,30}?)(?=\s+(?:بر روی|روی|در|برای|به|با|که|تا|و|از|سپس|جهت|را|[.,،;؛]|$))/gu;
+    while ((match = bioAnchorsRegex.exec(frag)) !== null) {
+      if (match[1]) {
+        add(match[1]);
+      }
+    }
   }
 
   return results;
@@ -151,7 +182,7 @@ export default function BestiaryStudioPage() {
 
   // Form states
   const [cName, setCName] = useState('');
-  const [cCategory, setCCategory] = useState<'beast' | 'monstrosity' | 'undead' | 'elemental' | 'flora' | 'draconic' | 'humanoid'>('beast');
+  const [cCategory, setCCategory] = useState<'beast' | 'monstrosity' | 'undead' | 'elemental' | 'flora' | 'draconic' | 'humanoid' | 'mineral'>('beast');
   const [cDanger, setCDanger] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [cRarity, setCRarity] = useState<'common' | 'uncommon' | 'rare' | 'legendary'>('common');
   const [cHabitats, setCHabitats] = useState<string[]>([]);
@@ -160,6 +191,10 @@ export default function BestiaryStudioPage() {
   const [cResistances, setCResistances] = useState('');
   const [cLoot, setCLoot] = useState<Array<{ itemId: string; name: string; dropRate: string }>>([]);
   const [cDesc, setCDesc] = useState('');
+
+  // Mineral & Specialized properties
+  const [cExtractionMethod, setCExtractionMethod] = useState('');
+  const [cCraftingProperties, setCCraftingProperties] = useState('');
 
   // Plan 05 Form states
   const [cNiche, setCNiche] = useState('');
@@ -202,7 +237,7 @@ export default function BestiaryStudioPage() {
       referencedByCreatureId: string;
       referencedByCreatureName: string;
       role: 'prey' | 'predator' | 'niche_mention' | 'pacification_reagent';
-      suggestedCategory: 'beast' | 'flora';
+      suggestedCategory: 'beast' | 'flora' | 'mineral';
     }> = [];
     const seen = new Set<string>();
 
@@ -219,7 +254,7 @@ export default function BestiaryStudioPage() {
               referencedByCreatureId: c.id,
               referencedByCreatureName: c.name,
               role: 'prey',
-              suggestedCategory: clean.includes('گیاه') || clean.includes('قارچ') || clean.includes('گل') || clean.includes('ریشه') || clean.includes('herb') || clean.includes('bloom') ? 'flora' : 'beast',
+              suggestedCategory: resolveSuggestedCategory(clean),
             });
           }
         });
@@ -257,7 +292,7 @@ export default function BestiaryStudioPage() {
                 referencedByCreatureId: c.id,
                 referencedByCreatureName: c.name,
                 role: 'niche_mention',
-                suggestedCategory: clean.includes('گیاه') || clean.includes('قارچ') || clean.includes('گل') || clean.includes('ریشه') ? 'flora' : 'beast',
+                suggestedCategory: resolveSuggestedCategory(clean),
               });
             }
           });
@@ -271,13 +306,12 @@ export default function BestiaryStudioPage() {
           const norm = clean.toLowerCase();
           if (clean && !isEntityKnown(clean, bestiary, artifacts) && !seen.has(norm)) {
             seen.add(norm);
-            const isFlora = /گیاه|قارچ|گل|ریشه|نیلوفر|سنبل|خزه|درخت|بوته|پیچک|lotus|lily|mushroom|fungus|root|moss|bloom|herb/i.test(clean);
             ghosts.push({
               name: clean,
               referencedByCreatureId: c.id,
               referencedByCreatureName: c.name,
               role: 'pacification_reagent',
-              suggestedCategory: isFlora ? 'flora' : 'beast',
+              suggestedCategory: resolveSuggestedCategory(clean),
             });
           }
         });
@@ -321,11 +355,13 @@ export default function BestiaryStudioPage() {
 
   const handleOpenAddModal = (prefill?: {
     name?: string;
-    category?: 'beast' | 'monstrosity' | 'undead' | 'elemental' | 'flora' | 'draconic' | 'humanoid';
+    category?: 'beast' | 'monstrosity' | 'undead' | 'elemental' | 'flora' | 'draconic' | 'humanoid' | 'mineral';
     habitatIds?: string[];
     rarity?: 'common' | 'uncommon' | 'rare' | 'legendary';
     danger?: 1 | 2 | 3 | 4 | 5;
     niche?: string;
+    extractionMethod?: string;
+    craftingProperties?: string;
   }) => {
     setEditingCreatureId(null);
     setCName(prefill?.name || '');
@@ -341,6 +377,8 @@ export default function BestiaryStudioPage() {
     setCNiche(prefill?.niche || '');
     setCPacification('');
     setCYields([]);
+    setCExtractionMethod(prefill?.extractionMethod || '');
+    setCCraftingProperties(prefill?.craftingProperties || '');
     setShowAddModal(true);
   };
 
@@ -359,6 +397,8 @@ export default function BestiaryStudioPage() {
     setCNiche(c.predatorPreyNiche || '');
     setCPacification(c.nonCombatPacificationMethod || '');
     setCYields(c.alchemicalYields || []);
+    setCExtractionMethod(c.extractionMethod || '');
+    setCCraftingProperties(c.craftingProperties || '');
     setShowAddModal(true);
   };
 
@@ -376,35 +416,45 @@ export default function BestiaryStudioPage() {
   const handleSaveCreature = (e: React.FormEvent) => {
     e.preventDefault();
     if (!cName.trim()) {
-      notify.error(isPersian ? 'نام موجود الزامی است' : 'Creature name is required');
+      notify.error(isPersian ? 'نام موجود یا کانی الزامی است' : 'Creature or mineral name is required');
       return;
     }
 
-    const weaknessesArr = cWeaknesses
-      .split('\n')
-      .map((w) => w.trim())
-      .filter((w) => w.length > 0);
+    const isMineral = cCategory === 'mineral';
 
-    const resistancesArr = cResistances
-      .split('\n')
-      .map((r) => r.trim())
-      .filter((r) => r.length > 0);
+    const weaknessesArr = isMineral
+      ? []
+      : cWeaknesses
+          .split('\n')
+          .map((w) => w.trim())
+          .filter((w) => w.length > 0);
+
+    const resistancesArr = isMineral
+      ? []
+      : cResistances
+          .split('\n')
+          .map((r) => r.trim())
+          .filter((r) => r.length > 0);
 
     const payload: WorldCreature = {
       id: editingCreatureId || `creature_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
       name: cName.trim(),
       speciesCategory: cCategory,
-      dangerLevel: cDanger,
+      dangerLevel: isMineral ? 1 : cDanger,
       rarity: cRarity,
       habitatLocationIds: cHabitats,
-      behavioralTactics: cTactics.trim() || (isPersian ? 'حمله غافلگیرکننده' : 'Ambush and swarm tactics'),
-      weaknesses: weaknessesArr.length > 0 ? weaknessesArr : [isPersian ? 'آسیب آتشین' : 'Fire damage'],
+      behavioralTactics: isMineral
+        ? (cExtractionMethod.trim() || (isPersian ? 'استخراج با ابزار ویژه معدن‌کاوی' : 'Excavation via mining tools'))
+        : (cTactics.trim() || (isPersian ? 'حمله غافلگیرکننده' : 'Ambush and swarm tactics')),
+      weaknesses: isMineral ? [] : (weaknessesArr.length > 0 ? weaknessesArr : [isPersian ? 'آسیب آتشین' : 'Fire damage']),
       resistances: resistancesArr,
       harvestableLoot: cLoot,
       loreDescription: cDesc.trim(),
-      predatorPreyNiche: cNiche.trim() || undefined,
-      nonCombatPacificationMethod: cPacification.trim() || undefined,
+      predatorPreyNiche: isMineral ? undefined : (cNiche.trim() || undefined),
+      nonCombatPacificationMethod: isMineral ? undefined : (cPacification.trim() || undefined),
       alchemicalYields: cYields.length > 0 ? cYields : undefined,
+      extractionMethod: isMineral ? (cExtractionMethod.trim() || undefined) : undefined,
+      craftingProperties: isMineral ? (cCraftingProperties.trim() || undefined) : undefined,
       pacificationReagents: editingCreatureId
         ? bestiary.find((b) => b.id === editingCreatureId)?.pacificationReagents
         : undefined,
@@ -412,10 +462,10 @@ export default function BestiaryStudioPage() {
 
     if (editingCreatureId) {
       editCreature(editingCreatureId, payload);
-      notify.success(isPersian ? 'موجود ویرایش شد' : 'Creature updated');
+      notify.success(isPersian ? 'اطلاعات با موفقیت به‌روزرسانی شد' : 'Creature updated');
     } else {
       addCreature(payload);
-      notify.success(isPersian ? 'موجود جدید به زیست‌بوم افزوده شد' : 'Added creature to bestiary');
+      notify.success(isPersian ? 'گونه یا کانی جدید به زیست‌بوم افزوده شد' : 'Added to bestiary');
     }
 
     setShowAddModal(false);
@@ -602,6 +652,8 @@ export default function BestiaryStudioPage() {
     if (!cNiche && data.predatorPreyNiche) setCNiche(data.predatorPreyNiche as string);
     if (!cPacification && data.nonCombatPacificationMethod) setCPacification(data.nonCombatPacificationMethod as string);
     if (!cYields.length && Array.isArray(data.alchemicalYields)) setCYields(data.alchemicalYields as CreatureAlchemicalYield[]);
+    if (!cExtractionMethod && data.extractionMethod) setCExtractionMethod(data.extractionMethod as string);
+    if (!cCraftingProperties && data.craftingProperties) setCCraftingProperties(data.craftingProperties as string);
   };
 
   const renderDangerStars = (level: number) => {
@@ -731,10 +783,20 @@ export default function BestiaryStudioPage() {
                   <div className="flex items-center justify-between gap-2 border-b border-red-500/20 pb-3">
                     <span className="px-2.5 py-0.5 rounded-xl text-xs font-bold border text-red-300 bg-red-500/10 border-red-500/30 flex items-center gap-1.5 animate-pulse">
                       <Ghost className="w-3.5 h-3.5 text-red-400" />
-                      <span>{isPersian ? 'گونه ناموجود در جهان' : 'Ghost / Missing Species'}</span>
+                      <span>{isPersian ? 'گونه یا کانی ناموجود در جهان' : 'Ghost / Missing Entity'}</span>
                     </span>
                     <span className="text-[10px] text-zinc-400 font-mono">
-                      {ghost.suggestedCategory === 'flora' ? (isPersian ? '🌿 رستنی / گیاه' : 'Flora') : (isPersian ? '🐾 جانور' : 'Fauna')}
+                      {ghost.suggestedCategory === 'mineral'
+                        ? isPersian
+                          ? '💎 کانی / سنگ معدنی'
+                          : 'Mineral / Ore'
+                        : ghost.suggestedCategory === 'flora'
+                        ? isPersian
+                          ? '🌿 رستنی / گیاه'
+                          : 'Flora'
+                        : isPersian
+                        ? '🐾 جانور'
+                        : 'Fauna'}
                     </span>
                   </div>
 
@@ -743,7 +805,11 @@ export default function BestiaryStudioPage() {
                       <span>{ghost.name}</span>
                     </h3>
                     <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                      {ghost.role === 'pacification_reagent'
+                      {ghost.suggestedCategory === 'mineral'
+                        ? isPersian
+                          ? `این کانی یا نمک معدنی در روش رام‌سازی، ساخت یا اکولوژی «${ghost.referencedByCreatureName}» قید شده است، اما هنوز در کتاب جهان ثبت نشده است.`
+                          : `Referenced as a required mineral or alchemical reagent for "${ghost.referencedByCreatureName}", but has no registered entry in the world bible.`
+                        : ghost.role === 'pacification_reagent'
                         ? isPersian
                           ? `در روش رام‌سازی بدون خون‌ریزی «${ghost.referencedByCreatureName}» به این ماده یا گیاه نیاز است، ولی هنوز در جهان ثبت نشده است.`
                           : `Required for the non-combat pacification of "${ghost.referencedByCreatureName}", but has no registered entry in the world bible.`
@@ -773,7 +839,9 @@ export default function BestiaryStudioPage() {
                         name: ghost.name,
                         category: ghost.suggestedCategory,
                         niche:
-                          ghost.role === 'pacification_reagent'
+                          ghost.suggestedCategory === 'mineral'
+                            ? undefined
+                            : ghost.role === 'pacification_reagent'
                             ? isPersian
                               ? `ماده یا گیاه مورد نیاز در روش رام‌سازی ${ghost.referencedByCreatureName}`
                               : `Required for pacifying ${ghost.referencedByCreatureName}`
@@ -785,6 +853,18 @@ export default function BestiaryStudioPage() {
                             ? isPersian
                               ? `شکارچی طبیعی ${ghost.referencedByCreatureName}`
                               : `Natural predator of ${ghost.referencedByCreatureName}`
+                            : undefined,
+                        extractionMethod:
+                          ghost.suggestedCategory === 'mineral'
+                            ? isPersian
+                              ? `استخراج رگه‌های ${ghost.name} از صخره‌ها یا غارهای منطقه`
+                              : `Mining veins of ${ghost.name} in regional caverns`
+                            : undefined,
+                        craftingProperties:
+                          ghost.suggestedCategory === 'mineral'
+                            ? isPersian
+                              ? `مورد استفاده در کیمیاگری و روش رام‌سازی «${ghost.referencedByCreatureName}»`
+                              : `Used in alchemy and pacification of "${ghost.referencedByCreatureName}"`
                             : undefined,
                       })
                     }
@@ -883,45 +963,77 @@ export default function BestiaryStudioPage() {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <h3 className="text-base font-bold text-zinc-100">{c.name}</h3>
-                      {renderDangerStars(c.dangerLevel)}
+                      {c.speciesCategory === 'mineral' ? (
+                        <span className="px-2.5 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] font-medium flex items-center gap-1">
+                          <Gem className="w-3.5 h-3.5" />
+                          <span>{isPersian ? 'رگه معدنی / کانی' : 'Mineral Vein'}</span>
+                        </span>
+                      ) : (
+                        renderDangerStars(c.dangerLevel)
+                      )}
                     </div>
                     <p className="text-xs text-zinc-400 leading-relaxed">{c.loreDescription}</p>
                   </div>
 
-                  {/* Tactics */}
-                  <div className="p-3 bg-zinc-950/60 border border-zinc-800/80 rounded-2xl text-xs space-y-1">
-                    <span className="text-[11px] font-bold text-red-400 block">
-                      ⚔️ {isPersian ? 'تاکتیک‌های نبرد و رفتار:' : 'Combat Tactics & Behavior:'}
-                    </span>
-                    <p className="text-zinc-300 leading-relaxed">{c.behavioralTactics}</p>
-                  </div>
-
-                  {/* Weaknesses & Resistances */}
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="p-2.5 rounded-2xl bg-zinc-950/40 border border-zinc-800 space-y-1">
-                      <span className="text-[10.5px] font-bold text-rose-400 block">
-                        🎯 {isPersian ? 'نقاط ضعف:' : 'Weaknesses:'}
-                      </span>
-                      <ul className="space-y-0.5 text-zinc-300 text-[11px]">
-                        {c.weaknesses.map((w, idx) => (
-                          <li key={idx}>• {w}</li>
-                        ))}
-                      </ul>
+                  {c.speciesCategory === 'mineral' ? (
+                    <div className="space-y-2">
+                      {c.extractionMethod && (
+                        <div className="p-3 bg-zinc-950/60 border border-amber-500/20 rounded-2xl text-xs space-y-1">
+                          <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                            <Pickaxe className="w-3.5 h-3.5" />
+                            <span>{isPersian ? 'شرایط و خطرات استخراج:' : 'Extraction Conditions & Mining Hazards:'}</span>
+                          </span>
+                          <p className="text-zinc-300 leading-relaxed">{c.extractionMethod}</p>
+                        </div>
+                      )}
+                      {c.craftingProperties && (
+                        <div className="p-3 bg-zinc-950/60 border border-zinc-800 rounded-2xl text-xs space-y-1">
+                          <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
+                            <FlaskConical className="w-3.5 h-3.5" />
+                            <span>{isPersian ? 'خواص فیزیکی و کیمیاگری:' : 'Crafting & Alchemical Properties:'}</span>
+                          </span>
+                          <p className="text-zinc-300 leading-relaxed">{c.craftingProperties}</p>
+                        </div>
+                      )}
                     </div>
+                  ) : (
+                    <>
+                      {/* Tactics */}
+                      <div className="p-3 bg-zinc-950/60 border border-zinc-800/80 rounded-2xl text-xs space-y-1">
+                        <span className="text-[11px] font-bold text-red-400 block">
+                          ⚔️ {isPersian ? 'تاکتیک‌های نبرد و رفتار:' : 'Combat Tactics & Behavior:'}
+                        </span>
+                        <p className="text-zinc-300 leading-relaxed">{c.behavioralTactics}</p>
+                      </div>
 
-                    <div className="p-2.5 rounded-2xl bg-zinc-950/40 border border-zinc-800 space-y-1">
-                      <span className="text-[10.5px] font-bold text-sky-400 block">
-                        🛡️ {isPersian ? 'مقاومت‌ها:' : 'Resistances:'}
-                      </span>
-                      <ul className="space-y-0.5 text-zinc-300 text-[11px]">
-                        {c.resistances.length ? (
-                          c.resistances.map((r, idx) => <li key={idx}>• {r}</li>)
-                        ) : (
-                          <li className="text-zinc-500 italic">{isPersian ? 'بدون مقاومت ویژه' : 'None'}</li>
-                        )}
-                      </ul>
-                    </div>
-                  </div>
+                      {/* Weaknesses & Resistances */}
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="p-2.5 rounded-2xl bg-zinc-950/40 border border-zinc-800 space-y-1">
+                          <span className="text-[10.5px] font-bold text-rose-400 block">
+                            🎯 {isPersian ? 'نقاط ضعف:' : 'Weaknesses:'}
+                          </span>
+                          <ul className="space-y-0.5 text-zinc-300 text-[11px]">
+                            {c.weaknesses.map((w, idx) => (
+                              <li key={idx}>• {w}</li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div className="p-2.5 rounded-2xl bg-zinc-950/40 border border-zinc-800 space-y-1">
+                          <span className="text-[10.5px] font-bold text-sky-400 block">
+                            🛡️ {isPersian ? 'مقاومت‌ها:' : 'Resistances:'}
+                          </span>
+                          <ul className="space-y-0.5 text-zinc-300 text-[11px]">
+                            {c.resistances.length ? (
+                              c.resistances.map((r, idx) => <li key={idx}>• {r}</li>)
+                            ) : (
+                              <li className="text-zinc-500 italic">{isPersian ? 'بدون مقاومت ویژه' : 'None'}</li>
+                            )}
+                          </ul>
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   {/* Plan 05: Ecology & Alchemical Reagents Drawer */}
                   <div className="bg-zinc-950/70 border border-zinc-800/80 rounded-2xl overflow-hidden">
@@ -1080,7 +1192,7 @@ export default function BestiaryStudioPage() {
                                 ...(Array.isArray(c.pacificationReagents)
                                   ? c.pacificationReagents.map((r) => ({
                                       name: r,
-                                      category: /گیاه|قارچ|گل|ریشه|نیلوفر|سنبل|خزه|درخت|بوته|پیچک|lotus|lily|mushroom|fungus|root|moss|bloom|herb/i.test(r) ? ('flora' as const) : ('beast' as const),
+                                      category: resolveSuggestedCategory(r),
                                     }))
                                   : []),
                                 ...extractPacificationEntities(c.nonCombatPacificationMethod),
@@ -1094,8 +1206,8 @@ export default function BestiaryStudioPage() {
                                   <span className="text-[10px] font-bold text-red-300 flex items-center gap-1">
                                     <AlertTriangle className="w-3 h-3 text-red-400 shrink-0 animate-pulse" />
                                     {isPersian
-                                      ? 'ماده، گیاه یا گونه مفقود در جهان برای این روش رام‌سازی:'
-                                      : 'Unregistered plant / reagent required for pacification:'}
+                                      ? 'ماده، کانی، گیاه یا گونه مفقود در جهان برای این روش رام‌سازی:'
+                                      : 'Unregistered plant / mineral / reagent required for pacification:'}
                                   </span>
                                   <div className="flex flex-wrap gap-1.5">
                                     {missingPacEntities.map((item, mIdx) => (
@@ -1107,15 +1219,29 @@ export default function BestiaryStudioPage() {
                                             name: item.name,
                                             category: item.category,
                                             niche:
-                                              isPersian
+                                              item.category === 'mineral'
+                                                ? undefined
+                                                : isPersian
                                                 ? `ماده یا گیاه مورد استفاده در روش رام‌سازی «${c.name}»`
                                                 : `Required for pacifying "${c.name}"`,
+                                            extractionMethod:
+                                              item.category === 'mineral'
+                                                ? isPersian
+                                                  ? `استخراج رگه‌های ${item.name} از صخره‌ها یا غارهای منطقه`
+                                                  : `Mining veins of ${item.name} in regional caverns`
+                                                : undefined,
+                                            craftingProperties:
+                                              item.category === 'mineral'
+                                                ? isPersian
+                                                  ? `مورد استفاده در کیمیاگری و روش رام‌سازی «${c.name}»`
+                                                  : `Used in alchemy and pacification of "${c.name}"`
+                                                : undefined,
                                           })
                                         }
                                         className="px-2.5 py-1 rounded-lg bg-red-950/60 border border-red-500/60 hover:border-red-400 text-red-200 text-[10.5px] font-medium flex items-center gap-1.5 shadow-[0_0_10px_rgba(239,68,68,0.25)] animate-pulse cursor-pointer transition-all"
-                                        title={isPersian ? 'کلیک کنید تا این موجود یا گیاه فوراً در جهان ثبت شود' : 'Click to materialize this entity'}
+                                        title={isPersian ? 'کلیک کنید تا این موجود، گیاه یا کانی فوراً در جهان ثبت شود' : 'Click to materialize this entity'}
                                       >
-                                        <span>{item.category === 'flora' ? '🌿' : '🐾'}</span>
+                                        <span>{item.category === 'mineral' ? '💎' : item.category === 'flora' ? '🌿' : '🐾'}</span>
                                         <strong>{item.name}</strong>
                                         <span className="text-[9px] text-red-400 font-mono">({isPersian ? 'ناموجود' : 'missing'})</span>
                                         <Plus className="w-3 h-3 text-red-300 ml-0.5" />
@@ -1334,12 +1460,20 @@ export default function BestiaryStudioPage() {
               <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
                 <Skull className="w-5 h-5 text-red-400" />
                 {editingCreatureId
+                  ? cCategory === 'mineral'
+                    ? isPersian
+                      ? 'ویرایش مشخصات کانی یا رگه معدنی'
+                      : 'Edit Mineral / Ore'
+                    : isPersian
+                    ? 'ویرایش گونه زیستی'
+                    : 'Edit Species'
+                  : cCategory === 'mineral'
                   ? isPersian
-                    ? 'ویرایش گونه جانوری'
-                    : 'Edit Creature'
+                    ? 'ثبت کانی یا سنگ معدنی جدید'
+                    : 'Add New Mineral / Ore'
                   : isPersian
                   ? 'ثبت گونه جدید در زیست‌بوم'
-                  : 'Add New Creature'}
+                  : 'Add New Species'}
               </h3>
               <button
                 onClick={() => setShowAddModal(false)}
@@ -1353,42 +1487,50 @@ export default function BestiaryStudioPage() {
               <AiFillSection type="creature" onFilled={applyAiFill} />
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
+                <div className={cCategory === 'mineral' ? 'md:col-span-3' : 'md:col-span-2'}>
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'نام موجود:' : 'Creature Name:'}
+                    {cCategory === 'mineral'
+                      ? (isPersian ? 'نام کانی یا سنگ معدنی:' : 'Mineral / Ore Name:')
+                      : (isPersian ? 'نام موجود:' : 'Creature Name:')}
                   </label>
                   <input
                     type="text"
                     value={cName}
                     onChange={(e) => setCName(e.target.value)}
-                    placeholder={isPersian ? 'مثال: گرگ خاکستر' : 'e.g. Ashen Wolf'}
+                    placeholder={
+                      cCategory === 'mineral'
+                        ? (isPersian ? 'مثال: نمک معدنی، بلور کوارتز یا گوگرد مذاب' : 'e.g. Mineral Salt, Quartz Crystal')
+                        : (isPersian ? 'مثال: گرگ خاکستر' : 'e.g. Ashen Wolf')
+                    }
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
                     required
                   />
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'سطح خطر (۱ تا ۵):' : 'Danger Level (1-5):'}
-                  </label>
-                  <select
-                    value={cDanger}
-                    onChange={(e) => setCDanger(Number(e.target.value) as any)}
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400 font-mono"
-                  >
-                    {[1, 2, 3, 4, 5].map((lvl) => (
-                      <option key={lvl} value={lvl}>
-                        {lvl} · {isPersian ? DANGER_LEVELS[lvl].labelFa : DANGER_LEVELS[lvl].labelEn}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {cCategory !== 'mineral' && (
+                  <div>
+                    <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                      {isPersian ? 'سطح خطر (۱ تا ۵):' : 'Danger Level (1-5):'}
+                    </label>
+                    <select
+                      value={cDanger}
+                      onChange={(e) => setCDanger(Number(e.target.value) as any)}
+                      className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400 font-mono"
+                    >
+                      {[1, 2, 3, 4, 5].map((lvl) => (
+                        <option key={lvl} value={lvl}>
+                          {lvl} · {isPersian ? DANGER_LEVELS[lvl].labelFa : DANGER_LEVELS[lvl].labelEn}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'رده زیستی:' : 'Species Category:'}
+                    {isPersian ? 'رده زیستی / ماده:' : 'Category:'}
                   </label>
                   <select
                     value={cCategory}
@@ -1405,7 +1547,9 @@ export default function BestiaryStudioPage() {
 
                 <div>
                   <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'سطح فراوانی و کمیابی:' : 'Population Rarity:'}
+                    {cCategory === 'mineral'
+                      ? (isPersian ? 'فراوانی رگه‌های معدنی:' : 'Deposit Abundance / Rarity:')
+                      : (isPersian ? 'سطح فراوانی و کمیابی:' : 'Population Rarity:')}
                   </label>
                   <select
                     value={cRarity}
@@ -1426,7 +1570,9 @@ export default function BestiaryStudioPage() {
                 <label className="text-xs font-bold text-zinc-300 block mb-1.5 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-red-400" />
-                    {isPersian ? 'زیستگاه‌ها و مکان‌های زیست (چندانتخابی):' : 'Habitats & Distribution (Multi-select):'}
+                    {cCategory === 'mineral'
+                      ? (isPersian ? 'مکان‌ها و رگه‌های کشف‌شده (چندانتخابی):' : 'Locations & Deposit Veins (Multi-select):')
+                      : (isPersian ? 'زیستگاه‌ها و مکان‌های زیست (چندانتخابی):' : 'Habitats & Distribution (Multi-select):')}
                   </span>
                   <span className="text-[10px] text-zinc-500 font-mono">
                     {cHabitats.length} {isPersian ? 'مکان انتخاب‌شده' : 'selected'}
@@ -1466,90 +1612,146 @@ export default function BestiaryStudioPage() {
 
               <div>
                 <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                  {isPersian ? 'توضیحات و لور موجود:' : 'Lore & Physiology:'}
+                  {cCategory === 'mineral'
+                    ? (isPersian ? 'توصیف زمین‌شناسی، کانی‌شناسی و لور:' : 'Geological Formation & Lore:')
+                    : (isPersian ? 'توضیحات و لور موجود:' : 'Lore & Physiology:')}
                 </label>
                 <textarea
                   rows={2}
                   value={cDesc}
                   onChange={(e) => setCDesc(e.target.value)}
-                  placeholder={isPersian ? 'توصیف ظاهر، خاستگاه و نحوه تعامل...' : 'Physical traits, origin, behavior...'}
+                  placeholder={
+                    cCategory === 'mineral'
+                      ? (isPersian ? 'رگه‌های رسوبی، درخشش در تاریکی، واکنش با عناصر...' : 'Geological origin, crystal luster, elemental reaction...')
+                      : (isPersian ? 'توصیف ظاهر، خاستگاه و نحوه تعامل...' : 'Physical traits, origin, behavior...')
+                  }
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                  {isPersian ? 'رفتار و تاکتیک‌های نبرد:' : 'Combat Tactics:'}
-                </label>
-                <textarea
-                  rows={2}
-                  value={cTactics}
-                  onChange={(e) => setCTactics(e.target.value)}
-                  placeholder={isPersian ? 'الگوی حمله، فریب‌ها و رفتارهای گروهی...' : 'Attack patterns, ambush styles...'}
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
-                />
-              </div>
+              {cCategory === 'mineral' ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-zinc-300 block mb-1.5 flex items-center gap-1.5">
+                      <Pickaxe className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{isPersian ? 'شرایط، روش و خطرات استخراج:' : 'Extraction Conditions & Mining Hazards:'}</span>
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={cExtractionMethod}
+                      onChange={(e) => setCExtractionMethod(e.target.value)}
+                      placeholder={
+                        isPersian
+                          ? 'مثال: نیازمند کلنگ فولادی و دستکش‌های عایق؛ ضربه مستقیم موجب خرد شدن کریستال می‌گردد...'
+                          : 'e.g. Requires steel pick and insulated tools; direct concussive force shatters the vein...'
+                      }
+                      className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'نقاط ضعف (هر سطر یک مورد):' : 'Weaknesses (One per line):'}
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={cWeaknesses}
-                    onChange={(e) => setCWeaknesses(e.target.value)}
-                    placeholder={isPersian ? 'آسیب آتشین\nسلاح‌های نقره‌ای' : 'Fire\nSilver weapons'}
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
-                  />
+                  <div>
+                    <label className="text-xs font-bold text-zinc-300 block mb-1.5 flex items-center gap-1.5">
+                      <FlaskConical className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{isPersian ? 'خواص فیزیکی، کیمیاگری و کاربرد در ساخت:' : 'Physical, Crafting & Alchemical Properties:'}</span>
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={cCraftingProperties}
+                      onChange={(e) => setCCraftingProperties(e.target.value)}
+                      placeholder={
+                        isPersian
+                          ? 'مثال: استفاده در معجون‌های پایداری، تثبیت سنگ‌های طلسم، یا صیقل‌کاری سلاح‌ها...'
+                          : 'e.g. Used in stabilization tinctures, rune socketing, or weapon tempering...'
+                      }
+                      className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-400"
+                    />
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                      {isPersian ? 'رفتار و تاکتیک‌های نبرد:' : 'Combat Tactics:'}
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={cTactics}
+                      onChange={(e) => setCTactics(e.target.value)}
+                      placeholder={isPersian ? 'الگوی حمله، فریب‌ها و رفتارهای گروهی...' : 'Attack patterns, ambush styles...'}
+                      className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
+                    />
+                  </div>
 
-                <div>
-                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                    {isPersian ? 'مقاومت‌ها (هر سطر یک مورد):' : 'Resistances (One per line):'}
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={cResistances}
-                    onChange={(e) => setCResistances(e.target.value)}
-                    placeholder={isPersian ? 'سموم\nانرژی تاریک' : 'Poison\nNecrotic'}
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                        {isPersian ? 'نقاط ضعف (هر سطر یک مورد):' : 'Weaknesses (One per line):'}
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={cWeaknesses}
+                        onChange={(e) => setCWeaknesses(e.target.value)}
+                        placeholder={isPersian ? 'آسیب آتشین\nسلاح‌های نقره‌ای' : 'Fire\nSilver weapons'}
+                        className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                        {isPersian ? 'مقاومت‌ها (هر سطر یک مورد):' : 'Resistances (One per line):'}
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={cResistances}
+                        onChange={(e) => setCResistances(e.target.value)}
+                        placeholder={isPersian ? 'سموم\nانرژی تاریک' : 'Poison\nNecrotic'}
+                        className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Ecology & Alchemical Yields in main modal */}
               <div className="p-3.5 bg-zinc-950/60 border border-zinc-800/80 rounded-2xl space-y-3">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
                   <Leaf className="w-4 h-4" />
-                  <span>{isPersian ? 'اکولوژی و مواد کیمیاگری (اختیاری):' : 'Ecology & Alchemical Yields (Optional):'}</span>
+                  <span>
+                    {cCategory === 'mineral'
+                      ? (isPersian ? 'فراورده‌های کیمیاگری و عصاره‌ها (اختیاری):' : 'Alchemical Extracts & Yields (Optional):')
+                      : (isPersian ? 'اکولوژی و مواد کیمیاگری (اختیاری):' : 'Ecology & Alchemical Yields (Optional):')}
+                  </span>
                 </div>
 
-                <div>
-                  <label className="text-[11px] font-bold text-zinc-400 block mb-1">
-                    🦁 {isPersian ? 'جایگاه در زنجیره غذایی:' : 'Ecological Niche:'}
-                  </label>
-                  <input
-                    type="text"
-                    value={cNiche}
-                    onChange={(e) => setCNiche(e.target.value)}
-                    placeholder={isPersian ? 'مثال: شکارچی رأس هرم، شکار بزهای کوهی...' : 'e.g. Apex predator, feeds on mountain goats...'}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-400"
-                  />
-                </div>
+                {cCategory !== 'mineral' && (
+                  <>
+                    <div>
+                      <label className="text-[11px] font-bold text-zinc-400 block mb-1">
+                        🦁 {isPersian ? 'جایگاه در زنجیره غذایی:' : 'Ecological Niche:'}
+                      </label>
+                      <input
+                        type="text"
+                        value={cNiche}
+                        onChange={(e) => setCNiche(e.target.value)}
+                        placeholder={isPersian ? 'مثال: شکارچی رأس هرم، شکار بزهای کوهی...' : 'e.g. Apex predator, feeds on mountain goats...'}
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-400"
+                      />
+                    </div>
 
-                <div>
-                  <label className="text-[11px] font-bold text-zinc-400 block mb-1">
-                    🤝 {isPersian ? 'روش رام‌سازی بدون خون‌ریزی:' : 'Non-Combat Pacification:'}
-                  </label>
-                  <input
-                    type="text"
-                    value={cPacification}
-                    onChange={(e) => setCPacification(e.target.value)}
-                    placeholder={isPersian ? 'مثال: تعارف گوشت تازه یا دوری از تماس چشمی...' : 'e.g. Offering fresh meat or avoiding eye contact...'}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-400"
-                  />
-                </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-zinc-400 block mb-1">
+                        🤝 {isPersian ? 'روش رام‌سازی بدون خون‌ریزی:' : 'Non-Combat Pacification:'}
+                      </label>
+                      <input
+                        type="text"
+                        value={cPacification}
+                        onChange={(e) => setCPacification(e.target.value)}
+                        placeholder={isPersian ? 'مثال: تعارف گوشت تازه یا دوری از تماس چشمی...' : 'e.g. Offering fresh meat or avoiding eye contact...'}
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-400"
+                      />
+                    </div>
+                  </>
+                )}
 
                 {cYields.length > 0 && (
                   <div className="space-y-1.5">

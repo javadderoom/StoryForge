@@ -462,7 +462,7 @@ export interface CreatureAlchemicalYield {
 export interface WorldCreature {
   id: string;
   name: string;
-  speciesCategory: 'beast' | 'monstrosity' | 'undead' | 'elemental' | 'flora' | 'draconic' | 'humanoid';
+  speciesCategory: 'beast' | 'monstrosity' | 'undead' | 'elemental' | 'flora' | 'mineral' | 'draconic' | 'humanoid';
   dangerLevel: 1 | 2 | 3 | 4 | 5;
   rarity?: 'common' | 'uncommon' | 'rare' | 'legendary';
   habitatLocationIds: string[];
@@ -477,6 +477,8 @@ export interface WorldCreature {
   preySpecies?: string[];
   predatorSpecies?: string[];
   pacificationReagents?: string[];
+  extractionMethod?: string;
+  craftingProperties?: string;
 }
 
 export interface SectarianSchism {
@@ -668,7 +670,7 @@ export const CreatureAlchemicalYieldSchema = z.object({
 
 export const EnhancedCreatureSchema = z.object({
   name: z.string(),
-  speciesCategory: z.enum(['beast', 'monstrosity', 'undead', 'elemental', 'flora', 'draconic', 'humanoid']),
+  speciesCategory: z.enum(['beast', 'monstrosity', 'undead', 'elemental', 'flora', 'mineral', 'draconic', 'humanoid']),
   habitatLocationName: z.string(),
   predatorPreyNiche: z.string(),
   nonCombatPacificationMethod: z.string(),
@@ -676,6 +678,8 @@ export const EnhancedCreatureSchema = z.object({
   preySpecies: z.array(z.string()).optional(),
   predatorSpecies: z.array(z.string()).optional(),
   pacificationReagents: z.array(z.string()).optional(),
+  extractionMethod: z.string().optional(),
+  craftingProperties: z.string().optional(),
 });
 
 export const SectarianSchismSchema = z.object({
@@ -711,7 +715,7 @@ export const WorldDeitySchema = z.object({
 export const WorldCreatureSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  speciesCategory: z.enum(['beast', 'monstrosity', 'undead', 'elemental', 'flora', 'draconic', 'humanoid']).default('beast'),
+  speciesCategory: z.enum(['beast', 'monstrosity', 'undead', 'elemental', 'flora', 'mineral', 'draconic', 'humanoid']).default('beast'),
   dangerLevel: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).default(3),
   rarity: z.enum(['common', 'uncommon', 'rare', 'legendary']).default('common').optional(),
   habitatLocationIds: z.array(z.string()).default([]),
@@ -730,6 +734,8 @@ export const WorldCreatureSchema = z.object({
   preySpecies: z.array(z.string()).optional(),
   predatorSpecies: z.array(z.string()).optional(),
   pacificationReagents: z.array(z.string()).optional(),
+  extractionMethod: z.string().optional(),
+  craftingProperties: z.string().optional(),
 });
 
 export const WorldArtifactSchema = z.object({
