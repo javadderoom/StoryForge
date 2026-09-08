@@ -477,13 +477,41 @@ export default function BestiaryStudioPage() {
   const handleGenerateCreatureEcology = async (creature: WorldCreature) => {
     try {
       setGeneratingEcologyCreatureId(creature.id);
+      const promptParts = [
+        `Generate ecological or supernatural role, non-lethal subdual / pacification / harvesting methods, and 1 to 3 harvestable alchemical / crafting reagents for "${creature.name}" (${creature.speciesCategory}, Danger Level ${creature.dangerLevel}).`,
+      ];
+      if (creature.loreDescription?.trim()) {
+        promptParts.push(`Entity Lore & Physiology: "${creature.loreDescription.trim()}"`);
+      }
+      if (creature.behavioralTactics?.trim()) {
+        promptParts.push(`Behavioral Tactics & Combat: "${creature.behavioralTactics.trim()}"`);
+      }
+      if (creature.weaknesses?.length) {
+        promptParts.push(`Known Weaknesses: ${creature.weaknesses.join(', ')}`);
+      }
+      if (creature.resistances?.length) {
+        promptParts.push(`Known Resistances: ${creature.resistances.join(', ')}`);
+      }
+      if (creature.habitatLocationIds?.length) {
+        const habitatNames = creature.habitatLocationIds
+          .map((id) => locations.find((l) => l.id === id)?.name || id)
+          .join(', ');
+        promptParts.push(`Habitats & Distribution: ${habitatNames}`);
+      }
+      if (creature.extractionMethod?.trim()) {
+        promptParts.push(`Extraction Notes: "${creature.extractionMethod.trim()}"`);
+      }
+      if (creature.craftingProperties?.trim()) {
+        promptParts.push(`Crafting Properties: "${creature.craftingProperties.trim()}"`);
+      }
+
       const worldContext = buildWorldContextString(story);
       const res = await fetch('/api/studio/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'creature_ecology',
-          prompt: `Generate food chain dynamics, non-lethal pacification methods, and 1 to 3 harvestable alchemical / crafting reagents for "${creature.name}" (${creature.speciesCategory}, Danger Level ${creature.dangerLevel}).`,
+          prompt: promptParts.join('\n'),
           themeContext: story.worldBible.themeNotes,
           worldContext,
           isPersian,
