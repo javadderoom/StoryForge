@@ -7,7 +7,22 @@ import {
   ChoiceOption,
 } from '@/lib/types/gameplay';
 import { RPGSystemSchema, GameItem } from '@/lib/types/rpg';
-import { WorldBible, WorldStateLedger } from '@/lib/types/world';
+import { WorldBible, WorldStateLedger, NPCDossier } from '@/lib/types/world';
+
+export interface PressureOutcome {
+  revealedSecretId?: string;
+  revealedSecretDescription?: string;
+  trustDelta: number;
+  /** Sentence appended to the check consequence so the narrator can play the crack. */
+  note: string;
+}
+
+/** Keywords marking an action as coercion/interrogation (EN + FA). */
+const PRESSURE_KEYWORDS =
+  /threaten|intimidat|coerc|blackmail|interrogat|pressur|press him|press her|press them|squeeze|lean on|talk or else|or else|tell me or|reveal or|expose you|break him|break her|تهدید|ارعاب|باج|بازجویی|فشار|افشا|وادار|مجبور/;
+
+/** Trust thresholds at/above this mark unbreakable core secrets (critical success only). */
+const UNBREAKABLE_TRUST_THRESHOLD = 90;
 
 export interface RollOptions {
   statId?: string;
@@ -153,6 +168,110 @@ export class GameEngine {
     }
 
     return 'might';
+  }
+
+  /**
+   * True when the action text reads as coercion, intimidation, or interrogation.
+   */
+  public static isPressureAction(actionText: string): boolean {
+    return PRESSURE_KEYWORDS.test(actionText.toLowerCase());
+  }
+
+  /**
+   * Finds the NPC a pressure action is aimed at (name match, same word rules
+   * as the anti-leak validator). Null when the action is not pressure or no
+   * known NPC is named.
+   */
+  public static detectPressureTarget(
+    actionText: string,
+    npcs: NPCDossier[]
+  ): NPCDossier | null {
+    if (!this.isPressureAction(actionText)) return null;
+    const lower = actionText.toLowerCase();
+    for (const npc of npcs ?? []) {
+      const nameWords = npc.name
+        .toLowerCase()
+        .split(/[^a-z\u0600-\u06FF]+/)
+        .filter((w) => w.length >= 3);
+      if (nameWords.some((w) => lower.includes(w))) return npc;
+    }
+    return null;
+  }
+
+  /**
+   * Deterministic pressure resolution: coercion vs the NPC's breaking point.
+   * Secrets crack below their trust threshold — but pressure always costs
+   * trust, and unbreakable core secrets (threshold 90+) only crack on a
+   * critical success. Pure function of (outcome, dossier, known secrets).
+   */
+  public static applyPressureOutcome(
+    outcome: DiceOutcome,
+    npc: NPCDossier,
+    knownSecretIds: string[] = []
+  ): PressureOutcome {
+    const known = new Set(knownSecretIds);
+    const crackable = (npc.secrets ?? [])
+      .filter(
+        (s) =>
+          !s.revealed &&
+          !known.has(s.id) &&
+          s.description &&
+          s.description.length >= 12
+      )
+      .sort((a, b) => a.requiredTrustLevel - b.requiredTrustLevel);
+    const breakingPoint = npc.voiceGuide?.psychologicalBreakingPoint?.trim();
+    const bpNote = breakingPoint ? ` Breaking point: ${breakingPoint}.` : '';
+
+    if (crackable.length === 0) {
+      return {
+        trustDelta: -5,
+        note: `${npc.name} has nothing left to squeeze out, but resents the pressure all the same. (Trust -5)`,
+      };
+    }
+
+    switch (outcome) {
+      case 'critical_success': {
+        // Total break: cracks anything, even unbreakable core secrets.
+        const s = crackable[0];
+        return {
+          revealedSecretId: s.id,
+          revealedSecretDescription: s.description,
+          trustDelta: -10,
+          note: `${npc.name} breaks utterly under pressure and reveals: "${s.description}" (Trust -10).${bpNote}`,
+        };
+      }
+      case 'success': {
+        const s = crackable.find((c) => c.requiredTrustLevel < UNBREAKABLE_TRUST_THRESHOLD);
+        if (!s) {
+          return {
+            trustDelta: -10,
+            note: `${npc.name} bends but does not break — their deepest secrets hold (threshold ${UNBREAKABLE_TRUST_THRESHOLD}+ only cracks on critical success). (Trust -10)`,
+          };
+        }
+        return {
+          revealedSecretId: s.id,
+          revealedSecretDescription: s.description,
+          trustDelta: -15,
+          note: `${npc.name} cracks under pressure and reveals: "${s.description}" They will resent this. (Trust -15).${bpNote}`,
+        };
+      }
+      case 'mixed_success':
+        return {
+          trustDelta: -10,
+          note: `${npc.name} clams up under pressure — nothing revealed, and they trust you less for trying. (Trust -10)`,
+        };
+      case 'failure':
+        return {
+          trustDelta: -10,
+          note: `The pressure fails: ${npc.name} holds firm and resents the attempt. (Trust -10)`,
+        };
+      case 'critical_failure':
+      default:
+        return {
+          trustDelta: -20,
+          note: `Disastrous pressure: ${npc.name} shuts down completely and will remember this. (Trust -20)`,
+        };
+    }
   }
 
   /**

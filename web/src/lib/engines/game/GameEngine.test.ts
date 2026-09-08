@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { GameEngine } from './GameEngine';
 import { PlayerState } from '../../types/gameplay';
 import { RPGSystemSchema } from '../../types/rpg';
-import { WorldBible } from '../../types/world';
+import { WorldBible, NPCDossier } from '../../types/world';
 
 describe('GameEngine - Deterministic Mechanics & Math', () => {
   const sampleRpgSystem: RPGSystemSchema = {
@@ -217,6 +217,91 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
 
       assert.equal(res.stateDiff.resourceChanges?.hp, 30);
       assert.ok(res.stateDiff.itemsRemovedIds?.includes('healing_tincture'));
+    });
+  });
+
+  describe('Pressure Revelation (coercion vs breaking point)', () => {
+    const baroness: NPCDossier = {
+      id: 'npc_baroness',
+      name: 'Baroness Vey',
+      title: 'Baroness',
+      currentLocationId: 'loc_court',
+      personalityTraits: [],
+      speechStyle: 'Cold',
+      goals: [],
+      secrets: [
+        { id: 'secret_debt', description: 'Owes the syndicate a fortune in gambling debts', requiredTrustLevel: 40, revealed: false },
+        { id: 'secret_core', description: 'Murdered her own brother to inherit the title', requiredTrustLevel: 95, revealed: false },
+      ],
+      initialTrust: 0,
+      voiceGuide: {
+        npcName: 'Baroness Vey',
+        speechQuirks: [],
+        sampleDialogue: [],
+        negotiationVulnerabilities: [],
+        psychologicalBreakingPoint: 'Threats to her children',
+      },
+    };
+
+    it('detects pressure intent in English and Persian, ignoring plain actions', () => {
+      assert.equal(GameEngine.isPressureAction('Threaten Baroness Vey until she talks'), true);
+      assert.equal(GameEngine.isPressureAction('I interrogate the prisoner about the vault'), true);
+      assert.equal(GameEngine.isPressureAction('بارونس را تهدید می‌کنم تا حرف بزند'), true);
+      assert.equal(GameEngine.isPressureAction('I persuade Baroness Vey to help us'), false);
+      assert.equal(GameEngine.isPressureAction('I attack Baroness Vey with my dagger'), false);
+    });
+
+    it('targets the named NPC, or null without pressure or a name', () => {
+      assert.equal(
+        GameEngine.detectPressureTarget('Threaten Baroness Vey until she talks', [baroness])?.id,
+        'npc_baroness'
+      );
+      assert.equal(GameEngine.detectPressureTarget('Threaten them until someone talks', [baroness]), null);
+      assert.equal(GameEngine.detectPressureTarget('I greet Baroness Vey warmly', [baroness]), null);
+    });
+
+    it('cracks the lowest-threshold secret on success, costing trust', () => {
+      const out = GameEngine.applyPressureOutcome('success', baroness);
+      assert.equal(out.revealedSecretId, 'secret_debt');
+      assert.equal(out.trustDelta, -15);
+      assert.ok(out.note.includes('gambling debts'));
+      assert.ok(out.note.includes('Threats to her children'));
+    });
+
+    it('resists unbreakable core secrets on plain success', () => {
+      const coreOnly: NPCDossier = {
+        ...baroness,
+        secrets: [baroness.secrets![1]],
+      };
+      const out = GameEngine.applyPressureOutcome('success', coreOnly);
+      assert.equal(out.revealedSecretId, undefined);
+      assert.equal(out.trustDelta, -10);
+    });
+
+    it('cracks anything on critical success', () => {
+      const coreOnly: NPCDossier = {
+        ...baroness,
+        secrets: [baroness.secrets![1]],
+      };
+      const out = GameEngine.applyPressureOutcome('critical_success', coreOnly);
+      assert.equal(out.revealedSecretId, 'secret_core');
+      assert.equal(out.trustDelta, -10);
+    });
+
+    it('skips already-known secrets and punishes failed pressure', () => {
+      const out = GameEngine.applyPressureOutcome('success', baroness, ['secret_debt']);
+      assert.equal(out.revealedSecretId, undefined); // only the 95-threshold core remains
+      assert.equal(GameEngine.applyPressureOutcome('mixed_success', baroness).trustDelta, -10);
+      assert.equal(GameEngine.applyPressureOutcome('failure', baroness).trustDelta, -10);
+      assert.equal(GameEngine.applyPressureOutcome('critical_failure', baroness).trustDelta, -20);
+      assert.equal(GameEngine.applyPressureOutcome('critical_failure', baroness).revealedSecretId, undefined);
+    });
+
+    it('costs a little trust even when there is nothing left to reveal', () => {
+      const bare: NPCDossier = { ...baroness, secrets: [] };
+      const out = GameEngine.applyPressureOutcome('success', bare);
+      assert.equal(out.revealedSecretId, undefined);
+      assert.equal(out.trustDelta, -5);
     });
   });
 

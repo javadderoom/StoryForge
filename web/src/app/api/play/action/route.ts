@@ -129,6 +129,34 @@ export async function POST(req: NextRequest) {
       }
     );
 
+    // 2b. Deterministic pressure revelation: coercion vs breaking point.
+    // A cracked secret lands in knownSecrets (so the anti-leak validator
+    // permits acting on it next turn) and always costs trust.
+    const pressureTarget = GameEngine.detectPressureTarget(
+      playerActionText,
+      story.worldBible.npcs ?? []
+    );
+    if (pressureTarget) {
+      const knownIds = playerState.relationships?.[pressureTarget.id]?.knownSecrets ?? [];
+      const pressure = GameEngine.applyPressureOutcome(
+        resolution.outcome,
+        pressureTarget,
+        knownIds
+      );
+      const changes = resolution.stateDiff.relationshipChanges ?? {};
+      const existing = changes[pressureTarget.id] ?? { trustDelta: 0 };
+      changes[pressureTarget.id] = {
+        trustDelta: existing.trustDelta + pressure.trustDelta,
+        ...(pressure.revealedSecretId
+          ? { newSecret: pressure.revealedSecretId }
+          : existing.newSecret
+            ? { newSecret: existing.newSecret }
+            : {}),
+      };
+      resolution.stateDiff.relationshipChanges = changes;
+      resolution.consequenceSummary += ` ${pressure.note}`;
+    }
+
     // 3. Apply State Mutation Diff
     const updatedPlayerState = GameEngine.applyStateMutation(
       playerState,
