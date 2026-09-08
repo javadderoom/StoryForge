@@ -73,6 +73,8 @@ export interface NpcCardProps {
   onDeleteStatCalibration: (npc: NPCDossier) => void;
   onGenerateStatCalibration: (npc: NPCDossier, tierHint?: string) => void;
   onGenerateRelationships: (npc: NPCDossier) => void;
+  onAutoFillNpc: (npc: NPCDossier) => void;
+  generatingAutoFillNpcId?: string | null;
   onCopyToClipboard: (text: string) => void;
 }
 
@@ -89,6 +91,7 @@ export function NpcCard({
   generatingVoiceNpcId,
   generatingStatsNpcId,
   generatingRelationshipsNpcId,
+  generatingAutoFillNpcId,
   onToggleVoiceAccordion,
   onToggleStatAccordion,
   onToggleBondsAccordion,
@@ -105,6 +108,7 @@ export function NpcCard({
   onDeleteStatCalibration,
   onGenerateStatCalibration,
   onGenerateRelationships,
+  onAutoFillNpc,
   onCopyToClipboard,
 }: NpcCardProps) {
 
@@ -152,6 +156,20 @@ export function NpcCard({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onAutoFillNpc(npc)}
+              disabled={generatingAutoFillNpcId === npc.id}
+              className="px-2.5 py-1 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shadow-sm"
+              title={isPersian ? 'تکمیل بخش‌های خالی این شخصیت با هوش مصنوعی بر اساس لور جهان' : 'Auto-fill empty sections with AI based on world lore'}
+            >
+              <Sparkles className={`w-3.5 h-3.5 text-purple-400 ${generatingAutoFillNpcId === npc.id ? 'animate-spin' : ''}`} />
+              <span>
+                {generatingAutoFillNpcId === npc.id
+                  ? (isPersian ? 'در حال تکمیل...' : 'Filling...')
+                  : (isPersian ? 'تکمیل با هوش مصنوعی' : 'Fill with AI')}
+              </span>
+            </button>
             <span className="text-xs bg-zinc-800/90 text-zinc-300 px-3 py-1 rounded-xl border border-zinc-700/60 flex items-center gap-1.5 font-mono" dir="ltr">
               <Heart className="w-3 h-3 text-rose-400 fill-rose-400/20" />
               {t.trust} {npc.initialTrust}

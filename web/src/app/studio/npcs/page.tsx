@@ -76,6 +76,7 @@ export default function NpcDossiersPage() {
   const [generatingRelationshipsNpcId, setGeneratingRelationshipsNpcId] = useState<string | null>(null);
   const [generatingVoiceNpcId, setGeneratingVoiceNpcId] = useState<string | null>(null);
   const [generatingStatsNpcId, setGeneratingStatsNpcId] = useState<string | null>(null);
+  const [generatingAutoFillNpcId, setGeneratingAutoFillNpcId] = useState<string | null>(null);
 
   // AI Preview Modals State
   const [relationshipPreview, setRelationshipPreview] = useState<RelationshipPreviewData | null>(null);
@@ -649,6 +650,168 @@ ${vitalsDirective}`;
     notify.success(isPersian ? 'کالیبراسیون رزمی ثبت شد' : 'RPG stat calibration updated');
   };
 
+  const handleAutoFillNpc = async (npc: NPCDossier) => {
+    try {
+      setGeneratingAutoFillNpcId(npc.id);
+      const worldContext = buildWorldContextString(story);
+
+      // Summarize existing knowledge of this character to preserve
+      const currentFaction = story.worldBible.factions.find((f) => f.id === npc.factionId);
+      const currentLocation = story.worldBible.locations.find((l) => l.id === npc.currentLocationId);
+      const override = story.storyNpcOverrides?.[npc.id];
+
+      const availableFactions = (story.worldBible.factions || [])
+        .map((f) => `id: "${f.id}", name: "${f.name}", alignment: "${f.alignment}"`)
+        .join('; ');
+      const availableLocations = (story.worldBible.locations || [])
+        .map((l) => `id: "${l.id}", name: "${l.name}", region: "${l.region || ''}"`)
+        .join('; ');
+
+      const existingDataSummary = [
+        `Name: "${npc.name}"`,
+        `Kind: ${npc.kind || 'individual'}`,
+        npc.title ? `Current Title: "${npc.title}"` : 'Title: [EMPTY - generate evocative title]',
+        npc.role ? `Current Role: "${npc.role}"` : 'Role: [EMPTY - determine vocational role]',
+        currentFaction ? `Current Faction: "${currentFaction.name}" (id: ${currentFaction.id})` : 'Faction: [EMPTY - choose fitting faction from available list or leave unaffiliated]',
+        currentLocation ? `Current Location: "${currentLocation.name}" (id: ${currentLocation.id})` : 'Location: [EMPTY - assign from available locations]',
+        npc.speechStyle && npc.speechStyle !== 'Speaks with measured authority.' ? `Current Speech Directive: "${npc.speechStyle}"` : 'Speech Directive: [EMPTY/DEFAULT - generate distinctive voice, dialect, or cadence]',
+        npc.personalityTraits?.length && !(npc.personalityTraits.length === 2 && npc.personalityTraits.includes('Honorable') && npc.personalityTraits.includes('Vigilant'))
+          ? `Current Personality Traits: ${npc.personalityTraits.join(', ')}`
+          : 'Personality Traits: [EMPTY/DEFAULT - provide 3-5 rich traits]',
+        npc.goals?.length && !(npc.goals.length === 1 && npc.goals[0] === 'Protect the garrison')
+          ? `Current Goals: ${npc.goals.join(', ')}`
+          : 'Goals: [EMPTY/DEFAULT - generate 2-3 compelling personal or factional goals]',
+        npc.secrets?.length ? `Current Secrets Count: ${npc.secrets.length}` : 'Secrets: [EMPTY - generate 1-2 intriguing secrets with requiredTrustLevel and revealMethods]',
+        override?.storyRole ? `Story Override Role: "${override.storyRole}"` : '',
+        override?.storyGoal ? `Story Override Goal: "${override.storyGoal}"` : '',
+      ].filter(Boolean).join('\n');
+
+      const prompt = `Complete the missing or empty sections of this character so they are fully fleshed out and anchored in the world:
+${existingDataSummary}
+
+Available Factions to link to: [${availableFactions || 'none'}]
+Available Locations to link to: [${availableLocations || 'none'}]
+
+DIRECTIVES:
+1. Keep the character's existing name and any non-empty fields intact.
+2. If Title or Role is empty, craft a distinctive, lore-fitting title and role.
+3. If Faction is empty, select the best matching faction id from the available list (or leave "" if purely independent).
+4. If Location is empty, select the most atmospheric location id from the available list.
+5. If Speech Directive is empty or default, craft a vivid directive detailing speech rhythm, vocabulary, and mannerisms.
+6. If Personality Traits are empty or default, provide 3 to 5 multi-dimensional traits.
+7. If Goals are empty or default, provide 2 to 3 personal ambitions, ideological duties, or survival needs.
+8. If Secrets are empty, author 1 to 2 high-stakes secrets with a requiredTrustLevel (between 10 and 90) and specific revealMethods (such as trust threshold, specific item, clue, or location).
+9. Set initialTrust between -100 and +100 reflecting this character's initial predisposition.`;
+
+      const res = await fetch('/api/studio/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'npc_autofill',
+          prompt,
+          themeContext: story.worldBible.themeNotes,
+          worldContext,
+          isPersian,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to auto-fill character (${res.status})`);
+      }
+
+      const json = await res.json();
+      if (!json.data) {
+        throw new Error('No data received from auto-fill');
+      }
+
+      const filled = json.data;
+      const updatedNpc: Partial<NPCDossier> = {};
+
+      if (!npc.title?.trim() && filled.title?.trim()) {
+        updatedNpc.title = filled.title.trim();
+      }
+
+      if (!npc.role?.trim() && filled.role?.trim()) {
+        updatedNpc.role = filled.role.trim();
+      }
+
+      if (!npc.factionId && filled.factionId) {
+        const factionExists = story.worldBible.factions.some((f) => f.id === filled.factionId);
+        if (factionExists) {
+          updatedNpc.factionId = filled.factionId;
+        }
+      }
+
+      if ((!npc.currentLocationId || npc.currentLocationId === 'loc_dungeon_cell') && filled.currentLocationId) {
+        const locExists = story.worldBible.locations.some((l) => l.id === filled.currentLocationId);
+        if (locExists) {
+          updatedNpc.currentLocationId = filled.currentLocationId;
+        }
+      }
+
+      if (npc.kind === 'template' && (!npc.applicableLocationIds || npc.applicableLocationIds.length === 0) && Array.isArray(filled.applicableLocationIds)) {
+        const validLocs = filled.applicableLocationIds.filter((id: string) =>
+          story.worldBible.locations.some((l) => l.id === id)
+        );
+        if (validLocs.length > 0) {
+          updatedNpc.applicableLocationIds = validLocs;
+        }
+      }
+
+      const isDefaultSpeech = !npc.speechStyle?.trim() || npc.speechStyle.trim() === 'Speaks with measured authority.';
+      if (isDefaultSpeech && filled.speechStyle?.trim()) {
+        updatedNpc.speechStyle = filled.speechStyle.trim();
+      }
+
+      const existingTraits = (npc.personalityTraits || []).filter((t) => t?.trim());
+      const isDefaultTraits = existingTraits.length === 2 && existingTraits.includes('Honorable') && existingTraits.includes('Vigilant');
+      if (isDefaultTraits && Array.isArray(filled.personalityTraits) && filled.personalityTraits.length > 0) {
+        updatedNpc.personalityTraits = filled.personalityTraits;
+      } else if (Array.isArray(filled.personalityTraits)) {
+        const mergedTraits = Array.from(new Set([...existingTraits, ...filled.personalityTraits]));
+        if (mergedTraits.length > existingTraits.length) {
+          updatedNpc.personalityTraits = mergedTraits;
+        }
+      }
+
+      const existingGoals = (npc.goals || []).filter((g) => g?.trim());
+      const isDefaultGoals = existingGoals.length === 1 && existingGoals[0] === 'Protect the garrison';
+      if (isDefaultGoals && Array.isArray(filled.goals) && filled.goals.length > 0) {
+        updatedNpc.goals = filled.goals;
+      } else if (Array.isArray(filled.goals)) {
+        const mergedGoals = Array.from(new Set([...existingGoals, ...filled.goals]));
+        if (mergedGoals.length > existingGoals.length) {
+          updatedNpc.goals = mergedGoals;
+        }
+      }
+
+      if ((!npc.secrets || npc.secrets.length === 0) && Array.isArray(filled.secrets) && filled.secrets.length > 0) {
+        updatedNpc.secrets = filled.secrets.map((sec: any, idx: number) => ({
+          id: sec.id || `sec_${Date.now().toString(36)}_${idx}`,
+          description: sec.description || '',
+          requiredTrustLevel: typeof sec.requiredTrustLevel === 'number' ? sec.requiredTrustLevel : 30,
+          revealed: false,
+          revealMethods: Array.isArray(sec.revealMethods) ? sec.revealMethods : undefined,
+        }));
+      }
+
+      if ((npc.initialTrust === undefined || npc.initialTrust === 0) && typeof filled.initialTrust === 'number') {
+        updatedNpc.initialTrust = filled.initialTrust;
+      }
+
+      editNpc(npc.id, updatedNpc);
+      notify.success(
+        isPersian
+          ? `بخش‌های خالی شخصیت «${npc.name}» بر اساس لور جهان تکمیل شد`
+          : `Auto-filled empty sections for "${npc.name}" based on world lore`
+      );
+    } catch (err: any) {
+      notify.error(err.message || 'Error auto-filling character details');
+    } finally {
+      setGeneratingAutoFillNpcId(null);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Header Info */}
@@ -820,6 +983,7 @@ ${vitalsDirective}`;
               generatingVoiceNpcId={generatingVoiceNpcId}
               generatingStatsNpcId={generatingStatsNpcId}
               generatingRelationshipsNpcId={generatingRelationshipsNpcId}
+              generatingAutoFillNpcId={generatingAutoFillNpcId}
               onToggleVoiceAccordion={(id) => toggleAccordion(setExpandedVoiceGuideIds, id)}
               onToggleStatAccordion={(id) => toggleAccordion(setExpandedStatIds, id)}
               onToggleBondsAccordion={(id) => toggleAccordion(setExpandedBondsIds, id)}
@@ -836,6 +1000,7 @@ ${vitalsDirective}`;
               onDeleteStatCalibration={handleDeleteStatCalibration}
               onGenerateStatCalibration={handleGenerateStatCalibration}
               onGenerateRelationships={handleGenerateRelationships}
+              onAutoFillNpc={handleAutoFillNpc}
               onCopyToClipboard={copyToClipboard}
             />
           ))}

@@ -22,6 +22,7 @@ interface GenerateRequest {
     | 'world'
     | 'location'
     | 'npc'
+    | 'npc_autofill'
     | 'faction'
     | 'artifact'
     | 'creature'
@@ -300,13 +301,15 @@ export async function POST(req: NextRequest) {
     // Explicitly forbid duplicating existing lore. The world context lists what
     // ALREADY exists; without this directive the model imitates it and produces
     // near-clones (similar names/descriptions across generations).
-    const uniquenessInstruction = isPersian
-      ? worldContext
-        ? '\n\nمهم — یگانگی: بخش «زمینه جهان» بالا، موجودیت‌هایی را فهرست می‌کند که هم‌اکنون در جهان وجود دارند. باید یک موجودیت کاملاً جدید و متمایز بسازی. نام، لقب یا توصیف هیچ موجودیت موجود را بازاستفاده، کپی یا بازنویسی نکن. خروجی باید از نظر نام و مفهوم کاملاً یگانه و متمایز باشد.'
-        : '\n\nمهم — یگانگی: خروجی باید کاملاً بدیع، منحصربه‌فرد و متمایز باشد و با تولیدهای پیشین هم‌پوشانی نداشته باشد.'
-      : worldContext
-        ? '\n\nIMPORTANT — UNIQUENESS: The "World context" above lists entities that ALREADY EXIST in this world. Generate a single brand-new, distinct entity. Do NOT reuse, copy, or closely paraphrase the name, title, or description of any existing entity. Your output must be clearly unique in both name and concept.'
-        : '\n\nIMPORTANT — UNIQUENESS: Ensure your output is wholly original and distinct, with no overlap with previously generated content.';
+    const uniquenessInstruction = type === 'npc_autofill'
+      ? ''
+      : isPersian
+        ? worldContext
+          ? '\n\nمهم — یگانگی: بخش «زمینه جهان» بالا، موجودیت‌هایی را فهرست می‌کند که هم‌اکنون در جهان وجود دارند. باید یک موجودیت کاملاً جدید و متمایز بسازی. نام، لقب یا توصیف هیچ موجودیت موجود را بازاستفاده، کپی یا بازنویسی نکن. خروجی باید از نظر نام و مفهوم کاملاً یگانه و متمایز باشد.'
+          : '\n\nمهم — یگانگی: خروجی باید کاملاً بدیع، منحصربه‌فرد و متمایز باشد و با تولیدهای پیشین هم‌پوشانی نداشته باشد.'
+        : worldContext
+          ? '\n\nIMPORTANT — UNIQUENESS: The "World context" above lists entities that ALREADY EXIST in this world. Generate a single brand-new, distinct entity. Do NOT reuse, copy, or closely paraphrase the name, title, or description of any existing entity. Your output must be clearly unique in both name and concept.'
+          : '\n\nIMPORTANT — UNIQUENESS: Ensure your output is wholly original and distinct, with no overlap with previously generated content.';
 
     const diversityInstruction = isPersian
       ? '\n\nتنوع مضمونی — تعادل در استفاده از خاطرات: از تمرکز مداوم و افراطی روی موضوعات «فراموشی، قربانی کردن خاطرات و از دست دادن حافظه» خودداری کن. این موضوع را فقط به عنوان یک جنبه نادر در نظر بگیر و از مضامین متنوع دیگر مانند کیمیای سیاه، نفرین‌های فیزیکی، پیمان‌های خونی، متریال‌های فاسد و دسیسه‌های سیاسی استفاده کن.'
@@ -316,12 +319,19 @@ export async function POST(req: NextRequest) {
     // Use custom system prompt from UI if provided, otherwise default to context-rich prompt
     const systemPrompt =
       customSystemPrompt?.trim() ||
-      `You are the Master World-Building & Narrative AI Co-Pilot for AfsanehSaz, an advanced Interactive Fiction RPG engine.
+      (type === 'npc_autofill'
+        ? `You are the Master World-Building & Narrative AI Co-Pilot for AfsanehSaz, an advanced Interactive Fiction RPG engine.
+Complete and enrich the missing or empty sections of an existing NPC using the world's lore, factions, locations, and narrative atmosphere.
+${isPersian ? 'Output all narrative text, titles, roles, speech directives, goals, and secrets in literary Persian (Farsi).' : 'Output in literary English.'}
+${themeContext ? `Theme context: ${themeContext}\n` : ''}User guidance & Character status: ${prompt || 'Complete missing sections.'}
+${worldContext ? `World context (factions and locations to anchor to):\n${worldContext}` : ''}
+Strictly output a valid JSON object matching the requested schema. Do not enclose in markdown blocks if possible, or return clean JSON.`
+        : `You are the Master World-Building & Narrative AI Co-Pilot for AfsanehSaz, an advanced Interactive Fiction RPG engine.
 Generate a high-quality JSON object for a ${type} matching the world's tone and setting.
 ${isPersian ? 'Output all narrative text, names, descriptions in literary Persian (Farsi).' : 'Output in literary English.'}
 ${themeContext ? `Theme context: ${themeContext}\n` : ''}User guidance: ${prompt || 'Create something rich with atmospheric depth and literary gravitas.'}
 ${worldContext ? `World context (existing lore — stay consistent with it):\n${worldContext}` : ''}${uniquenessInstruction}${diversityInstruction}${anchor ? `\n\nANCHOR — This new ${type} MUST be thematically tied to the following existing lore element; derive its concept, theme, powers/flavor, and relations from it rather than introducing an unrelated motif:\n${anchor}` : ''}
-Strictly output a valid JSON object matching the requested schema. Do not enclose in markdown blocks if possible, or return clean JSON.${constraintLine}`;
+Strictly output a valid JSON object matching the requested schema. Do not enclose in markdown blocks if possible, or return clean JSON.${constraintLine}`);
 
 
     let schemaInstruction = '';
@@ -333,6 +343,8 @@ Strictly output a valid JSON object matching the requested schema. Do not enclos
       schemaInstruction = `Schema: { "name": string, "region": string, "description": string, "dangerLevel": 1|2|3|4|5, "atmosphere": string, "specialRules": string[] }`;
     } else if (type === 'npc') {
       schemaInstruction = `Schema: { "name": string, "title": string, "role": string, "kind": "individual"|"template", "currentLocationId": string, "applicableLocationIds": string[], "personalityTraits": string[], "speechStyle": string, "goals": string[], "secrets": [{ "id": string, "description": string, "requiredTrustLevel": number, "revealed": false }], "initialTrust": number } (If kind is "template", this represents a generic crowd archetype / mob template e.g. "City Watch Patrol" or "Dockside Broker", with group speech quirks, applicableLocationIds, and general collective goals rather than personal secrets)`;
+    } else if (type === 'npc_autofill') {
+      schemaInstruction = `Schema: { "title": string, "role": string, "factionId": string, "currentLocationId": string, "applicableLocationIds": string[], "personalityTraits": string[], "speechStyle": string, "goals": string[], "secrets": [{ "id": string, "description": string, "requiredTrustLevel": number, "revealed": false, "revealMethods": [{ "kind": "trust"|"clue"|"item"|"location"|"pressure"|"quest"|"ritual", "detail": string }] }], "initialTrust": number } (Fill in any missing or empty sections of this NPC using world lore. Do NOT contradict or modify what is already provided; organically fill in the blanks.)`;
     } else if (type === 'artifact') {
       schemaInstruction = `Schema: { "name": string, "title": string, "originEra": string, "rarity": "uncommon"|"rare"|"epic"|"legendary"|"mythic", "description": string, "powers": string[], "curseOrCost": string, "attunementRules": string, "secretLore": string } (IMPORTANT: Prioritize tangible physical equipment — swords, daggers, axes, wands, staves, plate armor, shields, cloaks, and gauntlets — over abstract stones or conceptual trinkets. Swords, wands, and martial armor must be much more frequent. If rarity is "uncommon", "rare", or "epic", curseOrCost MUST be an empty string "" and attunementRules should be simple/clean with no drawbacks. Curses and severe attunement costs are strictly reserved for "legendary" and "mythic" tiers)`;
     } else if (type === 'creature') {

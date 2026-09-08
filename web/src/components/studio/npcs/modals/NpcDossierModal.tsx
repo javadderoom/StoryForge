@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { User, Users, X, MapPin } from 'lucide-react';
+import { User, Users, X, MapPin, Briefcase } from 'lucide-react';
 import { NPCDossier, StoryManifest, Faction, WorldLocation, NpcKind } from '@/lib/types';
-import AiFillSection from '@/components/studio/AiFillSection';
 
 export interface NpcDossierModalProps {
   open: boolean;
@@ -33,10 +32,13 @@ export function NpcDossierModal({
   onClose,
   onSave,
 }: NpcDossierModalProps) {
+  const ontologyRoles = story.worldBible.ontology?.npcRoles || [];
+
   const [npcForm, setNpcForm] = useState<NPCDossier>({
     id: '',
     name: '',
     title: '',
+    role: '',
     kind: 'individual',
     factionId: '',
     currentLocationId: story.worldBible.locations[0]?.id || 'loc_dungeon_cell',
@@ -51,7 +53,8 @@ export function NpcDossierModal({
   const [traitInput, setTraitInput] = useState('');
   const [goalInput, setGoalInput] = useState('');
 
-  const splitCommaSeparated = (text: string): string[] => {
+  const splitCommaSeparated = (text?: string): string[] => {
+    if (!text || typeof text !== 'string') return [];
     return text
       .split(/[,،\n]+/)
       .map((s) => s.trim().replace(/^[•\-\*]\s*/, ''))
@@ -62,16 +65,23 @@ export function NpcDossierModal({
     if (editingNpc) {
       setNpcForm({
         ...editingNpc,
+        name: editingNpc.name || '',
+        title: editingNpc.title || '',
+        role: editingNpc.role || '',
+        speechStyle: editingNpc.speechStyle || '',
         kind: editingNpc.kind || 'individual',
         applicableLocationIds: editingNpc.applicableLocationIds || [],
         personalityTraits: (editingNpc.personalityTraits || []).flatMap((t) => splitCommaSeparated(t)),
         goals: (editingNpc.goals || []).flatMap((g) => splitCommaSeparated(g)),
+        secrets: editingNpc.secrets || [],
+        initialTrust: editingNpc.initialTrust ?? 0,
       });
     } else {
       setNpcForm({
         id: `npc_${Date.now().toString(36)}`,
         name: '',
         title: '',
+        role: '',
         kind: defaultKind || 'individual',
         factionId: story.worldBible.factions[0]?.id || '',
         currentLocationId: story.worldBible.locations[0]?.id || 'loc_dungeon_cell',
@@ -129,25 +139,11 @@ export function NpcDossierModal({
 
     onSave({
       ...npcForm,
+      role: npcForm.role?.trim() || undefined,
       personalityTraits: finalTraits,
       goals: finalGoals,
     });
     onClose();
-  };
-
-  const applyAiFill = (data: Record<string, unknown>) => {
-    setNpcForm((prev) => ({
-      ...prev,
-      name: prev.name.trim() ? prev.name : (data.name as string) || prev.name,
-      title: prev.title.trim() ? prev.title : (data.title as string) || prev.title,
-      role: (data.role as string) || prev.role,
-      speechStyle: prev.speechStyle.trim() ? prev.speechStyle : (data.speechStyle as string) || prev.speechStyle,
-      personalityTraits: prev.personalityTraits.length
-        ? prev.personalityTraits
-        : ((data.personalityTraits as string[]) || []),
-      goals: prev.goals.length ? prev.goals : ((data.goals as string[]) || []),
-      secrets: prev.secrets.length ? prev.secrets : ((data.secrets as NPCDossier['secrets']) || []),
-    }));
   };
 
   const nameLabel = npcForm.kind === 'template'
@@ -175,11 +171,11 @@ export function NpcDossierModal({
             )}
             {editingNpc
               ? (npcForm.kind === 'template'
-                  ? (isPersian ? 'ویرایش الگوی شخصیت‌های فرعی' : 'Edit Archetype Template')
-                  : (isPersian ? 'ویرایش پرونده شخصیت' : 'Edit NPC Dossier'))
+                ? (isPersian ? 'ویرایش الگوی شخصیت‌های فرعی' : 'Edit Archetype Template')
+                : (isPersian ? 'ویرایش پرونده شخصیت' : 'Edit NPC Dossier'))
               : (npcForm.kind === 'template'
-                  ? (isPersian ? 'ثبت الگوی گروهی جدید' : 'New Group Archetype Template')
-                  : (isPersian ? 'ثبت شخصیت جدید' : 'New NPC Dossier'))}
+                ? (isPersian ? 'ثبت الگوی گروهی جدید' : 'New Group Archetype Template')
+                : (isPersian ? 'ثبت شخصیت جدید' : 'New NPC Dossier'))}
           </h3>
           <button
             onClick={onClose}
@@ -194,11 +190,10 @@ export function NpcDossierModal({
           <button
             type="button"
             onClick={() => setNpcForm((prev) => ({ ...prev, kind: 'individual' }))}
-            className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              npcForm.kind !== 'template'
+            className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${npcForm.kind !== 'template'
                 ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
-            }`}
+              }`}
           >
             <User className="w-3.5 h-3.5" />
             <span>{isPersian ? 'شخصیت نامدار / فردی' : 'Named Character (Individual)'}</span>
@@ -206,22 +201,15 @@ export function NpcDossierModal({
           <button
             type="button"
             onClick={() => setNpcForm((prev) => ({ ...prev, kind: 'template' }))}
-            className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              npcForm.kind === 'template'
+            className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${npcForm.kind === 'template'
                 ? 'bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200'
-            }`}
+              }`}
           >
             <Users className="w-3.5 h-3.5" />
             <span>{isPersian ? 'الگوی گروهی / شخصیت‌های فرعی' : 'Group Archetype / Mob Template'}</span>
           </button>
         </div>
-
-        {/* AI Fill helper */}
-        <AiFillSection
-          type="npc"
-          onFilled={applyAiFill}
-        />
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -254,6 +242,66 @@ export function NpcDossierModal({
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
               />
             </div>
+          </div>
+
+          {/* Character Role (Ontology) */}
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1 flex items-center gap-1.5">
+              <Briefcase className="w-3.5 h-3.5 text-amber-400" />
+              <span>{isPersian ? 'نقش و رده شخصیتی (هستی‌شناسی):' : 'Character Role (Ontology):'}</span>
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                list="npc-roles-list"
+                value={npcForm.role || ''}
+                onChange={(e) => setNpcForm((prev) => ({ ...prev, role: e.target.value }))}
+                placeholder={
+                  isPersian
+                    ? 'انتخاب یا تایپ نقش (مثلاً: حاکم، نگهبان، کیمیاگر، قاچاقچی، مورخ)'
+                    : 'Select or type role (e.g. Ruler, Guard, Alchemist, Smuggler, Scholar)'
+                }
+                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+              />
+              <datalist id="npc-roles-list">
+                {ontologyRoles.map((r) => (
+                  <option key={r.id} value={r.name}>
+                    {r.description ? `${r.name} — ${r.description}` : r.name}
+                  </option>
+                ))}
+              </datalist>
+            </div>
+
+            {/* Quick-select chips from World Bible ontology */}
+            {ontologyRoles.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <span className="text-[10px] text-zinc-500 font-medium">
+                  {isPersian ? 'نقش‌های تعریف‌شده در جهان:' : 'World Ontology Roles:'}
+                </span>
+                {ontologyRoles.map((r) => {
+                  const isSelected = npcForm.role === r.name || npcForm.role === r.id;
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setNpcForm((prev) => ({ ...prev, role: isSelected ? '' : r.name }))}
+                      title={r.description || r.name}
+                      className={`text-[10.5px] px-2.5 py-0.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                        isSelected
+                          ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold shadow-sm'
+                          : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                      }`}
+                    >
+                      <span
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ backgroundColor: r.color || '#F59E0B' }}
+                      />
+                      <span>{r.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -322,11 +370,10 @@ export function NpcDossierModal({
                           return { ...prev, applicableLocationIds: next };
                         });
                       }}
-                      className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-                        isSelected
+                      className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${isSelected
                           ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-200 font-medium'
                           : 'bg-zinc-900/80 border-zinc-800 text-zinc-400 hover:text-zinc-300'
-                      }`}
+                        }`}
                     >
                       {loc.name}
                     </button>
