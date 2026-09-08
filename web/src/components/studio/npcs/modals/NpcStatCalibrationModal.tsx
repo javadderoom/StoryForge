@@ -114,7 +114,11 @@ export function NpcStatCalibrationModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(statForm);
+    onSave({
+      ...statForm,
+      npcId: targetNpc.id,
+      npcName: targetNpc.name,
+    });
   };
 
   const setVitalBar = (
@@ -254,24 +258,29 @@ export function NpcStatCalibrationModal({
               {isPersian ? 'امتیاز ویژگی‌ها و صفات:' : 'Attributes / Stat Ratings:'}
             </label>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2" dir="ltr">
-              {Object.entries(statForm.statRatings).map(([stKey, stVal]) => (
-                <div
-                  key={stKey}
-                  className="bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-center relative group"
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const updated = { ...statForm.statRatings };
-                      delete updated[stKey];
-                      setStatForm((prev: NpcStatCalibration) => ({ ...prev, statRatings: updated }));
-                    }}
-                    className="absolute top-1 right-1 text-zinc-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 cursor-pointer"
-                    title="Remove"
+              {Object.entries(statForm.statRatings).map(([stKey, stVal]) => {
+                const statDef = story?.rpgSystem?.stats?.find(
+                  (s) => s.id.toLowerCase() === stKey.toLowerCase() || s.name.toLowerCase() === stKey.toLowerCase()
+                );
+                const displayName = isPersian ? (statDef?.name || stKey) : (statDef?.id || stKey);
+                return (
+                  <div
+                    key={stKey}
+                    className="bg-zinc-950 border border-zinc-800 rounded-xl p-2 text-center relative group"
                   >
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                  <span className="text-[10px] text-zinc-400 font-mono block uppercase">{stKey}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = { ...statForm.statRatings };
+                        delete updated[stKey];
+                        setStatForm((prev: NpcStatCalibration) => ({ ...prev, statRatings: updated }));
+                      }}
+                      className="absolute top-1 right-1 text-zinc-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 cursor-pointer"
+                      title="Remove"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                    <span className="text-[10px] text-zinc-400 font-mono block uppercase" title={stKey}>{displayName}</span>
                   <input
                     type="number"
                     value={stVal}
@@ -285,7 +294,8 @@ export function NpcStatCalibrationModal({
                     className="w-full bg-transparent text-center font-bold text-amber-300 text-xs focus:outline-none font-mono"
                   />
                 </div>
-              ))}
+              );
+            })}
             </div>
 
             {/* Add Custom Attribute */}

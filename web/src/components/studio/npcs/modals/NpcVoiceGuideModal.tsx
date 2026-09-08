@@ -55,7 +55,10 @@ export function NpcVoiceGuideModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(voiceGuideForm);
+    onSave({
+      ...voiceGuideForm,
+      npcName: targetNpc.name,
+    });
   };
 
   return (

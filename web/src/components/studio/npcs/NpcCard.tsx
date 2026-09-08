@@ -781,15 +781,23 @@ export function NpcCard({
                           </button>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5" dir="ltr">
-                          {Object.entries(npc.statCalibration.statRatings).map(([stName, val]) => (
-                            <div
-                              key={stName}
-                              className="p-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-center"
-                            >
-                              <span className="text-[10px] text-zinc-400 block truncate">{stName}</span>
-                              <span className="text-xs font-bold text-amber-300 font-mono">{String(val)}</span>
-                            </div>
-                          ))}
+                          {Object.entries(npc.statCalibration.statRatings).map(([stName, val]) => {
+                            const statDef = story.rpgSystem?.stats?.find(
+                              (s) => s.id.toLowerCase() === stName.toLowerCase() || s.name.toLowerCase() === stName.toLowerCase()
+                            );
+                            const displayName = isPersian ? (statDef?.name || stName) : (statDef?.id || stName);
+                            return (
+                              <div
+                                key={stName}
+                                className="p-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-center"
+                              >
+                                <span className="text-[10px] text-zinc-400 block truncate" title={stName}>
+                                  {displayName}
+                                </span>
+                                <span className="text-xs font-bold text-amber-300 font-mono">{String(val)}</span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}

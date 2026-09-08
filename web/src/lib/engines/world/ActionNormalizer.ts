@@ -104,6 +104,43 @@ export const PERSIAN_FIELD_MAP: Record<string, string> = {
   'منابع': 'resourcePools',
 };
 
+export const STAT_CANONICAL_ALIASES: Record<string, string> = {
+  // Might
+  might: 'might',
+  migh: 'might',
+  نیرو: 'might',
+  زور: 'might',
+  قدرت: 'might',
+  توان: 'might',
+  // Cunning
+  cunning: 'cunning',
+  cunnin: 'cunning',
+  هوش: 'cunning',
+  ذکاوت: 'cunning',
+  زیرکی: 'cunning',
+  دانش: 'cunning',
+  // Agility
+  agility: 'agility',
+  agilty: 'agility',
+  چابکی: 'agility',
+  سرعت: 'agility',
+  فرزی: 'agility',
+  // Arcana
+  arcana: 'arcana',
+  arcan: 'arcana',
+  جادو: 'arcana',
+  ماورا: 'arcana',
+  افسون: 'arcana',
+  سحر: 'arcana',
+  // Charisma
+  charisma: 'charisma',
+  charis: 'charisma',
+  کاریزما: 'charisma',
+  جذبه: 'charisma',
+  نفوذ: 'charisma',
+  هیبت: 'charisma',
+};
+
 export function normalizeEntity(entity: EntityType, data: any): any {
   if (!data || typeof data !== 'object') return data;
   const res: Record<string, any> = { ...data };
@@ -402,6 +439,7 @@ export function normalizeEntity(entity: EntityType, data: any): any {
       if (typeof vg.psychologicalBreakingPoint !== 'string') {
         vg.psychologicalBreakingPoint = vg.psychologicalBreakingPoint ? String(vg.psychologicalBreakingPoint) : '';
       }
+      if (res.name) vg.npcName = res.name;
       res.voiceGuide = vg;
     }
 
@@ -414,6 +452,8 @@ export function normalizeEntity(entity: EntityType, data: any): any {
         const mapped = PERSIAN_FIELD_MAP[cleanK] || PERSIAN_FIELD_MAP[k.trim()] || cleanK;
         sc[mapped] = v;
       }
+      if (res.id) sc.npcId = res.id;
+      if (res.name) sc.npcName = res.name;
       const validTiers = ['civilian', 'apprentice', 'veteran', 'elite', 'boss', 'mythic'];
       if (!validTiers.includes(sc.combatTier)) sc.combatTier = 'veteran';
       const parsedCr = typeof sc.challengeRating === 'number'
@@ -424,7 +464,21 @@ export function normalizeEntity(entity: EntityType, data: any): any {
       const rawBasis = sc.crBasis ?? sc['مبنای درجه چالش'] ?? sc['منشأ خطر'];
       sc.crBasis = typeof rawBasis === 'string' ? rawBasis.trim() : '';
 
-      if (!sc.statRatings || typeof sc.statRatings !== 'object') sc.statRatings = {};
+      if (!sc.statRatings || typeof sc.statRatings !== 'object') {
+        sc.statRatings = {};
+      } else {
+        const normalizedRatings: Record<string, number> = {};
+        for (const [k, v] of Object.entries(sc.statRatings)) {
+          const trimmed = String(k || '').trim();
+          const cleanKey = trimmed.toLowerCase();
+          const canonical = STAT_CANONICAL_ALIASES[cleanKey] || STAT_CANONICAL_ALIASES[trimmed] || trimmed;
+          // Discard hallucinated non-stats
+          if (canonical.toLowerCase() === 'charlatany') continue;
+          const num = Number(v);
+          normalizedRatings[canonical] = Number.isFinite(num) ? Math.round(num) : 3;
+        }
+        sc.statRatings = normalizedRatings;
+      }
       if (!Array.isArray(sc.signatureAbilities)) sc.signatureAbilities = [];
       if (!Array.isArray(sc.equippedGear)) sc.equippedGear = [];
       else {

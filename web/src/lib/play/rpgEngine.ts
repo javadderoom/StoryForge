@@ -1,5 +1,6 @@
 import { PlayerState } from '@/lib/types/gameplay';
 import { GameItem, ItemRarity, WeaponGrip } from '@/lib/types/rpg';
+import { STAT_CANONICAL_ALIASES } from '@/lib/engines/world/ActionNormalizer';
 
 /** D&D-style stat modifier: floor((stat - 10) / 2). */
 export function getStatModifier(statValue: number): number {
@@ -67,11 +68,16 @@ function allEquippedIds(equipment: PlayerState['equipment']): string[] {
 export function calculateEquipmentModifier(playerState: PlayerState, effectiveStatId: string): number {
   let modifier = 0;
   const equippedIds = allEquippedIds(playerState.equipment);
+  const raw = (effectiveStatId || '').trim();
+  const canonical = STAT_CANONICAL_ALIASES[raw.toLowerCase()] || STAT_CANONICAL_ALIASES[raw] || raw;
   for (const item of playerState.inventory) {
     const isEquipped = equippedIds.includes(item.id);
     const isRelevantTool = item.type === 'quest_item';
-    if ((isEquipped || isRelevantTool) && item.statModifiers && item.statModifiers[effectiveStatId] != null) {
-      modifier += item.statModifiers[effectiveStatId]!;
+    if ((isEquipped || isRelevantTool) && item.statModifiers) {
+      const val = item.statModifiers[canonical] ?? item.statModifiers[effectiveStatId];
+      if (val != null) {
+        modifier += val;
+      }
     }
   }
   return modifier;
@@ -128,9 +134,14 @@ export function resolveActionCheck(opts: {
   const isNatMin = roll === 1;
 
   const effectiveStatId = requiredStatId ?? inferStatId(actionText, riskLevel, playerState);
-  const baseStatVal = playerState?.stats?.[effectiveStatId] ?? 10;
+  const rawId = (effectiveStatId || '').trim();
+  const canonicalStatId = STAT_CANONICAL_ALIASES[rawId.toLowerCase()] || STAT_CANONICAL_ALIASES[rawId] || rawId;
+  const baseStatVal =
+    playerState?.stats?.[canonicalStatId] ??
+    playerState?.stats?.[effectiveStatId] ??
+    10;
   const statModifier = getStatModifier(baseStatVal);
-  const equipmentModifier = playerState ? calculateEquipmentModifier(playerState, effectiveStatId) : 0;
+  const equipmentModifier = playerState ? calculateEquipmentModifier(playerState, canonicalStatId) : 0;
   const tacticalEnvMod = playerState ? detectTacticalModifier(actionText, playerState) : 0;
 
   const totalScore = roll + statModifier + equipmentModifier + tacticalEnvMod;

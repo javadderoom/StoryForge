@@ -356,15 +356,25 @@ export function NpcAiPreviewModals({
                     {isPersian ? 'امتیاز ویژگی‌ها:' : 'Attributes:'}
                   </span>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5" dir="ltr">
-                    {Object.entries(statCalibrationPreview.calibration.statRatings).map(([st, val]) => (
-                      <div
-                        key={st}
-                        className="p-2 rounded-xl bg-zinc-950 border border-zinc-800 text-center"
-                      >
-                        <span className="text-[10px] text-zinc-400 block">{st}</span>
-                        <span className="text-xs font-bold text-amber-300 font-mono">{String(val)}</span>
-                      </div>
-                    ))}
+                    {Object.entries(statCalibrationPreview.calibration.statRatings).map(([st, val]) => {
+                      const persianMap: Record<string, string> = {
+                        might: 'نیرو',
+                        cunning: 'هوش',
+                        agility: 'چابکی',
+                        arcana: 'جادو',
+                        charisma: 'کاریزما',
+                      };
+                      const displayName = isPersian ? (persianMap[st.toLowerCase()] || st) : st;
+                      return (
+                        <div
+                          key={st}
+                          className="p-2 rounded-xl bg-zinc-950 border border-zinc-800 text-center"
+                        >
+                          <span className="text-[10px] text-zinc-400 block" title={st}>{displayName}</span>
+                          <span className="text-xs font-bold text-amber-300 font-mono">{String(val)}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

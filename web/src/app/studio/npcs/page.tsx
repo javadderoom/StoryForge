@@ -375,7 +375,14 @@ export default function NpcDossiersPage() {
         return `${other?.name || otherId} (${b.relationTypeId}, affinity ${b.affinity > 0 ? '+' : ''}${b.affinity}: "${b.secretTension || 'no secret tension'}")`;
       });
 
-      const promptText = `Generate 2 to 4 dramatic interpersonal tension bonds for "${npc.name}" (${npc.title || 'NPC'}). Target other real NPCs in the world when possible.
+      const availableOtherNpcs = npcs
+        .filter((n) => n.id !== npc.id)
+        .map((n) => `{ id: "${n.id}", name: "${n.name}" }`)
+        .join(', ');
+
+      const promptText = `Generate 2 to 4 dramatic interpersonal tension bonds for "${npc.name}" (${npc.title || 'NPC'}).
+Available World NPCs: [${availableOtherNpcs}].
+CRITICAL TARGET ID REQUIREMENT: For each bond, the "targetNpcId" field MUST be the exact "id" of an existing NPC from the Available World NPCs list above (e.g. "npc_..."). The "targetNpcName" must be that NPC's exact name. DO NOT invent slug IDs or transliterated names.
 ${
   existingBondsSummary.length > 0
     ? `CURRENT KNOWN BONDS FOR THIS NPC:\n- ${existingBondsSummary.join('\n- ')}\nGUIDELINES: Prioritize creating bonds with other existing NPCs who do NOT yet have an established connection with "${npc.name}". If you choose to reference an NPC from the list above, you MUST evolve and deepen the existing relationship without creating an inconsistent contradictory bond.`
@@ -421,10 +428,25 @@ ${
     let updatedCount = 0;
 
     for (const b of bonds) {
-      const targetNpc = npcs.find(
-        (n) => n.id === b.targetNpcId || n.name.toLowerCase() === b.targetNpcName.toLowerCase()
-      );
-      const targetId = b.targetNpcId || targetNpc?.id || `npc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+      // Robust target resolution prioritizing exact NPC ID, exact name match, or slug match
+      const targetNpc = npcs.find((n) => {
+        if (n.id === b.targetNpcId) return true;
+        const nName = n.name.trim().toLowerCase();
+        const bName = (b.targetNpcName || '').trim().toLowerCase();
+        if (bName && nName === bName) return true;
+        if (b.targetNpcId && !b.targetNpcId.startsWith('npc_')) {
+          const slugClean = b.targetNpcId.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const nNameClean = nName.replace(/[^a-z0-9\u0600-\u06FF]/g, '');
+          if (slugClean && (nNameClean.includes(slugClean) || slugClean.includes(nNameClean))) return true;
+        }
+        return false;
+      });
+
+      // Target ID MUST prioritize the resolved real NPC's ID first. Only fall back to b.targetNpcId if it's already a valid hex ID.
+      const targetId =
+        targetNpc?.id ||
+        (b.targetNpcId && b.targetNpcId.startsWith('npc_') ? b.targetNpcId : null) ||
+        `npc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
       // Check if a bond already exists between this pair (in either direction)
       const existingBond = dramaBonds.find(
@@ -502,12 +524,16 @@ ${
       const dispositionLabel = trustVal <= -60 ? 'HOSTILE' : trustVal <= -20 ? 'UNFRIENDLY' : trustVal <= 20 ? 'NEUTRAL' : trustVal <= 60 ? 'FRIENDLY' : 'DEVOTED';
       const dispositionSection = ` Initial Disposition toward player: ${dispositionLabel} (trust: ${trustVal}).`;
 
+      const templateDirective = npc.kind === 'template'
+        ? ` CRITICAL GROUP ARCHETYPE DIRECTIVE: "${npc.name}" is a collective crowd template / group archetype representing rank-and-file members or generic extras, NOT a single named individual hero, officer, or commander. The "npcName" field in your JSON output MUST be strictly "${npc.name}". NEVER invent fictional individual character names. Sample dialogues must represent typical members of this group.`
+        : '';
+
       const res = await fetch('/api/studio/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'npc_voice_guide',
-          prompt: `Generate a rich, distinct Voice & Dialogue Guide with 4 situational quotes for "${npc.name}" (${npc.title || npc.role || 'NPC'}). Speech tone: ${npc.speechStyle || 'distinct'}. Personality: ${npc.personalityTraits?.join(', ')}.${dispositionSection}${goalsSection}${secretsSection}${storySection}`,
+          prompt: `Generate a rich, distinct Voice & Dialogue Guide with 4 situational quotes for "${npc.name}" (${npc.title || npc.role || 'NPC'}). Speech tone: ${npc.speechStyle || 'distinct'}. Personality: ${npc.personalityTraits?.join(', ')}.${dispositionSection}${goalsSection}${secretsSection}${storySection}${templateDirective}`,
           themeContext: story.worldBible.themeNotes,
           worldContext,
           isPersian,
@@ -522,7 +548,10 @@ ${
       if (json.data) {
         setVoiceGuidePreview({
           targetNpcId: npc.id,
-          guide: json.data,
+          guide: {
+            ...json.data,
+            npcName: npc.name,
+          },
         });
       }
     } catch (err: any) {
@@ -534,8 +563,12 @@ ${
 
   const handleCommitVoiceGuide = () => {
     if (!voiceGuidePreview) return;
+    const targetNpc = npcs.find((n) => n.id === voiceGuidePreview.targetNpcId);
     editNpc(voiceGuidePreview.targetNpcId, {
-      voiceGuide: voiceGuidePreview.guide,
+      voiceGuide: {
+        ...voiceGuidePreview.guide,
+        npcName: targetNpc?.name || voiceGuidePreview.guide.npcName,
+      },
     });
     setExpandedVoiceGuideIds((prev) => new Set(prev).add(voiceGuidePreview.targetNpcId));
     setVoiceGuidePreview(null);
@@ -596,9 +629,13 @@ Evaluate "${npc.name}"'s age, physical stature, and daily occupation.
 - Add "resourcePools" for signature expendables fitting the archetype (e.g. Rage, Spell Slots, Focus, Grit, Faith). Each pool needs id, name, and max; civilians usually have none.
 - "current" values represent a fully-rested state (current = max) unless the concept implies starting wounded or drained.`;
 
+      const statKeysDirective = `CRITICAL ATTRIBUTE KEYS REQUIREMENT:
+In the "statRatings" object, dictionary keys MUST strictly and exclusively be the exact ASCII canonical attribute IDs (e.g. might, cunning, agility, arcana, charisma). NEVER output keys in Persian (e.g. do NOT use "نیرو", "هوش", "چابکی"), and NEVER invent unofficial attributes or misspelled keys. Keys are internal code variables.`;
+
       const prompt = `Calibrate RPG combat rating, attributes, signature abilities, equipped gear, vitals, and resource pools for "${npc.name}".
 ${titleDesc} ${roleDesc} ${storyRoleDesc} ${importanceDesc} ${traitsDesc} ${goalsDesc} ${dispositionDesc}
 Active RPG Attributes to rate: [${storyStats}].
+${statKeysDirective}
 ${tierDirective}
 ${threatAxesDirective}
 ${asymmetryDirective}
