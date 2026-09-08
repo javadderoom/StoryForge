@@ -74,6 +74,21 @@ function getBaseQueueForTask(taskType?: 'world' | 'scene' | 'default'): readonly
 }
 
 
+/**
+ * Pulls the JSON payload out of model output: prefers a fenced block,
+ * otherwise slices from the first opening bracket to the last closing one.
+ * Returns the trimmed input unchanged when no brackets are found.
+ */
+export function extractJsonPayload(text: string): string {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const candidate = (fenced ? fenced[1] : text).trim();
+  const start = candidate.search(/[{[]/);
+  if (start === -1) return candidate;
+  const end = Math.max(candidate.lastIndexOf('}'), candidate.lastIndexOf(']'));
+  if (end > start) return candidate.slice(start, end + 1);
+  return candidate;
+}
+
 function extractCandidateText(json: any): string | null {
   const parts: any[] = json?.candidates?.[0]?.content?.parts || [];
   if (!parts.length) return null;
@@ -145,9 +160,19 @@ export async function generateStructuredJson<T = unknown>(
       const rawText = extractCandidateText(json);
 
       if (rawText) {
-        // Strip any markdown fences if present
-        const cleaned = rawText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
-        const parsed = JSON.parse(cleaned);
+        // Robust extraction: fenced block, else first-bracket..last-bracket
+        // slice (tolerates leading prose, trailing fences/junk/newlines).
+        const cleaned = extractJsonPayload(rawText);
+        let parsed: T;
+        try {
+          parsed = JSON.parse(cleaned) as T;
+        } catch (parseErr) {
+          console.warn(
+            `[GeminiClient] ${model} returned unparsable output (first 200 chars):`,
+            rawText.slice(0, 200)
+          );
+          throw parseErr;
+        }
         console.log(`[GeminiClient] Successfully generated response using model: ${model}`);
         return {
           data: parsed as T,

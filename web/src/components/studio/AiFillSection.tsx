@@ -180,8 +180,23 @@ export default function AiFillSection({ type, onFilled, customSystemPrompt }: Ai
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const json = (await res.json()) as { success: boolean; error?: string; data?: AiData };
-      if (!json.success) throw new Error(json.error || 'Generation failed');
+      let json: { success: boolean; error?: string; data?: AiData };
+      try {
+        json = (await res.json()) as { success: boolean; error?: string; data?: AiData };
+      } catch {
+        // Server answered with an HTML error page (e.g. 404/500) instead of JSON.
+        throw new Error(
+          isPersian
+            ? `سرور به‌جای پاسخ JSON، صفحه خطای ${res.status} برگرداند.`
+            : `Server returned an HTTP ${res.status} error page instead of JSON.`
+        );
+      }
+      if (!res.ok || !json.success) {
+        throw new Error(
+          json.error ||
+            (isPersian ? `تولید ناموفق بود (خطای ${res.status}).` : `Generation failed (HTTP ${res.status}).`)
+        );
+      }
       const data: AiData = json.data ?? {};
       const reqField = SUBTYPE_FIELD[type];
       const datField = DATA_FIELD[type];
