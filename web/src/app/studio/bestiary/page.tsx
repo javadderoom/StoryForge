@@ -88,6 +88,15 @@ export default function BestiaryStudioPage() {
     payload: EnhancedCreaturePayload;
   } | null>(null);
 
+  // Dedicated Ecology Modal states
+  const [editingEcologyCreature, setEditingEcologyCreature] = useState<WorldCreature | null>(null);
+  const [ecoNiche, setEcoNiche] = useState('');
+  const [ecoPacification, setEcoPacification] = useState('');
+  const [ecoYields, setEcoYields] = useState<CreatureAlchemicalYield[]>([]);
+  const [newReagentName, setNewReagentName] = useState('');
+  const [newReagentRarity, setNewReagentRarity] = useState<'common' | 'uncommon' | 'rare' | 'legendary'>('common');
+  const [newReagentUse, setNewReagentUse] = useState('');
+
   const bestiary = story.worldBible.bestiary || [];
   const locations = story.worldBible.locations || [];
 
@@ -246,6 +255,108 @@ export default function BestiaryStudioPage() {
     notify.success(isPersian ? 'اکولوژی و مواد کیمیاگری ثبت شد' : 'Ecology and alchemical yields saved');
   };
 
+  const handleOpenEcologyModal = (
+    c: WorldCreature,
+    initial?: { niche?: string; pacification?: string; yields?: CreatureAlchemicalYield[] }
+  ) => {
+    setEditingEcologyCreature(c);
+    setEcoNiche(initial?.niche ?? c.predatorPreyNiche ?? '');
+    setEcoPacification(initial?.pacification ?? c.nonCombatPacificationMethod ?? '');
+    setEcoYields(
+      initial?.yields
+        ? JSON.parse(JSON.stringify(initial.yields))
+        : c.alchemicalYields
+        ? JSON.parse(JSON.stringify(c.alchemicalYields))
+        : []
+    );
+    setNewReagentName('');
+    setNewReagentRarity('common');
+    setNewReagentUse('');
+  };
+
+  const handleAddYieldToModal = () => {
+    if (!newReagentName.trim()) return;
+    setEcoYields((prev) => [
+      ...prev,
+      {
+        reagentName: newReagentName.trim(),
+        rarity: newReagentRarity,
+        craftingUse: newReagentUse.trim() || (isPersian ? 'کاربرد عمومی در کیمیاگری' : 'General alchemical crafting'),
+      },
+    ]);
+    setNewReagentName('');
+    setNewReagentRarity('common');
+    setNewReagentUse('');
+  };
+
+  const handleRemoveYieldFromModal = (idx: number) => {
+    setEcoYields((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateYieldInModal = (
+    idx: number,
+    field: keyof CreatureAlchemicalYield,
+    val: string
+  ) => {
+    setEcoYields((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, [field]: val } : item))
+    );
+  };
+
+  const handleSaveEcologyModal = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!editingEcologyCreature) return;
+    editCreature(editingEcologyCreature.id, {
+      predatorPreyNiche: ecoNiche.trim() || undefined,
+      nonCombatPacificationMethod: ecoPacification.trim() || undefined,
+      alchemicalYields: ecoYields.length > 0 ? ecoYields : undefined,
+    });
+    setExpandedEcologyIds((prev) => new Set(prev).add(editingEcologyCreature.id));
+    setEditingEcologyCreature(null);
+    notify.success(isPersian ? 'اکولوژی و مواد کیمیاگری به‌روزرسانی شد' : 'Ecology and reagents updated');
+  };
+
+  const handleDeleteEcology = async (c: WorldCreature) => {
+    const conf = await notify.confirm({
+      title: isPersian ? 'حذف داده‌های اکولوژی' : 'Clear Ecology',
+      message: isPersian
+        ? `آیا از حذف زنجیره غذایی، روش رام‌سازی و مواد کیمیاگری "${c.name}" مطمئن هستید؟`
+        : `Are you sure you want to clear ecology and alchemical yields for "${c.name}"?`,
+      confirmText: isPersian ? 'بله، حذف شود' : 'Delete',
+      cancelText: isPersian ? 'انصراف' : 'Cancel',
+      isDestructive: true,
+    });
+    if (conf) {
+      editCreature(c.id, {
+        predatorPreyNiche: undefined,
+        nonCombatPacificationMethod: undefined,
+        alchemicalYields: undefined,
+      });
+      notify.success(isPersian ? 'داده‌های اکولوژی پاک شد' : 'Ecology data cleared');
+    }
+  };
+
+  const handleDeleteSingleReagent = async (c: WorldCreature, idx: number) => {
+    const reagent = c.alchemicalYields?.[idx];
+    if (!reagent) return;
+    const conf = await notify.confirm({
+      title: isPersian ? 'حذف ماده کیمیاگری' : 'Delete Reagent',
+      message: isPersian
+        ? `آیا از حذف ماده کیمیاگری "${reagent.reagentName}" مطمئن هستید؟`
+        : `Are you sure you want to remove "${reagent.reagentName}"?`,
+      confirmText: isPersian ? 'بله، حذف شود' : 'Delete',
+      cancelText: isPersian ? 'انصراف' : 'Cancel',
+      isDestructive: true,
+    });
+    if (conf) {
+      const updated = (c.alchemicalYields || []).filter((_, i) => i !== idx);
+      editCreature(c.id, {
+        alchemicalYields: updated.length > 0 ? updated : undefined,
+      });
+      notify.success(isPersian ? 'ماده کیمیاگری حذف شد' : 'Reagent removed');
+    }
+  };
+
   const applyAiFill = (data: Record<string, unknown>) => {
     if (!cName && data.name) setCName(data.name as string);
     if (data.speciesCategory) setCCategory(data.speciesCategory as typeof cCategory);
@@ -257,6 +368,9 @@ export default function BestiaryStudioPage() {
     if (Array.isArray(data.harvestableLoot) && !cLoot.length) {
       setCLoot(data.harvestableLoot as typeof cLoot);
     }
+    if (!cNiche && data.predatorPreyNiche) setCNiche(data.predatorPreyNiche as string);
+    if (!cPacification && data.nonCombatPacificationMethod) setCPacification(data.nonCombatPacificationMethod as string);
+    if (!cYields.length && Array.isArray(data.alchemicalYields)) setCYields(data.alchemicalYields as CreatureAlchemicalYield[]);
   };
 
   const renderDangerStars = (level: number) => {
@@ -482,6 +596,35 @@ export default function BestiaryStudioPage() {
 
                     {isEcologyExpanded && (
                       <div className="p-3.5 pt-0 space-y-2.5 text-xs border-t border-zinc-900 animate-fadeIn">
+                        {(c.predatorPreyNiche || c.nonCombatPacificationMethod || (c.alchemicalYields && c.alchemicalYields.length > 0)) && (
+                          <div className="flex items-center justify-between pb-2 border-b border-zinc-800/60">
+                            <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
+                              <Leaf className="w-3.5 h-3.5" />
+                              {isPersian ? 'مدیریت اکولوژی و کیمیاگری' : 'Ecology & Yield Controls'}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEcologyModal(c)}
+                                className="px-2.5 py-1 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                                title={isPersian ? 'ویرایش اکولوژی و مواد' : 'Edit Ecology & Reagents'}
+                              >
+                                <Edit2 className="w-3 h-3 text-amber-400" />
+                                <span>{isPersian ? 'ویرایش' : 'Edit'}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteEcology(c)}
+                                className="px-2.5 py-1 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                                title={isPersian ? 'حذف داده‌های اکولوژی' : 'Clear Ecology Data'}
+                              >
+                                <Trash2 className="w-3 h-3 text-red-400" />
+                                <span>{isPersian ? 'حذف' : 'Clear'}</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
                         {c.predatorPreyNiche && (
                           <div className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px]">
                             <span className="text-[10px] text-zinc-500 block">
@@ -508,30 +651,51 @@ export default function BestiaryStudioPage() {
                             {c.alchemicalYields.map((yieldItem, yIdx) => (
                               <div
                                 key={yIdx}
-                                className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px] flex items-start justify-between gap-2"
+                                className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px] flex items-start justify-between gap-2 group"
                               >
                                 <div>
                                   <strong className="text-zinc-200 block">{yieldItem.reagentName}</strong>
                                   <p className="text-[10px] text-zinc-400 mt-0.5">{yieldItem.craftingUse}</p>
                                 </div>
-                                <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-amber-300 font-mono text-[9px] uppercase shrink-0">
-                                  {isPersian ? RARITY_LABELS[yieldItem.rarity]?.fa || yieldItem.rarity : yieldItem.rarity}
-                                </span>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-amber-300 font-mono text-[9px] uppercase">
+                                    {isPersian ? RARITY_LABELS[yieldItem.rarity]?.fa || yieldItem.rarity : yieldItem.rarity}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteSingleReagent(c, yIdx)}
+                                    title={isPersian ? 'حذف این ماده کیمیاگری' : 'Delete this reagent'}
+                                    className="text-zinc-500 hover:text-red-400 p-1 rounded hover:bg-zinc-800 transition-colors cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
                               </div>
                             ))}
                           </div>
                         )}
 
                         {!c.predatorPreyNiche && !c.nonCombatPacificationMethod && (!c.alchemicalYields || c.alchemicalYields.length === 0) && (
-                          <div className="text-center py-3 text-zinc-500 text-xs space-y-1">
+                          <div className="text-center py-4 text-zinc-500 text-xs space-y-2">
                             <p>{isPersian ? 'اکولوژی برای این موجود تعریف نشده است.' : 'No ecology data recorded.'}</p>
-                            <button
-                              type="button"
-                              onClick={() => handleGenerateCreatureEcology(c)}
-                              className="text-emerald-400 font-bold hover:underline"
-                            >
-                              {isPersian ? 'اکنون با هوش مصنوعی تولید کنید' : 'Generate with AI now'}
-                            </button>
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleGenerateCreatureEcology(c)}
+                                className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                              >
+                                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>{isPersian ? 'تولید با هوش مصنوعی' : 'Generate with AI'}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEcologyModal(c)}
+                                className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                              >
+                                <Plus className="w-3.5 h-3.5 text-zinc-400" />
+                                <span>{isPersian ? 'افزودن دستی' : 'Add Manually'}</span>
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -619,17 +783,34 @@ export default function BestiaryStudioPage() {
               <button
                 type="button"
                 onClick={() => setEcologyPreview(null)}
-                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700"
+                className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700 cursor-pointer"
               >
                 {isPersian ? 'انصراف' : 'Cancel'}
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  const target = ecologyPreview.targetCreature;
+                  const p = ecologyPreview.payload;
+                  setEcologyPreview(null);
+                  handleOpenEcologyModal(target, {
+                    niche: p.predatorPreyNiche,
+                    pacification: p.nonCombatPacificationMethod,
+                    yields: p.alchemicalYields,
+                  });
+                }}
+                className="px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span>{isPersian ? 'ویرایش قبل از ثبت' : 'Edit Before Saving'}</span>
+              </button>
+              <button
+                type="button"
                 onClick={handleCommitEcology}
-                className="px-5 py-2 rounded-xl bg-emerald-500 text-zinc-950 text-xs font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-1.5"
+                className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 cursor-pointer"
               >
                 <Check className="w-4 h-4" />
-                <span>{isPersian ? '📥 ثبت اکولوژی' : '📥 Save Ecology'}</span>
+                <span>{isPersian ? '📥 ثبت مستقیم' : '📥 Save Ecology'}</span>
               </button>
             </div>
           </div>
@@ -766,17 +947,83 @@ export default function BestiaryStudioPage() {
                 </div>
               </div>
 
+              {/* Ecology & Alchemical Yields in main modal */}
+              <div className="p-3.5 bg-zinc-950/60 border border-zinc-800/80 rounded-2xl space-y-3">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                  <Leaf className="w-4 h-4" />
+                  <span>{isPersian ? 'اکولوژی و مواد کیمیاگری (اختیاری):' : 'Ecology & Alchemical Yields (Optional):'}</span>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-zinc-400 block mb-1">
+                    🦁 {isPersian ? 'جایگاه در زنجیره غذایی:' : 'Ecological Niche:'}
+                  </label>
+                  <input
+                    type="text"
+                    value={cNiche}
+                    onChange={(e) => setCNiche(e.target.value)}
+                    placeholder={isPersian ? 'مثال: شکارچی رأس هرم، شکار بزهای کوهی...' : 'e.g. Apex predator, feeds on mountain goats...'}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-zinc-400 block mb-1">
+                    🤝 {isPersian ? 'روش رام‌سازی بدون خون‌ریزی:' : 'Non-Combat Pacification:'}
+                  </label>
+                  <input
+                    type="text"
+                    value={cPacification}
+                    onChange={(e) => setCPacification(e.target.value)}
+                    placeholder={isPersian ? 'مثال: تعارف گوشت تازه یا دوری از تماس چشمی...' : 'e.g. Offering fresh meat or avoiding eye contact...'}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-400"
+                  />
+                </div>
+
+                {cYields.length > 0 && (
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] text-zinc-400 block font-bold">
+                      🧪 {isPersian ? 'مواد کیمیاگری ثبت‌شده:' : 'Registered Reagents:'}
+                    </span>
+                    {cYields.map((yieldItem, yIdx) => (
+                      <div
+                        key={yIdx}
+                        className="p-2 bg-zinc-900 border border-zinc-800 rounded-xl text-xs flex items-center justify-between gap-2"
+                      >
+                        <div>
+                          <strong className="text-zinc-200 text-[11px]">{yieldItem.reagentName}</strong>
+                          <span className="text-zinc-400 text-[10px] ml-1.5">({yieldItem.craftingUse})</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-amber-300 font-mono text-[9px] uppercase">
+                            {isPersian ? RARITY_LABELS[yieldItem.rarity]?.fa || yieldItem.rarity : yieldItem.rarity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setCYields((prev) => prev.filter((_, i) => i !== yIdx))}
+                            className="text-zinc-500 hover:text-red-400 p-1 rounded hover:bg-zinc-800 transition-colors cursor-pointer"
+                            title={isPersian ? 'حذف ماده' : 'Remove reagent'}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700"
+                  className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700 cursor-pointer"
                 >
                   {isPersian ? 'انصراف' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-red-500 hover:bg-red-400 text-zinc-950 text-xs font-bold shadow-lg shadow-red-500/20"
+                  className="px-5 py-2 rounded-xl bg-red-500 hover:bg-red-400 text-zinc-950 text-xs font-bold shadow-lg shadow-red-500/20 cursor-pointer"
                 >
                   {editingCreatureId
                     ? isPersian
@@ -785,6 +1032,189 @@ export default function BestiaryStudioPage() {
                     : isPersian
                     ? 'ثبت گونه'
                     : 'Save Creature'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Plan 05: Dedicated Ecology & Alchemical Reagents Edit Modal */}
+      {editingEcologyCreature && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                  <Leaf className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-zinc-100">
+                    {isPersian ? 'ویرایش اکولوژی و مواد کیمیاگری' : 'Edit Ecology & Alchemical Yields'}
+                  </h3>
+                  <span className="text-xs text-zinc-400">
+                    {editingEcologyCreature.name}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingEcologyCreature(null)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEcologyModal} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                  🦁 {isPersian ? 'جایگاه در زنجیره غذایی:' : 'Ecological Niche (Predator/Prey):'}
+                </label>
+                <textarea
+                  rows={2}
+                  value={ecoNiche}
+                  onChange={(e) => setEcoNiche(e.target.value)}
+                  placeholder={
+                    isPersian
+                      ? 'مثال: شکارچی رأس هرم در کوهستان‌های سرد، شکار بزهای وحشی و پرندگان شکاری...'
+                      : 'e.g. Apex predator in cold highlands, feeds on mountain goats...'
+                  }
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                  🤝 {isPersian ? 'روش رام‌سازی بدون خون‌ریزی:' : 'Non-Combat Pacification:'}
+                </label>
+                <textarea
+                  rows={2}
+                  value={ecoPacification}
+                  onChange={(e) => setEcoPacification(e.target.value)}
+                  placeholder={
+                    isPersian
+                      ? 'مثال: تعارف گوشت تازه آغشته به عسل کوهی یا عدم برقراری تماس چشمی مستقیم...'
+                      : 'e.g. Offering fresh meat glazed in honey, or avoiding eye contact...'
+                  }
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-400"
+                />
+              </div>
+
+              {/* Alchemical Reagents List */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                    <FlaskConical className="w-4 h-4 text-amber-400" />
+                    <span>{isPersian ? 'مواد قابل استخراج کیمیاگری و ساخت:' : 'Harvestable Alchemical Reagents:'}</span>
+                  </label>
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    {ecoYields.length} {isPersian ? 'ماده' : 'reagents'}
+                  </span>
+                </div>
+
+                {ecoYields.map((yieldItem, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 bg-zinc-950/70 border border-zinc-800 rounded-2xl space-y-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={yieldItem.reagentName}
+                        onChange={(e) => handleUpdateYieldInModal(idx, 'reagentName', e.target.value)}
+                        placeholder={isPersian ? 'نام ماده (مثال: زهراب سیاه)' : 'Reagent name'}
+                        className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-emerald-400"
+                        required
+                      />
+                      <select
+                        value={yieldItem.rarity}
+                        onChange={(e) => handleUpdateYieldInModal(idx, 'rarity', e.target.value as any)}
+                        className="bg-zinc-900 border border-zinc-700 rounded-xl px-2 py-1.5 text-xs text-amber-300 focus:outline-none focus:border-emerald-400 font-mono"
+                      >
+                        {Object.entries(RARITY_LABELS).map(([k, v]) => (
+                          <option key={k} value={k}>
+                            {isPersian ? v.fa : v.en}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveYieldFromModal(idx)}
+                        className="p-1.5 text-zinc-500 hover:text-red-400 rounded-lg hover:bg-zinc-900 transition-colors cursor-pointer"
+                        title={isPersian ? 'حذف این ماده' : 'Remove reagent'}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={yieldItem.craftingUse}
+                      onChange={(e) => handleUpdateYieldInModal(idx, 'craftingUse', e.target.value)}
+                      placeholder={isPersian ? 'کاربرد در ساخت یا پادزهر...' : 'Crafting or alchemical use...'}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-emerald-400"
+                    />
+                  </div>
+                ))}
+
+                {/* Add New Reagent Card */}
+                <div className="p-3 bg-zinc-950/40 border border-dashed border-zinc-800 rounded-2xl space-y-2">
+                  <span className="text-[11px] font-bold text-zinc-400 block">
+                    + {isPersian ? 'افزودن ماده کیمیاگری جدید' : 'Add New Reagent'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={newReagentName}
+                      onChange={(e) => setNewReagentName(e.target.value)}
+                      placeholder={isPersian ? 'نام ماده جدید...' : 'New reagent name...'}
+                      className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-emerald-400"
+                    />
+                    <select
+                      value={newReagentRarity}
+                      onChange={(e) => setNewReagentRarity(e.target.value as any)}
+                      className="bg-zinc-900 border border-zinc-700 rounded-xl px-2 py-1.5 text-xs text-amber-300 focus:outline-none focus:border-emerald-400 font-mono"
+                    >
+                      {Object.entries(RARITY_LABELS).map(([k, v]) => (
+                        <option key={k} value={k}>
+                          {isPersian ? v.fa : v.en}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={newReagentUse}
+                      onChange={(e) => setNewReagentUse(e.target.value)}
+                      placeholder={isPersian ? 'کاربرد کیمیاگری و داروسازی...' : 'Alchemical crafting usage...'}
+                      className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-emerald-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddYieldToModal}
+                      className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{isPersian ? 'افزودن' : 'Add'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingEcologyCreature(null)}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold hover:bg-zinc-700 cursor-pointer"
+                >
+                  {isPersian ? 'انصراف' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{isPersian ? 'ذخیره اکولوژی' : 'Save Ecology'}</span>
                 </button>
               </div>
             </form>
