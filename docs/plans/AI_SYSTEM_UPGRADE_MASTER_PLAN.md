@@ -75,7 +75,10 @@ To ensure thoroughness and modular implementation, the execution plans are parti
 | 🏰 **[03_LOCATIONS_AND_ECOSYSTEM_PLAN.md](file:///g:/Code/AfsanehSaz/docs/plans/03_LOCATIONS_AND_ECOSYSTEM_PLAN.md)** | Sub-Zone Dungeon Spawner, "Populate Location" Micro-Ecosystem Macro, Exploration POIs & Environmental Hazards. | Ready for Execution |
 | 👥 **[04_NPCS_AND_SOCIAL_DRAMA_PLAN.md](file:///g:/Code/AfsanehSaz/docs/plans/04_NPCS_AND_SOCIAL_DRAMA_PLAN.md)** | Interpersonal Relationship Web Synthesizer, Voice & Dialogue Style Guides, Lore-to-RPG Stat Auto-Calibration. | Ready for Execution |
 | ⚔️ **[05_CHRONICLES_RELICS_BESTIARY_RELIGIONS_PLAN.md](file:///g:/Code/AfsanehSaz/docs/plans/05_CHRONICLES_RELICS_BESTIARY_RELIGIONS_PLAN.md)** | 3-Era Epoch Arc & Ripple Effects, Double-Edged Relics & Vault Quests, Bestiary Ecology & Alchemical Yields, Divine Taboos & Holy Wars. | Ready for Execution |
-| 🎲 **[06_RPG_AND_BRANCHING_BEATS_PLAN.md](file:///g:/Code/AfsanehSaz/docs/plans/06_RPG_AND_BRANCHING_BEATS_PLAN.md)** | Theme-to-RPG System Synthesizer, 3-Act Branching Plot Tree & 3-Style Choice Balancer, Persistent Contextual Oracle & Smart `@mentions`. | Ready for Execution |
+| 🎲 **[06_RPG_AND_BRANCHING_BEATS_PLAN.md](file:///docs/plans/06_RPG_AND_BRANCHING_BEATS_PLAN.md)** | Theme-to-RPG System Synthesizer, 3-Act Branching Plot Tree & 3-Style Choice Balancer, Persistent Contextual Oracle & Smart `@mentions`. | Ready for Execution |
+| 🌌 **[07_MASSIVE_UNIVERSE_LONG_FORM_SAGA_PLAN.md](file:///docs/plans/07_MASSIVE_UNIVERSE_LONG_FORM_SAGA_PLAN.md)** | Multi-Chapter Escalating Saga Manifest, Scope Tiers, Living World State Ledger, 50-200+ Turn Long-Form Campaigns. | ✅ **Completed & Verified** |
+| 🛡️ **[08_CONSISTENCY_HARDENING_PLAN.md](file:///docs/plans/08_CONSISTENCY_HARDENING_PLAN.md)** | Narrative Consistency Hardening, Living World State Ledger play-time writes, Scope-pruned prompts, LoreAuditor v2. | ✅ **Completed & Verified** |
+| 🤖 **[09_AUTONOMOUS_DUAL_AGENT_WORLD_FORGE_PLAN.md](file:///docs/plans/09_AUTONOMOUS_DUAL_AGENT_WORLD_FORGE_PLAN.md)** | Autonomous Dual-Agent World Forge (Architect & Auditor loop), 6-phase procedural pipeline, Full Autopilot & Milestone Checkpoint modes. | ⏸️ **Paused / Documented** |
 
 
 ---

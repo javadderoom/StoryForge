@@ -68,10 +68,19 @@ This document outlines the upcoming feature roadmap and planned capabilities for
 ---
 
 ### 7. 🛡️ Narrative Consistency Hardening (Next Engineering Priority)
-* 📖 **[Full Audit & Implementation Plan](file:///g:/Code/AfsanehSaz/docs/plans/08_CONSISTENCY_HARDENING_PLAN.md)**
+* 📖 **[Full Audit & Implementation Plan](file:///docs/plans/08_CONSISTENCY_HARDENING_PLAN.md)**
 * Stop canon corruption: no silent mock-fallback persistence, post-validate AI choices/memories against the active RPG schema.
 * Server-authoritative PlayerState; write the Living World State Ledger at play time.
 * Implement the spec'd "World Lore Check" action guardrail and LoreAuditor v2 (saga graph, duplicate names, cross-vault references).
+
+---
+
+### 8. 🤖 Autonomous Dual-Agent World Forge (Plan 09)
+* 📖 **[Autonomous Dual-Agent World Forge Specification](file:///docs/plans/09_AUTONOMOUS_DUAL_AGENT_WORLD_FORGE_PLAN.md)**
+* **Architect & Auditor Loop**: Delegating studio administration to collaborating AI agents (Generator + Critic / Admin Proxy).
+* **6-Phase Pipeline**: Genesis Lore → Geography Tree → Society & Cast → Drama Web → Mechanics & Voice → Epic Saga Arc.
+* **Dual Operating Modes**: Full Autopilot (3–5 minute uninterrupted universe creation) & Milestone Checkpoints (co-pilot reviews after World/Geography and Cast/Stats).
+
 
 
 
