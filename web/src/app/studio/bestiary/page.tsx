@@ -38,6 +38,21 @@ const SPECIES_CATEGORIES = {
   humanoid: { labelFa: 'انسان‌نما و قبیله‌ای', labelEn: 'Humanoid', color: 'text-sky-400 bg-sky-500/10 border-sky-500/30' },
 };
 
+const DANGER_LEVELS: Record<number, { labelEn: string; labelFa: string }> = {
+  1: { labelEn: 'Harmless / Common', labelFa: 'بی‌خطر / معمولی' },
+  2: { labelEn: 'Guard / Predator', labelFa: 'نگهبان / شکارچی' },
+  3: { labelEn: 'Deadly Monster', labelFa: 'هیولای مرگبار' },
+  4: { labelEn: 'Apex Threat', labelFa: 'تهدید ویرانگر' },
+  5: { labelEn: 'Calamitous / Boss', labelFa: 'فاجعه‌بار / غول نهایی' },
+};
+
+const RARITY_LABELS: Record<string, { en: string; fa: string }> = {
+  common: { en: 'COMMON', fa: 'معمولی' },
+  uncommon: { en: 'UNCOMMON', fa: 'کمیاب' },
+  rare: { en: 'RARE', fa: 'نادر' },
+  legendary: { en: 'LEGENDARY', fa: 'افسانه‌ای' },
+};
+
 export default function BestiaryStudioPage() {
   const { story, isPersian, addCreature, editCreature, deleteCreature } = useStudioStory();
 
@@ -246,16 +261,20 @@ export default function BestiaryStudioPage() {
 
   const renderDangerStars = (level: number) => {
     return (
-      <div className="flex items-center gap-1" dir="ltr">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Skull
-            key={star}
-            className={`w-3.5 h-3.5 ${
-              star <= level ? 'text-red-400 fill-red-400/20' : 'text-zinc-700'
-            }`}
-          />
-        ))}
-        <span className="text-[11px] font-mono text-zinc-400 ml-1">Lvl {level}</span>
+      <div className="flex items-center gap-1.5" dir="ltr">
+        <div className="flex items-center gap-0.5">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <Skull
+              key={star}
+              className={`w-3.5 h-3.5 ${
+                star <= level ? 'text-red-400 fill-red-400/20' : 'text-zinc-700'
+              }`}
+            />
+          ))}
+        </div>
+        <span className="text-[11px] font-medium text-zinc-400">
+          {isPersian ? `سطح ${level}` : `Lvl ${level}`}
+        </span>
       </div>
     );
   };
@@ -354,7 +373,7 @@ export default function BestiaryStudioPage() {
                         onClick={() => handleGenerateCreatureEcology(c)}
                         disabled={generatingEcologyCreatureId === c.id}
                         className="px-2.5 py-1 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10.5px] font-bold flex items-center gap-1 transition-all"
-                        title="Generate Ecology & Reagents"
+                        title={isPersian ? 'تولید اکولوژی و مواد کیمیاگری' : 'Generate Ecology & Reagents'}
                       >
                         <Leaf className="w-3.5 h-3.5" />
                         <span>
@@ -496,7 +515,7 @@ export default function BestiaryStudioPage() {
                                   <p className="text-[10px] text-zinc-400 mt-0.5">{yieldItem.craftingUse}</p>
                                 </div>
                                 <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-amber-300 font-mono text-[9px] uppercase shrink-0">
-                                  {yieldItem.rarity}
+                                  {isPersian ? RARITY_LABELS[yieldItem.rarity]?.fa || yieldItem.rarity : yieldItem.rarity}
                                 </span>
                               </div>
                             ))}
@@ -589,7 +608,7 @@ export default function BestiaryStudioPage() {
                       <p className="text-[10.5px] text-zinc-400 mt-0.5">{yieldItem.craftingUse}</p>
                     </div>
                     <span className="px-2 py-0.5 rounded bg-zinc-800 text-amber-300 font-mono text-[10px] uppercase shrink-0">
-                      {yieldItem.rarity}
+                      {isPersian ? RARITY_LABELS[yieldItem.rarity]?.fa || yieldItem.rarity : yieldItem.rarity}
                     </span>
                   </div>
                 ))}
@@ -667,11 +686,11 @@ export default function BestiaryStudioPage() {
                     onChange={(e) => setCDanger(Number(e.target.value) as any)}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400 font-mono"
                   >
-                    <option value={1}>1 - Harmless / Common</option>
-                    <option value={2}>2 - Guard / Predator</option>
-                    <option value={3}>3 - Deadly Monster</option>
-                    <option value={4}>4 - Apex Threat</option>
-                    <option value={5}>5 - Calamitous / Boss</option>
+                    {[1, 2, 3, 4, 5].map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {lvl} · {isPersian ? DANGER_LEVELS[lvl].labelFa : DANGER_LEVELS[lvl].labelEn}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -728,7 +747,7 @@ export default function BestiaryStudioPage() {
                     rows={2}
                     value={cWeaknesses}
                     onChange={(e) => setCWeaknesses(e.target.value)}
-                    placeholder="Fire\nSilver weapons"
+                    placeholder={isPersian ? 'آسیب آتشین\nسلاح‌های نقره‌ای' : 'Fire\nSilver weapons'}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
                   />
                 </div>
@@ -741,7 +760,7 @@ export default function BestiaryStudioPage() {
                     rows={2}
                     value={cResistances}
                     onChange={(e) => setCResistances(e.target.value)}
-                    placeholder="Poison\nNecrotic"
+                    placeholder={isPersian ? 'سموم\nانرژی تاریک' : 'Poison\nNecrotic'}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
                   />
                 </div>
