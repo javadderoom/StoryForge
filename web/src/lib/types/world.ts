@@ -476,6 +476,7 @@ export interface WorldCreature {
   alchemicalYields?: CreatureAlchemicalYield[];
   preySpecies?: string[];
   predatorSpecies?: string[];
+  pacificationReagents?: string[];
 }
 
 export interface SectarianSchism {
@@ -674,6 +675,7 @@ export const EnhancedCreatureSchema = z.object({
   alchemicalYields: z.array(CreatureAlchemicalYieldSchema).min(1).max(3),
   preySpecies: z.array(z.string()).optional(),
   predatorSpecies: z.array(z.string()).optional(),
+  pacificationReagents: z.array(z.string()).optional(),
 });
 
 export const SectarianSchismSchema = z.object({
@@ -727,6 +729,7 @@ export const WorldCreatureSchema = z.object({
   alchemicalYields: z.array(CreatureAlchemicalYieldSchema).optional(),
   preySpecies: z.array(z.string()).optional(),
   predatorSpecies: z.array(z.string()).optional(),
+  pacificationReagents: z.array(z.string()).optional(),
 });
 
 export const WorldArtifactSchema = z.object({

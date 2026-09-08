@@ -62,6 +62,86 @@ const RARITY_LABELS: Record<string, { en: string; fa: string }> = {
   legendary: { en: 'LEGENDARY', fa: 'افسانه‌ای' },
 };
 
+/**
+ * Biological and Alchemical Pacification Entity Extractor
+ * Extracts missing plant, animal, or reagent entities from nonCombatPacificationMethod text.
+ */
+function extractPacificationEntities(text: string): Array<{ name: string; category: 'flora' | 'beast' }> {
+  if (!text || typeof text !== 'string') return [];
+  const results: Array<{ name: string; category: 'flora' | 'beast' }> = [];
+  const seen = new Set<string>();
+
+  const isFloraName = (str: string) =>
+    /گیاه|قارچ|گل|ریشه|نیلوفر|سنبل|خزه|درخت|بوته|پیچک|علف|بذر|برگ|بلوط|کاج|نسترن|پونه|سدر|بابونه|زعفران|lotus|lily|mushroom|fungus|root|moss|bloom|herb|fern|ivy|berry/i.test(str);
+
+  const add = (rawName: string, explicitCat?: 'flora' | 'beast') => {
+    let clean = rawName.replace(/[«»"'״]/g, '').trim();
+    // Strip common action and preparation prefixes
+    clean = clean.replace(/^(پاشیدن|مالیدن|خوراندن|تعارف|دود کردن|سوزاندن|عصارهٔ?|روغن|پودر|شیرهٔ?|دم‌کردهٔ?|جوشاندهٔ?|تخم|ریشه(?:های|‌های)?|ریشهٔ?|برگ(?:های|‌های)?|گلبرگ(?:های|‌های)?|تخمیرشدهٔ?|تخمیرشده|غلیظ شدهٔ?|غلیظ‌شدهٔ?|خشک شدهٔ?|خشک‌شدهٔ?|ساییده شدهٔ?|ساییدهٔ?|پختهٔ?|خام|تازهٔ?)\s+/gu, '').trim();
+    // Strip trailing prepositional particles and stop words
+    clean = clean.replace(/\s+(بر روی|روی|در|برای|به|با|که|تا|و|از|سپس|جهت|را).*$/gu, '').trim();
+    if (!clean || clean.length < 2 || clean.length > 35) return;
+    const norm = clean.toLowerCase();
+    if (seen.has(norm)) return;
+    seen.add(norm);
+
+    const category = explicitCat || (isFloraName(clean) ? 'flora' : 'beast');
+    results.push({ name: clean, category });
+  };
+
+  // 1. Quoted entities in text (e.g. «نیلوفر مردابی», "Silver Lotus")
+  const quotes = text.match(/[«"']([^»"']{2,35})[»"']/g);
+  if (quotes) {
+    quotes.forEach((q) => add(q));
+  }
+
+  // 2. Persian Ezafe / Biological patterns (e.g. "عصارهٔ غلیظ شدهٔ ریشه‌های تخمیرشدهٔ نیلوفر مردابی")
+  const bioAnchorsRegex = /(?:عصارهٔ?|روغن|پودر|شیرهٔ?|دم‌کردهٔ?|جوشاندهٔ?|ریشه(?:های|‌های)?|ریشهٔ?|برگ(?:های|‌های)?|گلبرگ(?:های|‌های)?|بذر|گوشت|خون|زهر)\s+(?:(?:غلیظ شدهٔ?|غلیظ‌شدهٔ?|تخمیرشدهٔ?|تخمیرشده|خشک شدهٔ?|خشک‌شدهٔ?|ساییدهٔ?|پختهٔ?|تازهٔ?|خام)\s+)*(?:(?:ریشه(?:های|‌های)?|ریشهٔ?|برگ(?:های|‌های)?|تخم)\s+)*(?:(?:تخمیرشدهٔ?|تخمیرشده|غلیظ شدهٔ?|غلیظ‌شدهٔ?)\s+)*([\u0600-\u06FF\s]{2,30}?)(?=\s+(?:بر روی|روی|در|برای|به|با|که|تا|و|از|جهت|را|[.,،]|$))/gu;
+  let match;
+  while ((match = bioAnchorsRegex.exec(text)) !== null) {
+    if (match[1]) {
+      add(match[1]);
+    }
+  }
+
+  // 3. Direct Anchor words followed by regional/descriptive modifiers (e.g. "نیلوفر مردابی", "سنبل آبی")
+  const directAnchorRegex = /\b(نیلوفر|سنبل|قارچ|خزه|پیچک|گوزن|گرگ|خرس|گراز|شاهین|عقاب|افعی|مانتیکور)\s+([\u0600-\u06FF]{2,20})\b/gu;
+  while ((match = directAnchorRegex.exec(text)) !== null) {
+    add(`${match[1]} ${match[2]}`);
+  }
+
+  return results;
+}
+
+/**
+ * Checks whether an entity name matches an existing creature, alchemical yield, loot item, or artifact.
+ */
+function isEntityKnown(
+  name: string,
+  bestiary: WorldCreature[],
+  artifacts: Array<{ name: string }> = []
+): boolean {
+  if (!name) return false;
+  const norm = name.trim().toLowerCase();
+  for (const c of bestiary) {
+    const cNorm = c.name.trim().toLowerCase();
+    if (cNorm === norm || norm.includes(cNorm) || cNorm.includes(norm)) return true;
+    for (const y of c.alchemicalYields || []) {
+      const yNorm = y.reagentName.trim().toLowerCase();
+      if (yNorm === norm || norm.includes(yNorm) || yNorm.includes(norm)) return true;
+    }
+    for (const l of c.harvestableLoot || []) {
+      const lNorm = l.name.trim().toLowerCase();
+      if (lNorm === norm || norm.includes(lNorm) || lNorm.includes(norm)) return true;
+    }
+  }
+  for (const a of artifacts) {
+    const aNorm = a.name.trim().toLowerCase();
+    if (aNorm === norm || norm.includes(aNorm) || aNorm.includes(norm)) return true;
+  }
+  return false;
+}
+
 export default function BestiaryStudioPage() {
   const { story, isPersian, addCreature, editCreature, deleteCreature } = useStudioStory();
 
@@ -116,12 +196,12 @@ export default function BestiaryStudioPage() {
   // Ghost Species & Phantom Habitat Detection Engine
   // ----------------------------------------------------------------
   const ghostSpeciesList = useMemo(() => {
-    const knownNames = new Set(bestiary.map((c) => c.name.trim().toLowerCase()));
+    const artifacts = story.worldBible.artifacts || [];
     const ghosts: Array<{
       name: string;
       referencedByCreatureId: string;
       referencedByCreatureName: string;
-      role: 'prey' | 'predator' | 'niche_mention';
+      role: 'prey' | 'predator' | 'niche_mention' | 'pacification_reagent';
       suggestedCategory: 'beast' | 'flora';
     }> = [];
     const seen = new Set<string>();
@@ -132,7 +212,7 @@ export default function BestiaryStudioPage() {
         c.preySpecies.forEach((p) => {
           const clean = p.trim();
           const norm = clean.toLowerCase();
-          if (clean && !knownNames.has(norm) && !seen.has(norm)) {
+          if (clean && !isEntityKnown(clean, bestiary, artifacts) && !seen.has(norm)) {
             seen.add(norm);
             ghosts.push({
               name: clean,
@@ -150,7 +230,7 @@ export default function BestiaryStudioPage() {
         c.predatorSpecies.forEach((p) => {
           const clean = p.trim();
           const norm = clean.toLowerCase();
-          if (clean && !knownNames.has(norm) && !seen.has(norm)) {
+          if (clean && !isEntityKnown(clean, bestiary, artifacts) && !seen.has(norm)) {
             seen.add(norm);
             ghosts.push({
               name: clean,
@@ -170,7 +250,7 @@ export default function BestiaryStudioPage() {
           quoted.forEach((q) => {
             const clean = q.replace(/[«»"']/g, '').trim();
             const norm = clean.toLowerCase();
-            if (clean && !knownNames.has(norm) && !seen.has(norm) && clean !== c.name.trim()) {
+            if (clean && !isEntityKnown(clean, bestiary, artifacts) && !seen.has(norm) && clean !== c.name.trim()) {
               seen.add(norm);
               ghosts.push({
                 name: clean,
@@ -183,10 +263,47 @@ export default function BestiaryStudioPage() {
           });
         }
       }
+
+      // 4. Structured Pacification Reagents
+      if (Array.isArray(c.pacificationReagents)) {
+        c.pacificationReagents.forEach((r) => {
+          const clean = r.trim();
+          const norm = clean.toLowerCase();
+          if (clean && !isEntityKnown(clean, bestiary, artifacts) && !seen.has(norm)) {
+            seen.add(norm);
+            const isFlora = /گیاه|قارچ|گل|ریشه|نیلوفر|سنبل|خزه|درخت|بوته|پیچک|lotus|lily|mushroom|fungus|root|moss|bloom|herb/i.test(clean);
+            ghosts.push({
+              name: clean,
+              referencedByCreatureId: c.id,
+              referencedByCreatureName: c.name,
+              role: 'pacification_reagent',
+              suggestedCategory: isFlora ? 'flora' : 'beast',
+            });
+          }
+        });
+      }
+
+      // 5. Non-Combat Pacification Narrative Text Extraction
+      if (c.nonCombatPacificationMethod) {
+        const extracted = extractPacificationEntities(c.nonCombatPacificationMethod);
+        extracted.forEach((ent) => {
+          const norm = ent.name.toLowerCase();
+          if (!isEntityKnown(ent.name, bestiary, artifacts) && !seen.has(norm)) {
+            seen.add(norm);
+            ghosts.push({
+              name: ent.name,
+              referencedByCreatureId: c.id,
+              referencedByCreatureName: c.name,
+              role: 'pacification_reagent',
+              suggestedCategory: ent.category,
+            });
+          }
+        });
+      }
     });
 
     return ghosts;
-  }, [bestiary]);
+  }, [bestiary, story.worldBible.artifacts]);
 
   const filteredCreatures = bestiary.filter((c) => {
     if (filterCategory === 'all') return true;
@@ -288,6 +405,9 @@ export default function BestiaryStudioPage() {
       predatorPreyNiche: cNiche.trim() || undefined,
       nonCombatPacificationMethod: cPacification.trim() || undefined,
       alchemicalYields: cYields.length > 0 ? cYields : undefined,
+      pacificationReagents: editingCreatureId
+        ? bestiary.find((b) => b.id === editingCreatureId)?.pacificationReagents
+        : undefined,
     };
 
     if (editingCreatureId) {
@@ -349,6 +469,7 @@ export default function BestiaryStudioPage() {
       alchemicalYields: payload.alchemicalYields,
       preySpecies: payload.preySpecies,
       predatorSpecies: payload.predatorSpecies,
+      pacificationReagents: payload.pacificationReagents,
     });
     setExpandedEcologyIds((prev) => new Set(prev).add(targetCreature.id));
     setEcologyPreview(null);
@@ -622,7 +743,11 @@ export default function BestiaryStudioPage() {
                       <span>{ghost.name}</span>
                     </h3>
                     <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                      {ghost.role === 'prey'
+                      {ghost.role === 'pacification_reagent'
+                        ? isPersian
+                          ? `در روش رام‌سازی بدون خون‌ریزی «${ghost.referencedByCreatureName}» به این ماده یا گیاه نیاز است، ولی هنوز در جهان ثبت نشده است.`
+                          : `Required for the non-combat pacification of "${ghost.referencedByCreatureName}", but has no registered entry in the world bible.`
+                        : ghost.role === 'prey'
                         ? isPersian
                           ? `این گونه به عنوان منبع غذایی / طعمه توسط «${ghost.referencedByCreatureName}» مصرف می‌شود ولی شناسنامه‌ای در جهان ندارد.`
                           : `Referenced as prey / sustenance by "${ghost.referencedByCreatureName}", but has no entry in the bestiary.`
@@ -648,7 +773,11 @@ export default function BestiaryStudioPage() {
                         name: ghost.name,
                         category: ghost.suggestedCategory,
                         niche:
-                          ghost.role === 'prey'
+                          ghost.role === 'pacification_reagent'
+                            ? isPersian
+                              ? `ماده یا گیاه مورد نیاز در روش رام‌سازی ${ghost.referencedByCreatureName}`
+                              : `Required for pacifying ${ghost.referencedByCreatureName}`
+                            : ghost.role === 'prey'
                             ? isPersian
                               ? `منبع غذایی برای ${ghost.referencedByCreatureName}`
                               : `Sustenance for ${ghost.referencedByCreatureName}`
@@ -936,11 +1065,66 @@ export default function BestiaryStudioPage() {
                         )}
 
                         {c.nonCombatPacificationMethod && (
-                          <div className="p-2 rounded-xl bg-emerald-950/20 border border-emerald-500/20 text-[11px] text-emerald-300/90">
-                            <span className="text-[10px] text-emerald-400 font-bold block">
-                              🤝 {isPersian ? 'روش رام‌سازی بدون خون‌ریزی:' : 'Non-Combat Pacification:'}
-                            </span>
-                            <p className="mt-0.5">{c.nonCombatPacificationMethod}</p>
+                          <div className="p-2.5 rounded-xl bg-emerald-950/20 border border-emerald-500/20 text-[11px] text-emerald-300/90 space-y-2">
+                            <div>
+                              <span className="text-[10px] text-emerald-400 font-bold block">
+                                🤝 {isPersian ? 'روش رام‌سازی بدون خون‌ریزی:' : 'Non-Combat Pacification:'}
+                              </span>
+                              <p className="mt-0.5 leading-relaxed">{c.nonCombatPacificationMethod}</p>
+                            </div>
+
+                            {/* Detected Missing Pacification Reagents / Beasts */}
+                            {(() => {
+                              const artifacts = story.worldBible.artifacts || [];
+                              const pacEntities = [
+                                ...(Array.isArray(c.pacificationReagents)
+                                  ? c.pacificationReagents.map((r) => ({
+                                      name: r,
+                                      category: /گیاه|قارچ|گل|ریشه|نیلوفر|سنبل|خزه|درخت|بوته|پیچک|lotus|lily|mushroom|fungus|root|moss|bloom|herb/i.test(r) ? ('flora' as const) : ('beast' as const),
+                                    }))
+                                  : []),
+                                ...extractPacificationEntities(c.nonCombatPacificationMethod),
+                              ].filter((item, idx, arr) => arr.findIndex((x) => x.name.trim().toLowerCase() === item.name.trim().toLowerCase()) === idx);
+
+                              const missingPacEntities = pacEntities.filter((item) => !isEntityKnown(item.name, bestiary, artifacts));
+                              if (missingPacEntities.length === 0) return null;
+
+                              return (
+                                <div className="pt-2 border-t border-emerald-500/20 space-y-1.5">
+                                  <span className="text-[10px] font-bold text-red-300 flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3 text-red-400 shrink-0 animate-pulse" />
+                                    {isPersian
+                                      ? 'ماده، گیاه یا گونه مفقود در جهان برای این روش رام‌سازی:'
+                                      : 'Unregistered plant / reagent required for pacification:'}
+                                  </span>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {missingPacEntities.map((item, mIdx) => (
+                                      <button
+                                        type="button"
+                                        key={mIdx}
+                                        onClick={() =>
+                                          handleOpenAddModal({
+                                            name: item.name,
+                                            category: item.category,
+                                            niche:
+                                              isPersian
+                                                ? `ماده یا گیاه مورد استفاده در روش رام‌سازی «${c.name}»`
+                                                : `Required for pacifying "${c.name}"`,
+                                          })
+                                        }
+                                        className="px-2.5 py-1 rounded-lg bg-red-950/60 border border-red-500/60 hover:border-red-400 text-red-200 text-[10.5px] font-medium flex items-center gap-1.5 shadow-[0_0_10px_rgba(239,68,68,0.25)] animate-pulse cursor-pointer transition-all"
+                                        title={isPersian ? 'کلیک کنید تا این موجود یا گیاه فوراً در جهان ثبت شود' : 'Click to materialize this entity'}
+                                      >
+                                        <span>{item.category === 'flora' ? '🌿' : '🐾'}</span>
+                                        <strong>{item.name}</strong>
+                                        <span className="text-[9px] text-red-400 font-mono">({isPersian ? 'ناموجود' : 'missing'})</span>
+                                        <Plus className="w-3 h-3 text-red-300 ml-0.5" />
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
                         )}
 
