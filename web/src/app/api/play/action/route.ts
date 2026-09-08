@@ -141,7 +141,8 @@ export async function POST(req: NextRequest) {
       const pressure = GameEngine.applyPressureOutcome(
         resolution.outcome,
         pressureTarget,
-        knownIds
+        knownIds,
+        playerActionText
       );
       const changes = resolution.stateDiff.relationshipChanges ?? {};
       const existing = changes[pressureTarget.id] ?? { trustDelta: 0 };

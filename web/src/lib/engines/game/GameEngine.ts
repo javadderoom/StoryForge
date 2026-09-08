@@ -24,6 +24,13 @@ const PRESSURE_KEYWORDS =
 /** Trust thresholds at/above this mark unbreakable core secrets (critical success only). */
 const UNBREAKABLE_TRUST_THRESHOLD = 90;
 
+/**
+ * Threats naming loved ones or lethal harm cut deeper — threatening the
+ * children is not the same as leaning on a merchant over debts (EN + FA).
+ */
+const SEVERE_PRESSURE_KEYWORDS =
+  /children|child\b|son\b|daughter|wife|husband|family|families|loved ones|kill you|kill him|kill her|murder|die\b|death of|burn it|فرزند|فرزندان|بچه|پسر|دختر|همسر|خانواده|کشتن|بکش|مرگ|نابود/;
+
 export interface RollOptions {
   statId?: string;
   skillId?: string;
@@ -201,13 +208,17 @@ export class GameEngine {
   /**
    * Deterministic pressure resolution: coercion vs the NPC's breaking point.
    * Secrets crack below their trust threshold — but pressure always costs
-   * trust, and unbreakable core secrets (threshold 90+) only crack on a
-   * critical success. Pure function of (outcome, dossier, known secrets).
+   * trust on a scale that respects the -100..+100 range, and unbreakable
+   * core secrets (threshold 90+) only crack on a critical success.
+   * Threats aimed at loved ones or lethal harm (see
+   * SEVERE_PRESSURE_KEYWORDS) cut an extra -10 when they land. Pure
+   * function of (outcome, dossier, known secrets, action text).
    */
   public static applyPressureOutcome(
     outcome: DiceOutcome,
     npc: NPCDossier,
-    knownSecretIds: string[] = []
+    knownSecretIds: string[] = [],
+    actionText = ''
   ): PressureOutcome {
     const known = new Set(knownSecretIds);
     const crackable = (npc.secrets ?? [])
@@ -221,11 +232,15 @@ export class GameEngine {
       .sort((a, b) => a.requiredTrustLevel - b.requiredTrustLevel);
     const breakingPoint = npc.voiceGuide?.psychologicalBreakingPoint?.trim();
     const bpNote = breakingPoint ? ` Breaking point: ${breakingPoint}.` : '';
+    const severe = SEVERE_PRESSURE_KEYWORDS.test(actionText.toLowerCase());
+    const severeNote = severe ? ' They will never forgive this.' : '';
+    // Extra -10 when a severe threat lands or blows up; -5 for threatened-but-held.
+    const sev = (landed: boolean) => (severe ? (landed ? -10 : -5) : 0);
 
     if (crackable.length === 0) {
       return {
-        trustDelta: -5,
-        note: `${npc.name} has nothing left to squeeze out, but resents the pressure all the same. (Trust -5)`,
+        trustDelta: -10,
+        note: `${npc.name} has nothing left to squeeze out, but resents the pressure all the same. (Trust -10)`,
       };
     }
 
@@ -233,44 +248,53 @@ export class GameEngine {
       case 'critical_success': {
         // Total break: cracks anything, even unbreakable core secrets.
         const s = crackable[0];
+        const delta = -25 + sev(true);
         return {
           revealedSecretId: s.id,
           revealedSecretDescription: s.description,
-          trustDelta: -10,
-          note: `${npc.name} breaks utterly under pressure and reveals: "${s.description}" (Trust -10).${bpNote}`,
+          trustDelta: delta,
+          note: `${npc.name} breaks utterly under pressure and reveals: "${s.description}" (Trust ${delta}).${bpNote}${severeNote}`,
         };
       }
       case 'success': {
         const s = crackable.find((c) => c.requiredTrustLevel < UNBREAKABLE_TRUST_THRESHOLD);
         if (!s) {
+          const delta = -15 + sev(false);
           return {
-            trustDelta: -10,
-            note: `${npc.name} bends but does not break — their deepest secrets hold (threshold ${UNBREAKABLE_TRUST_THRESHOLD}+ only cracks on critical success). (Trust -10)`,
+            trustDelta: delta,
+            note: `${npc.name} bends but does not break — their deepest secrets hold (threshold ${UNBREAKABLE_TRUST_THRESHOLD}+ only cracks on critical success). (Trust ${delta})`,
           };
         }
+        const delta = -30 + sev(true);
         return {
           revealedSecretId: s.id,
           revealedSecretDescription: s.description,
-          trustDelta: -15,
-          note: `${npc.name} cracks under pressure and reveals: "${s.description}" They will resent this. (Trust -15).${bpNote}`,
+          trustDelta: delta,
+          note: `${npc.name} cracks under pressure and reveals: "${s.description}" They will resent this bitterly. (Trust ${delta}).${bpNote}${severeNote}`,
         };
       }
-      case 'mixed_success':
+      case 'mixed_success': {
+        const delta = -15 + sev(false);
         return {
-          trustDelta: -10,
-          note: `${npc.name} clams up under pressure — nothing revealed, and they trust you less for trying. (Trust -10)`,
+          trustDelta: delta,
+          note: `${npc.name} clams up under pressure — nothing revealed, and they trust you less for trying. (Trust ${delta})`,
         };
-      case 'failure':
+      }
+      case 'failure': {
+        const delta = -15 + sev(false);
         return {
-          trustDelta: -10,
-          note: `The pressure fails: ${npc.name} holds firm and resents the attempt. (Trust -10)`,
+          trustDelta: delta,
+          note: `The pressure fails: ${npc.name} holds firm and resents the attempt. (Trust ${delta})`,
         };
+      }
       case 'critical_failure':
-      default:
+      default: {
+        const delta = -30 + sev(true);
         return {
-          trustDelta: -20,
-          note: `Disastrous pressure: ${npc.name} shuts down completely and will remember this. (Trust -20)`,
+          trustDelta: delta,
+          note: `Disastrous pressure: ${npc.name} shuts down completely and will remember this. (Trust ${delta})${severeNote}`,
         };
+      }
     }
   }
 

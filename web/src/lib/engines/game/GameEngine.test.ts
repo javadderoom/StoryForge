@@ -260,12 +260,38 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
       assert.equal(GameEngine.detectPressureTarget('I greet Baroness Vey warmly', [baroness]), null);
     });
 
-    it('cracks the lowest-threshold secret on success, costing trust', () => {
+    it('cracks the lowest-threshold secret on success, costing trust scaled to the -100..100 range', () => {
       const out = GameEngine.applyPressureOutcome('success', baroness);
       assert.equal(out.revealedSecretId, 'secret_debt');
-      assert.equal(out.trustDelta, -15);
+      assert.equal(out.trustDelta, -30);
       assert.ok(out.note.includes('gambling debts'));
       assert.ok(out.note.includes('Threats to her children'));
+    });
+
+    it('cuts deeper when the threat targets loved ones', () => {
+      const plain = GameEngine.applyPressureOutcome(
+        'success',
+        baroness,
+        [],
+        'Threaten Baroness Vey over her debts'
+      );
+      assert.equal(plain.trustDelta, -30);
+      const severe = GameEngine.applyPressureOutcome(
+        'success',
+        baroness,
+        [],
+        'Threaten her children unless Baroness Vey talks'
+      );
+      assert.equal(severe.revealedSecretId, 'secret_debt');
+      assert.equal(severe.trustDelta, -40);
+      assert.ok(severe.note.includes('never forgive'));
+      const severeFa = GameEngine.applyPressureOutcome(
+        'critical_failure',
+        baroness,
+        [],
+        'اگر حرف نزنی بچه‌هایت را می‌کشم'
+      );
+      assert.equal(severeFa.trustDelta, -40);
     });
 
     it('resists unbreakable core secrets on plain success', () => {
@@ -275,7 +301,7 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
       };
       const out = GameEngine.applyPressureOutcome('success', coreOnly);
       assert.equal(out.revealedSecretId, undefined);
-      assert.equal(out.trustDelta, -10);
+      assert.equal(out.trustDelta, -15);
     });
 
     it('cracks anything on critical success', () => {
@@ -285,23 +311,23 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
       };
       const out = GameEngine.applyPressureOutcome('critical_success', coreOnly);
       assert.equal(out.revealedSecretId, 'secret_core');
-      assert.equal(out.trustDelta, -10);
+      assert.equal(out.trustDelta, -25);
     });
 
     it('skips already-known secrets and punishes failed pressure', () => {
       const out = GameEngine.applyPressureOutcome('success', baroness, ['secret_debt']);
       assert.equal(out.revealedSecretId, undefined); // only the 95-threshold core remains
-      assert.equal(GameEngine.applyPressureOutcome('mixed_success', baroness).trustDelta, -10);
-      assert.equal(GameEngine.applyPressureOutcome('failure', baroness).trustDelta, -10);
-      assert.equal(GameEngine.applyPressureOutcome('critical_failure', baroness).trustDelta, -20);
+      assert.equal(GameEngine.applyPressureOutcome('mixed_success', baroness).trustDelta, -15);
+      assert.equal(GameEngine.applyPressureOutcome('failure', baroness).trustDelta, -15);
+      assert.equal(GameEngine.applyPressureOutcome('critical_failure', baroness).trustDelta, -30);
       assert.equal(GameEngine.applyPressureOutcome('critical_failure', baroness).revealedSecretId, undefined);
     });
 
-    it('costs a little trust even when there is nothing left to reveal', () => {
+    it('costs trust even when there is nothing left to reveal', () => {
       const bare: NPCDossier = { ...baroness, secrets: [] };
       const out = GameEngine.applyPressureOutcome('success', bare);
       assert.equal(out.revealedSecretId, undefined);
-      assert.equal(out.trustDelta, -5);
+      assert.equal(out.trustDelta, -10);
     });
   });
 
