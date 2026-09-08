@@ -129,6 +129,34 @@ describe('NPC Voice & Dialogue Guides and RPG Stats Normalization', () => {
     assert.equal(normalized.statCalibration.resourcePools[0].current, 2);
   });
 
+  it('normalizes secret revealMethods: kinds, aliases, trimming, and drops junk', () => {
+    const rawNpc = {
+      name: 'Patient',
+      secrets: [
+        {
+          id: 's1',
+          description: 'Implant behind the eye',
+          requiredTrustLevel: 60,
+          revealMethods: [
+            { kind: 'trust', trustThreshold: 60 },
+            { kind: 'جراحی', ritual: '  surgery  ', detail: ' sedated ' },
+            { kind: 'nonsense', foo: 1 },
+            null,
+            'junk',
+          ],
+        },
+        null,
+      ],
+    };
+    const normalized = normalizeEntity('npc', rawNpc);
+    assert.equal(normalized.secrets.length, 1);
+    const methods = normalized.secrets[0].revealMethods;
+    assert.equal(methods.length, 3);
+    assert.deepEqual(methods[0], { kind: 'trust', trustThreshold: 60 });
+    assert.deepEqual(methods[1], { kind: 'ritual', ritual: 'surgery', detail: 'sedated' });
+    assert.deepEqual(methods[2], { kind: 'trust' }); // unknown kind falls back
+  });
+
   it('normalizes crBasis and its Persian aliases, coercing non-strings to empty', () => {
     const withBasis = normalizeEntity('npc', {
       name: 'Vizier',

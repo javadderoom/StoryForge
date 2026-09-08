@@ -359,10 +359,24 @@ export function NpcCard({
                   className="bg-zinc-950/80 border border-zinc-800/80 rounded-2xl p-3 text-xs flex items-start justify-between gap-2 group/secret"
                 >
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="px-2 py-0.5 rounded-lg text-[10px] font-mono bg-rose-500/10 border border-rose-500/20 text-rose-300" dir="ltr">
                         {t.requiresTrust} {sec.requiredTrustLevel}
                       </span>
+                      {(sec.revealMethods || []).map((m, mIdx) => (
+                        <span
+                          key={mIdx}
+                          className="px-2 py-0.5 rounded-lg text-[10px] font-mono bg-sky-500/10 border border-sky-500/25 text-sky-300"
+                          title={m.detail || m.kind}
+                        >
+                          {m.kind}
+                          {m.kind === 'trust' && m.trustThreshold !== undefined ? ` ${m.trustThreshold}` : ''}
+                          {m.kind === 'item' ? `: ${m.itemName || m.itemId}` : ''}
+                          {m.kind === 'ritual' ? `: ${m.ritual}` : ''}
+                          {m.kind === 'location' ? `: ${m.locationId}` : ''}
+                          {m.kind === 'quest' ? `: ${m.questId}` : ''}
+                        </span>
+                      ))}
                     </div>
                     <p className="text-zinc-300 leading-relaxed">{sec.description}</p>
                   </div>

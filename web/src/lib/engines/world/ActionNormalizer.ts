@@ -333,6 +333,50 @@ export function normalizeEntity(entity: EntityType, data: any): any {
     if (!Array.isArray(res.personalityTraits)) res.personalityTraits = [];
     if (!Array.isArray(res.goals)) res.goals = [];
     if (!Array.isArray(res.secrets)) res.secrets = [];
+    else {
+      // Normalize secret reveal methods (OR-list; bundled params act as AND)
+      const validKinds = ['trust', 'pressure', 'item', 'ritual', 'location', 'quest', 'custom'];
+      res.secrets = res.secrets
+        .filter((s: unknown) => s && typeof s === 'object')
+        .map((s: unknown) => {
+          const sec = s as Record<string, unknown>;
+          if (!Array.isArray(sec.revealMethods)) return sec;
+          const methods = (sec.revealMethods as unknown[])
+            .filter((m) => m && typeof m === 'object')
+            .map((m) => {
+              const rec = m as Record<string, unknown>;
+              const kindAliases: Record<string, string> = {
+                'اعتماد': 'trust',
+                'فشار': 'pressure',
+                'تهدید': 'pressure',
+                'وسیله': 'item',
+                'ابزار': 'item',
+                'آیین': 'ritual',
+                'جراحی': 'ritual',
+                'مکان': 'location',
+                'مأموریت': 'quest',
+                'ماموریت': 'quest',
+                'سفارشی': 'custom',
+              };
+              const kindRaw = String(rec.kind || 'trust').trim().toLowerCase();
+              const aliased = kindAliases[kindRaw] || kindRaw;
+              const kind = (validKinds as string[]).includes(aliased) ? aliased : 'trust';
+              const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+              const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+              return {
+                kind,
+                ...(num(rec.trustThreshold) !== undefined ? { trustThreshold: num(rec.trustThreshold) } : {}),
+                ...(str(rec.itemId) ? { itemId: str(rec.itemId) } : {}),
+                ...(str(rec.itemName) ? { itemName: str(rec.itemName) } : {}),
+                ...(str(rec.ritual) ? { ritual: str(rec.ritual) } : {}),
+                ...(str(rec.locationId) ? { locationId: str(rec.locationId) } : {}),
+                ...(str(rec.questId) ? { questId: str(rec.questId) } : {}),
+                ...(str(rec.detail) ? { detail: str(rec.detail) } : {}),
+              };
+            });
+          return { ...sec, revealMethods: methods };
+        });
+    }
     if (typeof res.initialTrust !== 'number') res.initialTrust = 0;
 
     // Normalize voiceGuide if present
@@ -403,7 +447,12 @@ export function normalizeEntity(entity: EntityType, data: any): any {
         return undefined;
       };
       const normalizeBar = (raw: unknown, fallbackMax: number) => {
-        const max = Math.max(1, Math.round(Number(pick(raw, 'max', 'حداکثر', 'بیشینه')) || fallbackMax));
+        // Explicit max 0 floors to 1; only absent/garbage falls back.
+        const pickedMax = pick(raw, 'max', 'حداکثر', 'بیشینه');
+        const parsedMax = Number(pickedMax);
+        const max = pickedMax === undefined
+          ? fallbackMax
+          : Math.max(1, Math.round(Number.isFinite(parsedMax) ? parsedMax : fallbackMax));
         const rawCurrent = pick(raw, 'current', 'فعلی', 'کنونی');
         // Absent current means fully rested; explicit values clamp into [0, max].
         const current = rawCurrent === undefined

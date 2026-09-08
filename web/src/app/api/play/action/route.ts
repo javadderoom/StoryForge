@@ -158,6 +158,40 @@ export async function POST(req: NextRequest) {
       resolution.consequenceSummary += ` ${pressure.note}`;
     }
 
+    // 2c. Passive secret unlocks the engine can observe: trust thresholds
+    // and completed quests. One per NPC per turn (lowest threshold first);
+    // pressure/item/ritual/location/custom need triggers or the narrator.
+    const completedIds = [
+      ...(playerState.completedQuestIds ?? []),
+      ...((resolution.stateDiff.questUpdates ?? [])
+        .filter((q) => q.status === 'completed')
+        .map((q) => q.questId)),
+    ];
+    for (const npc of story.worldBible.npcs ?? []) {
+      const existing = resolution.stateDiff.relationshipChanges?.[npc.id];
+      if (existing?.newSecret) continue; // already granted this turn (e.g. pressure)
+      const baseTrust =
+        playerState.relationships?.[npc.id]?.trust ?? npc.initialTrust ?? 0;
+      const pendingDelta = existing?.trustDelta ?? 0;
+      const knownIds = playerState.relationships?.[npc.id]?.knownSecrets ?? [];
+      const unlock = GameEngine.findTrustUnlockedSecret(
+        npc,
+        baseTrust + pendingDelta,
+        knownIds,
+        completedIds
+      );
+      if (unlock) {
+        const changes = resolution.stateDiff.relationshipChanges ?? {};
+        changes[npc.id] = {
+          trustDelta: pendingDelta,
+          newSecret: unlock.id,
+        };
+        resolution.stateDiff.relationshipChanges = changes;
+        resolution.consequenceSummary +=
+          ` Through earned trust, ${npc.name} opens up and reveals: "${unlock.description}"`;
+      }
+    }
+
     // 3. Apply State Mutation Diff
     const updatedPlayerState = GameEngine.applyStateMutation(
       playerState,

@@ -371,6 +371,35 @@ export interface NpcRelationshipWeb {
 
 export type NpcKind = 'individual' | 'template';
 
+export type SecretRevealMethodKind =
+  | 'trust'
+  | 'pressure'
+  | 'item'
+  | 'ritual'
+  | 'location'
+  | 'quest'
+  | 'custom';
+
+export interface SecretRevealMethod {
+  kind: SecretRevealMethodKind;
+  /** trust kind: trust threshold (defaults to the secret's requiredTrustLevel). */
+  trustThreshold?: number;
+  /** item kind: inventory item id or name that must be possessed. */
+  itemId?: string;
+  itemName?: string;
+  /** ritual kind: named procedure that exposes it (e.g. 'surgery', 'exorcism'). */
+  ritual?: string;
+  /** location kind: must be uncovered there. */
+  locationId?: string;
+  /** quest kind: must be completed. */
+  questId?: string;
+  /**
+   * Free text: narrator instruction and custom-hack payload. For kind
+   * 'custom' this IS the rule ("only while the patient is sedated").
+   */
+  detail?: string;
+}
+
 export interface NPCDossier {
   id: string;
   name: string;
@@ -388,6 +417,13 @@ export interface NPCDossier {
     description: string;
     requiredTrustLevel: number;
     revealed: boolean;
+    /**
+     * How this secret can surface. Absent/empty = legacy behavior (trust
+     * threshold only, pressure cracks per the engine rule). Present = OR
+     * list where each entry is sufficient; bundled params within one entry
+     * act as AND.
+     */
+    revealMethods?: SecretRevealMethod[];
   }>;
   initialTrust: number; // e.g. 0 (-100 to 100)
   voiceGuide?: NpcVoiceGuide;
@@ -917,6 +953,17 @@ export const NpcStatCalibrationSchema = z.object({
   resourcePools: z.array(NpcResourcePoolSchema).default([]),
 });
 
+export const SecretRevealMethodSchema = z.object({
+  kind: z.enum(['trust', 'pressure', 'item', 'ritual', 'location', 'quest', 'custom']).default('trust'),
+  trustThreshold: z.number().optional(),
+  itemId: z.string().optional(),
+  itemName: z.string().optional(),
+  ritual: z.string().optional(),
+  locationId: z.string().optional(),
+  questId: z.string().optional(),
+  detail: z.string().optional(),
+});
+
 export const NPCDossierSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -935,6 +982,7 @@ export const NPCDossierSchema = z.object({
     description: z.string(),
     requiredTrustLevel: z.number(),
     revealed: z.boolean().default(false),
+    revealMethods: z.array(SecretRevealMethodSchema).optional().default([]),
   })).default([]),
   initialTrust: z.number().default(0),
   voiceGuide: NpcVoiceGuideSchema.optional(),

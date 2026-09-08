@@ -7,7 +7,15 @@ import {
   ChoiceOption,
 } from '@/lib/types/gameplay';
 import { RPGSystemSchema, GameItem } from '@/lib/types/rpg';
-import { WorldBible, WorldStateLedger, NPCDossier } from '@/lib/types/world';
+import { WorldBible, WorldStateLedger, NPCDossier, SecretRevealMethod } from '@/lib/types/world';
+
+export interface RevealCheckContext {
+  trust?: number;
+  /** Inventory item ids + names (any case) for `item` methods. */
+  inventoryTerms?: string[];
+  currentLocationId?: string;
+  completedQuestIds?: string[];
+}
 
 export interface PressureOutcome {
   revealedSecretId?: string;
@@ -185,6 +193,130 @@ export class GameEngine {
   }
 
   /**
+   * Human label for one reveal method (never includes the secret itself).
+   * Used for hints, narrator context, and studio display.
+   */
+  public static describeRevealMethod(
+    method: SecretRevealMethod,
+    secretThreshold: number
+  ): string {
+    switch (method.kind) {
+      case 'trust':
+        return `trust ${method.trustThreshold ?? secretThreshold}`;
+      case 'pressure':
+        return 'pressure';
+      case 'item':
+        return `item: ${method.itemName || method.itemId || '?'}`;
+      case 'ritual':
+        return `${method.ritual || 'ritual'}${method.detail ? ` (${method.detail})` : ''}`;
+      case 'location':
+        return `at ${method.locationId || '?'}${method.detail ? ` (${method.detail})` : ''}`;
+      case 'quest':
+        return `quest: ${method.questId || '?'}`;
+      case 'custom':
+        return method.detail || 'special condition';
+      default:
+        return 'trust';
+    }
+  }
+
+  /**
+   * Whether pressure can ever crack this secret: legacy secrets (no
+   * methods) always can; method-bound secrets only with a `pressure` entry.
+   */
+  public static isPressureCrackable(secret: {
+    revealMethods?: SecretRevealMethod[];
+  }): boolean {
+    const methods = secret.revealMethods;
+    if (!methods || methods.length === 0) return true;
+    return methods.some((m) => m.kind === 'pressure');
+  }
+
+  /**
+   * Checks the engine-observable methods (trust / item / location / quest).
+   * `pressure` resolves via applyPressureOutcome; `ritual` and `custom`
+   * need narrator adjudication and never auto-satisfy here.
+   */
+  public static isRevealMethodSatisfied(
+    method: SecretRevealMethod,
+    secretThreshold: number,
+    ctx: RevealCheckContext = {}
+  ): boolean {
+    switch (method.kind) {
+      case 'trust':
+        return (ctx.trust ?? -100) >= (method.trustThreshold ?? secretThreshold);
+      case 'item': {
+        const want = [method.itemId, method.itemName]
+          .filter((s): s is string => !!s)
+          .map((s) => s.toLowerCase());
+        if (want.length === 0) return false;
+        const have = (ctx.inventoryTerms ?? []).map((t) => t.toLowerCase());
+        return want.some((w) => have.some((t) => t === w || t.includes(w) || w.includes(t)));
+      }
+      case 'location':
+        return !!method.locationId && ctx.currentLocationId === method.locationId;
+      case 'quest':
+        return !!method.questId && (ctx.completedQuestIds ?? []).includes(method.questId);
+      case 'pressure':
+      case 'ritual':
+      case 'custom':
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Compact hidden-secret summary for narrator context: counts and ways
+   * in, NEVER descriptions. (`3 hidden (ways in: trust 40, pressure, surgery)`)
+   */
+  public static describeHiddenSecrets(npc: NPCDossier): string {
+    const hidden = (npc.secrets ?? []).filter(
+      (s) => !s.revealed && s.description && s.description.length >= 12
+    );
+    if (hidden.length === 0) return '';
+    const ways = Array.from(
+      new Set(
+        hidden.flatMap((s) => {
+          const methods = s.revealMethods;
+          if (!methods || methods.length === 0) return [`trust ${s.requiredTrustLevel}`];
+          return methods.map((m) => GameEngine.describeRevealMethod(m, s.requiredTrustLevel));
+        })
+      )
+    );
+    return `${hidden.length} hidden (ways in: ${ways.join(', ')})`;
+  }
+
+  /**
+   * Finds the next secret that unlocks passively: trust-satisfied or
+   * quest-completed (one per NPC per turn, lowest threshold first).
+   * Pressure/item/ritual/location/custom need triggers or the narrator.
+   */
+  public static findTrustUnlockedSecret(
+    npc: NPCDossier,
+    trust: number,
+    knownSecretIds: string[] = [],
+    completedQuestIds: string[] = []
+  ): { id: string; description: string } | null {
+    const known = new Set(knownSecretIds);
+    const candidates = (npc.secrets ?? []).filter((s) => {
+      if (s.revealed || known.has(s.id) || !s.description || s.description.length < 12) return false;
+      const methods = s.revealMethods;
+      if (!methods || methods.length === 0) return trust >= s.requiredTrustLevel;
+      return methods.some(
+        (m) =>
+          (m.kind === 'trust' &&
+            trust >= (m.trustThreshold ?? s.requiredTrustLevel)) ||
+          (m.kind === 'quest' &&
+            !!m.questId &&
+            completedQuestIds.includes(m.questId))
+      );
+    });
+    candidates.sort((a, b) => a.requiredTrustLevel - b.requiredTrustLevel);
+    const first = candidates[0];
+    return first ? { id: first.id, description: first.description } : null;
+  }
+
+  /**
    * Finds the NPC a pressure action is aimed at (name match, same word rules
    * as the anti-leak validator). Null when the action is not pressure or no
    * known NPC is named.
@@ -221,15 +353,13 @@ export class GameEngine {
     actionText = ''
   ): PressureOutcome {
     const known = new Set(knownSecretIds);
-    const crackable = (npc.secrets ?? [])
-      .filter(
-        (s) =>
-          !s.revealed &&
-          !known.has(s.id) &&
-          s.description &&
-          s.description.length >= 12
-      )
-      .sort((a, b) => a.requiredTrustLevel - b.requiredTrustLevel);
+    const unrevealed = (npc.secrets ?? []).filter(
+      (s) =>
+        !s.revealed &&
+        !known.has(s.id) &&
+        s.description &&
+        s.description.length >= 12
+    );
     const breakingPoint = npc.voiceGuide?.psychologicalBreakingPoint?.trim();
     const bpNote = breakingPoint ? ` Breaking point: ${breakingPoint}.` : '';
     const severe = SEVERE_PRESSURE_KEYWORDS.test(actionText.toLowerCase());
@@ -237,12 +367,33 @@ export class GameEngine {
     // Extra -10 when a severe threat lands or blows up; -5 for threatened-but-held.
     const sev = (landed: boolean) => (severe ? (landed ? -10 : -5) : 0);
 
-    if (crackable.length === 0) {
+    if (unrevealed.length === 0) {
       return {
         trustDelta: -10,
         note: `${npc.name} has nothing left to squeeze out, but resents the pressure all the same. (Trust -10)`,
       };
     }
+
+    // Method-bound secrets only crack under pressure with a `pressure` entry.
+    // Hint at the real way in (the method, never the secret itself).
+    const crackable = unrevealed.filter((s) => this.isPressureCrackable(s));
+    if (crackable.length === 0) {
+      const ways = Array.from(
+        new Set(
+          unrevealed.flatMap((s) =>
+            (s.revealMethods ?? []).map((m) =>
+              GameEngine.describeRevealMethod(m, s.requiredTrustLevel)
+            )
+          )
+        )
+      );
+      const hint = ways.length > 0 ? ` (requires: ${ways.join(' / ')})` : '';
+      return {
+        trustDelta: -15,
+        note: `${npc.name} will not break under threats — this truth is buried deeper than fear${hint}. (Trust -15)`,
+      };
+    }
+    crackable.sort((a, b) => a.requiredTrustLevel - b.requiredTrustLevel);
 
     switch (outcome) {
       case 'critical_success': {

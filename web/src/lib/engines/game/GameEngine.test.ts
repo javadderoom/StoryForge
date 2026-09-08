@@ -331,6 +331,124 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
     });
   });
 
+  describe('Secret reveal methods (trust / pressure / item / ritual / quest / custom)', () => {
+    const surgeon: NPCDossier = {
+      id: 'npc_surgeon_case',
+      name: 'Patient Zero',
+      title: 'Patient',
+      currentLocationId: 'loc_clinic',
+      personalityTraits: [],
+      speechStyle: 'Mumbling',
+      goals: [],
+      secrets: [
+        {
+          id: 'secret_implant',
+          description: 'A syndicate tracking implant is buried behind the left eye',
+          requiredTrustLevel: 60,
+          revealed: false,
+          revealMethods: [
+            { kind: 'trust', trustThreshold: 60 },
+            { kind: 'ritual', ritual: 'surgery', detail: 'at the clinic, patient sedated' },
+          ],
+        },
+        {
+          id: 'secret_cache',
+          description: 'Stash coordinates tattooed under the scalp',
+          requiredTrustLevel: 30,
+          revealed: false,
+          revealMethods: [{ kind: 'pressure' }],
+        },
+      ],
+      initialTrust: 0,
+    };
+
+    it('labels methods without leaking the secret', () => {
+      assert.equal(GameEngine.describeRevealMethod({ kind: 'trust', trustThreshold: 60 }, 60), 'trust 60');
+      assert.equal(GameEngine.describeRevealMethod({ kind: 'pressure' }, 30), 'pressure');
+      assert.equal(
+        GameEngine.describeRevealMethod({ kind: 'ritual', ritual: 'surgery', detail: 'sedated' }, 60),
+        'surgery (sedated)'
+      );
+      assert.equal(
+        GameEngine.describeRevealMethod({ kind: 'custom', detail: 'only while sedated' }, 60),
+        'only while sedated'
+      );
+      const summary = GameEngine.describeHiddenSecrets(surgeon);
+      assert.ok(summary.startsWith('2 hidden'));
+      assert.ok(summary.includes('surgery'));
+      assert.ok(!summary.includes('implant'));
+    });
+
+    it('gates pressure: surgery-bound secrets do not crack under threats', () => {
+      assert.equal(
+        GameEngine.isPressureCrackable(surgeon.secrets[0]),
+        false
+      );
+      assert.equal(GameEngine.isPressureCrackable(surgeon.secrets[1]), true);
+      assert.equal(GameEngine.isPressureCrackable({}), true); // legacy: no methods
+      const out = GameEngine.applyPressureOutcome('success', {
+        ...surgeon,
+        secrets: [surgeon.secrets[0]],
+      });
+      assert.equal(out.revealedSecretId, undefined);
+      assert.equal(out.trustDelta, -15);
+      assert.ok(out.note.includes('surgery'));
+    });
+
+    it('checks engine-observable methods and leaves ritual/custom to the narrator', () => {
+      assert.equal(
+        GameEngine.isRevealMethodSatisfied({ kind: 'trust', trustThreshold: 60 }, 60, { trust: 70 }),
+        true
+      );
+      assert.equal(
+        GameEngine.isRevealMethodSatisfied({ kind: 'trust' }, 60, { trust: 10 }),
+        false
+      );
+      assert.equal(
+        GameEngine.isRevealMethodSatisfied({ kind: 'item', itemName: 'Surgical Kit' }, 60, {
+          inventoryTerms: ['iron_dagger', 'surgical kit'],
+        }),
+        true
+      );
+      assert.equal(
+        GameEngine.isRevealMethodSatisfied({ kind: 'quest', questId: 'q_probe' }, 60, {
+          completedQuestIds: ['q_probe'],
+        }),
+        true
+      );
+      assert.equal(
+        GameEngine.isRevealMethodSatisfied({ kind: 'ritual', ritual: 'surgery' }, 60, { trust: 100 }),
+        false
+      );
+      assert.equal(
+        GameEngine.isRevealMethodSatisfied({ kind: 'pressure' }, 30, { trust: 100 }),
+        false
+      );
+    });
+
+    it('unlocks trust- and quest-bound secrets passively, lowest first', () => {
+      const none = GameEngine.findTrustUnlockedSecret(surgeon, 10, [], []);
+      assert.equal(none, null);
+      const trustHit = GameEngine.findTrustUnlockedSecret(surgeon, 65, [], []);
+      assert.equal(trustHit?.id, 'secret_implant');
+      const questNpc: NPCDossier = {
+        ...surgeon,
+        secrets: [
+          {
+            id: 'secret_oath',
+            description: 'Swore a blood oath to the river cult during initiation',
+            requiredTrustLevel: 90,
+            revealed: false,
+            revealMethods: [{ kind: 'quest', questId: 'q_cult' }],
+          },
+        ],
+      };
+      assert.equal(GameEngine.findTrustUnlockedSecret(questNpc, 0, [], []), null);
+      const questHit = GameEngine.findTrustUnlockedSecret(questNpc, 0, [], ['q_cult']);
+      assert.equal(questHit?.id, 'secret_oath');
+    });
+  });
+
   describe('Archetype & Character Creation Resolution', () => {
     it('applies archetype stat bonuses and custom point allocations', () => {
       const baseStats = { might: 12, agility: 14, cunning: 10 };

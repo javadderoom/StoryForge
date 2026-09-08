@@ -215,4 +215,33 @@ describe('buildWorldContextBlocks', () => {
     const blocks = buildWorldContextBlocks({ worldBible });
     assert.ok(!blocks.npcs.some((line) => line.includes('combat:')));
   });
+
+  it('lists hidden-secret ways in without leaking descriptions', () => {
+    const npc: NPCDossier = {
+      id: 'npc_d',
+      name: 'Patient Zero',
+      title: 'Patient',
+      currentLocationId: 'loc_1',
+      personalityTraits: [],
+      speechStyle: 'Mumbling',
+      goals: [],
+      secrets: [
+        {
+          id: 's1',
+          description: 'Implant behind the eye',
+          requiredTrustLevel: 60,
+          revealed: false,
+          revealMethods: [
+            { kind: 'trust', trustThreshold: 60 },
+            { kind: 'ritual', ritual: 'surgery' },
+          ],
+        },
+      ],
+      initialTrust: 0,
+    };
+    const blocks = buildWorldContextBlocks({ worldBible: { ...worldBible, npcs: [npc] } });
+    assert.equal(blocks.npcs.length, 1);
+    assert.ok(blocks.npcs[0].includes('secrets: 1 hidden (ways in: trust 60, surgery)'));
+    assert.ok(!blocks.npcs[0].includes('Implant behind the eye'));
+  });
 });

@@ -1,5 +1,6 @@
 import { WorldBible, ScopeTier, StoryChapter, WorldStateLedger, FACTION_RELATION_META, getLocationAncestry, NPCDossier } from '@/lib/types/world';
 import { StoryNpcOverride, StoryScale } from '@/lib/types/story';
+import { GameEngine } from '@/lib/engines/game/GameEngine';
 
 /**
  * Compact combat summary for an NPC (`elite CR9 — HP 64/80, Rage 3/5`).
@@ -394,18 +395,20 @@ export function buildWorldContextBlocks(
       const kindPrefix = n.kind === 'template' ? '[GROUP ARCHETYPE] ' : '';
       const combatStr = formatNpcCombatSummary(n);
       const combatSuffix = combatStr ? ` | combat: ${combatStr}` : '';
+      const hiddenSecrets = GameEngine.describeHiddenSecrets(n);
+      const secretsSuffix = hiddenSecrets ? ` | secrets: ${hiddenSecrets}` : '';
       const ov = overrides[n.id];
       if (!ov) {
         return `${kindPrefix}${n.name} (${n.role || 'unknown role'}) — ${n.title || ''}; goals: ${
           n.goals.join(', ') || 'unknown'
-        }${combatSuffix}`;
+        }${combatSuffix}${secretsSuffix}`;
       }
       const roleStr = ov.storyRole ? `Story Role: ${ov.storyRole}` : (n.role || 'unknown role');
       const relStr = ov.relationshipToProtagonist ? ` | Relation to Protagonist: ${ov.relationshipToProtagonist}` : '';
       const goalStr = ov.storyGoal ? ` | Story Goal: ${ov.storyGoal}` : (n.goals?.length ? ` | goals: ${n.goals.join(', ')}` : '');
       const secretStr = ov.storySecret ? ` | Secret: ${ov.storySecret}` : '';
       const chEntrance = ov.firstAppearanceChapter !== undefined ? ` | First Appears: Chapter ${ov.firstAppearanceChapter}` : '';
-      return `${kindPrefix}${n.name} [${roleStr}] — ${n.title || ''}${relStr}${goalStr}${secretStr}${chEntrance}${combatSuffix}`;
+      return `${kindPrefix}${n.name} [${roleStr}] — ${n.title || ''}${relStr}${goalStr}${secretStr}${chEntrance}${combatSuffix}${secretsSuffix}`;
     },
     caps.npcs,
     pinNpcs
