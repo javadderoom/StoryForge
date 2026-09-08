@@ -464,6 +464,7 @@ export interface WorldCreature {
   name: string;
   speciesCategory: 'beast' | 'monstrosity' | 'undead' | 'elemental' | 'flora' | 'draconic' | 'humanoid';
   dangerLevel: 1 | 2 | 3 | 4 | 5;
+  rarity?: 'common' | 'uncommon' | 'rare' | 'legendary';
   habitatLocationIds: string[];
   behavioralTactics: string;
   weaknesses: string[];
@@ -473,6 +474,8 @@ export interface WorldCreature {
   predatorPreyNiche?: string;
   nonCombatPacificationMethod?: string;
   alchemicalYields?: CreatureAlchemicalYield[];
+  preySpecies?: string[];
+  predatorSpecies?: string[];
 }
 
 export interface SectarianSchism {
@@ -669,6 +672,8 @@ export const EnhancedCreatureSchema = z.object({
   predatorPreyNiche: z.string(),
   nonCombatPacificationMethod: z.string(),
   alchemicalYields: z.array(CreatureAlchemicalYieldSchema).min(1).max(3),
+  preySpecies: z.array(z.string()).optional(),
+  predatorSpecies: z.array(z.string()).optional(),
 });
 
 export const SectarianSchismSchema = z.object({
@@ -706,6 +711,7 @@ export const WorldCreatureSchema = z.object({
   name: z.string().min(1),
   speciesCategory: z.enum(['beast', 'monstrosity', 'undead', 'elemental', 'flora', 'draconic', 'humanoid']).default('beast'),
   dangerLevel: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).default(3),
+  rarity: z.enum(['common', 'uncommon', 'rare', 'legendary']).default('common').optional(),
   habitatLocationIds: z.array(z.string()).default([]),
   behavioralTactics: z.string().default(''),
   weaknesses: z.array(z.string()).default([]),
@@ -719,6 +725,8 @@ export const WorldCreatureSchema = z.object({
   predatorPreyNiche: z.string().optional(),
   nonCombatPacificationMethod: z.string().optional(),
   alchemicalYields: z.array(CreatureAlchemicalYieldSchema).optional(),
+  preySpecies: z.array(z.string()).optional(),
+  predatorSpecies: z.array(z.string()).optional(),
 });
 
 export const WorldArtifactSchema = z.object({

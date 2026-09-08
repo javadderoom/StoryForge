@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import {
   Skull,
@@ -22,6 +22,8 @@ import {
   ChevronUp,
   Check,
   HeartHandshake,
+  Ghost,
+  AlertTriangle,
 } from 'lucide-react';
 import { WorldCreature, CreatureAlchemicalYield, EnhancedCreaturePayload } from '@/lib/types';
 import { notify } from '@/lib/notify';
@@ -33,7 +35,7 @@ const SPECIES_CATEGORIES = {
   monstrosity: { labelFa: 'هیولا و جهش‌یافته', labelEn: 'Monstrosity', color: 'text-purple-400 bg-purple-500/10 border-purple-500/30' },
   undead: { labelFa: 'نامردگان و ارواح', labelEn: 'Undead', color: 'text-rose-400 bg-rose-500/10 border-rose-500/30' },
   beast: { labelFa: 'جانور وحشی', labelEn: 'Beast', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' },
-  flora: { labelFa: 'گیاه سمی و مهاجم', labelEn: 'Flora', color: 'text-lime-400 bg-lime-500/10 border-lime-500/30' },
+  flora: { labelFa: 'گیاهان، قارچ‌ها و رستنی‌ها', labelEn: 'Flora & Botanicals', color: 'text-lime-400 bg-lime-500/10 border-lime-500/30' },
   draconic: { labelFa: 'اژدهایی و کهن', labelEn: 'Draconic', color: 'text-red-400 bg-red-500/10 border-red-500/30' },
   humanoid: { labelFa: 'انسان‌نما و قبیله‌ای', labelEn: 'Humanoid', color: 'text-sky-400 bg-sky-500/10 border-sky-500/30' },
 };
@@ -44,6 +46,13 @@ const DANGER_LEVELS: Record<number, { labelEn: string; labelFa: string }> = {
   3: { labelEn: 'Deadly Monster', labelFa: 'هیولای مرگبار' },
   4: { labelEn: 'Apex Threat', labelFa: 'تهدید ویرانگر' },
   5: { labelEn: 'Calamitous / Boss', labelFa: 'فاجعه‌بار / غول نهایی' },
+};
+
+const CREATURE_RARITY: Record<string, { labelEn: string; labelFa: string; color: string; badgeClass: string }> = {
+  common: { labelEn: 'Common / Abundant', labelFa: 'فراوان / پرشمار', color: 'text-zinc-300 bg-zinc-800/80 border-zinc-700', badgeClass: 'text-zinc-300 bg-zinc-800/80 border-zinc-700' },
+  uncommon: { labelEn: 'Uncommon / Scattered', labelFa: 'نامتداول / پراکنده', color: 'text-teal-300 bg-teal-500/10 border-teal-500/30', badgeClass: 'text-teal-300 bg-teal-500/10 border-teal-500/30' },
+  rare: { labelEn: 'Rare / Scarce', labelFa: 'کمیاب / انگشت‌شمار', color: 'text-amber-300 bg-amber-500/10 border-amber-500/30', badgeClass: 'text-amber-300 bg-amber-500/10 border-amber-500/30' },
+  legendary: { labelEn: 'Legendary / Solitary', labelFa: 'افسانه‌ای / تک‌نمونه', color: 'text-purple-300 bg-purple-500/10 border-purple-500/30', badgeClass: 'text-purple-300 bg-purple-500/10 border-purple-500/30' },
 };
 
 const RARITY_LABELS: Record<string, { en: string; fa: string }> = {
@@ -64,6 +73,7 @@ export default function BestiaryStudioPage() {
   const [cName, setCName] = useState('');
   const [cCategory, setCCategory] = useState<'beast' | 'monstrosity' | 'undead' | 'elemental' | 'flora' | 'draconic' | 'humanoid'>('beast');
   const [cDanger, setCDanger] = useState<1 | 2 | 3 | 4 | 5>(3);
+  const [cRarity, setCRarity] = useState<'common' | 'uncommon' | 'rare' | 'legendary'>('common');
   const [cHabitats, setCHabitats] = useState<string[]>([]);
   const [cTactics, setCTactics] = useState('');
   const [cWeaknesses, setCWeaknesses] = useState('');
@@ -93,12 +103,90 @@ export default function BestiaryStudioPage() {
   const [ecoNiche, setEcoNiche] = useState('');
   const [ecoPacification, setEcoPacification] = useState('');
   const [ecoYields, setEcoYields] = useState<CreatureAlchemicalYield[]>([]);
+  const [ecoPrey, setEcoPrey] = useState<string[]>([]);
+  const [ecoPredators, setEcoPredators] = useState<string[]>([]);
   const [newReagentName, setNewReagentName] = useState('');
   const [newReagentRarity, setNewReagentRarity] = useState<'common' | 'uncommon' | 'rare' | 'legendary'>('common');
   const [newReagentUse, setNewReagentUse] = useState('');
 
   const bestiary = story.worldBible.bestiary || [];
   const locations = story.worldBible.locations || [];
+
+  // ----------------------------------------------------------------
+  // Ghost Species & Phantom Habitat Detection Engine
+  // ----------------------------------------------------------------
+  const ghostSpeciesList = useMemo(() => {
+    const knownNames = new Set(bestiary.map((c) => c.name.trim().toLowerCase()));
+    const ghosts: Array<{
+      name: string;
+      referencedByCreatureId: string;
+      referencedByCreatureName: string;
+      role: 'prey' | 'predator' | 'niche_mention';
+      suggestedCategory: 'beast' | 'flora';
+    }> = [];
+    const seen = new Set<string>();
+
+    bestiary.forEach((c) => {
+      // 1. Structured Prey references
+      if (Array.isArray(c.preySpecies)) {
+        c.preySpecies.forEach((p) => {
+          const clean = p.trim();
+          const norm = clean.toLowerCase();
+          if (clean && !knownNames.has(norm) && !seen.has(norm)) {
+            seen.add(norm);
+            ghosts.push({
+              name: clean,
+              referencedByCreatureId: c.id,
+              referencedByCreatureName: c.name,
+              role: 'prey',
+              suggestedCategory: clean.includes('گیاه') || clean.includes('قارچ') || clean.includes('گل') || clean.includes('ریشه') || clean.includes('herb') || clean.includes('bloom') ? 'flora' : 'beast',
+            });
+          }
+        });
+      }
+
+      // 2. Structured Predator references
+      if (Array.isArray(c.predatorSpecies)) {
+        c.predatorSpecies.forEach((p) => {
+          const clean = p.trim();
+          const norm = clean.toLowerCase();
+          if (clean && !knownNames.has(norm) && !seen.has(norm)) {
+            seen.add(norm);
+            ghosts.push({
+              name: clean,
+              referencedByCreatureId: c.id,
+              referencedByCreatureName: c.name,
+              role: 'predator',
+              suggestedCategory: 'beast',
+            });
+          }
+        });
+      }
+
+      // 3. Quoted / Bracketed entities in predatorPreyNiche text
+      if (c.predatorPreyNiche) {
+        const quoted = c.predatorPreyNiche.match(/[«"']([^»"']{2,28})[»"']/g);
+        if (quoted) {
+          quoted.forEach((q) => {
+            const clean = q.replace(/[«»"']/g, '').trim();
+            const norm = clean.toLowerCase();
+            if (clean && !knownNames.has(norm) && !seen.has(norm) && clean !== c.name.trim()) {
+              seen.add(norm);
+              ghosts.push({
+                name: clean,
+                referencedByCreatureId: c.id,
+                referencedByCreatureName: c.name,
+                role: 'niche_mention',
+                suggestedCategory: clean.includes('گیاه') || clean.includes('قارچ') || clean.includes('گل') || clean.includes('ریشه') ? 'flora' : 'beast',
+              });
+            }
+          });
+        }
+      }
+    });
+
+    return ghosts;
+  }, [bestiary]);
 
   const filteredCreatures = bestiary.filter((c) => {
     if (filterCategory === 'all') return true;
@@ -114,18 +202,26 @@ export default function BestiaryStudioPage() {
     });
   };
 
-  const handleOpenAddModal = () => {
+  const handleOpenAddModal = (prefill?: {
+    name?: string;
+    category?: 'beast' | 'monstrosity' | 'undead' | 'elemental' | 'flora' | 'draconic' | 'humanoid';
+    habitatIds?: string[];
+    rarity?: 'common' | 'uncommon' | 'rare' | 'legendary';
+    danger?: 1 | 2 | 3 | 4 | 5;
+    niche?: string;
+  }) => {
     setEditingCreatureId(null);
-    setCName('');
-    setCCategory('beast');
-    setCDanger(3);
-    setCHabitats([]);
+    setCName(prefill?.name || '');
+    setCCategory(prefill?.category || 'beast');
+    setCDanger(prefill?.danger || 3);
+    setCRarity(prefill?.rarity || 'common');
+    setCHabitats(prefill?.habitatIds || []);
     setCTactics('');
     setCWeaknesses('');
     setCResistances('');
     setCLoot([]);
     setCDesc('');
-    setCNiche('');
+    setCNiche(prefill?.niche || '');
     setCPacification('');
     setCYields([]);
     setShowAddModal(true);
@@ -136,6 +232,7 @@ export default function BestiaryStudioPage() {
     setCName(c.name);
     setCCategory(c.speciesCategory);
     setCDanger(c.dangerLevel);
+    setCRarity(c.rarity || 'common');
     setCHabitats(c.habitatLocationIds || []);
     setCTactics(c.behavioralTactics);
     setCWeaknesses(c.weaknesses.join('\n'));
@@ -181,6 +278,7 @@ export default function BestiaryStudioPage() {
       name: cName.trim(),
       speciesCategory: cCategory,
       dangerLevel: cDanger,
+      rarity: cRarity,
       habitatLocationIds: cHabitats,
       behavioralTactics: cTactics.trim() || (isPersian ? 'حمله غافلگیرکننده' : 'Ambush and swarm tactics'),
       weaknesses: weaknessesArr.length > 0 ? weaknessesArr : [isPersian ? 'آسیب آتشین' : 'Fire damage'],
@@ -249,6 +347,8 @@ export default function BestiaryStudioPage() {
       predatorPreyNiche: payload.predatorPreyNiche,
       nonCombatPacificationMethod: payload.nonCombatPacificationMethod,
       alchemicalYields: payload.alchemicalYields,
+      preySpecies: payload.preySpecies,
+      predatorSpecies: payload.predatorSpecies,
     });
     setExpandedEcologyIds((prev) => new Set(prev).add(targetCreature.id));
     setEcologyPreview(null);
@@ -257,7 +357,7 @@ export default function BestiaryStudioPage() {
 
   const handleOpenEcologyModal = (
     c: WorldCreature,
-    initial?: { niche?: string; pacification?: string; yields?: CreatureAlchemicalYield[] }
+    initial?: { niche?: string; pacification?: string; yields?: CreatureAlchemicalYield[]; prey?: string[]; predators?: string[] }
   ) => {
     setEditingEcologyCreature(c);
     setEcoNiche(initial?.niche ?? c.predatorPreyNiche ?? '');
@@ -269,6 +369,8 @@ export default function BestiaryStudioPage() {
         ? JSON.parse(JSON.stringify(c.alchemicalYields))
         : []
     );
+    setEcoPrey(initial?.prey ?? c.preySpecies ?? []);
+    setEcoPredators(initial?.predators ?? c.predatorSpecies ?? []);
     setNewReagentName('');
     setNewReagentRarity('common');
     setNewReagentUse('');
@@ -310,6 +412,8 @@ export default function BestiaryStudioPage() {
       predatorPreyNiche: ecoNiche.trim() || undefined,
       nonCombatPacificationMethod: ecoPacification.trim() || undefined,
       alchemicalYields: ecoYields.length > 0 ? ecoYields : undefined,
+      preySpecies: ecoPrey.length > 0 ? ecoPrey : undefined,
+      predatorSpecies: ecoPredators.length > 0 ? ecoPredators : undefined,
     });
     setExpandedEcologyIds((prev) => new Set(prev).add(editingEcologyCreature.id));
     setEditingEcologyCreature(null);
@@ -331,6 +435,8 @@ export default function BestiaryStudioPage() {
         predatorPreyNiche: undefined,
         nonCombatPacificationMethod: undefined,
         alchemicalYields: undefined,
+        preySpecies: undefined,
+        predatorSpecies: undefined,
       });
       notify.success(isPersian ? 'داده‌های اکولوژی پاک شد' : 'Ecology data cleared');
     }
@@ -361,6 +467,10 @@ export default function BestiaryStudioPage() {
     if (!cName && data.name) setCName(data.name as string);
     if (data.speciesCategory) setCCategory(data.speciesCategory as typeof cCategory);
     if (data.dangerLevel) setCDanger(data.dangerLevel as typeof cDanger);
+    if (data.rarity) setCRarity(data.rarity as typeof cRarity);
+    if (Array.isArray(data.habitatLocationIds) && (!cHabitats || cHabitats.length === 0)) {
+      setCHabitats(data.habitatLocationIds as string[]);
+    }
     if (!cTactics && data.behavioralTactics) setCTactics(data.behavioralTactics as string);
     if (!cDesc && data.loreDescription) setCDesc(data.loreDescription as string);
     if (!cWeaknesses && Array.isArray(data.weaknesses)) setCWeaknesses((data.weaknesses as string[]).join('\n'));
@@ -401,22 +511,33 @@ export default function BestiaryStudioPage() {
           <div className="flex items-center gap-2.5 mb-1">
             <Skull className="w-5 h-5 text-red-400" />
             <h2 className="text-xl md:text-2xl font-bold text-zinc-100">
-              {isPersian ? 'دانشنامه زیست‌بوم و جانوران جهان' : 'Bestiary & Ecological Systems'}
+              {isPersian ? 'دانشنامه جانوران، گیاهان و زیست‌بوم جهان' : 'Fauna, Flora & Ecological Systems'}
             </h2>
           </div>
           <p className="text-sm text-zinc-400 max-w-3xl leading-relaxed">
             {isPersian
-              ? 'مدیریت جانوران، هیولاها، زنجیره غذایی، روش‌های رام‌سازی بدون خون‌ریزی و مواد قابل استخراج کیمیاگری.'
-              : 'Catalogue fauna, monstrosities, ecological niches, non-lethal pacification, and alchemical crafting yields.'}
+              ? 'مدیریت گونه‌های جانوری، گیاهان، قارچ‌ها، زنجیره غذایی، روش‌های رام‌سازی، زیستگاه‌ها و مواد کیمیاگری.'
+              : 'Catalogue fauna, botanicals, ecological niches, non-lethal pacification, habitats, and alchemical crafting yields.'}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {ghostSpeciesList.length > 0 && (
+            <button
+              onClick={() => setFilterCategory('ghosts')}
+              className="text-xs bg-red-500/15 border border-red-500/30 hover:border-red-500/60 text-red-300 px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(239,68,68,0.25)] animate-pulse cursor-pointer"
+            >
+              <Ghost className="w-3.5 h-3.5 text-red-400" />
+              <span>
+                {ghostSpeciesList.length} {isPersian ? 'گونه ناموجود شناسایی شد' : 'Ghost species detected'}
+              </span>
+            </button>
+          )}
           <span className="text-xs bg-red-500/10 border border-red-500/20 text-red-300 px-3.5 py-1.5 rounded-xl font-mono flex items-center gap-1.5">
             <Crosshair className="w-3.5 h-3.5 text-red-400" />
             {bestiary.length} {isPersian ? 'گونه ثبت‌شده' : 'Registered Species'}
           </span>
           <button
-            onClick={handleOpenAddModal}
+            onClick={() => handleOpenAddModal()}
             className="px-4 py-2 rounded-2xl bg-gradient-to-r from-red-500 to-amber-600 hover:from-red-400 text-zinc-950 text-xs font-bold shadow-lg shadow-red-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -450,11 +571,104 @@ export default function BestiaryStudioPage() {
             {isPersian ? val.labelFa : val.labelEn}
           </button>
         ))}
+        {ghostSpeciesList.length > 0 && (
+          <button
+            onClick={() => setFilterCategory('ghosts')}
+            className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              filterCategory === 'ghosts'
+                ? 'bg-red-500/20 border border-red-500/50 text-red-300 shadow-md shadow-red-500/20'
+                : 'text-red-400/90 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20'
+            }`}
+          >
+            <Ghost className="w-3.5 h-3.5 text-red-400" />
+            <span>{isPersian ? 'گونه‌های ناموجود' : 'Ghost Species'}</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-red-500/30 text-[10px] font-mono">
+              {ghostSpeciesList.length}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Bestiary Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCreatures.length === 0 ? (
+        {filterCategory === 'ghosts' ? (
+          ghostSpeciesList.length === 0 ? (
+            <div className="col-span-full text-center py-16 bg-zinc-900/40 border border-zinc-800/60 rounded-3xl p-8">
+              <Ghost className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
+              <h4 className="text-sm font-bold text-zinc-300">
+                {isPersian ? 'گونه ناموجودی یافت نشد؛ بوم‌سازگان کامل است!' : 'No ghost species found; ecology is complete!'}
+              </h4>
+            </div>
+          ) : (
+            ghostSpeciesList.map((ghost, gIdx) => (
+              <div
+                key={gIdx}
+                className="bg-red-950/20 border border-red-500/40 hover:border-red-500/80 rounded-3xl p-6 backdrop-blur-xl shadow-xl shadow-red-950/20 flex flex-col justify-between transition-all space-y-4 relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-red-500/0 via-red-500/60 to-red-500/0" />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2 border-b border-red-500/20 pb-3">
+                    <span className="px-2.5 py-0.5 rounded-xl text-xs font-bold border text-red-300 bg-red-500/10 border-red-500/30 flex items-center gap-1.5 animate-pulse">
+                      <Ghost className="w-3.5 h-3.5 text-red-400" />
+                      <span>{isPersian ? 'گونه ناموجود در جهان' : 'Ghost / Missing Species'}</span>
+                    </span>
+                    <span className="text-[10px] text-zinc-400 font-mono">
+                      {ghost.suggestedCategory === 'flora' ? (isPersian ? '🌿 رستنی / گیاه' : 'Flora') : (isPersian ? '🐾 جانور' : 'Fauna')}
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-bold text-red-200 flex items-center gap-2">
+                      <span>{ghost.name}</span>
+                    </h3>
+                    <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                      {ghost.role === 'prey'
+                        ? isPersian
+                          ? `این گونه به عنوان منبع غذایی / طعمه توسط «${ghost.referencedByCreatureName}» مصرف می‌شود ولی شناسنامه‌ای در جهان ندارد.`
+                          : `Referenced as prey / sustenance by "${ghost.referencedByCreatureName}", but has no entry in the bestiary.`
+                        : ghost.role === 'predator'
+                        ? isPersian
+                          ? `این گونه به عنوان شکارچی و تهدید طبیعی «${ghost.referencedByCreatureName}» ذکر شده ولی در جهان ثبت نشده است.`
+                          : `Referenced as a predator / threat to "${ghost.referencedByCreatureName}", but has no entry in the bestiary.`
+                        : isPersian
+                        ? `در جایگاه بوم‌شناختی «${ghost.referencedByCreatureName}» به نام این گونه اشاره شده ولی ثبت مستقل نشده است.`
+                        : `Mentioned in the ecological niche of "${ghost.referencedByCreatureName}", but lacks an independent entry.`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-red-500/20 flex items-center justify-between">
+                  <span className="text-[11px] text-zinc-500">
+                    {isPersian ? 'ارجاع‌دهنده:' : 'Referenced by:'} <strong className="text-zinc-300">{ghost.referencedByCreatureName}</strong>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleOpenAddModal({
+                        name: ghost.name,
+                        category: ghost.suggestedCategory,
+                        niche:
+                          ghost.role === 'prey'
+                            ? isPersian
+                              ? `منبع غذایی برای ${ghost.referencedByCreatureName}`
+                              : `Sustenance for ${ghost.referencedByCreatureName}`
+                            : ghost.role === 'predator'
+                            ? isPersian
+                              ? `شکارچی طبیعی ${ghost.referencedByCreatureName}`
+                              : `Natural predator of ${ghost.referencedByCreatureName}`
+                            : undefined,
+                      })
+                    }
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-red-500 to-amber-600 hover:from-red-400 text-zinc-950 text-xs font-bold shadow-md shadow-red-500/20 flex items-center gap-1.5 cursor-pointer transition-all"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{isPersian ? 'ثبت فوری در جهان' : 'Materialize'}</span>
+                  </button>
+                </div>
+              </div>
+            ))
+          )
+        ) : filteredCreatures.length === 0 ? (
           <div className="col-span-full text-center py-16 bg-zinc-900/40 border border-zinc-800/60 rounded-3xl p-8">
             <Skull className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
             <h4 className="text-sm font-bold text-zinc-300">
@@ -477,9 +691,19 @@ export default function BestiaryStudioPage() {
                 <div className="space-y-4">
                   {/* Card Header */}
                   <div className="flex items-center justify-between gap-2 border-b border-zinc-800 pb-3">
-                    <span className={`px-3 py-1 rounded-xl text-xs font-bold border ${catMeta.color}`}>
-                      {isPersian ? catMeta.labelFa : catMeta.labelEn}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`px-3 py-1 rounded-xl text-xs font-bold border ${catMeta.color}`}>
+                        {isPersian ? catMeta.labelFa : catMeta.labelEn}
+                      </span>
+                      {(() => {
+                        const rMeta = CREATURE_RARITY[c.rarity || 'common'] || CREATURE_RARITY.common;
+                        return (
+                          <span className={`px-2.5 py-0.5 rounded-xl text-[10.5px] font-medium border ${rMeta.badgeClass}`}>
+                            {isPersian ? rMeta.labelFa : rMeta.labelEn}
+                          </span>
+                        );
+                      })()}
+                    </div>
 
                     <div className="flex items-center gap-1.5">
                       <button
@@ -596,7 +820,7 @@ export default function BestiaryStudioPage() {
 
                     {isEcologyExpanded && (
                       <div className="p-3.5 pt-0 space-y-2.5 text-xs border-t border-zinc-900 animate-fadeIn">
-                        {(c.predatorPreyNiche || c.nonCombatPacificationMethod || (c.alchemicalYields && c.alchemicalYields.length > 0)) && (
+                        {(c.predatorPreyNiche || c.nonCombatPacificationMethod || (c.alchemicalYields && c.alchemicalYields.length > 0) || (c.preySpecies && c.preySpecies.length > 0) || (c.predatorSpecies && c.predatorSpecies.length > 0)) && (
                           <div className="flex items-center justify-between pb-2 border-b border-zinc-800/60">
                             <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
                               <Leaf className="w-3.5 h-3.5" />
@@ -631,6 +855,83 @@ export default function BestiaryStudioPage() {
                               🦁 {isPersian ? 'جایگاه در زنجیره غذایی:' : 'Ecological Niche:'}
                             </span>
                             <p className="text-zinc-300 mt-0.5">{c.predatorPreyNiche}</p>
+                          </div>
+                        )}
+
+                        {/* Food Chain Prey & Predator Tags with Ghost Species Tracker */}
+                        {((c.preySpecies && c.preySpecies.length > 0) || (c.predatorSpecies && c.predatorSpecies.length > 0)) && (
+                          <div className="space-y-2 pt-0.5">
+                            {c.preySpecies && c.preySpecies.length > 0 && (
+                              <div>
+                                <span className="text-[10px] text-zinc-500 block mb-1">
+                                  🐰 {isPersian ? 'طعمه‌ها و گیاهان مصرفی:' : 'Prey & Foraged Flora:'}
+                                </span>
+                                <div className="flex flex-wrap gap-1">
+                                  {c.preySpecies.map((p, pIdx) => {
+                                    const exists = bestiary.some((item) => item.name.trim().toLowerCase() === p.trim().toLowerCase());
+                                    return exists ? (
+                                      <span key={pIdx} className="px-2 py-0.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10.5px]">
+                                        {p}
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        key={pIdx}
+                                        onClick={() =>
+                                          handleOpenAddModal({
+                                            name: p,
+                                            category: p.includes('گیاه') || p.includes('قارچ') || p.includes('گل') || p.includes('ریشه') ? 'flora' : 'beast',
+                                            niche: isPersian ? `منبع غذایی برای ${c.name}` : `Prey of ${c.name}`,
+                                          })
+                                        }
+                                        className="px-2 py-0.5 rounded-lg bg-red-950/40 border border-red-500/50 hover:border-red-400 text-red-300 text-[10.5px] flex items-center gap-1 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse cursor-pointer"
+                                        title={isPersian ? 'گونه در جهان ثبت نشده است! برای ثبت کلیک کنید.' : 'Missing species! Click to materialize.'}
+                                      >
+                                        <AlertTriangle className="w-3 h-3 text-red-400" />
+                                        <span>{p}</span>
+                                        <Plus className="w-2.5 h-2.5 text-red-300" />
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {c.predatorSpecies && c.predatorSpecies.length > 0 && (
+                              <div>
+                                <span className="text-[10px] text-zinc-500 block mb-1">
+                                  🐺 {isPersian ? 'شکارچیان طبیعی:' : 'Natural Predators:'}
+                                </span>
+                                <div className="flex flex-wrap gap-1">
+                                  {c.predatorSpecies.map((p, pIdx) => {
+                                    const exists = bestiary.some((item) => item.name.trim().toLowerCase() === p.trim().toLowerCase());
+                                    return exists ? (
+                                      <span key={pIdx} className="px-2 py-0.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10.5px]">
+                                        {p}
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        key={pIdx}
+                                        onClick={() =>
+                                          handleOpenAddModal({
+                                            name: p,
+                                            category: 'beast',
+                                            niche: isPersian ? `شکارچی طبیعی ${c.name}` : `Natural predator of ${c.name}`,
+                                          })
+                                        }
+                                        className="px-2 py-0.5 rounded-lg bg-red-950/40 border border-red-500/50 hover:border-red-400 text-red-300 text-[10.5px] flex items-center gap-1 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse cursor-pointer"
+                                        title={isPersian ? 'گونه در جهان ثبت نشده است! برای ثبت کلیک کنید.' : 'Missing species! Click to materialize.'}
+                                      >
+                                        <AlertTriangle className="w-3 h-3 text-red-400" />
+                                        <span>{p}</span>
+                                        <Plus className="w-2.5 h-2.5 text-red-300" />
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -675,7 +976,7 @@ export default function BestiaryStudioPage() {
                           </div>
                         )}
 
-                        {!c.predatorPreyNiche && !c.nonCombatPacificationMethod && (!c.alchemicalYields || c.alchemicalYields.length === 0) && (
+                        {!c.predatorPreyNiche && !c.nonCombatPacificationMethod && (!c.alchemicalYields || c.alchemicalYields.length === 0) && (!c.preySpecies || c.preySpecies.length === 0) && (!c.predatorSpecies || c.predatorSpecies.length === 0) && (
                           <div className="text-center py-4 text-zinc-500 text-xs space-y-2">
                             <p>{isPersian ? 'اکولوژی برای این موجود تعریف نشده است.' : 'No ecology data recorded.'}</p>
                             <div className="flex items-center justify-center gap-2">
@@ -704,15 +1005,39 @@ export default function BestiaryStudioPage() {
                 </div>
 
                 {/* Habitats */}
-                <div className="pt-3 border-t border-zinc-800 text-[11px] text-zinc-400 flex items-center justify-between">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-red-400" />
-                    {c.habitatLocationIds && c.habitatLocationIds.length > 0
-                      ? `${c.habitatLocationIds.length} ${isPersian ? 'زیستگاه ثبت‌شده' : 'habitats'}`
-                      : isPersian
-                      ? 'زیستگاه ناشناخته'
-                      : 'Unknown habitat'}
-                  </span>
+                <div className="pt-3 border-t border-zinc-800 text-[11px] text-zinc-400 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <MapPin className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                    {c.habitatLocationIds && c.habitatLocationIds.length > 0 ? (
+                      c.habitatLocationIds.map((locId) => {
+                        const loc = locations.find((l) => l.id === locId);
+                        if (loc) {
+                          return (
+                            <span
+                              key={locId}
+                              className="px-2 py-0.5 rounded-lg bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 text-[10.5px]"
+                            >
+                              {loc.name}
+                            </span>
+                          );
+                        }
+                        return (
+                          <span
+                            key={locId}
+                            className="px-2 py-0.5 rounded-lg bg-red-950/40 border border-red-500/50 text-red-300 text-[10.5px] flex items-center gap-1 shadow-[0_0_8px_rgba(239,68,68,0.2)]"
+                            title={isPersian ? 'شناسه مکان در کتاب جهان یافت نشد' : 'Location ID not found in world bible'}
+                          >
+                            <AlertTriangle className="w-3 h-3 text-red-400" />
+                            <span>{locId}</span>
+                          </span>
+                        );
+                      })
+                    ) : (
+                      <span className="text-zinc-500 italic">
+                        {isPersian ? 'زیستگاه نامشخص' : 'Unknown habitat'}
+                      </span>
+                    )}
+                  </div>
                   <span className="font-mono text-zinc-500 text-[10px]">ID: {c.id}</span>
                 </div>
               </div>
@@ -876,21 +1201,83 @@ export default function BestiaryStudioPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                    {isPersian ? 'رده زیستی:' : 'Species Category:'}
+                  </label>
+                  <select
+                    value={cCategory}
+                    onChange={(e) => setCCategory(e.target.value as any)}
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
+                  >
+                    {Object.entries(SPECIES_CATEGORIES).map(([key, val]) => (
+                      <option key={key} value={key}>
+                        {isPersian ? val.labelFa : val.labelEn}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                    {isPersian ? 'سطح فراوانی و کمیابی:' : 'Population Rarity:'}
+                  </label>
+                  <select
+                    value={cRarity}
+                    onChange={(e) => setCRarity(e.target.value as any)}
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
+                  >
+                    {Object.entries(CREATURE_RARITY).map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {isPersian ? v.labelFa : v.labelEn}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Habitats Multi-Location Interactive Picker */}
               <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                  {isPersian ? 'رده زیستی:' : 'Species Category:'}
+                <label className="text-xs font-bold text-zinc-300 block mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-red-400" />
+                    {isPersian ? 'زیستگاه‌ها و مکان‌های زیست (چندانتخابی):' : 'Habitats & Distribution (Multi-select):'}
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    {cHabitats.length} {isPersian ? 'مکان انتخاب‌شده' : 'selected'}
+                  </span>
                 </label>
-                <select
-                  value={cCategory}
-                  onChange={(e) => setCCategory(e.target.value as any)}
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
-                >
-                  {Object.entries(SPECIES_CATEGORIES).map(([key, val]) => (
-                    <option key={key} value={key}>
-                      {isPersian ? val.labelFa : val.labelEn}
-                    </option>
-                  ))}
-                </select>
+                {locations.length === 0 ? (
+                  <p className="text-[11px] text-zinc-500 italic p-2.5 rounded-xl bg-zinc-950 border border-zinc-800">
+                    {isPersian ? 'هنوز مکانی در جهان ثبت نشده است.' : 'No locations registered in world bible yet.'}
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2.5 rounded-xl bg-zinc-950 border border-zinc-800">
+                    {locations.map((loc) => {
+                      const isSelected = cHabitats.includes(loc.id);
+                      return (
+                        <button
+                          type="button"
+                          key={loc.id}
+                          onClick={() => {
+                            setCHabitats((prev) =>
+                              isSelected ? prev.filter((id) => id !== loc.id) : [...prev, loc.id]
+                            );
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1 cursor-pointer ${
+                            isSelected
+                              ? 'bg-red-500/20 border border-red-500/50 text-red-300'
+                              : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                          }`}
+                        >
+                          <MapPin className="w-3 h-3" />
+                          <span>{loc.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1098,6 +1485,48 @@ export default function BestiaryStudioPage() {
                   }
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-400"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1">
+                    🐰 {isPersian ? 'طعمه‌ها و گیاهان مصرفی (با ویرگول جدا کنید):' : 'Prey Species / Foraged Flora (comma-separated):'}
+                  </label>
+                  <input
+                    type="text"
+                    value={ecoPrey.join('، ')}
+                    onChange={(e) =>
+                      setEcoPrey(
+                        e.target.value
+                          .split(/[,،]/)
+                          .map((s) => s.trim())
+                          .filter(Boolean)
+                      )
+                    }
+                    placeholder={isPersian ? 'بز کوهی، خرگوش، ریشه سرخ' : 'Mountain goat, Hare, Crimson root'}
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1">
+                    🐺 {isPersian ? 'شکارچیان طبیعی و تهدیدها (با ویرگول جدا کنید):' : 'Natural Predators (comma-separated):'}
+                  </label>
+                  <input
+                    type="text"
+                    value={ecoPredators.join('، ')}
+                    onChange={(e) =>
+                      setEcoPredators(
+                        e.target.value
+                          .split(/[,،]/)
+                          .map((s) => s.trim())
+                          .filter(Boolean)
+                      )
+                    }
+                    placeholder={isPersian ? 'اژدهای آتشین، خرس غارنشین' : 'Fire drake, Cave bear'}
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-400"
+                  />
+                </div>
               </div>
 
               {/* Alchemical Reagents List */}

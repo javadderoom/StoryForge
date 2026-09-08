@@ -110,8 +110,8 @@ function StudioShell({ children }: { children: React.ReactNode }) {
     },
     {
       href: '/studio/bestiary',
-      label: isPersian ? 'دانشنامه موجودات' : 'Bestiary',
-      shortLabel: isPersian ? 'هیولاها' : 'Bestiary',
+      label: isPersian ? 'جانوران و گیاهان' : 'Fauna & Flora',
+      shortLabel: isPersian ? 'زیست‌بوم' : 'Bestiary',
       icon: Skull,
       count: story.worldBible.bestiary?.length || 0,
     },
