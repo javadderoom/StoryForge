@@ -31,6 +31,10 @@ import { WorldCreature, CreatureAlchemicalYield, EnhancedCreaturePayload } from 
 import { notify } from '@/lib/notify';
 import AiFillSection from '@/components/studio/AiFillSection';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
+import {
+  extractPacificationEntities,
+  resolveSuggestedCategory,
+} from '@/lib/engines/world/pacificationExtractor';
 
 const SPECIES_CATEGORIES = {
   elemental: { labelFa: 'عنصری و سنگی', labelEn: 'Elemental', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' },
@@ -65,84 +69,8 @@ const RARITY_LABELS: Record<string, { en: string; fa: string }> = {
   legendary: { en: 'LEGENDARY', fa: 'افسانه‌ای' },
 };
 
-const isFloraName = (str: string) =>
-  /گیاه|قارچ|گل|ریشه|نیلوفر|سنبل|گون|گَوَن|خزه|درخت|بوته|پیچک|علف|بذر|برگ|بلوط|کاج|نسترن|پونه|سدر|بابونه|زعفران|lotus|lily|mushroom|fungus|root|moss|bloom|herb|fern|ivy|berry/i.test(str);
-
-const isMineralName = (str: string) =>
-  /نمک|گوگرد|بلور|کریستال|ابسیدین|معدنی|سنگ|جیوه|کانی|یاقوت|زمرد|عقیق|خاکستر|شفق|سیلیس|کوارتز|چخماق|آهک|شوره|salt|mineral|ore|crystal|obsidian|sulfur|brimstone|quartz|gem/i.test(str);
-
-const resolveSuggestedCategory = (str: string): 'flora' | 'mineral' | 'beast' => {
-  if (isMineralName(str)) return 'mineral';
-  if (isFloraName(str)) return 'flora';
-  return 'beast';
-};
-
-/**
- * Biological and Alchemical Pacification Entity Extractor
- * Extracts missing plant, mineral, animal, or reagent entities from nonCombatPacificationMethod text.
- */
-function extractPacificationEntities(text: string): Array<{ name: string; category: 'flora' | 'beast' | 'mineral' }> {
-  if (!text || typeof text !== 'string') return [];
-  const results: Array<{ name: string; category: 'flora' | 'beast' | 'mineral' }> = [];
-  const seen = new Set<string>();
-
-  const add = (rawName: string, explicitCat?: 'flora' | 'beast' | 'mineral') => {
-    let clean = rawName
-      .replace(/[\u064B-\u065F\u0670]/g, '') // strip diacritics like Fat-ha in گَوَن
-      .replace(/[«»"'״]/g, '')
-      .trim();
-
-    // Strip common action, preparation, and sensory adjective prefixes iteratively
-    const prefixRegex = /^(?:پاشیدن|مالیدن|خوراندن|تعارف|دود کردن|سوزاندن|استخراج|ریختن|آغشتن|عصارهٔ?|روغن|پودر|شیرهٔ?|دم‌کردهٔ?|جوشاندهٔ?|تخم|ریشه(?:های|‌های)?|ریشهٔ?|برگ(?:های|‌های)?|گلبرگ(?:های|‌های)?|بلور(?:های|‌های)?|بلور|گیاه|قارچ|تخمیرشدهٔ?|تخمیرشده|غلیظ شدهٔ?|غلیظ‌شدهٔ?|خشک شدهٔ?|خشک‌شدهٔ?|ساییده شدهٔ?|ساییدهٔ?|پختهٔ?|خام|تازهٔ?|تلخ|غلیظ|شور|تند|خالص|ناخالص|و)\s+/gu;
-    let prev = '';
-    while (prev !== clean) {
-      prev = clean;
-      clean = clean.replace(prefixRegex, '').trim();
-    }
-
-    // Strip trailing sensory adjectives
-    const suffixAdjectives = /\s+(?:خالص|ناخالص|تلخ|شیرین|غلیظ|شور|تند|تازه|کهنه|خام|پخته|ساییده|آسیاب‌شده)$/gu;
-    clean = clean.replace(suffixAdjectives, '').trim();
-
-    // Strip trailing prepositional particles and stop words
-    clean = clean.replace(/\s+(?:بر روی|روی|در|برای|به|با|که|تا|از|سپس|جهت|را).*$/gu, '').trim();
-
-    if (!clean || clean.length < 2 || clean.length > 35) return;
-    const norm = clean.toLowerCase();
-    if (seen.has(norm)) return;
-    seen.add(norm);
-
-    const category = explicitCat || resolveSuggestedCategory(clean);
-    results.push({ name: clean, category });
-  };
-
-  // 1. Quoted entities in text (e.g. «نیلوفر مردابی», "Silver Lotus")
-  const quotes = text.match(/[«"']([^»"']{2,35})[»"']/g);
-  if (quotes) {
-    quotes.forEach((q) => add(q));
-  }
-
-  // 2. Split clauses on conjunctions (یا / و) and punctuation to prevent bleeding
-  const fragments = text.split(/\s+یا\s+|[;؛\n]+/u);
-  for (const frag of fragments) {
-    // Direct Anchor words followed by regional/descriptive modifiers (e.g. "نمک معدنی", "گون کوهی", "نیلوفر مردابی")
-    const directAnchorRegex = /(?:^|[\s«"'(،,;؛])(نیلوفر|سنبل|قارچ|خزه|پیچک|گَ?وَن|گون|گوزن|گرگ|خرس|گراز|شاهین|عقاب|افعی|مانتیکور|نمک|گوگرد|بلور|کوارتز|ابسیدین)\s+([\u0600-\u06FF]{2,20})(?=$|[\s»"')،,;؛])/gu;
-    let match;
-    while ((match = directAnchorRegex.exec(frag)) !== null) {
-      add(`${match[1]} ${match[2]}`);
-    }
-
-    // Bio / Mineral prep patterns
-    const bioAnchorsRegex = /(?:عصارهٔ?|روغن|پودر|شیرهٔ?|دم‌کردهٔ?|جوشاندهٔ?|ریشه(?:های|‌های)?|ریشهٔ?|برگ(?:های|‌های)?|گلبرگ(?:های|‌های)?|بذر|گوشت|خون|زهر|بلور|سنگ|نمک|کانی)\s+(?:(?:غلیظ شدهٔ?|غلیظ‌شدهٔ?|تخمیرشدهٔ?|تخمیرشده|خشک شدهٔ?|خشک‌شدهٔ?|ساییدهٔ?|پختهٔ?|تازهٔ?|خام|تلخ|غلیظ|شور|تند|خالص|ناخالص|و)\s+)*(?:(?:ریشه(?:های|‌های)?|ریشهٔ?|برگ(?:های|‌های)?|تخم|گیاه|سنگ|بلور)\s+)*([\u0600-\u06FF\s]{2,30}?)(?=\s+(?:بر روی|روی|در|برای|به|با|که|تا|و|از|سپس|جهت|را|[.,،;؛]|$))/gu;
-    while ((match = bioAnchorsRegex.exec(frag)) !== null) {
-      if (match[1]) {
-        add(match[1]);
-      }
-    }
-  }
-
-  return results;
-}
+// Pacification entity extraction (ghost-species tracker) lives in the shared
+// lib module so it can be unit-tested: '@/lib/engines/world/pacificationExtractor'.
 
 /**
  * Generic humanoid collective nouns, military groups, tribes, and victim groups that
