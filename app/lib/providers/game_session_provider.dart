@@ -355,6 +355,14 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     state = state.copyWith(
       playerState: state.playerState!.copyWith(equipment: currentEq),
     );
+
+    // Fire-and-forget server sync for equipment changes
+    if (state.sessionId.isNotEmpty && state.playerState != null) {
+      GameApiService.patchSession(
+        sessionId: state.sessionId,
+        playerState: state.playerState!,
+      );
+    }
   }
 
   /// Unequips an item from the specified slot
@@ -381,6 +389,14 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     state = state.copyWith(
       playerState: state.playerState!.copyWith(equipment: currentEq),
     );
+
+    // Fire-and-forget server sync for equipment changes
+    if (state.sessionId.isNotEmpty && state.playerState != null) {
+      GameApiService.patchSession(
+        sessionId: state.sessionId,
+        playerState: state.playerState!,
+      );
+    }
   }
 
   /// Uses a consumable item (e.g. healing potion)

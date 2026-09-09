@@ -39,6 +39,11 @@ const UNBREAKABLE_TRUST_THRESHOLD = 90;
 const SEVERE_PRESSURE_KEYWORDS =
   /children|child\b|son\b|daughter|wife|husband|family|families|loved ones|kill you|kill him|kill her|murder|die\b|death of|burn it|فرزند|فرزندان|بچه|پسر|دختر|همسر|خانواده|کشتن|بکش|مرگ|نابود/;
 
+/** Common words in NPC titles / names that shouldn't trigger spurious matches */
+const NAME_STOPWORDS = new Set([
+  'the', 'and', 'for', 'van', 'von', 'del', 'der', 'den', 'des', 'with', 'from', 'about',
+]);
+
 export interface RollOptions {
   statId?: string;
   skillId?: string;
@@ -331,8 +336,11 @@ export class GameEngine {
       const nameWords = npc.name
         .toLowerCase()
         .split(/[^a-z\u0600-\u06FF]+/)
-        .filter((w) => w.length >= 3);
-      if (nameWords.some((w) => lower.includes(w))) return npc;
+        .filter((w) => w.length >= 3 && !NAME_STOPWORDS.has(w));
+      if (nameWords.some((w) => {
+        const regex = new RegExp(`(^|[^a-z\u0600-\u06FF])${w}([^a-z\u0600-\u06FF]|$)`, 'i');
+        return regex.test(lower);
+      })) return npc;
     }
     return null;
   }
@@ -447,6 +455,170 @@ export class GameEngine {
         };
       }
     }
+  }
+
+  // ------------------------------------------------------------------
+  // Social Action Detection & Positive Trust Awards (Plan 11)
+  // ------------------------------------------------------------------
+
+  /** Keywords marking an action as a positive social interaction (EN + FA). */
+  private static readonly SOCIAL_KEYWORDS =
+    /greet|thank|compliment|praise|help|assist|gift|offer|share|comfort|encourage|befriend|ally|barter|trade|negotiate|persuade|charm|flatter|sing|play.*for|treat|heal|defend|protect|rescue|accompany|apologise|apologize|سلام|تشکر|تعریف|کمک|هدیه|پیشنهاد|تسلی|دلگرم|دوست|همراه|مداوا|حمایت|معامله|مذاکره/;
+
+  /**
+   * Returns true when the action text contains positive-social keywords
+   * and is NOT a pressure/coercion action (those are mutually exclusive).
+   */
+  public static isSocialAction(actionText: string): boolean {
+    if (this.isPressureAction(actionText)) return false;
+    return this.SOCIAL_KEYWORDS.test(actionText.toLowerCase());
+  }
+
+  /**
+   * Finds the NPC a social action is aimed at (name match, same word rules
+   * as detectPressureTarget). Null when the action is not social or no
+   * known NPC is named.
+   */
+  public static detectSocialTarget(
+    actionText: string,
+    npcs: NPCDossier[]
+  ): NPCDossier | null {
+    if (!this.isSocialAction(actionText)) return null;
+    const lower = actionText.toLowerCase();
+    for (const npc of npcs ?? []) {
+      const nameWords = npc.name
+        .toLowerCase()
+        .split(/[^a-z\u0600-\u06FF]+/)
+        .filter((w) => w.length >= 3 && !NAME_STOPWORDS.has(w));
+      if (nameWords.some((w) => {
+        const regex = new RegExp(`(^|[^a-z\u0600-\u06FF])${w}([^a-z\u0600-\u06FF]|$)`, 'i');
+        return regex.test(lower);
+      })) return npc;
+    }
+    return null;
+  }
+
+  /**
+   * Deterministic positive trust award from a successful social interaction.
+   * The trust delta scales with the dice outcome; failures still earn small
+   * goodwill because the player *tried*.
+   *
+   * Pure function of (outcome, actionStyle).
+   */
+  public static applySocialOutcome(
+    outcome: DiceOutcome,
+    actionStyle: string
+  ): { trustDelta: number; note: string } {
+    // Diplomatic actions get a small bonus to trust awards
+    const styleBonus = actionStyle === 'diplomatic' ? 2 : 0;
+
+    switch (outcome) {
+      case 'critical_success':
+        return { trustDelta: 15 + styleBonus, note: 'A brilliant social gesture — deep trust earned.' };
+      case 'success':
+        return { trustDelta: 8 + styleBonus, note: 'A warm social exchange builds trust.' };
+      case 'mixed_success':
+        return { trustDelta: 4 + styleBonus, note: 'The gesture is appreciated, if clumsy.' };
+      case 'failure':
+        return { trustDelta: 2, note: 'The effort is noticed, even if it fell flat.' };
+      case 'critical_failure':
+      default:
+        return { trustDelta: -3, note: 'A social blunder — the gesture backfires.' };
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Option C Hybrid Defeat System
+  // ------------------------------------------------------------------
+
+  /**
+   * Determines if the player has been defeated (HP ≤ 0) and returns the
+   * penalties and narrative context for the hybrid defeat resolution.
+   *
+   * Rules:
+   * - 1st defeat: Lose 50% gold, wake at last safe location, -5 trust
+   *   from all NPCs present, narrative scar (consequence text).
+   * - 2nd defeat: Lose a random non-quest inventory item + above.
+   * - 3rd+ defeat: Permanent stat penalty (-1 to a relevant stat) + above.
+   *
+   * This method returns a StateMutationDiff that should be applied on top
+   * of the existing state, plus narrative context for the AI.
+   *
+   * Pure function of (currentState, defeatCount, rpgSystem, checkedStatId).
+   */
+  public static resolveDefeat(
+    currentState: PlayerState,
+    rpgSystem: RPGSystemSchema,
+    checkedStatId?: string
+  ): {
+    diff: StateMutationDiff;
+    defeatCount: number;
+    narrativeHint: string;
+  } {
+    const count = (currentState.defeatCount ?? 0) + 1;
+    const diff: StateMutationDiff = { resourceChanges: {} };
+
+    // --- Gold Penalty (always): lose 50% of current gold ---
+    const goldResource = rpgSystem.resources.find((r) => r.id === 'gold');
+    const currentGold = currentState.resources?.gold ?? currentState.resources?.['gold'] ?? 0;
+    if (goldResource && currentGold > 0) {
+      const goldLoss = -Math.floor(currentGold * 0.5);
+      diff.resourceChanges!['gold'] = goldLoss;
+    }
+
+    // --- HP: restore to 25% of max to allow play to continue ---
+    const hpResource = rpgSystem.resources.find((r) => r.id === 'hp');
+    const hpMax = hpResource?.max ?? 100;
+    const currentHp = currentState.resources?.hp ?? 0;
+    const reviveHp = Math.max(1, Math.floor(hpMax * 0.25));
+    diff.resourceChanges!['hp'] = reviveHp - currentHp;
+
+    // --- Trust penalty: -5 to all known relationships ---
+    const relChanges: Record<string, { trustDelta: number }> = {};
+    for (const npcId of Object.keys(currentState.relationships ?? {})) {
+      relChanges[npcId] = { trustDelta: -5 };
+    }
+    diff.relationshipChanges = relChanges;
+
+    // --- 2nd+ defeat: lose a random non-quest item ---
+    if (count >= 2) {
+      const lossableItems = currentState.inventory.filter(
+        (i) => i.type !== 'quest_item' && !/quest|relic|key/i.test(i.id)
+      );
+      if (lossableItems.length > 0) {
+        const idx = Math.floor(Math.random() * lossableItems.length);
+        diff.itemsRemovedIds = [lossableItems[idx].id];
+      }
+    }
+
+    // --- 3rd+ defeat: permanent stat penalty ---
+    if (count >= 3) {
+      const statId = checkedStatId || rpgSystem.stats[0]?.id;
+      if (statId) {
+        diff.statChanges = { [statId]: -1 };
+      }
+    }
+
+    // --- Location: return to first discovered location (safe haven) ---
+    const safeLocId = currentState.discoveredLocationIds[0] ?? currentState.currentLocationId;
+    diff.locationChange = safeLocId;
+
+    // --- Build narrative hint for the AI ---
+    const ordinal = count === 1 ? '1st' : count === 2 ? '2nd' : `${count}th`;
+    let hint = `DEFEAT (${ordinal} time): The player has fallen in battle. `;
+    hint += `They lost half their gold and wake at ${safeLocId} with ${reviveHp} HP. `;
+    hint += `All NPC trust decreased by 5. `;
+    if (count >= 2 && diff.itemsRemovedIds?.length) {
+      const lostItem = currentState.inventory.find((i) => i.id === diff.itemsRemovedIds![0]);
+      hint += `They lost their ${lostItem?.name ?? 'equipment'} in the fall. `;
+    }
+    if (count >= 3 && diff.statChanges) {
+      const [sid, delta] = Object.entries(diff.statChanges)[0];
+      hint += `Permanent scar: ${sid} ${delta}. `;
+    }
+    hint += `Narrate the defeat, unconsciousness, and grim awakening with escalating consequences. DO NOT kill the character.`;
+
+    return { diff, defeatCount: count, narrativeHint: hint };
   }
 
   /**

@@ -101,4 +101,26 @@ class GameApiService {
     final json = jsonDecode(response.body);
     return json;
   }
+
+  /// Patches the server-side session with the current PlayerState
+  /// (used after equipment changes, consumable use, etc.)
+  static Future<void> patchSession({
+    required String sessionId,
+    required PlayerState playerState,
+  }) async {
+    if (sessionId.isEmpty) return; // No session to patch (guest/offline)
+    try {
+      await http.patch(
+        Uri.parse('$baseUrl/api/play/session'),
+        headers: defaultHeaders,
+        body: jsonEncode({
+          'sessionId': sessionId,
+          'playerState': playerState.toJson(),
+        }),
+      );
+    } catch (_) {
+      // Equipment sync is best-effort; failures are silent because
+      // the server already holds the authoritative state from the last turn.
+    }
+  }
 }

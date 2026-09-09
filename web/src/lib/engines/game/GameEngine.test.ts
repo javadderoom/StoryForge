@@ -576,3 +576,185 @@ describe('Plan 08 - Living World State Ledger derivation', () => {
     assert.deepEqual(merged.keyItems.map((k) => k.itemId), ['item_a', 'item_b']);
   });
 });
+
+// =====================================================================
+// Social Trust Detection & Positive Trust Awards (Plan 11)
+// =====================================================================
+describe('GameEngine - Social Trust Detection', () => {
+  const baroness: NPCDossier = {
+    id: 'npc_baroness',
+    name: 'Baroness Vey',
+    role: 'noble',
+    personality: 'cunning',
+    speechStyle: 'formal',
+    initialTrust: 20,
+    secrets: [],
+  } as unknown as NPCDossier;
+
+  const merchant: NPCDossier = {
+    id: 'npc_merchant',
+    name: 'Kael the Merchant',
+    role: 'merchant',
+    personality: 'friendly',
+    speechStyle: 'casual',
+    initialTrust: 30,
+    secrets: [],
+  } as unknown as NPCDossier;
+
+  describe('isSocialAction', () => {
+    it('detects positive social keywords (EN)', () => {
+      assert.equal(GameEngine.isSocialAction('I greet the merchant warmly'), true);
+      assert.equal(GameEngine.isSocialAction('Thank Baroness Vey for her help'), true);
+      assert.equal(GameEngine.isSocialAction('Offer a gift to the elder'), true);
+      assert.equal(GameEngine.isSocialAction('I help the injured guard'), true);
+    });
+
+    it('detects positive social keywords (FA)', () => {
+      assert.equal(GameEngine.isSocialAction('سلام و تشکر از بارونس'), true);
+      assert.equal(GameEngine.isSocialAction('هدیه دادن به تاجر'), true);
+    });
+
+    it('rejects non-social actions', () => {
+      assert.equal(GameEngine.isSocialAction('I attack the guard'), false);
+      assert.equal(GameEngine.isSocialAction('Search the room for traps'), false);
+    });
+
+    it('pressure overrides social (mutually exclusive)', () => {
+      // "threaten" is pressure, even if "help" is also present
+      assert.equal(GameEngine.isSocialAction('Threaten to help nobody'), false);
+    });
+  });
+
+  describe('detectSocialTarget', () => {
+    it('finds named NPC in social action', () => {
+      assert.equal(
+        GameEngine.detectSocialTarget('Greet Baroness Vey warmly', [baroness, merchant])?.id,
+        'npc_baroness'
+      );
+    });
+
+    it('returns null for social action without named NPC', () => {
+      assert.equal(
+        GameEngine.detectSocialTarget('Greet the stranger warmly', [baroness, merchant]),
+        null
+      );
+    });
+
+    it('returns null for non-social action even with NPC name', () => {
+      assert.equal(
+        GameEngine.detectSocialTarget('Attack Baroness Vey', [baroness, merchant]),
+        null
+      );
+    });
+  });
+
+  describe('applySocialOutcome', () => {
+    it('awards maximum trust on critical success', () => {
+      const result = GameEngine.applySocialOutcome('critical_success', 'diplomatic');
+      assert.equal(result.trustDelta, 17); // 15 + 2 diplomatic bonus
+    });
+
+    it('awards standard trust on success', () => {
+      const result = GameEngine.applySocialOutcome('success', 'aggressive');
+      assert.equal(result.trustDelta, 8); // no diplomatic bonus
+    });
+
+    it('awards small trust on failure (tried)', () => {
+      const result = GameEngine.applySocialOutcome('failure', 'diplomatic');
+      assert.equal(result.trustDelta, 2); // no bonus on failure
+    });
+
+    it('penalizes on critical failure', () => {
+      const result = GameEngine.applySocialOutcome('critical_failure', 'diplomatic');
+      assert.equal(result.trustDelta, -3);
+    });
+  });
+});
+
+// =====================================================================
+// Option C Hybrid Defeat System
+// =====================================================================
+describe('GameEngine - Hybrid Defeat System', () => {
+  const rpgSystem: RPGSystemSchema = {
+    hasCombat: true,
+    diceType: 'd20',
+    stats: [
+      { id: 'might', name: 'Might', description: 'Strength', baseValue: 14 },
+      { id: 'agility', name: 'Agility', description: 'Speed', baseValue: 12 },
+    ],
+    resources: [
+      { id: 'hp', name: 'Health', current: 100, max: 100, min: 0 },
+      { id: 'gold', name: 'Gold', current: 200, max: 9999, min: 0 },
+    ],
+    skills: [],
+    startingInventory: [],
+    inventoryCapacity: 10,
+  };
+
+  const baseState: PlayerState = {
+    stats: { might: 14, agility: 12 },
+    resources: { hp: 0, gold: 200 },
+    inventory: [
+      { id: 'sword', name: 'Iron Sword', type: 'weapon', quantity: 1, description: '' },
+      { id: 'quest_scroll', name: 'Sacred Scroll', type: 'quest_item', quantity: 1, description: '' },
+    ],
+    equipment: {},
+    discoveredLocationIds: ['loc_village', 'loc_dungeon'],
+    relationships: {
+      npc_rolan: { trust: 30, knownSecrets: [], notes: [] },
+      npc_mira: { trust: 50, knownSecrets: [], notes: [] },
+    },
+    activeQuestIds: [],
+    completedQuestIds: [],
+    currentLocationId: 'loc_dungeon',
+    defeatCount: 0,
+  };
+
+  it('1st defeat: 50% gold loss, revive at 25% HP, trust -5, relocation', () => {
+    const { diff, defeatCount, narrativeHint } = GameEngine.resolveDefeat(baseState, rpgSystem);
+
+    assert.equal(defeatCount, 1);
+    assert.equal(diff.resourceChanges!['gold'], -100); // 50% of 200
+    assert.equal(diff.resourceChanges!['hp'], 25); // 25% of 100 - 0 current
+    assert.equal(diff.locationChange, 'loc_village'); // first discovered location
+    assert.equal(diff.relationshipChanges!['npc_rolan'].trustDelta, -5);
+    assert.equal(diff.relationshipChanges!['npc_mira'].trustDelta, -5);
+    assert.ok(!diff.itemsRemovedIds); // no item loss on 1st defeat
+    assert.ok(!diff.statChanges); // no stat penalty on 1st defeat
+    assert.ok(narrativeHint.includes('DEFEAT'));
+    assert.ok(narrativeHint.includes('1st'));
+  });
+
+  it('2nd defeat: also loses a random non-quest item', () => {
+    const state2 = { ...baseState, defeatCount: 1 };
+    const { diff, defeatCount } = GameEngine.resolveDefeat(state2, rpgSystem);
+
+    assert.equal(defeatCount, 2);
+    // Should remove a non-quest item (only 'sword' is eligible)
+    assert.ok(diff.itemsRemovedIds);
+    assert.equal(diff.itemsRemovedIds!.length, 1);
+    assert.equal(diff.itemsRemovedIds![0], 'sword'); // quest_scroll is protected
+    assert.ok(!diff.statChanges); // no stat penalty on 2nd defeat
+  });
+
+  it('3rd+ defeat: also applies permanent stat penalty', () => {
+    const state3 = { ...baseState, defeatCount: 2 };
+    const { diff, defeatCount, narrativeHint } = GameEngine.resolveDefeat(state3, rpgSystem, 'might');
+
+    assert.equal(defeatCount, 3);
+    assert.ok(diff.statChanges);
+    assert.equal(diff.statChanges!['might'], -1); // -1 to the checked stat
+    assert.ok(narrativeHint.includes('Permanent scar'));
+  });
+
+  it('quest items are never lost', () => {
+    // Only quest_scroll in inventory — should not be removable
+    const questOnlyState: PlayerState = {
+      ...baseState,
+      inventory: [{ id: 'quest_scroll', name: 'Sacred Scroll', type: 'quest_item', quantity: 1, description: '' }],
+      defeatCount: 1,
+    };
+    const { diff } = GameEngine.resolveDefeat(questOnlyState, rpgSystem);
+    assert.ok(!diff.itemsRemovedIds || diff.itemsRemovedIds.length === 0);
+  });
+});

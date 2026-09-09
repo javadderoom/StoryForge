@@ -158,6 +158,27 @@ export async function POST(req: NextRequest) {
       resolution.consequenceSummary += ` ${pressure.note}`;
     }
 
+    // 2b½. Positive social trust awards — mirror of the pressure system.
+    // When the player greets, helps, gifts, or otherwise positively engages
+    // a named NPC, they earn trust proportional to the dice outcome.
+    if (!pressureTarget) {
+      const socialTarget = GameEngine.detectSocialTarget(
+        playerActionText,
+        story.worldBible.npcs ?? []
+      );
+      if (socialTarget) {
+        const social = GameEngine.applySocialOutcome(resolution.outcome, actionStyle);
+        const changes = resolution.stateDiff.relationshipChanges ?? {};
+        const existing = changes[socialTarget.id] ?? { trustDelta: 0 };
+        changes[socialTarget.id] = {
+          trustDelta: existing.trustDelta + social.trustDelta,
+          ...(existing.newSecret ? { newSecret: existing.newSecret } : {}),
+        };
+        resolution.stateDiff.relationshipChanges = changes;
+        resolution.consequenceSummary += ` ${social.note}`;
+      }
+    }
+
     // 2c. Passive secret unlocks the engine can observe: trust thresholds
     // and completed quests. One per NPC per turn (lowest threshold first);
     // pressure/item/ritual/location/custom need triggers or the narrator.
@@ -193,11 +214,32 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Apply State Mutation Diff
-    const updatedPlayerState = GameEngine.applyStateMutation(
+    let updatedPlayerState = GameEngine.applyStateMutation(
       playerState,
       resolution.stateDiff,
       story.rpgSystem
     );
+
+    // 3b. Hybrid Defeat System (Option C) — when HP reaches 0 the player
+    // is NOT killed; instead escalating penalties are applied and the
+    // narrative resumes at the last safe location.
+    let defeatNarrativeHint: string | undefined;
+    const hpAfterMutation = updatedPlayerState.resources?.hp ?? 0;
+    if (hpAfterMutation <= 0) {
+      const defeat = GameEngine.resolveDefeat(
+        updatedPlayerState,
+        story.rpgSystem,
+        resolution.statId ?? undefined
+      );
+      updatedPlayerState = GameEngine.applyStateMutation(
+        updatedPlayerState,
+        defeat.diff,
+        story.rpgSystem
+      );
+      updatedPlayerState.defeatCount = defeat.defeatCount;
+      defeatNarrativeHint = defeat.narrativeHint;
+      resolution.consequenceSummary += ` ${defeat.narrativeHint}`;
+    }
 
     // ------------------------------------------------------------------
     // Plan 08 Phase 3: derive + merge the Living World State Ledger so
@@ -511,6 +553,8 @@ export async function POST(req: NextRequest) {
           activeChapterId: activeChapter?.id ?? null,
           remainingCredits,
           proseRepaired,
+          isDefeat: !!defeatNarrativeHint,
+          defeatCount: updatedPlayerState.defeatCount ?? 0,
         },
       },
       { headers: corsHeaders }

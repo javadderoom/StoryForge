@@ -303,6 +303,7 @@ export async function POST(req: NextRequest) {
       userId: userId as any,
       storyId: story.id,
       currentSceneId: initialBeat.sceneId,
+      currentChapterId: story.saga?.chapters?.[0]?.id,
       turnCount: 1,
       playerState,
       sagaLedger: {

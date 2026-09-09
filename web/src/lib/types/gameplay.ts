@@ -62,6 +62,8 @@ export interface PlayerState {
   activeQuestIds: string[];
   completedQuestIds: string[];
   currentLocationId: string;
+  /** Number of times the player has been defeated (HP → 0). Used by Hybrid Defeat system. */
+  defeatCount?: number;
 }
 
 export interface StateMutationDiff {
