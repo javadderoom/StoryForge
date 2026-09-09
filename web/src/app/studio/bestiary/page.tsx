@@ -251,6 +251,7 @@ export default function BestiaryStudioPage() {
   const [cCategory, setCCategory] = useState<'beast' | 'monstrosity' | 'undead' | 'elemental' | 'flora' | 'draconic' | 'humanoid' | 'mineral'>('beast');
   const [cDanger, setCDanger] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [cRarity, setCRarity] = useState<'common' | 'uncommon' | 'rare' | 'legendary'>('common');
+  const [cDomesticated, setCDomesticated] = useState<boolean>(false);
   const [cHabitats, setCHabitats] = useState<string[]>([]);
   const [cTactics, setCTactics] = useState('');
   const [cWeaknesses, setCWeaknesses] = useState('');
@@ -409,6 +410,7 @@ export default function BestiaryStudioPage() {
 
   const filteredCreatures = bestiary.filter((c) => {
     if (filterCategory === 'all') return true;
+    if (filterCategory === 'domesticated') return !!c.isDomesticated;
     return c.speciesCategory === filterCategory;
   });
 
@@ -430,12 +432,14 @@ export default function BestiaryStudioPage() {
     niche?: string;
     extractionMethod?: string;
     craftingProperties?: string;
+    domesticated?: boolean;
   }) => {
     setEditingCreatureId(null);
     setCName(prefill?.name || '');
     setCCategory(prefill?.category || 'beast');
     setCDanger(prefill?.danger || 3);
     setCRarity(prefill?.rarity || 'common');
+    setCDomesticated(prefill?.domesticated || false);
     setCHabitats(prefill?.habitatIds || []);
     setCTactics('');
     setCWeaknesses('');
@@ -456,6 +460,7 @@ export default function BestiaryStudioPage() {
     setCCategory(c.speciesCategory);
     setCDanger(c.dangerLevel);
     setCRarity(c.rarity || 'common');
+    setCDomesticated(!!c.isDomesticated);
     setCHabitats(c.habitatLocationIds || []);
     setCTactics(c.behavioralTactics);
     setCWeaknesses(c.weaknesses.join('\n'));
@@ -510,6 +515,7 @@ export default function BestiaryStudioPage() {
       speciesCategory: cCategory,
       dangerLevel: isMineral ? 1 : cDanger,
       rarity: cRarity,
+      isDomesticated: cDomesticated || undefined,
       habitatLocationIds: cHabitats,
       behavioralTactics: isMineral
         ? (cExtractionMethod.trim() || (isPersian ? 'استخراج با ابزار ویژه معدن‌کاوی' : 'Excavation via mining tools'))
@@ -548,6 +554,13 @@ export default function BestiaryStudioPage() {
       const promptParts = [
         `Generate ecological or supernatural role, non-lethal subdual / pacification / harvesting methods, and 1 to 3 harvestable alchemical / crafting reagents for "${creature.name}" (${creature.speciesCategory}, Danger Level ${creature.dangerLevel}).`,
       ];
+      if (creature.isDomesticated) {
+        promptParts.push(
+          isPersian
+            ? 'این گونه اهلی و رام‌شده است (بارکش / سواره / نگهبان / دام): روش رام‌سازی باید آموزش، تربیت و نگهداری باشد، نه شکار، به‌دام‌اندازی یا رام‌سازی وحش.'
+            : 'This species is DOMESTICATED (mount / livestock / guard beast): nonCombatPacificationMethod must describe training, handling, and husbandry — not baiting, trapping, or subdual.'
+        );
+      }
       if (creature.loreDescription?.trim()) {
         promptParts.push(`Entity Lore & Physiology: "${creature.loreDescription.trim()}"`);
       }
@@ -735,6 +748,7 @@ export default function BestiaryStudioPage() {
     if (data.speciesCategory) setCCategory(data.speciesCategory as typeof cCategory);
     if (data.dangerLevel) setCDanger(data.dangerLevel as typeof cDanger);
     if (data.rarity) setCRarity(data.rarity as typeof cRarity);
+    if (!cDomesticated && data.isDomesticated) setCDomesticated(true);
     if (Array.isArray(data.habitatLocationIds) && (!cHabitats || cHabitats.length === 0)) {
       setCHabitats(data.habitatLocationIds as string[]);
     }
@@ -826,6 +840,17 @@ export default function BestiaryStudioPage() {
           }`}
         >
           {isPersian ? 'همه گونه‌ها' : 'All Species'} ({bestiary.length})
+        </button>
+        <button
+          onClick={() => setFilterCategory('domesticated')}
+          className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            filterCategory === 'domesticated'
+              ? 'bg-teal-500/10 border border-teal-500/30 text-teal-300 shadow-md'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60 border border-transparent'
+          }`}
+        >
+          <HeartHandshake className="w-3.5 h-3.5" />
+          {isPersian ? 'اهلی' : 'Domesticated'} ({bestiary.filter((c) => c.isDomesticated).length})
         </button>
         {Object.entries(SPECIES_CATEGORIES).map(([key, val]) => (
           <button
@@ -1008,6 +1033,12 @@ export default function BestiaryStudioPage() {
                           </span>
                         );
                       })()}
+                      {c.isDomesticated && (
+                        <span className="px-2.5 py-0.5 rounded-xl text-[10.5px] font-bold border text-teal-300 bg-teal-500/10 border-teal-500/30 flex items-center gap-1">
+                          <HeartHandshake className="w-3 h-3" />
+                          <span>{isPersian ? 'اهلی' : 'Domesticated'}</span>
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1.5">
@@ -1767,8 +1798,36 @@ export default function BestiaryStudioPage() {
                 </div>
               </div>
 
-              {/* Habitats Multi-Location Interactive Picker */}
-              <div>
+              {/* Domesticated tag — orthogonal to species category (mount / livestock / guard) */}
+              {cCategory !== 'mineral' && cCategory !== 'flora' && (
+                <button
+                  type="button"
+                  onClick={() => setCDomesticated((prev) => !prev)}
+                  className={`w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl border text-xs font-bold transition-all cursor-pointer ${
+                    cDomesticated
+                      ? 'bg-teal-500/10 border-teal-500/40 text-teal-300'
+                      : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <HeartHandshake className="w-4 h-4" />
+                    <span>{isPersian ? 'اهلی / رام‌شده (بارکش، سواره، نگهبان، دام)' : 'Domesticated (mount, livestock, guard)'}</span>
+                  </span>
+                  <span
+                    className={`w-9 h-5 rounded-full relative transition-colors shrink-0 ${
+                      cDomesticated ? 'bg-teal-500/60' : 'bg-zinc-700'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
+                        cDomesticated ? 'left-[18px]' : 'left-0.5'
+                      }`}
+                    />
+                  </span>
+                </button>
+              )}
+
+              {/* Habitats Multi-Location Interactive Picker */}              <div>
                 <label className="text-xs font-bold text-zinc-300 block mb-1.5 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-red-400" />

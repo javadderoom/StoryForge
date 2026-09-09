@@ -346,7 +346,7 @@ export function buildWorldContextBlocks(
   const bestiary = cap(
     (wb.bestiary ?? []).map(
       (c) =>
-        `${c.name} (danger ${c.dangerLevel}, ${c.speciesCategory}) — habitat: ${
+        `${c.name} (danger ${c.dangerLevel}, ${c.speciesCategory}${c.isDomesticated ? ', domesticated' : ''}) — habitat: ${
           c.habitatLocationIds.join('/') || 'unknown'
         } | weakness: ${c.weaknesses.join(', ') || 'unknown'}`
     ),

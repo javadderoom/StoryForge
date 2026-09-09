@@ -465,6 +465,8 @@ export interface WorldCreature {
   speciesCategory: 'beast' | 'monstrosity' | 'undead' | 'elemental' | 'flora' | 'mineral' | 'draconic' | 'humanoid';
   dangerLevel: 1 | 2 | 3 | 4 | 5;
   rarity?: 'common' | 'uncommon' | 'rare' | 'legendary';
+  /** Orthogonal tag: tame / ridable / livestock / guard vs. wild. Undefined = wild. */
+  isDomesticated?: boolean;
   habitatLocationIds: string[];
   behavioralTactics: string;
   weaknesses: string[];
@@ -675,6 +677,7 @@ export const EnhancedCreatureSchema = z.object({
   predatorPreyNiche: z.string(),
   nonCombatPacificationMethod: z.string(),
   alchemicalYields: z.array(CreatureAlchemicalYieldSchema).min(1).max(3),
+  isDomesticated: z.boolean().optional(),
   preySpecies: z.array(z.string()).optional(),
   predatorSpecies: z.array(z.string()).optional(),
   pacificationReagents: z.array(z.string()).optional(),
@@ -718,6 +721,7 @@ export const WorldCreatureSchema = z.object({
   speciesCategory: z.enum(['beast', 'monstrosity', 'undead', 'elemental', 'flora', 'mineral', 'draconic', 'humanoid']).default('beast'),
   dangerLevel: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).default(3),
   rarity: z.enum(['common', 'uncommon', 'rare', 'legendary']).default('common').optional(),
+  isDomesticated: z.boolean().optional(),
   habitatLocationIds: z.array(z.string()).default([]),
   behavioralTactics: z.string().default(''),
   weaknesses: z.array(z.string()).default([]),
