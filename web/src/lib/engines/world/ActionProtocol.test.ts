@@ -39,8 +39,9 @@ describe('ActionProtocol — entity normalization', () => {
     assert.equal(normalizeEntityName('not-a-thing'), null);
   });
 
-  it('exposes the 13 allowed entities (8 primary + 5 ontology types)', () => {
-    assert.equal(ALLOWED_ENTITIES.length, 13);
+  it('exposes the 14 allowed entities (8 primary + 5 ontology types + 1 quest)', () => {
+    assert.equal(ALLOWED_ENTITIES.length, 14);
+    assert.ok(ALLOWED_ENTITIES.includes('quest'));
     assert.ok(ALLOWED_ENTITIES.includes('place_category'));
     assert.ok(ALLOWED_ENTITIES.includes('law_category'));
     assert.ok(ALLOWED_ENTITIES.includes('npc_role'));

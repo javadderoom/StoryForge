@@ -142,6 +142,9 @@ export default function StudioOracleDrawer() {
     addCustomRelationType,
     editCustomRelationType,
     deleteCustomRelationType,
+    addQuest,
+    editQuest,
+    deleteQuest,
   } = useStudioStory();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -527,6 +530,7 @@ export default function StudioOracleDrawer() {
     npc_role: { add: addNpcRole, edit: editNpcRole, del: deleteNpcRole },
     domain: { add: addDomain, edit: editDomain, del: deleteDomain },
     relation_type: { add: addCustomRelationType, edit: editCustomRelationType, del: deleteCustomRelationType },
+    quest: { add: addQuest, edit: editQuest, del: deleteQuest },
   });
 
   const applyOneChange = (change: WorldActionChange) => {

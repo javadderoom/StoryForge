@@ -161,12 +161,14 @@ export async function POST(req: NextRequest) {
     // 2b½. Positive social trust awards — mirror of the pressure system.
     // When the player greets, helps, gifts, or otherwise positively engages
     // a named NPC, they earn trust proportional to the dice outcome.
+    let activeNpcTarget = pressureTarget;
     if (!pressureTarget) {
       const socialTarget = GameEngine.detectSocialTarget(
         playerActionText,
         story.worldBible.npcs ?? []
       );
       if (socialTarget) {
+        activeNpcTarget = socialTarget;
         const social = GameEngine.applySocialOutcome(resolution.outcome, actionStyle);
         const changes = resolution.stateDiff.relationshipChanges ?? {};
         const existing = changes[socialTarget.id] ?? { trustDelta: 0 };
@@ -219,6 +221,72 @@ export async function POST(req: NextRequest) {
       resolution.stateDiff,
       story.rpgSystem
     );
+
+    // 3a. Plan 11: Quest item triggers & active quest progress/completion
+    const itemTriggerResult = GameEngine.evaluateQuestItemTriggers(
+      updatedPlayerState,
+      story.worldBible
+    );
+    if (itemTriggerResult) {
+      updatedPlayerState = GameEngine.applyStateMutation(
+        updatedPlayerState,
+        itemTriggerResult.diff,
+        story.rpgSystem
+      );
+      resolution.stateDiff.questUpdates = [
+        ...(resolution.stateDiff.questUpdates ?? []),
+        ...(itemTriggerResult.diff.questUpdates ?? []),
+      ];
+      const titles = itemTriggerResult.activatedQuests.map((q) => `"${q.title}"`).join(', ');
+      resolution.consequenceSummary += ` [Quest Activated: ${titles}]`;
+    }
+
+    const questEval = GameEngine.evaluateActiveQuests(
+      updatedPlayerState,
+      story.worldBible,
+      {
+        targetNpcId: activeNpcTarget?.id,
+        actionText: playerActionText,
+        outcome: resolution.outcome,
+      }
+    );
+    for (const completedQ of questEval.readyToComplete) {
+      const completion = GameEngine.completeQuest(
+        completedQ,
+        updatedPlayerState,
+        story.worldBible
+      );
+      updatedPlayerState = GameEngine.applyStateMutation(
+        updatedPlayerState,
+        completion.diff,
+        story.rpgSystem
+      );
+      if (completion.diff.questUpdates) {
+        resolution.stateDiff.questUpdates = [
+          ...(resolution.stateDiff.questUpdates ?? []),
+          ...completion.diff.questUpdates,
+        ];
+      }
+      if (completion.diff.itemsRemovedIds) {
+        resolution.stateDiff.itemsRemovedIds = [
+          ...(resolution.stateDiff.itemsRemovedIds ?? []),
+          ...completion.diff.itemsRemovedIds,
+        ];
+      }
+      if (completion.diff.itemsAdded) {
+        resolution.stateDiff.itemsAdded = [
+          ...(resolution.stateDiff.itemsAdded ?? []),
+          ...completion.diff.itemsAdded,
+        ];
+      }
+      if (completion.diff.relationshipChanges) {
+        resolution.stateDiff.relationshipChanges = {
+          ...(resolution.stateDiff.relationshipChanges ?? {}),
+          ...completion.diff.relationshipChanges,
+        };
+      }
+      resolution.consequenceSummary += ` ${completion.narrativeSummary}`;
+    }
 
     // 3b. Hybrid Defeat System (Option C) — when HP reaches 0 the player
     // is NOT killed; instead escalating penalties are applied and the

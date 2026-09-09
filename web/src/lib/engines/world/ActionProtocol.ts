@@ -109,6 +109,8 @@ export function getEntityArray(wb: WorldBible | undefined, entity: EntityType): 
       return (w as any).ontology?.domains || [];
     case 'relation_type':
       return (w as any).ontology?.relationTypes || [];
+    case 'quest':
+      return (w as any).quests || [];
     default:
       return [];
   }

@@ -26,6 +26,7 @@ import {
   FactionRelationValue,
   deriveLegacyFactionLinks,
   StoryNpcOverride,
+  WorldQuest,
 } from '@/lib/types';
 import { mergeFactionRelations, syncLegacyFactionLinks } from '@/lib/engines/world/factionRelations';
 import type { WorldActionChange } from '@/lib/engines/world/oracleActions';
@@ -431,6 +432,10 @@ interface StudioStoryContextType {
   addDramaBond: (bond: NPCDramaBond) => void;
   editDramaBond: (id: string, updated: Partial<NPCDramaBond>) => void;
   deleteDramaBond: (id: string) => void;
+  // Quests CRUD (Plan 11)
+  addQuest: (quest: WorldQuest) => void;
+  editQuest: (id: string, updated: Partial<WorldQuest>) => void;
+  deleteQuest: (id: string) => void;
   // Story Beats CRUD
   updateStoryBeats: (updater: (prev: StoryManifest['initialStoryBeats']) => StoryManifest['initialStoryBeats']) => void;
   // Plan 07: Saga / Multi-Chapter Campaign CRUD
@@ -1223,6 +1228,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         let bestiary = [...(prev.bestiary || [])];
         let religions = [...(prev.religions || [])];
         let timeline = [...(prev.timeline || [])];
+        let quests = [...(prev.quests || [])];
         const ont = normalizeOntology(prev.ontology, isPersian);
         let placeCategories = [...ont.placeCategories];
         let lawCategories = [...ont.lawCategories];
@@ -1381,6 +1387,14 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
             } else if (c.op === 'update') {
               relationTypes = relationTypes.map((r) => (r.id === c.targetId ? { ...r, ...c.newData } : r));
             }
+          } else if (c.entity === 'quest') {
+            if (c.op === 'create') {
+              if (!quests.some((q) => q.id === c.newData.id)) quests.push(c.newData);
+            } else if (c.op === 'delete') {
+              quests = quests.filter((q) => q.id !== c.targetId);
+            } else if (c.op === 'update') {
+              quests = quests.map((q) => (q.id === c.targetId ? { ...q, ...c.newData } : q));
+            }
           }
         }
 
@@ -1395,6 +1409,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
           bestiary,
           religions,
           timeline,
+          quests,
           ontology: {
             ...ont,
             placeCategories,
@@ -2214,6 +2229,46 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     [isPersian, updateWorldBible]
   );
 
+  // ----------------------------------------------------
+  // Quests CRUD (Plan 11)
+  // ----------------------------------------------------
+  const addQuest = useCallback(
+    (quest: WorldQuest) => {
+      updateWorldBible((prev) => {
+        const prevQuests = prev.quests || [];
+        if (prevQuests.some((q) => q.id === quest.id)) return prev;
+        return {
+          ...prev,
+          quests: [...prevQuests, quest],
+        };
+      });
+      notify.success(isPersian ? 'ماموریت جدید ثبت شد' : 'Quest registered');
+    },
+    [isPersian, updateWorldBible]
+  );
+
+  const editQuest = useCallback(
+    (id: string, updated: Partial<WorldQuest>) => {
+      updateWorldBible((prev) => ({
+        ...prev,
+        quests: (prev.quests || []).map((q) => (q.id === id ? { ...q, ...updated } : q)),
+      }));
+      notify.success(isPersian ? 'ماموریت به‌روز شد' : 'Quest updated');
+    },
+    [isPersian, updateWorldBible]
+  );
+
+  const deleteQuest = useCallback(
+    (id: string) => {
+      updateWorldBible((prev) => ({
+        ...prev,
+        quests: (prev.quests || []).filter((q) => q.id !== id),
+      }));
+      notify.info(isPersian ? 'ماموریت حذف شد' : 'Quest deleted');
+    },
+    [isPersian, updateWorldBible]
+  );
+
   // Story Beats CRUD
   const updateStoryBeats = useCallback(
     (updater: (prev: StoryManifest['initialStoryBeats']) => StoryManifest['initialStoryBeats']) => {
@@ -2395,6 +2450,9 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         addDramaBond,
         editDramaBond,
         deleteDramaBond,
+        addQuest,
+        editQuest,
+        deleteQuest,
         updateStoryBeats,
         updateSaga,
         resetToDefault,

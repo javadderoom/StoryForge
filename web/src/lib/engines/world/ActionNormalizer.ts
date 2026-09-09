@@ -54,9 +54,15 @@ export const PERSIAN_FIELD_MAP: Record<string, string> = {
   'باور اصلی': 'coreDogma',
   'اصول': 'coreDogma',
   'خطوط قرمز': 'taboos',
-  'حرمت‌ها': 'taboos',
-  'مواهب': 'divineBlessings',
-  'برکت‌ها': 'divineBlessings',
+  'ماموریت': 'title',
+  'اهداف ماموریت': 'objectives',
+  'هدف': 'objectives',
+  'پاداش': 'rewards',
+  'پاداش‌ها': 'rewards',
+  'پاداش اعتماد': 'trustReward',
+  'پاداش طلا': 'goldReward',
+  'خط ماموریت': 'questLineName',
+  'سفارش‌دهنده': 'giverNpcId',
   'نادرستی': 'rarity',
   'کمیابی': 'rarity',
   'فراوانی': 'rarity',
@@ -213,6 +219,7 @@ export function normalizeEntity(entity: EntityType, data: any): any {
       npc_role: 'role',
       domain: 'dom',
       relation_type: 'rel',
+      quest: 'qst',
     };
     const isOntology = [
       'place_category',
@@ -689,6 +696,35 @@ export function normalizeEntity(entity: EntityType, data: any): any {
     if (res.isDirected === undefined) res.isDirected = true;
     if (!res.sourceCategory) res.sourceCategory = 'any';
     if (!res.targetCategory) res.targetCategory = 'any';
+  } else if (entity === 'quest') {
+    if (!res.title && res.name) res.title = res.name;
+    if (!res.title) res.title = 'Untitled Quest';
+    if (!res.summary && res.description) res.summary = res.description;
+    if (!res.summary) res.summary = res.title;
+    if (!res.category) res.category = 'personal_errand';
+    if (!Array.isArray(res.objectives) || res.objectives.length === 0) {
+      res.objectives = [
+        {
+          id: `obj_${Date.now()}_1`,
+          description: res.summary || res.title,
+          type: 'discover',
+        },
+      ];
+    }
+    if (!res.rewards) res.rewards = {};
+    if (!Array.isArray(res.rewards.trustRewards)) res.rewards.trustRewards = [];
+    if (!Array.isArray(res.rewards.unlockedSecretIds)) res.rewards.unlockedSecretIds = [];
+    if (!Array.isArray(res.rewards.itemRewards)) res.rewards.itemRewards = [];
+    if (typeof res.rewards.goldReward !== 'number') res.rewards.goldReward = 0;
+    if (typeof res.trustReward === 'number' && res.giverNpcId && res.rewards.trustRewards.length === 0) {
+      res.rewards.trustRewards.push({ npcId: res.giverNpcId, trustDelta: res.trustReward });
+    }
+    if (typeof res.goldReward === 'number' && res.rewards.goldReward === 0) {
+      res.rewards.goldReward = res.goldReward;
+    }
+    if (!res.prerequisites) {
+      res.prerequisites = { requiredCompletedQuestIds: [], requiredPossessedItemIds: [] };
+    }
   }
 
   return res;

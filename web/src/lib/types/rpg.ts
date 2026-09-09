@@ -43,6 +43,7 @@ export interface GameItem {
   staminaValue?: number; // Instant Stamina restoration
   valueInGold?: number;
   isConsumable?: boolean;
+  startsQuestId?: string; // If possessed or inspected, starts this quest automatically
 }
 
 export interface ArchetypeDefinition {
@@ -121,6 +122,7 @@ export const GameItemSchema = z.object({
   staminaValue: z.number().optional(),
   valueInGold: z.number().optional(),
   isConsumable: z.boolean().optional(),
+  startsQuestId: z.string().optional(),
 });
 
 export const RPGSystemSchemaValidator = z.object({

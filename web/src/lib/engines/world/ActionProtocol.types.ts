@@ -12,6 +12,7 @@ export const ALLOWED_ENTITIES = [
   'npc_role',
   'domain',
   'relation_type',
+  'quest',
 ] as const;
 
 export type EntityType = (typeof ALLOWED_ENTITIES)[number];
@@ -75,7 +76,14 @@ export const ENTITY_ALIASES: Record<string, EntityType> = {
   relation_type: 'relation_type',
   relationtype: 'relation_type',
   custom_relation: 'relation_type',
+  quest: 'quest',
+  quests: 'quest',
+  mission: 'quest',
+  errand: 'quest',
   // Persian aliases
+  'ماموریت': 'quest',
+  'ماموریت‌ها': 'quest',
+  'ماموریتها': 'quest',
   'مکان': 'location',
   'مکان‌ها': 'location',
   'مکانها': 'location',

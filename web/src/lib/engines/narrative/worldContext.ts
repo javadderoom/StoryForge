@@ -35,6 +35,7 @@ export interface WorldContextBlocks {
   npcs: string[];
   laws: string[];
   ontologySummary?: string;
+  quests?: string[];
 }
 
 export interface ScopedContextOptions {
@@ -437,6 +438,13 @@ export function buildWorldContextBlocks(
   }
   const ontologySummary = ontologyLines.length ? ontologyLines.join(' ') : undefined;
 
+  const quests = (wb.quests ?? []).map((q) => {
+    const giver = npcName.get(q.giverNpcId ?? '') ?? q.giverNpcId;
+    const objs = q.objectives.map((o) => o.description).join('; ');
+    const trust = q.rewards?.trustRewards?.map((tr) => `+${tr.trustDelta} trust with ${npcName.get(tr.npcId) ?? tr.npcId}`).join(', ');
+    return `"${q.title}" (${q.category}${giver ? `, giver: ${giver}` : ''}): objectives [${objs}]${trust ? ` -> ${trust}` : ''}`;
+  });
+
   return {
     storyScale: story.storyScale,
     worldSummary: wb.summary || undefined,
@@ -453,6 +461,7 @@ export function buildWorldContextBlocks(
     npcs,
     laws,
     ontologySummary,
+    quests,
   };
 }
 
@@ -476,6 +485,7 @@ export function formatWorldContext(blocks: WorldContextBlocks): string {
   if (blocks.locations.length) sections.push(`Places/Locations:\n- ${blocks.locations.join('\n- ')}`);
   if (blocks.npcs.length) sections.push(`NPCs:\n- ${blocks.npcs.join('\n- ')}`);
   if (blocks.laws.length) sections.push(`World Laws:\n- ${blocks.laws.join('\n- ')}`);
+  if (blocks.quests?.length) sections.push(`World Quests & Deeds of Trust:\n- ${blocks.quests.join('\n- ')}`);
   if (blocks.ontologySummary) sections.push(blocks.ontologySummary);
   return sections.join('\n\n');
 }

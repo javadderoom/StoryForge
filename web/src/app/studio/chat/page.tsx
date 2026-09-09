@@ -201,6 +201,9 @@ export default function AiOraclePage() {
     addCustomRelationType,
     editCustomRelationType,
     deleteCustomRelationType,
+    addQuest,
+    editQuest,
+    deleteQuest,
   } = useStudioStory();
 
   const worldContext = useMemo(() => buildWorldContextString(story), [story]);
@@ -317,6 +320,7 @@ export default function AiOraclePage() {
         npc_role: 'نقش شخصیت',
         domain: 'حوزه کیهانی',
         relation_type: 'نوع پیوند',
+        quest: 'ماموریت',
       }
     : {
         faction: 'Faction',
@@ -332,6 +336,7 @@ export default function AiOraclePage() {
         npc_role: 'NPC Role',
         domain: 'Domain',
         relation_type: 'Relation Type',
+        quest: 'Quest',
       };
 
   const MUTATORS: Record<
@@ -351,6 +356,7 @@ export default function AiOraclePage() {
     npc_role: { add: addNpcRole, edit: editNpcRole, del: deleteNpcRole },
     domain: { add: addDomain, edit: editDomain, del: deleteDomain },
     relation_type: { add: addCustomRelationType, edit: editCustomRelationType, del: deleteCustomRelationType },
+    quest: { add: addQuest, edit: editQuest, del: deleteQuest },
   };
 
   const PERSONA_ORDER: PersonaId[] = [

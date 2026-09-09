@@ -48,6 +48,7 @@ export const ORACLE_ENTITY_LABELS: Record<EntityType, { en: string; fa: string }
   npc_role: { en: 'NPC Role', fa: 'نقش شخصیت' },
   domain: { en: 'Domain', fa: 'حوزه کیهانی' },
   relation_type: { en: 'Relation Type', fa: 'نوع پیوند' },
+  quest: { en: 'Quest', fa: 'ماموریت' },
 };
 
 async function callGenerate(payload: any): Promise<any> {

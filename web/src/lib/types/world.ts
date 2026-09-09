@@ -630,6 +630,7 @@ export interface WorldBible {
   ontology?: WorldOntology;
   customRelations?: CustomLoreRelation[];
   oracleDirectives?: OracleMemoryDirective[];
+  quests?: WorldQuest[];
 }
 
 // ----------------------------------------------------
@@ -1042,6 +1043,127 @@ export const NPCDossierSchema = z.object({
   statCalibration: NpcStatCalibrationSchema.optional(),
 });
 
+// ----------------------------------------------------
+// Plan 11: Quests, Objectives & NPC Trust Progression
+// ----------------------------------------------------
+
+export const QuestObjectiveTypeSchema = z.enum([
+  'fetch',        // Collect / harvest a resource or item
+  'deliver',      // Bring an item to an NPC or drop-point
+  'slay',         // Defeat a dangerous beast or enemy
+  'infiltrate',   // Sneak into a location or sub-zone undetected
+  'escort',       // Protect a caravan or NPC along a route
+  'interrogate',  // Question a suspect or witness
+  'discover',     // Reach a hidden location, POI, or unseal a vault
+]);
+export type QuestObjectiveType = z.infer<typeof QuestObjectiveTypeSchema>;
+
+export const QuestObjectiveSchema = z.object({
+  id: z.string().min(1),
+  description: z.string().min(1),
+  type: QuestObjectiveTypeSchema,
+  targetLocationId: z.string().optional(),
+  targetNpcId: z.string().optional(),
+  targetCreatureId: z.string().optional(),
+  requiredItemId: z.string().optional(),
+  requiredItemName: z.string().optional(),
+  requiredQuantity: z.number().int().min(1).optional().default(1),
+  consumeItemOnComplete: z.boolean().optional().default(true),
+  isOptional: z.boolean().optional().default(false),
+});
+export interface QuestObjective {
+  id: string;
+  description: string;
+  type: QuestObjectiveType;
+  targetLocationId?: string;
+  targetNpcId?: string;
+  targetCreatureId?: string;
+  requiredItemId?: string;
+  requiredItemName?: string;
+  requiredQuantity?: number;
+  consumeItemOnComplete?: boolean;
+  isOptional?: boolean;
+}
+
+export const QuestCategorySchema = z.enum([
+  'main_arc',
+  'personal_errand',
+  'caravan_escort',
+  'bounty',
+  'investigation',
+  'vault_heist',
+]);
+export type QuestCategory = z.infer<typeof QuestCategorySchema>;
+
+export const WorldQuestSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  summary: z.string().min(1),
+  category: QuestCategorySchema.optional().default('personal_errand'),
+  giverNpcId: z.string().optional(),
+  originLocationId: z.string().optional(),
+  triggerItemId: z.string().optional(),
+  relatedTradeRouteId: z.string().optional(),
+  questLineId: z.string().optional(),
+  questLineName: z.string().optional(),
+  orderInLine: z.number().int().min(1).optional().default(1),
+  nextQuestId: z.string().optional(),
+  prerequisites: z.object({
+    requiredCompletedQuestIds: z.array(z.string()).optional().default([]),
+    requiredTrustLevel: z.number().min(-100).max(100).optional(),
+    requiredPossessedItemIds: z.array(z.string()).optional().default([]),
+  }).optional().default({ requiredCompletedQuestIds: [], requiredPossessedItemIds: [] }),
+  objectives: z.array(QuestObjectiveSchema).min(1),
+  rewards: z.object({
+    trustRewards: z.array(
+      z.object({
+        npcId: z.string(),
+        trustDelta: z.number().int(),
+      })
+    ).optional().default([]),
+    unlockedSecretIds: z.array(z.string()).optional().default([]),
+    itemRewards: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        quantity: z.number().int().default(1),
+      })
+    ).optional().default([]),
+    goldReward: z.number().int().min(0).optional().default(0),
+    narrativeResolution: z.string().optional(),
+  }).optional().default({ trustRewards: [], unlockedSecretIds: [], itemRewards: [], goldReward: 0 }),
+});
+
+export interface WorldQuest {
+  id: string;
+  title: string;
+  summary: string;
+  category?: QuestCategory;
+  giverNpcId?: string;
+  originLocationId?: string;
+  triggerItemId?: string;
+  relatedTradeRouteId?: string;
+  questLineId?: string;
+  questLineName?: string;
+  orderInLine?: number;
+  nextQuestId?: string;
+  prerequisites?: {
+    requiredCompletedQuestIds?: string[];
+    requiredTrustLevel?: number;
+    requiredPossessedItemIds?: string[];
+  };
+  objectives: QuestObjective[];
+  rewards?: {
+    trustRewards?: Array<{ npcId: string; trustDelta: number }>;
+    unlockedSecretIds?: string[];
+    itemRewards?: Array<{ id: string; name: string; quantity?: number }>;
+    goldReward?: number;
+    narrativeResolution?: string;
+  };
+}
+
+export type WorldQuestPayload = z.infer<typeof WorldQuestSchema>;
+
 export const WorldBibleSchema = z.object({
   worldId: z.string(),
   worldName: z.string().min(2),
@@ -1061,6 +1183,7 @@ export const WorldBibleSchema = z.object({
   factionRelations: z.array(FactionRelationSchema).default([]),
   ontology: WorldOntologySchema.optional(),
   customRelations: z.array(CustomLoreRelationSchema).default([]),
+  quests: z.array(WorldQuestSchema).default([]),
 });
 
 export const PopulateLocationSchema = z.object({
