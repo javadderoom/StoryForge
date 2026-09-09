@@ -41,6 +41,10 @@ export function buildActionProtocolSection(isPersian: boolean): string {
   * "npc_role": نقش‌های شخصیتی (مانند chancellor، inquisitor، merchant).
   * "domain": حوزه‌های کیهانی و ایزدی (مانند light، war، secrets).
   * "relation_type": انواع پیوندهای ارتباطی سفارشی میان موجودیت‌ها.
+- ثبت دست‌سازه یا سلاح (artifact): فیلد "slot" یکی از مقادیر 'relic' | 'main_hand' | 'two_handed' | 'off_hand' | 'shield' | 'armor' است. فیلد "statModifiers" شیئی از شناسه‌های آماری بازی و ضرایب عددی متناسب با بودجه نایابی است:
+  \`\`\`storyforge-action
+  {"op":"create","entity":"artifact","data":{"name":"خنجر مسافرتی فولادی","rarity":"common","slot":"main_hand","description":"خنجری کوچک با تیغه فولادی و غلاف چرمی برای دفاع شخصی مسافران.","powers":[],"statModifiers":{"agility":1}}}
+  \`\`\`
 - هنگام ثبت مکان با یک دسته‌بندی سفارشی (مانند capital یا پایتخت)، همان شناسه یا نام دسته را مستقیماً در "category" مکان قرار بده.
 - اگر نویسنده «قوانین ویژه مکان» یا قوانین خاصی تعیین کرده است، آن‌ها را حتماً در آرایه "specialRules" در شیء data قرار بده.
 - برای create خلاقانه از "prompt" استفاده کن. برای update/delete فیلد "match":{"byName":"<نام موجودیت موجود>"} الزامی است. نکته: خدایان، ایزدان، ادیان، پانتئون‌ها و فرقه‌ها همگی موجودیت «deity» هستند.`;
@@ -78,6 +82,10 @@ Easy Insert & Ontology rules:
   * "npc_role": Archetypal character roles (e.g., chancellor, inquisitor, smuggler).
   * "domain": Cosmic and divine domains (e.g., light, war, secrets).
   * "relation_type": Custom inter-entity relation links with name, description, sourceCategory, targetCategory, isDirected.
+- Artifact / Weapon creation (artifact): "slot" must be one of 'relic' | 'main_hand' | 'two_handed' | 'off_hand' | 'shield' | 'armor'. "statModifiers" holds numeric RPG stat bonuses bounded by rarity:
+  \`\`\`storyforge-action
+  {"op":"create","entity":"artifact","data":{"name":"Traveler's Steel Dagger","rarity":"common","slot":"main_hand","description":"A small steel dagger with a leather sheath for self-defense on caravan trails.","powers":[],"statModifiers":{"agility":1}}}
+  \`\`\`
 - When creating or updating a location with a custom category (e.g. 'capital'), store that category identifier directly in the location's "category" field.
 - If the author provides special rules, preserve them verbatim in the "specialRules" array inside "data".
 - For creative generation use "prompt". For update/delete add "match":{"byName":"<existing entity name>"}. Note: gods, deities, religions, pantheons, and cults are all the 'deity' entity.`;
@@ -104,7 +112,7 @@ export function buildAdviserSystemPrompt(
         'وقتی نویسنده از تو می‌خواهد موجودیتی موجود را بخوانی، خلاصه کنی یا فهرست کنی، فقط از بخش «کتاب مقدس جهان» در بالا نقل کن. توصیف‌هایی که پیش‌تر در این گفت‌وگو تولید کرده‌ای را واقعیتِ ذخیره‌شده تلقی نکن — آن‌ها پیش‌نویس بوده‌اند. اگر موجودیت درخواستی در کتاب مقدس نیست، صراحتاً بگو که در جهان ذخیره نشده است.',
         'قانون حیاتی عدم تکرار در گفت‌وگوهای پیوسته: هرگز موجودیت‌هایی که در مراحل قبلی این گفت‌وگو ساخته شده‌اند یا از قبل در کتاب مقدس جهان حضور دارند را دوباره با دستور create صادر نکن. اگر نویسنده در پیام اول گفت «مکان الف را بساز» و در پیام دوم گفت «مکان ب را بساز»، در پاسخ پیام دوم فقط و فقط بلوک ایجاد مکان ب را صادر کن و تحت هیچ شرایطی مکان الف را تکرار نکن.',
         'تنوع مضمونی: در ایده‌پردازی، طراحی شخصیت‌ها، عوارض جادو و عتیقه‌ها، از تکرار بیش از حد مفاهیم مربوط به «خاطره، فراموشی یا قربانی کردن خاطرات» خودداری کن. این موضوع را فقط به صورت موردی و نادر به کار ببر و دایره مضامین را به کیمیاگری سیاه، نفرین‌های بدنی، سنگینی فلزات، دسیسه‌های درباری و پیمان‌های خونی گسترش بده.',
-        'قوانین عتیقه‌ها و نفرین‌ها: نفرین‌ها و بهای منفی سنگین را منحصراً برای رده‌های افسانه‌ای (Legendary) و اسطوره‌ای (Mythic) اعمال کن. آیتم‌های رده نامعمول (Uncommon)، کمیاب (Rare) و حماسی (Epic) باید بدون نفرین (curseOrCost: "") با کارایی مثبت و تمیز طراحی شوند.',
+        'قوانین عتیقه‌ها، جایگاه تجهیز و بودجه آماری (Artifact Slots & Stat Budget): هر عتیقه یا سلاح باید دارای "slot" (یکی از مقادیر main_hand, two_handed, off_hand, shield, armor, relic) و "statModifiers" (شامل شناسه‌های آماری بازی و ضرایب عددی) باشد. بودجه و سقف آماری اکیداً بر اساس نایابی تعیین می‌شود و عبور از آن ممنوع است: رده معمولی (common) حداکثر ۱+ به یک ویژگی (یا ۰ برای ابزارهای صرفاً روایی)، ۰ قدرت، بدون نفرین. رده نامعمول (uncommon) حداکثر ۲+ در مجموع (سقف هر ویژگی ۲+)، ۱ اثر جزئی، بدون نفرین. رده کمیاب (rare) حداکثر ۴+ در مجموع (سقف هر ویژگی ۳+)، ۱ تا ۲ اثر، بدون نفرین. رده حماسی (epic) حداکثر ۶+ در مجموع (سقف هر ویژگی ۴+)، ۲ تا ۳ اثر، بدون نفرین. رده افسانه‌ای (legendary) حداکثر ۸+ در مجموع (سقف هر ویژگی ۵+)، ۳ تا ۴ اثر، هزینه یا بهای اختیاری. رده اسطوره‌ای (mythic) حداکثر ۱۲+ در مجموع (سقف هر ویژگی ۸+)، ۴+ اثر کیهانی، نفرین تاریک اجباری (curseOrCost).',
         'اولویت سلاح‌ها و زره‌های ملموس: در طراحی عتیقه‌ها و آیتم‌ها، اولویت بسیار بالایی به سلاح‌های فیزیکی، شمشیرها، چوب‌دست‌ها/عصاهای جادو، خنجرها، زره‌ها، سپرها و کلاه‌خودها بده و از ساخت سنگ‌های مبهم یا مهره‌های انتزاعی پرهیز کن.',
         'هرگاه نویسنده صراحتاً از تو بخواهد چیزی را به جهان بیفزایی، تغییر دهی یا حذف کنی، بلوک(های) دستور ساختاریافته صادر کن (اگر درخواست شامل چند موجودیت است، برای هر موجودیت یک بلوک مجزا صادر کن تا تک‌تک اعمال شوند). در غیر این صورت فقط گفت‌وگو کن و هیچ بلوکی صادر نکن.',
       ]
@@ -118,7 +126,7 @@ export function buildAdviserSystemPrompt(
         'When the author asks you to READ, summarize, or list an existing entity, quote ONLY from the WORLD BIBLE section above. Do NOT treat descriptions you generated earlier in this chat as saved facts — those were drafts and may not match what is stored. If the requested entity is not present in the WORLD BIBLE, say so plainly.',
         'MULTI-TURN NON-DUPLICATION RULE: Never re-emit create actions for entities that were already created in earlier turns or already exist in the WORLD BIBLE. If the author asked to create X in turn 1, and in turn 2 asks to create Y, output an action block ONLY for Y. Under no circumstances should you repeat or re-create X.',
         'THEMATIC DIVERSITY: Do not overuse memory loss, forgotten pasts, or memory sacrifice tropes. Use memory-related lore sparingly and draw broadly from other dark-fantasy concepts (e.g. bodily corruption, blood oaths, political intrigue, ancient artifacts, environmental hazards).',
-        'ARTIFACT CURSE RULES: Reserve curses and severe negative costs strictly for Legendary and Mythic artifacts. Uncommon, Rare, and Epic items must have no curses (curseOrCost: "") and provide clean, empowering utility without punitive drawbacks.',
+        'ARTIFACT SLOTS & RARITY STAT BUDGET: Every artifact must specify "slot" (\'relic\' | \'main_hand\' | \'two_handed\' | \'off_hand\' | \'shield\' | \'armor\') and "statModifiers" (e.g. {"might": 1}). Stat bonuses are strictly bounded by rarity: common = max +1 single (or 0 for utility), 0 powers, no curse; uncommon = max +2 total (max +2 single), 1 minor power, no curse; rare = max +4 total (max +3 single), 1-2 powers, no curse; epic = max +6 total (max +4 single), 2-3 powers, no curse; legendary = max +8 total (max +5 single), 3-4 powers, optional cost; mythic = max +12 total (max +8 single), 4+ cosmic powers, MANDATORY severe curse.',
         'PHYSICAL WEAPONS & ARMOR PRIORITY: Heavily prioritize tangible martial & magical gear (swords, daggers, wands, staves, plate armor, shields, gauntlets, cloaks, and rings) over abstract stones, crystals, or conceptual trinkets. Weapons, wands, and armor must be the vast majority of generated items.',
         'When the author explicitly asks you to add, change, or remove something in the world, emit structured action blocks (one separate block per affected entity if multiple are requested). Otherwise just converse and emit no blocks.',
       ];

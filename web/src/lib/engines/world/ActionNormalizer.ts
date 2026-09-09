@@ -1,4 +1,5 @@
 import type { EntityType } from './ActionProtocol.types';
+import { ARTIFACT_RARITY_BUDGETS } from '@/lib/types/world';
 
 export const PERSIAN_FIELD_MAP: Record<string, string> = {
   'نام': 'name',
@@ -79,6 +80,15 @@ export const PERSIAN_FIELD_MAP: Record<string, string> = {
   'خواص فیزیکی': 'craftingProperties',
   'قدرت‌ها': 'powers',
   'قدرت': 'powers',
+  'اثر': 'powers',
+  'اثرات': 'powers',
+  'تاثیر': 'powers',
+  'ویژگی‌ها': 'statModifiers',
+  'ویژگی ها': 'statModifiers',
+  'تغییرات آماری': 'statModifiers',
+  'جایگاه': 'slot',
+  'اسلات': 'slot',
+  'محل تجهیز': 'slot',
   'نفرین': 'curseOrCost',
   'هزینه': 'curseOrCost',
   'قانون': 'rule',
@@ -567,9 +577,87 @@ export function normalizeEntity(entity: EntityType, data: any): any {
       res.statCalibration = sc;
     }
   } else if (entity === 'artifact') {
-    if (!Array.isArray(res.powers)) res.powers = [];
-    const validRarities = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
-    if (!validRarities.includes(res.rarity)) res.rarity = 'rare';
+    // 1. Rarity normalization
+    const validRarities = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'] as const;
+    const rarityStr = String(res.rarity || '').toLowerCase().trim();
+    const rarity: (typeof validRarities)[number] = (validRarities as readonly string[]).includes(rarityStr)
+      ? (rarityStr as (typeof validRarities)[number])
+      : 'rare';
+    res.rarity = rarity;
+
+    // 2. Powers normalization & effect migration
+    if (!Array.isArray(res.powers)) {
+      if (res.effect) {
+        res.powers = [String(res.effect)];
+      } else if (typeof res.powers === 'string') {
+        res.powers = [res.powers];
+      } else {
+        res.powers = [];
+      }
+    } else if (res.powers.length === 0 && res.effect) {
+      res.powers = [String(res.effect)];
+    }
+    delete res.effect;
+
+    // 3. Slot normalization with heuristic fallbacks
+    const validSlots = ['relic', 'main_hand', 'two_handed', 'off_hand', 'shield', 'armor'] as const;
+    const rawSlot = String(res.slot || res.type || res['نوع'] || '').toLowerCase();
+    const containsAny = (str: string, terms: string[]) => terms.some((t) => str.includes(t));
+
+    if ((validSlots as readonly string[]).includes(rawSlot)) {
+      res.slot = rawSlot;
+    } else if (containsAny(rawSlot, ['two_handed', 'two-handed', 'greatsword', 'polearm', 'دو دستی'])) {
+      res.slot = 'two_handed';
+    } else if (containsAny(rawSlot, ['off_hand', 'off-hand', 'parrying', 'دست دوم', 'سلاح دوم'])) {
+      res.slot = 'off_hand';
+    } else if (containsAny(rawSlot, ['shield', 'buckler', 'سپر'])) {
+      res.slot = 'shield';
+    } else if (containsAny(rawSlot, ['armor', 'helm', 'helmet', 'cuirass', 'greaves', 'boots', 'cloak', 'robe', 'زره', 'کلاهخود', 'کلاه', 'جامه', 'پوشش', 'ردا'])) {
+      res.slot = 'armor';
+    } else if (containsAny(rawSlot, ['weapon', 'sword', 'blade', 'dagger', 'bow', 'axe', 'mace', 'wand', 'staff', 'سلاح', 'شمشیر', 'خنجر', 'تبر', 'کمان', 'چوبدست', 'گرز'])) {
+      res.slot = 'main_hand';
+    } else {
+      res.slot = 'relic';
+    }
+    delete res.type;
+
+    // 4. Rarity Stat Budget Clamping
+    const budget = ARTIFACT_RARITY_BUDGETS[rarity];
+    const rawMods = (res.statModifiers || res.stats || res['ویژگی‌ها'] || {}) as Record<string, unknown>;
+    const clampedMods: Record<string, number> = {};
+    let totalPositive = 0;
+
+    for (const [rawKey, rawVal] of Object.entries(rawMods)) {
+      const num = Number(rawVal);
+      if (isNaN(num) || num === 0) continue;
+      const key = String(rawKey).trim().toLowerCase();
+
+      if (num > 0) {
+        // Clamp single stat modifier to rarity ceiling
+        const singleClamped = Math.min(num, budget.maxSingleStat);
+        // Ensure total does not exceed total budget
+        const allowedPositive = Math.max(0, budget.maxTotalStat - totalPositive);
+        const finalVal = Math.min(singleClamped, allowedPositive);
+        if (finalVal > 0) {
+          clampedMods[key] = finalVal;
+          totalPositive += finalVal;
+        }
+      } else {
+        // Negative modifiers (penalties) are allowed and clamped
+        clampedMods[key] = Math.max(num, -budget.maxSingleStat);
+      }
+    }
+    res.statModifiers = clampedMods;
+
+    // 5. Clamp powers count
+    if (res.powers.length > budget.maxPowers && budget.maxPowers > 0) {
+      res.powers = res.powers.slice(0, budget.maxPowers);
+    }
+
+    // 6. Curse enforcement
+    if (!budget.curseAllowed) {
+      res.curseOrCost = '';
+    }
   } else if (entity === 'creature') {
     if (!Array.isArray(res.weaknesses)) res.weaknesses = [];
     if (!Array.isArray(res.resistances)) res.resistances = [];

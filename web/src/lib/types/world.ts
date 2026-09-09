@@ -456,6 +456,17 @@ export interface WorldArtifact {
   vaultLore?: ArtifactVaultLore;
 }
 
+export const ARTIFACT_RARITY_BUDGETS = {
+  common: { maxSingleStat: 1, maxTotalStat: 1, maxPowers: 1, curseAllowed: false },
+  uncommon: { maxSingleStat: 2, maxTotalStat: 2, maxPowers: 2, curseAllowed: false },
+  rare: { maxSingleStat: 3, maxTotalStat: 4, maxPowers: 3, curseAllowed: false },
+  epic: { maxSingleStat: 4, maxTotalStat: 6, maxPowers: 4, curseAllowed: false },
+  legendary: { maxSingleStat: 5, maxTotalStat: 8, maxPowers: 5, curseAllowed: true },
+  mythic: { maxSingleStat: 8, maxTotalStat: 12, maxPowers: 8, curseAllowed: true },
+} as const;
+
+export type ArtifactRarityBudget = (typeof ARTIFACT_RARITY_BUDGETS)[keyof typeof ARTIFACT_RARITY_BUDGETS];
+
 export interface CreatureAlchemicalYield {
   reagentName: string;
   rarity: string;

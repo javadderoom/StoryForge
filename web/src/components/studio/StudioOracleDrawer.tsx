@@ -308,7 +308,7 @@ export default function StudioOracleDrawer() {
           })),
           persona: selectedPersona,
           worldContext,
-          activeEntityContext: `Active Studio Route: ${pathname} (${getRouteLabel()}). Story Title: ${story.title}`,
+          activeEntityContext: `Active Studio Route: ${pathname} (${getRouteLabel()}). Story Title: ${story.title}. Active Story RPG Stats: [${(story.rpgSystem?.stats || []).map((s) => `${s.name} (${s.id})`).join(', ') || 'might, agility, cunning, arcana'}]`,
           directives: story.worldBible.oracleDirectives || [],
           isPersian,
         }),

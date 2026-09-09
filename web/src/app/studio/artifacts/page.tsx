@@ -26,7 +26,7 @@ import {
   Check,
   Sword,
 } from 'lucide-react';
-import { WorldArtifact, ArtifactVaultLore, EnhancedArtifactPayload } from '@/lib/types';
+import { WorldArtifact, ArtifactVaultLore, EnhancedArtifactPayload, ARTIFACT_RARITY_BUDGETS } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import AiFillSection from '@/components/studio/AiFillSection';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
@@ -207,6 +207,25 @@ export default function ArtifactsStudioPage() {
       }
     }
 
+    // Rarity Stat Budget Clamping
+    const budget = ARTIFACT_RARITY_BUDGETS[artRarity];
+    const clampedStats: Record<string, number> = {};
+    let totalPositive = 0;
+
+    for (const [sKey, sVal] of Object.entries(cleanedStats)) {
+      if (sVal > 0) {
+        const singleClamped = Math.min(sVal, budget.maxSingleStat);
+        const allowedPositive = Math.max(0, budget.maxTotalStat - totalPositive);
+        const finalVal = Math.min(singleClamped, allowedPositive);
+        if (finalVal > 0) {
+          clampedStats[sKey] = finalVal;
+          totalPositive += finalVal;
+        }
+      } else if (sVal < 0) {
+        clampedStats[sKey] = Math.max(sVal, -budget.maxSingleStat);
+      }
+    }
+
     const payload: WorldArtifact = {
       id: editingArtifactId || `art_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
       name: artName.trim(),
@@ -215,9 +234,9 @@ export default function ArtifactsStudioPage() {
       rarity: artRarity,
       description: artDesc.trim(),
       powers: powersArray.length > 0 ? powersArray : [isPersian ? 'نیروی جادویی پنهان' : 'Latent mystical resonance'],
-      statModifiers: cleanedStats,
+      statModifiers: clampedStats,
       slot: artSlot,
-      curseOrCost: artCurse.trim() || undefined,
+      curseOrCost: budget.curseAllowed && artCurse.trim() ? artCurse.trim() : undefined,
       attunementRules: artAttunement.trim() || undefined,
       currentHolderType: artHolderType,
       currentHolderId: artHolderId.trim() || 'unknown',
@@ -854,10 +873,17 @@ export default function ArtifactsStudioPage() {
 
               {/* RPG Stat Modifiers */}
               <div className="p-3.5 rounded-2xl bg-zinc-950/80 border border-amber-500/20 space-y-3">
-                <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5" />
-                  {isPersian ? 'پاداش‌های ویژگی‌های نقش‌آفرینی (Stat Modifiers):' : 'RPG Stat Modifiers:'}
-                </span>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5" />
+                    {isPersian ? 'پاداش‌های ویژگی‌های نقش‌آفرینی (Stat Modifiers):' : 'RPG Stat Modifiers:'}
+                  </span>
+                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono font-semibold">
+                    {isPersian
+                      ? `سقف رده ${artRarity}: هر ویژگی +${ARTIFACT_RARITY_BUDGETS[artRarity]?.maxSingleStat || 1} (مجموع +${ARTIFACT_RARITY_BUDGETS[artRarity]?.maxTotalStat || 1})`
+                      : `Budget (${artRarity}): Max +${ARTIFACT_RARITY_BUDGETS[artRarity]?.maxSingleStat || 1} / stat (Max +${ARTIFACT_RARITY_BUDGETS[artRarity]?.maxTotalStat || 1} total)`}
+                  </span>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {(story.rpgSystem?.stats || []).map((s) => (
                     <div key={s.id}>

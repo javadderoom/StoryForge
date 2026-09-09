@@ -437,4 +437,42 @@ I have prepared the direct insertion for you.`;
     assert.equal(res.ready.length, 1);
     assert.equal(res.ready[0].newData.name, 'برج خاموش');
   });
+
+  it('clamps common artifact stats, resolves slot, and strips curses', () => {
+    const rawCommon = {
+      name: 'خنجر مسافرتی فولادی',
+      type: 'سلاح فیزیکی',
+      rarity: 'common',
+      effect: 'برش مطمئن برای بقا در راه‌ها',
+      statModifiers: { might: 10, agility: 5 },
+      curseOrCost: 'مرگ ناگهانی',
+    };
+
+    const normalized = normalizeEntity('artifact', rawCommon);
+    assert.equal(normalized.rarity, 'common');
+    assert.equal(normalized.slot, 'main_hand');
+    assert.deepEqual(normalized.powers, ['برش مطمئن برای بقا در راه‌ها']);
+    // Single stat capped to 1, total capped to 1 -> only might: 1 remains
+    assert.deepEqual(normalized.statModifiers, { might: 1 });
+    // Curses forbidden on common items
+    assert.equal(normalized.curseOrCost, '');
+  });
+
+  it('enforces legendary budget and preserves legendary curses', () => {
+    const rawLegendary = {
+      name: 'Sunfire Greatsword',
+      type: 'two_handed',
+      rarity: 'legendary',
+      statModifiers: { might: 8, agility: 4 },
+      curseOrCost: 'Burns the wielder on misses',
+    };
+
+    const normalized = normalizeEntity('artifact', rawLegendary);
+    assert.equal(normalized.rarity, 'legendary');
+    assert.equal(normalized.slot, 'two_handed');
+    // Max single stat is 5, max total is 8 -> might: 5, agility: 3
+    assert.deepEqual(normalized.statModifiers, { might: 5, agility: 3 });
+    assert.equal(normalized.curseOrCost, 'Burns the wielder on misses');
+  });
 });
+
