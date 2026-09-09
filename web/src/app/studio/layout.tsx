@@ -296,9 +296,8 @@ function StudioShell({ children }: { children: React.ReactNode }) {
       <Toaster />
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-72 bg-[#0c0d14] border-r border-zinc-800/80 p-5 shrink-0 justify-between sticky top-0 h-screen z-40">
-        <div className="flex-1 min-h-0 flex flex-col">
-          {/* Header Branding */}
+      <aside className="hidden md:flex flex-col w-72 bg-[#0c0d14] border-r border-zinc-800/80 p-5 shrink-0 sticky top-0 h-screen overflow-y-auto z-40">
+        {/* Header Branding */}
           <div className="flex items-center gap-3 pb-5 border-b border-zinc-800/80">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-rose-600 flex items-center justify-center shadow-lg shadow-amber-500/20 font-black text-white text-lg shrink-0">
               ⚡
@@ -450,7 +449,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Navigation Links (grouped) */}
-          <div className="mt-5 flex-1 min-h-0 overflow-y-auto pr-1 space-y-4">
+          <div className="mt-5 space-y-4">
             {NAV_SECTIONS.map((section) => {
               const items = navItems.filter((it) => SECTION_OF[it.href] === section.key);
               if (!items.length) return null;
@@ -508,10 +507,9 @@ function StudioShell({ children }: { children: React.ReactNode }) {
               );
             })}
           </div>
-        </div>
 
         {/* Footer Actions */}
-        <div className="pt-4 border-t border-zinc-800/80 space-y-2.5">
+        <div className="mt-auto pt-6 border-t border-zinc-800/80 space-y-2.5 shrink-0">
           <Link
             href="/studio/manifest"
             className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/20 transition-all cursor-pointer shadow-sm"
