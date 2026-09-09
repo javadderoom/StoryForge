@@ -276,8 +276,11 @@ export async function POST(req: NextRequest) {
     if (type === 'artifact' && rarity) {
       constraints.push(`The author explicitly requested an item of RARITY "${rarity}". Output exactly that rarity value.`);
     }
-    if (type === 'creature' && speciesCategory) {
+    if ((type === 'creature' || type === 'creature_ecology') && speciesCategory) {
       constraints.push(`The author explicitly requested a creature of SPECIES CATEGORY "${speciesCategory}". Output exactly that speciesCategory value.`);
+    }
+    if (type === 'creature_ecology' && dangerLevel) {
+      constraints.push(`The target creature has DANGER LEVEL ${dangerLevel}. Every predatorSpecies entry must plausibly threaten it (known danger >= ${dangerLevel}); every preySpecies entry must plausibly be hunted by it (known danger <= ${dangerLevel}). Pack hunters, swarms, parasites, ambush predators, and venomous trappers may break this ordering ONLY if predatorPreyNiche explicitly names the mechanism.`);
     }
     if (type === 'deity' && domain) {
       constraints.push(`The author explicitly requested a deity of DOMAIN "${domain}". Output exactly that domain value.`);
@@ -418,6 +421,8 @@ CATEGORY-SPECIFIC DIRECTIVES (CRITICAL):
 - If speciesCategory is "mineral": nonCombatPacificationMethod describes safe excavation or extraction conditions (e.g. temperature, special picks, insulation against shock) and behavioral tactics describe geological stability.
 - If speciesCategory is "beast": describe realistic apex/predator/prey ecology and animal baiting or calming methods.
 - If the request notes the beast is DOMESTICATED (mount / livestock / guard): nonCombatPacificationMethod must describe training, handling, and husbandry rather than baiting, trapping, or subdual, and predatorPreyNiche should note its kept role.
+- REUSE EXISTING ENTITIES: predatorSpecies, preySpecies, and pacificationReagents MUST prefer exact names from existing bestiary / flora / mineral entries in the world context (which lists each with its danger level). Invent a new name only when no existing entry fits.
+- DANGER COHERENCE: never make a higher-danger creature the prey of a lower-danger predator without stating the mechanism (pack, swarm, parasite, ambush, venom). Never describe mining, excavation, ore veins, or mineral extraction for a non-mineral species.
 IMPORTANT FOR PACIFICATION: In pacificationReagents, list the clean entity names of any plants, herbs, salts, minerals, or reagents required to pacify/contain the creature (e.g. ["نیلوفر مردابی", "نمک معدنی"]). In nonCombatPacificationMethod, surround each required reagent in quotes like «نیلوفر مردابی». Prioritize reusing already-existing flora, minerals, or reagents from the world context when available)`;
     } else if (type === 'religion_schisms') {
       schemaInstruction = `Schema: { "name": string, "domain": string, "sacredTaboos": string[], "divineOmensForViolation": string, "divineBlessing": string, "sectarianSchisms": [{ "cultName": string, "heresyDoctrine": string, "headquartersLocation": string }] } (Generate strict sacred taboos, chilling divine omens/wrath triggers for blasphemers, blessings for faithful devotees, and 1 to 3 underground heresy splinter cults/schisms)`;

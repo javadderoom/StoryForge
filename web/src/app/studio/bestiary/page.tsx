@@ -35,6 +35,10 @@ import {
   extractPacificationEntities,
   resolveSuggestedCategory,
 } from '@/lib/engines/world/pacificationExtractor';
+import {
+  validateCreatureEcology,
+  type EcologyValidationResult,
+} from '@/lib/engines/world/validateCreatureEcology';
 
 const SPECIES_CATEGORIES = {
   elemental: { labelFa: 'عنصری و سنگی', labelEn: 'Elemental', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' },
@@ -206,6 +210,8 @@ export default function BestiaryStudioPage() {
   const [ecologyPreview, setEcologyPreview] = useState<{
     targetCreature: WorldCreature;
     payload: EnhancedCreaturePayload;
+    validation: EcologyValidationResult;
+    retried: boolean;
   } | null>(null);
 
   // Dedicated Ecology Modal states
@@ -515,31 +521,56 @@ export default function BestiaryStudioPage() {
       }
 
       const worldContext = buildWorldContextString(story);
-      const res = await fetch('/api/studio/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'creature_ecology',
-          prompt: promptParts.join('\n'),
-          themeContext: story.worldBible.themeNotes,
-          worldContext,
-          isPersian,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Failed to generate ecology (${res.status})`);
-      }
-
-      const json = await res.json();
-      if (json.data && Array.isArray(json.data.alchemicalYields)) {
-        setEcologyPreview({
-          targetCreature: creature,
-          payload: json.data,
+      const baseBody = {
+        type: 'creature_ecology',
+        prompt: promptParts.join('\n'),
+        themeContext: story.worldBible.themeNotes,
+        worldContext,
+        isPersian,
+        speciesCategory: creature.speciesCategory,
+        dangerLevel: creature.dangerLevel,
+      };
+      const generateOnce = async (body: Record<string, unknown>) => {
+        const res = await fetch('/api/studio/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
         });
-      } else {
-        notify.error(isPersian ? 'قالب اکولوژی معتبر نبود' : 'Invalid creature ecology format');
+        if (!res.ok) {
+          throw new Error(`Failed to generate ecology (${res.status})`);
+        }
+        const json = await res.json();
+        if (!(json.data && Array.isArray(json.data.alchemicalYields))) {
+          throw new Error(isPersian ? 'قالب اکولوژی معتبر نبود' : 'Invalid creature ecology format');
+        }
+        return json.data as EnhancedCreaturePayload;
+      };
+
+      let payload = await generateOnce(baseBody);
+      let validation = validateCreatureEcology(payload, creature, bestiary);
+      let retried = false;
+      // Auto-retry once: hand the violations back and ask for a minimal repair.
+      if (validation.hasError) {
+        retried = true;
+        const violations = [...validation.errors, ...validation.warnings]
+          .map((i) => `- ${isPersian ? i.messageFa : i.messageEn}`)
+          .join('\n');
+        payload = await generateOnce({
+          ...baseBody,
+          prompt:
+            `${promptParts.join('\n')}\n\n` +
+            (isPersian ? 'خروجی قبلی این قوانین را نقض کرد:' : 'The previous output violated these rules:') +
+            `\n${violations}\n\n` +
+            (isPersian ? 'خروجی قبلی:' : 'Previous output:') +
+            `\n${JSON.stringify(payload)}\n\n` +
+            (isPersian
+              ? 'فقط بخش‌های ناقض را با حداقل تغییر اصلاح کن؛ بقیه را دست‌نخورده نگه دار و کل JSON اصلاح‌شده را برگردان.'
+              : 'Repair ONLY the violating parts with minimal changes; keep everything valid unchanged and return the full corrected JSON.'),
+        });
+        validation = validateCreatureEcology(payload, creature, bestiary);
       }
+
+      setEcologyPreview({ targetCreature: creature, payload, validation, retried });
     } catch (err: any) {
       notify.error(err.message || 'Error generating creature ecology');
     } finally {
@@ -710,6 +741,47 @@ export default function BestiaryStudioPage() {
         <span className="text-[11px] font-medium text-zinc-400">
           {isPersian ? `سطح ${level}` : `Lvl ${level}`}
         </span>
+      </div>
+    );
+  };
+
+  /** Preview-modal food-chain chips: known entries get danger badges, unknown get ghost flags. */
+  const renderPreviewFoodChain = (names: string[] | undefined, role: 'prey' | 'predator') => {
+    if (!names || names.length === 0) return null;
+    return (
+      <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 space-y-1">
+        <span className="text-[10px] text-zinc-500 font-bold block">
+          {role === 'prey'
+            ? isPersian ? '🐰 طعمه‌ها:' : '🐰 Prey:'
+            : isPersian ? '🐺 شکارچیان:' : '🐺 Predators:'}
+        </span>
+        <div className="flex flex-wrap gap-1">
+          {names.map((n, idx) => {
+            const known = bestiary.find((b) => b.name.trim().toLowerCase() === n.trim().toLowerCase());
+            if (known) {
+              return (
+                <span
+                  key={idx}
+                  className="px-2 py-0.5 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-200 text-[10.5px] flex items-center gap-1.5"
+                >
+                  <span>{n}</span>
+                  <span className="font-mono text-[9px] text-red-300">☠ {known.dangerLevel}</span>
+                </span>
+              );
+            }
+            return (
+              <span
+                key={idx}
+                className="px-2 py-0.5 rounded-lg bg-red-950/40 border border-red-500/50 text-red-300 text-[10.5px] flex items-center gap-1"
+                title={isPersian ? 'در کتاب جهان ثبت نشده؛ با ذخیره به‌عنوان گونهٔ ناموجود پرچم می‌خورد' : 'Not in the world bible; saving will flag it as a ghost species'}
+              >
+                <Ghost className="w-3 h-3 text-red-400" />
+                <span>{n}</span>
+                <span className="text-[9px] font-mono text-red-400">({isPersian ? 'ناموجود' : 'ghost'})</span>
+              </span>
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -1540,6 +1612,33 @@ export default function BestiaryStudioPage() {
                 <strong className="text-zinc-100 text-sm">{ecologyPreview.targetCreature.name}</strong>
               </div>
 
+              {ecologyPreview.retried && !ecologyPreview.validation.hasError && (
+                <div className="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-[11px] text-emerald-300">
+                  {isPersian ? 'خروجی اول نقض داشت و یک‌بار خودکار اصلاح شد.' : 'First output had violations and was auto-repaired once.'}
+                </div>
+              )}
+              {ecologyPreview.validation.errors.length > 0 && (
+                <div className="p-2.5 rounded-xl bg-red-950/40 border border-red-500/40 space-y-1">
+                  <span className="text-[11px] font-bold text-red-300 flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    {isPersian ? 'ناسازگاری (پس از یک اصلاح خودکار):' : 'Violations (after one auto-repair):'}
+                  </span>
+                  {ecologyPreview.validation.errors.map((e, idx) => (
+                    <p key={idx} className="text-[11px] text-red-200 leading-relaxed">• {isPersian ? e.messageFa : e.messageEn}</p>
+                  ))}
+                </div>
+              )}
+              {ecologyPreview.validation.warnings.length > 0 && (
+                <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-500/30 space-y-1">
+                  <span className="text-[11px] font-bold text-amber-300">
+                    {isPersian ? 'هشدارها:' : 'Warnings:'}
+                  </span>
+                  {ecologyPreview.validation.warnings.map((w, idx) => (
+                    <p key={idx} className="text-[11px] text-amber-200/90 leading-relaxed">• {isPersian ? w.messageFa : w.messageEn}</p>
+                  ))}
+                </div>
+              )}
+
               <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 space-y-1">
                 <span className="text-[10px] text-zinc-500 font-bold block">
                   🦁 {isPersian ? 'جایگاه در زنجیره غذایی:' : 'Ecological Niche:'}
@@ -1553,6 +1652,9 @@ export default function BestiaryStudioPage() {
                 </span>
                 <p>{ecologyPreview.payload.nonCombatPacificationMethod}</p>
               </div>
+
+              {renderPreviewFoodChain(ecologyPreview.payload.preySpecies, 'prey')}
+              {renderPreviewFoodChain(ecologyPreview.payload.predatorSpecies, 'predator')}
 
               <div className="space-y-1.5">
                 <span className="text-[10px] text-zinc-400 font-bold block">
@@ -1593,12 +1695,27 @@ export default function BestiaryStudioPage() {
                     niche: p.predatorPreyNiche,
                     pacification: p.nonCombatPacificationMethod,
                     yields: p.alchemicalYields,
+                    prey: p.preySpecies,
+                    predators: p.predatorSpecies,
                   });
                 }}
                 className="px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
                 <Edit2 className="w-3.5 h-3.5" />
                 <span>{isPersian ? 'ویرایش قبل از ثبت' : 'Edit Before Saving'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleGenerateCreatureEcology(ecologyPreview.targetCreature)}
+                disabled={generatingEcologyCreatureId === ecologyPreview.targetCreature.id}
+                className="px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>
+                  {generatingEcologyCreatureId === ecologyPreview.targetCreature.id
+                    ? isPersian ? 'سنتز...' : 'Synthesizing...'
+                    : isPersian ? 'تولید مجدد' : 'Regenerate'}
+                </span>
               </button>
               <button
                 type="button"
