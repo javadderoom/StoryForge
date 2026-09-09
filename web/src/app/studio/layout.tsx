@@ -22,7 +22,6 @@ import {
   Scroll,
   Share2,
   GitBranch,
-  Download,
   RotateCcw,
   CheckCircle2,
   CloudUpload,
@@ -34,6 +33,7 @@ import {
   Edit2,
   MessageSquare,
   ChevronRight,
+  FileJson,
   Menu,
   X,
   ShieldCheck,
@@ -56,7 +56,6 @@ function StudioShell({ children }: { children: React.ReactNode }) {
     isSyncing,
     lastServerSynced,
     saveToServer,
-    exportStoryJson,
     resetToDefault,
   } = useStudioStory();
 
@@ -513,13 +512,13 @@ function StudioShell({ children }: { children: React.ReactNode }) {
 
         {/* Footer Actions */}
         <div className="pt-4 border-t border-zinc-800/80 space-y-2.5">
-          <button
-            onClick={exportStoryJson}
+          <Link
+            href="/studio/manifest"
             className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/20 transition-all cursor-pointer shadow-sm"
           >
-            <Download className="w-3.5 h-3.5" />
-            {isPersian ? 'خروجی فایل داستان (JSON)' : 'Export Story JSON'}
-          </button>
+            <FileJson className="w-3.5 h-3.5" />
+            {isPersian ? 'مشاهده JSON داستان' : 'View Story JSON'}
+          </Link>
           <Link
             href="/"
             className="flex items-center justify-center gap-2 w-full py-2 px-3 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs font-semibold border border-zinc-800 transition-all"
@@ -545,13 +544,13 @@ function StudioShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={exportStoryJson}
+            <Link
+              href="/studio/manifest"
               className="p-1.5 bg-zinc-800 text-amber-400 rounded-lg border border-zinc-700"
-              title="Export JSON"
+              title={isPersian ? 'مشاهده JSON' : 'View JSON'}
             >
-              <Download className="w-4 h-4" />
-            </button>
+              <FileJson className="w-4 h-4" />
+            </Link>
             <button
               onClick={toggleLanguage}
               className="flex items-center gap-1 text-xs bg-zinc-800 text-amber-400 px-2.5 py-1 rounded-lg border border-zinc-700"

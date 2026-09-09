@@ -20,6 +20,8 @@ export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSection
     name: '',
     description: '',
     baseValue: 10,
+    minValue: 1,
+    maxValue: 30,
   });
 
   const openModal = (stat?: StatDefinition) => {
@@ -33,6 +35,8 @@ export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSection
         name: '',
         description: '',
         baseValue: 10,
+        minValue: 1,
+        maxValue: 30,
       });
     }
     setModalOpen(true);
@@ -42,14 +46,28 @@ export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSection
     e.preventDefault();
     if (!statForm.name.trim() || !statForm.id.trim()) return;
 
+    const min = Number(statForm.minValue ?? 1);
+    const max = Number(statForm.maxValue ?? 30);
+    if (min > max) {
+      notify.error(isPersian ? 'حداقل نمی‌تواند از حداکثر بیشتر باشد' : 'Min value cannot exceed max value');
+      return;
+    }
+    // Clamp base into the declared range so checks stay coherent.
+    const clamped: StatDefinition = {
+      ...statForm,
+      minValue: min,
+      maxValue: max,
+      baseValue: Math.min(Math.max(Number(statForm.baseValue), min), max),
+    };
+
     updateRpgSystem((prev: any) => {
       let updatedStats = prev.stats || [];
       if (editingStatId) {
         updatedStats = updatedStats.map((s: StatDefinition) =>
-          s.id === editingStatId ? statForm : s
+          s.id === editingStatId ? clamped : s
         );
       } else {
-        updatedStats = [...updatedStats, statForm];
+        updatedStats = [...updatedStats, clamped];
       }
       return { ...prev, stats: updatedStats };
     });
@@ -121,8 +139,14 @@ export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSection
                       <span className="text-[10px] font-mono text-zinc-500">({stat.id})</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono text-amber-400 font-bold bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-400/20">
+                      <span
+                        className="text-xs font-mono text-amber-400 font-bold bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-400/20"
+                        title={isPersian ? `بازه مجاز: ${stat.minValue ?? 1} تا ${stat.maxValue ?? 30}` : `Allowed range: ${stat.minValue ?? 1} to ${stat.maxValue ?? 30}`}
+                      >
                         Base: {stat.baseValue}
+                      </span>
+                      <span className="text-[10px] font-mono text-zinc-400 bg-zinc-800/80 px-2 py-0.5 rounded-md border border-zinc-700/60" dir="ltr">
+                        {stat.minValue ?? 1}–{stat.maxValue ?? 30}
                       </span>
                       <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                         <button
@@ -202,24 +226,63 @@ export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSection
                 />
               </div>
 
-              <div>
-                <label className="block text-xs text-zinc-400 mb-1">
-                  {isPersian ? 'مقدار پایه پیش‌فرض' : 'Base Value'}
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={statForm.baseValue}
-                  onChange={(e) =>
-                    setStatForm((prev) => ({
-                      ...prev,
-                      baseValue: Number(e.target.value),
-                    }))
-                  }
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
-                  required
-                />
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">
+                    {isPersian ? 'حداقل' : 'Min'}
+                  </label>
+                  <input
+                    type="number"
+                    value={statForm.minValue ?? 1}
+                    onChange={(e) =>
+                      setStatForm((prev) => ({
+                        ...prev,
+                        minValue: Number(e.target.value),
+                      }))
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 font-mono"
+                    dir="ltr"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">
+                    {isPersian ? 'مقدار پایه پیش‌فرض' : 'Base Value'}
+                  </label>
+                  <input
+                    type="number"
+                    min={statForm.minValue ?? 1}
+                    max={statForm.maxValue ?? 30}
+                    value={statForm.baseValue}
+                    onChange={(e) =>
+                      setStatForm((prev) => ({
+                        ...prev,
+                        baseValue: Number(e.target.value),
+                      }))
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 font-mono"
+                    dir="ltr"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">
+                    {isPersian ? 'حداکثر' : 'Max'}
+                  </label>
+                  <input
+                    type="number"
+                    value={statForm.maxValue ?? 30}
+                    onChange={(e) =>
+                      setStatForm((prev) => ({
+                        ...prev,
+                        maxValue: Number(e.target.value),
+                      }))
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 font-mono"
+                    dir="ltr"
+                  />
+                </div>
               </div>
 
               <div>
