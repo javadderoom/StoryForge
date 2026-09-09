@@ -155,60 +155,78 @@ export default function ArtifactsStudioPage() {
 
   const handleOpenEditModal = (art: WorldArtifact) => {
     setEditingArtifactId(art.id);
-    setArtName(art.name);
-    setArtTitle(art.title);
-    setArtOriginEra(art.originEra);
-    setArtRarity(art.rarity);
-    setArtDesc(art.description);
-    setArtPowers(art.powers.join('\n'));
+    setArtName(art.name || '');
+    setArtTitle(art.title || '');
+    setArtOriginEra(art.originEra || '');
+    setArtRarity(art.rarity || 'common');
+    setArtDesc(art.description || '');
+    setArtPowers(
+      Array.isArray(art.powers)
+        ? art.powers.join('\n')
+        : typeof art.powers === 'string'
+        ? art.powers
+        : ''
+    );
     setArtCurse(art.curseOrCost || '');
     setArtAttunement(art.attunementRules || '');
     setArtSlot(art.slot || 'relic');
     setArtStatModifiers(art.statModifiers || {});
-    setArtHolderType(art.currentHolderType);
-    setArtHolderId(art.currentHolderId);
+    setArtHolderType(art.currentHolderType || 'vault');
+    setArtHolderId(art.currentHolderId || '');
     setArtSecretLore(art.secretLore || '');
     setVaultCreator(art.vaultLore?.creator || '');
     setVaultLocation(art.vaultLore?.currentVaultLocation || '');
     setVaultRitual(art.vaultLore?.unsealingRitual || '');
-    setVaultSeekers(art.vaultLore?.rivalSeekers?.join(', ') || '');
+    setVaultSeekers(
+      Array.isArray(art.vaultLore?.rivalSeekers)
+        ? art.vaultLore.rivalSeekers.join(', ')
+        : ''
+    );
     setShowAddModal(true);
   };
 
   const handleSaveArtifact = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!artName.trim()) {
+    const safeName = (artName || '').trim();
+    if (!safeName) {
       notify.error(isPersian ? 'نام عتیقه الزامی است' : 'Artifact name is required');
       return;
     }
 
-    const powersArray = artPowers
+    const powersArray = (artPowers || '')
       .split('\n')
       .map((p) => p.trim())
       .filter((p) => p.length > 0);
 
+    const safeCreator = (vaultCreator || '').trim();
+    const safeLocation = (vaultLocation || '').trim();
+    const safeRitual = (vaultRitual || '').trim();
+    const safeSeekers = (vaultSeekers || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
     const vaultLorePayload: ArtifactVaultLore | undefined =
-      vaultCreator.trim() || vaultLocation.trim() || vaultRitual.trim()
+      safeCreator || safeLocation || safeRitual
         ? {
-            creator: vaultCreator.trim() || (isPersian ? 'استاد افزارمند ناشناس' : 'Unknown Artificer'),
-            currentVaultLocation: vaultLocation.trim() || (isPersian ? 'خزانه پنهان' : 'Hidden Vault'),
-            unsealingRitual: vaultRitual.trim() || (isPersian ? 'رمزگشایی با رون‌های کهن' : 'Ancient runic deciphering'),
-            rivalSeekers: vaultSeekers
-              .split(',')
-              .map((s) => s.trim())
-              .filter((s) => s.length > 0),
+            creator: safeCreator || (isPersian ? 'استاد افزارمند ناشناس' : 'Unknown Artificer'),
+            currentVaultLocation: safeLocation || (isPersian ? 'خزانه پنهان' : 'Hidden Vault'),
+            unsealingRitual: safeRitual || (isPersian ? 'رمزگشایی با رون‌های کهن' : 'Ancient runic deciphering'),
+            rivalSeekers: safeSeekers,
           }
         : undefined;
 
     const cleanedStats: Record<string, number> = {};
-    for (const [k, v] of Object.entries(artStatModifiers)) {
-      if (typeof v === 'number' && v !== 0 && !isNaN(v)) {
-        cleanedStats[k] = v;
+    if (artStatModifiers && typeof artStatModifiers === 'object') {
+      for (const [k, v] of Object.entries(artStatModifiers)) {
+        if (typeof v === 'number' && v !== 0 && !isNaN(v)) {
+          cleanedStats[k] = v;
+        }
       }
     }
 
     // Rarity Stat Budget Clamping
-    const budget = ARTIFACT_RARITY_BUDGETS[artRarity];
+    const budget = ARTIFACT_RARITY_BUDGETS[artRarity] || ARTIFACT_RARITY_BUDGETS.common;
     const clampedStats: Record<string, number> = {};
     let totalPositive = 0;
 
@@ -226,21 +244,29 @@ export default function ArtifactsStudioPage() {
       }
     }
 
+    const safeTitle = (artTitle || '').trim();
+    const safeOrigin = (artOriginEra || '').trim();
+    const safeDesc = (artDesc || '').trim();
+    const safeCurse = (artCurse || '').trim();
+    const safeAttunement = (artAttunement || '').trim();
+    const safeHolderId = (artHolderId || '').trim();
+    const safeSecretLore = (artSecretLore || '').trim();
+
     const payload: WorldArtifact = {
       id: editingArtifactId || `art_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-      name: artName.trim(),
-      title: artTitle.trim(),
-      originEra: artOriginEra.trim() || (isPersian ? 'عصر باستان' : 'Ancient Era'),
-      rarity: artRarity,
-      description: artDesc.trim(),
+      name: safeName,
+      title: safeTitle,
+      originEra: safeOrigin || (isPersian ? 'عصر باستان' : 'Ancient Era'),
+      rarity: artRarity || 'common',
+      description: safeDesc,
       powers: powersArray.length > 0 ? powersArray : [isPersian ? 'نیروی جادویی پنهان' : 'Latent mystical resonance'],
       statModifiers: clampedStats,
-      slot: artSlot,
-      curseOrCost: budget.curseAllowed && artCurse.trim() ? artCurse.trim() : undefined,
-      attunementRules: artAttunement.trim() || undefined,
-      currentHolderType: artHolderType,
-      currentHolderId: artHolderId.trim() || 'unknown',
-      secretLore: artSecretLore.trim() || undefined,
+      slot: artSlot || 'relic',
+      curseOrCost: budget.curseAllowed && safeCurse ? safeCurse : undefined,
+      attunementRules: safeAttunement || undefined,
+      currentHolderType: artHolderType || 'vault',
+      currentHolderId: safeHolderId || 'unknown',
+      secretLore: safeSecretLore || undefined,
       vaultLore: vaultLorePayload,
     };
 
@@ -325,16 +351,16 @@ export default function ArtifactsStudioPage() {
   };
 
   const applyAiFill = (data: Record<string, unknown>) => {
-    if (!artName && data.name) setArtName(data.name as string);
-    if (!artTitle && data.title) setArtTitle(data.title as string);
-    if (!artOriginEra && data.originEra) setArtOriginEra(data.originEra as string);
+    if (!artName && data.name) setArtName(String(data.name || ''));
+    if (!artTitle && data.title) setArtTitle(String(data.title || ''));
+    if (!artOriginEra && data.originEra) setArtOriginEra(String(data.originEra || ''));
     if (data.rarity) setArtRarity(data.rarity as typeof artRarity);
-    if (!artDesc && data.description) setArtDesc(data.description as string);
+    if (!artDesc && data.description) setArtDesc(String(data.description || ''));
     if (!artPowers && Array.isArray(data.powers) && (data.powers as string[]).length)
       setArtPowers((data.powers as string[]).join('\n'));
-    if (!artCurse && data.curseOrCost) setArtCurse(data.curseOrCost as string);
-    if (!artAttunement && data.attunementRules) setArtAttunement(data.attunementRules as string);
-    if (!artSecretLore && data.secretLore) setArtSecretLore(data.secretLore as string);
+    if (!artCurse && data.curseOrCost) setArtCurse(String(data.curseOrCost || ''));
+    if (!artAttunement && data.attunementRules) setArtAttunement(String(data.attunementRules || ''));
+    if (!artSecretLore && data.secretLore) setArtSecretLore(String(data.secretLore || ''));
   };
 
   return (
@@ -796,7 +822,7 @@ export default function ArtifactsStudioPage() {
                   </label>
                   <input
                     type="text"
-                    value={artName}
+                    value={artName || ''}
                     onChange={(e) => setArtName(e.target.value)}
                     placeholder={isPersian ? 'مثال: چشم پیشگو' : 'e.g. Eye of the Augur'}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
@@ -810,7 +836,7 @@ export default function ArtifactsStudioPage() {
                   </label>
                   <input
                     type="text"
-                    value={artTitle}
+                    value={artTitle || ''}
                     onChange={(e) => setArtTitle(e.target.value)}
                     placeholder={isPersian ? 'مثال: چشم بلورین کهن' : 'e.g. The First Glass of Scrying'}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
@@ -824,7 +850,7 @@ export default function ArtifactsStudioPage() {
                     {isPersian ? 'رده نایابی (Rarity):' : 'Rarity Tier:'}
                   </label>
                   <select
-                    value={artRarity}
+                    value={artRarity || 'common'}
                     onChange={(e) => setArtRarity(e.target.value as any)}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                   >
@@ -843,7 +869,7 @@ export default function ArtifactsStudioPage() {
                   </label>
                   <input
                     type="text"
-                    value={artOriginEra}
+                    value={artOriginEra || ''}
                     onChange={(e) => setArtOriginEra(e.target.value)}
                     placeholder={isPersian ? 'مثال: دوران نخستین' : 'e.g. The First Age'}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
@@ -911,7 +937,7 @@ export default function ArtifactsStudioPage() {
                 </label>
                 <textarea
                   rows={2}
-                  value={artDesc}
+                  value={artDesc || ''}
                   onChange={(e) => setArtDesc(e.target.value)}
                   placeholder={isPersian ? 'شکل ظاهری، سنگینی، جنس و هاله جادویی...' : 'Appearance, material, tactile feel...'}
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
@@ -924,7 +950,7 @@ export default function ArtifactsStudioPage() {
                 </label>
                 <textarea
                   rows={2}
-                  value={artPowers}
+                  value={artPowers || ''}
                   onChange={(e) => setArtPowers(e.target.value)}
                   placeholder={isPersian ? 'دیدن در تاریکی تا ۳۰ گام\nافزایش مهارت Arcana' : 'True sight\n+2 to Arcana checks'}
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
@@ -943,7 +969,7 @@ export default function ArtifactsStudioPage() {
                     <label className="text-[11px] text-zinc-400 block mb-1">{isPersian ? 'سازنده کهن:' : 'Creator:'}</label>
                     <input
                       type="text"
-                      value={vaultCreator}
+                      value={vaultCreator || ''}
                       onChange={(e) => setVaultCreator(e.target.value)}
                       placeholder="e.g. Grand Artificer Kenneth"
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-100"
@@ -953,7 +979,7 @@ export default function ArtifactsStudioPage() {
                     <label className="text-[11px] text-zinc-400 block mb-1">{isPersian ? 'مکان خزانه:' : 'Vault Site:'}</label>
                     <input
                       type="text"
-                      value={vaultLocation}
+                      value={vaultLocation || ''}
                       onChange={(e) => setVaultLocation(e.target.value)}
                       placeholder="e.g. Sunken Crypt"
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-100"
@@ -965,7 +991,7 @@ export default function ArtifactsStudioPage() {
                   <label className="text-[11px] text-zinc-400 block mb-1">{isPersian ? 'آیین رمزگشایی و گشودن قفل:' : 'Unsealing Ritual:'}</label>
                   <input
                     type="text"
-                    value={vaultRitual}
+                    value={vaultRitual || ''}
                     onChange={(e) => setVaultRitual(e.target.value)}
                     placeholder="e.g. Submerge in holy water under full moon"
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-100"
@@ -980,7 +1006,7 @@ export default function ArtifactsStudioPage() {
                   </label>
                   <input
                     type="text"
-                    value={artAttunement}
+                    value={artAttunement || ''}
                     onChange={(e) => setArtAttunement(e.target.value)}
                     placeholder={isPersian ? 'مثال: نیاز به Arcana 3 و سوگند وفاداری' : 'e.g. Requires Arcana 3'}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
@@ -993,7 +1019,7 @@ export default function ArtifactsStudioPage() {
                   </label>
                   <input
                     type="text"
-                    value={artCurse}
+                    value={artCurse || ''}
                     onChange={(e) => setArtCurse(e.target.value)}
                     placeholder={isPersian ? 'مثال: سردردهای میگرنی شدید' : 'e.g. Induces memory haze'}
                     className="w-full bg-zinc-950 border border-red-500/30 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
