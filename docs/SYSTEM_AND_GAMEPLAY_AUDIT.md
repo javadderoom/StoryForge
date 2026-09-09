@@ -312,3 +312,40 @@ The following high-priority fixes have been implemented and verified:
   * **Studio Editor UI**: Updated [`web/src/app/studio/artifacts/page.tsx`](file:///d:/Code/StoryForge/web/src/app/studio/artifacts/page.tsx) with Option A slot dropdown selector, dynamic stat bonus numeric inputs for every active story stat, and responsive slot/stat card badges.
   * **Flutter Compendium UI**: Updated [`app/lib/ui/screens/compendium_screen.dart`](file:///d:/Code/StoryForge/app/lib/ui/screens/compendium_screen.dart) with `_formatSlotName` localized badges, LTR-safe stat modifier badges (`Directionality(textDirection: TextDirection.ltr)`), powers list, and curse warning alerts.
 
+### 6.5 Fix 5: Unified Studio Sidebar Scrolling & Layout Trap Remediation
+* **Problem**: In [`web/src/app/studio/layout.tsx`](file:///d:/Code/StoryForge/web/src/app/studio/layout.tsx), the desktop `<aside>` had an inner scroll lock (`overflow-y-auto min-h-0 flex-1`) restricted strictly to the navigation menu links. The header and user profile were trapped, causing an unnatural nested scrolling behavior.
+* **Resolution**:
+  * Removed the nested inner scroll trap from the navigation container.
+  * Configured the entire `<aside>` as a unified scroll container (`sticky top-0 h-screen overflow-y-auto`).
+  * Pinned the user footer cleanly with `mt-auto pt-6 shrink-0`.
+
+### 6.6 Fix 6: Oracle Artifact Ingestion & Rarity Stat Budget Matrix
+* **Problem**:
+  * When asking the Oracle to generate equipment or items, it produced artifacts without mechanical stat bonuses or equipment slots because:
+    1. The Oracle prompt instructions lacked an explicit Easy Insert code block for `artifact`.
+    2. The Oracle drawer was not receiving active story RPG stats in its prompt context.
+    3. The equipment slot list was restricted to `relic | weapon | armor | accessory` (lacking 2H weapons, off-hand/parrying daggers, and shields).
+    4. There was no stat ceiling or budget matrix per rarity tier, allowing common items to roll legendary modifiers or illegal curses.
+* **Resolution**:
+  * **Expanded Slots**: Added `main_hand`, `two_handed`, `off_hand`, `shield`, `armor`, `relic` to `WorldArtifact`.
+  * **Stat Budget Matrix**: Exported `ARTIFACT_RARITY_BUDGETS` in [`web/src/lib/types/world.ts`](file:///d:/Code/StoryForge/web/src/lib/types/world.ts) (`common`: max +1 single, max +1 total, 1 power, no curse; `uncommon`: +2/+2; `rare`: +3/+4; `epic`: +4/+6; `legendary`: +5/+8; `mythic`: +8/+12 with mandatory curse).
+  * **Active Stat Context**: Injected active story RPG stats into [`StudioOracleDrawer.tsx`](file:///d:/Code/StoryForge/web/src/components/studio/StudioOracleDrawer.tsx) prompt context.
+  * **Automatic Normalization**: Added slot resolution and stat budget clamping to [`ActionNormalizer.ts`](file:///d:/Code/StoryForge/web/src/lib/engines/world/ActionNormalizer.ts).
+  * **Studio Budget Indicator**: Added a dynamic stat budget badge and validation ceiling in [`web/src/app/studio/artifacts/page.tsx`](file:///d:/Code/StoryForge/web/src/app/studio/artifacts/page.tsx).
+
+### 6.7 Fix 7: Studio Artifact Form Null-Safety (`undefined.trim()` Crash)
+* **Problem**: In [`web/src/app/studio/artifacts/page.tsx`](file:///d:/Code/StoryForge/web/src/app/studio/artifacts/page.tsx), when opening an artifact created via the Oracle or imported without optional fields (`title`, `originEra`, `curseOrCost`, `powers`, `vaultLore`), `handleOpenEditModal` passed `undefined` directly into state. Submitting the form called `artTitle.trim()`, triggering `Uncaught TypeError: Cannot read properties of undefined (reading 'trim') at onSubmit`.
+* **Resolution**:
+  * Added safe null/undefined fallback accessors across all fields in `handleSaveArtifact` (e.g., `(artTitle || '').trim()`).
+  * Ensured `handleOpenEditModal`, `applyAiFill`, and form input `value` props default to empty strings (`''`).
+  * Verified with `npx tsc --noEmit` and full automated test suite.
+
+### 6.8 Architecture Findings: Ghost Quest System & Trade Route Separation
+* **Finding 1 (Resource Extraction vs. Market Presence)**:
+  * Minerals and flora are modeled in `WorldCreature` where `habitatLocationIds` represents natural extraction veins. Setting a city in `habitatLocationIds` deceived the AI into treating the city as an active mine.
+  * **Remediation**: Formulated and documented **[Plan 10: Trade Routes, Caravans & Dynamic Economy](file:///d:/Code/StoryForge/docs/plans/10_TRADE_ROUTES_CARAVANS_AND_ECONOMY_PLAN.md)** to let goods flow organically along caravan arteries.
+* **Finding 2 (The Ghost Quest Architecture)**:
+  * Runtime player state tracked `activeQuestIds`, `completedQuestIds`, and `questUpdates`, and NPC secrets had `SecretRevealMethodKind = 'quest'`, but `WorldBible` had no `WorldQuest` entity. Quests could not be authored or commissioned.
+  * **Remediation**: Formulated and documented **[Plan 11: Quests, Quest Lines & NPC Trust Progression](file:///d:/Code/StoryForge/docs/plans/11_QUESTS_OBJECTIVES_AND_TRUST_PROGRESSION_PLAN.md)**, establishing trigger items, turn-in items, sequential quest lines, and direct NPC trust / secret unlocks.
+
+
