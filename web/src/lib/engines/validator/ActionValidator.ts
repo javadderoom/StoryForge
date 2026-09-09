@@ -152,6 +152,14 @@ export class ActionValidator {
     playerState: PlayerState,
     worldBible: WorldBible
   ): string | null {
+    // Only block if the player is claiming to USE, WIELD, EQUIP, ATTACK WITH, or ACTIVATE the artifact from thin air.
+    // Investigative, conversational, or search actions (e.g. asking about, searching for, reading about) are valid.
+    const isWieldOrUsageClaim =
+      /\b(use|wield|equip|brandish|activate|channel\s+through|cast\s+with|attack\s+with|strike\s+with|cut\s+with|unlock\s+with|open\s+with)\b/i.test(lowerAction) ||
+      /(استفاده\s+از|به\s+دست\s+گرفتن|مجهز\s+شدن|زدن\s+با|ضربه\s+با|حمله\s+با|افسون\s+با|فعال\s+کردن|باز\s+کردن\s+با)/.test(lowerAction);
+
+    if (!isWieldOrUsageClaim) return null;
+
     for (const artifact of worldBible.artifacts ?? []) {
       const name = artifact.name.toLowerCase();
       if (name.length < 4 || !lowerAction.includes(name)) continue;

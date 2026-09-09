@@ -67,6 +67,13 @@ const RARITY_MAP = {
     borderClass: 'border-emerald-500/40 hover:border-emerald-400',
     glowClass: 'shadow-emerald-500/10',
   },
+  common: {
+    labelEn: 'Common',
+    labelFa: 'معمولی',
+    badgeClass: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/30',
+    borderClass: 'border-zinc-700/60 hover:border-zinc-500',
+    glowClass: 'shadow-zinc-500/5',
+  },
 };
 
 export default function ArtifactsStudioPage() {
@@ -80,11 +87,13 @@ export default function ArtifactsStudioPage() {
   const [artName, setArtName] = useState('');
   const [artTitle, setArtTitle] = useState('');
   const [artOriginEra, setArtOriginEra] = useState('');
-  const [artRarity, setArtRarity] = useState<'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic'>('rare');
+  const [artRarity, setArtRarity] = useState<'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic'>('rare');
   const [artDesc, setArtDesc] = useState('');
   const [artPowers, setArtPowers] = useState('');
   const [artCurse, setArtCurse] = useState('');
   const [artAttunement, setArtAttunement] = useState('');
+  const [artSlot, setArtSlot] = useState<'relic' | 'main_hand' | 'two_handed' | 'off_hand' | 'shield' | 'armor'>('relic');
+  const [artStatModifiers, setArtStatModifiers] = useState<Record<string, number>>({});
   const [artHolderType, setArtHolderType] = useState<'npc' | 'location' | 'faction' | 'vault' | 'unknown'>('vault');
   const [artHolderId, setArtHolderId] = useState('');
   const [artSecretLore, setArtSecretLore] = useState('');
@@ -132,6 +141,8 @@ export default function ArtifactsStudioPage() {
     setArtPowers('');
     setArtCurse('');
     setArtAttunement('');
+    setArtSlot('relic');
+    setArtStatModifiers({});
     setArtHolderType('vault');
     setArtHolderId('');
     setArtSecretLore('');
@@ -152,6 +163,8 @@ export default function ArtifactsStudioPage() {
     setArtPowers(art.powers.join('\n'));
     setArtCurse(art.curseOrCost || '');
     setArtAttunement(art.attunementRules || '');
+    setArtSlot(art.slot || 'relic');
+    setArtStatModifiers(art.statModifiers || {});
     setArtHolderType(art.currentHolderType);
     setArtHolderId(art.currentHolderId);
     setArtSecretLore(art.secretLore || '');
@@ -187,6 +200,13 @@ export default function ArtifactsStudioPage() {
           }
         : undefined;
 
+    const cleanedStats: Record<string, number> = {};
+    for (const [k, v] of Object.entries(artStatModifiers)) {
+      if (typeof v === 'number' && v !== 0 && !isNaN(v)) {
+        cleanedStats[k] = v;
+      }
+    }
+
     const payload: WorldArtifact = {
       id: editingArtifactId || `art_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
       name: artName.trim(),
@@ -195,6 +215,8 @@ export default function ArtifactsStudioPage() {
       rarity: artRarity,
       description: artDesc.trim(),
       powers: powersArray.length > 0 ? powersArray : [isPersian ? 'نیروی جادویی پنهان' : 'Latent mystical resonance'],
+      statModifiers: cleanedStats,
+      slot: artSlot,
       curseOrCost: artCurse.trim() || undefined,
       attunementRules: artAttunement.trim() || undefined,
       currentHolderType: artHolderType,
@@ -390,6 +412,16 @@ export default function ArtifactsStudioPage() {
         >
           {isPersian ? 'نامعمول' : 'Uncommon'}
         </button>
+        <button
+          onClick={() => setFilterRarity('common')}
+          className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
+            filterRarity === 'common'
+              ? 'bg-zinc-500/10 border border-zinc-500/30 text-zinc-300 shadow-md'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60 border border-transparent'
+          }`}
+        >
+          {isPersian ? 'معمولی' : 'Common'}
+        </button>
       </div>
 
       {/* Artifact Cards Grid */}
@@ -475,6 +507,32 @@ export default function ArtifactsStudioPage() {
                     </h3>
                     {art.title && <p className="text-xs text-amber-400/90 font-medium mt-0.5">{art.title}</p>}
                     <p className="text-xs text-zinc-400 leading-relaxed mt-2">{art.description}</p>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                      {art.slot && (
+                        <span className="px-2 py-0.5 rounded-lg text-[10.5px] font-bold bg-zinc-800 text-amber-300 border border-zinc-700">
+                          {art.slot === 'main_hand'
+                            ? '⚔️ 1H Weapon'
+                            : art.slot === 'two_handed'
+                            ? '🗡️ 2H Weapon'
+                            : art.slot === 'off_hand'
+                            ? '🗡️ Weapon 2'
+                            : art.slot === 'shield'
+                            ? '🛡️ Shield'
+                            : art.slot === 'armor'
+                            ? '🥋 Armor'
+                            : '🔮 Relic'}
+                        </span>
+                      )}
+                      {art.statModifiers && Object.keys(art.statModifiers).length > 0 && (
+                        <>
+                          {Object.entries(art.statModifiers).map(([sKey, sVal]) => (
+                            <span key={sKey} className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                              {sVal > 0 ? `+${sVal}` : sVal} {sKey}
+                            </span>
+                          ))}
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   {/* Powers */}
@@ -751,6 +809,7 @@ export default function ArtifactsStudioPage() {
                     onChange={(e) => setArtRarity(e.target.value as any)}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                   >
+                    <option value="common">{isPersian ? 'معمولی (Common)' : 'Common'}</option>
                     <option value="uncommon">{isPersian ? 'نامعمول (Uncommon)' : 'Uncommon'}</option>
                     <option value="rare">{isPersian ? 'کمیاب (Rare)' : 'Rare'}</option>
                     <option value="epic">{isPersian ? 'حماسی (Epic)' : 'Epic'}</option>
@@ -770,6 +829,53 @@ export default function ArtifactsStudioPage() {
                     placeholder={isPersian ? 'مثال: دوران نخستین' : 'e.g. The First Age'}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                    {isPersian ? 'جایگاه تجهیز (Equipment Slot):' : 'Equipment Slot:'}
+                  </label>
+                  <select
+                    value={artSlot}
+                    onChange={(e) => setArtSlot(e.target.value as any)}
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                  >
+                    <option value="relic">{isPersian ? 'یادگار / طلسم / انگشتر (Relic)' : 'Relic / Talisman / Ring'}</option>
+                    <option value="main_hand">{isPersian ? 'سلاح اصلی یک‌دسته (Main Hand 1H)' : 'Main Hand (1-Handed Weapon)'}</option>
+                    <option value="two_handed">{isPersian ? 'سلاح سنگین دو‌دسته (Two-Handed)' : 'Two-Handed Weapon (Colossal/Staff)'}</option>
+                    <option value="off_hand">{isPersian ? 'سلاح دوم / خنجر جانبی (Off-Hand Weapon 2)' : 'Off-Hand (Weapon 2 / Parrying Dagger)'}</option>
+                    <option value="shield">{isPersian ? 'سپر دفاعی (Shield)' : 'Shield'}</option>
+                    <option value="armor">{isPersian ? 'زره و بالاپوش (Body Armor)' : 'Body Armor / Robes'}</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* RPG Stat Modifiers */}
+              <div className="p-3.5 rounded-2xl bg-zinc-950/80 border border-amber-500/20 space-y-3">
+                <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5" />
+                  {isPersian ? 'پاداش‌های ویژگی‌های نقش‌آفرینی (Stat Modifiers):' : 'RPG Stat Modifiers:'}
+                </span>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {(story.rpgSystem?.stats || []).map((s) => (
+                    <div key={s.id}>
+                      <label className="text-[11px] text-zinc-400 block mb-1">
+                        {s.name || s.id}:
+                      </label>
+                      <input
+                        type="number"
+                        value={artStatModifiers[s.id] ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                          setArtStatModifiers((prev) => ({ ...prev, [s.id]: val }));
+                        }}
+                        placeholder="+0"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-100"
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
 

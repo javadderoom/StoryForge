@@ -55,7 +55,7 @@ interface GenerateRequest {
   isPersian?: boolean;
   worldBible?: WorldBible;
   // Author-controlled generation constraints (the "type" they want the AI to honor)
-  rarity?: 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
+  rarity?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
   speciesCategory?: 'beast' | 'monstrosity' | 'undead' | 'elemental' | 'flora' | 'draconic';
   domain?: 'light' | 'secrets' | 'death' | 'war' | 'nature' | 'chaos' | 'forge';
   category?: 'magic' | 'physics' | 'society' | 'divine';

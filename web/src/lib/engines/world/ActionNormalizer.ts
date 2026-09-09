@@ -568,7 +568,7 @@ export function normalizeEntity(entity: EntityType, data: any): any {
     }
   } else if (entity === 'artifact') {
     if (!Array.isArray(res.powers)) res.powers = [];
-    const validRarities = ['uncommon', 'rare', 'epic', 'legendary', 'mythic'];
+    const validRarities = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
     if (!validRarities.includes(res.rarity)) res.rarity = 'rare';
   } else if (entity === 'creature') {
     if (!Array.isArray(res.weaknesses)) res.weaknesses = [];

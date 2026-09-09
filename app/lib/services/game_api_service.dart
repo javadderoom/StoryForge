@@ -76,6 +76,7 @@ class GameApiService {
     required String riskLevel,
     required PlayerState playerState,
     required int turnNumber,
+    String? sessionId,
     String? statId,
     int? targetDC,
     int? forcedDiceRoll,
@@ -85,6 +86,7 @@ class GameApiService {
       headers: defaultHeaders,
       body: jsonEncode({
         'storyId': storyId,
+        if (sessionId != null && sessionId.isNotEmpty) 'sessionId': sessionId,
         'playerActionText': actionText,
         'actionStyle': actionStyle,
         'riskLevel': riskLevel,

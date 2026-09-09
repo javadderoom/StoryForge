@@ -278,3 +278,37 @@ if (isUsingOrWielding && !owned) {
   return `"${artifact.name}" is not in your possession. You must obtain it within the story first.`;
 }
 ```
+
+---
+
+## 6. Completed Fixes Log
+
+The following high-priority fixes have been implemented and verified:
+
+### 6.1 Fix 1: Session Continuity & Flutter `sessionId` Transmission
+* **Problem**: Flutter client omitted `sessionId` in [`game_api_service.dart`](file:///d:/Code/StoryForge/app/lib/services/game_api_service.dart) when calling `/api/play/action`. The server could not locate the active database session and reverted to unpersisted fallback state.
+* **Resolution**:
+  * Updated [`GameApiService.sendAction`](file:///d:/Code/StoryForge/app/lib/services/game_api_service.dart) to accept `sessionId` and serialize it into the request payload.
+  * In [`GameSessionNotifier.sendAction`](file:///d:/Code/StoryForge/app/lib/providers/game_session_provider.dart), passed `state.sessionId` directly to `sendAction`.
+
+### 6.2 Fix 2: Dynamic Vital Resource Resolution (Immortal Player Remediation)
+* **Problem**: In [`GameEngine.ts`](file:///d:/Code/StoryForge/web/src/lib/engines/game/GameEngine.ts), damage and consequence mutations hardcoded the string `'hp'`. In stories where health is keyed as `'health'` (e.g. Faravand), damage mutations fell through to an unlinked resource key, rendering the player invincible.
+* **Resolution**:
+  * Added dynamic vital key lookup in [`GameEngine.ts`](file:///d:/Code/StoryForge/web/src/lib/engines/game/GameEngine.ts) scanning `rpgSystem.resources` for health aliases (`health`, `hp`, `سلامت`, `تندرستی`) and stamina aliases (`stamina`, `energy`, `استقامت`, `انرژی`).
+  * Consequence penalties on failure and mixed success now target the story's actual primary health and stamina keys.
+  * Healing potion item effects dynamically replenish the story's primary health resource.
+
+### 6.3 Fix 3: Action Validator Conversational Freedom
+* **Problem**: In [`ActionValidator.ts`](file:///d:/Code/StoryForge/web/src/lib/engines/validator/ActionValidator.ts), `checkUnownedArtifact` rejected any player action mentioning an artifact's name if the player didn't own it, blocking legitimate roleplay (e.g., *"Do you know the legend of the Sunstone?"*).
+* **Resolution**:
+  * Added `isWieldOrUsageClaim` regex check in [`ActionValidator.ts`](file:///d:/Code/StoryForge/web/src/lib/engines/validator/ActionValidator.ts) targeting action verbs (`use`, `wield`, `equip`, `brandish`, `cast with`, `استفاده`, `مجهز`, `زدن با`).
+  * Questions, dialogue, and investigations about unowned artifacts pass cleanly without validation rejection, while wielding/using unowned artifacts remains strictly prevented.
+
+### 6.4 Fix 4: Relic Stat Modifiers & Option A Equipment Slots
+* **Problem**: Artifacts in the World Bible had descriptions and lore, but zero mechanical stat modifiers, no slot designations, and no UI presentation in either Studio or Flutter Compendium.
+* **Resolution**:
+  * **Option A Data Model**: Extended `WorldArtifact` and `WorldArtifactSchema` in [`web/src/lib/types/world.ts`](file:///d:/Code/StoryForge/web/src/lib/types/world.ts) with `statModifiers: Record<string, number>`, `slot: 'relic' | 'main_hand' | 'two_handed' | 'off_hand' | 'shield' | 'armor'`, and `passiveBuffs: string[]`.
+  * **Session Lore Projection**: Updated [`web/src/app/api/play/session/route.ts`](file:///d:/Code/StoryForge/web/src/app/api/play/session/route.ts) to serialize `statModifiers`, `slot`, `powers`, and `curseOrCost` into `lore.artifacts`.
+  * **Studio Editor UI**: Updated [`web/src/app/studio/artifacts/page.tsx`](file:///d:/Code/StoryForge/web/src/app/studio/artifacts/page.tsx) with Option A slot dropdown selector, dynamic stat bonus numeric inputs for every active story stat, and responsive slot/stat card badges.
+  * **Flutter Compendium UI**: Updated [`app/lib/ui/screens/compendium_screen.dart`](file:///d:/Code/StoryForge/app/lib/ui/screens/compendium_screen.dart) with `_formatSlotName` localized badges, LTR-safe stat modifier badges (`Directionality(textDirection: TextDirection.ltr)`), powers list, and curse warning alerts.
+

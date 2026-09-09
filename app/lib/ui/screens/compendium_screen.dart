@@ -102,6 +102,41 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
     }
   }
 
+  String _formatSlotName(String slot, bool isPersian) {
+    if (!isPersian) {
+      switch (slot.toLowerCase()) {
+        case 'main_hand':
+          return 'Main Hand';
+        case 'two_handed':
+          return 'Two-Handed';
+        case 'off_hand':
+          return 'Off-Hand';
+        case 'shield':
+          return 'Shield';
+        case 'armor':
+          return 'Armor';
+        case 'relic':
+        default:
+          return 'Relic';
+      }
+    }
+    switch (slot.toLowerCase()) {
+      case 'main_hand':
+        return 'دست اصلی';
+      case 'two_handed':
+        return 'دو دستی';
+      case 'off_hand':
+        return 'دست دوم';
+      case 'shield':
+        return 'سپر';
+      case 'armor':
+        return 'زره';
+      case 'relic':
+      default:
+        return 'عتیقه';
+    }
+  }
+
   String _formatResourceName(String key, bool isPersian) {
     if (!isPersian) return key.toUpperCase();
     switch (key.toLowerCase()) {
@@ -1721,6 +1756,77 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                     Text(
                       art['description'],
                       style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white70, height: 1.5),
+                    ),
+                  ],
+                  if ((art['slot'] as String?)?.isNotEmpty == true || (art['statModifiers'] as Map<String, dynamic>?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        if ((art['slot'] as String?)?.isNotEmpty == true)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF272A3C),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              _formatSlotName(art['slot'] as String, isPersian),
+                              style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFFE2E8F0)),
+                            ),
+                          ),
+                        for (final entry in ((art['statModifiers'] as Map<String, dynamic>?) ?? {}).entries)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                            ),
+                            child: Directionality(
+                              textDirection: TextDirection.ltr,
+                              child: Text(
+                                '${entry.value is num && (entry.value as num) > 0 ? "+" : ""}${entry.value} ${_formatStatName(entry.key, isPersian)}',
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                  if ((art['powers'] as List<dynamic>?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 8),
+                    for (final p in (art['powers'] as List<dynamic>))
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('✦ ', style: TextStyle(color: Color(0xFFA855F7), fontSize: 11)),
+                            Expanded(
+                              child: Text(
+                                p.toString(),
+                                style: GoogleFonts.vazirmatn(fontSize: 11.5, color: const Color(0xFFD1D5DB)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                  if ((art['curseOrCost'] as String?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.2)),
+                      ),
+                      child: Text(
+                        '⚠️ ${art['curseOrCost']}',
+                        style: GoogleFonts.vazirmatn(fontSize: 10.5, color: const Color(0xFFFCA5A5)),
+                      ),
                     ),
                   ],
                 ],

@@ -58,6 +58,11 @@ function buildPlayLore(story: any) {
       name: a.name,
       description: a.description || '',
       rarity: a.rarity || 'uncommon',
+      statModifiers: a.statModifiers || {},
+      slot: a.slot || 'relic',
+      powers: a.powers || [],
+      curseOrCost: a.curseOrCost || '',
+      passiveBuffs: a.passiveBuffs || [],
     })),
   };
 }

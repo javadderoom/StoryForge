@@ -11,6 +11,7 @@ class GameSessionState {
   final bool isLoading;
   final String? errorMessage;
   final String storyId;
+  final String sessionId;
   final String storyTitle;
   final String language;
   final String currentNarrative;
@@ -28,6 +29,7 @@ class GameSessionState {
     this.isLoading = false,
     this.errorMessage,
     this.storyId = '',
+    this.sessionId = '',
     this.storyTitle = '',
     this.language = 'fa',
     this.currentNarrative = '',
@@ -53,6 +55,7 @@ class GameSessionState {
     bool? isLoading,
     String? errorMessage,
     String? storyId,
+    String? sessionId,
     String? storyTitle,
     String? language,
     String? currentNarrative,
@@ -72,6 +75,7 @@ class GameSessionState {
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
       storyId: storyId ?? this.storyId,
+      sessionId: sessionId ?? this.sessionId,
       storyTitle: storyTitle ?? this.storyTitle,
       language: language ?? this.language,
       currentNarrative: currentNarrative ?? this.currentNarrative,
@@ -103,6 +107,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     state = GameSessionState(
       isLoading: true,
       storyId: storyId,
+      sessionId: '',
       storyTitle: title ?? '',
       language: 'fa',
       currentNarrative: '',
@@ -115,6 +120,10 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         characterSetup: characterSetup,
       );
       final sessionData = data['session'];
+      final resolvedSessionId = (sessionData?['sessionId'] as String?) ??
+          (sessionData?['id'] as String?) ??
+          (data['sessionId'] as String?) ??
+          '';
       final playerState = PlayerState.fromJson(sessionData['playerState']);
       final currentBeat = data['currentBeat'];
       final rawChoices = currentBeat['choices'] as List<dynamic>? ?? [];
@@ -128,6 +137,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       state = state.copyWith(
         isLoading: false,
         storyId: storyId,
+        sessionId: resolvedSessionId,
         storyTitle: resolvedTitle,
         storyCoverImageUrl: coverImg,
         currentSceneImageUrl: sceneImg,
@@ -167,6 +177,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     try {
       final result = await GameApiService.sendAction(
         storyId: state.storyId,
+        sessionId: state.sessionId.isNotEmpty ? state.sessionId : null,
         actionText: choice.text,
         actionStyle: choice.style,
         riskLevel: choice.riskLevel,

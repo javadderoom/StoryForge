@@ -519,6 +519,18 @@ export class GameEngine {
       }
     }
 
+    // Dynamically resolve primary health resource key (e.g. 'health', 'hp', 'سلامت', 'تندرستی')
+    const healthRes = rpgSystem.resources?.find((r) =>
+      ['health', 'hp', 'سلامت', 'تندرستی', 'life', 'vitality'].includes(r.id.toLowerCase())
+    ) || rpgSystem.resources?.[0];
+    const healthKey = healthRes ? healthRes.id : 'hp';
+
+    // Dynamically resolve primary stamina/energy resource key if defined in this RPG system
+    const staminaRes = rpgSystem.resources?.find((r) =>
+      ['stamina', 'energy', 'استقامت', 'انرژی', 'fatigue', 'endurance'].includes(r.id.toLowerCase())
+    );
+    const staminaKey = staminaRes ? staminaRes.id : undefined;
+
     // Healing potion / tincture trigger
     if (/drink|potion|tincture|معجون|نوشیدن|درمان/.test(lowerAction)) {
       const potionItem = playerState.inventory.find(
@@ -526,7 +538,7 @@ export class GameEngine {
       );
       if (potionItem && potionItem.quantity > 0) {
         const healAmt = potionItem.healValue || 30;
-        initialResourceChanges.hp = (initialResourceChanges.hp || 0) + healAmt;
+        initialResourceChanges[healthKey] = (initialResourceChanges[healthKey] || 0) + healAmt;
         itemsRemovedIds.push(potionItem.id);
       }
     }
@@ -556,7 +568,10 @@ export class GameEngine {
     if (isNatMin) {
       outcome = 'critical_failure';
       consequenceSummary = 'Disaster strikes: complete failure with severe complications or damage.';
-      stateDiff.resourceChanges = { ...(stateDiff.resourceChanges || {}), hp: (stateDiff.resourceChanges?.hp || 0) - 15 };
+      stateDiff.resourceChanges = {
+        ...(stateDiff.resourceChanges || {}),
+        [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) - 15,
+      };
     } else if (isNatMax) {
       outcome = 'critical_success';
       consequenceSummary = 'Flawless execution: effortless success with bonus insight or tactical advantage.';
@@ -571,13 +586,18 @@ export class GameEngine {
       consequenceSummary = 'Mixed success: goal achieved, but with cost, minor injury, or alert raised.';
       stateDiff.resourceChanges = {
         ...(stateDiff.resourceChanges || {}),
-        hp: (stateDiff.resourceChanges?.hp || 0) - 5,
-        stamina: (stateDiff.resourceChanges?.stamina || 0) - 10,
+        [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) - 5,
+        ...(staminaKey
+          ? { [staminaKey]: (stateDiff.resourceChanges?.[staminaKey] || 0) - 10 }
+          : {}),
       };
     } else {
       outcome = 'failure';
       consequenceSummary = 'The attempt failed: unexpected obstacle arose or opportunity lost.';
-      stateDiff.resourceChanges = { ...(stateDiff.resourceChanges || {}), hp: (stateDiff.resourceChanges?.hp || 0) - 10 };
+      stateDiff.resourceChanges = {
+        ...(stateDiff.resourceChanges || {}),
+        [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) - 10,
+      };
     }
 
     return {

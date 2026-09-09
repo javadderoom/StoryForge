@@ -442,9 +442,12 @@ export interface WorldArtifact {
   name: string;
   title: string;
   originEra: string;
-  rarity: 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
   description: string;
   powers: string[];
+  statModifiers?: Record<string, number>;
+  slot?: 'relic' | 'main_hand' | 'two_handed' | 'off_hand' | 'shield' | 'armor';
+  passiveBuffs?: string[];
   curseOrCost?: string;
   attunementRules?: string;
   currentHolderType: 'npc' | 'location' | 'faction' | 'vault' | 'unknown';
@@ -657,7 +660,7 @@ export const ArtifactVaultLoreSchema = z.object({
 
 export const EnhancedArtifactSchema = z.object({
   name: z.string(),
-  rarity: z.enum(['uncommon', 'rare', 'epic', 'legendary', 'mythic']),
+  rarity: z.enum(['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']),
   attunementCost: z.string().default(''),
   activePower: z.string(),
   doubleEdgedCurse: z.string().default(''),
@@ -747,9 +750,12 @@ export const WorldArtifactSchema = z.object({
   name: z.string().min(1),
   title: z.string().default(''),
   originEra: z.string().default(''),
-  rarity: z.enum(['uncommon', 'rare', 'epic', 'legendary', 'mythic']).default('rare'),
+  rarity: z.enum(['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']).default('rare'),
   description: z.string().default(''),
   powers: z.array(z.string()).default([]),
+  statModifiers: z.record(z.string(), z.number()).optional().default({}),
+  slot: z.enum(['relic', 'main_hand', 'two_handed', 'off_hand', 'shield', 'armor']).optional().default('relic'),
+  passiveBuffs: z.array(z.string()).optional().default([]),
   curseOrCost: z.string().optional(),
   attunementRules: z.string().optional(),
   currentHolderType: z.enum(['npc', 'location', 'faction', 'vault', 'unknown']).default('unknown'),

@@ -24,7 +24,7 @@ interface AiFillSectionProps {
   customSystemPrompt?: string;
 }
 
-const RARITY = ['uncommon', 'rare', 'epic', 'legendary', 'mythic'];
+const RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
 const SPECIES = ['beast', 'monstrosity', 'undead', 'elemental', 'flora', 'draconic'];
 const DOMAIN = ['light', 'secrets', 'death', 'war', 'nature', 'chaos', 'forge'];
 const LAW_CATEGORY = ['magic', 'physics', 'society', 'divine'];
