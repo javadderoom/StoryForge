@@ -467,6 +467,21 @@ export const ARTIFACT_RARITY_BUDGETS = {
 
 export type ArtifactRarityBudget = (typeof ARTIFACT_RARITY_BUDGETS)[keyof typeof ARTIFACT_RARITY_BUDGETS];
 
+export function getArtifactStatBudget(rarity: string, slot?: string) {
+  const validRarities = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'] as const;
+  const r = (validRarities as readonly string[]).includes(rarity) ? (rarity as (typeof validRarities)[number]) : 'common';
+  const base = ARTIFACT_RARITY_BUDGETS[r] || ARTIFACT_RARITY_BUDGETS.common;
+  // Two-handed weapons consume both hand slots, granting 2x stat budget
+  const multiplier = slot === 'two_handed' ? 2 : 1;
+  return {
+    maxSingleStat: base.maxSingleStat * multiplier,
+    maxTotalStat: base.maxTotalStat * multiplier,
+    maxPowers: base.maxPowers,
+    curseAllowed: base.curseAllowed,
+    multiplier,
+  };
+}
+
 export interface CreatureAlchemicalYield {
   reagentName: string;
   rarity: string;

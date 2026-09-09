@@ -329,9 +329,10 @@ The following high-priority fixes have been implemented and verified:
 * **Resolution**:
   * **Expanded Slots**: Added `main_hand`, `two_handed`, `off_hand`, `shield`, `armor`, `relic` to `WorldArtifact`.
   * **Stat Budget Matrix**: Exported `ARTIFACT_RARITY_BUDGETS` in [`web/src/lib/types/world.ts`](file:///d:/Code/StoryForge/web/src/lib/types/world.ts) (`common`: max +1 single, max +1 total, 1 power, no curse; `uncommon`: +2/+2; `rare`: +3/+4; `epic`: +4/+6; `legendary`: +5/+8; `mythic`: +8/+12 with mandatory curse).
+  * **Two-Handed 2x Stat Budget Rule**: Because two-handed weapons (`two_handed`) occupy both hand slots and forfeit the off-hand item slot, they receive double (`2x`) the stat budget of 1-handed weapons across all rarity tiers (e.g. Common up to +2, Rare up to +8 total / +6 single, Legendary up to +16 total / +10 single, Mythic up to +24 total / +16 single), implemented in `getArtifactStatBudget`.
   * **Active Stat Context**: Injected active story RPG stats into [`StudioOracleDrawer.tsx`](file:///d:/Code/StoryForge/web/src/components/studio/StudioOracleDrawer.tsx) prompt context.
-  * **Automatic Normalization**: Added slot resolution and stat budget clamping to [`ActionNormalizer.ts`](file:///d:/Code/StoryForge/web/src/lib/engines/world/ActionNormalizer.ts).
-  * **Studio Budget Indicator**: Added a dynamic stat budget badge and validation ceiling in [`web/src/app/studio/artifacts/page.tsx`](file:///d:/Code/StoryForge/web/src/app/studio/artifacts/page.tsx).
+  * **Automatic Normalization**: Added slot resolution and 2-hand aware stat budget clamping to [`ActionNormalizer.ts`](file:///d:/Code/StoryForge/web/src/lib/engines/world/ActionNormalizer.ts).
+  * **Studio Budget Indicator**: Added a dynamic stat budget badge and validation ceiling in [`web/src/app/studio/artifacts/page.tsx`](file:///d:/Code/StoryForge/web/src/app/studio/artifacts/page.tsx) reflecting the 2x boost whenever a two-handed weapon is selected.
 
 ### 6.7 Fix 7: Studio Artifact Form Null-Safety (`undefined.trim()` Crash)
 * **Problem**: In [`web/src/app/studio/artifacts/page.tsx`](file:///d:/Code/StoryForge/web/src/app/studio/artifacts/page.tsx), when opening an artifact created via the Oracle or imported without optional fields (`title`, `originEra`, `curseOrCost`, `powers`, `vaultLore`), `handleOpenEditModal` passed `undefined` directly into state. Submitting the form called `artTitle.trim()`, triggering `Uncaught TypeError: Cannot read properties of undefined (reading 'trim') at onSubmit`.

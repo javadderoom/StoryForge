@@ -1,5 +1,5 @@
 import type { EntityType } from './ActionProtocol.types';
-import { ARTIFACT_RARITY_BUDGETS } from '@/lib/types/world';
+import { ARTIFACT_RARITY_BUDGETS, getArtifactStatBudget } from '@/lib/types/world';
 
 export const PERSIAN_FIELD_MAP: Record<string, string> = {
   'نام': 'name',
@@ -621,8 +621,8 @@ export function normalizeEntity(entity: EntityType, data: any): any {
     }
     delete res.type;
 
-    // 4. Rarity Stat Budget Clamping
-    const budget = ARTIFACT_RARITY_BUDGETS[rarity];
+    // 4. Rarity Stat Budget Clamping (two-handed weapons get 2x budget)
+    const budget = getArtifactStatBudget(rarity, res.slot);
     const rawMods = (res.statModifiers || res.stats || res['ویژگی‌ها'] || {}) as Record<string, unknown>;
     const clampedMods: Record<string, number> = {};
     let totalPositive = 0;

@@ -458,21 +458,58 @@ I have prepared the direct insertion for you.`;
     assert.equal(normalized.curseOrCost, '');
   });
 
-  it('enforces legendary budget and preserves legendary curses', () => {
-    const rawLegendary = {
+  it('enforces 1-handed legendary budget and preserves legendary curses', () => {
+    const rawLegendary1H = {
+      name: 'Sunfire Rapier',
+      type: 'main_hand',
+      rarity: 'legendary',
+      statModifiers: { might: 8, agility: 4 },
+      curseOrCost: 'Burns the wielder on misses',
+    };
+
+    const normalized = normalizeEntity('artifact', rawLegendary1H);
+    assert.equal(normalized.rarity, 'legendary');
+    assert.equal(normalized.slot, 'main_hand');
+    // For 1-handed: Max single stat is 5, max total is 8 -> might: 5, agility: 3
+    assert.deepEqual(normalized.statModifiers, { might: 5, agility: 3 });
+    assert.equal(normalized.curseOrCost, 'Burns the wielder on misses');
+  });
+
+  it('enforces 2-handed weapons double (2x) stat budget across rarities', () => {
+    // 1. Common two-handed weapon: base budget is 1, doubled to 2
+    const rawCommon2H = {
+      name: 'Iron Halberd',
+      type: 'two_handed',
+      rarity: 'common',
+      statModifiers: { might: 5 },
+    };
+    const normCommon = normalizeEntity('artifact', rawCommon2H);
+    assert.equal(normCommon.slot, 'two_handed');
+    assert.deepEqual(normCommon.statModifiers, { might: 2 });
+
+    // 2. Legendary two-handed weapon: base budget 5/8, doubled to 10/16
+    const rawLegendary2H = {
       name: 'Sunfire Greatsword',
       type: 'two_handed',
       rarity: 'legendary',
       statModifiers: { might: 8, agility: 4 },
       curseOrCost: 'Burns the wielder on misses',
     };
+    const normLegendary = normalizeEntity('artifact', rawLegendary2H);
+    assert.equal(normLegendary.slot, 'two_handed');
+    // Fits completely within maxSingle 10 and maxTotal 16
+    assert.deepEqual(normLegendary.statModifiers, { might: 8, agility: 4 });
+    assert.equal(normLegendary.curseOrCost, 'Burns the wielder on misses');
 
-    const normalized = normalizeEntity('artifact', rawLegendary);
-    assert.equal(normalized.rarity, 'legendary');
-    assert.equal(normalized.slot, 'two_handed');
-    // Max single stat is 5, max total is 8 -> might: 5, agility: 3
-    assert.deepEqual(normalized.statModifiers, { might: 5, agility: 3 });
-    assert.equal(normalized.curseOrCost, 'Burns the wielder on misses');
+    // 3. Legendary two-handed weapon exceeding 2x budget: 14/8 clamped to 10/6
+    const rawOverflow2H = {
+      name: 'Colossus Greathammer',
+      type: 'two_handed',
+      rarity: 'legendary',
+      statModifiers: { might: 14, agility: 8 },
+    };
+    const normOverflow = normalizeEntity('artifact', rawOverflow2H);
+    assert.deepEqual(normOverflow.statModifiers, { might: 10, agility: 6 });
   });
 });
 

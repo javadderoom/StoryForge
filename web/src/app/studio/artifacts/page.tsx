@@ -26,7 +26,7 @@ import {
   Check,
   Sword,
 } from 'lucide-react';
-import { WorldArtifact, ArtifactVaultLore, EnhancedArtifactPayload, ARTIFACT_RARITY_BUDGETS } from '@/lib/types';
+import { WorldArtifact, ArtifactVaultLore, EnhancedArtifactPayload, ARTIFACT_RARITY_BUDGETS, getArtifactStatBudget } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import AiFillSection from '@/components/studio/AiFillSection';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
@@ -225,8 +225,8 @@ export default function ArtifactsStudioPage() {
       }
     }
 
-    // Rarity Stat Budget Clamping
-    const budget = ARTIFACT_RARITY_BUDGETS[artRarity] || ARTIFACT_RARITY_BUDGETS.common;
+    // Rarity Stat Budget Clamping (two-handed weapons get 2x stat budget)
+    const budget = getArtifactStatBudget(artRarity, artSlot);
     const clampedStats: Record<string, number> = {};
     let totalPositive = 0;
 
@@ -904,11 +904,16 @@ export default function ArtifactsStudioPage() {
                     <Shield className="w-3.5 h-3.5" />
                     {isPersian ? 'پاداش‌های ویژگی‌های نقش‌آفرینی (Stat Modifiers):' : 'RPG Stat Modifiers:'}
                   </span>
-                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono font-semibold">
-                    {isPersian
-                      ? `سقف رده ${artRarity}: هر ویژگی +${ARTIFACT_RARITY_BUDGETS[artRarity]?.maxSingleStat || 1} (مجموع +${ARTIFACT_RARITY_BUDGETS[artRarity]?.maxTotalStat || 1})`
-                      : `Budget (${artRarity}): Max +${ARTIFACT_RARITY_BUDGETS[artRarity]?.maxSingleStat || 1} / stat (Max +${ARTIFACT_RARITY_BUDGETS[artRarity]?.maxTotalStat || 1} total)`}
-                  </span>
+                  {(() => {
+                    const budget = getArtifactStatBudget(artRarity, artSlot);
+                    return (
+                      <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono font-semibold">
+                        {isPersian
+                          ? `سقف رده ${artRarity}${artSlot === 'two_handed' ? ' (دو‌دستی ۲ برابر)' : ''}: هر ویژگی +${budget.maxSingleStat} (مجموع +${budget.maxTotalStat})`
+                          : `Budget (${artRarity}${artSlot === 'two_handed' ? ' - Two-Handed 2x' : ''}): Max +${budget.maxSingleStat} / stat (Max +${budget.maxTotalStat} total)`}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {(story.rpgSystem?.stats || []).map((s) => (
