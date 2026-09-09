@@ -76,11 +76,18 @@ This document outlines the upcoming feature roadmap and planned capabilities for
 ---
 
 ### 8. 🤖 Autonomous Dual-Agent World Forge (Plan 09)
-* 📖 **[Autonomous Dual-Agent World Forge Specification](file:///docs/plans/09_AUTONOMOUS_DUAL_AGENT_WORLD_FORGE_PLAN.md)**
+* 📖 **[Autonomous Dual-Agent World Forge Specification](plans/09_AUTONOMOUS_DUAL_AGENT_WORLD_FORGE_PLAN.md)**
 * **Architect & Auditor Loop**: Delegating studio administration to collaborating AI agents (Generator + Critic / Admin Proxy).
 * **6-Phase Pipeline**: Genesis Lore → Geography Tree → Society & Cast → Drama Web → Mechanics & Voice → Epic Saga Arc.
-* **Dual Operating Modes**: Full Autopilot (3–5 minute uninterrupted universe creation) & Milestone Checkpoints (co-pilot reviews after World/Geography and Cast/Stats).
 
+---
 
-
+### 9. 🔍 System & Gameplay Audit & Remediation (Plan 10)
+* 📖 **[Full System & Gameplay Audit Specification](SYSTEM_AND_GAMEPLAY_AUDIT.md)**
+* **Core Fixes**:
+  * Pass `sessionId` in Flutter `GameApiService.sendAction` and patch equipment mutations to server.
+  * Dynamically resolve primary health/stamina resource IDs in `GameEngine` and implement death/defeat at 0 HP.
+  * Connect `WorldArtifact` to `GameItem` with mechanical stat bonuses, UI equipment slots, and verb-filtered action validation.
+  * Implement positive `trustDelta` awards for social and diplomatic successes.
+  * Populate Zarrin Pol (`story_mt4ofllt`) Archetypes, Backgrounds, and character-driven Prologue starting scenes.
 
