@@ -80,6 +80,7 @@ To ensure thoroughness and modular implementation, the execution plans are parti
 | 🛡️ **[08_CONSISTENCY_HARDENING_PLAN.md](file:///docs/plans/08_CONSISTENCY_HARDENING_PLAN.md)** | Narrative Consistency Hardening, Living World State Ledger play-time writes, Scope-pruned prompts, LoreAuditor v2. | ✅ **Completed & Verified** |
 | 🤖 **[09_AUTONOMOUS_DUAL_AGENT_WORLD_FORGE_PLAN.md](file:///docs/plans/09_AUTONOMOUS_DUAL_AGENT_WORLD_FORGE_PLAN.md)** | Autonomous Dual-Agent World Forge (Architect & Auditor loop), 6-phase procedural pipeline, Full Autopilot & Milestone Checkpoint modes. | ⏸️ **Paused / Documented** |
 | 🐫 **[10_TRADE_ROUTES_CARAVANS_AND_ECONOMY_PLAN.md](file:///docs/plans/10_TRADE_ROUTES_CARAVANS_AND_ECONOMY_PLAN.md)** | Trade Routes, Caravan Corridors, Mineral & Resource Supply Chains, Route Crisis/Shortage Simulator, Procedural Escort/Smuggling Choices. | Ready for Execution |
+| 📜 **[11_QUESTS_OBJECTIVES_AND_TRUST_PROGRESSION_PLAN.md](file:///docs/plans/11_QUESTS_OBJECTIVES_AND_TRUST_PROGRESSION_PLAN.md)** | Quests & Quest Lines, Trigger vs Turn-in Items, Pure NPC Trust Rewards, Direct Secret Unlock Integration, Sequential Prerequisite Chains. | Ready for Execution |
 
 
 ---
