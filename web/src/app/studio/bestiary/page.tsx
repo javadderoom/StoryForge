@@ -390,17 +390,17 @@ export default function BestiaryStudioPage() {
 
   const handleOpenEditModal = (c: WorldCreature) => {
     setEditingCreatureId(c.id);
-    setCName(c.name);
-    setCCategory(c.speciesCategory);
-    setCDanger(c.dangerLevel);
+    setCName(c.name || '');
+    setCCategory(c.speciesCategory || 'beast');
+    setCDanger(c.dangerLevel || 3);
     setCRarity(c.rarity || 'common');
     setCDomesticated(!!c.isDomesticated);
     setCHabitats(c.habitatLocationIds || []);
-    setCTactics(c.behavioralTactics);
-    setCWeaknesses(c.weaknesses.join('\n'));
-    setCResistances(c.resistances.join('\n'));
+    setCTactics(c.behavioralTactics || '');
+    setCWeaknesses(Array.isArray(c.weaknesses) ? c.weaknesses.join('\n') : (typeof c.weaknesses === 'string' ? c.weaknesses : ''));
+    setCResistances(Array.isArray(c.resistances) ? c.resistances.join('\n') : (typeof c.resistances === 'string' ? c.resistances : ''));
     setCLoot(c.harvestableLoot || []);
-    setCDesc(c.loreDescription);
+    setCDesc(c.loreDescription || '');
     setCNiche(c.predatorPreyNiche || '');
     setCPacification(c.nonCombatPacificationMethod || '');
     setCYields(c.alchemicalYields || []);
@@ -410,9 +410,10 @@ export default function BestiaryStudioPage() {
   };
 
   const handleAddLootItem = () => {
-    if (!newLootName.trim()) return;
+    const safeName = (newLootName || '').trim();
+    if (!safeName) return;
     const itemId = `loot_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 5)}`;
-    setCLoot((prev) => [...prev, { itemId, name: newLootName.trim(), dropRate: newLootRate.trim() || '50%' }]);
+    setCLoot((prev) => [...prev, { itemId, name: safeName, dropRate: (newLootRate || '').trim() || '50%' }]);
     setNewLootName('');
   };
 
@@ -422,7 +423,8 @@ export default function BestiaryStudioPage() {
 
   const handleSaveCreature = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cName.trim()) {
+    const safeName = (cName || '').trim();
+    if (!safeName) {
       notify.error(isPersian ? 'نام موجود یا کانی الزامی است' : 'Creature or mineral name is required');
       return;
     }
@@ -431,38 +433,45 @@ export default function BestiaryStudioPage() {
 
     const weaknessesArr = isMineral
       ? []
-      : cWeaknesses
+      : (cWeaknesses || '')
           .split('\n')
           .map((w) => w.trim())
           .filter((w) => w.length > 0);
 
     const resistancesArr = isMineral
       ? []
-      : cResistances
+      : (cResistances || '')
           .split('\n')
           .map((r) => r.trim())
           .filter((r) => r.length > 0);
 
+    const safeExtraction = (cExtractionMethod || '').trim();
+    const safeTactics = (cTactics || '').trim();
+    const safeCrafting = (cCraftingProperties || '').trim();
+    const safeDesc = (cDesc || '').trim();
+    const safeNiche = (cNiche || '').trim();
+    const safePacification = (cPacification || '').trim();
+
     const payload: WorldCreature = {
       id: editingCreatureId || `creature_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-      name: cName.trim(),
-      speciesCategory: cCategory,
-      dangerLevel: isMineral ? 1 : cDanger,
-      rarity: cRarity,
+      name: safeName,
+      speciesCategory: cCategory || 'beast',
+      dangerLevel: isMineral ? 1 : (cDanger || 3),
+      rarity: cRarity || 'common',
       isDomesticated: cDomesticated || undefined,
-      habitatLocationIds: cHabitats,
+      habitatLocationIds: cHabitats || [],
       behavioralTactics: isMineral
-        ? (cExtractionMethod.trim() || (isPersian ? 'استخراج با ابزار ویژه معدن‌کاوی' : 'Excavation via mining tools'))
-        : (cTactics.trim() || (isPersian ? 'حمله غافلگیرکننده' : 'Ambush and swarm tactics')),
+        ? (safeExtraction || (isPersian ? 'استخراج با ابزار ویژه معدن‌کاوی' : 'Excavation via mining tools'))
+        : (safeTactics || (isPersian ? 'حمله غافلگیرکننده' : 'Ambush and swarm tactics')),
       weaknesses: isMineral ? [] : (weaknessesArr.length > 0 ? weaknessesArr : [isPersian ? 'آسیب آتشین' : 'Fire damage']),
       resistances: resistancesArr,
-      harvestableLoot: cLoot,
-      loreDescription: cDesc.trim(),
-      predatorPreyNiche: isMineral ? undefined : (cNiche.trim() || undefined),
-      nonCombatPacificationMethod: isMineral ? undefined : (cPacification.trim() || undefined),
+      harvestableLoot: cLoot || [],
+      loreDescription: safeDesc,
+      predatorPreyNiche: isMineral ? undefined : (safeNiche || undefined),
+      nonCombatPacificationMethod: isMineral ? undefined : (safePacification || undefined),
       alchemicalYields: cYields.length > 0 ? cYields : undefined,
-      extractionMethod: isMineral ? (cExtractionMethod.trim() || undefined) : undefined,
-      craftingProperties: isMineral ? (cCraftingProperties.trim() || undefined) : undefined,
+      extractionMethod: isMineral ? (safeExtraction || undefined) : undefined,
+      craftingProperties: isMineral ? (safeCrafting || undefined) : undefined,
       pacificationReagents: editingCreatureId
         ? bestiary.find((b) => b.id === editingCreatureId)?.pacificationReagents
         : undefined,

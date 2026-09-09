@@ -90,8 +90,11 @@ export function NpcSecretModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!secretForm.description.trim()) return;
-    onSave(secretForm);
+    if (!(secretForm.description || '').trim()) return;
+    onSave({
+      ...secretForm,
+      description: (secretForm.description || '').trim(),
+    });
     onClose();
   };
 

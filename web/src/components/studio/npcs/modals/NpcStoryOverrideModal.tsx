@@ -61,10 +61,10 @@ export function NpcStoryOverrideModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
-      storyRole: overrideForm.storyRole.trim() || undefined,
-      relationshipToProtagonist: overrideForm.relationshipToProtagonist.trim() || undefined,
-      storyGoal: overrideForm.storyGoal.trim() || undefined,
-      storySecret: overrideForm.storySecret.trim() || undefined,
+      storyRole: (overrideForm.storyRole || '').trim() || undefined,
+      relationshipToProtagonist: (overrideForm.relationshipToProtagonist || '').trim() || undefined,
+      storyGoal: (overrideForm.storyGoal || '').trim() || undefined,
+      storySecret: (overrideForm.storySecret || '').trim() || undefined,
       customInitialTrust:
         typeof overrideForm.customInitialTrust === 'number' && !isNaN(overrideForm.customInitialTrust)
           ? overrideForm.customInitialTrust

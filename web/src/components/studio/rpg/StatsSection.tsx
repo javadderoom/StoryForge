@@ -27,7 +27,12 @@ export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSection
   const openModal = (stat?: StatDefinition) => {
     if (stat) {
       setEditingStatId(stat.id);
-      setStatForm(stat);
+      setStatForm({
+        ...stat,
+        name: stat.name || '',
+        id: stat.id || '',
+        description: stat.description || '',
+      });
     } else {
       setEditingStatId(null);
       setStatForm({
@@ -44,7 +49,9 @@ export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSection
 
   const handleSaveStat = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!statForm.name.trim() || !statForm.id.trim()) return;
+    const safeName = (statForm.name || '').trim();
+    const safeId = (statForm.id || '').trim();
+    if (!safeName || !safeId) return;
 
     const min = Number(statForm.minValue ?? 1);
     const max = Number(statForm.maxValue ?? 30);
@@ -55,6 +62,9 @@ export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSection
     // Clamp base into the declared range so checks stay coherent.
     const clamped: StatDefinition = {
       ...statForm,
+      id: safeId,
+      name: safeName,
+      description: (statForm.description || '').trim(),
       minValue: min,
       maxValue: max,
       baseValue: Math.min(Math.max(Number(statForm.baseValue), min), max),

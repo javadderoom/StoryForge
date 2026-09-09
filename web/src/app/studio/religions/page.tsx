@@ -111,13 +111,13 @@ export default function ReligionsStudioPage() {
 
   const handleOpenEditModal = (d: WorldDeity) => {
     setEditingDeityId(d.id);
-    setDName(d.name);
-    setDTitle(d.title);
-    setDDomain(d.domain);
-    setDSymbol(d.sacredSymbol);
-    setDDogma(d.coreDogma);
-    setDTaboos(d.taboos.join('\n'));
-    setDBlessings(d.divineBlessings.join('\n'));
+    setDName(d.name || '');
+    setDTitle(d.title || '');
+    setDDomain(d.domain || 'light');
+    setDSymbol(d.sacredSymbol || '');
+    setDDogma(d.coreDogma || '');
+    setDTaboos(Array.isArray(d.taboos) ? d.taboos.join('\n') : (typeof d.taboos === 'string' ? d.taboos : ''));
+    setDBlessings(Array.isArray(d.divineBlessings) ? d.divineBlessings.join('\n') : (typeof d.divineBlessings === 'string' ? d.divineBlessings : ''));
     setDFactions(d.affiliatedFactionIds || []);
     setDLocations(d.holyLocationIds || []);
     setDOmens(d.divineOmensForViolation || '');
@@ -139,34 +139,40 @@ export default function ReligionsStudioPage() {
 
   const handleSaveDeity = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dName.trim()) {
+    const safeName = (dName || '').trim();
+    if (!safeName) {
       notify.error(isPersian ? 'نام ایزد / مذهب الزامی است' : 'Deity / Religion name is required');
       return;
     }
 
-    const taboosArr = dTaboos
+    const taboosArr = (dTaboos || '')
       .split('\n')
       .map((t) => t.trim())
       .filter((t) => t.length > 0);
 
-    const blessingsArr = dBlessings
+    const blessingsArr = (dBlessings || '')
       .split('\n')
       .map((b) => b.trim())
       .filter((b) => b.length > 0);
 
+    const safeTitle = (dTitle || '').trim();
+    const safeSymbol = (dSymbol || '').trim();
+    const safeDogma = (dDogma || '').trim();
+    const safeOmens = (dOmens || '').trim();
+
     const payload: WorldDeity = {
       id: editingDeityId || `deity_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-      name: dName.trim(),
-      title: dTitle.trim(),
-      domain: dDomain,
-      sacredSymbol: dSymbol.trim() || (isPersian ? 'نماد ناشناخته' : 'Unspecified Symbol'),
-      coreDogma: dDogma.trim() || (isPersian ? 'ایمان و اراده الهی' : 'Faith and divine conviction'),
+      name: safeName,
+      title: safeTitle,
+      domain: dDomain || 'light',
+      sacredSymbol: safeSymbol || (isPersian ? 'نماد ناشناخته' : 'Unspecified Symbol'),
+      coreDogma: safeDogma || (isPersian ? 'ایمان و اراده الهی' : 'Faith and divine conviction'),
       taboos: taboosArr.length > 0 ? taboosArr : [isPersian ? 'هتک حرمت معابد' : 'Desecration of shrines'],
       divineBlessings: blessingsArr.length > 0 ? blessingsArr : [isPersian ? 'برکت و هدایت الهی' : 'Divine guidance'],
-      affiliatedFactionIds: dFactions,
-      holyLocationIds: dLocations,
-      divineOmensForViolation: dOmens.trim() || undefined,
-      sectarianSchisms: dSchisms.length > 0 ? dSchisms : undefined,
+      affiliatedFactionIds: dFactions || [],
+      holyLocationIds: dLocations || [],
+      divineOmensForViolation: safeOmens || undefined,
+      sectarianSchisms: dSchisms && dSchisms.length > 0 ? dSchisms : undefined,
     };
 
     if (editingDeityId) {
@@ -235,11 +241,11 @@ export default function ReligionsStudioPage() {
   };
 
   const applyAiFill = (data: Record<string, unknown>) => {
-    if (!dName && data.name) setDName(data.name as string);
-    if (!dTitle && data.title) setDTitle(data.title as string);
+    if (!dName && data.name) setDName(String(data.name || ''));
+    if (!dTitle && data.title) setDTitle(String(data.title || ''));
     if (data.domain) setDDomain(data.domain as string);
-    if (!dSymbol && data.sacredSymbol) setDSymbol(data.sacredSymbol as string);
-    if (!dDogma && data.coreDogma) setDDogma(data.coreDogma as string);
+    if (!dSymbol && data.sacredSymbol) setDSymbol(String(data.sacredSymbol || ''));
+    if (!dDogma && data.coreDogma) setDDogma(String(data.coreDogma || ''));
     if (!dTaboos && Array.isArray(data.taboos)) setDTaboos((data.taboos as string[]).join('\n'));
     if (!dBlessings && Array.isArray(data.divineBlessings))
       setDBlessings((data.divineBlessings as string[]).join('\n'));

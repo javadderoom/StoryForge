@@ -58,9 +58,9 @@ export function NpcDramaBondModal({
       id: editingBond ? editingBond.id : `bond_${Date.now().toString(36)}`,
       sourceNpcId: bondSourceId,
       targetNpcId: bondTargetId,
-      relationTypeId: bondRelationType.trim() || 'ally',
+      relationTypeId: (bondRelationType || '').trim() || 'ally',
       affinity: bondAffinity,
-      secretTension: bondSecretTension.trim(),
+      secretTension: (bondSecretTension || '').trim(),
       isPublic: bondIsPublic,
     };
 

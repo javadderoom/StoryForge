@@ -109,12 +109,12 @@ export default function TimelineStudioPage() {
 
   const handleOpenEditModal = (evt: TimelineEvent) => {
     setEditingEventId(evt.id);
-    setEventTitle(evt.title);
-    setEventYear(evt.yearOrEra);
+    setEventTitle(evt.title || '');
+    setEventYear(evt.yearOrEra || '');
     setEventCategory((evt.eraCategory as any) || 'ancient');
-    setEventSummary(evt.summary);
+    setEventSummary(evt.summary || '');
     setEventSignificance(evt.significance || '');
-    setEventIsPublic(evt.knownByPublic);
+    setEventIsPublic(!!evt.knownByPublic);
     setEventSecretDetails(evt.secretDetails || '');
     setEventLinkedFactions(evt.linkedFactionIds || []);
     setEventLinkedLocations(evt.linkedLocationIds || []);
@@ -123,20 +123,26 @@ export default function TimelineStudioPage() {
 
   const handleSaveEvent = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!eventTitle.trim() || !eventYear.trim()) {
+    const safeTitle = (eventTitle || '').trim();
+    const safeYear = (eventYear || '').trim();
+    if (!safeTitle || !safeYear) {
       notify.error(isPersian ? 'عنوان رویداد و زمان آن الزامی است' : 'Event title and year/era are required');
       return;
     }
 
+    const safeSummary = (eventSummary || '').trim();
+    const safeSignificance = (eventSignificance || '').trim();
+    const safeSecret = (eventSecretDetails || '').trim();
+
     const payload: TimelineEvent = {
       id: editingEventId || `evt_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-      yearOrEra: eventYear.trim(),
-      title: eventTitle.trim(),
-      summary: eventSummary.trim(),
-      significance: eventSignificance.trim(),
+      yearOrEra: safeYear,
+      title: safeTitle,
+      summary: safeSummary,
+      significance: safeSignificance,
       knownByPublic: eventIsPublic,
-      eraCategory: eventCategory,
-      secretDetails: eventSecretDetails.trim() || undefined,
+      eraCategory: eventCategory || 'ancient',
+      secretDetails: safeSecret || undefined,
       linkedFactionIds: eventLinkedFactions.length > 0 ? eventLinkedFactions : undefined,
       linkedLocationIds: eventLinkedLocations.length > 0 ? eventLinkedLocations : undefined,
     };

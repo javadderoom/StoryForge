@@ -37,7 +37,11 @@ export function InventorySection({
   const openModal = (item?: GameItem) => {
     if (item) {
       setEditingItemId(item.id);
-      setItemForm(item);
+      setItemForm({
+        ...item,
+        name: item.name || '',
+        description: item.description || '',
+      });
       const modKey = item.statModifiers ? Object.keys(item.statModifiers)[0] : '';
       setItemModStat(modKey || '');
       setItemModVal(modKey && item.statModifiers ? item.statModifiers[modKey] : 1);
@@ -61,7 +65,8 @@ export function InventorySection({
 
   const handleSaveItem = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!itemForm.name.trim()) return;
+    const safeName = (itemForm.name || '').trim();
+    if (!safeName) return;
 
     const finalModifiers: Record<string, number> = {};
     if (itemModStat) {
@@ -70,6 +75,8 @@ export function InventorySection({
 
     const payload: GameItem = {
       ...itemForm,
+      name: safeName,
+      description: (itemForm.description || '').trim(),
       statModifiers: Object.keys(finalModifiers).length > 0 ? finalModifiers : undefined,
     };
 

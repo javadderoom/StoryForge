@@ -64,17 +64,25 @@ export function ArchetypesSection({
 
   const handleSaveArchetype = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!archetypeForm.name.trim()) return;
+    const safeName = (archetypeForm.name || '').trim();
+    if (!safeName) return;
+
+    const payload: ArchetypeDefinition = {
+      ...archetypeForm,
+      name: safeName,
+      tagline: (archetypeForm.tagline || '').trim(),
+      description: (archetypeForm.description || '').trim(),
+    };
 
     updateRpgSystem((prev: any) => {
-      const existing = (prev.archetypes || []).find((a: any) => a.id === archetypeForm.id);
+      const existing = (prev.archetypes || []).find((a: any) => a.id === payload.id);
       let updated = prev.archetypes || [];
       if (editingArchetypeId || existing) {
         updated = updated.map((a: any) =>
-          a.id === (editingArchetypeId || archetypeForm.id) ? archetypeForm : a
+          a.id === (editingArchetypeId || payload.id) ? payload : a
         );
       } else {
-        updated = [...updated, archetypeForm];
+        updated = [...updated, payload];
       }
       return { ...prev, archetypes: updated };
     });

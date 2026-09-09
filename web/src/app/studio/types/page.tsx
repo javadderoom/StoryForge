@@ -165,18 +165,19 @@ export default function TypesStudioPage() {
 
   const handleCreateRelation = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRelName.trim()) {
+    const safeName = (newRelName || '').trim();
+    if (!safeName) {
       notify.error(isPersian ? 'نام پیوند الزامی است' : 'Relation name is required');
       return;
     }
-    const finalId = editingRel ? editingRel.id : newRelId.trim() || `rel_${Date.now().toString(36)}`;
+    const finalId = editingRel ? editingRel.id : (newRelId || '').trim() || `rel_${Date.now().toString(36)}`;
     const payload: CustomRelationType = {
       id: finalId,
-      name: newRelName.trim(),
-      description: newRelDesc.trim(),
+      name: safeName,
+      description: (newRelDesc || '').trim(),
       sourceCategory: newRelSource,
       targetCategory: newRelTarget,
-      color: newRelColor,
+      color: newRelColor || '#6366F1',
       isDirected: newRelDirected,
     };
     if (editingRel) editCustomRelationType(editingRel.id, payload);
@@ -197,26 +198,27 @@ export default function TypesStudioPage() {
     setShowAddPlace(true);
   };
   const openPlaceEdit = (cat: CustomPlaceCategory) => {
-    setNewPlaceName(cat.name);
-    setNewPlaceId(cat.id);
-    setNewPlaceDesc(cat.description);
-    setNewPlaceColor(cat.color);
+    setNewPlaceName(cat.name || '');
+    setNewPlaceId(cat.id || '');
+    setNewPlaceDesc(cat.description || '');
+    setNewPlaceColor(cat.color || '#6366F1');
     setEditingPlace(cat);
     setShowAddPlace(true);
   };
 
   const handleCreatePlace = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPlaceName.trim()) {
+    const safeName = (newPlaceName || '').trim();
+    if (!safeName) {
       notify.error(isPersian ? 'نام دسته‌بندی مکان الزامی است' : 'Place category name is required');
       return;
     }
-    const finalId = editingPlace ? editingPlace.id : newPlaceId.trim() || `place_${Date.now().toString(36)}`;
+    const finalId = editingPlace ? editingPlace.id : (newPlaceId || '').trim() || `place_${Date.now().toString(36)}`;
     const payload: CustomPlaceCategory = {
       id: finalId,
-      name: newPlaceName.trim(),
-      description: newPlaceDesc.trim(),
-      color: newPlaceColor,
+      name: safeName,
+      description: (newPlaceDesc || '').trim(),
+      color: newPlaceColor || '#6366F1',
     };
     if (editingPlace) editPlaceCategory(editingPlace.id, payload);
     else addPlaceCategory(payload);
@@ -236,26 +238,27 @@ export default function TypesStudioPage() {
     setShowAddLaw(true);
   };
   const openLawEdit = (lawCat: CustomLawCategory) => {
-    setNewLawName(lawCat.name);
-    setNewLawId(lawCat.id);
-    setNewLawDesc(lawCat.description);
-    setNewLawColor(lawCat.color);
+    setNewLawName(lawCat.name || '');
+    setNewLawId(lawCat.id || '');
+    setNewLawDesc(lawCat.description || '');
+    setNewLawColor(lawCat.color || '#A855F7');
     setEditingLaw(lawCat);
     setShowAddLaw(true);
   };
 
   const handleCreateLaw = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newLawName.trim()) {
+    const safeName = (newLawName || '').trim();
+    if (!safeName) {
       notify.error(isPersian ? 'نام دسته‌بندی قانون الزامی است' : 'Law category name is required');
       return;
     }
-    const finalId = editingLaw ? editingLaw.id : newLawId.trim() || `law_${Date.now().toString(36)}`;
+    const finalId = editingLaw ? editingLaw.id : (newLawId || '').trim() || `law_${Date.now().toString(36)}`;
     const payload: CustomLawCategory = {
       id: finalId,
-      name: newLawName.trim(),
-      description: newLawDesc.trim(),
-      color: newLawColor,
+      name: safeName,
+      description: (newLawDesc || '').trim(),
+      color: newLawColor || '#A855F7',
     };
     if (editingLaw) editLawCategory(editingLaw.id, payload);
     else addLawCategory(payload);
@@ -275,26 +278,27 @@ export default function TypesStudioPage() {
     setShowAddRole(true);
   };
   const openRoleEdit = (role: CustomNPCRole) => {
-    setNewRoleName(role.name);
-    setNewRoleId(role.id);
-    setNewRoleDesc(role.description);
-    setNewRoleColor(role.color);
+    setNewRoleName(role.name || '');
+    setNewRoleId(role.id || '');
+    setNewRoleDesc(role.description || '');
+    setNewRoleColor(role.color || '#F59E0B');
     setEditingRole(role);
     setShowAddRole(true);
   };
 
   const handleCreateRole = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRoleName.trim()) {
+    const safeName = (newRoleName || '').trim();
+    if (!safeName) {
       notify.error(isPersian ? 'نام نقش الزامی است' : 'Role name is required');
       return;
     }
-    const finalId = editingRole ? editingRole.id : newRoleId.trim() || `role_${Date.now().toString(36)}`;
+    const finalId = editingRole ? editingRole.id : (newRoleId || '').trim() || `role_${Date.now().toString(36)}`;
     const payload: CustomNPCRole = {
       id: finalId,
-      name: newRoleName.trim(),
-      description: newRoleDesc.trim(),
-      color: newRoleColor,
+      name: safeName,
+      description: (newRoleDesc || '').trim(),
+      color: newRoleColor || '#F59E0B',
     };
     if (editingRole) editNpcRole(editingRole.id, payload);
     else addNpcRole(payload);
@@ -314,26 +318,27 @@ export default function TypesStudioPage() {
     setShowAddDomain(true);
   };
   const openDomainEdit = (domain: CustomDomain) => {
-    setNewDomainName(domain.name);
-    setNewDomainId(domain.id);
-    setNewDomainDesc(domain.description);
-    setNewDomainColor(domain.color);
+    setNewDomainName(domain.name || '');
+    setNewDomainId(domain.id || '');
+    setNewDomainDesc(domain.description || '');
+    setNewDomainColor(domain.color || '#F59E0B');
     setEditingDomain(domain);
     setShowAddDomain(true);
   };
 
   const handleCreateDomain = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDomainName.trim()) {
+    const safeName = (newDomainName || '').trim();
+    if (!safeName) {
       notify.error(isPersian ? 'نام حوزه کیهانی الزامی است' : 'Domain name is required');
       return;
     }
-    const finalId = editingDomain ? editingDomain.id : newDomainId.trim() || `domain_${Date.now().toString(36)}`;
+    const finalId = editingDomain ? editingDomain.id : (newDomainId || '').trim() || `domain_${Date.now().toString(36)}`;
     const payload: CustomDomain = {
       id: finalId,
-      name: newDomainName.trim(),
-      description: newDomainDesc.trim(),
-      color: newDomainColor,
+      name: safeName,
+      description: (newDomainDesc || '').trim(),
+      color: newDomainColor || '#F59E0B',
     };
     if (editingDomain) editDomain(editingDomain.id, payload);
     else addDomain(payload);

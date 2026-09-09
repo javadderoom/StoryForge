@@ -306,14 +306,14 @@ export default function LocationsStudioPage() {
 
   const handleOpenEditModal = (loc: WorldLocation) => {
     setEditingLocationId(loc.id);
-    setLocName(loc.name);
-    setLocRegion(loc.region);
+    setLocName(loc.name || '');
+    setLocRegion(loc.region || '');
     setLocParentLocationId(loc.parentLocationId || '');
-    setLocDesc(loc.description);
-    setLocAtmosphere(loc.atmosphere);
+    setLocDesc(loc.description || '');
+    setLocAtmosphere(loc.atmosphere || '');
     setLocCategory(loc.category || 'dungeon');
-    setLocDangerLevel(loc.dangerLevel);
-    setLocSpecialRules((loc.specialRules || []).join('\n'));
+    setLocDangerLevel(loc.dangerLevel || 3);
+    setLocSpecialRules(Array.isArray(loc.specialRules) ? loc.specialRules.join('\n') : (typeof loc.specialRules === 'string' ? loc.specialRules : ''));
     setLocConnectedIds(loc.connectedLocationIds || []);
     setConnectedSearch('');
     setShowAddModal(true);
@@ -331,12 +331,13 @@ export default function LocationsStudioPage() {
 
   const handleSaveLocation = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!locName.trim()) {
+    const safeName = (locName || '').trim();
+    if (!safeName) {
       notify.error(isPersian ? 'نام مکان الزامی است' : 'Location name is required');
       return;
     }
 
-    const specialRulesArray = locSpecialRules
+    const specialRulesArray = (locSpecialRules || '')
       .split('\n')
       .map((r) => r.trim())
       .filter((r) => r.length > 0);
@@ -345,14 +346,14 @@ export default function LocationsStudioPage() {
 
     const payload: WorldLocation = {
       id: editingLocationId || `loc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-      name: locName.trim(),
-      region: locRegion.trim() || (isPersian ? 'ناشناخته' : 'Unknown'),
-      parentLocationId: locParentLocationId || undefined,
-      description: locDesc.trim(),
-      atmosphere: locAtmosphere.trim(),
-      category: locCategory,
-      dangerLevel: locDangerLevel,
-      connectedLocationIds: locConnectedIds,
+      name: safeName,
+      region: (locRegion || '').trim() || (isPersian ? 'ناشناخته' : 'Unknown'),
+      parentLocationId: (locParentLocationId || '').trim() || undefined,
+      description: (locDesc || '').trim(),
+      atmosphere: (locAtmosphere || '').trim(),
+      category: locCategory || 'dungeon',
+      dangerLevel: locDangerLevel || 3,
+      connectedLocationIds: locConnectedIds || [],
       specialRules: specialRulesArray.length > 0 ? specialRulesArray : undefined,
       subZones: existingLoc?.subZones,
       pointsOfInterest: existingLoc?.pointsOfInterest,
@@ -368,11 +369,11 @@ export default function LocationsStudioPage() {
   };
 
   const applyAiFill = (data: Record<string, unknown>) => {
-    if (!locName && data.name) setLocName(data.name as string);
-    if (!locRegion && data.region) setLocRegion(data.region as string);
+    if (!locName && data.name) setLocName(String(data.name || ''));
+    if (!locRegion && data.region) setLocRegion(String(data.region || ''));
     if (data.dangerLevel) setLocDangerLevel(data.dangerLevel as typeof locDangerLevel);
-    if (!locDesc && data.description) setLocDesc(data.description as string);
-    if (!locAtmosphere && data.atmosphere) setLocAtmosphere(data.atmosphere as string);
+    if (!locDesc && data.description) setLocDesc(String(data.description || ''));
+    if (!locAtmosphere && data.atmosphere) setLocAtmosphere(String(data.atmosphere || ''));
     if (!locSpecialRules && Array.isArray(data.specialRules) && (data.specialRules as string[]).length)
       setLocSpecialRules((data.specialRules as string[]).join('\n'));
   };

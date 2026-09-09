@@ -35,6 +35,10 @@ export function BackgroundsSection({
       setEditingBackgroundId(bg.id);
       setBackgroundForm({
         ...bg,
+        name: bg.name || '',
+        description: bg.description || '',
+        trait: bg.trait || '',
+        narrativePromptHook: bg.narrativePromptHook || '',
         statBonuses: { ...(bg.statBonuses || {}) },
       });
     } else {
@@ -53,17 +57,26 @@ export function BackgroundsSection({
 
   const handleSaveBackground = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!backgroundForm.name.trim()) return;
+    const safeName = (backgroundForm.name || '').trim();
+    if (!safeName) return;
+
+    const payload: BackgroundOriginDefinition = {
+      ...backgroundForm,
+      name: safeName,
+      description: (backgroundForm.description || '').trim(),
+      trait: (backgroundForm.trait || '').trim(),
+      narrativePromptHook: (backgroundForm.narrativePromptHook || '').trim(),
+    };
 
     updateRpgSystem((prev: any) => {
-      const existing = (prev.backgrounds || []).find((b: any) => b.id === backgroundForm.id);
+      const existing = (prev.backgrounds || []).find((b: any) => b.id === payload.id);
       let updated = prev.backgrounds || [];
       if (editingBackgroundId || existing) {
         updated = updated.map((b: any) =>
-          b.id === (editingBackgroundId || backgroundForm.id) ? backgroundForm : b
+          b.id === (editingBackgroundId || payload.id) ? payload : b
         );
       } else {
-        updated = [...updated, backgroundForm];
+        updated = [...updated, payload];
       }
       return { ...prev, backgrounds: updated };
     });

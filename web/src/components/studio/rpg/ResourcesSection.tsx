@@ -27,7 +27,12 @@ export function ResourcesSection({ resources, isPersian, updateRpgSystem }: Reso
   const openModal = (res?: ResourceDefinition) => {
     if (res) {
       setEditingResourceId(res.id);
-      setResourceForm(res);
+      setResourceForm({
+        ...res,
+        name: res.name || '',
+        id: res.id || '',
+        color: res.color || '#ef4444',
+      });
     } else {
       setEditingResourceId(null);
       setResourceForm({
@@ -44,16 +49,24 @@ export function ResourcesSection({ resources, isPersian, updateRpgSystem }: Reso
 
   const handleSaveResource = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resourceForm.name.trim() || !resourceForm.id.trim()) return;
+    const safeName = (resourceForm.name || '').trim();
+    const safeId = (resourceForm.id || '').trim();
+    if (!safeName || !safeId) return;
+
+    const payload: ResourceDefinition = {
+      ...resourceForm,
+      id: safeId,
+      name: safeName,
+    };
 
     updateRpgSystem((prev: any) => {
       let updatedResources = prev.resources || [];
       if (editingResourceId) {
         updatedResources = updatedResources.map((r: ResourceDefinition) =>
-          r.id === editingResourceId ? resourceForm : r
+          r.id === editingResourceId ? payload : r
         );
       } else {
-        updatedResources = [...updatedResources, resourceForm];
+        updatedResources = [...updatedResources, payload];
       }
       return { ...prev, resources: updatedResources };
     });
