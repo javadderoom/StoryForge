@@ -26,6 +26,10 @@ class BazaarBillingService {
   factory BazaarBillingService() => _instance;
   BazaarBillingService._internal();
 
+  /// Cafe Bazaar In-App Billing Public RSA Key
+  static const String defaultRsaKey =
+      'MIHNMA0GCSqGSIb3DQEBAQUAA4G7ADCBtwKBrwDf7W/vCu62J6t8euI7MPG9/K151ToNNq31RhSNF6WGYrTeCZbup29p0YyaDCrbCmbOemsz+lKuzdEo1sBa2v2TqSafNUband38Uh8WHkJNrClkUxeszb5SHEDIWhcxaOZV96S8UhB+Qc8aEPBVnXRGQLK9Nm0hMzYwiEZu3Ib7svpcUkntiZ7Wpdwv7GSiHjXRj/G/tlF9ntxFylfoE8fB+YL7OLk1CNNyZfkuoecCAwEAAQ==';
+
   bool _isInitialized = false;
   bool _isConnected = false;
   String? _rsaKey;
@@ -35,7 +39,7 @@ class BazaarBillingService {
 
   /// Initializes connection to Cafe Bazaar In-App Billing on Android
   Future<bool> init({String? rsaKey}) async {
-    _rsaKey = rsaKey;
+    _rsaKey = rsaKey ?? defaultRsaKey;
     if (!isSupportedPlatform) {
       debugPrint('[BazaarBillingService] Platform not Android. Operating in simulation mode.');
       _isInitialized = true;
