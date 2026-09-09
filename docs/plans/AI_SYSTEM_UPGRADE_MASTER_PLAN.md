@@ -79,6 +79,7 @@ To ensure thoroughness and modular implementation, the execution plans are parti
 | 🌌 **[07_MASSIVE_UNIVERSE_LONG_FORM_SAGA_PLAN.md](file:///docs/plans/07_MASSIVE_UNIVERSE_LONG_FORM_SAGA_PLAN.md)** | Multi-Chapter Escalating Saga Manifest, Scope Tiers, Living World State Ledger, 50-200+ Turn Long-Form Campaigns. | ✅ **Completed & Verified** |
 | 🛡️ **[08_CONSISTENCY_HARDENING_PLAN.md](file:///docs/plans/08_CONSISTENCY_HARDENING_PLAN.md)** | Narrative Consistency Hardening, Living World State Ledger play-time writes, Scope-pruned prompts, LoreAuditor v2. | ✅ **Completed & Verified** |
 | 🤖 **[09_AUTONOMOUS_DUAL_AGENT_WORLD_FORGE_PLAN.md](file:///docs/plans/09_AUTONOMOUS_DUAL_AGENT_WORLD_FORGE_PLAN.md)** | Autonomous Dual-Agent World Forge (Architect & Auditor loop), 6-phase procedural pipeline, Full Autopilot & Milestone Checkpoint modes. | ⏸️ **Paused / Documented** |
+| 🐫 **[10_TRADE_ROUTES_CARAVANS_AND_ECONOMY_PLAN.md](file:///docs/plans/10_TRADE_ROUTES_CARAVANS_AND_ECONOMY_PLAN.md)** | Trade Routes, Caravan Corridors, Mineral & Resource Supply Chains, Route Crisis/Shortage Simulator, Procedural Escort/Smuggling Choices. | Ready for Execution |
 
 
 ---
