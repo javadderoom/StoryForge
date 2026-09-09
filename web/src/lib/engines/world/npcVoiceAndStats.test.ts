@@ -51,7 +51,7 @@ describe('NPC Voice & Dialogue Guides and RPG Stats Normalization', () => {
     assert.equal(normalized.voiceGuide.psychologicalBreakingPoint, 'مرگ سربازانش');
   });
 
-  it('normalizes statCalibration and clamps challenge rating to 1-20', () => {
+  it('normalizes statCalibration and clamps challenge rating to 1-30', () => {
     const rawNpc = {
       name: 'Elena',
       statCalibration: {
@@ -68,13 +68,32 @@ describe('NPC Voice & Dialogue Guides and RPG Stats Normalization', () => {
     const normalized = normalizeEntity('npc', rawNpc);
     assert.ok(normalized.statCalibration);
     assert.equal(normalized.statCalibration.combatTier, 'boss');
-    assert.equal(normalized.statCalibration.challengeRating, 20); // clamped to 20
+    assert.equal(normalized.statCalibration.challengeRating, 30); // clamped to 30
     assert.equal(normalized.statCalibration.statRatings.STR, 18);
     assert.deepEqual(normalized.statCalibration.signatureAbilities, ['Flame Wave', 'Shield Slam']);
     assert.equal(normalized.statCalibration.equippedGear[0].name, 'Sunblade');
     // Vitals default to fully-rested 10/10 health when absent
     assert.deepEqual(normalized.statCalibration.vitals.health, { current: 10, max: 10 });
     assert.deepEqual(normalized.statCalibration.resourcePools, []);
+  });
+
+  it('passes cosmic CR and over-cap statRatings through unclamped', () => {
+    const rawNpc = {
+      name: 'Void Sovereign',
+      statCalibration: {
+        combatTier: 'mythic',
+        challengeRating: 28,
+        crBasis: 'commands the outer dark',
+        statRatings: { might: 32, arcana: 29, cunning: 24 },
+        signatureAbilities: ['Unmake Epoch'],
+        equippedGear: [],
+      },
+    };
+
+    const normalized = normalizeEntity('npc', rawNpc);
+    assert.equal(normalized.statCalibration.challengeRating, 28);
+    assert.equal(normalized.statCalibration.statRatings.might, 32);
+    assert.equal(normalized.statCalibration.statRatings.arcana, 29);
   });
 
   it('normalizes vitals and resource pools and clamps current into [0, max]', () => {

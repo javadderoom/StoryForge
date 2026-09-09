@@ -478,7 +478,7 @@ export function normalizeEntity(entity: EntityType, data: any): any {
       const parsedCr = typeof sc.challengeRating === 'number'
         ? sc.challengeRating
         : (parseInt(sc.challengeRating) || 5);
-      sc.challengeRating = Math.max(1, Math.min(20, Math.round(parsedCr)));
+      sc.challengeRating = Math.max(1, Math.min(30, Math.round(parsedCr)));
       // What drives CR when it diverges from raw combat ability (may be '').
       const rawBasis = sc.crBasis ?? sc['مبنای درجه چالش'] ?? sc['منشأ خطر'];
       sc.crBasis = typeof rawBasis === 'string' ? rawBasis.trim() : '';

@@ -338,7 +338,7 @@ export interface NpcStatCalibration {
   npcId?: string;
   npcName: string;
   combatTier: 'civilian' | 'apprentice' | 'veteran' | 'elite' | 'boss' | 'mythic';
-  challengeRating: number; // 1 to 20
+  challengeRating: number; // 1 to 30 (21+ reserved for world-ending / cosmic threats)
   /**
    * What actually drives the challenge rating when it diverges from raw
    * combat ability (e.g. "court influence and spy network", "archmage patron").
@@ -965,7 +965,7 @@ export const NpcStatCalibrationSchema = z.object({
   npcId: z.string().optional(),
   npcName: z.string(),
   combatTier: z.enum(['civilian', 'apprentice', 'veteran', 'elite', 'boss', 'mythic']).default('veteran'),
-  challengeRating: z.number().min(1).max(20).default(1),
+  challengeRating: z.number().min(1).max(30).default(1),
   crBasis: z.string().default(''),
   statRatings: z.record(z.string(), z.number()).default({}),
   signatureAbilities: z.array(z.string()).default([]),

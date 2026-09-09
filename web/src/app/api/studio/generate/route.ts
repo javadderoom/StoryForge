@@ -375,12 +375,12 @@ SECRET HANDLING — ABSOLUTE RULE: The character must NEVER directly reveal, con
 - "negotiationVulnerabilities": Behavioral tells and emotional leverage points, not secret reveals.
 DISPOSITION: If an initial trust/disposition value is provided, reflect it in tone — hostile NPCs should have cold, menacing, or contemptuous dialogue; friendly NPCs warm and open.)`;
     } else if (type === 'npc_stat_calibration') {
-      schemaInstruction = `Schema: { "npcId": string, "npcName": string, "combatTier": "civilian"|"apprentice"|"veteran"|"elite"|"boss"|"mythic", "challengeRating": number (1 to 20), "crBasis": string (non-combat threat source, or "" when CR is pure combat), "statRatings": { [stat: string]: number }, "signatureAbilities": string[], "equippedGear": [{ "name": string, "type": string, "description": string }], "vitals": { "health": { "current": number, "max": number }, "stamina"?: { "current": number, "max": number }, "mana"?: { "current": number, "max": number } }, "resourcePools": [{ "id": string, "name": string, "current": number, "max": number }] } (👑 REALISTIC LONG-SAGA RPG STAT CALIBRATION (Scale: 1 to 20+):
+      schemaInstruction = `Schema: { "npcId": string, "npcName": string, "combatTier": "civilian"|"apprentice"|"veteran"|"elite"|"boss"|"mythic", "challengeRating": number (1 to 30), "crBasis": string (non-combat threat source, or "" when CR is pure combat), "statRatings": { [stat: string]: number }, "signatureAbilities": string[], "equippedGear": [{ "name": string, "type": string, "description": string }], "vitals": { "health": { "current": number, "max": number }, "stamina"?: { "current": number, "max": number }, "mana"?: { "current": number, "max": number } }, "resourcePools": [{ "id": string, "name": string, "current": number, "max": number }] } (👑 REALISTIC LONG-SAGA RPG STAT CALIBRATION (Scale: 1 to 30):
 The story is a long-running narrative saga with extensive progression runway. Starting values for ordinary mortals MUST be grounded much lower than 10 so there is room for long-term growth.
 CRITICAL ATTRIBUTE KEYS RULE: The dictionary keys in "statRatings" MUST EXACTLY MATCH the canonical ASCII attribute IDs provided in the prompt (e.g. "might", "cunning", "agility", "arcana", "charisma"). NEVER translate dictionary keys into Persian or any other language, and NEVER invent or misspell keys. Keys are strict programmatic code identifiers; only descriptive text (abilities, gear descriptions) should be in the narrative language.
 COMBAT TIER ≠ CHALLENGE RATING — two independent axes:
 - "combatTier" rates PERSONAL fighting ability only (training, strength, combat magic, gear).
-- "challengeRating" (1 to 20) rates OVERALL threat of confronting, defying, or removing the character: political influence, wealth, spy networks, secrets, faction backing, non-combat magic — NOT just swordplay. A civilian-tier schemer can be CR 12+; a veteran-tier drifter with no power base can be CR 3.
+- "challengeRating" (1 to 30) rates OVERALL threat of confronting, defying, or removing the character: political influence, wealth, spy networks, secrets, faction backing, non-combat magic — NOT just swordplay. A civilian-tier schemer can be CR 12+; a veteran-tier drifter with no power base can be CR 3.
 - "crBasis": short phrase naming the non-combat threat source whenever CR outruns combat ability (e.g. "commands the city watch", "holds the heir's debts", "archmage patron"); "" when CR is pure combat.
 CHALLENGE RATING RUBRIC (anchor here; when in doubt choose the LOWER end):
 - CR 1-2: harmless nobody; defying or removing them has no consequences.
@@ -389,7 +389,10 @@ CHALLENGE RATING RUBRIC (anchor here; when in doubt choose the LOWER end):
 - CR 9-12: regional player; faction backing, spy or trade networks, court access.
 - CR 13-16: moves kingdoms; armies, courts, or archmages answer to them.
 - CR 17-20: continental or epochal consequences; sovereigns, primordials, demigods.
-- CR above 8 REQUIRES concrete assets named in "crBasis". Title, story importance, or hostility alone NEVER justify high CR.
+- CR 21-25: world-ending; confronting them reshapes continents, seas, or ages.
+- CR 26-30: cosmic / epochal; outer entities, god-slayers, epoch-ending absolutes. Reserve strictly for cosmic bosses and mythic-tier entities.
+- CR above 8 REQUIRES concrete assets named in "crBasis". Title, story importance, or hostility alone NEVER justify high CR. CR above 20 additionally REQUIRES mythic combatTier and cosmic-scale assets in "crBasis".
+COSMIC SCALE (stats above 20): mythic-tier entities may carry statRatings above 20 (up to ~30) and vitals far beyond mortal bands — do NOT compress a cosmic target into the mortal 1-20 band; rate honestly. Narrator guidance for such entities: checks against them use mythic DCs (25-30), and signatureAbilities should include phase transitions or arena-scale effects so the confrontation stays dramatic instead of collapsing into a single opposed roll.
 COMBAT TIERS (fighting ability only):
 - "civilian": Everyday commoners, clerks, young merchants, brokers, scholars, servants, elders, children. Typical stats range 2 to 6. Abilities: [] (0 combat abilities; at most 1 mundane trade trick). Gear: simple clothes, ledgers, everyday tools, eating knife.
 - "apprentice": Town watch recruits, militia, novice acolytes, petty cutpurses, junior scouts. Typical stats range 5 to 8. Abilities: 1 basic technique or stance. Gear: basic iron weapon, padded or leather armor.
@@ -403,7 +406,7 @@ VOCATIONAL REALISM & ATTRIBUTE ASYMMETRY:
 - Burly laborers, smiths, and guards invert this (Might: 5-8, lower Arcana/Cunning).
 - If specific RPG stats with base values are provided in the prompt, rate strictly those stats. If a target tier hint is given, it constrains combatTier ONLY — still rate challengeRating and crBasis independently.
 VITALS & RESOURCE POOLS (mandatory — never omit):
-- "vitals.health" current/max HP scaled to tier and CR: civilians ~4-8, apprentices ~10-20, veterans ~25-45, elites ~50-90, bosses ~100-200, mythic 200+.
+- "vitals.health" current/max HP scaled to tier and CR: civilians ~4-8, apprentices ~10-20, veterans ~25-45, elites ~50-90, bosses ~100-200, mythic 200-500, cosmic 500+.
 - Add "vitals.stamina" for physically active characters; add "vitals.mana" ONLY for casters or supernatural beings.
 - Add "resourcePools" for signature expendables fitting the archetype (e.g. Rage, Spell Slots, Focus, Grit, Faith) with id, name, max; civilians usually have none.
 - "current" values represent a fully-rested state (current = max).)`;

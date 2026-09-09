@@ -203,18 +203,18 @@ export function NpcStatCalibrationModal({
 
             <div>
               <label className="block text-xs text-zinc-400 mb-1">
-                {isPersian ? 'درجه تهدید کلی (CR 1-20) — مستقل از رده رزمی:' : 'Overall Threat (CR 1-20) — independent of combat tier:'}
+                {isPersian ? 'درجه تهدید کلی (CR 1-30) — مستقل از رده رزمی:' : 'Overall Threat (CR 1-30) — independent of combat tier:'}
               </label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
                   min={1}
-                  max={20}
+                  max={30}
                   value={statForm.challengeRating}
                   onChange={(e) =>
                     setStatForm((prev: NpcStatCalibration) => ({
                       ...prev,
-                      challengeRating: Math.max(1, Math.min(20, parseInt(e.target.value) || 1)),
+                      challengeRating: Math.max(1, Math.min(30, parseInt(e.target.value) || 1)),
                     }))
                   }
                   className="w-20 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-500 text-center"
@@ -222,7 +222,7 @@ export function NpcStatCalibrationModal({
                 <input
                   type="range"
                   min={1}
-                  max={20}
+                  max={30}
                   value={statForm.challengeRating}
                   onChange={(e) =>
                     setStatForm((prev: NpcStatCalibration) => ({
