@@ -48,17 +48,13 @@ export function ArchetypesSection({
 
   const slotOptions = (slot: EquipmentSlot) => vaultItems.filter((a) => fitsSlot(slot, a));
 
-  const mainIsTwoHanded = (() => {
-    const main = vaultItems.find((a) => a.id === archetypeForm.startingEquipment?.mainHand);
-    return main?.slot === 'two_handed';
-  })();
-
   /** Dropdown of vault artifacts for one equipment slot. */
   const renderSlotSelect = (slot: EquipmentSlot, label: string) => {
     const current = archetypeForm.startingEquipment?.[slot] || '';
     // Legacy archetypes may hold a free-typed name that matches no vault artifact.
     const isLegacy = !!current && !vaultItems.some((a) => a.id === current);
-    const disabled = slot === 'offHand' && mainIsTwoHanded;
+    const mainItem = vaultItems.find((a) => a.id === archetypeForm.startingEquipment?.mainHand);
+    const disabled = slot === 'offHand' && mainItem?.slot === 'two_handed';
     return (
       <div>
         <span className="text-[11px] text-zinc-400 block mb-0.5">{label}</span>
