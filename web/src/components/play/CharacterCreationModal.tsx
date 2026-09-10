@@ -69,10 +69,12 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
     if (embarking) return;
     setEmbarking(true);
     audioService.playSfx('pageTurn');
+    const finalArchId = archetypeId || arch?.id;
+    const finalBgId = backgroundId || bg?.id;
     onEmbark(
       quick
-        ? { archetypeId, backgroundId }
-        : { archetypeId, backgroundId, allocatedStats: finalAllocated(), characterName: name.trim() || undefined }
+        ? { archetypeId: finalArchId, backgroundId: finalBgId }
+        : { archetypeId: finalArchId, backgroundId: finalBgId, allocatedStats: finalAllocated(), characterName: name.trim() || undefined }
     );
   }
 
@@ -136,7 +138,7 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
                 </div>
               ) : (
                 archetypes.map((a) => {
-                  const sel = a.id === archetypeId;
+                  const sel = (archetypeId || archetypes[0]?.id) === a.id;
                   return (
                     <button
                       key={a.id}
@@ -173,7 +175,7 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
                 </div>
               ) : (
                 backgrounds.map((b) => {
-                  const sel = b.id === backgroundId;
+                  const sel = (backgroundId || backgrounds[0]?.id) === b.id;
                   return (
                     <button
                       key={b.id}
@@ -283,24 +285,52 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
         </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-3 border-t p-4" style={{ borderColor: theme.cardBorder, backgroundColor: '#0F111D' }}>
+        <div className="flex items-center gap-2.5 border-t p-4" style={{ borderColor: theme.cardBorder, backgroundColor: '#0F111D' }}>
           {step > 0 && (
             <button
               onClick={() => { audioService.playSfx('buttonClick'); setStep((s) => s - 1); }}
-              className="rounded-xl border px-4 py-3 text-[13px] text-zinc-300"
+              className="rounded-xl border px-4 py-3 text-[13px] font-medium text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
               style={{ borderColor: '#27272A' }}
             >
               {isPersian ? 'مرحله قبل' : 'Back'}
             </button>
           )}
-          <button
-            onClick={() => embark(step < 3)}
-            disabled={embarking}
-            className="flex-1 rounded-xl py-3 text-sm font-bold text-black transition-transform hover:scale-[1.01]"
-            style={{ backgroundColor: accent }}
-          >
-            {embarking ? (isPersian ? 'در حال آغاز...' : 'Embarking...') : step === 3 ? (isPersian ? 'آغاز سرگذشت' : 'Embark on Chronicle') : isPersian ? 'آغاز سریع' : 'Quick Start'}
-          </button>
+
+          {step < 3 && (
+            <button
+              onClick={() => embark(true)}
+              disabled={embarking}
+              title={isPersian ? 'آغاز بازی با مشخصات پیش‌فرض تخصص انتخاب‌شده' : 'Quick embark with default archetype stats'}
+              className="rounded-xl border px-3.5 py-3 text-xs font-semibold text-zinc-400 transition-colors hover:border-zinc-600 hover:text-zinc-200"
+              style={{ borderColor: '#27272A' }}
+            >
+              {embarking ? (isPersian ? 'در حال آغاز...' : 'Starting...') : (isPersian ? 'آغاز سریع' : 'Quick Start')}
+            </button>
+          )}
+
+          {step < 3 ? (
+            <button
+              onClick={() => {
+                audioService.playSfx('buttonClick');
+                if (step === 0 && !archetypeId && archetypes[0]?.id) setArchetypeId(archetypes[0].id);
+                if (step === 1 && !backgroundId && backgrounds[0]?.id) setBackgroundId(backgrounds[0].id);
+                setStep((s) => s + 1);
+              }}
+              className="flex-1 rounded-xl py-3 text-sm font-bold text-black transition-transform hover:scale-[1.01]"
+              style={{ backgroundColor: accent }}
+            >
+              {isPersian ? 'مرحله بعد' : 'Next Step'}
+            </button>
+          ) : (
+            <button
+              onClick={() => embark(false)}
+              disabled={embarking}
+              className="flex-1 rounded-xl py-3 text-sm font-bold text-black transition-transform hover:scale-[1.01]"
+              style={{ backgroundColor: accent }}
+            >
+              {embarking ? (isPersian ? 'در حال آغاز...' : 'Embarking...') : (isPersian ? 'آغاز سرگذشت' : 'Embark on Chronicle')}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -237,16 +237,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Apply Custom Allocated Stats if explicitly customized
-    if (characterSetup?.allocatedStats) {
-      for (const [sKey, val] of Object.entries(characterSetup.allocatedStats)) {
-        if (typeof val === 'number') {
-          initialStats[sKey] = val;
-        }
-      }
-    }
-
-    // 3. Apply Background Origin if selected
+    // 2. Apply Background Origin if selected
     if (characterSetup?.backgroundId && story.rpgSystem.backgrounds) {
       const bg = story.rpgSystem.backgrounds.find((b) => b.id === characterSetup.backgroundId);
       if (bg) {
@@ -260,6 +251,15 @@ export async function POST(req: NextRequest) {
         }
         if (bg.startingPurse) {
           initialPurse = addToPurse(initialPurse, bg.startingPurse);
+        }
+      }
+    }
+
+    // 3. Apply Custom Allocated Stats if explicitly customized (authoritative user allocation)
+    if (characterSetup?.allocatedStats) {
+      for (const [sKey, val] of Object.entries(characterSetup.allocatedStats)) {
+        if (typeof val === 'number') {
+          initialStats[sKey] = val;
         }
       }
     }
@@ -398,7 +398,10 @@ export async function POST(req: NextRequest) {
       {
         success: true,
         data: {
+          sessionId: session.sessionId,
           session,
+          playerState,
+          turnNumber: 1,
           story: {
             id: story.id,
             title: story.title,

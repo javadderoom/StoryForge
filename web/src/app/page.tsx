@@ -147,10 +147,13 @@ export default function Home() {
           data = await startSession(storyId, setup);
         }
         if (!data) throw new Error('No session data');
-        setSessionId(data.sessionId);
-        setPlayerState(data.playerState);
+        const resolvedSessionId = data.sessionId || (data as any).session?.sessionId;
+        const resolvedPlayerState = data.playerState || (data as any).session?.playerState;
+        const resolvedTurnNumber = data.turnNumber ?? (data as any).session?.turnCount ?? 1;
+        setSessionId(resolvedSessionId);
+        setPlayerState(resolvedPlayerState);
         setCurrentBeat(data.currentBeat);
-        setTurnNumber(data.turnNumber ?? 1);
+        setTurnNumber(resolvedTurnNumber);
         setStoryMeta(data.story);
         setLore(data.lore);
         // Auto-pick realm theme from the story (only if user hasn't customized yet)
@@ -158,11 +161,13 @@ export default function Home() {
         setSettings((s) => (s.theme === 'darkFantasy' && auto !== 'darkFantasy' ? { ...s, theme: auto } : s));
         try {
           localStorage.setItem(PLAY_SELECTED_STORY_KEY, storyId);
-          localStorage.setItem(PLAY_SESSION_KEY, data.sessionId);
+          if (resolvedSessionId) localStorage.setItem(PLAY_SESSION_KEY, resolvedSessionId);
         } catch {
           /* ignore */
         }
-        audioService.playAmbient(ambientFromLocation(data.playerState.currentLocationId));
+        if (resolvedPlayerState?.currentLocationId) {
+          audioService.playAmbient(ambientFromLocation(resolvedPlayerState.currentLocationId));
+        }
       } catch (e: any) {
         setErrorMessage(e?.message || 'Failed to start session');
       } finally {
@@ -172,30 +177,72 @@ export default function Home() {
     []
   );
 
+  const resolveStoryWithLocalDraft = useCallback((story: CatalogStory | null, fallbackStoryId?: string): CatalogStory | null => {
+    const targetId = story?.id || fallbackStoryId;
+    if (!targetId && !story) return null;
+    try {
+      if (targetId) {
+        const draftKey = `storyforge_studio_draft_v1_${targetId}`;
+        const local = localStorage.getItem(draftKey);
+        if (local) {
+          const parsed = JSON.parse(local);
+          const rpg = parsed.rpgSystem;
+          return {
+            id: parsed.id || targetId,
+            title: parsed.title || story?.title || 'ماجراجویی بدون عنوان',
+            tagline: parsed.tagline || story?.tagline || '',
+            synopsis: parsed.synopsis || story?.synopsis || '',
+            genres: parsed.genres || story?.genres || [],
+            language: parsed.language || story?.language || 'fa',
+            author: parsed.author || story?.author || 'نویسنده',
+            coverImageUrl: parsed.coverImageUrl || story?.coverImageUrl,
+            statsPreview: ((rpg?.stats as any[]) || []).map((s: any) => s.name || s.id),
+            rpgSystem: rpg || story?.rpgSystem,
+            stats: rpg?.stats || story?.stats || [],
+            archetypes: rpg?.archetypes || story?.archetypes || [],
+            backgrounds: rpg?.backgrounds || story?.backgrounds || [],
+          };
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    return story;
+  }, []);
+
   // ---- Boot: load catalog + resume ----
   useEffect(() => {
     let active = true;
     (async () => {
       const catalog = await fetchCatalog();
       if (!active) return;
-      setStories(catalog);
+      const mergedCatalog = [...catalog];
       let savedStoryId = '';
       let savedSession = '';
       try {
-        savedStoryId = localStorage.getItem(PLAY_SELECTED_STORY_KEY) || '';
+        savedStoryId =
+          localStorage.getItem(PLAY_SELECTED_STORY_KEY) ||
+          localStorage.getItem('storyforge_studio_selected_story_v1') ||
+          '';
         savedSession = localStorage.getItem(PLAY_SESSION_KEY) || '';
+        const activeStudioId = localStorage.getItem('storyforge_studio_selected_story_v1');
+        if (activeStudioId && !mergedCatalog.some((s) => s.id === activeStudioId)) {
+          const draftStory = resolveStoryWithLocalDraft(null, activeStudioId);
+          if (draftStory) mergedCatalog.push(draftStory);
+        }
       } catch {
         /* ignore */
       }
+      setStories(mergedCatalog);
       if (savedSession && savedStoryId) {
-        const baseStory = catalog.find((s) => s.id === savedStoryId) || null;
-        const story = resolveStoryWithLocalDraft(baseStory);
+        const baseStory = mergedCatalog.find((s) => s.id === savedStoryId) || null;
+        const story = resolveStoryWithLocalDraft(baseStory, savedStoryId);
         setSelectedStory(story);
         if (story) await startGame(savedStoryId, savedSession, undefined, story.genres);
         else setIsCatalogOpen(true);
       } else if (savedStoryId) {
-        const baseStory = catalog.find((s) => s.id === savedStoryId) || null;
-        const story = resolveStoryWithLocalDraft(baseStory);
+        const baseStory = mergedCatalog.find((s) => s.id === savedStoryId) || null;
+        const story = resolveStoryWithLocalDraft(baseStory, savedStoryId);
         setSelectedStory(story);
         setIsCharCreationOpen(true);
       } else {
@@ -205,36 +252,10 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, [startGame]);
-
-  const resolveStoryWithLocalDraft = useCallback((story: CatalogStory | null): CatalogStory | null => {
-    if (!story) return null;
-    try {
-      const draftKey = `storyforge_studio_draft_v1_${story.id}`;
-      const local = localStorage.getItem(draftKey);
-      if (local) {
-        const parsed = JSON.parse(local);
-        const rpg = parsed.rpgSystem;
-        return {
-          ...story,
-          title: parsed.title || story.title,
-          tagline: parsed.tagline || story.tagline,
-          synopsis: parsed.synopsis || story.synopsis,
-          genres: parsed.genres || story.genres,
-          rpgSystem: rpg || story.rpgSystem,
-          stats: rpg?.stats || story.stats,
-          archetypes: rpg?.archetypes || story.archetypes,
-          backgrounds: rpg?.backgrounds || story.backgrounds,
-        };
-      }
-    } catch {
-      /* ignore */
-    }
-    return story;
-  }, []);
+  }, [startGame, resolveStoryWithLocalDraft]);
 
   const onSelectStory = (story: CatalogStory) => {
-    const resolved = resolveStoryWithLocalDraft(story) || story;
+    const resolved = resolveStoryWithLocalDraft(story, story.id) || story;
     setSelectedStory(resolved);
     setIsCharCreationOpen(true);
   };
