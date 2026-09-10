@@ -41,6 +41,7 @@ import {
   LogIn,
   Zap,
   ListChecks,
+  Route,
 } from 'lucide-react';
 
 function StudioShell({ children }: { children: React.ReactNode }) {
@@ -86,6 +87,13 @@ function StudioShell({ children }: { children: React.ReactNode }) {
       shortLabel: isPersian ? 'مکان‌ها' : 'Locations',
       icon: MapPin,
       count: story.worldBible.locations?.length || 0,
+    },
+    {
+      href: '/studio/trade',
+      label: isPersian ? 'شاهراه‌های تجاری' : 'Trade Routes',
+      shortLabel: isPersian ? 'تجارت' : 'Trade',
+      icon: Route,
+      count: story.worldBible.tradeRoutes?.length || 0,
     },
     {
       href: '/studio/lore-graph',
@@ -202,6 +210,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
     '/studio/stories': 'library',
     '/studio/world': 'world',
     '/studio/locations': 'world',
+    '/studio/trade': 'world',
     '/studio/lore-graph': 'world',
     '/studio/timeline': 'world',
     '/studio/religions': 'world',

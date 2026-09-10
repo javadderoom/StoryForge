@@ -49,6 +49,7 @@ export const ORACLE_ENTITY_LABELS: Record<EntityType, { en: string; fa: string }
   domain: { en: 'Domain', fa: 'حوزه کیهانی' },
   relation_type: { en: 'Relation Type', fa: 'نوع پیوند' },
   quest: { en: 'Quest', fa: 'ماموریت' },
+  trade_route: { en: 'Trade Route', fa: 'مسیر تجاری' },
 };
 
 async function callGenerate(payload: any): Promise<any> {
@@ -161,6 +162,50 @@ export async function prepareWorldChanges(opts: {
               if (matchedParent) {
                 data.parentLocationId = matchedParent.id;
               }
+            }
+          }
+
+          // Plan 10: resolve trade-route endpoint / faction / commodity refs by name.
+          if (entity === 'trade_route' && worldBible) {
+            const locs = worldBible.locations ?? [];
+            const byLocName = (v: unknown) => {
+              if (typeof v !== 'string' || !v.trim()) return undefined;
+              if (locs.some((l) => l.id === v)) return v;
+              return locs.find((l) => nameMatch(l.name, v))?.id;
+            };
+            const originRef = data.originLocationName || data.origin || data.from;
+            const destRef = data.destinationLocationName || data.destination || data.to;
+            const resolvedOrigin = byLocName(data.originLocationId) ?? byLocName(originRef);
+            const resolvedDest = byLocName(data.destinationLocationId) ?? byLocName(destRef);
+            if (resolvedOrigin) data.originLocationId = resolvedOrigin;
+            if (resolvedDest) data.destinationLocationId = resolvedDest;
+            if (Array.isArray(data.intermediateLocationIds)) {
+              data.intermediateLocationIds = data.intermediateLocationIds
+                .map((w: unknown) => byLocName(w) ?? w)
+                .filter((w: unknown) => typeof w === 'string' && (w as string).trim());
+            }
+            const factions = worldBible.factions ?? [];
+            const byFactionName = (v: unknown) => {
+              if (typeof v !== 'string' || !v.trim()) return undefined;
+              if (factions.some((f) => f.id === v)) return v;
+              return factions.find((f) => nameMatch(f.name, v))?.id;
+            };
+            for (const k of ['controllingFactionId', 'patrollingFactionId', 'rivalRaidingFactionId'] as const) {
+              const resolved = byFactionName(data[k]);
+              if (resolved) data[k] = resolved;
+            }
+            if (Array.isArray(data.commodities)) {
+              const bestiary = worldBible.bestiary ?? [];
+              const artifacts = worldBible.artifacts ?? [];
+              data.commodities = data.commodities.map((c: any, i: number) => {
+                if (typeof c === 'string') return { entityId: `good_${Date.now()}_${i}`, name: c, flowDirection: 'forward' };
+                const ref = c.entityName || c.name;
+                const hit =
+                  bestiary.find((b) => b.id === c.entityId || nameMatch(b.name, String(ref ?? ''))) ||
+                  artifacts.find((a) => a.id === c.entityId || nameMatch(a.name, String(ref ?? '')));
+                if (hit) return { ...c, entityId: hit.id, name: c.name || hit.name };
+                return c;
+              });
             }
           }
         } else if (isOntologyType) {

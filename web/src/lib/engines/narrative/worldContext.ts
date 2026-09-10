@@ -1,4 +1,5 @@
 import { WorldBible, ScopeTier, StoryChapter, WorldStateLedger, FACTION_RELATION_META, getLocationAncestry, NPCDossier } from '@/lib/types/world';
+import { formatTradeRouteLine } from '@/lib/engines/world/tradeRoutes';
 import { StoryNpcOverride, StoryScale } from '@/lib/types/story';
 import { GameEngine } from '@/lib/engines/game/GameEngine';
 
@@ -36,6 +37,7 @@ export interface WorldContextBlocks {
   laws: string[];
   ontologySummary?: string;
   quests?: string[];
+  tradeRoutes?: string[];
 }
 
 export interface ScopedContextOptions {
@@ -445,6 +447,8 @@ export function buildWorldContextBlocks(
     return `"${q.title}" (${q.category}${giver ? `, giver: ${giver}` : ''}): objectives [${objs}]${trust ? ` -> ${trust}` : ''}`;
   });
 
+  const tradeRoutes = (wb.tradeRoutes ?? []).map((r) => formatTradeRouteLine(r, wb));
+
   return {
     storyScale: story.storyScale,
     worldSummary: wb.summary || undefined,
@@ -462,6 +466,7 @@ export function buildWorldContextBlocks(
     laws,
     ontologySummary,
     quests,
+    tradeRoutes,
   };
 }
 
@@ -486,6 +491,7 @@ export function formatWorldContext(blocks: WorldContextBlocks): string {
   if (blocks.npcs.length) sections.push(`NPCs:\n- ${blocks.npcs.join('\n- ')}`);
   if (blocks.laws.length) sections.push(`World Laws:\n- ${blocks.laws.join('\n- ')}`);
   if (blocks.quests?.length) sections.push(`World Quests & Deeds of Trust:\n- ${blocks.quests.join('\n- ')}`);
+  if (blocks.tradeRoutes?.length) sections.push(`Commercial Arteries & Trade Routes:\n- ${blocks.tradeRoutes.join('\n- ')}`);
   if (blocks.ontologySummary) sections.push(blocks.ontologySummary);
   return sections.join('\n\n');
 }

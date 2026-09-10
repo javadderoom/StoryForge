@@ -204,6 +204,9 @@ export default function AiOraclePage() {
     addQuest,
     editQuest,
     deleteQuest,
+    addTradeRoute,
+    editTradeRoute,
+    deleteTradeRoute,
   } = useStudioStory();
 
   const worldContext = useMemo(() => buildWorldContextString(story), [story]);
@@ -321,6 +324,7 @@ export default function AiOraclePage() {
         domain: 'حوزه کیهانی',
         relation_type: 'نوع پیوند',
         quest: 'ماموریت',
+        trade_route: 'مسیر تجاری',
       }
     : {
         faction: 'Faction',
@@ -337,6 +341,7 @@ export default function AiOraclePage() {
         domain: 'Domain',
         relation_type: 'Relation Type',
         quest: 'Quest',
+        trade_route: 'Trade Route',
       };
 
   const MUTATORS: Record<
@@ -357,6 +362,7 @@ export default function AiOraclePage() {
     domain: { add: addDomain, edit: editDomain, del: deleteDomain },
     relation_type: { add: addCustomRelationType, edit: editCustomRelationType, del: deleteCustomRelationType },
     quest: { add: addQuest, edit: editQuest, del: deleteQuest },
+    trade_route: { add: addTradeRoute, edit: editTradeRoute, del: deleteTradeRoute },
   };
 
   const PERSONA_ORDER: PersonaId[] = [

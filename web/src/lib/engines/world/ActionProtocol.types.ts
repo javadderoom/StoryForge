@@ -13,6 +13,7 @@ export const ALLOWED_ENTITIES = [
   'domain',
   'relation_type',
   'quest',
+  'trade_route',
 ] as const;
 
 export type EntityType = (typeof ALLOWED_ENTITIES)[number];
@@ -74,12 +75,18 @@ export const ENTITY_ALIASES: Record<string, EntityType> = {
   domains: 'domain',
   deity_domain: 'domain',
   relation_type: 'relation_type',
-  relationtype: 'relation_type',
-  custom_relation: 'relation_type',
   quest: 'quest',
+  trade_route: 'trade_route',
   quests: 'quest',
   mission: 'quest',
   errand: 'quest',
+  trade_routes: 'trade_route',
+  traderoute: 'trade_route',
+  trade: 'trade_route',
+  caravan: 'trade_route',
+  caravans: 'trade_route',
+  route: 'trade_route',
+  economy: 'trade_route',
   // Persian aliases
   'ماموریت': 'quest',
   'ماموریت‌ها': 'quest',
@@ -158,6 +165,11 @@ export const ENTITY_ALIASES: Record<string, EntityType> = {
   'نوع رابطه': 'relation_type',
   'نوع ارتباط': 'relation_type',
   'پیوند لور': 'relation_type',
+  'مسیر تجاری': 'trade_route',
+  'مسیرهای تجاری': 'trade_route',
+  'کاروان': 'trade_route',
+  'تجارت': 'trade_route',
+  'شاهراه': 'trade_route',
 };
 
 export interface ActionBlock {

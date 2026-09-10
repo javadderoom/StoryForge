@@ -27,6 +27,7 @@ import {
   deriveLegacyFactionLinks,
   StoryNpcOverride,
   WorldQuest,
+  WorldTradeRoute,
 } from '@/lib/types';
 import { mergeFactionRelations, syncLegacyFactionLinks } from '@/lib/engines/world/factionRelations';
 import type { WorldActionChange } from '@/lib/engines/world/oracleActions';
@@ -436,6 +437,10 @@ interface StudioStoryContextType {
   addQuest: (quest: WorldQuest) => void;
   editQuest: (id: string, updated: Partial<WorldQuest>) => void;
   deleteQuest: (id: string) => void;
+  // Trade Routes CRUD (Plan 10)
+  addTradeRoute: (route: WorldTradeRoute) => void;
+  editTradeRoute: (id: string, updated: Partial<WorldTradeRoute>) => void;
+  deleteTradeRoute: (id: string) => void;
   // Story Beats CRUD
   updateStoryBeats: (updater: (prev: StoryManifest['initialStoryBeats']) => StoryManifest['initialStoryBeats']) => void;
   // Plan 07: Saga / Multi-Chapter Campaign CRUD
@@ -1229,6 +1234,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         let religions = [...(prev.religions || [])];
         let timeline = [...(prev.timeline || [])];
         let quests = [...(prev.quests || [])];
+        let tradeRoutes = [...(prev.tradeRoutes || [])];
         const ont = normalizeOntology(prev.ontology, isPersian);
         let placeCategories = [...ont.placeCategories];
         let lawCategories = [...ont.lawCategories];
@@ -1395,6 +1401,14 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
             } else if (c.op === 'update') {
               quests = quests.map((q) => (q.id === c.targetId ? { ...q, ...c.newData } : q));
             }
+          } else if (c.entity === 'trade_route') {
+            if (c.op === 'create') {
+              if (!tradeRoutes.some((r) => r.id === c.newData.id)) tradeRoutes.push(c.newData);
+            } else if (c.op === 'delete') {
+              tradeRoutes = tradeRoutes.filter((r) => r.id !== c.targetId);
+            } else if (c.op === 'update') {
+              tradeRoutes = tradeRoutes.map((r) => (r.id === c.targetId ? { ...r, ...c.newData } : r));
+            }
           }
         }
 
@@ -1410,6 +1424,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
           religions,
           timeline,
           quests,
+          tradeRoutes,
           ontology: {
             ...ont,
             placeCategories,
@@ -2269,6 +2284,46 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     [isPersian, updateWorldBible]
   );
 
+  // ----------------------------------------------------
+  // Trade Routes CRUD (Plan 10)
+  // ----------------------------------------------------
+  const addTradeRoute = useCallback(
+    (route: WorldTradeRoute) => {
+      updateWorldBible((prev) => {
+        const prevRoutes = prev.tradeRoutes || [];
+        if (prevRoutes.some((r) => r.id === route.id)) return prev;
+        return {
+          ...prev,
+          tradeRoutes: [...prevRoutes, route],
+        };
+      });
+      notify.success(isPersian ? 'مسیر تجاری جدید ثبت شد' : 'Trade route registered');
+    },
+    [isPersian, updateWorldBible]
+  );
+
+  const editTradeRoute = useCallback(
+    (id: string, updated: Partial<WorldTradeRoute>) => {
+      updateWorldBible((prev) => ({
+        ...prev,
+        tradeRoutes: (prev.tradeRoutes || []).map((r) => (r.id === id ? { ...r, ...updated } : r)),
+      }));
+      notify.success(isPersian ? 'مسیر تجاری به‌روز شد' : 'Trade route updated');
+    },
+    [isPersian, updateWorldBible]
+  );
+
+  const deleteTradeRoute = useCallback(
+    (id: string) => {
+      updateWorldBible((prev) => ({
+        ...prev,
+        tradeRoutes: (prev.tradeRoutes || []).filter((r) => r.id !== id),
+      }));
+      notify.info(isPersian ? 'مسیر تجاری حذف شد' : 'Trade route deleted');
+    },
+    [isPersian, updateWorldBible]
+  );
+
   // Story Beats CRUD
   const updateStoryBeats = useCallback(
     (updater: (prev: StoryManifest['initialStoryBeats']) => StoryManifest['initialStoryBeats']) => {
@@ -2453,6 +2508,9 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         addQuest,
         editQuest,
         deleteQuest,
+        addTradeRoute,
+        editTradeRoute,
+        deleteTradeRoute,
         updateStoryBeats,
         updateSaga,
         resetToDefault,

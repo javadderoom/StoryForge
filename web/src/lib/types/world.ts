@@ -635,6 +635,8 @@ export interface WorldBible {
   customRelations?: CustomLoreRelation[];
   oracleDirectives?: OracleMemoryDirective[];
   quests?: WorldQuest[];
+  /** Plan 10: caravan corridors carrying commodities between settlements. */
+  tradeRoutes?: WorldTradeRoute[];
 }
 
 // ----------------------------------------------------
@@ -1170,6 +1172,73 @@ export interface WorldQuest {
 
 export type WorldQuestPayload = z.infer<typeof WorldQuestSchema>;
 
+// ----------------------------------------------------
+// Plan 10: Trade Routes, Caravans & Dynamic Economy
+// ----------------------------------------------------
+
+export const TradeFlowDirectionSchema = z.enum(['forward', 'backward', 'bilateral']);
+export type TradeFlowDirection = z.infer<typeof TradeFlowDirectionSchema>;
+
+export const TradeRouteStatusSchema = z.enum([
+  'active',      // Flowing normally; goods readily accessible at destination
+  'raided',      // Harassed by bandits/beasts; prices inflated, shipments delayed
+  'blockaded',   // Severed by war, collapse, or decree; shortage in effect
+  'seasonal',    // Only passable in specific seasons
+  'secret',      // Illicit smuggling corridor; circumvents customs and bans
+]);
+export type TradeRouteStatus = z.infer<typeof TradeRouteStatusSchema>;
+
+export const TradeCommoditySchema = z.object({
+  entityId: z.string().min(1), // WorldCreature (mineral/flora), crafted good, or artifact id
+  name: z.string().min(1),
+  flowDirection: TradeFlowDirectionSchema.optional().default('forward'),
+  significance: z.string().optional(),
+});
+export interface TradeCommodity {
+  entityId: string;
+  name: string;
+  flowDirection?: TradeFlowDirection;
+  significance?: string;
+}
+
+export const WorldTradeRouteSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().optional().default(''),
+  originLocationId: z.string().min(1),
+  destinationLocationId: z.string().min(1),
+  intermediateLocationIds: z.array(z.string()).optional().default([]),
+  commodities: z.array(TradeCommoditySchema).optional().default([]),
+  controllingFactionId: z.string().optional(),
+  patrollingFactionId: z.string().optional(),
+  rivalRaidingFactionId: z.string().optional(),
+  dangerLevel: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).optional().default(2),
+  status: TradeRouteStatusSchema.optional().default('active'),
+  disruptionReason: z.string().optional(),
+  smugglingRiskDC: z.number().min(8).max(25).optional(),
+  secretLore: z.string().optional(),
+});
+
+export interface WorldTradeRoute {
+  id: string;
+  name: string;
+  description?: string;
+  originLocationId: string;
+  destinationLocationId: string;
+  intermediateLocationIds?: string[];
+  commodities?: TradeCommodity[];
+  controllingFactionId?: string;
+  patrollingFactionId?: string;
+  rivalRaidingFactionId?: string;
+  dangerLevel?: 1 | 2 | 3 | 4 | 5;
+  status?: TradeRouteStatus;
+  disruptionReason?: string;
+  smugglingRiskDC?: number;
+  secretLore?: string;
+}
+
+export type WorldTradeRoutePayload = z.infer<typeof WorldTradeRouteSchema>;
+
 export const WorldBibleSchema = z.object({
   worldId: z.string(),
   worldName: z.string().min(2),
@@ -1190,6 +1259,7 @@ export const WorldBibleSchema = z.object({
   ontology: WorldOntologySchema.optional(),
   customRelations: z.array(CustomLoreRelationSchema).default([]),
   quests: z.array(WorldQuestSchema).default([]),
+  tradeRoutes: z.array(WorldTradeRouteSchema).default([]),
 });
 
 export const PopulateLocationSchema = z.object({

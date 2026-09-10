@@ -220,6 +220,7 @@ export function normalizeEntity(entity: EntityType, data: any): any {
       domain: 'dom',
       relation_type: 'rel',
       quest: 'qst',
+      trade_route: 'route',
     };
     const isOntology = [
       'place_category',
@@ -724,6 +725,27 @@ export function normalizeEntity(entity: EntityType, data: any): any {
     }
     if (!res.prerequisites) {
       res.prerequisites = { requiredCompletedQuestIds: [], requiredPossessedItemIds: [] };
+    }
+  } else if (entity === 'trade_route') {
+    if (!res.name && res.title) res.name = res.title;
+    if (!res.name) res.name = 'Unnamed Trade Route';
+    if (typeof res.description !== 'string') res.description = '';
+    if (!Array.isArray(res.intermediateLocationIds)) res.intermediateLocationIds = [];
+    if (!Array.isArray(res.commodities)) res.commodities = [];
+    res.commodities = res.commodities.map((c: any, i: number) => {
+      if (typeof c === 'string') return { entityId: `good_${Date.now()}_${i}`, name: c, flowDirection: 'forward' as const };
+      return {
+        entityId: c.entityId || c.id || `good_${Date.now()}_${i}`,
+        name: c.name || c.entityId || 'Trade Good',
+        flowDirection: ['forward', 'backward', 'bilateral'].includes(c.flowDirection) ? c.flowDirection : 'forward',
+        ...(c.significance ? { significance: c.significance } : {}),
+      };
+    });
+    if (typeof res.dangerLevel !== 'number') res.dangerLevel = 2;
+    res.dangerLevel = Math.max(1, Math.min(5, Math.round(res.dangerLevel)));
+    if (!['active', 'raided', 'blockaded', 'seasonal', 'secret'].includes(res.status)) res.status = 'active';
+    if (res.smugglingRiskDC !== undefined) {
+      res.smugglingRiskDC = Math.max(8, Math.min(25, Math.round(Number(res.smugglingRiskDC) || 14)));
     }
   }
 
