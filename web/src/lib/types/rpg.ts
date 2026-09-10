@@ -24,6 +24,28 @@ export interface ResourceDefinition {
   color?: string; // UI accent color (e.g. #ef4444 for HP, #3b82f6 for Mana)
 }
 
+export type AbilityType = 'active_spell' | 'active_technique' | 'passive_skill' | 'passive_feat';
+
+export interface AbilityResourceCost {
+  targetResourceId: string; // e.g. "mana", "stamina", "hp"
+  amount: number; // e.g. 15
+}
+
+export interface AbilityDefinition {
+  id: string;
+  name: string;
+  description: string;
+  type: AbilityType;
+  icon?: string; // Emoji or Lucide icon name
+  tier?: number; // 1, 2, 3
+  linkedStatId?: string; // e.g. "arcana", "might", "agility"
+  cost?: AbilityResourceCost; // Resource cost to activate
+  cooldownTurns?: number; // Turns before reuse
+  effectSummary?: string; // Mechanical/narrative summary
+  allowedArchetypeIds?: string[]; // Empty/undefined = Universal (all archetypes)
+  tags?: string[];
+}
+
 export interface SkillDefinition {
   id: string;
   name: string;
@@ -135,6 +157,7 @@ export interface ArchetypeDefinition {
   statBonuses: Record<string, number>; // e.g. { agility: 2, cunning: 1 }
   resourceBonuses?: Record<string, number>; // e.g. { hp: 5, stamina: 3 }
   startingPurse?: Record<string, number>; // e.g. { gold: 2, silver: 10, copper: 15 }
+  startingAbilities?: string[]; // IDs of abilities granted upon picking this archetype
   startingEquipment?: {
     mainHand?: string;
     offHand?: string;
@@ -153,6 +176,7 @@ export interface BackgroundOriginDefinition {
   statBonuses?: Record<string, number>;
   resourceBonuses?: Record<string, number>; // e.g. { stamina: 5, resolve: 2 }
   startingPurse?: Record<string, number>; // e.g. { silver: 15, copper: 30 }
+  startingAbilities?: string[]; // IDs of abilities/traits granted by origin
   bonusItems?: GameItem[];
 }
 
@@ -168,6 +192,7 @@ export interface RPGSystemSchema {
   diceType: 'd20' | '2d6' | 'd100';
   stats: StatDefinition[];
   resources: ResourceDefinition[];
+  abilities?: AbilityDefinition[];
   skills: SkillDefinition[];
   startingInventory: GameItem[];
   inventoryCapacity: number; // Max slots
@@ -242,11 +267,32 @@ export const GameItemSchema = z.object({
   nonEquippable: z.boolean().optional(),
 });
 
+export const AbilityResourceCostSchema = z.object({
+  targetResourceId: z.string(),
+  amount: z.number(),
+});
+
+export const AbilityDefinitionSchema = z.object({
+  id: z.string(),
+  name: z.string().min(2),
+  description: z.string(),
+  type: z.enum(['active_spell', 'active_technique', 'passive_skill', 'passive_feat']),
+  icon: z.string().optional(),
+  tier: z.number().int().optional(),
+  linkedStatId: z.string().optional(),
+  cost: AbilityResourceCostSchema.optional(),
+  cooldownTurns: z.number().int().optional(),
+  effectSummary: z.string().optional(),
+  allowedArchetypeIds: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
+});
+
 export const RPGSystemSchemaValidator = z.object({
   hasCombat: z.boolean().default(true),
   diceType: z.enum(['d20', '2d6', 'd100']).default('d20'),
   stats: z.array(StatDefinitionSchema).default([]),
   resources: z.array(ResourceDefinitionSchema).default([]),
+  abilities: z.array(AbilityDefinitionSchema).default([]),
   skills: z.array(z.any()).default([]),
   startingInventory: z.array(GameItemSchema).default([]),
   inventoryCapacity: z.number().int().default(12),

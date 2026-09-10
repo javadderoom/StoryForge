@@ -64,6 +64,8 @@ export interface PlayerState {
   activeQuestIds: string[];
   completedQuestIds: string[];
   currentLocationId: string;
+  /** Unlocked or learned ability IDs */
+  abilities?: string[];
   /** Number of times the player has been defeated (HP → 0). Used by Hybrid Defeat system. */
   defeatCount?: number;
 }
@@ -72,6 +74,8 @@ export interface StateMutationDiff {
   statChanges?: Record<string, number>; // e.g. { might: +1 }
   resourceChanges?: Record<string, number>; // e.g. { hp: -15 }
   purseChanges?: Record<string, number>; // e.g. { silver: -4, copper: +6 } (handles change breakdown)
+  abilitiesAdded?: string[];
+  abilitiesRemoved?: string[];
   itemsAdded?: GameItem[];
   itemsRemovedIds?: string[];
   locationChange?: string;

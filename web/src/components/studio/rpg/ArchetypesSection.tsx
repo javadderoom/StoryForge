@@ -10,6 +10,7 @@ import {
   ResourceDefinition,
   CurrencySystem,
   CurrencyDenomination,
+  AbilityDefinition,
 } from '@/lib/types';
 import { DEFAULT_CURRENCY_PRESETS } from '@/lib/types/rpg';
 import { formatPurse } from '@/lib/engines/game/currencyEngine';
@@ -19,6 +20,7 @@ interface ArchetypesSectionProps {
   archetypes: ArchetypeDefinition[];
   stats: StatDefinition[];
   resources?: ResourceDefinition[];
+  abilities?: AbilityDefinition[];
   currencySystem?: CurrencySystem;
   /** Vault artifacts from /studio/artifacts (worldBible.artifacts). */
   vaultItems: WorldArtifact[];
@@ -48,6 +50,7 @@ export function ArchetypesSection({
   archetypes,
   stats,
   resources = [],
+  abilities = [],
   currencySystem,
   vaultItems,
   isPersian,
@@ -58,24 +61,28 @@ export function ArchetypesSection({
   /** Resolve a stored equipment slot value (vault artifact id) to a display name. */
   const vaultItemName = (slotValue?: string): string => {
     if (!slotValue) return '';
-    return vaultItems.find((a) => a.id === slotValue)?.name || slotValue;
+    const found = vaultItems.find((a) => a.id === slotValue);
+    if (found) return found.name;
+    // Legacy fallback: if an author previously saved a free-form name, show it
+    return slotValue;
   };
 
-  const slotOptions = (slot: EquipmentSlot) => vaultItems.filter((a) => fitsSlot(slot, a));
+  /** Filter artifacts that match a slot. Always includes the currently-assigned item even if slot shifted. */
+  const slotOptions = (slot: EquipmentSlot): WorldArtifact[] =>
+    vaultItems.filter((a) => fitsSlot(slot, a));
 
-  /** Dropdown of vault artifacts for one equipment slot. */
   const renderSlotSelect = (slot: EquipmentSlot, label: string) => {
     const current = archetypeForm.startingEquipment?.[slot] || '';
-    // Legacy archetypes may hold a free-typed name that matches no vault artifact.
-    const isLegacy = !!current && !vaultItems.some((a) => a.id === current);
-    const mainItem = vaultItems.find((a) => a.id === archetypeForm.startingEquipment?.mainHand);
-    const disabled = slot === 'offHand' && mainItem?.slot === 'two_handed';
+    const isLegacy = current && !vaultItems.some((a) => a.id === current);
+    const mainHandItem = vaultItems.find((a) => a.id === archetypeForm.startingEquipment?.mainHand);
+    const disabled = slot === 'offHand' && (mainHandItem?.slot === 'two_handed');
+
     return (
-      <div>
-        <span className="text-[11px] text-zinc-400 block mb-0.5">{label}</span>
+      <div className="space-y-1">
+        <label className="text-[11px] text-zinc-400 block">{label}</label>
         <select
-          value={current}
           disabled={disabled}
+          value={disabled ? '' : current}
           onChange={(e) =>
             setArchetypeForm((prev) => ({
               ...prev,
@@ -116,6 +123,7 @@ export function ArchetypesSection({
     statBonuses: {},
     resourceBonuses: {},
     startingPurse: {},
+    startingAbilities: [],
     startingEquipment: {
       mainHand: '',
       offHand: '',
@@ -132,6 +140,7 @@ export function ArchetypesSection({
         statBonuses: { ...(arch.statBonuses || {}) },
         resourceBonuses: { ...(arch.resourceBonuses || {}) },
         startingPurse: { ...(arch.startingPurse || {}) },
+        startingAbilities: arch.startingAbilities ? [...arch.startingAbilities] : [],
         startingEquipment: { ...(arch.startingEquipment || {}) },
       });
     } else {
@@ -144,6 +153,7 @@ export function ArchetypesSection({
         statBonuses: {},
         resourceBonuses: {},
         startingPurse: {},
+        startingAbilities: [],
         startingEquipment: {
           mainHand: '',
           offHand: '',
@@ -165,6 +175,10 @@ export function ArchetypesSection({
       name: safeName,
       tagline: (archetypeForm.tagline || '').trim(),
       description: (archetypeForm.description || '').trim(),
+      startingAbilities:
+        archetypeForm.startingAbilities && archetypeForm.startingAbilities.length > 0
+          ? archetypeForm.startingAbilities
+          : undefined,
       resourceBonuses:
         archetypeForm.resourceBonuses && Object.keys(archetypeForm.resourceBonuses).length > 0
           ? archetypeForm.resourceBonuses
@@ -318,6 +332,23 @@ export function ArchetypesSection({
                         <Coins className="w-3 h-3 text-amber-400" />
                         <span>{formatPurse(arch.startingPurse, activeCurrency)}</span>
                       </span>
+                    </div>
+                  )}
+
+                  {arch.startingAbilities && arch.startingAbilities.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {arch.startingAbilities.map((abId) => {
+                        const ab = abilities.find((a) => a.id === abId);
+                        return (
+                          <span
+                            key={abId}
+                            className="text-[10px] bg-cyan-500/10 text-cyan-300 px-2 py-0.5 rounded-md border border-cyan-500/20 flex items-center gap-1"
+                          >
+                            <span>{ab?.icon || '✨'}</span>
+                            <span>{ab?.name || abId}</span>
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -529,6 +560,63 @@ export function ArchetypesSection({
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* Starting Abilities & Spells */}
+              {abilities.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold text-cyan-400 mb-2 flex items-center gap-1.5">
+                    <span>✨</span>
+                    <span>{isPersian ? 'توانایی‌ها و طلسم‌های آغازین' : 'Starting Abilities & Spells'}</span>
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-3 rounded-2xl bg-zinc-950 border border-zinc-800">
+                    {abilities
+                      .filter(
+                        (ab) =>
+                          !ab.allowedArchetypeIds ||
+                          ab.allowedArchetypeIds.length === 0 ||
+                          (archetypeForm.id && ab.allowedArchetypeIds.includes(archetypeForm.id))
+                      )
+                      .map((ab) => {
+                        const isChecked = archetypeForm.startingAbilities?.includes(ab.id) ?? false;
+                        return (
+                          <label
+                            key={ab.id}
+                            className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-all ${
+                              isChecked
+                                ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-200'
+                                : 'bg-zinc-900/60 border-zinc-800/80 text-zinc-400 hover:border-zinc-700'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                const cur = archetypeForm.startingAbilities ? [...archetypeForm.startingAbilities] : [];
+                                if (e.target.checked) {
+                                  if (!cur.includes(ab.id)) cur.push(ab.id);
+                                } else {
+                                  const idx = cur.indexOf(ab.id);
+                                  if (idx !== -1) cur.splice(idx, 1);
+                                }
+                                setArchetypeForm({ ...archetypeForm, startingAbilities: cur });
+                              }}
+                              className="rounded border-zinc-700 text-cyan-600 focus:ring-cyan-500"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs">{ab.icon || '✨'}</span>
+                                <span className="text-xs font-bold truncate">{ab.name}</span>
+                              </div>
+                              {ab.effectSummary && (
+                                <p className="text-[10px] text-zinc-400 truncate">{ab.effectSummary}</p>
+                              )}
+                            </div>
+                          </label>
+                        );
+                      })}
                   </div>
                 </div>
               )}

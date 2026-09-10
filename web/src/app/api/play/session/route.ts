@@ -321,6 +321,19 @@ export async function POST(req: NextRequest) {
       choices: [],
     };
 
+    // 4. Starting abilities from Archetype & Background
+    const initialAbilities: string[] = [];
+    if (selectedArch?.startingAbilities) {
+      for (const abId of selectedArch.startingAbilities) {
+        if (!initialAbilities.includes(abId)) initialAbilities.push(abId);
+      }
+    }
+    if (selectedBg?.startingAbilities) {
+      for (const abId of selectedBg.startingAbilities) {
+        if (!initialAbilities.includes(abId)) initialAbilities.push(abId);
+      }
+    }
+
     const playerState: PlayerState = {
       characterName: characterSetup?.characterName || undefined,
       archetypeId: characterSetup?.archetypeId || undefined,
@@ -334,6 +347,7 @@ export async function POST(req: NextRequest) {
       purse: initialPurse,
       inventory: startingInventory,
       equipment: startingEquipment,
+      abilities: initialAbilities.length > 0 ? initialAbilities : undefined,
       discoveredLocationIds: initialBeat.locationId ? [initialBeat.locationId] : [],
       relationships: initialRelationships,
       activeQuestIds: ['quest_prologue'],

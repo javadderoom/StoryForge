@@ -16,28 +16,10 @@ interface CharacterCreationModalProps {
   onEmbark: (setup: CharacterSetup) => void;
 }
 
-const FALLBACK_ARCHETYPES = [
-  { id: 'shadowblade', name: 'سایه‌تیغ', tagline: 'استاد نفوذ بی‌صدا، قفل‌گشایی و ضربات غافلگیرکننده', description: 'در سایه‌های قلعه زاده شده‌ای؛ گام‌هایت بی‌صداست.', iconName: 'colorize', statBonuses: { agility: 2, cunning: 1 } },
-  { id: 'iron_vanguard', name: 'سرباز پولادین', tagline: 'مدافع سرسخت با شمشیر سنگین', description: 'آزموده در میدان‌های نبرد.', iconName: 'shield', statBonuses: { might: 3 } },
-  { id: 'arcane_scholar', name: 'پژوهشگر کهن', tagline: 'کاشف طلسم‌های ممنوعه', description: 'سال‌ها در کتابخانه‌های ویران اسرار کفرآمیز آموخته‌ای.', iconName: 'auto_awesome', statBonuses: { arcana: 2, cunning: 1 } },
-  { id: 'silver_diplomat', name: 'سفیر نقره‌زبان', tagline: 'استاد فریب و مذاکره', description: 'در هزارتوی سیاست قلعه، کلماتت برنده‌تر از هر شمشیری است.', iconName: 'record_voice_over', statBonuses: { cunning: 2, agility: 1 } },
-];
-const FALLBACK_BACKGROUNDS = [
-  { id: 'citadel_outcast', name: 'رانده‌شده از قلعه', description: 'پیش‌تر خادم دژ بوده‌ای اما به سیاهچال افکنده شدی.', trait: 'شناخت گذرگاه‌های مخفی دژ', statBonuses: { agility: 1 } },
-  { id: 'guild_infiltrator', name: 'نفوذی انجمن مخفی', description: 'مزدور کارکشته‌ای که به قلعه نفوذ کرده است.', trait: 'مهارت در باز کردن قفل‌ها', statBonuses: { cunning: 1 } },
-  { id: 'noble_exile', name: 'اشراف‌زاده تبعیدی', description: 'وارث خاندانی اصیل و سرنگون‌شده.', trait: 'نفوذ کلامی بر نگهبانان', statBonuses: { might: 1 } },
-  { id: 'temple_acolyte', name: 'نگهبان معبد کهن', description: 'شاگرد راهبان معبد خاموش.', trait: 'حس ششم در تشخیص دست‌سازه‌های طلسم‌شده', statBonuses: { arcana: 1 } },
-];
-const FALLBACK_STATS = [
-  { id: 'might', name: 'قدرت بدنی', description: 'توان فیزیکی و مبارزه', baseValue: 12 },
-  { id: 'agility', name: 'چابکی', description: 'سرعت واکنش و مخفی‌کاری', baseValue: 14 },
-  { id: 'cunning', name: 'هوش و ذکاوت', description: 'دقت دیداری و قفل‌گشایی', baseValue: 10 },
-  { id: 'arcana', name: 'دانش کهن', description: 'آشنایی با نمادهای باستانی', baseValue: 8 },
-];
-
 const TOTAL_FREE_POINTS = 4;
 
-function getStatName(id: string, isPersian: boolean): string {
+function getStatName(id: string, isPersian: boolean, statObj?: any): string {
+  if (statObj?.name) return statObj.name;
   const map: Record<string, string> = {
     might: 'قدرت', agility: 'چابکی', cunning: 'ذکاوت', arcana: 'دانش کهن', charm: 'جذابیت',
   };
@@ -54,30 +36,25 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
   const [points, setPoints] = useState<Record<string, number>>({});
   const [embarking, setEmbarking] = useState(false);
 
-  const archetypes = (story?.rpgSystem?.archetypes?.length
+  const archetypes = ((story?.rpgSystem?.archetypes?.length
     ? story.rpgSystem.archetypes
-    : story?.archetypes?.length
-      ? story.archetypes
-      : FALLBACK_ARCHETYPES) as any[];
-  const backgrounds = (story?.rpgSystem?.backgrounds?.length
+    : story?.archetypes) ?? []) as any[];
+  const backgrounds = ((story?.rpgSystem?.backgrounds?.length
     ? story.rpgSystem.backgrounds
-    : story?.backgrounds?.length
-      ? story.backgrounds
-      : FALLBACK_BACKGROUNDS) as any[];
-  const stats = (story?.rpgSystem?.stats?.length
+    : story?.backgrounds) ?? []) as any[];
+  const stats = ((story?.rpgSystem?.stats?.length
     ? story.rpgSystem.stats
-    : story?.stats?.length
-      ? story.stats
-      : FALLBACK_STATS) as any[];
+    : story?.stats) ?? []) as any[];
 
   if (!isOpen) return null;
 
   const remaining = TOTAL_FREE_POINTS - Object.values(points).reduce((a, b) => a + b, 0);
-  const arch = archetypes.find((a) => a.id === archetypeId) ?? archetypes[0];
-  const bg = backgrounds.find((b) => b.id === backgroundId) ?? backgrounds[0];
+  const arch = archetypes.find((a) => a.id === archetypeId) ?? archetypes[0] ?? null;
+  const bg = backgrounds.find((b) => b.id === backgroundId) ?? backgrounds[0] ?? null;
 
   function totalStat(statId: string): number {
-    const base = stats.find((s) => s.id === statId)?.baseValue ?? 10;
+    const statItem = stats.find((s) => s.id === statId);
+    const base = statItem?.baseValue ?? 10;
     const aBonus = arch?.statBonuses?.[statId] ?? 0;
     const bBonus = bg?.statBonuses?.[statId] ?? 0;
     return base + aBonus + bBonus + (points[statId] ?? 0);
@@ -153,30 +130,36 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
             <>
               <h3 className="mb-1 text-sm font-bold text-white">{isPersian ? '۱. تخصص و سبک مبارزه خود را انتخاب کنید' : '1. Choose Your Combat Archetype'}</h3>
               <p className="mb-3 text-[12px] text-zinc-400">{isPersian ? 'تخصص تجهیزات اولیه و پاداش‌های مهارتی را تعیین می‌کند.' : 'Your archetype determines starting gear and modifier bonuses.'}</p>
-              {archetypes.map((a) => {
-                const sel = a.id === archetypeId;
-                return (
-                  <button
-                    key={a.id}
-                    onClick={() => { audioService.playSfx('buttonClick'); setArchetypeId(a.id); }}
-                    className="mb-3 w-full rounded-2xl border p-4 text-left transition-all"
-                    style={{ backgroundColor: sel ? '#1B1926' : '#111322', borderColor: sel ? accent : theme.cardBorder, boxShadow: sel ? `0 0 16px -4px ${accent}` : 'none' }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold" style={{ color: sel ? accent : '#fff' }}>{a.name}</span>
-                      <span style={{ color: sel ? accent : '#444' }}>{sel ? '●' : '○'}</span>
-                    </div>
-                    <p className="mt-1 text-[12px] text-zinc-400">{a.description}</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {Object.entries(a.statBonuses ?? {}).map(([k, v]) => (
-                        <span key={k} className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
-                          +{v as number} {getStatName(k, isPersian)}
-                        </span>
-                      ))}
-                    </div>
-                  </button>
-                );
-              })}
+              {archetypes.length === 0 ? (
+                <div className="my-6 rounded-2xl border border-dashed border-zinc-800 p-8 text-center text-zinc-500">
+                  <p className="text-sm font-medium">{isPersian ? 'نقش یا تخصصی برای این داستان تعریف نشده است.' : 'No archetypes defined for this story.'}</p>
+                </div>
+              ) : (
+                archetypes.map((a) => {
+                  const sel = a.id === archetypeId;
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => { audioService.playSfx('buttonClick'); setArchetypeId(a.id); }}
+                      className="mb-3 w-full rounded-2xl border p-4 text-left transition-all"
+                      style={{ backgroundColor: sel ? '#1B1926' : '#111322', borderColor: sel ? accent : theme.cardBorder, boxShadow: sel ? `0 0 16px -4px ${accent}` : 'none' }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold" style={{ color: sel ? accent : '#fff' }}>{a.name}</span>
+                        <span style={{ color: sel ? accent : '#444' }}>{sel ? '●' : '○'}</span>
+                      </div>
+                      <p className="mt-1 text-[12px] text-zinc-400">{a.description}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {Object.entries(a.statBonuses ?? {}).map(([k, v]) => (
+                          <span key={k} className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
+                            +{v as number} {getStatName(k, isPersian, stats.find((s) => s.id === k))}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })
+              )}
             </>
           )}
 
@@ -184,26 +167,34 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
             <>
               <h3 className="mb-1 text-sm font-bold text-white">{isPersian ? '۲. تبار و پیشینه داستانی' : '2. Select Your Background Origin'}</h3>
               <p className="mb-3 text-[12px] text-zinc-400">{isPersian ? 'پیشینه سرنخ‌های منحصر‌به‌فردی به راوی می‌افزاید.' : 'Your background unlocks unique lore options for the AI director.'}</p>
-              {backgrounds.map((b) => {
-                const sel = b.id === backgroundId;
-                return (
-                  <button
-                    key={b.id}
-                    onClick={() => { audioService.playSfx('buttonClick'); setBackgroundId(b.id); }}
-                    className="mb-3 w-full rounded-2xl border p-4 text-left"
-                    style={{ backgroundColor: sel ? '#1B1926' : '#111322', borderColor: sel ? accent : theme.cardBorder }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold" style={{ color: sel ? accent : '#fff' }}>{b.name}</span>
-                      <span style={{ color: sel ? accent : '#444' }}>{sel ? '●' : '○'}</span>
-                    </div>
-                    <p className="mt-1 text-[12px] text-zinc-400">{b.description}</p>
-                    <div className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-indigo-400/40 bg-indigo-500/15 px-2.5 py-1 text-[11px] font-bold text-indigo-300">
-                      <span>✶</span> {isPersian ? 'ویژگی: ' : 'Trait: '}{b.trait}
-                    </div>
-                  </button>
-                );
-              })}
+              {backgrounds.length === 0 ? (
+                <div className="my-6 rounded-2xl border border-dashed border-zinc-800 p-8 text-center text-zinc-500">
+                  <p className="text-sm font-medium">{isPersian ? 'پیشینه‌ای برای این داستان تعریف نشده است.' : 'No character backgrounds defined for this story.'}</p>
+                </div>
+              ) : (
+                backgrounds.map((b) => {
+                  const sel = b.id === backgroundId;
+                  return (
+                    <button
+                      key={b.id}
+                      onClick={() => { audioService.playSfx('buttonClick'); setBackgroundId(b.id); }}
+                      className="mb-3 w-full rounded-2xl border p-4 text-left"
+                      style={{ backgroundColor: sel ? '#1B1926' : '#111322', borderColor: sel ? accent : theme.cardBorder }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold" style={{ color: sel ? accent : '#fff' }}>{b.name}</span>
+                        <span style={{ color: sel ? accent : '#444' }}>{sel ? '●' : '○'}</span>
+                      </div>
+                      <p className="mt-1 text-[12px] text-zinc-400">{b.description}</p>
+                      {b.trait && (
+                        <div className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-indigo-400/40 bg-indigo-500/15 px-2.5 py-1 text-[11px] font-bold text-indigo-300">
+                          <span>✶</span> {isPersian ? 'ویژگی: ' : 'Trait: '}{b.trait}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })
+              )}
             </>
           )}
 
@@ -215,39 +206,46 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
                   {isPersian ? `باقی‌مانده: ${toPersianDigits(remaining)}` : `Pool: ${remaining}`}
                 </span>
               </div>
-              {stats.map((s) => {
-                const t = totalStat(s.id);
-                const mod = Math.floor((t - 10) / 2);
-                const alloc = points[s.id] ?? 0;
-                return (
-                  <div key={s.id} className="mb-3 rounded-2xl border p-3.5" style={{ backgroundColor: '#121422', borderColor: '#27272A' }}>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-[13px] font-bold text-white">{getStatName(s.id, isPersian)}</div>
-                        <div className="text-[10px] text-zinc-500">{s.description}</div>
-                      </div>
-                      <div className="flex items-center gap-2" dir="ltr">
-                        <span className="rounded-lg px-2 py-0.5 text-[11px] font-bold" style={{ color: mod >= 0 ? '#10B981' : '#EF4444', backgroundColor: mod >= 0 ? '#10B98126' : '#EF444426' }}>
-                          {mod >= 0 ? `+${mod}` : mod}
-                        </span>
-                        <span className="font-bold" style={{ color: accent, fontFamily: 'ui-monospace, monospace' }}>{t}</span>
-                        <button
-                          disabled={alloc <= 0}
-                          onClick={() => { audioService.playSfx('buttonClick'); setPoints((p) => ({ ...p, [s.id]: Math.max(0, (p[s.id] ?? 0) - 1) })); }}
-                          className="rounded-lg p-1 text-lg"
-                          style={{ color: alloc > 0 ? accent : '#444' }}
-                        >−</button>
-                        <button
-                          disabled={remaining <= 0}
-                          onClick={() => { audioService.playSfx('buttonClick'); setPoints((p) => ({ ...p, [s.id]: (p[s.id] ?? 0) + 1 })); }}
-                          className="rounded-lg p-1 text-lg"
-                          style={{ color: remaining > 0 ? accent : '#444' }}
-                        >+</button>
+              {stats.length === 0 ? (
+                <div className="my-6 rounded-2xl border border-dashed border-zinc-800 p-8 text-center text-zinc-500">
+                  <p className="text-sm font-medium">{isPersian ? 'ویژگی‌هایی برای این داستان تعریف نشده است.' : 'No attributes defined for this story.'}</p>
+                </div>
+              ) : (
+                stats.map((s) => {
+                  const t = totalStat(s.id);
+                  const base = s.baseValue ?? 10;
+                  const mod = Math.floor((t - base) / 2);
+                  const alloc = points[s.id] ?? 0;
+                  return (
+                    <div key={s.id} className="mb-3 rounded-2xl border p-3.5" style={{ backgroundColor: '#121422', borderColor: '#27272A' }}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-[13px] font-bold text-white">{getStatName(s.id, isPersian, s)}</div>
+                          <div className="text-[10px] text-zinc-500">{s.description}</div>
+                        </div>
+                        <div className="flex items-center gap-2" dir="ltr">
+                          <span className="rounded-lg px-2 py-0.5 text-[11px] font-bold" style={{ color: mod >= 0 ? '#10B981' : '#EF4444', backgroundColor: mod >= 0 ? '#10B98126' : '#EF444426' }}>
+                            {mod >= 0 ? `+${mod}` : mod}
+                          </span>
+                          <span className="font-bold" style={{ color: accent, fontFamily: 'ui-monospace, monospace' }}>{t}</span>
+                          <button
+                            disabled={alloc <= 0}
+                            onClick={() => { audioService.playSfx('buttonClick'); setPoints((p) => ({ ...p, [s.id]: Math.max(0, (p[s.id] ?? 0) - 1) })); }}
+                            className="rounded-lg p-1 text-lg"
+                            style={{ color: alloc > 0 ? accent : '#444' }}
+                          >−</button>
+                          <button
+                            disabled={remaining <= 0}
+                            onClick={() => { audioService.playSfx('buttonClick'); setPoints((p) => ({ ...p, [s.id]: (p[s.id] ?? 0) + 1 })); }}
+                            className="rounded-lg p-1 text-lg"
+                            style={{ color: remaining > 0 ? accent : '#444' }}
+                          >+</button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </>
           )}
 
@@ -263,17 +261,21 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
               />
               <div className="rounded-2xl border p-4" style={{ backgroundColor: '#131524', borderColor: `${accent}4D` }}>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold" style={{ color: accent }}>{arch?.name}</span>
-                  <span className="text-zinc-400">• {bg?.name}</span>
+                  <span className="font-bold" style={{ color: accent }}>{arch?.name ?? (isPersian ? 'بدون تخصص' : 'No Archetype')}</span>
+                  {bg?.name && <span className="text-zinc-400">• {bg.name}</span>}
                 </div>
                 <div className="my-2 border-t" style={{ borderColor: '#27272A' }} />
-                <div className="text-[11px]" style={{ color: '#818CF8' }}>{isPersian ? 'ویژگی تبار: ' : 'Origin Trait: '}{bg?.trait}</div>
+                {bg?.trait && <div className="text-[11px]" style={{ color: '#818CF8' }}>{isPersian ? 'ویژگی تبار: ' : 'Origin Trait: '}{bg.trait}</div>}
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {stats.map((s) => (
-                    <span key={s.id} className="rounded-lg bg-[#1E2235] px-2 py-1 text-[11px] font-bold text-white">
-                      {getStatName(s.id, isPersian)}: {totalStat(s.id)}
-                    </span>
-                  ))}
+                  {stats.length === 0 ? (
+                    <span className="text-[11px] text-zinc-500">{isPersian ? 'ویژگی مشخصی ثبت نشده است' : 'No attributes recorded'}</span>
+                  ) : (
+                    stats.map((s) => (
+                      <span key={s.id} className="rounded-lg bg-[#1E2235] px-2 py-1 text-[11px] font-bold text-white">
+                        {getStatName(s.id, isPersian, s)}: {totalStat(s.id)}
+                      </span>
+                    ))
+                  )}
                 </div>
               </div>
             </>

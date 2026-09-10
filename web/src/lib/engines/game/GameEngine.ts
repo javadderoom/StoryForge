@@ -130,13 +130,24 @@ export class GameEngine {
       }
     }
 
-    for (const skill of rpgSystem.skills) {
+    for (const skill of rpgSystem.skills || []) {
       if (
         lower.includes(skill.id.toLowerCase()) ||
         (skill.name && lower.includes(skill.name.toLowerCase()))
       ) {
         if (rpgSystem.stats.some((s) => s.id === skill.linkedStatId)) {
           return skill.linkedStatId;
+        }
+      }
+    }
+
+    for (const ability of rpgSystem.abilities || []) {
+      if (
+        lower.includes(ability.id.toLowerCase()) ||
+        (ability.name && lower.includes(ability.name.toLowerCase()))
+      ) {
+        if (ability.linkedStatId && rpgSystem.stats.some((s) => s.id === ability.linkedStatId)) {
+          return ability.linkedStatId;
         }
       }
     }
@@ -923,12 +934,17 @@ export class GameEngine {
       statModifier = this.getStatModifier(playerState.stats[effectiveStatId]);
     }
 
-    // Calculate skill bonus
+    // Calculate skill / ability bonus
     let skillBonus = 0;
     if (options.skillId) {
-      const skill = rpgSystem.skills.find((s) => s.id === options.skillId);
+      const skill = rpgSystem.skills?.find((s) => s.id === options.skillId);
       if (skill) {
         skillBonus = skill.bonusModifier;
+      } else {
+        const ability = rpgSystem.abilities?.find((a) => a.id === options.skillId);
+        if (ability) {
+          skillBonus = (ability.tier || 1) * 2;
+        }
       }
     }
 
