@@ -80,8 +80,8 @@ export const DEFAULT_CURRENCY_PRESETS: Record<string, CurrencySystem> = {
     baseUnitNameEn: 'Copper Fals',
     denominations: [
       { id: 'gold', nameFa: 'دینار زرین', nameEn: 'Gold Dinar', symbol: '🪙', valueInBase: 100 },
-      { id: 'silver', nameFa: 'درهم سیمین', nameEn: 'Silver Dirham', symbol: '🥈', valueInBase: 10 },
-      { id: 'copper', nameFa: 'پشیز مسی', nameEn: 'Copper Fals', symbol: '🥉', valueInBase: 1 },
+      { id: 'silver', nameFa: 'درهم سیمین', nameEn: 'Silver Dirham', symbol: '🔘', valueInBase: 10 },
+      { id: 'copper', nameFa: 'پشیز مسی', nameEn: 'Copper Fals', symbol: '🟤', valueInBase: 1 },
     ],
   },
   dnd: {
@@ -90,8 +90,8 @@ export const DEFAULT_CURRENCY_PRESETS: Record<string, CurrencySystem> = {
     baseUnitNameEn: 'Copper Piece',
     denominations: [
       { id: 'gold', nameFa: 'سکه طلا', nameEn: 'Gold Piece', symbol: '🪙', valueInBase: 100 },
-      { id: 'silver', nameFa: 'سکه نقره', nameEn: 'Silver Piece', symbol: '🥈', valueInBase: 10 },
-      { id: 'copper', nameFa: 'سکه مس', nameEn: 'Copper Piece', symbol: '🥉', valueInBase: 1 },
+      { id: 'silver', nameFa: 'سکه نقره', nameEn: 'Silver Piece', symbol: '🔘', valueInBase: 10 },
+      { id: 'copper', nameFa: 'سکه مس', nameEn: 'Copper Piece', symbol: '🟤', valueInBase: 1 },
     ],
   },
   scifi: {
