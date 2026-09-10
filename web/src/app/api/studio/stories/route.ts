@@ -39,30 +39,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let publishGateResult: any = null;
     if ((body as StoryManifest).published === true) {
       const statIds = ((body as StoryManifest).rpgSystem?.stats || []).map((s) => s.id).filter(Boolean);
-      const gate = canPublish(
+      publishGateResult = canPublish(
         (body as StoryManifest).worldBible as unknown as Parameters<typeof canPublish>[0],
         ((body as StoryManifest) as { saga?: Parameters<typeof canPublish>[1] }).saga ?? null,
         statIds
       );
-      if (!gate.ok) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Story failed consistency publish gate.',
-            score: gate.score,
-            errors: gate.errors,
-            warnings: gate.warnings.slice(0, 20),
-          },
-          { status: 409, headers: corsHeaders }
-        );
+      if (!publishGateResult.ok) {
+        (body as StoryManifest).published = false;
       }
     }
 
     const saved = await StoryRepository.saveStory(body);
     return NextResponse.json(
-      { success: true, data: saved, message: 'Story and World Bible saved successfully' },
+      {
+        success: true,
+        data: saved,
+        message: 'Story and World Bible saved successfully',
+        publishGate: publishGateResult,
+        publishedDowngraded: publishGateResult && !publishGateResult.ok,
+      },
       { headers: corsHeaders }
     );
   } catch (error: any) {

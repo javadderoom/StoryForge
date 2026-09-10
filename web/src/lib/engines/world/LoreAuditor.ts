@@ -108,7 +108,33 @@ export class LoreAuditor {
   // References to ids that do not exist in the world → missing_link
   private static checkDanglingLinks(world: WorldBible, findings: ContradictionFinding[]): void {
     const locationIds = new Set(world.locations.map((l) => l.id));
+    const locationNames = new Set(world.locations.map((l) => (l.name || '').trim().toLowerCase()));
     const factionIds = new Set(world.factions.map((f) => f.id));
+    const factionNames = new Set(world.factions.map((f) => (f.name || '').trim().toLowerCase()));
+
+    // Helper to check if a location reference is valid (by id, exact name, or fuzzy/normalized name)
+    const isValidLocationRef = (ref: string): boolean => {
+      if (!ref) return false;
+      if (locationIds.has(ref)) return true;
+      const low = ref.trim().toLowerCase();
+      if (locationNames.has(low)) return true;
+      return world.locations.some((l) => {
+        const ln = (l.name || '').trim().toLowerCase();
+        return ln === low || ln.includes(low) || low.includes(ln);
+      });
+    };
+
+    // Helper to check if a faction reference is valid
+    const isValidFactionRef = (ref: string): boolean => {
+      if (!ref) return false;
+      if (factionIds.has(ref)) return true;
+      const low = ref.trim().toLowerCase();
+      if (factionNames.has(low)) return true;
+      return world.factions.some((f) => {
+        const fn = (f.name || '').trim().toLowerCase();
+        return fn === low || fn.includes(low) || low.includes(fn);
+      });
+    };
 
     const push = (
       severity: ContradictionFinding['severity'],
@@ -131,7 +157,7 @@ export class LoreAuditor {
 
     for (const loc of world.locations) {
       for (const ref of loc.connectedLocationIds || []) {
-        if (!locationIds.has(ref)) {
+        if (!isValidLocationRef(ref)) {
           push(
             'warning',
             'Dangling location connection',
@@ -151,7 +177,7 @@ export class LoreAuditor {
         ...(fac.alliedFactionIds || []),
       ];
       for (const ref of refs) {
-        const broken = !factionIds.has(ref) && !locationIds.has(ref);
+        const broken = !isValidFactionRef(ref) && !isValidLocationRef(ref);
         if (broken) {
           push(
             'warning',
@@ -166,8 +192,12 @@ export class LoreAuditor {
     }
 
     for (const rel of world.factionRelations || []) {
-      for (const [label, id] of [['source', rel.sourceFactionId], ['target', rel.targetFactionId]] as const) {
-        if (!factionIds.has(id)) {
+      const endpoints: Array<[string, 'source' | 'target']> = [
+        [rel.sourceFactionId, 'source'],
+        [rel.targetFactionId, 'target'],
+      ];
+      for (const [id, label] of endpoints) {
+        if (!isValidFactionRef(id)) {
           push(
             'warning',
             'Faction relation references missing faction',
@@ -191,7 +221,7 @@ export class LoreAuditor {
     }
 
     for (const npc of world.npcs) {
-      if (npc.factionId && !factionIds.has(npc.factionId)) {
+      if (npc.factionId && !isValidFactionRef(npc.factionId)) {
         push(
           'warning',
           'NPC aligned to missing faction',
@@ -201,7 +231,7 @@ export class LoreAuditor {
           `Create the faction "${npc.factionId}" or update the NPC's factionId.`
         );
       }
-      if (npc.currentLocationId && !locationIds.has(npc.currentLocationId)) {
+      if (npc.currentLocationId && !isValidLocationRef(npc.currentLocationId)) {
         push(
           'warning',
           'NPC stationed at missing location',
@@ -213,7 +243,7 @@ export class LoreAuditor {
       }
       if (npc.applicableLocationIds && npc.applicableLocationIds.length > 0) {
         for (const locId of npc.applicableLocationIds) {
-          if (!locationIds.has(locId)) {
+          if (!isValidLocationRef(locId)) {
             push(
               'warning',
               'NPC archetype references missing location',
@@ -228,7 +258,7 @@ export class LoreAuditor {
     }
 
     for (const art of world.artifacts || []) {
-      if (art.currentHolderType === 'location' && art.currentHolderId && !locationIds.has(art.currentHolderId)) {
+      if (art.currentHolderType === 'location' && art.currentHolderId && !isValidLocationRef(art.currentHolderId)) {
         push(
           'suggestion',
           'Artifact holder not found',
@@ -242,7 +272,7 @@ export class LoreAuditor {
 
     for (const t of world.timeline) {
       for (const ref of [...(t.linkedFactionIds || []), ...(t.linkedLocationIds || [])]) {
-        const ok = factionIds.has(ref) || locationIds.has(ref);
+        const ok = isValidFactionRef(ref) || isValidLocationRef(ref);
         if (!ok) {
           push(
             'warning',

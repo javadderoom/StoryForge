@@ -188,12 +188,14 @@ export default function Home() {
         /* ignore */
       }
       if (savedSession && savedStoryId) {
-        const story = catalog.find((s) => s.id === savedStoryId) || null;
+        const baseStory = catalog.find((s) => s.id === savedStoryId) || null;
+        const story = resolveStoryWithLocalDraft(baseStory);
         setSelectedStory(story);
         if (story) await startGame(savedStoryId, savedSession, undefined, story.genres);
         else setIsCatalogOpen(true);
       } else if (savedStoryId) {
-        const story = catalog.find((s) => s.id === savedStoryId) || null;
+        const baseStory = catalog.find((s) => s.id === savedStoryId) || null;
+        const story = resolveStoryWithLocalDraft(baseStory);
         setSelectedStory(story);
         setIsCharCreationOpen(true);
       } else {
@@ -205,8 +207,35 @@ export default function Home() {
     };
   }, [startGame]);
 
+  const resolveStoryWithLocalDraft = useCallback((story: CatalogStory | null): CatalogStory | null => {
+    if (!story) return null;
+    try {
+      const draftKey = `storyforge_studio_draft_v1_${story.id}`;
+      const local = localStorage.getItem(draftKey);
+      if (local) {
+        const parsed = JSON.parse(local);
+        const rpg = parsed.rpgSystem;
+        return {
+          ...story,
+          title: parsed.title || story.title,
+          tagline: parsed.tagline || story.tagline,
+          synopsis: parsed.synopsis || story.synopsis,
+          genres: parsed.genres || story.genres,
+          rpgSystem: rpg || story.rpgSystem,
+          stats: rpg?.stats || story.stats,
+          archetypes: rpg?.archetypes || story.archetypes,
+          backgrounds: rpg?.backgrounds || story.backgrounds,
+        };
+      }
+    } catch {
+      /* ignore */
+    }
+    return story;
+  }, []);
+
   const onSelectStory = (story: CatalogStory) => {
-    setSelectedStory(story);
+    const resolved = resolveStoryWithLocalDraft(story) || story;
+    setSelectedStory(resolved);
     setIsCharCreationOpen(true);
   };
 

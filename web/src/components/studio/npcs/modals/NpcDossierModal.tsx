@@ -63,6 +63,22 @@ export function NpcDossierModal({
 
   useEffect(() => {
     if (editingNpc) {
+      // Resolve currentLocationId if stored as a location name
+      let locId = editingNpc.currentLocationId || '';
+      const matchedLoc = story.worldBible.locations.find(
+        (l) => l.id === locId || l.name === locId || l.name?.toLowerCase() === locId.toLowerCase()
+      );
+      if (matchedLoc) locId = matchedLoc.id;
+
+      // Resolve applicableLocationIds if stored as names or legacy IDs
+      const rawApp = editingNpc.applicableLocationIds || [];
+      const resolvedApp = rawApp.map((ref) => {
+        const found = story.worldBible.locations.find(
+          (l) => l.id === ref || l.name === ref || l.name?.toLowerCase() === ref.toLowerCase()
+        );
+        return found ? found.id : ref;
+      });
+
       setNpcForm({
         ...editingNpc,
         name: editingNpc.name || '',
@@ -70,7 +86,9 @@ export function NpcDossierModal({
         role: editingNpc.role || '',
         speechStyle: editingNpc.speechStyle || '',
         kind: editingNpc.kind || 'individual',
-        applicableLocationIds: editingNpc.applicableLocationIds || [],
+        factionId: editingNpc.factionId || '',
+        currentLocationId: locId,
+        applicableLocationIds: resolvedApp,
         personalityTraits: (editingNpc.personalityTraits || []).flatMap((t) => splitCommaSeparated(t)),
         goals: (editingNpc.goals || []).flatMap((g) => splitCommaSeparated(g)),
         secrets: editingNpc.secrets || [],

@@ -246,9 +246,23 @@ export class StoryRepository {
           worldId: s.worldId || undefined,
           worldName: s.world?.name || undefined,
           statsPreview: ((rpg?.stats as any[]) || []).map((stat) => stat.name || stat.id),
-          stats: rpg?.stats || [],
-          archetypes: rpg?.archetypes || [],
-          backgrounds: rpg?.backgrounds || [],
+          rpgSystem: rpg ? {
+            hasCombat: rpg.hasCombat,
+            diceType: rpg.diceType,
+            inventoryCapacity: rpg.inventoryCapacity,
+            stats: rpg.stats || [],
+            resources: rpg.resources || [],
+            skills: rpg.skills || [],
+            startingInventory: rpg.startingInventory || [],
+            archetypes: rpg.archetypes || [],
+            backgrounds: rpg.backgrounds || [],
+            abilities: (rpg as any).abilities || (s.manifest as any)?.rpgSystem?.abilities || [],
+            currencySystem: (rpg as any).currencySystem || (s.manifest as any)?.rpgSystem?.currencySystem,
+          } : (s.manifest as any)?.rpgSystem,
+          stats: rpg?.stats || (s.manifest as any)?.rpgSystem?.stats || [],
+          resources: rpg?.resources || (s.manifest as any)?.rpgSystem?.resources || [],
+          archetypes: rpg?.archetypes || (s.manifest as any)?.rpgSystem?.archetypes || [],
+          backgrounds: rpg?.backgrounds || (s.manifest as any)?.rpgSystem?.backgrounds || [],
         };
       });
     } catch (e) {
@@ -318,6 +332,8 @@ export class StoryRepository {
           startingInventory: (liveRpg.startingInventory as any) || [],
           archetypes: (liveRpg.archetypes as any) || [],
           backgrounds: (liveRpg.backgrounds as any) || [],
+          abilities: (manifest.rpgSystem as any)?.abilities || (liveRpg as any).abilities || [],
+          currencySystem: (manifest.rpgSystem as any)?.currencySystem || (liveRpg as any).currencySystem,
         } as any;
       }
 

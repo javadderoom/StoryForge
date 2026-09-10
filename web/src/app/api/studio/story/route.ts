@@ -15,24 +15,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let publishGateResult: any = null;
     if (manifest.published === true) {
       const statIds = (manifest.rpgSystem?.stats || []).map((s) => s.id).filter(Boolean);
-      const gate = canPublish(
+      publishGateResult = canPublish(
         manifest.worldBible as unknown as Parameters<typeof canPublish>[0],
         (manifest as { saga?: Parameters<typeof canPublish>[1] }).saga ?? null,
         statIds
       );
-      if (!gate.ok) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Story failed consistency publish gate. Resolve errors before publishing.',
-            score: gate.score,
-            errors: gate.errors,
-            warnings: gate.warnings.slice(0, 20),
-          },
-          { status: 409 }
-        );
+      // If consistency check fails, downgrade published to false so the user's hard work is NEVER lost
+      if (!publishGateResult.ok) {
+        manifest.published = false;
       }
     }
 
@@ -41,6 +34,8 @@ export async function POST(req: NextRequest) {
       success: true,
       message: 'Story manifest updated successfully',
       data: saved,
+      publishGate: publishGateResult,
+      publishedDowngraded: publishGateResult && !publishGateResult.ok,
     });
   } catch (error: any) {
     console.error('Error saving story manifest in studio:', error);

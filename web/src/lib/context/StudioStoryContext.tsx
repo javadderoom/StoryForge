@@ -347,8 +347,7 @@ interface StudioStoryContextType {
   lastSaved: Date | null;
   isSyncing: boolean;
   lastServerSynced: Date | null;
-  saveToServer: (manifestToSave?: StoryManifest) => Promise<boolean>;
-  // Story Registry CRUD
+  saveToServer: (manifestToSave?: StoryManifest, showToast?: boolean) => Promise<boolean>;
   createStory: (manifest: StoryManifest) => void;
   /** New story shell inside an existing shared world (lore + RPG inherited live). */
   createStoryInWorld: (worldId: string, language?: 'en' | 'fa') => void;
@@ -858,7 +857,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
 
   // Direct backend sync helper
   const saveToServer = useCallback(
-    async (manifestToSave?: StoryManifest) => {
+    async (manifestToSave?: StoryManifest, showToast = false) => {
       const target = manifestToSave || story;
       if (!target || !target.id) return false;
       setIsSyncing(true);
@@ -871,17 +870,35 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         const data = await res.json();
         if (data.success) {
           setLastServerSynced(new Date());
+          if (data.publishedDowngraded) {
+            notify.info(
+              isPersian
+                ? 'تغییرات در سرور ذخیره شد، اما انتشار به دلیل هشدارهای انسجام به تعویق افتاد.'
+                : 'Changes saved to DB server, but publication was deferred due to consistency warnings.'
+            );
+          } else if (showToast) {
+            notify.success(
+              isPersian
+                ? 'اطلاعات با موفقیت در پایگاه‌داده سرور ذخیره شد'
+                : 'Story and World Bible saved successfully to DB server'
+            );
+          }
           return true;
+        } else {
+          notify.error(data.error || (isPersian ? 'خطا در ذخیره سازی در سرور' : 'Failed to save to server'));
+          return false;
         }
-        return false;
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to sync story to backend API:', err);
+        if (showToast) {
+          notify.error(err.message || (isPersian ? 'خطای شبکه در اتصال به سرور' : 'Network error connecting to DB server'));
+        }
         return false;
       } finally {
         setIsSyncing(false);
       }
     },
-    [story]
+    [story, isPersian]
   );
 
   const setStoryPublished = useCallback(

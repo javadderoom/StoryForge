@@ -456,9 +456,9 @@ function StudioShell({ children }: { children: React.ReactNode }) {
 
               {/* Save to Server Button */}
               <button
-                onClick={() => saveToServer()}
+                onClick={() => saveToServer(undefined, true)}
                 disabled={isSyncing}
-                className="w-full py-1.5 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-amber-400 hover:text-amber-300 font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+                className="w-full py-1.5 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-amber-400 hover:text-amber-300 font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
               >
                 <CloudUpload className="w-3 h-3" />
                 <span>{isPersian ? 'ذخیره در سرور (Postgres)' : 'Save to DB Server'}</span>
