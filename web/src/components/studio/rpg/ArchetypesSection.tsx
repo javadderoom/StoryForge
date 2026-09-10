@@ -3,48 +3,97 @@
 
 import React, { useState } from 'react';
 import { Crown, Plus, Edit2, Trash2, X } from 'lucide-react';
-import { ArchetypeDefinition, GameItem, StatDefinition } from '@/lib/types';
+import { ArchetypeDefinition, StatDefinition, WorldArtifact } from '@/lib/types';
 import { notify } from '@/lib/notify';
 
 interface ArchetypesSectionProps {
   archetypes: ArchetypeDefinition[];
   stats: StatDefinition[];
-  items: GameItem[];
+  /** Vault artifacts from /studio/artifacts (worldBible.artifacts). */
+  vaultItems: WorldArtifact[];
   isPersian: boolean;
   updateRpgSystem: (updater: (prev: any) => any) => void;
 }
 
-/** Which vault items are valid for each equipment slot (mirrors runtime equip rules). */
-function fitsSlot(
-  slot: 'mainHand' | 'offHand' | 'armor' | 'relic',
-  item: GameItem
-): boolean {
-  if (item.nonEquippable) return false;
+/** Which vault artifacts are valid for each equipment slot (mirrors runtime equip rules). */
+type EquipmentSlot = 'mainHand' | 'offHand' | 'armor' | 'relic';
+
+function fitsSlot(slot: EquipmentSlot, artifact: WorldArtifact): boolean {
+  if (artifact.nonEquippable) return false;
+  const s = artifact.slot || 'relic'; // vault form defaults new artifacts to 'relic'
   switch (slot) {
     case 'mainHand':
-      return item.type === 'weapon';
+      return s === 'main_hand' || s === 'two_handed';
     case 'offHand':
-      return (
-        item.type === 'shield' || (item.type === 'weapon' && item.grip !== 'two_handed')
-      );
+      return s === 'off_hand' || s === 'shield';
     case 'armor':
-      return item.type === 'armor';
+      return s === 'armor';
     case 'relic':
-      return item.type === 'relic';
+      return s === 'relic';
   }
 }
 
 export function ArchetypesSection({
   archetypes,
   stats,
-  items,
+  vaultItems,
   isPersian,
   updateRpgSystem,
 }: ArchetypesSectionProps) {
-  /** Resolve a stored equipment slot value (item id) to a display name. */
+  /** Resolve a stored equipment slot value (vault artifact id) to a display name. */
   const vaultItemName = (slotValue?: string): string => {
     if (!slotValue) return '';
-    return items.find((i) => i.id === slotValue)?.name || slotValue;
+    return vaultItems.find((a) => a.id === slotValue)?.name || slotValue;
+  };
+
+  const slotOptions = (slot: EquipmentSlot) => vaultItems.filter((a) => fitsSlot(slot, a));
+
+  const mainIsTwoHanded = (() => {
+    const main = vaultItems.find((a) => a.id === archetypeForm.startingEquipment?.mainHand);
+    return main?.slot === 'two_handed';
+  })();
+
+  /** Dropdown of vault artifacts for one equipment slot. */
+  const renderSlotSelect = (slot: EquipmentSlot, label: string) => {
+    const current = archetypeForm.startingEquipment?.[slot] || '';
+    // Legacy archetypes may hold a free-typed name that matches no vault artifact.
+    const isLegacy = !!current && !vaultItems.some((a) => a.id === current);
+    const disabled = slot === 'offHand' && mainIsTwoHanded;
+    return (
+      <div>
+        <span className="text-[11px] text-zinc-400 block mb-0.5">{label}</span>
+        <select
+          value={current}
+          disabled={disabled}
+          onChange={(e) =>
+            setArchetypeForm((prev) => ({
+              ...prev,
+              startingEquipment: {
+                ...(prev.startingEquipment || {}),
+                [slot]: e.target.value || undefined,
+              },
+            }))
+          }
+          className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-purple-500 disabled:opacity-40"
+        >
+          <option value="">
+            {disabled
+              ? isPersian
+                ? '— سلاح دومست، دست دوم آزاد نیست —'
+                : '— two-handed weapon equipped —'
+              : isPersian
+                ? '— بدون انتخاب —'
+                : '— none —'}
+          </option>
+          {isLegacy && <option value={current}>{current}</option>}
+          {slotOptions(slot).map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name} ({a.slot || 'relic'} · {a.rarity})
+            </option>
+          ))}
+        </select>
+      </div>
+    );
   };
   const [modalOpen, setModalOpen] = useState(false);
   const [editingArchetypeId, setEditingArchetypeId] = useState<string | null>(null);
@@ -367,87 +416,18 @@ export function ArchetypesSection({
                   🛡️ {isPersian ? 'تجهیزات آغازین کاراکتر' : 'Starting Equipment'}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-[11px] text-zinc-400 block mb-0.5">
-                      {isPersian ? 'سلاح اصلی (Main Hand)' : 'Main Hand Weapon'}
-                    </span>
-                    <input
-                      type="text"
-                      value={archetypeForm.startingEquipment?.mainHand || ''}
-                      onChange={(e) =>
-                        setArchetypeForm((prev) => ({
-                          ...prev,
-                          startingEquipment: {
-                            ...(prev.startingEquipment || {}),
-                            mainHand: e.target.value,
-                          },
-                        }))
-                      }
-                      placeholder="e.g. خنجر پولادین"
-                      className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-purple-500"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-zinc-400 block mb-0.5">
-                      {isPersian ? 'زره / لباس (Armor)' : 'Armor'}
-                    </span>
-                    <input
-                      type="text"
-                      value={archetypeForm.startingEquipment?.armor || ''}
-                      onChange={(e) =>
-                        setArchetypeForm((prev) => ({
-                          ...prev,
-                          startingEquipment: {
-                            ...(prev.startingEquipment || {}),
-                            armor: e.target.value,
-                          },
-                        }))
-                      }
-                      placeholder="e.g. زره چرمی سبک"
-                      className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-purple-500"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-zinc-400 block mb-0.5">
-                      {isPersian ? 'دست دوم / سپر (Off Hand)' : 'Off Hand'}
-                    </span>
-                    <input
-                      type="text"
-                      value={archetypeForm.startingEquipment?.offHand || ''}
-                      onChange={(e) =>
-                        setArchetypeForm((prev) => ({
-                          ...prev,
-                          startingEquipment: {
-                            ...(prev.startingEquipment || {}),
-                            offHand: e.target.value,
-                          },
-                        }))
-                      }
-                      placeholder="e.g. قلاب کمند"
-                      className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-purple-500"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-zinc-400 block mb-0.5">
-                      {isPersian ? 'دست‌سازه / نشان (Relic)' : 'Relic / Accessory'}
-                    </span>
-                    <input
-                      type="text"
-                      value={archetypeForm.startingEquipment?.relic || ''}
-                      onChange={(e) =>
-                        setArchetypeForm((prev) => ({
-                          ...prev,
-                          startingEquipment: {
-                            ...(prev.startingEquipment || {}),
-                            relic: e.target.value,
-                          },
-                        }))
-                      }
-                      placeholder="e.g. نشان محفل سایه‌ها"
-                      className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-purple-500"
-                    />
-                  </div>
+                  {renderSlotSelect('mainHand', isPersian ? 'سلاح اصلی (Main Hand)' : 'Main Hand Weapon')}
+                  {renderSlotSelect('armor', isPersian ? 'زره / لباس (Armor)' : 'Armor')}
+                  {renderSlotSelect('offHand', isPersian ? 'دست دوم / سپر (Off Hand)' : 'Off Hand')}
+                  {renderSlotSelect('relic', isPersian ? 'دست‌سازه / نشان (Relic)' : 'Relic / Accessory')}
                 </div>
+                {vaultItems.length === 0 && (
+                  <p className="text-[10.5px] text-amber-400/90 mt-1.5">
+                    {isPersian
+                      ? 'خزانه اقلام خالی است — ابتدا در /studio/artifacts قلم اضافه کنید.'
+                      : 'The vault is empty — add artifacts in /studio/artifacts first.'}
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800">

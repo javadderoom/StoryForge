@@ -151,7 +151,7 @@ export default function RpgMechanicsPage() {
         <ArchetypesSection
           archetypes={story.rpgSystem.archetypes || []}
           stats={story.rpgSystem.stats || []}
-          items={story.rpgSystem.startingInventory || []}
+          vaultItems={story.worldBible.artifacts || []}
           isPersian={isPersian}
           updateRpgSystem={updateRpgSystem}
         />

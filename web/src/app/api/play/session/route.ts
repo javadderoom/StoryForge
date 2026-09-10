@@ -4,6 +4,7 @@ import { SessionRepository } from '@/lib/db/repositories/sessionRepository';
 import { PlaythroughSession, PlayerState } from '@/lib/types/gameplay';
 import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
 import { getAuthenticatedUser } from '@/lib/auth/getUser';
+import { artifactToGameItem } from '@/lib/play/artifactItems';
 
 /**
  * Lightweight, player-safe projection of the World Bible consumed by the
@@ -247,6 +248,21 @@ export async function POST(req: NextRequest) {
             initialStats[sKey] = (initialStats[sKey] || 10) + bonus;
           }
         }
+      }
+    }
+
+    // Provision archetype equipment from the artifact vault: resolve slot refs
+    // (artifact id, or legacy free-typed name) to real inventory GameItems so
+    // equipment slots and their stat modifiers resolve in the play HUD.
+    const vaultArtifacts: any[] = story.worldBible?.artifacts || [];
+    const resolveVaultArtifact = (ref?: string) =>
+      ref ? vaultArtifacts.find((a) => a.id === ref || a.name === ref) : undefined;
+    for (const slot of ['mainHand', 'offHand', 'armor', 'relic'] as const) {
+      const artifact = resolveVaultArtifact(startingEquipment[slot]);
+      if (!artifact) continue;
+      startingEquipment[slot] = artifact.id;
+      if (!startingInventory.some((i: any) => i.id === artifact.id)) {
+        startingInventory.push(artifactToGameItem(artifact));
       }
     }
 
