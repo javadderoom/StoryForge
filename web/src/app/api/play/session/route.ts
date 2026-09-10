@@ -5,6 +5,8 @@ import { PlaythroughSession, PlayerState } from '@/lib/types/gameplay';
 import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
 import { getAuthenticatedUser } from '@/lib/auth/getUser';
 import { artifactToGameItem } from '@/lib/play/artifactItems';
+import { computeMaxResources } from '@/lib/engines/game/vitalScaling';
+import { addToPurse } from '@/lib/engines/game/currencyEngine';
 
 /**
  * Lightweight, player-safe projection of the World Bible consumed by the
@@ -201,16 +203,23 @@ export async function POST(req: NextRequest) {
       mainHand: 'iron_dagger',
     };
     const startingInventory = JSON.parse(JSON.stringify(story.rpgSystem.startingInventory));
+    let selectedArch: any = undefined;
+    let selectedBg: any = undefined;
+    let initialPurse: Record<string, number> = {};
 
     // 1. Apply Archetype if selected
     if (characterSetup?.archetypeId && story.rpgSystem.archetypes) {
       const arch = story.rpgSystem.archetypes.find((a) => a.id === characterSetup.archetypeId);
       if (arch) {
+        selectedArch = arch;
         archetypeName = arch.name;
         if (arch.statBonuses) {
           for (const [sKey, bonus] of Object.entries(arch.statBonuses)) {
             initialStats[sKey] = (initialStats[sKey] || 10) + bonus;
           }
+        }
+        if (arch.startingPurse) {
+          initialPurse = addToPurse(initialPurse, arch.startingPurse);
         }
         if (arch.startingEquipment) {
           startingEquipment = { ...startingEquipment, ...arch.startingEquipment };
@@ -241,12 +250,16 @@ export async function POST(req: NextRequest) {
     if (characterSetup?.backgroundId && story.rpgSystem.backgrounds) {
       const bg = story.rpgSystem.backgrounds.find((b) => b.id === characterSetup.backgroundId);
       if (bg) {
+        selectedBg = bg;
         backgroundName = bg.name;
         if (bg.trait) traits.push(bg.trait);
         if (bg.statBonuses) {
           for (const [sKey, bonus] of Object.entries(bg.statBonuses)) {
             initialStats[sKey] = (initialStats[sKey] || 10) + bonus;
           }
+        }
+        if (bg.startingPurse) {
+          initialPurse = addToPurse(initialPurse, bg.startingPurse);
         }
       }
     }
@@ -257,10 +270,12 @@ export async function POST(req: NextRequest) {
     const vaultArtifacts: any[] = story.worldBible?.artifacts || [];
     const resolveVaultArtifact = (ref?: string) =>
       ref ? vaultArtifacts.find((a) => a.id === ref || a.name === ref) : undefined;
+    const equippedArtifacts: any[] = [];
     for (const slot of ['mainHand', 'offHand', 'armor', 'relic'] as const) {
       const artifact = resolveVaultArtifact(startingEquipment[slot]);
       if (!artifact) continue;
       startingEquipment[slot] = artifact.id;
+      equippedArtifacts.push(artifact);
       if (!startingInventory.some((i: any) => i.id === artifact.id)) {
         startingInventory.push(artifactToGameItem(artifact));
       }
@@ -274,9 +289,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const maxResources = computeMaxResources(
+      initialStats,
+      story.rpgSystem,
+      {
+        archetype: selectedArch,
+        background: selectedBg,
+        equippedArtifacts,
+      }
+    );
+
     const initialResources: Record<string, number> = {};
-    for (const res of story.rpgSystem.resources) {
-      initialResources[res.id] = res.current;
+    for (const res of story.rpgSystem.resources || []) {
+      const maxVal = maxResources[res.id] ?? res.max;
+      initialResources[res.id] = Math.min(res.current, maxVal);
     }
 
     const initialRelationships: Record<string, any> = {};
@@ -304,6 +330,8 @@ export async function POST(req: NextRequest) {
       traits: traits.length > 0 ? traits : undefined,
       stats: initialStats,
       resources: initialResources,
+      maxResources,
+      purse: initialPurse,
       inventory: startingInventory,
       equipment: startingEquipment,
       discoveredLocationIds: initialBeat.locationId ? [initialBeat.locationId] : [],

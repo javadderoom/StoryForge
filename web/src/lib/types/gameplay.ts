@@ -45,7 +45,9 @@ export interface PlayerState {
   backgroundName?: string;
   traits?: string[];
   stats: Record<string, number>; // e.g. { might: 14, agility: 12 }
-  resources: Record<string, number>; // e.g. { hp: 85, stamina: 40, gold: 120 }
+  resources: Record<string, number>; // Current vital values: { hp: 20, stamina: 15 }
+  maxResources?: Record<string, number>; // Scaled vital pool maximums
+  purse?: Record<string, number>; // Multi-denomination coin purse: { gold: 2, silver: 15, copper: 30 }
   inventory: GameItem[];
   equipment: PlayerEquipment;
   equippedWeaponId?: string;
@@ -68,7 +70,8 @@ export interface PlayerState {
 
 export interface StateMutationDiff {
   statChanges?: Record<string, number>; // e.g. { might: +1 }
-  resourceChanges?: Record<string, number>; // e.g. { hp: -15, gold: +50 }
+  resourceChanges?: Record<string, number>; // e.g. { hp: -15 }
+  purseChanges?: Record<string, number>; // e.g. { silver: -4, copper: +6 } (handles change breakdown)
   itemsAdded?: GameItem[];
   itemsRemovedIds?: string[];
   locationChange?: string;

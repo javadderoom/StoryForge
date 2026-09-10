@@ -2,13 +2,24 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { useState } from 'react';
-import { Crown, Plus, Edit2, Trash2, X } from 'lucide-react';
-import { ArchetypeDefinition, StatDefinition, WorldArtifact } from '@/lib/types';
+import { Crown, Plus, Edit2, Trash2, X, Coins, Heart } from 'lucide-react';
+import {
+  ArchetypeDefinition,
+  StatDefinition,
+  WorldArtifact,
+  ResourceDefinition,
+  CurrencySystem,
+  CurrencyDenomination,
+} from '@/lib/types';
+import { DEFAULT_CURRENCY_PRESETS } from '@/lib/types/rpg';
+import { formatPurse } from '@/lib/engines/game/currencyEngine';
 import { notify } from '@/lib/notify';
 
 interface ArchetypesSectionProps {
   archetypes: ArchetypeDefinition[];
   stats: StatDefinition[];
+  resources?: ResourceDefinition[];
+  currencySystem?: CurrencySystem;
   /** Vault artifacts from /studio/artifacts (worldBible.artifacts). */
   vaultItems: WorldArtifact[];
   isPersian: boolean;
@@ -36,10 +47,14 @@ function fitsSlot(slot: EquipmentSlot, artifact: WorldArtifact): boolean {
 export function ArchetypesSection({
   archetypes,
   stats,
+  resources = [],
+  currencySystem,
   vaultItems,
   isPersian,
   updateRpgSystem,
 }: ArchetypesSectionProps) {
+  const activeCurrency = currencySystem || DEFAULT_CURRENCY_PRESETS.fantasy;
+
   /** Resolve a stored equipment slot value (vault artifact id) to a display name. */
   const vaultItemName = (slotValue?: string): string => {
     if (!slotValue) return '';
@@ -99,6 +114,8 @@ export function ArchetypesSection({
     tagline: '',
     description: '',
     statBonuses: {},
+    resourceBonuses: {},
+    startingPurse: {},
     startingEquipment: {
       mainHand: '',
       offHand: '',
@@ -113,6 +130,8 @@ export function ArchetypesSection({
       setArchetypeForm({
         ...arch,
         statBonuses: { ...(arch.statBonuses || {}) },
+        resourceBonuses: { ...(arch.resourceBonuses || {}) },
+        startingPurse: { ...(arch.startingPurse || {}) },
         startingEquipment: { ...(arch.startingEquipment || {}) },
       });
     } else {
@@ -123,6 +142,8 @@ export function ArchetypesSection({
         tagline: '',
         description: '',
         statBonuses: {},
+        resourceBonuses: {},
+        startingPurse: {},
         startingEquipment: {
           mainHand: '',
           offHand: '',
@@ -144,6 +165,14 @@ export function ArchetypesSection({
       name: safeName,
       tagline: (archetypeForm.tagline || '').trim(),
       description: (archetypeForm.description || '').trim(),
+      resourceBonuses:
+        archetypeForm.resourceBonuses && Object.keys(archetypeForm.resourceBonuses).length > 0
+          ? archetypeForm.resourceBonuses
+          : undefined,
+      startingPurse:
+        archetypeForm.startingPurse && Object.keys(archetypeForm.startingPurse).length > 0
+          ? archetypeForm.startingPurse
+          : undefined,
     };
 
     updateRpgSystem((prev: any) => {
@@ -264,6 +293,31 @@ export function ArchetypesSection({
                           {statId}: +{String(bonus)}
                         </span>
                       ))}
+                    </div>
+                  )}
+
+                  {arch.resourceBonuses && Object.keys(arch.resourceBonuses).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {Object.entries(arch.resourceBonuses).map(([resId, bonus]) => {
+                        const resName = resources.find((r) => r.id === resId)?.name || resId;
+                        return (
+                          <span
+                            key={resId}
+                            className="text-[10px] bg-emerald-500/10 text-emerald-300 font-mono px-2 py-0.5 rounded-md border border-emerald-500/20"
+                          >
+                            ❤️ {resName}: +{String(bonus)}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {arch.startingPurse && Object.values(arch.startingPurse).some((v) => v > 0) && (
+                    <div className="flex items-center gap-1.5 pt-1">
+                      <span className="text-[10px] bg-amber-500/10 text-amber-300 font-mono px-2 py-0.5 rounded-md border border-amber-500/20 flex items-center gap-1">
+                        <Coins className="w-3 h-3 text-amber-400" />
+                        <span>{formatPurse(arch.startingPurse, activeCurrency)}</span>
+                      </span>
                     </div>
                   )}
 
@@ -405,6 +459,79 @@ export function ArchetypesSection({
                   ))}
                 </div>
               </div>
+
+              {/* Vitals & Resource Pool Modifiers */}
+              {resources.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold text-emerald-400 mb-2">
+                    ❤️ {isPersian ? 'افزایش سقف منابع حیاتی (Max Pools)' : 'Vital Pool Bonuses (+)'}
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 rounded-2xl bg-zinc-950 border border-zinc-800">
+                    {resources.map((res) => (
+                      <div key={res.id} className="flex items-center justify-between gap-1 text-xs">
+                        <span className="text-zinc-300 truncate" title={res.name}>
+                          {res.name}:
+                        </span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={500}
+                          value={archetypeForm.resourceBonuses?.[res.id] ?? 0}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setArchetypeForm((prev) => {
+                              const rBonuses = { ...(prev.resourceBonuses || {}) };
+                              if (val > 0) rBonuses[res.id] = val;
+                              else delete rBonuses[res.id];
+                              return { ...prev, resourceBonuses: rBonuses };
+                            });
+                          }}
+                          className="w-16 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-center font-mono text-emerald-300"
+                          dir="ltr"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Starting Purse */}
+              {activeCurrency.denominations && activeCurrency.denominations.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold text-amber-400 mb-2">
+                    💰 {isPersian ? 'کیسه پول آغازین (سکه)' : 'Starting Purse (Coins)'}
+                  </label>
+                  <div className="grid grid-cols-3 gap-2 p-3 rounded-2xl bg-zinc-950 border border-zinc-800">
+                    {activeCurrency.denominations.map((d: CurrencyDenomination) => {
+                      const denomName = isPersian ? d.nameFa : d.nameEn;
+                      return (
+                        <div key={d.id} className="space-y-1">
+                          <label className="text-[11px] text-zinc-300 block truncate" title={denomName}>
+                            {d.symbol ? `${d.symbol} ` : ''}
+                            {denomName}
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            value={archetypeForm.startingPurse?.[d.id] ?? 0}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              setArchetypeForm((prev) => {
+                                const purse = { ...(prev.startingPurse || {}) };
+                                if (val > 0) purse[d.id] = val;
+                                else delete purse[d.id];
+                                return { ...prev, startingPurse: purse };
+                              });
+                            }}
+                            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-center font-mono text-amber-300"
+                            dir="ltr"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Starting Equipment */}
               <div>

@@ -3,16 +3,17 @@
 
 import React, { useState } from 'react';
 import { Sword, Plus, Edit2, Trash2, X } from 'lucide-react';
-import { StatDefinition } from '@/lib/types';
+import { StatDefinition, ResourceDefinition } from '@/lib/types';
 import { notify } from '@/lib/notify';
 
 interface StatsSectionProps {
   stats: StatDefinition[];
+  resources?: ResourceDefinition[];
   isPersian: boolean;
   updateRpgSystem: (updater: (prev: any) => any) => void;
 }
 
-export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSectionProps) {
+export function StatsSection({ stats, resources = [], isPersian, updateRpgSystem }: StatsSectionProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingStatId, setEditingStatId] = useState<string | null>(null);
   const [statForm, setStatForm] = useState<StatDefinition>({
@@ -22,6 +23,7 @@ export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSection
     baseValue: 10,
     minValue: 1,
     maxValue: 30,
+    vitalEffect: undefined,
   });
 
   const openModal = (stat?: StatDefinition) => {
@@ -32,6 +34,7 @@ export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSection
         name: stat.name || '',
         id: stat.id || '',
         description: stat.description || '',
+        vitalEffect: stat.vitalEffect ? { ...stat.vitalEffect } : undefined,
       });
     } else {
       setEditingStatId(null);
@@ -42,6 +45,7 @@ export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSection
         baseValue: 10,
         minValue: 1,
         maxValue: 30,
+        vitalEffect: undefined,
       });
     }
     setModalOpen(true);
@@ -59,6 +63,14 @@ export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSection
       notify.error(isPersian ? 'حداقل نمی‌تواند از حداکثر بیشتر باشد' : 'Min value cannot exceed max value');
       return;
     }
+    const vitalEffect =
+      statForm.vitalEffect && statForm.vitalEffect.targetResourceId
+        ? {
+            targetResourceId: statForm.vitalEffect.targetResourceId,
+            bonusPerPointAboveBase: Number(statForm.vitalEffect.bonusPerPointAboveBase || 0),
+          }
+        : undefined;
+
     // Clamp base into the declared range so checks stay coherent.
     const clamped: StatDefinition = {
       ...statForm,
@@ -68,6 +80,7 @@ export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSection
       minValue: min,
       maxValue: max,
       baseValue: Math.min(Math.max(Number(statForm.baseValue), min), max),
+      vitalEffect,
     };
 
     updateRpgSystem((prev: any) => {
@@ -144,9 +157,22 @@ export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSection
                   className="p-3.5 rounded-2xl bg-zinc-950/80 border border-zinc-800/80 hover:border-zinc-700 transition-all group"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-zinc-100">{stat.name}</span>
                       <span className="text-[10px] font-mono text-zinc-500">({stat.id})</span>
+                      {stat.vitalEffect && stat.vitalEffect.targetResourceId && (
+                        <span
+                          className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20"
+                          dir="ltr"
+                          title={`Provides ${stat.vitalEffect.bonusPerPointAboveBase >= 0 ? '+' : ''}${stat.vitalEffect.bonusPerPointAboveBase} Max ${resources.find((r) => r.id === stat.vitalEffect?.targetResourceId)?.name || stat.vitalEffect.targetResourceId} per point above base`}
+                        >
+                          {stat.vitalEffect.bonusPerPointAboveBase >= 0 ? '+' : ''}
+                          {stat.vitalEffect.bonusPerPointAboveBase} Max{' '}
+                          {resources.find((r) => r.id === stat.vitalEffect?.targetResourceId)?.name ||
+                            stat.vitalEffect.targetResourceId}
+                          /pt
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <span
@@ -292,6 +318,72 @@ export function StatsSection({ stats, isPersian, updateRpgSystem }: StatsSection
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 font-mono"
                     dir="ltr"
                   />
+                </div>
+              </div>
+
+              {/* Vital Pool Scaling */}
+              <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-2xl p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-zinc-300">
+                    {isPersian ? 'تاثیر بر ظرفیت منابع حیاتی (اختیاری)' : 'Vital Pool Scaling (Optional)'}
+                  </label>
+                  <span className="text-[10px] text-zinc-500">
+                    {isPersian ? 'مثلاً کانستیتیوشن به ازای هر امتیاز +۲ به حداکثر HP می‌دهد' : 'e.g. +2 Max HP per point above base'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] text-zinc-400 mb-1">
+                      {isPersian ? 'منبع هدف' : 'Target Resource'}
+                    </label>
+                    <select
+                      value={statForm.vitalEffect?.targetResourceId || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) {
+                          setStatForm((prev) => ({ ...prev, vitalEffect: undefined }));
+                        } else {
+                          setStatForm((prev) => ({
+                            ...prev,
+                            vitalEffect: {
+                              targetResourceId: val,
+                              bonusPerPointAboveBase: prev.vitalEffect?.bonusPerPointAboveBase ?? 2,
+                            },
+                          }));
+                        }
+                      }}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-amber-500"
+                    >
+                      <option value="">{isPersian ? '-- بدون تاثیر --' : '-- None --'}</option>
+                      {resources.map((res) => (
+                        <option key={res.id} value={res.id}>
+                          {res.name} ({res.id})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-zinc-400 mb-1">
+                      {isPersian ? 'بونس به ازای هر امتیاز بالاتر از پایه' : 'Bonus / Pt Above Base'}
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      disabled={!statForm.vitalEffect?.targetResourceId}
+                      value={statForm.vitalEffect?.bonusPerPointAboveBase ?? 2}
+                      onChange={(e) => {
+                        const bonus = Number(e.target.value);
+                        setStatForm((prev) => ({
+                          ...prev,
+                          vitalEffect: prev.vitalEffect
+                            ? { ...prev.vitalEffect, bonusPerPointAboveBase: bonus }
+                            : { targetResourceId: '', bonusPerPointAboveBase: bonus },
+                        }));
+                      }}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 font-mono disabled:opacity-40"
+                      dir="ltr"
+                    />
+                  </div>
                 </div>
               </div>
 

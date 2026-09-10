@@ -25,6 +25,7 @@ import {
   ChevronUp,
   Check,
   Sword,
+  Heart,
 } from 'lucide-react';
 import { WorldArtifact, ArtifactVaultLore, EnhancedArtifactPayload, ARTIFACT_RARITY_BUDGETS, getArtifactStatBudget } from '@/lib/types';
 import { notify } from '@/lib/notify';
@@ -94,6 +95,7 @@ export default function ArtifactsStudioPage() {
   const [artAttunement, setArtAttunement] = useState('');
   const [artSlot, setArtSlot] = useState<'relic' | 'main_hand' | 'two_handed' | 'off_hand' | 'shield' | 'armor'>('relic');
   const [artStatModifiers, setArtStatModifiers] = useState<Record<string, number>>({});
+  const [artResourceModifiers, setArtResourceModifiers] = useState<Record<string, number>>({});
   const [artHolderType, setArtHolderType] = useState<'npc' | 'location' | 'faction' | 'vault' | 'unknown'>('vault');
   const [artHolderId, setArtHolderId] = useState('');
   const [artSecretLore, setArtSecretLore] = useState('');
@@ -146,6 +148,7 @@ export default function ArtifactsStudioPage() {
     setArtAttunement('');
     setArtSlot('relic');
     setArtStatModifiers({});
+    setArtResourceModifiers({});
     setArtHolderType('vault');
     setArtHolderId('');
     setArtSecretLore('');
@@ -176,6 +179,7 @@ export default function ArtifactsStudioPage() {
     setArtAttunement(art.attunementRules || '');
     setArtSlot(art.slot || 'relic');
     setArtStatModifiers(art.statModifiers || {});
+    setArtResourceModifiers(art.resourceModifiers || {});
     setArtHolderType(art.currentHolderType || 'vault');
     setArtHolderId(art.currentHolderId || '');
     setArtSecretLore(art.secretLore || '');
@@ -232,6 +236,15 @@ export default function ArtifactsStudioPage() {
       }
     }
 
+    const cleanedResources: Record<string, number> = {};
+    if (artResourceModifiers && typeof artResourceModifiers === 'object') {
+      for (const [k, v] of Object.entries(artResourceModifiers)) {
+        if (typeof v === 'number' && v !== 0 && !isNaN(v)) {
+          cleanedResources[k] = v;
+        }
+      }
+    }
+
     // Rarity Stat Budget Clamping (two-handed weapons get 2x stat budget)
     const budget = getArtifactStatBudget(artRarity, artSlot);
     const clampedStats: Record<string, number> = {};
@@ -268,6 +281,7 @@ export default function ArtifactsStudioPage() {
       description: safeDesc,
       powers: powersArray.length > 0 ? powersArray : [isPersian ? 'نیروی جادویی پنهان' : 'Latent mystical resonance'],
       statModifiers: clampedStats,
+      resourceModifiers: Object.keys(cleanedResources).length > 0 ? cleanedResources : undefined,
       slot: artSlot || 'relic',
       curseOrCost: budget.curseAllowed && safeCurse ? safeCurse : undefined,
       attunementRules: safeAttunement || undefined,
@@ -584,6 +598,18 @@ export default function ArtifactsStudioPage() {
                               {sVal > 0 ? `+${sVal}` : sVal} {sKey}
                             </span>
                           ))}
+                        </>
+                      )}
+                      {art.resourceModifiers && Object.keys(art.resourceModifiers).length > 0 && (
+                        <>
+                          {Object.entries(art.resourceModifiers).map(([rKey, rVal]) => {
+                            const resName = (story.rpgSystem?.resources || []).find((r: any) => r.id === rKey)?.name || rKey;
+                            return (
+                              <span key={rKey} className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-500/10 text-teal-300 border border-teal-500/20">
+                                {rVal > 0 ? `+${rVal}` : rVal} {resName}
+                              </span>
+                            );
+                          })}
                         </>
                       )}
                       {art.startsQuestId && (
@@ -957,6 +983,41 @@ export default function ArtifactsStudioPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Vitals & Resource Modifiers */}
+              {(story.rpgSystem?.resources || []).length > 0 && (
+                <div className="p-3.5 rounded-2xl bg-zinc-950/80 border border-teal-500/20 space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs font-bold text-teal-400 flex items-center gap-1.5">
+                      <Heart className="w-3.5 h-3.5" />
+                      {isPersian ? 'افزایش سقف منابع حیاتی (Vital Pool Modifiers):' : 'Vital Pool Modifiers:'}
+                    </span>
+                    <span className="text-[10px] text-zinc-500">
+                      {isPersian ? 'مثلاً زره سنگین +۲۰ حداکثر HP می‌دهد' : 'e.g. +20 Max HP or +10 Stamina when equipped'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {(story.rpgSystem?.resources || []).map((r: any) => (
+                      <div key={r.id}>
+                        <label className="text-[11px] text-zinc-400 block mb-1 truncate" title={r.name}>
+                          {r.name || r.id}:
+                        </label>
+                        <input
+                          type="number"
+                          value={artResourceModifiers[r.id] ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                            setArtResourceModifiers((prev) => ({ ...prev, [r.id]: val }));
+                          }}
+                          placeholder="+0"
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-100 font-mono"
+                          dir="ltr"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="text-xs font-bold text-zinc-300 block mb-1.5">

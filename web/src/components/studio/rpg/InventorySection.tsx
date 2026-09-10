@@ -2,13 +2,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { useState } from 'react';
-import { Package, Plus, Edit2, Trash2, X } from 'lucide-react';
-import { GameItem, StatDefinition } from '@/lib/types';
+import { Package, Plus, Edit2, Trash2, X, Heart, Coins } from 'lucide-react';
+import { GameItem, StatDefinition, ResourceDefinition, CurrencySystem } from '@/lib/types';
+import { DEFAULT_CURRENCY_PRESETS } from '@/lib/types/rpg';
 import { notify } from '@/lib/notify';
 
 interface InventorySectionProps {
   items: GameItem[];
   stats: StatDefinition[];
+  resources?: ResourceDefinition[];
+  currencySystem?: CurrencySystem;
   isPersian: boolean;
   updateRpgSystem: (updater: (prev: any) => any) => void;
   quests?: Array<{ id: string; title: string }>;
@@ -17,25 +20,35 @@ interface InventorySectionProps {
 export function InventorySection({
   items,
   stats,
+  resources = [],
+  currencySystem,
   isPersian,
   updateRpgSystem,
   quests = [],
 }: InventorySectionProps) {
+  const activeCurrency = currencySystem || DEFAULT_CURRENCY_PRESETS.fantasy;
+  const baseDenom = activeCurrency.denominations[activeCurrency.denominations.length - 1];
+  const baseCurrencyName = baseDenom ? (isPersian ? baseDenom.nameFa : baseDenom.nameEn) : isPersian ? 'سکه' : 'Coins';
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemForm, setItemForm] = useState<GameItem>({
     id: '',
     name: '',
     description: '',
-    type: 'weapon',
+    type: 'consumable',
     quantity: 1,
     rarity: 'common',
     grip: 'one_handed',
+    price: 0,
     statModifiers: {},
+    resourceRestoration: undefined,
     startsQuestId: undefined,
   });
   const [itemModStat, setItemModStat] = useState<string>('');
   const [itemModVal, setItemModVal] = useState<number>(1);
+  const [restoreResId, setRestoreResId] = useState<string>('');
+  const [restoreVal, setRestoreVal] = useState<number>(15);
 
   const openModal = (item?: GameItem) => {
     if (item) {
@@ -48,21 +61,33 @@ export function InventorySection({
       const modKey = item.statModifiers ? Object.keys(item.statModifiers)[0] : '';
       setItemModStat(modKey || '');
       setItemModVal(modKey && item.statModifiers ? item.statModifiers[modKey] : 1);
+
+      if (item.resourceRestoration) {
+        setRestoreResId(item.resourceRestoration.targetResourceId);
+        setRestoreVal(item.resourceRestoration.amount);
+      } else {
+        setRestoreResId(resources[0]?.id || '');
+        setRestoreVal(15);
+      }
     } else {
       setEditingItemId(null);
       setItemForm({
         id: `item_${Date.now().toString(36)}`,
         name: '',
         description: '',
-        type: 'weapon',
+        type: 'consumable',
         quantity: 1,
         rarity: 'common',
         grip: 'one_handed',
+        price: 0,
         statModifiers: {},
+        resourceRestoration: undefined,
         startsQuestId: undefined,
       });
       setItemModStat('');
       setItemModVal(1);
+      setRestoreResId(resources[0]?.id || '');
+      setRestoreVal(15);
     }
     setModalOpen(true);
   };
@@ -77,11 +102,18 @@ export function InventorySection({
       finalModifiers[itemModStat] = Number(itemModVal);
     }
 
+    const finalRestoration =
+      itemForm.type === 'consumable' && restoreResId && restoreVal
+        ? { targetResourceId: restoreResId, amount: Number(restoreVal) }
+        : undefined;
+
     const payload: GameItem = {
       ...itemForm,
       name: safeName,
       description: (itemForm.description || '').trim(),
       statModifiers: Object.keys(finalModifiers).length > 0 ? finalModifiers : undefined,
+      resourceRestoration: finalRestoration,
+      price: itemForm.price ? Number(itemForm.price) : undefined,
       // Drop empty quest links so stale ids never persist
       startsQuestId: itemForm.startsQuestId?.trim() ? itemForm.startsQuestId.trim() : undefined,
     };
@@ -134,7 +166,7 @@ export function InventorySection({
                 </span>
               </h3>
               <p className="text-[11px] text-zinc-400 mt-0.5">
-                {isPersian ? 'سلاح‌ها، معجون‌ها و ابزار آغازین بازیکن' : 'Default gear gifted to the player'}
+                {isPersian ? 'معجون‌ها، جیره‌ها و ابزار آغازین بازیکن' : 'Consumables, supplies, and tools for the player'}
               </p>
             </div>
             <button
@@ -158,7 +190,7 @@ export function InventorySection({
                   className="p-3.5 rounded-2xl bg-zinc-950/80 border border-zinc-800/80 hover:border-zinc-700 transition-all group"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-zinc-100">{item.name}</span>
                       <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
                         {item.type}
@@ -201,6 +233,29 @@ export function InventorySection({
                     </div>
                   </div>
                   <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{item.description}</p>
+                  {item.resourceRestoration && item.resourceRestoration.targetResourceId && (
+                    <div className="mt-2 pt-1.5 border-t border-zinc-800/60 flex flex-wrap gap-1">
+                      {(() => {
+                        const rName =
+                          resources.find((r) => r.id === item.resourceRestoration?.targetResourceId)?.name ||
+                          item.resourceRestoration.targetResourceId;
+                        return (
+                          <span className="text-[10px] bg-emerald-500/10 text-emerald-300 font-mono px-2 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
+                            <Heart className="w-2.5 h-2.5 text-emerald-400" />
+                            <span>
+                              +{item.resourceRestoration.amount} {rName}
+                            </span>
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  {item.price !== undefined && item.price > 0 && (
+                    <div className="mt-1 flex items-center gap-1 text-[10px] font-mono text-amber-300">
+                      <Coins className="w-3 h-3 text-amber-400" />
+                      <span>{item.price} {baseCurrencyName}</span>
+                    </div>
+                  )}
                   {item.statModifiers && Object.keys(item.statModifiers).length > 0 && (
                     <div className="mt-2.5 pt-2 border-t border-zinc-800/60 flex flex-wrap gap-1">
                       {Object.entries(item.statModifiers).map(([statId, mod]) => (
@@ -252,7 +307,7 @@ export function InventorySection({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">
                     {isPersian ? 'نوع آیتم' : 'Item Type'}
@@ -262,14 +317,14 @@ export function InventorySection({
                     onChange={(e) => setItemForm((prev) => ({ ...prev, type: e.target.value as GameItem['type'] }))}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-500"
                   >
-                    <option value="weapon">Weapon</option>
-                    <option value="armor">Armor</option>
-                    <option value="shield">Shield</option>
-                    <option value="consumable">Consumable</option>
-                    <option value="quest_item">Quest Item</option>
-                    <option value="valuable">Valuable</option>
-                    <option value="document">Document</option>
-                    <option value="relic">Relic</option>
+                    <option value="consumable">{isPersian ? 'مصرفی (معجون، جیره)' : 'Consumable'}</option>
+                    <option value="quest_item">{isPersian ? 'کلید / مأموریتی' : 'Quest Item / Key'}</option>
+                    <option value="valuable">{isPersian ? 'کالای باارزش' : 'Valuable / Trade'}</option>
+                    <option value="document">{isPersian ? 'نامه / سند' : 'Document / Map'}</option>
+                    <option value="relic">{isPersian ? 'یادگار / طلسم' : 'Relic / Charm'}</option>
+                    <option value="weapon">{isPersian ? 'سلاح ساده' : 'Basic Weapon'}</option>
+                    <option value="armor">{isPersian ? 'زره ساده' : 'Basic Armor'}</option>
+                    <option value="shield">{isPersian ? 'سپر' : 'Shield'}</option>
                   </select>
                 </div>
                 <div>
@@ -281,11 +336,70 @@ export function InventorySection({
                     min={1}
                     value={itemForm.quantity}
                     onChange={(e) => setItemForm((prev) => ({ ...prev, quantity: Number(e.target.value) }))}
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-500 font-mono"
+                    dir="ltr"
                     required
                   />
                 </div>
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">
+                    {isPersian ? `ارزش (${baseCurrencyName})` : `Value (${baseCurrencyName})`}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={itemForm.price ?? 0}
+                    onChange={(e) => setItemForm((prev) => ({ ...prev, price: Number(e.target.value) }))}
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 font-mono"
+                    dir="ltr"
+                  />
+                </div>
               </div>
+
+              {/* Consumable Restoration Block */}
+              {itemForm.type === 'consumable' && resources.length > 0 && (
+                <div className="p-3 rounded-2xl bg-emerald-950/20 border border-emerald-800/40 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                      <Heart className="w-3.5 h-3.5" />
+                      <span>{isPersian ? 'بازیابی منابع حیاتی در هنگام مصرف' : 'Resource Restoration on Consumption'}</span>
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] text-zinc-400 mb-1">
+                        {isPersian ? 'منبع بازیابی' : 'Restored Resource'}
+                      </label>
+                      <select
+                        value={restoreResId}
+                        onChange={(e) => setRestoreResId(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-emerald-500"
+                      >
+                        <option value="">{isPersian ? '-- بدون بازیابی --' : '-- None --'}</option>
+                        {resources.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name} ({r.id})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-zinc-400 mb-1">
+                        {isPersian ? 'میزان بازیابی (+)' : 'Restoration Amount (+)'}
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={500}
+                        value={restoreVal}
+                        onChange={(e) => setRestoreVal(Number(e.target.value))}
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-emerald-500 font-mono"
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs text-zinc-400 mb-1">

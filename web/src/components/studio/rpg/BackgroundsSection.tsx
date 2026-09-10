@@ -2,13 +2,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { useState } from 'react';
-import { Scroll, Plus, Edit2, Trash2, X } from 'lucide-react';
-import { BackgroundOriginDefinition, StatDefinition } from '@/lib/types';
+import { Scroll, Plus, Edit2, Trash2, X, Coins, Heart } from 'lucide-react';
+import {
+  BackgroundOriginDefinition,
+  StatDefinition,
+  ResourceDefinition,
+  CurrencySystem,
+  CurrencyDenomination,
+} from '@/lib/types';
+import { DEFAULT_CURRENCY_PRESETS } from '@/lib/types/rpg';
+import { formatPurse } from '@/lib/engines/game/currencyEngine';
 import { notify } from '@/lib/notify';
 
 interface BackgroundsSectionProps {
   backgrounds: BackgroundOriginDefinition[];
   stats: StatDefinition[];
+  resources?: ResourceDefinition[];
+  currencySystem?: CurrencySystem;
   isPersian: boolean;
   updateRpgSystem: (updater: (prev: any) => any) => void;
 }
@@ -16,9 +26,13 @@ interface BackgroundsSectionProps {
 export function BackgroundsSection({
   backgrounds,
   stats,
+  resources = [],
+  currencySystem,
   isPersian,
   updateRpgSystem,
 }: BackgroundsSectionProps) {
+  const activeCurrency = currencySystem || DEFAULT_CURRENCY_PRESETS.fantasy;
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingBackgroundId, setEditingBackgroundId] = useState<string | null>(null);
   const [backgroundForm, setBackgroundForm] = useState<BackgroundOriginDefinition>({
@@ -28,6 +42,8 @@ export function BackgroundsSection({
     trait: '',
     narrativePromptHook: '',
     statBonuses: {},
+    resourceBonuses: {},
+    startingPurse: {},
   });
 
   const openModal = (bg?: BackgroundOriginDefinition) => {
@@ -40,6 +56,8 @@ export function BackgroundsSection({
         trait: bg.trait || '',
         narrativePromptHook: bg.narrativePromptHook || '',
         statBonuses: { ...(bg.statBonuses || {}) },
+        resourceBonuses: { ...(bg.resourceBonuses || {}) },
+        startingPurse: { ...(bg.startingPurse || {}) },
       });
     } else {
       setEditingBackgroundId(null);
@@ -50,6 +68,8 @@ export function BackgroundsSection({
         trait: '',
         narrativePromptHook: '',
         statBonuses: {},
+        resourceBonuses: {},
+        startingPurse: {},
       });
     }
     setModalOpen(true);
@@ -66,6 +86,14 @@ export function BackgroundsSection({
       description: (backgroundForm.description || '').trim(),
       trait: (backgroundForm.trait || '').trim(),
       narrativePromptHook: (backgroundForm.narrativePromptHook || '').trim(),
+      resourceBonuses:
+        backgroundForm.resourceBonuses && Object.keys(backgroundForm.resourceBonuses).length > 0
+          ? backgroundForm.resourceBonuses
+          : undefined,
+      startingPurse:
+        backgroundForm.startingPurse && Object.keys(backgroundForm.startingPurse).length > 0
+          ? backgroundForm.startingPurse
+          : undefined,
     };
 
     updateRpgSystem((prev: any) => {
@@ -195,6 +223,33 @@ export function BackgroundsSection({
                           {statId}: +{String(bonus)}
                         </span>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Vital Pool Bonuses */}
+                  {bg.resourceBonuses && Object.keys(bg.resourceBonuses).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {Object.entries(bg.resourceBonuses).map(([resId, bonus]) => {
+                        const resName = resources.find((r) => r.id === resId)?.name || resId;
+                        return (
+                          <span
+                            key={resId}
+                            className="text-[10px] bg-emerald-500/10 text-emerald-300 font-mono px-2 py-0.5 rounded-md border border-emerald-500/20"
+                          >
+                            ❤️ {resName}: +{String(bonus)}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Starting Purse */}
+                  {bg.startingPurse && Object.values(bg.startingPurse).some((v) => v > 0) && (
+                    <div className="flex items-center gap-1.5 pt-1">
+                      <span className="text-[10px] bg-amber-500/10 text-amber-300 font-mono px-2 py-0.5 rounded-md border border-amber-500/20 flex items-center gap-1">
+                        <Coins className="w-3 h-3 text-amber-400" />
+                        <span>{formatPurse(bg.startingPurse, activeCurrency)}</span>
+                      </span>
                     </div>
                   )}
                 </div>
@@ -337,6 +392,79 @@ export function BackgroundsSection({
                   ))}
                 </div>
               </div>
+
+              {/* Vitals & Resource Pool Modifiers */}
+              {resources.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold text-emerald-400 mb-2">
+                    ❤️ {isPersian ? 'افزایش سقف منابع حیاتی (Max Pools)' : 'Vital Pool Bonuses (+)'}
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 rounded-2xl bg-zinc-950 border border-zinc-800">
+                    {resources.map((res) => (
+                      <div key={res.id} className="flex items-center justify-between gap-1 text-xs">
+                        <span className="text-zinc-300 truncate" title={res.name}>
+                          {res.name}:
+                        </span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={500}
+                          value={backgroundForm.resourceBonuses?.[res.id] ?? 0}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setBackgroundForm((prev) => {
+                              const rBonuses = { ...(prev.resourceBonuses || {}) };
+                              if (val > 0) rBonuses[res.id] = val;
+                              else delete rBonuses[res.id];
+                              return { ...prev, resourceBonuses: rBonuses };
+                            });
+                          }}
+                          className="w-16 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-center font-mono text-emerald-300"
+                          dir="ltr"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Starting Purse */}
+              {activeCurrency.denominations && activeCurrency.denominations.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold text-amber-400 mb-2">
+                    💰 {isPersian ? 'کیسه پول آغازین (سکه)' : 'Starting Purse (Coins)'}
+                  </label>
+                  <div className="grid grid-cols-3 gap-2 p-3 rounded-2xl bg-zinc-950 border border-zinc-800">
+                    {activeCurrency.denominations.map((d: CurrencyDenomination) => {
+                      const denomName = isPersian ? d.nameFa : d.nameEn;
+                      return (
+                        <div key={d.id} className="space-y-1">
+                          <label className="text-[11px] text-zinc-300 block truncate" title={denomName}>
+                            {d.symbol ? `${d.symbol} ` : ''}
+                            {denomName}
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            value={backgroundForm.startingPurse?.[d.id] ?? 0}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              setBackgroundForm((prev) => {
+                                const purse = { ...(prev.startingPurse || {}) };
+                                if (val > 0) purse[d.id] = val;
+                                else delete purse[d.id];
+                                return { ...prev, startingPurse: purse };
+                              });
+                            }}
+                            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-center font-mono text-amber-300"
+                            dir="ltr"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-end gap-2 pt-2 border-t border-zinc-800">
                 <button

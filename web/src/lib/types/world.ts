@@ -446,6 +446,7 @@ export interface WorldArtifact {
   description: string;
   powers: string[];
   statModifiers?: Record<string, number>;
+  resourceModifiers?: Record<string, number>;
   slot?: 'relic' | 'main_hand' | 'two_handed' | 'off_hand' | 'shield' | 'armor';
   passiveBuffs?: string[];
   curseOrCost?: string;
@@ -787,6 +788,7 @@ export const WorldArtifactSchema = z.object({
   description: z.string().default(''),
   powers: z.array(z.string()).default([]),
   statModifiers: z.record(z.string(), z.number()).optional().default({}),
+  resourceModifiers: z.record(z.string(), z.number()).optional().default({}),
   slot: z.enum(['relic', 'main_hand', 'two_handed', 'off_hand', 'shield', 'armor']).optional().default('relic'),
   passiveBuffs: z.array(z.string()).optional().default([]),
   curseOrCost: z.string().optional(),

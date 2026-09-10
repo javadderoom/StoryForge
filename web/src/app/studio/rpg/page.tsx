@@ -124,6 +124,7 @@ export default function RpgMechanicsPage() {
         {/* Attributes Section */}
         <StatsSection
           stats={story.rpgSystem.stats || []}
+          resources={story.rpgSystem.resources || []}
           isPersian={isPersian}
           updateRpgSystem={updateRpgSystem}
         />
@@ -139,6 +140,8 @@ export default function RpgMechanicsPage() {
         <InventorySection
           items={story.rpgSystem.startingInventory || []}
           stats={story.rpgSystem.stats || []}
+          resources={story.rpgSystem.resources || []}
+          currencySystem={story.rpgSystem.currencySystem}
           isPersian={isPersian}
           updateRpgSystem={updateRpgSystem}
           quests={story.worldBible.quests || []}
@@ -151,6 +154,8 @@ export default function RpgMechanicsPage() {
         <ArchetypesSection
           archetypes={story.rpgSystem.archetypes || []}
           stats={story.rpgSystem.stats || []}
+          resources={story.rpgSystem.resources || []}
+          currencySystem={story.rpgSystem.currencySystem}
           vaultItems={story.worldBible.artifacts || []}
           isPersian={isPersian}
           updateRpgSystem={updateRpgSystem}
@@ -160,6 +165,8 @@ export default function RpgMechanicsPage() {
         <BackgroundsSection
           backgrounds={story.rpgSystem.backgrounds || []}
           stats={story.rpgSystem.stats || []}
+          resources={story.rpgSystem.resources || []}
+          currencySystem={story.rpgSystem.currencySystem}
           isPersian={isPersian}
           updateRpgSystem={updateRpgSystem}
         />
