@@ -40,6 +40,7 @@ import {
   LogOut,
   LogIn,
   Zap,
+  ListChecks,
 } from 'lucide-react';
 
 function StudioShell({ children }: { children: React.ReactNode }) {
@@ -145,6 +146,13 @@ function StudioShell({ children }: { children: React.ReactNode }) {
       count: story.initialStoryBeats?.length || 1,
     },
     {
+      href: '/studio/quests',
+      label: isPersian ? 'ماموریت‌ها و خطوط داستانی' : 'Quests & Quest Lines',
+      shortLabel: isPersian ? 'ماموریت‌ها' : 'Quests',
+      icon: ListChecks,
+      count: story.worldBible.quests?.length || 0,
+    },
+    {
       href: '/studio/rpg',
       label: isPersian ? 'مکانیک‌های RPG' : 'RPG Mechanics',
       shortLabel: isPersian ? 'قوانین' : 'RPG',
@@ -202,6 +210,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
     '/studio/bestiary': 'entities',
     '/studio/npcs': 'entities',
     '/studio/beats': 'story',
+    '/studio/quests': 'story',
     '/studio/narrative-arcs': 'story',
     '/studio/rpg': 'story',
     '/studio/sandbox': 'ai',
