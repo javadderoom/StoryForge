@@ -44,6 +44,7 @@ export interface GameItem {
   valueInGold?: number;
   isConsumable?: boolean;
   startsQuestId?: string; // If possessed or inspected, starts this quest automatically
+  nonEquippable?: boolean; // Plot/quest tokens (letters, sealed relics, ceremonial arms) that can never occupy an equipment slot
 }
 
 export interface ArchetypeDefinition {
@@ -123,6 +124,7 @@ export const GameItemSchema = z.object({
   valueInGold: z.number().optional(),
   isConsumable: z.boolean().optional(),
   startsQuestId: z.string().optional(),
+  nonEquippable: z.boolean().optional(),
 });
 
 export const RPGSystemSchemaValidator = z.object({

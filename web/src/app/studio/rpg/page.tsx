@@ -141,6 +141,7 @@ export default function RpgMechanicsPage() {
           stats={story.rpgSystem.stats || []}
           isPersian={isPersian}
           updateRpgSystem={updateRpgSystem}
+          quests={story.worldBible.quests || []}
         />
       </div>
 

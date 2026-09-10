@@ -96,6 +96,26 @@ export default function QuestsStudioPage() {
   const bestiary = story.worldBible.bestiary || [];
   const gameItems = story.rpgSystem.startingInventory || [];
 
+  // Trigger candidates: starting inventory + item rewards authored on other
+  // quests (their ids are persisted, so they are stable references). The
+  // engine matches triggerItemId against item id OR name at runtime, so free
+  // text is also valid (e.g. loot the narrator hands out mid-story).
+  const triggerCandidates = useMemo(() => {
+    const list: Array<{ id: string; name: string; source: string }> = gameItems.map((i) => ({
+      id: i.id,
+      name: i.name,
+      source: isPersian ? 'کوله اولیه' : 'starting',
+    }));
+    for (const q of quests) {
+      for (const r of q.rewards?.itemRewards || []) {
+        if (!list.some((c) => c.id === r.id)) {
+          list.push({ id: r.id, name: r.name, source: q.title });
+        }
+      }
+    }
+    return list;
+  }, [gameItems, quests, isPersian]);
+
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterLine, setFilterLine] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -269,7 +289,7 @@ export default function QuestsStudioPage() {
       category: fCategory,
       ...(fGiverNpcId ? { giverNpcId: fGiverNpcId } : {}),
       ...(fOriginLocationId ? { originLocationId: fOriginLocationId } : {}),
-      ...(fTriggerItemId ? { triggerItemId: fTriggerItemId } : {}),
+      ...(fTriggerItemId.trim() ? { triggerItemId: fTriggerItemId.trim() } : {}),
       ...(fQuestLineId.trim() ? { questLineId: fQuestLineId.trim() } : {}),
       ...(fQuestLineName.trim() ? { questLineName: fQuestLineName.trim() } : {}),
       orderInLine: Math.max(1, parseInt(fOrderInLine || '1', 10) || 1),
@@ -518,13 +538,26 @@ export default function QuestsStudioPage() {
                 </select>
               </div>
               <div>
-                <label className={labelCls}>{isPersian ? 'آیتم محرک (triggerItemId)' : 'Trigger item ID'}</label>
-                <select value={fTriggerItemId} onChange={(e) => setFTriggerItemId(e.target.value)} className={inputCls}>
-                  <option value="">—</option>
-                  {gameItems.map((i) => (
-                    <option key={i.id} value={i.id}>{i.name} ({i.id})</option>
+                <label className={labelCls}>{isPersian ? 'آیتم محرک (triggerItemId)' : 'Trigger item'}</label>
+                <input
+                  value={fTriggerItemId}
+                  onChange={(e) => setFTriggerItemId(e.target.value)}
+                  list="quest-trigger-items"
+                  className={inputCls}
+                  placeholder={isPersian ? 'شناسه یا نام آیتم…' : 'Item id or name…'}
+                />
+                <datalist id="quest-trigger-items">
+                  {triggerCandidates.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.source})
+                    </option>
                   ))}
-                </select>
+                </datalist>
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  {isPersian
+                    ? 'وقتی بازیکن این آیتم را بگیرد ماموریت فعال می‌شود. خالی = فقط پیشنهاد NPC.'
+                    : 'Quest auto-activates when the player holds this item (id or name). Empty = NPC-offered only.'}
+                </p>
               </div>
               <div>
                 <label className={labelCls}>{isPersian ? 'شناسه خط داستانی' : 'Quest line ID'}</label>

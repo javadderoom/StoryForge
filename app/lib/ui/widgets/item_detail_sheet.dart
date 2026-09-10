@@ -442,6 +442,34 @@ class ItemDetailSheet extends ConsumerWidget {
                   ),
                 ),
               ],
+            ] else if (activeItem.nonEquippable) ...[
+              // Quest / plot token: lore item that can never occupy a slot
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.35)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lock_outline, color: Color(0xFFF59E0B), size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        isPersian
+                            ? 'شیء داستانی — در کوله می‌ماند و قابل تجهیز نیست'
+                            : 'Quest token — stays in the pack, cannot be equipped',
+                        style: GoogleFonts.vazirmatn(
+                          fontSize: 12.5,
+                          color: const Color(0xFFFCD34D),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ] else if (activeItem.grip == WeaponGrip.oneHanded || (activeItem.type == 'weapon' && activeItem.grip == null)) ...[
               // 1-Handed weapon: Can equip Main Hand or Off-Hand (Dual Wield)
               Row(

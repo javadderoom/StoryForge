@@ -308,6 +308,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     if (state.playerState == null) return;
     final item = state.playerState!.getItem(itemId);
     if (item == null) return;
+    // Quest/plot tokens (letters, sealed relics, ceremonial arms) can never be equipped.
+    if (item.nonEquippable) return;
 
     ref.read(audioProvider.notifier).playSfx(SfxType.equipGear);
 

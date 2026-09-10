@@ -14,6 +14,8 @@ class GameItem {
   final int? healValue;
   final int? staminaValue;
   final bool isConsumable;
+  final String? startsQuestId;
+  final bool nonEquippable;
 
   GameItem({
     required this.id,
@@ -27,6 +29,8 @@ class GameItem {
     this.healValue,
     this.staminaValue,
     this.isConsumable = false,
+    this.startsQuestId,
+    this.nonEquippable = false,
   });
 
   factory GameItem.fromJson(Map<String, dynamic> json) {
@@ -80,6 +84,8 @@ class GameItem {
               json['type'] == 'potion' ||
               json['healValue'] != null ||
               json['staminaValue'] != null),
+      startsQuestId: json['startsQuestId'],
+      nonEquippable: json['nonEquippable'] ?? false,
     );
   }
 
@@ -108,6 +114,8 @@ class GameItem {
         'healValue': healValue,
         'staminaValue': staminaValue,
         'isConsumable': isConsumable,
+        'startsQuestId': startsQuestId,
+        'nonEquippable': nonEquippable,
       };
 }
 

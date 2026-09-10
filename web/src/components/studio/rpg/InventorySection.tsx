@@ -11,6 +11,7 @@ interface InventorySectionProps {
   stats: StatDefinition[];
   isPersian: boolean;
   updateRpgSystem: (updater: (prev: any) => any) => void;
+  quests?: Array<{ id: string; title: string }>;
 }
 
 export function InventorySection({
@@ -18,6 +19,7 @@ export function InventorySection({
   stats,
   isPersian,
   updateRpgSystem,
+  quests = [],
 }: InventorySectionProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -30,6 +32,7 @@ export function InventorySection({
     rarity: 'common',
     grip: 'one_handed',
     statModifiers: {},
+    startsQuestId: undefined,
   });
   const [itemModStat, setItemModStat] = useState<string>('');
   const [itemModVal, setItemModVal] = useState<number>(1);
@@ -56,6 +59,7 @@ export function InventorySection({
         rarity: 'common',
         grip: 'one_handed',
         statModifiers: {},
+        startsQuestId: undefined,
       });
       setItemModStat('');
       setItemModVal(1);
@@ -78,6 +82,8 @@ export function InventorySection({
       name: safeName,
       description: (itemForm.description || '').trim(),
       statModifiers: Object.keys(finalModifiers).length > 0 ? finalModifiers : undefined,
+      // Drop empty quest links so stale ids never persist
+      startsQuestId: itemForm.startsQuestId?.trim() ? itemForm.startsQuestId.trim() : undefined,
     };
 
     updateRpgSystem((prev: any) => {
@@ -157,6 +163,22 @@ export function InventorySection({
                       <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
                         {item.type}
                       </span>
+                      {item.nonEquippable && (
+                        <span
+                          className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700"
+                          title={isPersian ? 'این آیتم قابل تجهیز نیست' : 'This item can never be equipped'}
+                        >
+                          {isPersian ? 'غیرقابل تجهیز' : 'non-equippable'}
+                        </span>
+                      )}
+                      {item.startsQuestId && (
+                        <span
+                          className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30"
+                          title={isPersian ? 'این آیتم یک ماموریت را فعال می‌کند' : 'Possessing this item triggers a quest'}
+                        >
+                          ▶ {quests.find((q) => q.id === item.startsQuestId)?.title || item.startsQuestId}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono text-zinc-400">×{item.quantity}</span>
@@ -246,6 +268,7 @@ export function InventorySection({
                     <option value="consumable">Consumable</option>
                     <option value="quest_item">Quest Item</option>
                     <option value="valuable">Valuable</option>
+                    <option value="document">Document</option>
                     <option value="relic">Relic</option>
                   </select>
                 </div>
@@ -276,6 +299,50 @@ export function InventorySection({
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-200 focus:outline-none focus:border-emerald-500"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2.5 text-xs text-zinc-200">
+                  <input
+                    type="checkbox"
+                    checked={!!itemForm.nonEquippable}
+                    onChange={(e) => setItemForm((prev) => ({ ...prev, nonEquippable: e.target.checked || undefined }))}
+                    className="accent-amber-500"
+                  />
+                  <span>
+                    {isPersian ? 'غیرقابل تجهیز (شیء داستانی/مأموریتی)' : 'Non-equippable (quest / plot token)'}
+                  </span>
+                </label>
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  {isPersian
+                    ? 'نامه، کتاب، طلسم مهرشده یا سلاح تشریفاتی: در کوله می‌ماند و هیچ‌وقت تجهیز نمی‌شود.'
+                    : 'Letters, books, sealed tokens, ceremonial arms: stays in the pack, never occupies a slot.'}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">
+                  {isPersian ? 'شروع ماموریت با این آیتم (محرک)' : 'Starts quest on pickup (trigger)'}
+                </label>
+                <select
+                  value={itemForm.startsQuestId || ''}
+                  onChange={(e) =>
+                    setItemForm((prev) => ({ ...prev, startsQuestId: e.target.value || undefined }))
+                  }
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="">({isPersian ? 'هیچکدام' : 'None'})</option>
+                  {quests.map((q) => (
+                    <option key={q.id} value={q.id}>
+                      {q.title}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  {isPersian
+                    ? 'اگر بازیکن این آیتم را به دست آورد، ماموریت انتخاب‌شده خودکار فعال می‌شود.'
+                    : 'When the player obtains this item, the selected quest auto-activates.'}
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

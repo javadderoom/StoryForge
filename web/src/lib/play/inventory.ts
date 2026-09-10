@@ -25,6 +25,9 @@ export function equipItem(
 ): PlayerState {
   const item = getItem(playerState, itemId);
   if (!item) return playerState;
+  // Quest/plot tokens (sealed letters, ceremonial arms) can never be equipped,
+  // even when their type would otherwise allow a slot.
+  if (item.nonEquippable) return playerState;
   const eq = cloneEquipment(playerState.equipment);
 
   if (isOffHandOnly(item) || item.type === 'shield') {
