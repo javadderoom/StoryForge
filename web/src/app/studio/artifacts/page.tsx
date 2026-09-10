@@ -97,6 +97,8 @@ export default function ArtifactsStudioPage() {
   const [artHolderType, setArtHolderType] = useState<'npc' | 'location' | 'faction' | 'vault' | 'unknown'>('vault');
   const [artHolderId, setArtHolderId] = useState('');
   const [artSecretLore, setArtSecretLore] = useState('');
+  const [artStartsQuestId, setArtStartsQuestId] = useState('');
+  const [artNonEquippable, setArtNonEquippable] = useState(false);
 
   // Plan 05 Vault Lore form fields
   const [vaultCreator, setVaultCreator] = useState('');
@@ -116,6 +118,7 @@ export default function ArtifactsStudioPage() {
   const npcs = story.worldBible.npcs || [];
   const locations = story.worldBible.locations || [];
   const factions = story.worldBible.factions || [];
+  const quests = story.worldBible.quests || [];
 
   const filteredArtifacts = artifacts.filter((art) => {
     if (filterRarity === 'all') return true;
@@ -146,6 +149,8 @@ export default function ArtifactsStudioPage() {
     setArtHolderType('vault');
     setArtHolderId('');
     setArtSecretLore('');
+    setArtStartsQuestId('');
+    setArtNonEquippable(false);
     setVaultCreator('');
     setVaultLocation('');
     setVaultRitual('');
@@ -174,6 +179,8 @@ export default function ArtifactsStudioPage() {
     setArtHolderType(art.currentHolderType || 'vault');
     setArtHolderId(art.currentHolderId || '');
     setArtSecretLore(art.secretLore || '');
+    setArtStartsQuestId(art.startsQuestId || '');
+    setArtNonEquippable(!!art.nonEquippable);
     setVaultCreator(art.vaultLore?.creator || '');
     setVaultLocation(art.vaultLore?.currentVaultLocation || '');
     setVaultRitual(art.vaultLore?.unsealingRitual || '');
@@ -268,6 +275,8 @@ export default function ArtifactsStudioPage() {
       currentHolderId: safeHolderId || 'unknown',
       secretLore: safeSecretLore || undefined,
       vaultLore: vaultLorePayload,
+      startsQuestId: (artStartsQuestId || '').trim() ? (artStartsQuestId || '').trim() : undefined,
+      nonEquippable: artNonEquippable || undefined,
     };
 
     if (editingArtifactId) {
@@ -576,6 +585,19 @@ export default function ArtifactsStudioPage() {
                             </span>
                           ))}
                         </>
+                      )}
+                      {art.startsQuestId && (
+                        <span
+                          className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-violet-500/10 text-violet-300 border border-violet-500/30"
+                          title={quests.find((q) => q.id === art.startsQuestId)?.title || art.startsQuestId}
+                        >
+                          ▶ {quests.find((q) => q.id === art.startsQuestId)?.title || (isPersian ? 'محرک مأموریت' : 'quest trigger')}
+                        </span>
+                      )}
+                      {art.nonEquippable && (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">
+                          {isPersian ? 'غیرقابل تجهیز' : 'non-equippable'}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -1002,6 +1024,40 @@ export default function ArtifactsStudioPage() {
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-100"
                   />
                 </div>
+              </div>
+
+              {/* Quest linkage — same mechanics as inventory items */}
+              <div className="p-3.5 rounded-2xl bg-zinc-950/80 border border-violet-500/20 space-y-3">
+                <span className="text-xs font-bold text-violet-300 flex items-center gap-1.5">
+                  <Compass className="w-3.5 h-3.5" />
+                  {isPersian ? 'پیوند مأموریتی (مثل آیتم‌های کوله):' : 'Quest Linkage (same as inventory items):'}
+                </span>
+                <div>
+                  <label className="text-[11px] text-zinc-400 block mb-1">
+                    {isPersian ? 'با به دست آوردن این عتیقه، این ماموریت فعال شود:' : 'Starts quest when obtained:'}
+                  </label>
+                  <select
+                    value={artStartsQuestId || ''}
+                    onChange={(e) => setArtStartsQuestId(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-zinc-100"
+                  >
+                    <option value="">—</option>
+                    {quests.map((q) => (
+                      <option key={q.id} value={q.id}>
+                        {q.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-200">
+                  <input
+                    type="checkbox"
+                    checked={!!artNonEquippable}
+                    onChange={(e) => setArtNonEquippable(e.target.checked)}
+                    className="accent-amber-500"
+                  />
+                  <span>{isPersian ? 'غیرقابل تجهیز (توکن داستانی/مأموریتی)' : 'Non-equippable (quest / plot token)'}</span>
+                </label>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -63,6 +63,8 @@ function buildPlayLore(story: any) {
       powers: a.powers || [],
       curseOrCost: a.curseOrCost || '',
       passiveBuffs: a.passiveBuffs || [],
+      startsQuestId: a.startsQuestId || undefined,
+      nonEquippable: a.nonEquippable || undefined,
     })),
   };
 }

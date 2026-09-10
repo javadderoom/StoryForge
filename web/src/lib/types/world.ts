@@ -454,6 +454,10 @@ export interface WorldArtifact {
   currentHolderId: string;
   secretLore?: string;
   vaultLore?: ArtifactVaultLore;
+  /** When the bearer holds this relic (granted as loot), the quest auto-activates. Mirrors GameItem.startsQuestId. */
+  startsQuestId?: string;
+  /** Plot/quest tokens (sealed relics, letters-in-steel) that can never occupy an equipment slot. Mirrors GameItem.nonEquippable. */
+  nonEquippable?: boolean;
 }
 
 export const ARTIFACT_RARITY_BUDGETS = {
@@ -789,6 +793,8 @@ export const WorldArtifactSchema = z.object({
   currentHolderId: z.string().default(''),
   secretLore: z.string().optional(),
   vaultLore: ArtifactVaultLoreSchema.optional(),
+  startsQuestId: z.string().optional(),
+  nonEquippable: z.boolean().optional(),
 });
 
 

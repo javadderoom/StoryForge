@@ -97,9 +97,10 @@ export default function QuestsStudioPage() {
   const gameItems = story.rpgSystem.startingInventory || [];
 
   // Trigger candidates: starting inventory + item rewards authored on other
-  // quests (their ids are persisted, so they are stable references). The
+  // quests (their ids are persisted, so they are stable references) + mythic
+  // relics (the narrator grants them as loot by id/name mid-story). The
   // engine matches triggerItemId against item id OR name at runtime, so free
-  // text is also valid (e.g. loot the narrator hands out mid-story).
+  // text is also valid.
   const triggerCandidates = useMemo(() => {
     const list: Array<{ id: string; name: string; source: string }> = gameItems.map((i) => ({
       id: i.id,
@@ -113,8 +114,13 @@ export default function QuestsStudioPage() {
         }
       }
     }
+    for (const a of story.worldBible.artifacts || []) {
+      if (!list.some((c) => c.id === a.id)) {
+        list.push({ id: a.id, name: a.name, source: isPersian ? 'عتیقه' : 'relic' });
+      }
+    }
     return list;
-  }, [gameItems, quests, isPersian]);
+  }, [gameItems, quests, story.worldBible.artifacts, isPersian]);
 
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterLine, setFilterLine] = useState<string>('all');
