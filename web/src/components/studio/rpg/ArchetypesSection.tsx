@@ -3,22 +3,49 @@
 
 import React, { useState } from 'react';
 import { Crown, Plus, Edit2, Trash2, X } from 'lucide-react';
-import { ArchetypeDefinition, StatDefinition } from '@/lib/types';
+import { ArchetypeDefinition, GameItem, StatDefinition } from '@/lib/types';
 import { notify } from '@/lib/notify';
 
 interface ArchetypesSectionProps {
   archetypes: ArchetypeDefinition[];
   stats: StatDefinition[];
+  items: GameItem[];
   isPersian: boolean;
   updateRpgSystem: (updater: (prev: any) => any) => void;
+}
+
+/** Which vault items are valid for each equipment slot (mirrors runtime equip rules). */
+function fitsSlot(
+  slot: 'mainHand' | 'offHand' | 'armor' | 'relic',
+  item: GameItem
+): boolean {
+  if (item.nonEquippable) return false;
+  switch (slot) {
+    case 'mainHand':
+      return item.type === 'weapon';
+    case 'offHand':
+      return (
+        item.type === 'shield' || (item.type === 'weapon' && item.grip !== 'two_handed')
+      );
+    case 'armor':
+      return item.type === 'armor';
+    case 'relic':
+      return item.type === 'relic';
+  }
 }
 
 export function ArchetypesSection({
   archetypes,
   stats,
+  items,
   isPersian,
   updateRpgSystem,
 }: ArchetypesSectionProps) {
+  /** Resolve a stored equipment slot value (item id) to a display name. */
+  const vaultItemName = (slotValue?: string): string => {
+    if (!slotValue) return '';
+    return items.find((i) => i.id === slotValue)?.name || slotValue;
+  };
   const [modalOpen, setModalOpen] = useState(false);
   const [editingArchetypeId, setEditingArchetypeId] = useState<string | null>(null);
   const [archetypeForm, setArchetypeForm] = useState<ArchetypeDefinition>({
@@ -198,16 +225,16 @@ export function ArchetypesSection({
                   {arch.startingEquipment && Object.values(arch.startingEquipment).some(Boolean) && (
                     <div className="text-[10.5px] text-zinc-400 flex flex-wrap gap-2 pt-1 border-t border-zinc-900">
                       {arch.startingEquipment.mainHand && (
-                        <span>⚔️ {arch.startingEquipment.mainHand}</span>
+                        <span>⚔️ {vaultItemName(arch.startingEquipment.mainHand)}</span>
                       )}
                       {arch.startingEquipment.armor && (
-                        <span>🛡️ {arch.startingEquipment.armor}</span>
+                        <span>🛡️ {vaultItemName(arch.startingEquipment.armor)}</span>
                       )}
                       {arch.startingEquipment.offHand && (
-                        <span>🗡️ {arch.startingEquipment.offHand}</span>
+                        <span>🗡️ {vaultItemName(arch.startingEquipment.offHand)}</span>
                       )}
                       {arch.startingEquipment.relic && (
-                        <span>🔮 {arch.startingEquipment.relic}</span>
+                        <span>🔮 {vaultItemName(arch.startingEquipment.relic)}</span>
                       )}
                     </div>
                   )}

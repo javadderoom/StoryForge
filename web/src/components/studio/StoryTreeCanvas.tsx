@@ -45,6 +45,8 @@ interface StoryTreeCanvasProps {
   chapter?: StoryChapter;
   /** Plan 07: commit handler for chapter-scene edits in controlled mode. */
   onScenesChange?: (scenes: StoryBeat[]) => void;
+  /** Commit handler for flat story beat edits so changes persist to storage and database. */
+  onFlatBeatsChange?: (scenes: StoryBeat[]) => void;
 }
 
 // Helper: Calculate automatic hierarchical tree layout via BFS
@@ -112,7 +114,13 @@ function calculateTreeLayout(beatsList: StoryBeatNode[]): Record<string, { x: nu
   return positions;
 }
 
-export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesChange }: StoryTreeCanvasProps) {
+export function StoryTreeCanvas({
+  story,
+  isPersian = false,
+  chapter,
+  onScenesChange,
+  onFlatBeatsChange,
+}: StoryTreeCanvasProps) {
   const isChapterMode = !!chapter;
 
   const [localBeats, setLocalBeats] = useState<StoryBeatNode[]>(() => {
@@ -144,7 +152,7 @@ export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesCha
   const beats: StoryBeatNode[] =
     isChapterMode && chapter ? ((chapter.scenes || []) as StoryBeatNode[]) : localBeats;
 
-  // Unified mutation wrapper: routes edits to the saga (controlled) or local state.
+  // Unified mutation wrapper: routes edits to the saga (controlled) or flat state.
   const commitBeats = (
     next: StoryBeatNode[] | ((prev: StoryBeatNode[]) => StoryBeatNode[])
   ) => {
@@ -152,7 +160,9 @@ export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesCha
       const value = typeof next === 'function' ? next(beats) : next;
       onScenesChange?.(value as StoryBeat[]);
     } else {
-      setLocalBeats(next);
+      const value = typeof next === 'function' ? next(localBeats) : next;
+      setLocalBeats(value);
+      onFlatBeatsChange?.(value as unknown as StoryBeat[]);
     }
   };
 
@@ -208,15 +218,27 @@ export function StoryTreeCanvas({ story, isPersian = false, chapter, onScenesCha
   // Intentional setState-in-effect: re-derives from `story` on change, but beats
   // are also mutated by tree edits and positions by drag, so a pure useMemo
   // derivation is impractical.
+  // Re-seed flat beats + layout when story ID or scene ID list changes.
+  // Keyed on scene-id signature so intra-scene edits and node drags survive commits.
+  const flatSceneKey = !isChapterMode && story.initialStoryBeats
+    ? `${story.id}_${story.initialStoryBeats.map((s) => s.sceneId).join('|')}`
+    : `${story.id}_empty`;
+  const [lastFlatKey, setLastFlatKey] = useState(flatSceneKey);
+
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (!isChapterMode && story.initialStoryBeats && story.initialStoryBeats.length > 0) {
-      const loadedBeats = story.initialStoryBeats as StoryBeatNode[];
-      setLocalBeats(loadedBeats);
-      setSelectedSceneId(loadedBeats[0]?.sceneId || 'scene_prologue');
-      setNodePositions(calculateTreeLayout(loadedBeats));
+    if (!isChapterMode && lastFlatKey !== flatSceneKey) {
+      setLastFlatKey(flatSceneKey);
+      if (story.initialStoryBeats && story.initialStoryBeats.length > 0) {
+        const loadedBeats = story.initialStoryBeats as StoryBeatNode[];
+        setLocalBeats(loadedBeats);
+        setSelectedSceneId((prev) =>
+          loadedBeats.some((b) => b.sceneId === prev) ? prev : loadedBeats[0]?.sceneId || 'scene_prologue'
+        );
+        setNodePositions(calculateTreeLayout(loadedBeats));
+      }
     }
-  }, [story, isChapterMode]);
+  }, [flatSceneKey, isChapterMode, lastFlatKey, story.initialStoryBeats]);
 
   // Plan 07: re-seed layout when switching between chapters.
   // Keyed on scene-id signature so intra-chapter drag positions survive commits.

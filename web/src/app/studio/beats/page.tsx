@@ -707,6 +707,9 @@ export default function StoryBeatsStudioPage() {
         isPersian={isPersian}
         chapter={activeChapter || undefined}
         onScenesChange={handleChapterScenesChange}
+        onFlatBeatsChange={(newScenes) => {
+          updateStoryBeats(() => newScenes as any);
+        }}
       />
 
       {/* Plan 06: 3-Act Branching Plot Tree Synthesis Preview Modal */}
