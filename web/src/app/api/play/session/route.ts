@@ -317,10 +317,12 @@ export async function POST(req: NextRequest) {
       }
     );
 
+    // Pools always start full: current == scaled max. The studio `current`
+    // field is kept for backward compatibility but no longer seeds partial
+    // pools — a fresh character begins at full strength.
     const initialResources: Record<string, number> = {};
     for (const res of story.rpgSystem.resources || []) {
-      const maxVal = maxResources[res.id] ?? res.max;
-      initialResources[res.id] = Math.min(res.current, maxVal);
+      initialResources[res.id] = maxResources[res.id] ?? res.max ?? 1;
     }
 
     const initialRelationships: Record<string, any> = {};

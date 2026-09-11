@@ -53,10 +53,13 @@ export function ResourcesSection({ resources, isPersian, updateRpgSystem }: Reso
     const safeId = (resourceForm.id || '').trim();
     if (!safeName || !safeId) return;
 
+    // Pools always start full: current tracks max. A fresh character and any
+    // newly added mid-campaign pool begin at full strength.
     const payload: ResourceDefinition = {
       ...resourceForm,
       id: safeId,
       name: safeName,
+      current: resourceForm.max,
     };
 
     updateRpgSystem((prev: any) => {
@@ -222,19 +225,10 @@ export function ResourcesSection({ resources, isPersian, updateRpgSystem }: Reso
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs text-zinc-400 mb-1">
-                    {isPersian ? 'مقدار آغازین' : 'Current'}
-                  </label>
-                  <input
-                    type="number"
-                    value={resourceForm.current}
-                    onChange={(e) => setResourceForm((prev) => ({ ...prev, current: Number(e.target.value) }))}
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-rose-500"
-                    required
-                  />
-                </div>
+              <p className="text-[11px] text-zinc-500">
+                {isPersian ? 'منبع همیشه پر شروع می‌شود (مقدار آغازین = حداکثر).' : 'Pools always start full (starting value = max).'}
+              </p>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">
                     {isPersian ? 'حداقل' : 'Min'}

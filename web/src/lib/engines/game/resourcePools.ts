@@ -70,15 +70,25 @@ export function reconcilePlayerResources(
     equippedArtifacts,
   });
 
-  const prevMax = playerState.maxResources ?? {};
-  if (JSON.stringify(prevMax) !== JSON.stringify(maxResources)) changed = true;
+  const prevMaxSource: Record<string, number> = playerState.maxResources ?? {};
+  if (JSON.stringify(prevMaxSource) !== JSON.stringify(maxResources)) changed = true;
 
   const nextResources: Record<string, number> = {};
   for (const def of defs) {
     const max = maxResources[def.id] ?? def.max ?? 100;
     const min = typeof def.min === 'number' ? def.min : 0;
     const existing = playerState.resources?.[def.id];
-    const seed = typeof existing === 'number' ? existing : Math.min(def.current ?? max, max);
+    const prevMax: number | undefined = prevMaxSource[def.id];
+    let seed: number;
+    if (typeof existing !== 'number') {
+      // New pool (studio added it mid-campaign): start full like a new character.
+      seed = max;
+    } else if (prevMax !== undefined && existing >= prevMax && max !== prevMax) {
+      // Pool was full before the studio max edit: stay full, move with max.
+      seed = max;
+    } else {
+      seed = existing;
+    }
     const clamped = Math.min(max, Math.max(min, seed));
     nextResources[def.id] = clamped;
     if (existing === undefined || existing !== clamped) changed = true;

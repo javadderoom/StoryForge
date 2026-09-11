@@ -54,6 +54,42 @@ const PLAY_SELECTED_STORY_KEY = 'storyforge_play_selected_story_v1';
 const PLAY_SESSION_KEY = 'storyforge_play_session_v1';
 const PLAY_SETTINGS_KEY = 'storyforge_play_settings_v1';
 
+/** Per-story session so a created character survives reloads and story switches. */
+function sessionKeyFor(storyId: string): string {
+  return `storyforge_play_session_v1_${storyId}`;
+}
+function readStoredSession(storyId: string): string {
+  try {
+    const perStory = localStorage.getItem(sessionKeyFor(storyId));
+    if (perStory) return perStory;
+    // Legacy fallback: single global key from before per-story sessions.
+    const selected = localStorage.getItem(PLAY_SELECTED_STORY_KEY);
+    if (selected === storyId) return localStorage.getItem(PLAY_SESSION_KEY) || '';
+  } catch {
+    /* ignore */
+  }
+  return '';
+}
+function writeStoredSession(storyId: string, sessId: string) {
+  try {
+    localStorage.setItem(sessionKeyFor(storyId), sessId);
+    localStorage.setItem(PLAY_SELECTED_STORY_KEY, storyId);
+    localStorage.setItem(PLAY_SESSION_KEY, sessId);
+  } catch {
+    /* ignore */
+  }
+}
+function clearStoredSession(storyId: string) {
+  try {
+    localStorage.removeItem(sessionKeyFor(storyId));
+    if (localStorage.getItem(PLAY_SELECTED_STORY_KEY) === storyId) {
+      localStorage.removeItem(PLAY_SESSION_KEY);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 function rollD20(): number {
   return Math.floor(Math.random() * 20) + 1;
 }
@@ -140,8 +176,14 @@ export default function Home() {
         if (resumeId) {
           data = await resumeSession(resumeId);
           if (!data) {
-            // stale session — fall through to fresh start
-            data = await startSession(storyId);
+            // Stale session (server restart / DB off): the saved character is
+            // gone, so send the reader back to character creation instead of
+            // silently starting with a default character.
+            clearStoredSession(storyId);
+            setSessionId('');
+            setPlayerState(null);
+            setIsCharCreationOpen(true);
+            return;
           }
         } else {
           data = await startSession(storyId, setup);
@@ -159,12 +201,7 @@ export default function Home() {
         // Auto-pick realm theme from the story (only if user hasn't customized yet)
         const auto = realmFromStory({ storyId: data.story.id, genres });
         setSettings((s) => (s.theme === 'darkFantasy' && auto !== 'darkFantasy' ? { ...s, theme: auto } : s));
-        try {
-          localStorage.setItem(PLAY_SELECTED_STORY_KEY, storyId);
-          if (resolvedSessionId) localStorage.setItem(PLAY_SESSION_KEY, resolvedSessionId);
-        } catch {
-          /* ignore */
-        }
+        if (resolvedSessionId) writeStoredSession(storyId, resolvedSessionId);
         if (resolvedPlayerState?.currentLocationId) {
           audioService.playAmbient(ambientFromLocation(resolvedPlayerState.currentLocationId));
         }
@@ -224,7 +261,7 @@ export default function Home() {
           localStorage.getItem(PLAY_SELECTED_STORY_KEY) ||
           localStorage.getItem('storyforge_studio_selected_story_v1') ||
           '';
-        savedSession = localStorage.getItem(PLAY_SESSION_KEY) || '';
+        savedSession = '';
         const activeStudioId = localStorage.getItem('storyforge_studio_selected_story_v1');
         if (activeStudioId && !mergedCatalog.some((s) => s.id === activeStudioId)) {
           const draftStory = resolveStoryWithLocalDraft(null, activeStudioId);
@@ -234,6 +271,7 @@ export default function Home() {
         /* ignore */
       }
       setStories(mergedCatalog);
+      if (savedStoryId) savedSession = readStoredSession(savedStoryId);
       if (savedSession && savedStoryId) {
         const baseStory = mergedCatalog.find((s) => s.id === savedStoryId) || null;
         const story = resolveStoryWithLocalDraft(baseStory, savedStoryId);
@@ -254,10 +292,17 @@ export default function Home() {
     };
   }, [startGame, resolveStoryWithLocalDraft]);
 
-  const onSelectStory = (story: CatalogStory) => {
+  const onSelectStory = async (story: CatalogStory) => {
     const resolved = resolveStoryWithLocalDraft(story, story.id) || story;
     setSelectedStory(resolved);
-    setIsCharCreationOpen(true);
+    // Character creation is one-time per story: resume the saved character
+    // when a session already exists instead of asking again.
+    const existing = readStoredSession(resolved.id);
+    if (existing) {
+      await startGame(resolved.id, existing, undefined, resolved.genres);
+    } else {
+      setIsCharCreationOpen(true);
+    }
   };
 
   const onEmbark = async (setup: CharacterSetup) => {
@@ -355,8 +400,9 @@ export default function Home() {
         const maxResources = computeMaxResources(newState.stats ?? {}, rpg, { archetype, background, equippedArtifacts });
         const resources: Record<string, number> = { ...(newState.resources ?? {}) };
         for (const res of rpg.resources) {
-          if (resources[res.id] === undefined) resources[res.id] = Math.min(res.current ?? res.max ?? 0, maxResources[res.id] ?? res.max ?? 1);
-          else resources[res.id] = Math.min(maxResources[res.id] ?? res.max ?? resources[res.id], Math.max(res.min ?? 0, resources[res.id]));
+          const max = maxResources[res.id] ?? res.max ?? 1;
+          if (resources[res.id] === undefined) resources[res.id] = max;
+          else resources[res.id] = Math.min(max, Math.max(res.min ?? 0, resources[res.id]));
         }
         syncedState = { ...newState, resources, maxResources };
       }
@@ -373,11 +419,7 @@ export default function Home() {
 
   const restartAdventure = async () => {
     if (!selectedStory) return;
-    try {
-      localStorage.removeItem(PLAY_SESSION_KEY);
-    } catch {
-      /* ignore */
-    }
+    clearStoredSession(selectedStory.id);
     setSessionId('');
     audioService.stopAmbient();
     setIsCharCreationOpen(true);

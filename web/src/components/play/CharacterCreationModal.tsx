@@ -65,16 +65,14 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
     return r;
   }
 
-  function embark(quick = false) {
+  function embark() {
     if (embarking) return;
     setEmbarking(true);
     audioService.playSfx('pageTurn');
     const finalArchId = archetypeId || arch?.id;
     const finalBgId = backgroundId || bg?.id;
     onEmbark(
-      quick
-        ? { archetypeId: finalArchId, backgroundId: finalBgId }
-        : { archetypeId: finalArchId, backgroundId: finalBgId, allocatedStats: finalAllocated(), characterName: name.trim() || undefined }
+      { archetypeId: finalArchId, backgroundId: finalBgId, allocatedStats: finalAllocated(), characterName: name.trim() || undefined }
     );
   }
 
@@ -296,18 +294,6 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
             </button>
           )}
 
-          {step < 3 && (
-            <button
-              onClick={() => embark(true)}
-              disabled={embarking}
-              title={isPersian ? 'آغاز بازی با مشخصات پیش‌فرض تخصص انتخاب‌شده' : 'Quick embark with default archetype stats'}
-              className="rounded-xl border px-3.5 py-3 text-xs font-semibold text-zinc-400 transition-colors hover:border-zinc-600 hover:text-zinc-200"
-              style={{ borderColor: '#27272A' }}
-            >
-              {embarking ? (isPersian ? 'در حال آغاز...' : 'Starting...') : (isPersian ? 'آغاز سریع' : 'Quick Start')}
-            </button>
-          )}
-
           {step < 3 ? (
             <button
               onClick={() => {
@@ -323,7 +309,7 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
             </button>
           ) : (
             <button
-              onClick={() => embark(false)}
+              onClick={() => embark()}
               disabled={embarking}
               className="flex-1 rounded-xl py-3 text-sm font-bold text-black transition-transform hover:scale-[1.01]"
               style={{ backgroundColor: accent }}

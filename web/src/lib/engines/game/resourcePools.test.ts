@@ -29,7 +29,7 @@ describe('resourcePools', () => {
     assert.equal(playerState.maxResources?.mana, 15);
   });
 
-  it('recomputes max when a studio max edit lands', () => {
+  it('a full pool moves with a studio max edit', () => {
     const rpg = {
       ...baseRpg,
       resources: [
@@ -40,7 +40,21 @@ describe('resourcePools', () => {
     const { playerState, changed } = reconcilePlayerResources(basePlayer, rpg);
     assert.equal(changed, true);
     assert.equal(playerState.maxResources?.hp, 40);
-    assert.equal(playerState.resources.hp, 20);
+    assert.equal(playerState.resources.hp, 40);
+  });
+
+  it('a damaged pool keeps its damage when max grows', () => {
+    const rpg = {
+      ...baseRpg,
+      resources: [
+        { id: 'hp', name: 'Health', current: 20, max: 40, min: 0 },
+        baseRpg.resources[1],
+      ],
+    };
+    const hurt = { ...basePlayer, resources: { ...basePlayer.resources, hp: 12 } };
+    const { playerState } = reconcilePlayerResources(hurt, rpg);
+    assert.equal(playerState.maxResources?.hp, 40);
+    assert.equal(playerState.resources.hp, 12);
   });
 
   it('clamps over-max currents and drops deleted pools', () => {
