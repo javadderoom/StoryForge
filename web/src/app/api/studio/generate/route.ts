@@ -94,6 +94,15 @@ interface GenerateRequest {
   targetScene?: { sceneId: string; title?: string; locationId?: string; locationName?: string; narrativeText?: string; goal?: string };
   beatCount?: number;
   availableLocations?: Array<{ id: string; name: string }>;
+  arcContext?: {
+    chapterNumber?: number;
+    title?: string;
+    scopeTier?: string;
+    narrativeGoal?: string;
+    milestoneGoal?: string;
+    stages?: Array<{ id: string; order: number; title: string; stageType?: string; description: string }>;
+    activeStageId?: string;
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -522,6 +531,40 @@ CRITICAL RULES:
       ? `${constraintLine}\n${schemaInstruction}`
       : schemaInstruction;
 
+    // Build Arc & Stage Context if provided
+    let arcContextBlock = '';
+    if (body.arcContext) {
+      const { chapterNumber, title, scopeTier, narrativeGoal, milestoneGoal, stages, activeStageId } = body.arcContext;
+      const arcLines: string[] = [];
+      if (title || chapterNumber) {
+        arcLines.push(`ACTIVE ARC: ${chapterNumber ? `Act #${chapterNumber} - ` : ''}${title || 'Current Chapter'}${scopeTier ? ` (Scope: ${scopeTier})` : ''}`);
+      }
+      if (narrativeGoal) {
+        arcLines.push(`Overarching Arc Goal: ${narrativeGoal}`);
+      }
+      if (milestoneGoal) {
+        arcLines.push(`Target Milestone: ${milestoneGoal}`);
+      }
+      if (Array.isArray(stages) && stages.length > 0) {
+        arcLines.push('Arc Narrative Stages:');
+        stages.forEach((st) => {
+          arcLines.push(`  ${st.order}. [${st.title}]: ${st.description}`);
+        });
+      }
+      if (activeStageId && Array.isArray(stages)) {
+        const activeStage = stages.find((st) => st.id === activeStageId);
+        if (activeStage) {
+          arcLines.push(`\n⚠️ CRITICAL STAGE SCOPE LIMITER:
+The author has STRICTLY CONSTRAINED generation to Stage #${activeStage.order}: "${activeStage.title}".
+Stage Specific Situation & Goal: "${activeStage.description}".
+MANDATORY: All choices, dialogue, obstacles, and narrative actions MUST remain strictly within the boundaries of this stage. DO NOT jump ahead, prematurely resolve the chapter's overarching goal, or spoil events of subsequent stages.`);
+        }
+      }
+      if (arcLines.length > 0) {
+        arcContextBlock = `\n\n=== ACTIVE ARC / CHAPTER PROGRESSION CONTEXT ===\n${arcLines.join('\n')}\n================================================\n`;
+      }
+    }
+
     let userPromptText = '';
     if (type === 'scene_choices') {
       const sc = body.scene;
@@ -531,7 +574,7 @@ CRITICAL RULES:
       const existing = Array.isArray(sc?.existingChoices) && sc!.existingChoices.length > 0
         ? `Already existing choices on this scene (DO NOT duplicate):\n- ${sc!.existingChoices.map((c: any) => c.text || c).join('\n- ')}`
         : '';
-      userPromptText = `Generate 2 to 4 compelling literary choices for the following scene:\n\nSCENE ID: ${sc?.sceneId || 'active_scene'}\nLOCATION: ${sc?.locationName || sc?.locationId || 'Unknown'}\nNARRATIVE PROSE:\n${sc?.narrativeText || 'In the midst of crisis...'}\n\n${existing}\n\n${statList}\n\nAUTHOR GUIDANCE: ${prompt || 'Provide diverse tactical and narrative approaches.'}\n\n${effectiveSchemaInstruction}`;
+      userPromptText = `Generate 2 to 4 compelling literary choices for the following scene:\n\nSCENE ID: ${sc?.sceneId || 'active_scene'}\nLOCATION: ${sc?.locationName || sc?.locationId || 'Unknown'}\nNARRATIVE PROSE:\n${sc?.narrativeText || 'In the midst of crisis...'}\n\n${existing}\n\n${statList}${arcContextBlock}\n\nAUTHOR GUIDANCE: ${prompt || 'Provide diverse tactical and narrative approaches.'}\n\n${effectiveSchemaInstruction}`;
     } else if (type === 'scene_next') {
       const sc = body.scene;
       const ch = body.choice;
@@ -541,7 +584,7 @@ CRITICAL RULES:
       const statList = Array.isArray(body.rpgStatIds) && body.rpgStatIds.length > 0
         ? `Valid RPG Stats: ${body.rpgStatIds.join(', ')}`
         : '';
-      userPromptText = `Generate the immediate subsequent scene continuing from this player choice:\n\nORIGIN SCENE:\nLocation: ${sc?.locationName || sc?.locationId || 'Unknown'}\nProse: ${sc?.narrativeText || ''}\n\nPLAYER'S CHOSEN ACTION:\n"${ch?.text || 'Continue'}" (Style: ${ch?.style || 'inquisitive'})\n\n${locList}\n\n${statList}\n\nAUTHOR GUIDANCE: ${prompt || 'Continue smoothly and build dramatic tension.'}\n\n${effectiveSchemaInstruction}`;
+      userPromptText = `Generate the immediate subsequent scene continuing from this player choice:\n\nORIGIN SCENE:\nLocation: ${sc?.locationName || sc?.locationId || 'Unknown'}\nProse: ${sc?.narrativeText || ''}\n\nPLAYER'S CHOSEN ACTION:\n"${ch?.text || 'Continue'}" (Style: ${ch?.style || 'inquisitive'})\n\n${locList}\n\n${statList}${arcContextBlock}\n\nAUTHOR GUIDANCE: ${prompt || 'Continue smoothly and build dramatic tension.'}\n\n${effectiveSchemaInstruction}`;
     } else if (type === 'scene_bridge') {
       const start = body.startScene;
       const target = body.targetScene;
@@ -552,7 +595,7 @@ CRITICAL RULES:
       const statList = Array.isArray(body.rpgStatIds) && body.rpgStatIds.length > 0
         ? `Valid RPG Stats: ${body.rpgStatIds.join(', ')}`
         : '';
-      userPromptText = `Generate a ${count}-beat narrative bridge connecting Start Scene to Target Scene:\n\nSTARTING SCENE:\nID: ${start?.sceneId}\nLocation: ${start?.locationName || start?.locationId}\nProse: ${start?.narrativeText}\n${body.startChoice ? `Starting from Choice: "${body.startChoice.text}"\n` : ''}\nTARGET DESTINATION SCENE:\nID: ${target?.sceneId || 'target_scene'}\nTitle/Goal: ${target?.title || target?.goal || 'Destination encounter'}\nLocation: ${target?.locationName || target?.locationId || 'Unknown'}\nProse snippet: ${target?.narrativeText || ''}\n\nNUMBER OF INTERMEDIATE BEATS REQUIRED: ${count}\n\n${locList}\n\n${statList}\n\nAUTHOR GUIDANCE: ${prompt || 'Escalate tension and pace the journey organically.'}\n\n${effectiveSchemaInstruction}`;
+      userPromptText = `Generate a ${count}-beat narrative bridge connecting Start Scene to Target Scene:\n\nSTARTING SCENE:\nID: ${start?.sceneId}\nLocation: ${start?.locationName || start?.locationId}\nProse: ${start?.narrativeText}\n${body.startChoice ? `Starting from Choice: "${body.startChoice.text}"\n` : ''}\nTARGET DESTINATION SCENE:\nID: ${target?.sceneId || 'target_scene'}\nTitle/Goal: ${target?.title || target?.goal || 'Destination encounter'}\nLocation: ${target?.locationName || target?.locationId || 'Unknown'}\nProse snippet: ${target?.narrativeText || ''}\n\nNUMBER OF INTERMEDIATE BEATS REQUIRED: ${count}\n\n${locList}\n\n${statList}${arcContextBlock}\n\nAUTHOR GUIDANCE: ${prompt || 'Escalate tension and pace the journey organically.'}\n\n${effectiveSchemaInstruction}`;
     } else if (type === 'weave_story') {
       userPromptText = buildWeavePrompt({
         story: (body.story || {}) as StoryManifest,

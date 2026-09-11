@@ -1377,6 +1377,15 @@ export const StoryBeatChoiceSchema = z.object({
   targetSceneId: z.string().optional(),
 });
 
+export const ArcStageSchema = z.object({
+  id: z.string().min(1),
+  order: z.number().int().min(1),
+  title: z.string().min(1),
+  stageType: z.string().default('custom'),
+  description: z.string().default(''),
+});
+export type ArcStage = z.infer<typeof ArcStageSchema>;
+
 export const StoryBeatSchema = z.object({
   sceneId: z.string().min(1),
   locationId: z.string().default(''),
@@ -1384,6 +1393,7 @@ export const StoryBeatSchema = z.object({
   imageUrl: z.string().optional(),
   choices: z.array(StoryBeatChoiceSchema).default([]),
   chapterId: z.string().optional(),
+  stageId: z.string().optional(),
 });
 export type StoryBeat = z.infer<typeof StoryBeatSchema>;
 
@@ -1398,6 +1408,8 @@ export interface StoryChapter {
   playerInvolvement?: string;
   /** Story flags that must be set before this chapter can unlock */
   prerequisiteFlags: string[];
+  /** Dynamic, ordered narrative stages within this arc (e.g. Inciting Incident, Rising Action, Climax, Resolution) */
+  stages?: ArcStage[];
   scenes: StoryBeat[];
   /** Directive used by the AI to compress the chapter into an episodic milestone rollup */
   completionSummaryPrompt: string;
@@ -1501,6 +1513,7 @@ export const StoryChapterSchema = z.object({
   narrativeGoal: z.string().default(''),
   playerInvolvement: z.string().optional(),
   prerequisiteFlags: z.array(z.string()).default([]),
+  stages: z.array(ArcStageSchema).default([]),
   scenes: z.array(StoryBeatSchema).default([]),
   completionSummaryPrompt: z.string().default(''),
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { StoryBeat } from '@/lib/types/world';
+import { StoryBeat, StoryChapter } from '@/lib/types/world';
 import { StoryManifest } from '@/lib/types';
 import {
   Sparkles,
@@ -12,6 +12,7 @@ import {
   Compass,
   MapPin,
   RotateCcw,
+  Crown,
 } from 'lucide-react';
 import { notify } from '@/lib/notify';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
@@ -27,6 +28,8 @@ interface SceneAiCopilotModalProps {
   selectedChoice?: any | null;
   allBeats: StoryBeat[];
   initialMode?: CopilotMode;
+  activeChapter?: StoryChapter | null;
+  activeMilestoneGoal?: string;
   onCommitChoices: (sceneId: string, choices: any[]) => void;
   onCommitNextScene: (sourceSceneId: string, choiceId: string, newBeat: StoryBeat) => void;
   onCommitBridge: (
@@ -49,6 +52,8 @@ export default function SceneAiCopilotModal({
   selectedChoice,
   allBeats,
   initialMode = 'choices',
+  activeChapter,
+  activeMilestoneGoal,
   onCommitChoices,
   onCommitNextScene,
   onCommitBridge,
@@ -56,6 +61,7 @@ export default function SceneAiCopilotModal({
   const [mode, setMode] = useState<CopilotMode>(initialMode);
   const [step, setStep] = useState<'config' | 'review'>('config');
   const [isLoading, setIsLoading] = useState(false);
+  const [activeStageId, setActiveStageId] = useState<string>('');
 
   // Mode 1: Choices Generator State
   const [choicesTargetSceneId, setChoicesTargetSceneId] = useState<string>(activeBeat?.sceneId || '');
@@ -140,6 +146,30 @@ export default function SceneAiCopilotModal({
   }));
   const rpgStatIds = (story.rpgSystem?.stats || []).map((s: any) => s.id);
 
+  const selectedStage = (activeChapter?.stages || []).find((s) => s.id === activeStageId);
+
+  const arcContext = activeChapter
+    ? {
+        chapterNumber: activeChapter.chapterNumber,
+        title: activeChapter.title,
+        scopeTier: activeChapter.scopeTier,
+        narrativeGoal: activeChapter.narrativeGoal,
+        milestoneGoal: activeMilestoneGoal || story.activeMilestoneGoal,
+        stages: (activeChapter.stages || []).map((s) => ({
+          id: s.id,
+          order: s.order,
+          title: s.title,
+          stageType: s.stageType,
+          description: s.description,
+        })),
+        activeStageId: activeStageId || undefined,
+      }
+    : (activeMilestoneGoal || story.activeMilestoneGoal)
+    ? {
+        milestoneGoal: activeMilestoneGoal || story.activeMilestoneGoal,
+      }
+    : undefined;
+
   // ----------------------------------------------------------------
   // Mode 1: Generate Choices Handler
   // ----------------------------------------------------------------
@@ -159,6 +189,7 @@ export default function SceneAiCopilotModal({
           themeContext: story.worldBible?.themeNotes,
           worldContext,
           rpgStatIds,
+          arcContext,
           scene: {
             sceneId: currentChoicesBeat.sceneId,
             locationId: currentChoicesBeat.locationId,
@@ -214,6 +245,7 @@ export default function SceneAiCopilotModal({
           worldContext,
           rpgStatIds,
           availableLocations,
+          arcContext,
           scene: {
             sceneId: currentNextBeat.sceneId,
             locationId: currentNextBeat.locationId,
@@ -285,6 +317,7 @@ export default function SceneAiCopilotModal({
           worldContext,
           rpgStatIds,
           availableLocations,
+          arcContext,
           beatCount: bridgeBeatCount,
           startScene: {
             sceneId: currentBridgeStartBeat.sceneId,
@@ -501,6 +534,72 @@ export default function SceneAiCopilotModal({
           {/* ======================================================= */}
           {step === 'config' && (
             <>
+              {/* Active Arc & Stage Limiter Control Banner */}
+              {activeChapter && (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-950/40 via-zinc-900/80 to-zinc-900/80 border border-purple-500/30 space-y-3 animate-fadeIn shadow-lg">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-2">
+                      <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span className="text-xs font-bold text-purple-200">
+                        #{activeChapter.chapterNumber} {activeChapter.title}
+                      </span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/20 border border-purple-500/40 text-purple-300">
+                        {activeChapter.scopeTier}
+                      </span>
+                    </div>
+                    {activeChapter.narrativeGoal && (
+                      <span className="text-[11px] text-zinc-400 truncate max-w-md" title={activeChapter.narrativeGoal}>
+                        🎯 {activeChapter.narrativeGoal}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Arc Stage Limiter Selector */}
+                  {activeChapter.stages && activeChapter.stages.length > 0 && (
+                    <div className="pt-2.5 border-t border-purple-500/20 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                          <span>{isPersian ? 'محدودسازی به مرحله روایی قوس داستان:' : 'Constrain to Arc Stage:'}</span>
+                        </label>
+                        {activeStageId && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveStageId('')}
+                            className="text-[10px] text-zinc-400 hover:text-amber-300 transition-colors cursor-pointer"
+                          >
+                            {isPersian ? 'آزادسازی محدوده' : 'Clear Constraint'}
+                          </button>
+                        )}
+                      </div>
+                      <select
+                        value={activeStageId}
+                        onChange={(e) => setActiveStageId(e.target.value)}
+                        className="w-full bg-zinc-950 border border-purple-500/40 focus:border-amber-400 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none cursor-pointer"
+                      >
+                        <option value="">
+                          {isPersian
+                            ? '✨ تمام مراحل روایی (بدون محدودیت مرحله‌ای)'
+                            : '✨ All Stages / Freeform (Unrestricted)'}
+                        </option>
+                        {activeChapter.stages.map((st) => (
+                          <option key={st.id} value={st.id}>
+                            مرحله {st.order}: {st.title}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Selected Stage Description Preview */}
+                      {selectedStage && (
+                        <div className="p-2.5 rounded-xl bg-zinc-950/80 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed animate-fadeIn">
+                          <strong className="text-amber-300">{selectedStage.title}: </strong>
+                          {selectedStage.description}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               {/* MODE 1: CHOICES */}
               {mode === 'choices' && (
                 <div className="space-y-4 animate-fadeIn">

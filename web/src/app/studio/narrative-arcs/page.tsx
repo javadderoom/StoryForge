@@ -19,6 +19,33 @@ const SCOPE_OPTIONS: { value: ScopeTier; en: string; fa: string }[] = [
   { value: 'mythic', en: 'Mythic — cosmic climax', fa: 'اسطوره‌ای — اوج کیهانی' },
 ];
 
+const FOUR_STAGE_PRESET = [
+  {
+    order: 1,
+    stageType: 'inciting_incident',
+    title: 'برانگیختگی (Inciting Incident) — زمینگیر شدن در بارانداز',
+    description: 'کاروانها پشت دروازهٔ غربی متوقف شده‌اند. گزمه‌ها مانع ورودند و شایعهٔ نشت آلودگی از آبراهه دهان‌به‌دهان می‌چرخد. رادمان و دیگر تجار بدون ورود به پل، نه دستمزدی می‌پردازند و نه توان بقا دارند.',
+  },
+  {
+    order: 2,
+    stageType: 'rising_action',
+    title: 'اوج‌گیری و پیچش (Rising Action) — آشکار شدن منافع متضاد',
+    description: 'تلاش برای عبور عادی به بن‌بست می‌خورد؛ گزمه‌ها رشوهٔ سنگین‌تری از حد توان طلب می‌کنند و کاتبان دیوان به دنبال مصادرهٔ بارها هستند. بازیکن پی می‌برد که معبر دیگری وجود دارد: جعل سند برای ورود به بازارچه بالای پل، یا نفوذ از ساحل گل‌آلود به پایاب زیرین پل.',
+  },
+  {
+    order: 3,
+    stageType: 'climax',
+    title: 'نقطهٔ اوج (Climax) — شکستن بن‌بست در دهانهٔ غربی',
+    description: 'با وقوع حادثه (درگیری ساربانان با گزمه‌ها یا پیدا شدن جسد دگرگون‌شده در لجن پایاب)، گلوگاه منفجر می‌شود. بازیکن باید بین عبور از شلوغی به کف بازارچه معلق یا فرود مخفیانه به زیر طاق اول و معامله با بلم‌رانان پایاب تصمیم نهایی را بگیرد.',
+  },
+  {
+    order: 4,
+    stageType: 'resolution',
+    title: 'گره‌گشایی و فرود (Resolution) — ورود به قفس سنگی',
+    description: 'بازیکن از آستانهٔ غربی می‌گذرد و پای در دل شهر می‌گذارد، اما دروازه پشت سرش پلمب می‌شود. او اکنون درون هزارتوی پُل‌زرین است؛ جایی که فساد عمیق‌تر از بارانداز جریان دارد.',
+  },
+];
+
 interface ArcForm {
   title: string;
   scopeTier: ScopeTier;
@@ -132,6 +159,7 @@ export default function NarrativeArcsPage() {
         narrativeGoal: form.narrativeGoal.trim(),
         playerInvolvement: form.playerInvolvement.trim() || undefined,
         prerequisiteFlags: flags,
+        stages: [],
         scenes: [],
         completionSummaryPrompt: form.completionSummaryPrompt.trim(),
       };
@@ -226,6 +254,9 @@ export default function NarrativeArcsPage() {
         `AUTHORED STORYLINE (dramatize exactly this): ${act.narrativeGoal}`,
         act.playerInvolvement ? `PLAYER INVOLVEMENT (choices must enable this): ${act.playerInvolvement}` : '',
         (act.prerequisiteFlags ?? []).length ? `Leads from prior flags: ${(act.prerequisiteFlags ?? []).join(', ')}` : '',
+        (act.stages ?? []).length
+          ? `NARRATIVE STAGES:\n${act.stages!.map((s) => `  ${s.order}. [${s.title}]: ${s.description}`).join('\n')}`
+          : '',
       ].filter(Boolean);
 
       const res = await fetch('/api/studio/generate', {
@@ -373,6 +404,50 @@ export default function NarrativeArcsPage() {
                   <Users className="w-3 h-3 mt-0.5 shrink-0" />
                   {act.playerInvolvement}
                 </p>
+              )}
+
+              {/* Narrative Stages Preview */}
+              {act.stages && act.stages.length > 0 ? (
+                <div className="mt-3 pt-2.5 border-t border-zinc-800/60 space-y-1.5">
+                  <span className="text-[10px] font-bold text-amber-400/90 uppercase tracking-wider block">
+                    {isPersian ? 'مراحل روایی قوس داستان:' : 'Narrative Stages:'}
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {act.stages.map((st) => (
+                      <div key={st.id} className="p-2 rounded-xl bg-zinc-950/70 border border-zinc-800 text-[11px] space-y-0.5">
+                        <div className="font-bold text-zinc-200 flex items-center gap-1.5">
+                          <span className="w-4 h-4 rounded-full bg-purple-500/20 text-purple-300 font-mono text-[9px] flex items-center justify-center">
+                            {st.order}
+                          </span>
+                          <span className="truncate">{st.title}</span>
+                        </div>
+                        {st.description && (
+                          <p className="text-[10px] text-zinc-400 line-clamp-2 leading-relaxed">{st.description}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-2.5 pt-2 border-t border-zinc-800/40 flex items-center justify-between">
+                  <span className="text-[10px] text-zinc-500">
+                    {isPersian ? 'مراحل روایی هنوز تعریف نشده' : 'No stages defined yet'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const presetWithIds = FOUR_STAGE_PRESET.map((p) => ({ ...p, id: makeId('stage') }));
+                      persistChapters((prev) =>
+                        prev.map((c) => (c.id === act.id ? { ...c, stages: presetWithIds } : c))
+                      );
+                      notify.success(isPersian ? 'الگوی ۴ مرحله‌ای روایی بارگذاری شد' : '4-Stage preset loaded');
+                    }}
+                    className="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1 font-bold cursor-pointer"
+                  >
+                    <Sparkles className="w-2.5 h-2.5" />
+                    <span>{isPersian ? 'بارگذاری ۴ مرحله روایی' : 'Load 4 Stages'}</span>
+                  </button>
+                </div>
               )}
 
               <div className="mt-4 pt-3 border-t border-zinc-800/60 flex items-center justify-between gap-3 flex-wrap">

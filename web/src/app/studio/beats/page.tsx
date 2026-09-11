@@ -13,11 +13,14 @@ import {
   Crown,
   Trash2,
   Target,
+  Pencil,
+  Check,
 } from 'lucide-react';
 import { notify } from '@/lib/notify';
 import {
   StoryChapter,
   StoryBeat,
+  ArcStage,
 } from '@/lib/types/world';
 import SceneAiCopilotModal, { CopilotMode } from '@/components/studio/SceneAiCopilotModal';
 
@@ -31,6 +34,33 @@ const SCOPE_TIER_META: Record<
   mythic: { labelEn: 'Mythic', labelFa: 'اسطوره‌ای', color: 'text-purple-400 bg-purple-500/10 border-purple-500/30' },
 };
 
+const FOUR_STAGE_PRESET = [
+  {
+    order: 1,
+    stageType: 'inciting_incident',
+    title: 'برانگیختگی (Inciting Incident) — زمینگیر شدن در بارانداز',
+    description: 'کاروانها پشت دروازهٔ غربی متوقف شده‌اند. گزمه‌ها مانع ورودند و شایعهٔ نشت آلودگی از آبراهه دهان‌به‌دهان می‌چرخد. رادمان و دیگر تجار بدون ورود به پل، نه دستمزدی می‌پردازند و نه توان بقا دارند.',
+  },
+  {
+    order: 2,
+    stageType: 'rising_action',
+    title: 'اوج‌گیری و پیچش (Rising Action) — آشکار شدن منافع متضاد',
+    description: 'تلاش برای عبور عادی به بن‌بست می‌خورد؛ گزمه‌ها رشوهٔ سنگین‌تری از حد توان طلب می‌کنند و کاتبان دیوان به دنبال مصادرهٔ بارها هستند. بازیکن پی می‌برد که معبر دیگری وجود دارد: جعل سند برای ورود به بازارچه بالای پل، یا نفوذ از ساحل گل‌آلود به پایاب زیرین پل.',
+  },
+  {
+    order: 3,
+    stageType: 'climax',
+    title: 'نقطهٔ اوج (Climax) — شکستن بن‌بست در دهانهٔ غربی',
+    description: 'با وقوع حادثه (درگیری ساربانان با گزمه‌ها یا پیدا شدن جسد دگرگون‌شده در لجن پایاب)، گلوگاه منفجر می‌شود. بازیکن باید بین عبور از شلوغی به کف بازارچه معلق یا فرود مخفیانه به زیر طاق اول و معامله با بلم‌رانان پایاب تصمیم نهایی را بگیرد.',
+  },
+  {
+    order: 4,
+    stageType: 'resolution',
+    title: 'گره‌گشایی و فرود (Resolution) — ورود به قفس سنگی',
+    description: 'بازیکن از آستانهٔ غربی می‌گذرد و پای در دل شهر می‌گذارد، اما دروازه پشت سرش پلمب می‌شود. او اکنون درون هزارتوی پُل‌زرین است؛ جایی که فساد عمیق‌تر از بارانداز جریان دارد.',
+  },
+];
+
 // Module-scope so the React Compiler never treats timestamped IDs as
 // render-phase side effects.
 const makeId = (prefix: string) => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -40,6 +70,7 @@ export default function StoryBeatsStudioPage() {
 
   // Multi-Chapter Epic Saga state
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
+  const [editingStageId, setEditingStageId] = useState<string | null>(null);
 
   // Unified Scene AI Copilot state
   const [copilotOpen, setCopilotOpen] = useState(false);
@@ -123,6 +154,78 @@ export default function StoryBeatsStudioPage() {
         ? { ...prev, chapters: prev.chapters.map((c) => (c.id === activeChapter.id ? { ...c, scenes } : c)) }
         : { sagaTitle: story.title || 'Untitled Saga', premise: '', chapters: [] }
     );
+  };
+
+  const handleAddStage = (chapterId: string) => {
+    updateSaga((prev) => {
+      const base = prev ?? { sagaTitle: story.title || 'Untitled Saga', premise: '', chapters: [] };
+      return {
+        ...base,
+        chapters: base.chapters.map((ch) => {
+          if (ch.id !== chapterId) return ch;
+          const currentStages = ch.stages || [];
+          const newStage: ArcStage = {
+            id: makeId('stage'),
+            order: currentStages.length + 1,
+            title: isPersian ? `مرحله ${currentStages.length + 1}` : `Stage ${currentStages.length + 1}`,
+            description: '',
+            stageType: 'custom',
+          };
+          return { ...ch, stages: [...currentStages, newStage] };
+        }),
+      };
+    });
+    notify.success(isPersian ? 'مرحله جدید به قوس روایی افزوده شد' : 'New stage added to arc');
+  };
+
+  const handleUpdateStage = (chapterId: string, stageId: string, patch: Partial<ArcStage>) => {
+    updateSaga((prev) => {
+      const base = prev ?? { sagaTitle: story.title || 'Untitled Saga', premise: '', chapters: [] };
+      return {
+        ...base,
+        chapters: base.chapters.map((ch) => {
+          if (ch.id !== chapterId) return ch;
+          return {
+            ...ch,
+            stages: (ch.stages || []).map((s) => (s.id === stageId ? { ...s, ...patch } : s)),
+          };
+        }),
+      };
+    });
+  };
+
+  const handleDeleteStage = (chapterId: string, stageId: string) => {
+    updateSaga((prev) => {
+      const base = prev ?? { sagaTitle: story.title || 'Untitled Saga', premise: '', chapters: [] };
+      return {
+        ...base,
+        chapters: base.chapters.map((ch) => {
+          if (ch.id !== chapterId) return ch;
+          const remaining = (ch.stages || []).filter((s) => s.id !== stageId);
+          return {
+            ...ch,
+            stages: remaining.map((s, idx) => ({ ...s, order: idx + 1 })),
+          };
+        }),
+      };
+    });
+    if (editingStageId === stageId) setEditingStageId(null);
+    notify.info(isPersian ? 'مرحله روایی حذف شد' : 'Arc stage deleted');
+  };
+
+  const handleLoadPresetStages = (chapterId: string) => {
+    const presetWithIds: ArcStage[] = FOUR_STAGE_PRESET.map((p) => ({
+      ...p,
+      id: makeId('stage'),
+    }));
+    updateSaga((prev) => {
+      const base = prev ?? { sagaTitle: story.title || 'Untitled Saga', premise: '', chapters: [] };
+      return {
+        ...base,
+        chapters: base.chapters.map((ch) => (ch.id === chapterId ? { ...ch, stages: presetWithIds } : ch)),
+      };
+    });
+    notify.success(isPersian ? 'الگوی ۴ مرحله‌ای روایی بارگذاری شد' : '4-Stage narrative preset loaded');
   };
 
   // ----------------------------------------------------------------
@@ -428,16 +531,16 @@ export default function StoryBeatsStudioPage() {
         </div>
       </div>
 
-      {/* Active Chapter Briefing Strip */}
+      {/* Active Chapter Briefing Strip & Stage Timeline */}
       {activeChapter && (
-        <div className="bg-gradient-to-r from-purple-950/40 via-zinc-900/60 to-zinc-900/60 border border-purple-500/20 rounded-2xl p-4 space-y-2">
+        <div className="bg-gradient-to-r from-purple-950/40 via-zinc-900/70 to-zinc-900/70 border border-purple-500/25 rounded-2xl p-4 md:p-5 space-y-4 shadow-xl">
           <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1 min-w-0">
-              <h4 className="text-sm font-bold text-purple-200 flex items-center gap-2">
+            <div className="space-y-1.5 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Crown className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="truncate">
+                <h4 className="text-sm font-bold text-purple-200">
                   {activeChapter.chapterNumber}. {activeChapter.title}
-                </span>
+                </h4>
                 <span
                   className={`px-2 py-0.5 rounded-md border text-[10px] font-mono shrink-0 ${
                     (SCOPE_TIER_META[activeChapter.scopeTier] || SCOPE_TIER_META.street).color
@@ -447,9 +550,20 @@ export default function StoryBeatsStudioPage() {
                     ? (SCOPE_TIER_META[activeChapter.scopeTier] || SCOPE_TIER_META.street).labelFa
                     : (SCOPE_TIER_META[activeChapter.scopeTier] || SCOPE_TIER_META.street).labelEn}
                 </span>
-              </h4>
+                <span className="text-[10px] font-mono text-zinc-500">
+                  ({(activeChapter.stages || []).length} {isPersian ? 'مرحله روایی' : 'stages'})
+                </span>
+              </div>
+
+              {activeChapter.narrativeGoal && (
+                <p className="text-xs text-zinc-300 leading-relaxed">
+                  <strong className="text-purple-300">{t.goalLabel} </strong>
+                  {activeChapter.narrativeGoal}
+                </p>
+              )}
+
               {activeChapter.prerequisiteFlags.length > 0 && (
-                <div className="flex items-center flex-wrap gap-1.5">
+                <div className="flex items-center flex-wrap gap-1.5 pt-0.5">
                   <span className="text-[10px] font-bold text-zinc-400">{t.prereqLabel}</span>
                   {activeChapter.prerequisiteFlags.map((flag) => (
                     <span
@@ -463,14 +577,142 @@ export default function StoryBeatsStudioPage() {
                 </div>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => handleDeleteChapter(activeChapter.id)}
-              title={t.deleteChapterBtn}
-              className="text-zinc-500 hover:text-rose-400 transition-colors p-1.5 rounded-lg hover:bg-rose-500/10 shrink-0"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleAddStage(activeChapter.id)}
+                className="text-xs bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{isPersian ? 'افزودن مرحله' : 'Add Stage'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteChapter(activeChapter.id)}
+                title={t.deleteChapterBtn}
+                className="text-zinc-500 hover:text-rose-400 transition-colors p-1.5 rounded-lg hover:bg-rose-500/10 shrink-0 cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Dynamic Arc Stages Timeline */}
+          <div className="pt-3 border-t border-purple-500/15 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-300/90 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>{isPersian ? 'مراحل قوس روایی فصل:' : 'Chapter Narrative Stages:'}</span>
+              </span>
+              {(!activeChapter.stages || activeChapter.stages.length === 0) && (
+                <button
+                  type="button"
+                  onClick={() => handleLoadPresetStages(activeChapter.id)}
+                  className="text-xs text-amber-400 hover:text-amber-300 font-bold bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3 py-1 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>{isPersian ? 'بارگذاری الگوی ۴ مرحله‌ای روایی' : 'Load 4-Stage Preset'}</span>
+                </button>
+              )}
+            </div>
+
+            {/* Stage Cards Grid */}
+            {activeChapter.stages && activeChapter.stages.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                {activeChapter.stages.map((st) => {
+                  const isEditing = editingStageId === st.id;
+                  return (
+                    <div
+                      key={st.id}
+                      className="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800 hover:border-purple-500/40 transition-all space-y-2 flex flex-col justify-between"
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="w-5 h-5 rounded-full bg-purple-500/20 text-purple-300 font-mono text-[10px] font-bold flex items-center justify-center">
+                            {st.order}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setEditingStageId(isEditing ? null : st.id)}
+                              className="text-zinc-500 hover:text-amber-300 p-1 rounded transition-colors"
+                              title={isEditing ? 'انجام' : 'ویرایش مرحله'}
+                            >
+                              {isEditing ? <Check className="w-3 h-3 text-emerald-400" /> : <Pencil className="w-3 h-3" />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteStage(activeChapter.id, st.id)}
+                              className="text-zinc-500 hover:text-rose-400 p-1 rounded transition-colors"
+                              title="حذف مرحله"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {isEditing ? (
+                          <div className="space-y-2 animate-fadeIn">
+                            <input
+                              type="text"
+                              value={st.title}
+                              onChange={(e) => handleUpdateStage(activeChapter.id, st.id, { title: e.target.value })}
+                              placeholder={isPersian ? 'عنوان مرحله...' : 'Stage title...'}
+                              className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1 text-xs text-zinc-100 focus:outline-none focus:border-amber-400 font-bold"
+                            />
+                            <textarea
+                              rows={3}
+                              value={st.description}
+                              onChange={(e) =>
+                                handleUpdateStage(activeChapter.id, st.id, { description: e.target.value })
+                              }
+                              placeholder={isPersian ? 'شرح موقعیت، تعلیق و چالش این مرحله...' : 'Stage conflict and objective...'}
+                              className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-[11px] text-zinc-200 focus:outline-none focus:border-amber-400 leading-relaxed"
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            <h5 className="text-xs font-bold text-zinc-100 line-clamp-1" title={st.title}>
+                              {st.title}
+                            </h5>
+                            <p className="text-[11px] text-zinc-400 leading-relaxed line-clamp-3" title={st.description}>
+                              {st.description || (isPersian ? '(بدون شرح)' : '(No description)')}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-zinc-950/60 border border-dashed border-zinc-800 text-center space-y-2">
+                <p className="text-xs text-zinc-400">
+                  {isPersian
+                    ? 'این فصل هنوز دارای مراحل روایی نیست. می‌توانید مراحل دلخواه بیافزایید یا الگوی استاندارد ۴ مرحله‌ای را بارگذاری کنید.'
+                    : 'This chapter has no stages defined yet. Add custom stages or load the 4-stage dramatic preset.'}
+                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleLoadPresetStages(activeChapter.id)}
+                    className="text-xs bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>{isPersian ? 'بارگذاری الگوی ۴ مرحله‌ای روایی' : 'Load 4-Stage Preset'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddStage(activeChapter.id)}
+                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer border border-zinc-700"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{isPersian ? '+ افزودن مرحله دستی' : '+ Custom Stage'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -510,6 +752,8 @@ export default function StoryBeatsStudioPage() {
           allBeats={currentBeats}
           story={story}
           isPersian={isPersian}
+          activeChapter={activeChapter}
+          activeMilestoneGoal={story.activeMilestoneGoal}
           onClose={() => {
             setCopilotOpen(false);
             setCopilotTargetBeat(null);
