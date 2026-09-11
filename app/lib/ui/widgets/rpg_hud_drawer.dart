@@ -29,7 +29,25 @@ class RpgHudDrawer extends ConsumerStatefulWidget {
 class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
   String _selectedCategory = 'all'; // all, gear, consumable, misc
 
-  String _formatResourceName(String key) {
+  Map<String, dynamic>? _findDef(String key, List<Map<String, dynamic>> defs) {
+    for (final d in defs) {
+      if ((d['id']?.toString().toLowerCase()) == key.toLowerCase()) return d;
+    }
+    return null;
+  }
+
+  Color _colorFromHex(String? hex, Color fallback) {
+    if (hex == null || hex.isEmpty) return fallback;
+    try {
+      final clean = hex.replaceAll('#', '');
+      return Color(int.parse(clean.length == 6 ? 'FF$clean' : clean, radix: 16));
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  String _formatResourceName(String key, [Map<String, dynamic>? def]) {
+    if (def?['name'] != null && (def!['name'] as String).isNotEmpty) return def['name'] as String;
     if (!widget.isPersian) return key.toUpperCase();
     switch (key.toLowerCase()) {
       case 'hp':
@@ -323,14 +341,19 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                         const SizedBox(height: 10),
                         for (final entry in player.resources.entries) ...[
                           Builder(builder: (context) {
-                            final isHp = entry.key == 'hp';
+                            final defs = session.rpgResources;
+                            final def = _findDef(entry.key, defs);
                             final isGold = entry.key == 'gold';
-                            final color = isHp
+                            final fallbackMax = entry.key == 'hp' ? 100 : (isGold ? 9999 : 50);
+                            final defMax = (def?['max'] as num?)?.toInt() ?? fallbackMax;
+                            final maxVal = player.maxResources[entry.key] ?? defMax;
+                            final clamped = entry.value.clamp(0, maxVal);
+                            final fallbackColor = entry.key == 'hp'
                                 ? const Color(0xFFEF4444)
                                 : isGold
                                     ? const Color(0xFFEAB308)
                                     : const Color(0xFF3B82F6);
-                            final maxVal = isHp ? 100 : (isGold ? 9999 : 50);
+                            final color = _colorFromHex(def?['color'] as String?, fallbackColor);
 
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 10),
@@ -341,7 +364,7 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        _formatResourceName(entry.key),
+                                        _formatResourceName(entry.key, def),
                                         style: GoogleFonts.vazirmatn(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
@@ -353,7 +376,7 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                                         child: Text(
                                           isGold
                                               ? entry.value.toPersianDigits(enable: widget.isPersian)
-                                              : '${entry.value.toPersianDigits(enable: widget.isPersian)} / ${maxVal.toPersianDigits(enable: widget.isPersian)}',
+                                              : '${clamped.toPersianDigits(enable: widget.isPersian)} / ${maxVal.toPersianDigits(enable: widget.isPersian)}',
                                           style: GoogleFonts.vazirmatn(
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
@@ -368,7 +391,7 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(4),
                                       child: LinearProgressIndicator(
-                                        value: (entry.value / maxVal).clamp(0.0, 1.0),
+                                        value: (clamped / maxVal).clamp(0.0, 1.0),
                                         backgroundColor: const Color(0xFF1E2235),
                                         color: color,
                                         minHeight: 5,

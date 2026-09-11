@@ -24,6 +24,7 @@ class GameSessionState {
   final Map<String, dynamic>? lore;
   final String? storyCoverImageUrl;
   final String? currentSceneImageUrl;
+  final List<Map<String, dynamic>> rpgResources;
 
   GameSessionState({
     this.isLoading = false,
@@ -42,6 +43,7 @@ class GameSessionState {
     this.lore,
     this.storyCoverImageUrl,
     this.currentSceneImageUrl,
+    this.rpgResources = const [],
   });
 
   bool get isPersian {
@@ -68,6 +70,7 @@ class GameSessionState {
     Map<String, dynamic>? lore,
     String? storyCoverImageUrl,
     String? currentSceneImageUrl,
+    List<Map<String, dynamic>>? rpgResources,
     bool clearSceneImage = false,
     bool clearPendingTurn = false,
   }) {
@@ -87,10 +90,19 @@ class GameSessionState {
       isCreditDepleted: isCreditDepleted ?? this.isCreditDepleted,
       lore: lore ?? this.lore,
       storyCoverImageUrl: storyCoverImageUrl ?? this.storyCoverImageUrl,
+      rpgResources: rpgResources ?? this.rpgResources,
       currentSceneImageUrl: clearSceneImage
           ? null
           : (currentSceneImageUrl ?? this.currentSceneImageUrl),
     );
+  }
+
+  /// Merges server resource definitions with live maxResources so Studio
+  /// renames / new pools / max edits render without hardcoding.
+  static List<Map<String, dynamic>> parseRpgResources(Map<String, dynamic>? storyData) {
+    final raw = storyData?['rpgSystem']?['resources'] as List<dynamic>?;
+    if (raw == null) return const [];
+    return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   }
 }
 
@@ -127,7 +139,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       final playerState = PlayerState.fromJson(sessionData['playerState']);
       final currentBeat = data['currentBeat'];
       final rawChoices = currentBeat['choices'] as List<dynamic>? ?? [];
-      final storyData = data['story'];
+      final storyData = data['story'] as Map<String, dynamic>?;
       final extractedLang = (storyData?['language'] as String?) ?? 'fa';
       final resolvedTitle = storyData?['title'] ?? (title?.isNotEmpty == true ? title : (extractedLang == 'fa' ? 'افسانه بدون عنوان' : 'Untitled Story'));
       final rawLore = data['lore'] as Map<String, dynamic>?;
@@ -138,11 +150,12 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         isLoading: false,
         storyId: storyId,
         sessionId: resolvedSessionId,
-        storyTitle: resolvedTitle,
+        storyTitle: resolvedTitle as String,
         storyCoverImageUrl: coverImg,
         currentSceneImageUrl: sceneImg,
         language: extractedLang,
         lore: rawLore,
+        rpgResources: GameSessionState.parseRpgResources(storyData),
         currentNarrative: currentBeat['narrative'] ?? '',
         choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
         playerState: playerState,
@@ -419,13 +432,16 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       return ItemUseResult(success: false);
     }
 
-    final resources = Map<String, int>.from(state.playerState!.resources);
-    final prevHp = resources['hp'] ?? 100;
-    final prevStamina = resources['stamina'] ?? 50;
+    final player = state.playerState!;
+    final resources = Map<String, int>.from(player.resources);
+    final hpMax = player.maxFor('hp', 100);
+    final staminaMax = player.maxFor('stamina', 50);
+    final prevHp = resources['hp'] ?? hpMax;
+    final prevStamina = resources['stamina'] ?? staminaMax;
 
     // Check if player is already at full capacity
     final isHealingOnly = item.healValue != null && (item.staminaValue == null || item.staminaValue == 0);
-    if (isHealingOnly && prevHp >= 100) {
+    if (isHealingOnly && prevHp >= hpMax) {
       return ItemUseResult(
         success: false,
         isFull: true,
@@ -438,11 +454,11 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
 
     int newHp = prevHp;
     if (item.healValue != null && item.healValue! > 0) {
-      newHp = (prevHp + item.healValue!).clamp(0, 100).toInt();
+      newHp = (prevHp + item.healValue!).clamp(0, hpMax).toInt();
       resources['hp'] = newHp;
     }
     if (item.staminaValue != null && item.staminaValue! > 0) {
-      resources['stamina'] = (prevStamina + item.staminaValue!).clamp(0, 50).toInt();
+      resources['stamina'] = (prevStamina + item.staminaValue!).clamp(0, staminaMax).toInt();
     }
 
     // Decrement item quantity or remove from inventory

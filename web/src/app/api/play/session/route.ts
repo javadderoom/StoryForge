@@ -6,6 +6,7 @@ import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
 import { getAuthenticatedUser } from '@/lib/auth/getUser';
 import { artifactToGameItem } from '@/lib/play/artifactItems';
 import { computeMaxResources } from '@/lib/engines/game/vitalScaling';
+import { reconcilePlayerResources } from '@/lib/engines/game/resourcePools';
 import { addToPurse } from '@/lib/engines/game/currencyEngine';
 
 /**
@@ -105,6 +106,23 @@ export async function GET(req: NextRequest) {
     const turns: any[] = (session as any).turns ?? [];
     const lastTurn = turns.length > 0 ? turns[turns.length - 1] : null;
 
+    // Reconcile persisted vitals against CURRENT studio Resource Pools so
+    // renames / max edits / added pools appear without starting over.
+    let reconciledPlayerState: any = session.playerState;
+    try {
+      const reconciled = reconcilePlayerResources(
+        session.playerState as any,
+        (story as any).rpgSystem,
+        (story as any).worldBible
+      );
+      reconciledPlayerState = reconciled.playerState;
+      if (reconciled.changed) {
+        await SessionRepository.updatePlayerState(session.sessionId, reconciledPlayerState).catch(() => null);
+      }
+    } catch {
+      /* non-fatal: serve stored state */
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -117,7 +135,7 @@ export async function GET(req: NextRequest) {
             coverImageUrl: story.coverImageUrl,
             rpgSystem: story.rpgSystem,
           },
-          playerState: session.playerState,
+          playerState: reconciledPlayerState,
           lore: buildPlayLore(story),
           currentBeat: {
             narrative: lastTurn?.narrativeProse ?? story.initialStoryBeats?.[0]?.narrativeText ?? '',

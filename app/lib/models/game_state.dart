@@ -247,6 +247,7 @@ class PlayerState {
   final List<String> traits;
   final Map<String, int> stats;
   final Map<String, int> resources;
+  final Map<String, int> maxResources;
   final List<GameItem> inventory;
   final PlayerEquipment equipment;
   final String currentLocationId;
@@ -264,6 +265,7 @@ class PlayerState {
     this.traits = const [],
     required this.stats,
     required this.resources,
+    this.maxResources = const {},
     required this.inventory,
     this.equipment = const PlayerEquipment(),
     required this.currentLocationId,
@@ -272,6 +274,8 @@ class PlayerState {
     this.activeQuestIds = const [],
     this.completedQuestIds = const [],
   });
+
+  int maxFor(String key, int fallback) => maxResources[key] ?? fallback;
 
   GameItem? getItem(String itemId) {
     try {
@@ -304,6 +308,7 @@ class PlayerState {
     List<String>? traits,
     Map<String, int>? stats,
     Map<String, int>? resources,
+    Map<String, int>? maxResources,
     List<GameItem>? inventory,
     PlayerEquipment? equipment,
     String? currentLocationId,
@@ -321,6 +326,7 @@ class PlayerState {
       traits: traits ?? this.traits,
       stats: stats ?? this.stats,
       resources: resources ?? this.resources,
+      maxResources: maxResources ?? this.maxResources,
       inventory: inventory ?? this.inventory,
       equipment: equipment ?? this.equipment,
       currentLocationId: currentLocationId ?? this.currentLocationId,
@@ -334,6 +340,7 @@ class PlayerState {
   factory PlayerState.fromJson(Map<String, dynamic> json) {
     final rawStats = json['stats'] as Map<String, dynamic>? ?? {};
     final rawRes = json['resources'] as Map<String, dynamic>? ?? {};
+    final rawMax = json['maxResources'] as Map<String, dynamic>? ?? {};
     final rawInv = json['inventory'] as List<dynamic>? ?? [];
     final rawEq = json['equipment'] as Map<String, dynamic>? ?? {};
     final rawLocs = json['discoveredLocationIds'] as List<dynamic>? ?? [];
@@ -351,6 +358,7 @@ class PlayerState {
       traits: rawTraits.map((e) => e.toString()).toList(),
       stats: rawStats.map((k, v) => MapEntry(k, (v as num).toInt())),
       resources: rawRes.map((k, v) => MapEntry(k, (v as num).toInt())),
+      maxResources: rawMax.map((k, v) => MapEntry(k, (v as num).toInt())),
       inventory: rawInv.map((i) => GameItem.fromJson(i)).toList(),
       equipment: PlayerEquipment.fromJson(rawEq),
       currentLocationId: json['currentLocationId'] ?? '',
@@ -370,6 +378,7 @@ class PlayerState {
         'traits': traits,
         'stats': stats,
         'resources': resources,
+        'maxResources': maxResources,
         'inventory': inventory.map((i) => i.toJson()).toList(),
         'equipment': equipment.toJson(),
         'currentLocationId': currentLocationId,

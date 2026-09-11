@@ -71,17 +71,30 @@ export interface ItemUseResult {
   healedAmount: number;
 }
 
-  export function consumeItem(playerState: PlayerState, itemId: string): { playerState: PlayerState; result: ItemUseResult } {
+  export function consumeItem(
+  playerState: PlayerState,
+  itemId: string,
+  rpgSystem?: { resources?: Array<{ id: string; max?: number; min?: number }> },
+): { playerState: PlayerState; result: ItemUseResult } {
   const item = getItem(playerState, itemId);
   if (!item || !isConsumableItem(item)) {
     return { playerState, result: { success: false, isFull: false, previousHp: 0, newHp: 0, healedAmount: 0 } };
   }
+  const maxFor = (id: string, fallback: number) => {
+    const scaled = (playerState as any).maxResources?.[id];
+    if (typeof scaled === 'number' && Number.isFinite(scaled)) return scaled;
+    const def = rpgSystem?.resources?.find((r) => r.id === id);
+    if (def && typeof def.max === 'number') return def.max;
+    return fallback;
+  };
   const resources = { ...playerState.resources };
-  const prevHp = resources['hp'] ?? 100;
-  const prevStamina = resources['stamina'] ?? 50;
+  const hpMax = maxFor('hp', 100);
+  const staminaMax = maxFor('stamina', 50);
+  const prevHp = resources['hp'] ?? hpMax;
+  const prevStamina = resources['stamina'] ?? staminaMax;
 
   const isHealingOnly = item.healValue != null && item.healValue > 0 && (!item.staminaValue || item.staminaValue <= 0);
-  if (isHealingOnly && prevHp >= 100) {
+  if (isHealingOnly && prevHp >= hpMax) {
     return {
       playerState,
       result: { success: false, isFull: true, previousHp: prevHp, newHp: prevHp, healedAmount: 0 },
@@ -90,11 +103,18 @@ export interface ItemUseResult {
 
   let newHp = prevHp;
   if (item.healValue != null && item.healValue > 0) {
-    newHp = Math.max(0, Math.min(100, prevHp + item.healValue));
+    newHp = Math.max(0, Math.min(hpMax, prevHp + item.healValue));
     resources['hp'] = newHp;
   }
-  if (item.staminaValue != null && item.staminaValue > 0) {
-    resources['stamina'] = Math.max(0, Math.min(50, prevStamina + item.staminaValue));
+  if (item.staminaValue != null && item.staminaValue! > 0) {
+    resources['stamina'] = Math.max(0, Math.min(staminaMax, prevStamina + item.staminaValue!));
+  }
+  // Generic resource restoration (e.g. mana potions) respects scaled maximums.
+  const restoration = (item as any).resourceRestoration as { targetResourceId?: string; amount?: number } | undefined;
+  if (restoration?.targetResourceId && typeof restoration.amount === 'number' && restoration.amount > 0) {
+    const targetMax = maxFor(restoration.targetResourceId, 100);
+    const prev = resources[restoration.targetResourceId] ?? targetMax;
+    resources[restoration.targetResourceId] = Math.max(0, Math.min(targetMax, prev + restoration.amount));
   }
 
   const newInventory = playerState.inventory

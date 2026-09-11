@@ -78,7 +78,7 @@ export function Compendium({
     onInventoryChange(unequipItem(playerState, slot));
   }
   function handleUse(itemId: string) {
-    const { playerState: next, result } = consumeItem(playerState, itemId);
+    const { playerState: next, result } = consumeItem(playerState, itemId, storyMeta?.rpgSystem);
     if (result.isFull) {
       onInventoryChange(next, { kind: 'warning', text: isPersian ? 'سلامتی شما پر است؛ معجون ذخیره ماند.' : 'Already at full health; potion preserved.' });
     } else if (result.success) {
@@ -138,8 +138,8 @@ export function Compendium({
               {/* Resources */}
               <div className="space-y-3">
                 {resources.map((res: any) => {
-                  const cur = playerState.resources?.[res.id] ?? res.current ?? 0;
-                  const max = res.max ?? 100;
+                  const max = (playerState as any).maxResources?.[res.id] ?? res.max ?? 100;
+                  const cur = Math.min(playerState.resources?.[res.id] ?? res.current ?? 0, max);
                   return (
                     <div key={res.id}>
                       <div className="mb-1 flex justify-between text-xs font-semibold">

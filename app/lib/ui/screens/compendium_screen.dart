@@ -137,7 +137,15 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
     }
   }
 
-  String _formatResourceName(String key, bool isPersian) {
+  Map<String, dynamic>? _findDef(String key, List<Map<String, dynamic>> defs) {
+    for (final d in defs) {
+      if ((d['id']?.toString().toLowerCase()) == key.toLowerCase()) return d;
+    }
+    return null;
+  }
+
+  String _formatResourceName(String key, bool isPersian, [Map<String, dynamic>? def]) {
+    if (def?['name'] != null && (def!['name'] as String).isNotEmpty) return def['name'] as String;
     if (!isPersian) return key.toUpperCase();
     switch (key.toLowerCase()) {
       case 'hp':
@@ -153,7 +161,15 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
     }
   }
 
-  Color _getResourceColor(String key) {
+  Color _getResourceColor(String key, [Map<String, dynamic>? def]) {
+    final hex = def?['color'] as String?;
+    if (hex != null && hex.isNotEmpty) {
+      try {
+        final clean = hex.replaceAll('#', '');
+        final v = int.parse(clean.length == 6 ? 'FF$clean' : clean, radix: 16);
+        return Color(v);
+      } catch (_) {}
+    }
     switch (key.toLowerCase()) {
       case 'hp':
         return const Color(0xFFEF4444);
@@ -165,6 +181,21 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
         return const Color(0xFFF59E0B);
       default:
         return const Color(0xFF3B82F6);
+    }
+  }
+
+  int _resolveMax(PlayerState player, String key, Map<String, dynamic>? def) {
+    final scaled = player.maxResources[key];
+    if (scaled != null) return scaled;
+    final defMax = (def?['max'] as num?)?.toInt();
+    if (defMax != null) return defMax;
+    switch (key.toLowerCase()) {
+      case 'hp':
+        return 100;
+      case 'stamina':
+        return 50;
+      default:
+        return 100;
     }
   }
 
@@ -295,7 +326,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                 controller: _tabController,
                 children: [
                   // Tab 1: Hero & Equipment
-                  _buildHeroSheetTab(playerState, theme, isPersian),
+                  _buildHeroSheetTab(playerState, theme, isPersian, session.rpgResources),
 
                   // Tab 2: Inventory & Stash
                   _buildInventoryTab(playerState, theme, isPersian),
@@ -317,7 +348,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
   // ===========================================================================
   // TAB 1: HERO & STATS SHEET
   // ===========================================================================
-  Widget _buildHeroSheetTab(PlayerState player, RealmTheme theme, bool isPersian) {
+  Widget _buildHeroSheetTab(PlayerState player, RealmTheme theme, bool isPersian, [List<Map<String, dynamic>> defs = const []]) {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       children: [
@@ -422,7 +453,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
         ),
         const SizedBox(height: 12),
         for (final resEntry in player.resources.entries) ...[
-          _buildResourceBar(resEntry.key, resEntry.value, isPersian),
+          _buildResourceBar(player, resEntry.key, resEntry.value, isPersian, defs),
           const SizedBox(height: 12),
         ],
         const SizedBox(height: 24),
@@ -455,11 +486,13 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
     );
   }
 
-  Widget _buildResourceBar(String key, int value, bool isPersian) {
-    final color = _getResourceColor(key);
+  Widget _buildResourceBar(PlayerState player, String key, int value, bool isPersian, [List<Map<String, dynamic>> defs = const []]) {
+    final def = _findDef(key, defs);
+    final color = _getResourceColor(key, def);
     final isGold = key.toLowerCase() == 'gold';
-    final maxVal = key.toLowerCase() == 'hp' ? 100 : (key.toLowerCase() == 'stamina' ? 50 : 100);
-    final ratio = isGold ? 1.0 : (value / maxVal).clamp(0.0, 1.0);
+    final maxVal = _resolveMax(player, key, def);
+    final clamped = value.clamp(0, maxVal);
+    final ratio = isGold ? 1.0 : (clamped / maxVal).clamp(0.0, 1.0);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -475,7 +508,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                _formatResourceName(key, isPersian),
+                _formatResourceName(key, isPersian, def),
                 style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
               ),
               Directionality(
@@ -484,8 +517,8 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                   isGold
                       ? (isPersian ? '${value.toPersianDigits()} سکه' : '$value G')
                       : (isPersian
-                          ? '${value.toPersianDigits()} / ${maxVal.toPersianDigits()}'
-                          : '$value / $maxVal'),
+                          ? '${clamped.toPersianDigits()} / ${maxVal.toPersianDigits()}'
+                          : '$clamped / $maxVal'),
                   style: isPersian
                       ? GoogleFonts.vazirmatn(
                           fontSize: 13.5,

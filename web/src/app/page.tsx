@@ -339,8 +339,32 @@ export default function Home() {
   };
 
   const onInventoryChange = async (newState: any, toast?: { kind: 'success' | 'warning' | 'info'; text: string }) => {
-    setPlayerState(newState);
-    if (sessionId) await patchSession(sessionId, newState);
+    // Recompute scaled maximums client-side so equip/unequip instantly moves
+    // the pools (server re-authoritates on the next turn via GameEngine).
+    let syncedState = newState;
+    try {
+      const { computeMaxResources } = await import('@/lib/engines/game/vitalScaling');
+      const rpg = storyMeta?.rpgSystem;
+      if (rpg?.resources && newState) {
+        const archetype = (rpg.archetypes ?? []).find((a: any) => a.id === newState.archetypeId);
+        const background = (rpg.backgrounds ?? []).find((b: any) => b.id === newState.backgroundId);
+        const equippedIds = new Set(
+          [newState.equipment?.mainHand, newState.equipment?.offHand, newState.equipment?.armor, newState.equipment?.relic].filter(Boolean)
+        );
+        const equippedArtifacts = (newState.inventory ?? []).filter((i: any) => equippedIds.has(i.id));
+        const maxResources = computeMaxResources(newState.stats ?? {}, rpg, { archetype, background, equippedArtifacts });
+        const resources: Record<string, number> = { ...(newState.resources ?? {}) };
+        for (const res of rpg.resources) {
+          if (resources[res.id] === undefined) resources[res.id] = Math.min(res.current ?? res.max ?? 0, maxResources[res.id] ?? res.max ?? 1);
+          else resources[res.id] = Math.min(maxResources[res.id] ?? res.max ?? resources[res.id], Math.max(res.min ?? 0, resources[res.id]));
+        }
+        syncedState = { ...newState, resources, maxResources };
+      }
+    } catch {
+      /* non-fatal: persist as-is */
+    }
+    setPlayerState(syncedState);
+    if (sessionId) await patchSession(sessionId, syncedState);
     if (toast) {
       if (toast.kind === 'success') notify.success(toast.text);
       else notify.info(toast.text);
@@ -678,8 +702,8 @@ export default function Home() {
 
               <div className="mt-4 space-y-3">
                 {(storyMeta?.rpgSystem?.resources ?? []).map((res: any) => {
-                  const curVal = playerState?.resources?.[res.id] ?? res.current ?? 0;
-                  const maxVal = res.max ?? 1;
+                  const maxVal = playerState?.maxResources?.[res.id] ?? res.max ?? 1;
+                  const curVal = Math.min(playerState?.resources?.[res.id] ?? res.current ?? 0, maxVal);
                   const pct = Math.max(0, Math.min(100, (curVal / maxVal) * 100));
                   const danger = res.id === 'hp' && pct < 30;
                   return (
@@ -799,8 +823,9 @@ export default function Home() {
 function useHpPct(playerState: any, storyMeta: any): number {
   const res = storyMeta?.rpgSystem?.resources?.find((r: any) => r.id === 'hp' || r.id === 'health');
   if (!res || !playerState?.resources) return 1;
-  const cur = playerState.resources[res.id] ?? res.current ?? 0;
-  return cur / (res.max || 1);
+  const max = playerState?.maxResources?.[res.id] ?? res.max ?? 1;
+  const cur = Math.min(playerState.resources[res.id] ?? res.current ?? 0, max);
+  return cur / (max || 1);
 }
 
 function EmptyState({

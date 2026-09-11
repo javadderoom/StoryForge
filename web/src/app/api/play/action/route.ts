@@ -14,6 +14,7 @@ import { WorkingContextEnvelope, MemoryCategory, MemoryEntry } from '@/lib/types
 import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
 import { getAuthenticatedUser } from '@/lib/auth/getUser';
 import { getPrisma } from '@/lib/db/client';
+import { reconcilePlayerResources } from '@/lib/engines/game/resourcePools';
 
 const geminiAdapter = new GeminiAdapter();
 
@@ -73,13 +74,20 @@ export async function POST(req: NextRequest) {
     // that bypasses guardrails; when a session exists its persisted state
     // always wins. The client payload is only a fallback for stateless calls.
     // ------------------------------------------------------------------
-    const playerState: PlayerState = (session?.playerState as PlayerState | undefined) ?? incomingPlayerState;
+    let playerState: PlayerState = (session?.playerState as PlayerState | undefined) ?? incomingPlayerState;
 
     if (!playerState || !playerState.stats) {
       return NextResponse.json(
         { success: false, error: 'playerState is required when no sessionId is provided' },
         { status: 400, headers: corsHeaders }
       );
+    }
+
+    // Reconcile vitals against current studio Resource Pools before resolving.
+    try {
+      playerState = reconcilePlayerResources(playerState, story.rpgSystem, story.worldBible).playerState;
+    } catch {
+      /* non-fatal */
     }
 
     // Check Authentication & Credits

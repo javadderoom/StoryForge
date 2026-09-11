@@ -8,6 +8,8 @@ import {
 } from '@/lib/types/gameplay';
 import { RPGSystemSchema, GameItem } from '@/lib/types/rpg';
 import { WorldBible, WorldStateLedger, NPCDossier, SecretRevealMethod, WorldQuest, QuestObjective } from '@/lib/types/world';
+import { resolveResourceMax, resolveResourceMin } from './resourcePools';
+import { computeMaxResources } from './vitalScaling';
 
 export interface RevealCheckContext {
   trust?: number;
@@ -1103,19 +1105,13 @@ export class GameEngine {
     }
 
     // 2. Apply Resource Changes (HP, Stamina, Mana, Gold)
+    // Clamp against the SCALED maximum (playerState.maxResources) so Studio
+    // edits to Resource Pools + archetype/background/equipment bonuses hold.
     if (diff.resourceChanges) {
       for (const [resourceId, delta] of Object.entries(diff.resourceChanges)) {
-        const current = updated.resources[resourceId] !== undefined ? updated.resources[resourceId] : 100;
-        let maxVal = 100;
-        let minVal = 0;
-
-        if (rpgSystem) {
-          const resDef = rpgSystem.resources.find((r) => r.id === resourceId);
-          if (resDef) {
-            maxVal = resDef.max;
-            minVal = resDef.min;
-          }
-        }
+        const current = updated.resources[resourceId] !== undefined ? updated.resources[resourceId] : 0;
+        const maxVal = resolveResourceMax(resourceId, rpgSystem, updated);
+        const minVal = resolveResourceMin(resourceId, rpgSystem);
 
         updated.resources[resourceId] = Math.min(maxVal, Math.max(minVal, current + delta));
       }
@@ -1172,6 +1168,29 @@ export class GameEngine {
         if (change.newSecret && !rel.knownSecrets.includes(change.newSecret)) {
           rel.knownSecrets.push(change.newSecret);
         }
+      }
+    }
+
+    // 7b. Refresh scaled maximums so stat/equipment shifts move the pools,
+    // then clamp currents into range (covers Studio max edits mid-campaign).
+    if (rpgSystem?.resources) {
+      try {
+        const archetype = (rpgSystem.archetypes ?? []).find((a: any) => a.id === updated.archetypeId);
+        const background = (rpgSystem.backgrounds ?? []).find((b: any) => b.id === updated.backgroundId);
+        const equippedIds = new Set(
+          [updated.equipment?.mainHand, updated.equipment?.offHand, updated.equipment?.armor, updated.equipment?.relic].filter(Boolean)
+        );
+        const equippedArtifacts = (updated.inventory ?? []).filter((i: any) => equippedIds.has(i.id));
+        const nextMax = computeMaxResources(updated.stats ?? {}, rpgSystem, { archetype, background, equippedArtifacts });
+        updated.maxResources = nextMax;
+        for (const res of rpgSystem.resources) {
+          const cur = updated.resources?.[res.id];
+          if (typeof cur === 'number') {
+            updated.resources[res.id] = Math.min(nextMax[res.id] ?? res.max ?? cur, Math.max(res.min ?? 0, cur));
+          }
+        }
+      } catch {
+        /* non-fatal: keep previous maximums */
       }
     }
 
