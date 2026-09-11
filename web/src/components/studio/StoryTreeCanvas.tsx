@@ -19,6 +19,7 @@ import {
   Minimize2,
   Image as ImageIcon,
   Star,
+  Sparkles,
 } from 'lucide-react';
 
 interface StoryBeatChoice {
@@ -50,6 +51,8 @@ interface StoryTreeCanvasProps {
   onFlatBeatsChange?: (scenes: StoryBeat[]) => void;
   /** Set starting/initial scene ID on the story manifest */
   onSetInitialSceneId?: (sceneId: string) => void;
+  /** Trigger contextual AI Scene Copilot modal */
+  onOpenCopilot?: (mode: 'choices' | 'next_scene' | 'bridge', beat?: StoryBeat, choice?: any) => void;
 }
 
 // Helper: Calculate automatic hierarchical tree layout via BFS
@@ -124,6 +127,7 @@ export function StoryTreeCanvas({
   onScenesChange,
   onFlatBeatsChange,
   onSetInitialSceneId,
+  onOpenCopilot,
 }: StoryTreeCanvasProps) {
   const isChapterMode = !!chapter;
 
@@ -725,12 +729,25 @@ export function StoryTreeCanvas({
                 <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">
                   {t.choicesTitle}
                 </span>
-                <button
-                  onClick={handleAddChoice}
-                  className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 font-bold transition-all"
-                >
-                  <Plus className="w-3.5 h-3.5" /> {t.addChoice}
-                </button>
+                <div className="flex items-center gap-2">
+                  {onOpenCopilot && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenCopilot('choices', selectedBeat as any)}
+                      className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1 font-bold transition-all cursor-pointer bg-purple-500/10 hover:bg-purple-500/20 px-2 py-0.5 rounded-lg border border-purple-500/30"
+                      title={isPersian ? 'تولید انتخاب‌های هوشمند با هوش مصنوعی' : 'Generate Choices with AI'}
+                    >
+                      <Sparkles className="w-3 h-3 text-purple-400" />
+                      <span>{isPersian ? 'تولید با AI' : 'AI Choices'}</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={handleAddChoice}
+                    className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 font-bold transition-all cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> {t.addChoice}
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -762,9 +779,22 @@ export function StoryTreeCanvas({
 
                     {/* Target Destination Scene */}
                     <div>
-                      <label className="text-[10px] text-zinc-400 block mb-1 font-bold">
-                        {t.leadsTo}
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] text-zinc-400 font-bold">
+                          {t.leadsTo}
+                        </label>
+                        {onOpenCopilot && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenCopilot('next_scene', selectedBeat as any, choice)}
+                            className="text-[10px] font-bold text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer transition-colors"
+                            title={isPersian ? 'خلق صحنه بعدی متصل به این انتخاب' : 'Generate next scene leading from this choice'}
+                          >
+                            <Sparkles className="w-2.5 h-2.5 text-sky-400" />
+                            <span>{isPersian ? 'خلق صحنه با AI' : 'AI Next Scene'}</span>
+                          </button>
+                        )}
+                      </div>
                       <select
                         value={choice.targetSceneId || ''}
                         onChange={(e) =>
@@ -843,6 +873,18 @@ export function StoryTreeCanvas({
                   </div>
                 ))}
               </div>
+
+              {/* Multi-Beat Bridge Generator Button */}
+              {onOpenCopilot && (
+                <button
+                  type="button"
+                  onClick={() => onOpenCopilot('bridge', selectedBeat as any)}
+                  className="w-full py-2.5 rounded-2xl border border-teal-500/30 bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+                  <span>{isPersian ? '🌉 پل‌سازی روایی تا صحنه مقصد با AI' : '🌉 Bridge to Target Scene with AI'}</span>
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -907,11 +949,23 @@ export function StoryTreeCanvas({
             {/* Auto-Arrange Layout */}
             <button
               onClick={handleAutoArrange}
-              className="flex items-center gap-2 bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700/80 text-amber-400 px-3.5 py-2.5 rounded-2xl text-xs font-bold shadow-xl backdrop-blur-md transition-all"
+              className="flex items-center gap-2 bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700/80 text-amber-400 px-3.5 py-2.5 rounded-2xl text-xs font-bold shadow-xl backdrop-blur-md transition-all cursor-pointer"
             >
               <LayoutGrid className="w-3.5 h-3.5" />
               <span>{t.autoArrange}</span>
             </button>
+
+            {/* AI Scene Copilot Trigger */}
+            {onOpenCopilot && (
+              <button
+                type="button"
+                onClick={() => onOpenCopilot('choices', selectedBeat as any)}
+                className="flex items-center gap-2 bg-purple-600/90 hover:bg-purple-500 border border-purple-500/50 text-white px-3.5 py-2.5 rounded-2xl text-xs font-bold shadow-xl shadow-purple-500/20 backdrop-blur-md transition-all cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{isPersian ? 'دستیار سناریو' : 'Scene Copilot'}</span>
+              </button>
+            )}
           </div>
 
           {/* Zoom / Reset Controls */}

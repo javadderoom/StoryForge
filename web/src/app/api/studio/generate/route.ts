@@ -53,7 +53,10 @@ interface GenerateRequest {
     | 'chapter_scenes'
     | 'weave_story'
     | 'genesis'
-    | 'audit_world';
+    | 'audit_world'
+    | 'scene_choices'
+    | 'scene_next'
+    | 'scene_bridge';
 
 
   prompt?: string;
@@ -83,6 +86,14 @@ interface GenerateRequest {
   chapterNumber?: number;
   existingSceneIds?: string[];
   story?: any;
+  // Scene AI Copilot parameters
+  scene?: { sceneId: string; locationId?: string; locationName?: string; narrativeText: string; existingChoices?: any[] };
+  choice?: { id: string; text: string; style?: string; statCheck?: { stat: string; dc: number } };
+  startScene?: { sceneId: string; locationId?: string; locationName?: string; narrativeText: string };
+  startChoice?: { id: string; text: string };
+  targetScene?: { sceneId: string; title?: string; locationId?: string; locationName?: string; narrativeText?: string; goal?: string };
+  beatCount?: number;
+  availableLocations?: Array<{ id: string; name: string }>;
 }
 
 export async function POST(req: NextRequest) {
@@ -480,6 +491,29 @@ CRITICAL CHOICE DESIGN RULES:
         isPersian: !!isPersian,
       });
       schemaInstruction = weave.schemaInstruction;
+    } else if (type === 'scene_choices') {
+      schemaInstruction = `Schema: { "choices": [{ "id": string, "text": string, "style": "defensive"|"agile"|"aggressive"|"diplomatic"|"inquisitive", "statCheck"?: { "stat": string, "dc": number }, "narrativeConsequence": string }] } (Generate 2 to 4 diverse, evocative literary choices for this specific scene.
+CRITICAL RULES:
+1. PURE NARRATIVE AGENCY: Choices must offer meaningfully different tactical, moral, or philosophical directions.
+2. NO DIFFICULTY OR RISK TIERS: NEVER include difficulty badges (easy, medium, hard, safe) or DC text in the choice text.
+3. STAT CHECKS: Optional. Only use valid attribute keys from the provided RPG stats list. Realistic DC 10-18.
+4. NARRATIVE CONSEQUENCE: A short 1-sentence teaser/preview of the immediate dramatic risk or direction of choosing this action.)`;
+    } else if (type === 'scene_next') {
+      schemaInstruction = `Schema: { "sceneId": string, "locationId": string, "narrativeText": string, "choices": [{ "id": string, "text": string, "style": "defensive"|"agile"|"aggressive"|"diplomatic"|"inquisitive", "statCheck"?: { "stat": string, "dc": number } }] } (👑 IMMEDIATE CONTINUATION SCENE GENERATION:
+Generate the direct sequel scene resolving the player's chosen action from the previous scene.
+CRITICAL RULES:
+1. DIRECT NARRATIVE SEQUEL: The narrativeText must immediately acknowledge and dramatize the outcome of the chosen action before establishing the new situation, sensory details, and immediate conflict.
+2. LOCATION RELEVANCE: Set locationId to the most appropriate location from the available world locations, or a cohesive new sub-location ID.
+3. FOLLOW-UP CHOICES: Include 2 to 4 contextual follow-up choices for the new scene with NO difficulty or risk labels.
+4. PROSE QUALITY: Rich, atmospheric, evocative literary prose matching the dark fantasy tone and story language.)`;
+    } else if (type === 'scene_bridge') {
+      schemaInstruction = `Schema: { "bridgeBeats": [{ "sceneId": string, "locationId": string, "narrativeText": string, "stepNumber": number, "primaryTransitionChoice": { "text": string, "style": "defensive"|"agile"|"aggressive"|"diplomatic"|"inquisitive", "statCheck"?: { "stat": string, "dc": number }, "leadToSceneId": string }, "alternativeChoices": [{ "text": string, "style": "defensive"|"agile"|"aggressive"|"diplomatic"|"inquisitive", "statCheck"?: { "stat": string, "dc": number } }] }] } (👑 MULTI-BEAT NARRATIVE BRIDGE GENERATION:
+Connect the Starting Scene to the Target Destination Scene across the requested number of intermediate beats.
+CRITICAL RULES:
+1. ORGANIC PACING & ESCALATION: Do NOT teleport the story directly to the destination. Each intermediate beat must dramatize a distinct stage of transit, obstacle, discovery, or escalating confrontation.
+2. CHAINED EDGES: In each intermediate beat, primaryTransitionChoice.leadToSceneId must point to the NEXT intermediate beat's sceneId (e.g. beat 1 -> beat 2), and the final intermediate beat's primaryTransitionChoice.leadToSceneId must point to the TARGET SCENE ID.
+3. NATURAL WORLD INTEGRATION: Use available world locations and lore elements (hazards, travel routes, active factions) across the journey.
+4. NO DIFFICULTY / RISK TIERS: Strictly avoid artificial difficulty or risk labels in choice texts.)`;
     }
 
 
@@ -488,21 +522,53 @@ CRITICAL CHOICE DESIGN RULES:
       ? `${constraintLine}\n${schemaInstruction}`
       : schemaInstruction;
 
-    const userPromptText =
-      type === 'weave_story'
-        ? buildWeavePrompt({
-            story: (body.story || {}) as StoryManifest,
-            anchors: Array.isArray(body.anchors) ? body.anchors : [],
-            scope: body.scope === 'whole_arc' ? 'whole_arc' : 'act',
-            actGoal: body.actGoal || '',
-            chapterNumber: body.chapterNumber,
-            rpgStatIds: Array.isArray(body.rpgStatIds) ? body.rpgStatIds : [],
-            existingSceneIds: Array.isArray(body.existingSceneIds) ? body.existingSceneIds : [],
-            isPersian: !!isPersian,
-          }).promptText
-        : customSystemPrompt?.trim()
+    let userPromptText = '';
+    if (type === 'scene_choices') {
+      const sc = body.scene;
+      const statList = Array.isArray(body.rpgStatIds) && body.rpgStatIds.length > 0
+        ? `Valid RPG Stats: ${body.rpgStatIds.join(', ')}`
+        : '';
+      const existing = Array.isArray(sc?.existingChoices) && sc!.existingChoices.length > 0
+        ? `Already existing choices on this scene (DO NOT duplicate):\n- ${sc!.existingChoices.map((c: any) => c.text || c).join('\n- ')}`
+        : '';
+      userPromptText = `Generate 2 to 4 compelling literary choices for the following scene:\n\nSCENE ID: ${sc?.sceneId || 'active_scene'}\nLOCATION: ${sc?.locationName || sc?.locationId || 'Unknown'}\nNARRATIVE PROSE:\n${sc?.narrativeText || 'In the midst of crisis...'}\n\n${existing}\n\n${statList}\n\nAUTHOR GUIDANCE: ${prompt || 'Provide diverse tactical and narrative approaches.'}\n\n${effectiveSchemaInstruction}`;
+    } else if (type === 'scene_next') {
+      const sc = body.scene;
+      const ch = body.choice;
+      const locList = Array.isArray(body.availableLocations)
+        ? `Available Locations:\n${body.availableLocations.map((l) => `- ${l.name} (${l.id})`).join('\n')}`
+        : '';
+      const statList = Array.isArray(body.rpgStatIds) && body.rpgStatIds.length > 0
+        ? `Valid RPG Stats: ${body.rpgStatIds.join(', ')}`
+        : '';
+      userPromptText = `Generate the immediate subsequent scene continuing from this player choice:\n\nORIGIN SCENE:\nLocation: ${sc?.locationName || sc?.locationId || 'Unknown'}\nProse: ${sc?.narrativeText || ''}\n\nPLAYER'S CHOSEN ACTION:\n"${ch?.text || 'Continue'}" (Style: ${ch?.style || 'inquisitive'})\n\n${locList}\n\n${statList}\n\nAUTHOR GUIDANCE: ${prompt || 'Continue smoothly and build dramatic tension.'}\n\n${effectiveSchemaInstruction}`;
+    } else if (type === 'scene_bridge') {
+      const start = body.startScene;
+      const target = body.targetScene;
+      const count = Math.max(2, Math.min(4, body.beatCount || 2));
+      const locList = Array.isArray(body.availableLocations)
+        ? `Available Locations along the way:\n${body.availableLocations.map((l) => `- ${l.name} (${l.id})`).join('\n')}`
+        : '';
+      const statList = Array.isArray(body.rpgStatIds) && body.rpgStatIds.length > 0
+        ? `Valid RPG Stats: ${body.rpgStatIds.join(', ')}`
+        : '';
+      userPromptText = `Generate a ${count}-beat narrative bridge connecting Start Scene to Target Scene:\n\nSTARTING SCENE:\nID: ${start?.sceneId}\nLocation: ${start?.locationName || start?.locationId}\nProse: ${start?.narrativeText}\n${body.startChoice ? `Starting from Choice: "${body.startChoice.text}"\n` : ''}\nTARGET DESTINATION SCENE:\nID: ${target?.sceneId || 'target_scene'}\nTitle/Goal: ${target?.title || target?.goal || 'Destination encounter'}\nLocation: ${target?.locationName || target?.locationId || 'Unknown'}\nProse snippet: ${target?.narrativeText || ''}\n\nNUMBER OF INTERMEDIATE BEATS REQUIRED: ${count}\n\n${locList}\n\n${statList}\n\nAUTHOR GUIDANCE: ${prompt || 'Escalate tension and pace the journey organically.'}\n\n${effectiveSchemaInstruction}`;
+    } else if (type === 'weave_story') {
+      userPromptText = buildWeavePrompt({
+        story: (body.story || {}) as StoryManifest,
+        anchors: Array.isArray(body.anchors) ? body.anchors : [],
+        scope: body.scope === 'whole_arc' ? 'whole_arc' : 'act',
+        actGoal: body.actGoal || '',
+        chapterNumber: body.chapterNumber,
+        rpgStatIds: Array.isArray(body.rpgStatIds) ? body.rpgStatIds : [],
+        existingSceneIds: Array.isArray(body.existingSceneIds) ? body.existingSceneIds : [],
+        isPersian: !!isPersian,
+      }).promptText;
+    } else {
+      userPromptText = customSystemPrompt?.trim()
         ? `Apply the requested changes to the existing ${type} entity and return the complete updated JSON strictly matching the schema:\n${effectiveSchemaInstruction}`
         : `Generate a ${type} entity with creative literary depth.\n${effectiveSchemaInstruction}`;
+    }
 
     // Stat calibration is a rating task, not a creative one — keep it cool and stable.
     const temperature =
