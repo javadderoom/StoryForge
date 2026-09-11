@@ -335,6 +335,25 @@ export interface WorldListItem {
   worldBibleVersion: number;
 }
 
+export interface PublishGateFinding {
+  id: string;
+  severity: 'error' | 'warning' | 'suggestion';
+  title: string;
+  description: string;
+  suggestedFix?: string;
+  involvedEntities?: Array<{ entityType: string; name: string }>;
+}
+
+export interface PublishGateState {
+  ok: boolean;
+  score: number;
+  errors: string[];
+  warnings: string[];
+  findings: PublishGateFinding[];
+  publishedDowngraded: boolean;
+  updatedAt: Date;
+}
+
 interface StudioStoryContextType {
   selectedStoryId: string;
   setSelectedStoryId: (id: string) => void;
@@ -347,6 +366,10 @@ interface StudioStoryContextType {
   lastSaved: Date | null;
   isSyncing: boolean;
   lastServerSynced: Date | null;
+  publishGate: PublishGateState | null;
+  isPublishGateOpen: boolean;
+  setPublishGateOpen: (open: boolean) => void;
+  dismissPublishGate: () => void;
   saveToServer: (manifestToSave?: StoryManifest, showToast?: boolean) => Promise<boolean>;
   createStory: (manifest: StoryManifest) => void;
   /** New story shell inside an existing shared world (lore + RPG inherited live). */
@@ -521,6 +544,8 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastServerSynced, setLastServerSynced] = useState<Date | null>(null);
+  const [publishGate, setPublishGate] = useState<PublishGateState | null>(null);
+  const [isPublishGateOpen, setPublishGateOpen] = useState<boolean>(false);
   const [customStories, setCustomStories] = useState<StoryListItem[]>([]);
   const [worldsList, setWorldsList] = useState<WorldListItem[]>([]);
 
@@ -870,11 +895,31 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         const data = await res.json();
         if (data.success) {
           setLastServerSynced(new Date());
+          if (data.publishGate) {
+            const gate = data.publishGate;
+            const errors: string[] = Array.isArray(gate.errors) ? gate.errors : [];
+            const warnings: string[] = Array.isArray(gate.warnings) ? gate.warnings : [];
+            const hasIssues = errors.length > 0 || warnings.length > 0 || gate.ok === false;
+            if (hasIssues) {
+              setPublishGate({
+                ok: gate.ok !== false && errors.length === 0,
+                score: typeof gate.score === 'number' ? gate.score : 0,
+                errors,
+                warnings,
+                findings: Array.isArray(gate.findings) ? gate.findings : [],
+                publishedDowngraded: !!data.publishedDowngraded,
+                updatedAt: new Date(),
+              });
+              setPublishGateOpen(true);
+            } else {
+              setPublishGate(null);
+            }
+          }
           if (data.publishedDowngraded) {
             notify.info(
               isPersian
-                ? 'تغییرات در سرور ذخیره شد، اما انتشار به دلیل هشدارهای انسجام به تعویق افتاد.'
-                : 'Changes saved to DB server, but publication was deferred due to consistency warnings.'
+                ? 'تغییرات در سرور ذخیره شد، اما انتشار به دلیل هشدارهای انسجام به تعویق افتاد. جزئیات را در پنل بررسی کنید.'
+                : 'Changes saved, but publication was deferred due to consistency warnings. See the panel for details.'
             );
           } else if (showToast) {
             notify.success(
@@ -960,6 +1005,11 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const toggleLanguage = () => {
     setStory((prev) => ({ ...prev, language: prev.language === 'fa' ? 'en' : 'fa' } as StoryManifest));
   };
+
+  const dismissPublishGate = useCallback(() => {
+    setPublishGate(null);
+    setPublishGateOpen(false);
+  }, []);
 
   // Story Meta updater
   const updateStoryMeta = useCallback(
@@ -2459,6 +2509,10 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         lastSaved,
         isSyncing,
         lastServerSynced,
+        publishGate,
+        isPublishGateOpen,
+        setPublishGateOpen,
+        dismissPublishGate,
         saveToServer,
         createStory,
         createStoryInWorld,

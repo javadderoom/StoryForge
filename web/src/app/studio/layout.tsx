@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { StudioStoryProvider, useStudioStory } from '@/lib/context/StudioStoryContext';
 import { Toaster } from '@/lib/notify';
 import { StoryDetailsModal } from '@/components/studio/StoryDetailsModal';
+import { PublishGateNotice } from '@/components/studio/PublishGateNotice';
 import StudioOracleDrawer from '@/components/studio/StudioOracleDrawer';
 import { useAuth } from '@/lib/context/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -607,6 +608,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
               </Link>
             </div>
           )}
+          <PublishGateNotice />
           {children}
         </main>
       </div>
