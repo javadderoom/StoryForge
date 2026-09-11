@@ -141,11 +141,46 @@ export class GeminiAdapter {
   }
 
   /**
-   * Generates a complete structured narrative scene and choices.
+   * Generates a complete structured narrative scene and choices using the
+   * multi-model cascading queue and Cloudflare proxy manager to prevent 429 rate limits.
    */
   public async generateScene(prompt: GenerationPromptPayload): Promise<GeneratedSceneResponse> {
+    const defaultNarrative = prompt.isEnglish
+      ? 'The scene shifts as the consequences of your choice unfold before you...'
+      : 'صحنه به آرامی در برابرت ورق می‌خورد...';
+
+    const validStatIds = Object.keys(prompt.playerStatIds || {});
+
+    // Try multi-model cascading queue first (supports proxy and auto-failover across 3.5/3.1/3.7/2.5/gemma)
+    try {
+      const { generateStructuredJson } = await import('../ai/geminiClient');
+      const queueResult = await generateStructuredJson<Record<string, unknown>>(
+        prompt.userPrompt,
+        prompt.systemPrompt,
+        {
+          taskType: 'scene',
+          temperature: 0.75,
+        }
+      );
+
+      if (queueResult && queueResult.data) {
+        const parsed = queueResult.data;
+        return {
+          narrative:
+            typeof parsed.narrative === 'string' && parsed.narrative.trim()
+              ? parsed.narrative
+              : defaultNarrative,
+          choices: normalizeChoices(parsed.choices, validStatIds, prompt.isEnglish),
+          extractedMemories: normalizeExtractedMemories(parsed.extractedMemories),
+          isMock: false,
+        };
+      }
+    } catch (queueErr) {
+      console.warn('[GeminiAdapter] Cascading queue error, falling back to direct SDK:', queueErr);
+    }
+
     if (!this.client) {
-      // No API key configured (local testing): mock response, flagged as mock.
+      // No API key configured: mock response, flagged as mock.
       return { ...this.generateMockScene(prompt), isMock: true };
     }
 
@@ -165,12 +200,6 @@ export class GeminiAdapter {
       const text = response.text || '{}';
       const parsed = JSON.parse(text);
 
-      const defaultNarrative = prompt.isEnglish
-        ? 'The scene shifts as the consequences of your choice unfold before you...'
-        : 'صحنه به آرامی در برابرت ورق می‌خورد...';
-
-      const validStatIds = Object.keys(prompt.playerStatIds || {});
-
       return {
         narrative:
           typeof parsed.narrative === 'string' && parsed.narrative.trim()
@@ -182,7 +211,7 @@ export class GeminiAdapter {
       };
     } catch (error) {
       // Plan 08: a failed generation must NOT silently degrade into fake canon.
-      console.error('Gemini API generation error:', error);
+      console.error('[GeminiAdapter] Direct API generation error:', error);
       return { ...this.generateMockScene(prompt), isMock: true };
     }
   }

@@ -96,6 +96,7 @@ export async function sendAction(payload: {
   playerState: PlayerState;
   turnNumber: number;
   targetSceneId?: string;
+  draftManifest?: any;
 }): Promise<any> {
   const res = await fetch('/api/play/action', {
     method: 'POST',
@@ -105,10 +106,15 @@ export async function sendAction(payload: {
   return asJson(res);
 }
 
-/** Cover image resolution: bundled webp/jpg by story id, else remote, else null. */
+/** Cover image resolution: explicit remoteUrl/authored coverImageUrl first, else null. */
 export function getCoverUrl(storyId?: string | null, remoteUrl?: string | null): string | null {
-  if (storyId) {
+  if (remoteUrl && remoteUrl.trim()) {
+    return remoteUrl.trim();
+  }
+  // Known bundled static covers in /public/covers
+  const KNOWN_BUNDLED_COVERS = new Set(['ghale_siahsang', 'obsidian_citadel']);
+  if (storyId && KNOWN_BUNDLED_COVERS.has(storyId)) {
     return `/covers/${storyId}.webp`;
   }
-  return remoteUrl || null;
+  return null;
 }

@@ -2,11 +2,11 @@
 
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Pencil, Trash2, Sparkles, Film, ArrowLeft, ArrowRight, Users } from 'lucide-react';
+import { Plus, Pencil, Trash2, Sparkles, Film, ArrowLeft, ArrowRight, Users, Check, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { notify } from '@/lib/notify';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
-import { StoryBeat, StoryChapter, ScopeTier } from '@/lib/types/world';
+import { StoryBeat, StoryChapter, ScopeTier, ArcStage } from '@/lib/types/world';
 import { resolveSceneChoiceEdges, evictPlaceholderBeats, isPlaceholderBeat } from '@/lib/engines/world/sceneResolution';
 import { getBeatsForChapter } from '@/lib/engines/world/graphMigration';
 
@@ -61,6 +61,8 @@ export default function NarrativeArcsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState<ArcForm>(EMPTY_FORM);
   const [generatingActId, setGeneratingActId] = useState<string | null>(null);
+  const [editingStageId, setEditingStageId] = useState<string | null>(null);
+  const [addingStageToActId, setAddingStageToActId] = useState<string | null>(null);
 
   const chapters = useMemo(
     () => [...(story.saga?.chapters ?? [])].sort((a, b) => a.chapterNumber - b.chapterNumber),
@@ -160,6 +162,76 @@ export default function NarrativeArcsPage() {
     );
     updateStoryBeats((prev) => (prev || []).filter((b) => b.chapterId !== act.id));
     notify.info(isPersian ? 'پرده حذف شد' : 'Act removed');
+  };
+
+  // ----------------------------------------------------------------
+  // Arc Stages Management Handlers
+  // ----------------------------------------------------------------
+  const handleAddStage = (chapterId: string) => {
+    const act = chapters.find((c) => c.id === chapterId);
+    const currentStages = act?.stages || [];
+    const newStageOrder = currentStages.length + 1;
+    const newStage: ArcStage = {
+      id: makeId('stage'),
+      order: newStageOrder,
+      title: isPersian ? `مرحله ${newStageOrder}` : `Stage ${newStageOrder}`,
+      stageType: 'custom',
+      description: '',
+    };
+
+    persistChapters((prev) =>
+      prev.map((ch) => (ch.id === chapterId ? { ...ch, stages: [...(ch.stages || []), newStage] } : ch))
+    );
+    setEditingStageId(newStage.id);
+    setAddingStageToActId(chapterId);
+    notify.success(isPersian ? 'مرحله جدید به پرده افزوده شد' : 'New stage added to act');
+  };
+
+  const handleUpdateStage = (chapterId: string, stageId: string, patch: Partial<ArcStage>) => {
+    persistChapters((prev) =>
+      prev.map((ch) => {
+        if (ch.id !== chapterId) return ch;
+        return {
+          ...ch,
+          stages: (ch.stages || []).map((s) => (s.id === stageId ? { ...s, ...patch } : s)),
+        };
+      })
+    );
+  };
+
+  const handleDeleteStage = (chapterId: string, stageId: string) => {
+    persistChapters((prev) =>
+      prev.map((ch) => {
+        if (ch.id !== chapterId) return ch;
+        const remaining = (ch.stages || []).filter((s) => s.id !== stageId);
+        return {
+          ...ch,
+          stages: remaining.map((s, idx) => ({ ...s, order: idx + 1 })),
+        };
+      })
+    );
+    if (editingStageId === stageId) setEditingStageId(null);
+    notify.info(isPersian ? 'مرحله روایی حذف شد' : 'Arc stage deleted');
+  };
+
+  const handleMoveStage = (chapterId: string, stageId: string, direction: 'up' | 'down') => {
+    const act = chapters.find((c) => c.id === chapterId);
+    if (!act || !act.stages) return;
+    const idx = act.stages.findIndex((s) => s.id === stageId);
+    if (idx === -1) return;
+    if (direction === 'up' && idx === 0) return;
+    if (direction === 'down' && idx === act.stages.length - 1) return;
+
+    const newStages = [...act.stages];
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    const temp = newStages[idx];
+    newStages[idx] = newStages[targetIdx];
+    newStages[targetIdx] = temp;
+
+    const reordered = newStages.map((s, i) => ({ ...s, order: i + 1 }));
+    persistChapters((prev) =>
+      prev.map((ch) => (ch.id === chapterId ? { ...ch, stages: reordered } : ch))
+    );
   };
 
   const mapDraftScenesToBeats = (act: StoryChapter, draftScenes: DraftScene[]): StoryBeat[] => {
@@ -380,35 +452,139 @@ export default function NarrativeArcsPage() {
                 </p>
               )}
 
-              {/* Narrative Stages Preview */}
-              {act.stages && act.stages.length > 0 ? (
-                <div className="mt-3 pt-2.5 border-t border-zinc-800/60 space-y-1.5">
-                  <span className="text-[10px] font-bold text-amber-400/90 uppercase tracking-wider block">
-                    {isPersian ? 'مراحل روایی قوس داستان:' : 'Narrative Stages:'}
+              {/* Narrative Stages Management */}
+              <div className="mt-3 pt-2.5 border-t border-zinc-800/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-amber-400/90 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3 text-amber-400" />
+                    <span>{isPersian ? 'مراحل روایی قوس داستان:' : 'Narrative Stages:'}</span>
+                    <span className="text-zinc-500 font-mono text-[9px]">({(act.stages || []).length})</span>
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => handleAddStage(act.id)}
+                    className="text-[10px] bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 px-2.5 py-0.5 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>{isPersian ? 'افزودن مرحله' : 'Add Stage'}</span>
+                  </button>
+                </div>
+
+                {act.stages && act.stages.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {act.stages.map((st) => (
-                      <div key={st.id} className="p-2 rounded-xl bg-zinc-950/70 border border-zinc-800 text-[11px] space-y-0.5">
-                        <div className="font-bold text-zinc-200 flex items-center gap-1.5">
-                          <span className="w-4 h-4 rounded-full bg-purple-500/20 text-purple-300 font-mono text-[9px] flex items-center justify-center">
-                            {st.order}
-                          </span>
-                          <span className="truncate">{st.title}</span>
+                    {act.stages.map((st, sIdx) => {
+                      const isEditing = editingStageId === st.id;
+                      return (
+                        <div
+                          key={st.id}
+                          className={`p-2.5 rounded-xl border text-[11px] transition-all ${
+                            isEditing
+                              ? 'bg-purple-950/40 border-purple-500/50 shadow-md ring-1 ring-purple-500/30'
+                              : 'bg-zinc-950/70 border-zinc-800/80 hover:border-zinc-700'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-1 mb-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="w-4 h-4 rounded-full bg-purple-500/20 text-purple-300 font-mono text-[9px] font-bold flex items-center justify-center shrink-0">
+                                {st.order}
+                              </span>
+                              {!isEditing && (
+                                <span className="font-bold text-zinc-200 truncate" title={st.title}>
+                                  {st.title}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Stage Action Controls */}
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              {/* Reorder Buttons */}
+                              <button
+                                type="button"
+                                disabled={sIdx === 0}
+                                onClick={() => handleMoveStage(act.id, st.id, 'up')}
+                                className="p-0.5 rounded text-zinc-500 hover:text-zinc-300 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                                title={isPersian ? 'انتقال به بالا' : 'Move up'}
+                              >
+                                <ChevronUp className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={sIdx === act.stages!.length - 1}
+                                onClick={() => handleMoveStage(act.id, st.id, 'down')}
+                                className="p-0.5 rounded text-zinc-500 hover:text-zinc-300 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                                title={isPersian ? 'انتقال به پایین' : 'Move down'}
+                              >
+                                <ChevronDown className="w-3 h-3" />
+                              </button>
+
+                              {/* Edit / Save Toggle */}
+                              <button
+                                type="button"
+                                onClick={() => setEditingStageId(isEditing ? null : st.id)}
+                                className={`p-1 rounded transition-colors cursor-pointer ${
+                                  isEditing
+                                    ? 'text-emerald-400 hover:bg-emerald-500/20'
+                                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+                                }`}
+                                title={isEditing ? (isPersian ? 'پایان ویرایش' : 'Done') : (isPersian ? 'ویرایش مرحله' : 'Edit')}
+                              >
+                                {isEditing ? <Check className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
+                              </button>
+
+                              {/* Delete Stage */}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteStage(act.id, st.id)}
+                                className="text-zinc-500 hover:text-rose-400 p-1 rounded transition-colors cursor-pointer"
+                                title={isPersian ? 'حذف مرحله' : 'Delete stage'}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {isEditing ? (
+                            <div className="space-y-1.5 mt-1.5 animate-fadeIn">
+                              <input
+                                type="text"
+                                value={st.title}
+                                onChange={(e) => handleUpdateStage(act.id, st.id, { title: e.target.value })}
+                                placeholder={isPersian ? 'عنوان مرحله...' : 'Stage title...'}
+                                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-[11px] text-zinc-100 focus:outline-none focus:border-amber-400 font-bold"
+                              />
+                              <textarea
+                                rows={2}
+                                value={st.description}
+                                onChange={(e) => handleUpdateStage(act.id, st.id, { description: e.target.value })}
+                                placeholder={isPersian ? 'شرح موقعیت، تعلیق و چالش این مرحله...' : 'Stage conflict and objective...'}
+                                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-1.5 text-[10px] text-zinc-200 focus:outline-none focus:border-amber-400 leading-relaxed"
+                              />
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-zinc-400 line-clamp-2 leading-relaxed">
+                              {st.description || (isPersian ? '(بدون شرح)' : '(No description)')}
+                            </p>
+                          )}
                         </div>
-                        {st.description && (
-                          <p className="text-[10px] text-zinc-400 line-clamp-2 leading-relaxed">{st.description}</p>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                </div>
-              ) : (
-                <div className="mt-2.5 pt-2 border-t border-zinc-800/40 flex items-center justify-between">
-                  <span className="text-[10px] text-zinc-500">
-                    {isPersian ? 'مراحل روایی هنوز تعریف نشده' : 'No stages defined yet'}
-                  </span>
-                </div>
-              )}
+                ) : (
+                  <div className="p-3 rounded-xl bg-zinc-950/60 border border-dashed border-zinc-800 text-center space-y-1.5">
+                    <p className="text-[11px] text-zinc-400">
+                      {isPersian ? 'هنوز مرحله‌ای برای این قوس تعریف نشده است.' : 'No stages defined for this arc yet.'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleAddStage(act.id)}
+                      className="text-[11px] text-amber-400 hover:text-amber-300 font-bold inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>{isPersian ? 'ایجاد اولین مرحله' : 'Create first stage'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <div className="mt-4 pt-3 border-t border-zinc-800/60 flex items-center justify-between gap-3 flex-wrap">
                 <button

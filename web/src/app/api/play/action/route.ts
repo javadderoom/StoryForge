@@ -57,14 +57,25 @@ export async function POST(req: NextRequest) {
 
     const rawStory = await StoryRepository.getStoryById(storyId);
 
-    if (!rawStory) {
+    if (!rawStory && !body?.draftManifest) {
       return NextResponse.json(
         { success: false, error: 'Story not found' },
         { status: 404, headers: corsHeaders }
       );
     }
 
-    const story = migrateStoryManifestToUnifiedGraph(rawStory);
+    const baseStory = rawStory || (body.draftManifest as any);
+    const storyToMigrate = body?.draftManifest
+      ? {
+          ...baseStory,
+          ...body.draftManifest,
+          initialStoryBeats: body.draftManifest.initialStoryBeats?.length
+            ? body.draftManifest.initialStoryBeats
+            : baseStory.initialStoryBeats,
+        }
+      : baseStory;
+
+    const story = migrateStoryManifestToUnifiedGraph(storyToMigrate);
 
     if (!playerActionText || typeof playerActionText !== 'string') {
       return NextResponse.json(

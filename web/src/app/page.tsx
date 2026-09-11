@@ -335,6 +335,15 @@ export default function Home() {
     const isDiceless = choice.targetDC === undefined && choice.requiredStatId === undefined;
     const nextTurn = turnNumber + 1;
 
+    // Read any local draft created or modified in Studio
+    let localDraft: any = undefined;
+    try {
+      const draftRaw = localStorage.getItem(`storyforge_studio_draft_v1_${selectedStory.id}`);
+      if (draftRaw) localDraft = JSON.parse(draftRaw);
+    } catch {
+      /* ignore */
+    }
+
     // Plan 12: Diceless choices branch without a roll
     if (isDiceless) {
       setLoading(true);
@@ -348,6 +357,7 @@ export default function Home() {
           playerState,
           turnNumber: nextTurn,
           targetSceneId,
+          draftManifest: localDraft,
         });
         if (json.isGuardrailViolation) {
           setErrorMessage(json.rejectionReason);
@@ -401,6 +411,7 @@ export default function Home() {
         playerState,
         turnNumber: nextTurn,
         targetSceneId,
+        draftManifest: localDraft,
       });
       if (json.isGuardrailViolation) {
         setErrorMessage(json.rejectionReason);
