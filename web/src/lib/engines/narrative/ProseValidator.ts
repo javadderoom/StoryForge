@@ -64,31 +64,26 @@ export function validateProse(
     collect((opts.worldBible.religions || []) as Array<{ name?: string; title?: string }>);
     collect((opts.worldBible.bestiary || []) as Array<{ name?: string }>);
 
+    // In English, proper nouns are capitalized. In Persian/Arabic script, there is NO capitalization!
+    // Matching arbitrary Persian words ([\u0600-\u06FF]{4,}) wrongly flagged common words, adjectives, and verbs
+    // as "smuggled proper nouns", rejecting perfectly valid Persian prose.
     const candidates = new Set<string>();
     for (const m of text.matchAll(/\b[A-Z][a-z]{3,}(?:\s+[A-Z][a-z]{3,}){0,2}\b/g)) {
       candidates.add(m[0].trim().toLowerCase());
     }
-    for (const m of text.matchAll(/[\u0600-\u06FF]{4,}(?:\s+[\u0600-\u06FF]{3,}){0,2}/g)) {
-      candidates.add(m[0].trim());
-    }
-    const stop = new Set(['the', 'this', 'that', 'with', 'from', 'your', 'their', 'when', 'then', 'there']);
+    const stop = new Set(['the', 'this', 'that', 'with', 'from', 'your', 'their', 'when', 'then', 'there', 'they', 'what', 'where', 'while', 'after', 'before']);
     let unknown = 0;
     for (const c of candidates) {
       if (c.length < 4 || stop.has(c)) continue;
       const hit = [...known].some((k) => k && (k.includes(c) || c.includes(k)));
       if (!hit) unknown++;
     }
-    if (unknown > 3) {
-      findings.push({
-        severity: 'error',
-        category: 'new_entity',
-        detail: `${unknown} unknown proper nouns in prose; possible smuggled entities.`,
-      });
-    } else if (unknown > 0) {
+    // Unknown English proper nouns or novel entities should warn for review rather than fatally breaking gameplay
+    if (unknown > 5) {
       findings.push({
         severity: 'warning',
         category: 'new_entity',
-        detail: `${unknown} unknown proper noun(s); verify against World Bible.`,
+        detail: `${unknown} unknown proper nouns in prose; verify against World Bible.`,
       });
     }
   }
