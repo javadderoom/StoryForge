@@ -7,6 +7,7 @@ import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { notify } from '@/lib/notify';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
 import { StoryBeat, StoryChapter, ScopeTier } from '@/lib/types/world';
+import { resolveSceneChoiceEdges } from '@/lib/engines/world/sceneResolution';
 
 const makeId = (prefix: string) => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
@@ -36,6 +37,7 @@ const EMPTY_FORM: ArcForm = {
 };
 
 interface DraftScene {
+  sceneId?: string;
   title?: string;
   settingLocationName?: string;
   narrativeText?: string;
@@ -45,6 +47,8 @@ interface DraftScene {
     textEn?: string;
     style?: string;
     statCheck?: { stat?: string; dc?: number };
+    leadToSceneId?: string;
+    targetSceneId?: string;
   }>;
 }
 
@@ -157,11 +161,11 @@ export default function NarrativeArcsPage() {
     const locationList = story.worldBible.locations || [];
     const defaultLocId = locationList[0]?.id || 'loc_hub';
 
-    return draftScenes.map((sc) => {
+    const rawBeats: StoryBeat[] = draftScenes.map((sc) => {
       const matchedLoc = locationList.find((l) =>
         l.name.toLowerCase().includes((sc.settingLocationName || '').toLowerCase())
       );
-      const sceneId = makeId(`arc${act.chapterNumber}_s`);
+      const sceneId = sc.sceneId || makeId(`arc${act.chapterNumber}_s`);
       return {
         sceneId,
         locationId: matchedLoc?.id || defaultLocId,
@@ -185,9 +189,13 @@ export default function NarrativeArcsPage() {
                 : ('low' as const),
           targetDC: choice.statCheck?.dc,
           requiredStatId: choice.statCheck?.stat,
+          targetSceneId: choice.leadToSceneId || choice.targetSceneId,
         })),
       };
     });
+
+    const { resolvedBeats } = resolveSceneChoiceEdges(rawBeats, act.scenes || []);
+    return resolvedBeats;
   };
 
   const handleGenerateScenes = async (act: StoryChapter) => {

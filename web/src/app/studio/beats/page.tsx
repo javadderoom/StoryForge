@@ -33,6 +33,7 @@ import {
   EpicSagaSynthesis,
   EpicSagaSynthesisSchema,
 } from '@/lib/types/world';
+import { resolveSceneChoiceEdges, evictPlaceholderBeats } from '@/lib/engines/world/sceneResolution';
 
 const SCOPE_TIER_META: Record<
   string,
@@ -124,22 +125,27 @@ export default function StoryBeatsStudioPage() {
       if (json.success && json.data) {
         const beat = json.data;
         const newSceneId = makeId('scene');
-        updateStoryBeats((prev) => [
-          ...(prev || []),
-          {
-            sceneId: newSceneId,
-            locationId: sceneLocationId,
-            narrativeText: beat.narrativeText || (isPersian ? 'روایت جدید...' : 'New beat text...'),
-            choices: (beat.choices || []).map((c: any, idx: number) => ({
-              id: `choice_${newSceneId}_${idx + 1}`,
-              text: c.text || (isPersian ? 'انتخاب' : 'Choice'),
-              style: c.style || 'defensive',
-              riskLevel: c.riskLevel || 'low',
-              targetDC: c.targetDC,
-              requiredStatId: c.requiredStatId,
-            })),
-          },
-        ]);
+        const rawNewBeat: StoryBeat = {
+          sceneId: newSceneId,
+          locationId: sceneLocationId,
+          narrativeText: beat.narrativeText || (isPersian ? 'روایت جدید...' : 'New beat text...'),
+          choices: (beat.choices || []).map((c: any, idx: number) => ({
+            id: `choice_${newSceneId}_${idx + 1}`,
+            text: c.text || (isPersian ? 'انتخاب' : 'Choice'),
+            style: c.style || 'defensive',
+            riskLevel: c.riskLevel || 'low',
+            targetDC: c.targetDC,
+            requiredStatId: c.requiredStatId,
+            targetSceneId: c.targetSceneId || c.leadToSceneId,
+          })),
+        };
+
+        updateStoryBeats((prev) => {
+          const baseBeats = evictPlaceholderBeats(prev || []);
+          const candidateBeats = [...baseBeats, rawNewBeat];
+          const { resolvedBeats } = resolveSceneChoiceEdges(candidateBeats);
+          return resolvedBeats;
+        });
 
         setAiSceneModalOpen(false);
         notify.success(
@@ -217,13 +223,14 @@ export default function StoryBeatsStudioPage() {
             riskLevel: choice.style === 'aggressive_daring' ? 'high' : choice.style === 'tactical_agile' ? 'medium' : 'low',
             targetDC: choice.statCheck?.dc,
             requiredStatId: choice.statCheck?.stat,
-            destinationSceneId: choice.leadToSceneId,
+            targetSceneId: choice.leadToSceneId,
           })),
         });
       }
     }
 
-    updateStoryBeats(() => allNewBeats);
+    const { resolvedBeats } = resolveSceneChoiceEdges(allNewBeats);
+    updateStoryBeats(() => resolvedBeats);
     setTreeSynthesisPreview(null);
     notify.success(
       isPersian
@@ -275,6 +282,8 @@ export default function StoryBeatsStudioPage() {
           };
         });
 
+        const { resolvedBeats } = resolveSceneChoiceEdges(scenes);
+
         return {
           id: chapterId,
           chapterNumber: ch.chapterNumber || i + 1,
@@ -282,7 +291,7 @@ export default function StoryBeatsStudioPage() {
           scopeTier: ch.scopeTier,
           narrativeGoal: ch.narrativeGoal || '',
           prerequisiteFlags: ch.prerequisiteFlags || [],
-          scenes,
+          scenes: resolvedBeats,
           completionSummaryPrompt: ch.completionSummaryPrompt || '',
         };
       });
