@@ -7,7 +7,8 @@ import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { notify } from '@/lib/notify';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
 import { StoryBeat, StoryChapter, ScopeTier } from '@/lib/types/world';
-import { resolveSceneChoiceEdges } from '@/lib/engines/world/sceneResolution';
+import { resolveSceneChoiceEdges, evictPlaceholderBeats, isPlaceholderBeat } from '@/lib/engines/world/sceneResolution';
+import { getBeatsForChapter } from '@/lib/engines/world/graphMigration';
 
 const makeId = (prefix: string) => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
@@ -53,7 +54,7 @@ interface DraftScene {
 }
 
 export default function NarrativeArcsPage() {
-  const { story, isPersian, isRtl, updateSaga } = useStudioStory();
+  const { story, isPersian, isRtl, updateSaga, updateStoryBeats, updateStoryMeta } = useStudioStory();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -141,11 +142,12 @@ export default function NarrativeArcsPage() {
   };
 
   const handleDeleteAct = async (act: StoryChapter) => {
+    const actBeatsCount = getBeatsForChapter(story, act.id).length;
     const confirmed = await notify.confirm({
       title: isPersian ? 'حذف پرده' : 'Delete Act',
       message: isPersian
-        ? `«${act.title}» و تمام ${act.scenes.length} صحنه آن حذف شود؟`
-        : `Delete "${act.title}" and its ${act.scenes.length} scene(s)?`,
+        ? `«${act.title}» و تمام ${actBeatsCount} صحنه آن حذف شود؟`
+        : `Delete "${act.title}" and its ${actBeatsCount} scene(s)?`,
       confirmText: isPersian ? 'حذف' : 'Delete',
       cancelText: isPersian ? 'انصراف' : 'Cancel',
       isDestructive: true,
@@ -154,6 +156,7 @@ export default function NarrativeArcsPage() {
     persistChapters((prev) =>
       prev.filter((c) => c.id !== act.id).map((c, i) => ({ ...c, chapterNumber: i + 1 }))
     );
+    updateStoryBeats((prev) => (prev || []).filter((b) => b.chapterId !== act.id));
     notify.info(isPersian ? 'پرده حذف شد' : 'Act removed');
   };
 
@@ -166,27 +169,27 @@ export default function NarrativeArcsPage() {
         l.name.toLowerCase().includes((sc.settingLocationName || '').toLowerCase())
       );
       const sceneId = sc.sceneId || makeId(`arc${act.chapterNumber}_s`);
+      const titlePrefix = sc.title ? `${sc.title.trim()}\n\n` : '';
+      const conflictSuffix = sc.primaryConflict ? `\n\n⚔ ${sc.primaryConflict.trim()}` : '';
+      const cleanNarrative = (sc.narrativeText || '')
+        .replace(/^\[(?:arc|پرده)\s*[\d\w\u06F0-\u06F9]+\]\s*/i, '')
+        .trim();
+      const narrativeText = `${titlePrefix}${cleanNarrative}${conflictSuffix}`.trim();
+
+      const ALLOWED_STYLES = ['diplomatic', 'tactical', 'aggressive', 'agile', 'defensive', 'inquisitive', 'bold', 'evasive'];
+
       return {
         sceneId,
+        chapterId: act.id,
         locationId: matchedLoc?.id || defaultLocId,
-        narrativeText: `[${act.title}] ${sc.title || ''}\n\n${sc.narrativeText || ''}${
-          sc.primaryConflict ? `\n\n⚔ ${sc.primaryConflict}` : ''
-        }`.trim(),
+        narrativeText,
         choices: (sc.presentedChoices || []).map((choice, idx) => ({
           id: `choice_${sceneId}_${idx + 1}`,
           text: (isPersian ? choice.textFa : choice.textEn) || choice.textEn || choice.textFa || '…',
-          style:
-            choice.style === 'defensive_diplomatic'
-              ? ('defensive' as const)
-              : choice.style === 'tactical_agile'
-                ? ('agile' as const)
-                : ('aggressive' as const),
-          riskLevel:
-            choice.style === 'aggressive_daring'
-              ? ('high' as const)
-              : choice.style === 'tactical_agile'
-                ? ('medium' as const)
-                : ('low' as const),
+          style: choice.style && ALLOWED_STYLES.includes(choice.style)
+            ? (choice.style as any)
+            : 'inquisitive',
+          riskLevel: 'medium' as const,
           targetDC: choice.statCheck?.dc,
           requiredStatId: choice.statCheck?.stat,
           targetSceneId: choice.leadToSceneId || choice.targetSceneId,
@@ -194,7 +197,19 @@ export default function NarrativeArcsPage() {
       };
     });
 
-    const { resolvedBeats } = resolveSceneChoiceEdges(rawBeats, act.scenes || []);
+    // CRITICAL: Prevent false convergence!
+    // If all choices in a scene target the exact same subsequent scene, clear them out
+    // to prevent artificial funneling of divergent choices into an unrelated scene.
+    for (const beat of rawBeats) {
+      const targets = (beat.choices || []).map((c) => c.targetSceneId).filter(Boolean);
+      if (targets.length > 1 && new Set(targets).size === 1) {
+        for (const c of beat.choices || []) {
+          c.targetSceneId = undefined;
+        }
+      }
+    }
+
+    const { resolvedBeats } = resolveSceneChoiceEdges(rawBeats, story.initialStoryBeats || []);
     return resolvedBeats;
   };
 
@@ -231,13 +246,37 @@ export default function NarrativeArcsPage() {
       }
 
       const beats = mapDraftScenesToBeats(act, json.data.scenes as DraftScene[]);
+
+      // Update Unified Beat Graph in initialStoryBeats
+      updateStoryBeats((prev) => {
+        const existing = prev || [];
+        const nonPlaceholders = evictPlaceholderBeats(existing);
+        const map = new Map<string, StoryBeat>();
+        for (const b of nonPlaceholders) map.set(b.sceneId, b);
+        for (const b of beats) map.set(b.sceneId, b);
+        return Array.from(map.values());
+      });
+
+      // Keep saga chapter metadata clean (empty scenes array in unified graph)
       persistChapters((prev) =>
-        prev.map((c) => (c.id === act.id ? { ...c, scenes: [...c.scenes, ...beats] } : c))
+        prev.map((c) => (c.id === act.id ? { ...c, scenes: [] } : c))
       );
+
+      // If initialSceneId is not set or was pointing to an evicted placeholder, set to first generated scene
+      if (beats.length > 0) {
+        const currentInitial = story.initialSceneId;
+        const existsInCurrent = (story.initialStoryBeats || []).some(
+          (b) => b.sceneId === currentInitial && !isPlaceholderBeat(b)
+        );
+        if (!existsInCurrent) {
+          updateStoryMeta({ initialSceneId: beats[0].sceneId });
+        }
+      }
+
       notify.success(
         isPersian
-          ? `${beats.length} صحنه از این روایت ساخته شد — در «سناریو» قابل ویرایش است`
-          : `${beats.length} scene(s) generated from your arc — edit them in Beats`
+          ? `${beats.length} صحنه از این روایت ساخته شد — در «سناریو» و «کتابخوان بازی» قابل بازی است`
+          : `${beats.length} scene(s) generated from your arc — playable in Beats and Game Reader`
       );
     } catch (err) {
       notify.error(err instanceof Error ? err.message : isPersian ? 'خطا در تولید صحنه‌ها' : 'Scene generation failed');
@@ -313,7 +352,7 @@ export default function NarrativeArcsPage() {
                         </span>
                       )}
                       <span className="text-[10px] font-mono text-zinc-500">
-                        {act.scenes.length} {isPersian ? 'صحنه' : 'scene(s)'}
+                        {getBeatsForChapter(story, act.id).length} {isPersian ? 'صحنه' : 'scene(s)'}
                       </span>
                     </div>
                   </div>
@@ -347,7 +386,7 @@ export default function NarrativeArcsPage() {
                     ? isPersian ? 'در حال ساخت صحنه‌ها…' : 'Generating scenes…'
                     : isPersian ? 'ساخت صحنه از این روایت' : 'Generate scenes from this arc'}
                 </button>
-                {act.scenes.length > 0 && (
+                {getBeatsForChapter(story, act.id).length > 0 && (
                   <Link href="/studio/beats" className="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1 font-mono">
                     {isPersian ? 'ویرایش صحنه‌ها در سناریو' : 'Edit scenes in Beats'}
                     {isRtl ? <ArrowLeft className="w-3 h-3" /> : <ArrowRight className="w-3 h-3" />}

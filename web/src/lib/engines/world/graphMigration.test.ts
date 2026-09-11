@@ -5,6 +5,8 @@ import {
   getBeatsForChapter,
   getOpeningBeats,
   updateUnifiedChapterScenes,
+  stripLegacyArcPrefix,
+  normalizeBeatChoices,
 } from './graphMigration';
 import { StoryManifest } from '@/lib/types';
 import { StoryBeat } from '@/lib/types/world';
@@ -179,5 +181,44 @@ describe('Plan 12 — Unified Beat Graph Migration', () => {
     const opening = getOpeningBeats(updated);
     assert.equal(opening.length, 1);
     assert.equal(opening[0].sceneId, 'scene_prologue');
+  });
+
+  it('stripLegacyArcPrefix removes [arc X] and [پرده X] prefixes cleanly', () => {
+    assert.equal(
+      stripLegacyArcPrefix('[arc 1] The siege begins with catapult fire.'),
+      'The siege begins with catapult fire.'
+    );
+    assert.equal(
+      stripLegacyArcPrefix('[Arc 2] Confronting the council.'),
+      'Confronting the council.'
+    );
+    assert.equal(
+      stripLegacyArcPrefix('[پرده ۱] باران خاکستر بر سر شهر می‌بارد.'),
+      'باران خاکستر بر سر شهر می‌بارد.'
+    );
+    assert.equal(
+      stripLegacyArcPrefix('[پرده 3] نبرد نهایی در بارو.'),
+      'نبرد نهایی در بارو.'
+    );
+    assert.equal(
+      stripLegacyArcPrefix('A normal narrative text without any bracketed arc prefix.'),
+      'A normal narrative text without any bracketed arc prefix.'
+    );
+    assert.equal(stripLegacyArcPrefix(''), '');
+  });
+
+  it('normalizeBeatChoices and migrateStoryManifest sanitize [arc 1] prefixes automatically', () => {
+    const beatWithArcPrefix: StoryBeat = {
+      sceneId: 'sc_arc_test',
+      locationId: 'loc_1',
+      narrativeText: '[arc 1] Ambush in the foggy alleyway.\n\nBandits appear!',
+      choices: [
+        { id: 'c1', text: 'Fight back', style: 'aggressive', riskLevel: 'high' } as any,
+      ],
+    };
+
+    const normalized = normalizeBeatChoices(beatWithArcPrefix);
+    assert.equal(normalized.narrativeText, 'Ambush in the foggy alleyway.\n\nBandits appear!');
+    assert.equal(normalized.narrativeText.includes('[arc 1]'), false);
   });
 });

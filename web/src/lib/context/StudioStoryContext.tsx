@@ -384,7 +384,7 @@ interface StudioStoryContextType {
   selectedWorldId: string;
   refreshWorlds: () => Promise<void>;
   // Updaters
-  updateStoryMeta: (updates: Partial<Pick<StoryManifest, 'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'coverImageUrl' | 'activeMilestoneGoal' | 'storyScale'>>) => void;
+  updateStoryMeta: (updates: Partial<Pick<StoryManifest, 'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'coverImageUrl' | 'activeMilestoneGoal' | 'storyScale' | 'initialSceneId'>>) => void;
   updateWorldBible: (updater: (prev: WorldBible) => WorldBible) => void;
   updateWorldMeta: (meta: Partial<Pick<WorldBible, 'worldName' | 'summary' | 'themeNotes' | 'aiSystemPrompt'>>) => void;
   // Laws CRUD
@@ -1020,7 +1020,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
       updates: Partial<
         Pick<
           StoryManifest,
-          'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'coverImageUrl' | 'activeMilestoneGoal' | 'storyScale'
+          'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'coverImageUrl' | 'activeMilestoneGoal' | 'storyScale' | 'initialSceneId'
         >
       >
     ) => {
@@ -2399,7 +2399,15 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     (updater: (prev: StoryManifest['initialStoryBeats']) => StoryManifest['initialStoryBeats']) => {
       setStory((prev) => {
         const updatedBeats = updater(prev.initialStoryBeats);
-        const updated = { ...prev, initialStoryBeats: updatedBeats };
+        let initialSceneId = prev.initialSceneId;
+        if (updatedBeats && updatedBeats.length > 0) {
+          const hasInitial = updatedBeats.some((b) => b.sceneId === initialSceneId);
+          if (!hasInitial) {
+            const opening = updatedBeats.find((b) => !b.chapterId) || updatedBeats[0];
+            initialSceneId = opening?.sceneId || updatedBeats[0].sceneId;
+          }
+        }
+        const updated = { ...prev, initialStoryBeats: updatedBeats, initialSceneId };
         persistToStorage(updated);
         return updated;
       });

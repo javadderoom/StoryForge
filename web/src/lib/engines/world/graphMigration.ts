@@ -2,8 +2,17 @@ import { StoryManifest } from '@/lib/types';
 import { StoryBeat, StoryBeatChoiceSchema } from '@/lib/types/world';
 
 /**
+ * Strips legacy `[Arc X]` or `[پرده X]` prefixes that may have been injected into scene prose.
+ */
+export function stripLegacyArcPrefix(text: string): string {
+  if (!text) return '';
+  return text.replace(/^\[(?:arc|پرده)\s*[\d\w\u06F0-\u06F9]+\]\s*/i, '').trim();
+}
+
+/**
  * Normalizes a single StoryBeat, ensuring legacy choice keys like
- * `destinationSceneId` are cleanly remapped to `targetSceneId`.
+ * `destinationSceneId` are cleanly remapped to `targetSceneId`
+ * and legacy arc bracket prefixes are cleaned from narrative prose.
  */
 export function normalizeBeatChoices(beat: StoryBeat): StoryBeat {
   const choices = (beat.choices || []).map((choice: any) => {
@@ -20,8 +29,11 @@ export function normalizeBeatChoices(beat: StoryBeat): StoryBeat {
     return clean;
   });
 
+  const narrativeText = stripLegacyArcPrefix(beat.narrativeText || '');
+
   return {
     ...beat,
+    narrativeText,
     choices,
   };
 }
