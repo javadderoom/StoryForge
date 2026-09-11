@@ -147,10 +147,14 @@ export function StoryTreeCanvas({
     ];
   });
 
-  // In chapter mode the beats are owned by the parent saga state; in flat mode
-  // they are local component state.
+  // In chapter mode the beats are owned by the parent saga state or unified beats;
+  // in flat mode they are the unified story beats.
   const beats: StoryBeatNode[] =
-    isChapterMode && chapter ? ((chapter.scenes || []) as StoryBeatNode[]) : localBeats;
+    isChapterMode && chapter
+      ? (((chapter.scenes && chapter.scenes.length > 0)
+          ? chapter.scenes
+          : (story.initialStoryBeats || []).filter((b) => b.chapterId === chapter.id)) as StoryBeatNode[])
+      : localBeats;
 
   // Unified mutation wrapper: routes edits to the saga (controlled) or flat state.
   const commitBeats = (
@@ -165,6 +169,12 @@ export function StoryTreeCanvas({
       onFlatBeatsChange?.(value as unknown as StoryBeat[]);
     }
   };
+
+  useEffect(() => {
+    if (story.initialStoryBeats && story.initialStoryBeats.length > 0) {
+      setLocalBeats(story.initialStoryBeats as StoryBeatNode[]);
+    }
+  }, [story.initialStoryBeats]);
 
   const [selectedSceneId, setSelectedSceneId] = useState<string>(
     beats[0]?.sceneId || 'scene_prologue'

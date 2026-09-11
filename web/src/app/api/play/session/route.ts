@@ -8,6 +8,8 @@ import { artifactToGameItem } from '@/lib/play/artifactItems';
 import { computeMaxResources } from '@/lib/engines/game/vitalScaling';
 import { reconcilePlayerResources } from '@/lib/engines/game/resourcePools';
 import { addToPurse } from '@/lib/engines/game/currencyEngine';
+import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
+import { isPlaceholderBeat } from '@/lib/engines/world/sceneResolution';
 
 /**
  * Lightweight, player-safe projection of the World Bible consumed by the
@@ -198,13 +200,14 @@ export async function POST(req: NextRequest) {
         { status: 400, headers: corsHeaders }
       );
     }
-    const story = await StoryRepository.getStoryById(storyId);
-    if (!story) {
+    const rawStory = await StoryRepository.getStoryById(storyId);
+    if (!rawStory) {
       return NextResponse.json(
         { success: false, error: 'Story not found' },
         { status: 404, headers: corsHeaders }
       );
     }
+    const story = migrateStoryManifestToUnifiedGraph(rawStory);
 
     const characterSetup = body?.characterSetup;
 
@@ -334,12 +337,17 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    const initialBeat = story.initialStoryBeats[0] || {
-      sceneId: 'scene_start',
-      locationId: story.worldBible.locations[0]?.id || '',
-      narrativeText: '',
-      choices: [],
-    };
+    const openingBeat =
+      story.initialStoryBeats?.find((b) => !b.chapterId && !isPlaceholderBeat(b)) ||
+      story.initialStoryBeats?.find((b) => !isPlaceholderBeat(b)) ||
+      story.initialStoryBeats?.[0] || {
+        sceneId: story.initialSceneId || 'scene_start',
+        locationId: story.worldBible.locations[0]?.id || '',
+        narrativeText: '',
+        choices: [],
+      };
+
+    const initialBeat = openingBeat;
 
     // 4. Starting abilities from Archetype & Background
     const initialAbilities: string[] = [];

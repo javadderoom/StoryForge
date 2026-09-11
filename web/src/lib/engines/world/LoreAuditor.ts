@@ -1,4 +1,4 @@
-import { WorldBible, SagaManifest } from '@/lib/types/world';
+import { WorldBible, SagaManifest, StoryBeat, StoryChapter } from '@/lib/types/world';
 import { ContradictionAuditReport, ContradictionFinding } from './GenesisSchemas';
 
 /**
@@ -44,15 +44,43 @@ export class LoreAuditor {
    * Plan 08: deterministic audit of a committed saga campaign graph — dangling
    * choice edges, duplicate scene ids, empty chapters, and scope escalation.
    */
-  public static auditSaga(saga: SagaManifest): ContradictionAuditReport {
+  public static auditSaga(
+    saga: SagaManifest,
+    initialStoryBeats?: StoryBeat[]
+  ): ContradictionAuditReport {
     const findings: ContradictionFinding[] = [];
     const chapters = saga.chapters || [];
 
+    const getScenesForChapter = (ch: StoryChapter): StoryBeat[] => {
+      if (ch.scenes && ch.scenes.length > 0) return ch.scenes;
+      if (initialStoryBeats && initialStoryBeats.length > 0) {
+        return initialStoryBeats.filter((b) => b.chapterId === ch.id);
+      }
+      return [];
+    };
+
     const sceneOwner = new Map<string, string>(); // sceneId → chapterId
+    for (const b of initialStoryBeats || []) {
+      sceneOwner.set(b.sceneId, b.chapterId || 'opening');
+    }
+
     for (const ch of chapters) {
-      for (const sc of ch.scenes || []) {
-        if (sceneOwner.has(sc.sceneId)) {
-          findings.push(this.finding('warning', 'missing_link', 'Duplicate scene id', `Scene id "${sc.sceneId}" exists in more than one chapter ("${sceneOwner.get(sc.sceneId)}" and "${ch.id}"). Branching edges and tree layout will collide.`, [{ entityType: 'story_chapter', name: ch.title }], 'Rename one of the duplicated scene ids.'));
+      for (const sc of getScenesForChapter(ch)) {
+        if (
+          sceneOwner.has(sc.sceneId) &&
+          sceneOwner.get(sc.sceneId) !== ch.id &&
+          sceneOwner.get(sc.sceneId) !== 'opening'
+        ) {
+          findings.push(
+            this.finding(
+              'warning',
+              'missing_link',
+              'Duplicate scene id',
+              `Scene id "${sc.sceneId}" exists in more than one chapter ("${sceneOwner.get(sc.sceneId)}" and "${ch.id}"). Branching edges and tree layout will collide.`,
+              [{ entityType: 'story_chapter', name: ch.title }],
+              'Rename one of the duplicated scene ids.'
+            )
+          );
         } else {
           sceneOwner.set(sc.sceneId, ch.id);
         }
@@ -60,13 +88,32 @@ export class LoreAuditor {
     }
 
     for (const ch of chapters) {
-      if ((ch.scenes || []).length === 0) {
-        findings.push(this.finding('warning', 'missing_link', 'Empty chapter', `Chapter "${ch.title}" (#${ch.chapterNumber}) has no scenes.`, [{ entityType: 'story_chapter', name: ch.title }], 'Add scenes or remove the chapter.'));
+      const scenes = getScenesForChapter(ch);
+      if (scenes.length === 0) {
+        findings.push(
+          this.finding(
+            'warning',
+            'missing_link',
+            'Empty chapter',
+            `Chapter "${ch.title}" (#${ch.chapterNumber}) has no scenes.`,
+            [{ entityType: 'story_chapter', name: ch.title }],
+            'Add scenes or remove the chapter.'
+          )
+        );
       }
-      for (const sc of ch.scenes || []) {
+      for (const sc of scenes) {
         for (const choice of sc.choices || []) {
           if (choice.targetSceneId && !sceneOwner.has(choice.targetSceneId)) {
-            findings.push(this.finding('warning', 'missing_link', 'Dangling branch edge', `Choice "${choice.text}" in "${sc.sceneId}" targets missing scene id "${choice.targetSceneId}".`, [{ entityType: 'story_beat', name: sc.sceneId }], `Point the choice at an existing scene or clear its destination.`));
+            findings.push(
+              this.finding(
+                'warning',
+                'missing_link',
+                'Dangling branch edge',
+                `Choice "${choice.text}" in "${sc.sceneId}" targets missing scene id "${choice.targetSceneId}".`,
+                [{ entityType: 'story_beat', name: sc.sceneId }],
+                `Point the choice at an existing scene or clear its destination.`
+              )
+            );
           }
         }
       }
@@ -777,12 +824,17 @@ export class LoreAuditor {
    */
   public static auditSagaStats(
     saga: SagaManifest,
-    validStatIds: string[]
+    validStatIds: string[],
+    initialStoryBeats?: StoryBeat[]
   ): ContradictionFinding[] {
     const out: ContradictionFinding[] = [];
     const stats = new Set(validStatIds.map((s) => s.toLowerCase()));
     for (const ch of saga.chapters || []) {
-      for (const sc of ch.scenes || []) {
+      const scenes =
+        ch.scenes && ch.scenes.length > 0
+          ? ch.scenes
+          : (initialStoryBeats || []).filter((b) => b.chapterId === ch.id);
+      for (const sc of scenes) {
         if (!sc.choices || sc.choices.length === 0) {
           out.push({
             id: `saga_empty_choices_${sc.sceneId}`,

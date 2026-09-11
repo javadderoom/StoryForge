@@ -33,6 +33,7 @@ import { mergeFactionRelations, syncLegacyFactionLinks } from '@/lib/engines/wor
 import type { WorldActionChange } from '@/lib/engines/world/oracleActions';
 import { getEmptyStoryInWorld } from '@/lib/storyFactory';
 import { notify } from '@/lib/notify';
+import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
 
 // Resolve a reference (entity id OR human-readable name) to the canonical
 // stored entity id. Used by relation CRUD so links created by the AI adviser
@@ -654,7 +655,8 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         if (parsed?.worldBible) {
           parsed.worldBible.ontology = normalizeOntology(parsed.worldBible.ontology, parsed.language === 'fa');
         }
-        setStory(parsed);
+        const migrated = migrateStoryManifestToUnifiedGraph(parsed);
+        setStory(migrated);
         setHasLocalDraft(true);
         setLastSaved(new Date());
         return;
@@ -677,7 +679,8 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
           if (m.worldBible) {
             m.worldBible.ontology = normalizeOntology(m.worldBible.ontology, m.language === 'fa');
           }
-          setStory(m);
+          const migrated = migrateStoryManifestToUnifiedGraph(m);
+          setStory(migrated);
           setHasLocalDraft(false);
           setLastSaved(null);
         }

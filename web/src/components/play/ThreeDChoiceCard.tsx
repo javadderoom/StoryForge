@@ -3,6 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { RealmTheme, riskColor } from '@/lib/play/realmTheme';
 import { audioService } from '@/lib/play/audioService';
+import { GitBranch } from 'lucide-react';
 
 interface ChoiceOption {
   id: string;
@@ -11,6 +12,7 @@ interface ChoiceOption {
   riskLevel?: 'low' | 'medium' | 'high';
   requiredStatId?: string;
   targetDC?: number;
+  targetSceneId?: string;
 }
 
 interface ThreeDChoiceCardProps {
@@ -79,11 +81,19 @@ export function ThreeDChoiceCard({ choice, theme, onTap }: ThreeDChoiceCardProps
           style={{ backgroundColor: edgeColor, boxShadow: `0 0 8px ${edgeColor}` }}
         />
         <span
-          className="text-sm leading-relaxed transition-colors"
+          className="flex-1 text-sm leading-relaxed transition-colors"
           style={{ color: hover ? theme.primaryAccent : '#E4E4E7' }}
         >
           {choice.text}
         </span>
+        {choice.targetSceneId && (
+          <span
+            className="ms-auto shrink-0 opacity-40 group-hover:opacity-80 transition-opacity"
+            title="Connected story path"
+          >
+            <GitBranch className="h-3.5 w-3.5" style={{ color: theme.primaryAccent }} />
+          </span>
+        )}
       </span>
     </button>
   );

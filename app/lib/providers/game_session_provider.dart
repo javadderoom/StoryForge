@@ -199,6 +199,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         statId: choice.requiredStatId,
         targetDC: choice.targetDC,
         forcedDiceRoll: forcedDiceRoll,
+        targetSceneId: choice.targetSceneId,
       );
 
       if (result['creditDepleted'] == true) {

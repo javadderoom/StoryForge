@@ -94,6 +94,7 @@ export async function sendAction(payload: {
   forcedDiceRoll?: number;
   playerState: PlayerState;
   turnNumber: number;
+  targetSceneId?: string;
 }): Promise<any> {
   const res = await fetch('/api/play/action', {
     method: 'POST',

@@ -315,6 +315,48 @@ export default function Home() {
     if (loading || !playerState || !selectedStory) return;
     audioService.playSfx('buttonClick');
     setErrorMessage(null);
+
+    const targetSceneId = choice.targetSceneId || choice.destinationSceneId || choice.leadToSceneId;
+    const isDiceless = choice.targetDC === undefined && choice.requiredStatId === undefined;
+    const nextTurn = turnNumber + 1;
+
+    // Plan 12: Diceless choices branch without a roll
+    if (isDiceless) {
+      setLoading(true);
+      try {
+        const json = await sendAction({
+          storyId: selectedStory.id,
+          sessionId,
+          playerActionText: choice.text,
+          actionStyle: choice.style || 'tactical',
+          riskLevel: choice.riskLevel || 'low',
+          playerState,
+          turnNumber: nextTurn,
+          targetSceneId,
+        });
+        if (json.isGuardrailViolation) {
+          setErrorMessage(json.rejectionReason);
+          notify.error(isRtl ? 'اقدام شما توسط قوانین جهان رد شد.' : 'Action blocked by world laws.');
+          return;
+        }
+        if (!json.success) {
+          setErrorMessage(json.error || 'The scribe is silent.');
+          return;
+        }
+        setCurrentBeat({
+          narrative: json.data.beat.narrativeProse,
+          choices: json.data.beat.presentedChoices,
+        });
+        setPlayerState(json.data.updatedPlayerState);
+        setTurnNumber(nextTurn);
+      } catch (e: any) {
+        setErrorMessage(e?.message || 'Network error');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     setDiceActionText(choice.text);
 
     const roll = rollD20();
@@ -331,7 +373,6 @@ export default function Home() {
     setIsDiceModalOpen(true);
     setDiceRolling(true);
 
-    const nextTurn = turnNumber + 1;
     try {
       const json = await sendAction({
         storyId: selectedStory.id,
@@ -344,6 +385,7 @@ export default function Home() {
         forcedDiceRoll: roll,
         playerState,
         turnNumber: nextTurn,
+        targetSceneId,
       });
       if (json.isGuardrailViolation) {
         setErrorMessage(json.rejectionReason);

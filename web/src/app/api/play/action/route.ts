@@ -8,13 +8,14 @@ import { validateProse, buildProseRepairInstruction } from '@/lib/engines/narrat
 import { buildWorldContextBlocks, formatNpcCombatSummary } from '@/lib/engines/narrative/worldContext';
 import { MemoryEngine } from '@/lib/engines/memory/MemoryEngine';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
-import { PlayerState, ActionStyle, RiskLevel, TurnBeat } from '@/lib/types/gameplay';
+import { PlayerState, ActionStyle, RiskLevel, TurnBeat, CheckResolution } from '@/lib/types/gameplay';
 import { WorldStateLedger } from '@/lib/types/world';
 import { WorkingContextEnvelope, MemoryCategory, MemoryEntry } from '@/lib/types/memory';
 import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
 import { getAuthenticatedUser } from '@/lib/auth/getUser';
 import { getPrisma } from '@/lib/db/client';
 import { reconcilePlayerResources } from '@/lib/engines/game/resourcePools';
+import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
 
 const geminiAdapter = new GeminiAdapter();
 
@@ -41,6 +42,12 @@ export async function POST(req: NextRequest) {
       sceneId: requestedSceneId,
     } = body;
 
+    const targetSceneId =
+      (typeof body.targetSceneId === 'string' && body.targetSceneId) ||
+      (typeof body.destinationSceneId === 'string' && body.destinationSceneId) ||
+      (typeof body.leadToSceneId === 'string' && body.leadToSceneId) ||
+      undefined;
+
     if (!storyId) {
       return NextResponse.json(
         { success: false, error: 'storyId is required' },
@@ -48,14 +55,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const story = await StoryRepository.getStoryById(storyId);
+    const rawStory = await StoryRepository.getStoryById(storyId);
 
-    if (!story) {
+    if (!rawStory) {
       return NextResponse.json(
         { success: false, error: 'Story not found' },
         { status: 404, headers: corsHeaders }
       );
     }
+
+    const story = migrateStoryManifestToUnifiedGraph(rawStory);
 
     if (!playerActionText || typeof playerActionText !== 'string') {
       return NextResponse.json(
@@ -125,17 +134,33 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Deterministic Game Engine Check Resolution
-    const resolution = GameEngine.resolveActionCheck(
-      playerActionText,
-      playerState,
-      story.rpgSystem,
-      {
-        statId,
-        riskLevel,
-        targetDC,
-        forcedDiceRoll: typeof forcedDiceRoll === 'number' ? forcedDiceRoll : undefined,
-      }
-    );
+    // Diceless choices branch without a roll (Plan 12)
+    const isDiceless = targetDC === undefined && statId === undefined;
+    const resolution: CheckResolution = isDiceless
+      ? {
+          actionDescription: playerActionText,
+          statId: undefined,
+          statModifier: 0,
+          diceRoll: 20,
+          diceType: 'd20',
+          environmentalModifier: 0,
+          totalScore: 20,
+          difficultyClass: 0,
+          outcome: 'success' as const,
+          consequenceSummary: 'Progresses along the authored story path.',
+          stateDiff: {},
+        }
+      : GameEngine.resolveActionCheck(
+          playerActionText,
+          playerState,
+          story.rpgSystem,
+          {
+            statId,
+            riskLevel,
+            targetDC,
+            forcedDiceRoll: typeof forcedDiceRoll === 'number' ? forcedDiceRoll : undefined,
+          }
+        );
 
     // 2b. Deterministic pressure revelation: coercion vs breaking point.
     // A cracked secret lands in knownSecrets (so the anti-leak validator
@@ -195,8 +220,8 @@ export async function POST(req: NextRequest) {
     const completedIds = [
       ...(playerState.completedQuestIds ?? []),
       ...((resolution.stateDiff.questUpdates ?? [])
-        .filter((q) => q.status === 'completed')
-        .map((q) => q.questId)),
+        .filter((q: any) => q.status === 'completed')
+        .map((q: any) => q.questId)),
     ];
     for (const npc of story.worldBible.npcs ?? []) {
       const existing = resolution.stateDiff.relationshipChanges?.[npc.id];
@@ -466,84 +491,116 @@ export async function POST(req: NextRequest) {
       livingWorldLedger: threeTier.livingWorldLedger,
     };
 
-    // 4. Build prompt and generate prose with Gemini
-    const promptPayload = PromptAssembler.buildNarrativePrompt(contextEnvelope);
-    let aiResponse = await geminiAdapter.generateScene(promptPayload);
+    // ------------------------------------------------------------------
+    // Plan 12 Phase 5: HYBRID READER
+    // Traversal: if choice targets a valid authored beat in the unified graph,
+    // present its authored prose and choices verbatim.
+    // Fallback: unlinked / dangling / free-text choices continue via Gemini LLM.
+    // ------------------------------------------------------------------
+    const resolvedAuthoredBeat = targetSceneId
+      ? story.initialStoryBeats?.find((b) => b.sceneId === targetSceneId)
+      : undefined;
+
+    let aiResponse: {
+      narrative: string;
+      choices: any[];
+      extractedMemories: any[];
+      isMock?: boolean;
+    };
     let proseRepaired = false;
     let proseFindings: ReturnType<typeof validateProse>['findings'] = [];
 
-    // ------------------------------------------------------------------
-    // Plan 08 Phase 1: NEVER persist mock/offline output as story canon.
-    // A degraded generation returns 503 so the client can retry instead of
-    // silently writing an off-world dungeon scene into permanent history.
-    // ------------------------------------------------------------------
-    if (aiResponse.isMock) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            'AI narration is unavailable right now (offline or API failure). The turn was NOT recorded to protect story consistency. Please retry.',
-          isMock: true,
-        },
-        { status: 503, headers: corsHeaders }
-      );
-    }
-
-    // Post-generation prose validation with one auto-repair attempt.
-    const firstCheck = validateProse(aiResponse.narrative, {
-      ledger: nextLedger,
-      resolution,
-      worldBible: story.worldBible,
-    });
-    proseFindings = firstCheck.findings;
-    if (!firstCheck.ok) {
-      const repairPayload = {
-        ...promptPayload,
-        userPrompt: `${promptPayload.userPrompt}\n\n${buildProseRepairInstruction(firstCheck.findings)}\n\nPREVIOUS PROSE:\n${aiResponse.narrative}`,
+    if (resolvedAuthoredBeat && resolvedAuthoredBeat.narrativeText?.trim()) {
+      aiResponse = {
+        narrative: resolvedAuthoredBeat.narrativeText,
+        choices: (resolvedAuthoredBeat.choices || []).map((c: any) => ({
+          id: c.id,
+          text: c.text,
+          style: c.style || 'tactical',
+          riskLevel: c.riskLevel || 'medium',
+          targetDC: c.targetDC,
+          requiredStatId: c.requiredStatId,
+          targetSceneId: c.targetSceneId,
+        })),
+        extractedMemories: [],
+        isMock: false,
       };
-      const repaired = await geminiAdapter.generateScene(repairPayload);
-      if (!repaired.isMock) {
-        const secondCheck = validateProse(repaired.narrative, {
-          ledger: nextLedger,
-          resolution,
-          worldBible: story.worldBible,
-        });
-        if (secondCheck.ok) {
-          aiResponse = repaired;
-          proseFindings = secondCheck.findings;
-          proseRepaired = true;
-        } else {
-          return NextResponse.json(
-            {
-              success: false,
-              error: 'Generated prose violated world canon and could not be repaired. The turn was NOT recorded. Please retry.',
-              proseInvalid: true,
-              proseFindings: secondCheck.findings,
-            },
-            { status: 503, headers: corsHeaders }
-          );
-        }
-      } else {
+    } else {
+      // 4. Build prompt and generate prose with Gemini
+      const promptPayload = PromptAssembler.buildNarrativePrompt(contextEnvelope);
+      const generated = await geminiAdapter.generateScene(promptPayload);
+      aiResponse = generated;
+
+      // Plan 08 Phase 1: NEVER persist mock/offline output as story canon.
+      if (aiResponse.isMock) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Prose repair unavailable (AI offline). The turn was NOT recorded. Please retry.',
-            proseInvalid: true,
-            proseFindings: firstCheck.findings,
+            error:
+              'AI narration is unavailable right now (offline or API failure). The turn was NOT recorded to protect story consistency. Please retry.',
+            isMock: true,
           },
           { status: 503, headers: corsHeaders }
         );
       }
+
+      // Post-generation prose validation with one auto-repair attempt.
+      const firstCheck = validateProse(aiResponse.narrative, {
+        ledger: nextLedger,
+        resolution,
+        worldBible: story.worldBible,
+      });
+      proseFindings = firstCheck.findings;
+      if (!firstCheck.ok) {
+        const repairPayload = {
+          ...promptPayload,
+          userPrompt: `${promptPayload.userPrompt}\n\n${buildProseRepairInstruction(firstCheck.findings)}\n\nPREVIOUS PROSE:\n${aiResponse.narrative}`,
+        };
+        const repaired = await geminiAdapter.generateScene(repairPayload);
+        if (!repaired.isMock) {
+          const secondCheck = validateProse(repaired.narrative, {
+            ledger: nextLedger,
+            resolution,
+            worldBible: story.worldBible,
+          });
+          if (secondCheck.ok) {
+            aiResponse = repaired;
+            proseFindings = secondCheck.findings;
+            proseRepaired = true;
+          } else {
+            return NextResponse.json(
+              {
+                success: false,
+                error: 'Generated prose violated world canon and could not be repaired. The turn was NOT recorded. Please retry.',
+                proseInvalid: true,
+                proseFindings: secondCheck.findings,
+              },
+              { status: 503, headers: corsHeaders }
+            );
+          }
+        } else {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'Prose repair unavailable (AI offline). The turn was NOT recorded. Please retry.',
+              proseInvalid: true,
+              proseFindings: firstCheck.findings,
+            },
+            { status: 503, headers: corsHeaders }
+          );
+        }
+      }
     }
 
-    // Carry the real authored scene id when the client/session knows it;
-    // synthetic ids sever memory→scene linkage in hierarchical retrieval.
+    // Carry the real authored scene id when known; fixes stuck-currentSceneId
     const beatSceneId =
+      resolvedAuthoredBeat?.sceneId ||
       (typeof requestedSceneId === 'string' && requestedSceneId) ||
       (session?.currentSceneId as string | undefined) ||
       `scene_turn_${turnNumber}`;
 
     const matchedAuthoredBeat =
+      resolvedAuthoredBeat ||
       story.initialStoryBeats?.find((b) => b.sceneId === beatSceneId) ||
       activeChapter?.scenes?.find((s) => s.sceneId === beatSceneId);
 
@@ -581,7 +638,7 @@ export async function POST(req: NextRequest) {
         resolution,
         updatedPlayerState,
         memories: turnMemories,
-        currentChapterId: activeChapter?.id,
+        currentChapterId: matchedAuthoredBeat?.chapterId || activeChapter?.id,
         sagaLedger: nextLedger,
       });
     }

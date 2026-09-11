@@ -15,7 +15,14 @@ import {
 import { LoreAuditor } from '@/lib/engines/world/LoreAuditor';
 import { normalizeEntity } from '@/lib/engines/world/ActionNormalizer';
 import { WorldBible, SagaManifest } from '@/lib/types/world';
+import { StoryManifest } from '@/lib/types';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
+import {
+  buildWeavePrompt,
+  coerceWeave,
+  auditWeaveQuality,
+  StoryWeaveDraft,
+} from '@/lib/engines/narrative/storyWeaver';
 
 interface GenerateRequest {
   type:
@@ -44,6 +51,7 @@ interface GenerateRequest {
     | 'branching_story_tree'
     | 'epic_saga_synthesis'
     | 'chapter_scenes'
+    | 'weave_story'
     | 'genesis'
     | 'audit_world';
 
@@ -68,6 +76,13 @@ interface GenerateRequest {
   saga?: SagaManifest;
   // Valid RPG stat ids for saga choice validation (sent by Studio beats page)
   rpgStatIds?: string[];
+  // Plan 12: Weaver parameters
+  anchors?: any[];
+  scope?: 'act' | 'whole_arc';
+  actGoal?: string;
+  chapterNumber?: number;
+  existingSceneIds?: string[];
+  story?: any;
 }
 
 export async function POST(req: NextRequest) {
@@ -439,6 +454,26 @@ IMPORTANT FOR PACIFICATION: In pacificationReagents, list the clean entity names
       schemaInstruction = `Schema: { "sceneId": string, "locationId": string, "narrativeText": string, "choices": [{ "id": string, "text": string, "style": "defensive"|"agile"|"aggressive"|"diplomatic"|"inquisitive", "riskLevel": "low"|"medium"|"high", "targetDC": number, "requiredStatId": string, "leadToSceneId"?: string }] } (If a choice branches or connects to another scene, provide that target scene id in leadToSceneId)`;
     } else if (type === 'chapter_scenes') {
       schemaInstruction = `Schema: { "scenes": [{ "sceneId": string, "title": string, "settingLocationName": string, "narrativeText": string, "primaryConflict": string, "presentedChoices": [{ "textFa": string, "textEn": string, "style": "defensive_diplomatic"|"tactical_agile"|"aggressive_daring", "statCheck": { "stat": string, "dc": number }, "leadToSceneId"?: string }] }] } (👑 NARRATIVE-FIRST SCENE GENERATION: The author has hand-written this act's storyline. Dramatize EXACTLY the authored narrative — do NOT invent a different plot. Generate 3 to 5 sequential scenes that escalate within the act: setup → escalation → climax. Assign distinct sceneIds like "act1_s1", "act1_s2". If choices branch to subsequent scenes within the chapter, chain them using leadToSceneId. Every scene MUST advance the authored goal and feature the named factions/NPCs from the WORLD BIBLE by their real names. If guards, crowd members, or minor extras are required in the narrative, instantiate them dynamically using the defined Group Archetypes with their speech style and combat statblock. Honor NPC timing: only feature NPCs whose designated entrance chapter has arrived (or unassigned). Respect the story's canvas scale (localized, urban, regional, continental, mythic). Use settingLocationName values that match existing world locations. Honor the player involvement directive: choices must let the player participate in the described way. Scale stakes and DCs (10-20) to the act's scope tier. Each scene has exactly 3 choice archetypes: defensive_diplomatic, tactical_agile, aggressive_daring)`;
+    } else if (type === 'weave_story') {
+      const anchors = Array.isArray(body.anchors) ? body.anchors : [];
+      const scope = body.scope === 'whole_arc' ? 'whole_arc' : 'act';
+      const actGoal = body.actGoal || '';
+      const chapterNumber = body.chapterNumber;
+      const rpgStatIds = Array.isArray(body.rpgStatIds) ? body.rpgStatIds : [];
+      const existingSceneIds = Array.isArray(body.existingSceneIds) ? body.existingSceneIds : [];
+      const storyManifest = (body.story || {}) as StoryManifest;
+
+      const weave = buildWeavePrompt({
+        story: storyManifest,
+        anchors,
+        scope,
+        actGoal,
+        chapterNumber,
+        rpgStatIds,
+        existingSceneIds,
+        isPersian: !!isPersian,
+      });
+      schemaInstruction = weave.schemaInstruction;
     }
 
 
@@ -447,13 +482,25 @@ IMPORTANT FOR PACIFICATION: In pacificationReagents, list the clean entity names
       ? `${constraintLine}\n${schemaInstruction}`
       : schemaInstruction;
 
-    const userPromptText = customSystemPrompt?.trim()
-      ? `Apply the requested changes to the existing ${type} entity and return the complete updated JSON strictly matching the schema:\n${effectiveSchemaInstruction}`
-      : `Generate a ${type} entity with creative literary depth.\n${effectiveSchemaInstruction}`;
+    const userPromptText =
+      type === 'weave_story'
+        ? buildWeavePrompt({
+            story: (body.story || {}) as StoryManifest,
+            anchors: Array.isArray(body.anchors) ? body.anchors : [],
+            scope: body.scope === 'whole_arc' ? 'whole_arc' : 'act',
+            actGoal: body.actGoal || '',
+            chapterNumber: body.chapterNumber,
+            rpgStatIds: Array.isArray(body.rpgStatIds) ? body.rpgStatIds : [],
+            existingSceneIds: Array.isArray(body.existingSceneIds) ? body.existingSceneIds : [],
+            isPersian: !!isPersian,
+          }).promptText
+        : customSystemPrompt?.trim()
+        ? `Apply the requested changes to the existing ${type} entity and return the complete updated JSON strictly matching the schema:\n${effectiveSchemaInstruction}`
+        : `Generate a ${type} entity with creative literary depth.\n${effectiveSchemaInstruction}`;
 
     // Stat calibration is a rating task, not a creative one — keep it cool and stable.
     const temperature =
-      type === 'npc_stat_calibration' ? 0.3 : customSystemPrompt?.trim() ? 0.7 : 0.8;
+      type === 'npc_stat_calibration' ? 0.3 : type === 'weave_story' ? 0.7 : customSystemPrompt?.trim() ? 0.7 : 0.8;
     const aiResult = await generateStructuredJson(
       userPromptText,
       systemPrompt,
@@ -536,6 +583,84 @@ IMPORTANT FOR PACIFICATION: In pacificationReagents, list the clean entity names
             modelUsed: aiResult.modelUsed,
           });
         }
+      }
+
+      if (type === 'weave_story') {
+        const anchors = Array.isArray(body.anchors) ? body.anchors : [];
+        const storyManifest = (body.story || {}) as StoryManifest;
+        const locations = storyManifest.worldBible?.locations || [];
+        const statIds = Array.isArray(body.rpgStatIds) ? body.rpgStatIds : [];
+
+        let draft = aiResult.data as StoryWeaveDraft;
+        let weavedBeats = coerceWeave(draft, anchors, locations);
+        let qualityAudit = auditWeaveQuality({
+          weavedBeats,
+          expectedAnchors: anchors,
+          rpgStatIds: statIds,
+        });
+
+        const blocked = qualityAudit.findings.some((f) => f.severity === 'error') || qualityAudit.score < 75;
+        if (blocked) {
+          const repairPrompt =
+            `Your previous story weave output has quality/structural issues. Fix ONLY the listed issues, preserving all anchor references and choice texts.\n\n` +
+            `PREVIOUS OUTPUT:\n${JSON.stringify(aiResult.data)}\n\n` +
+            `FINDINGS:\n${JSON.stringify(qualityAudit.findings.slice(0, 15))}\n\n` +
+            `SCHEMA:\n${effectiveSchemaInstruction}\n\nReturn the FULL corrected JSON only.`;
+
+          const retry = await generateStructuredJson(repairPrompt, systemPrompt, {
+            temperature: 0.4,
+            taskType: 'world',
+          });
+
+          if (retry && retry.data) {
+            draft = retry.data as StoryWeaveDraft;
+            weavedBeats = coerceWeave(draft, anchors, locations);
+            qualityAudit = auditWeaveQuality({
+              weavedBeats,
+              expectedAnchors: anchors,
+              rpgStatIds: statIds,
+            });
+            const reBlocked = qualityAudit.findings.some((f) => f.severity === 'error') || qualityAudit.score < 75;
+            if (!reBlocked) {
+              return NextResponse.json({
+                success: true,
+                data: { sequence: weavedBeats },
+                qualityAudit,
+                repaired: true,
+                isAiGenerated: true,
+                modelUsed: retry.modelUsed,
+              });
+            }
+            return NextResponse.json(
+              {
+                success: false,
+                error: isPersian ? 'کیفیت تار و پود داستان نیازمند بازبینی است.' : 'Story weave quality needs revision.',
+                data: { sequence: weavedBeats },
+                qualityAudit,
+                repaired: true,
+              },
+              { status: 422 }
+            );
+          }
+          return NextResponse.json(
+            {
+              success: false,
+              error: isPersian ? 'کیفیت تار و پود داستان نیازمند بازبینی است.' : 'Story weave quality needs revision.',
+              data: { sequence: weavedBeats },
+              qualityAudit,
+              repaired: false,
+            },
+            { status: 422 }
+          );
+        }
+
+        return NextResponse.json({
+          success: true,
+          data: { sequence: weavedBeats },
+          qualityAudit,
+          isAiGenerated: true,
+          modelUsed: aiResult.modelUsed,
+        });
       }
       // Stat calibrations pass through the normalizer so vitals/pools
       // defaults and clamps hold even when the model omits them.

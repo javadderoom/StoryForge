@@ -1383,6 +1383,7 @@ export const StoryBeatSchema = z.object({
   narrativeText: z.string().default(''),
   imageUrl: z.string().optional(),
   choices: z.array(StoryBeatChoiceSchema).default([]),
+  chapterId: z.string().optional(),
 });
 export type StoryBeat = z.infer<typeof StoryBeatSchema>;
 

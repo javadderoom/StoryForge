@@ -5,6 +5,7 @@ class ChoiceOption {
   final String riskLevel; // 'low', 'medium', 'high'
   final String? requiredStatId;
   final int? targetDC;
+  final String? targetSceneId;
 
   ChoiceOption({
     required this.id,
@@ -13,6 +14,7 @@ class ChoiceOption {
     required this.riskLevel,
     this.requiredStatId,
     this.targetDC,
+    this.targetSceneId,
   });
 
   factory ChoiceOption.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class ChoiceOption {
       riskLevel: json['riskLevel'] ?? 'medium',
       requiredStatId: json['requiredStatId'],
       targetDC: json['targetDC'],
+      targetSceneId: json['targetSceneId'] ?? json['destinationSceneId'],
     );
   }
 }

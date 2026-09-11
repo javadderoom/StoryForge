@@ -23,6 +23,7 @@ import {
   Crown,
   Trash2,
   MoreHorizontal,
+  Waypoints,
 } from 'lucide-react';
 import { notify } from '@/lib/notify';
 import {
@@ -34,6 +35,8 @@ import {
   EpicSagaSynthesisSchema,
 } from '@/lib/types/world';
 import { resolveSceneChoiceEdges, evictPlaceholderBeats } from '@/lib/engines/world/sceneResolution';
+import StoryWeavePreviewModal from '@/components/studio/StoryWeavePreviewModal';
+import { WeavedBeat, WeaveQualityReport } from '@/lib/engines/narrative/storyWeaver';
 
 const SCOPE_TIER_META: Record<
   string,
@@ -74,6 +77,14 @@ export default function StoryBeatsStudioPage() {
   // Plan responsiveness: mobile ⋯ overflow menu for header tools.
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
 
+  // Plan 12: Story-Weaver state
+  const [weaveScope, setWeaveScope] = useState<'act' | 'whole_arc'>('act');
+  const [isWeavingStory, setIsWeavingStory] = useState(false);
+  const [weavePreview, setWeavePreview] = useState<{
+    beats: WeavedBeat[];
+    qualityReport?: WeaveQualityReport;
+  } | null>(null);
+
   const sagaChapters: StoryChapter[] = story.saga?.chapters ?? [];
   const activeChapter = sagaChapters.find((c) => c.id === activeChapterId) || null;
 
@@ -86,6 +97,8 @@ export default function StoryBeatsStudioPage() {
     aiSceneBtn: isPersian ? '⚡ خلق تک‌صحنه' : '⚡ Add Single Beat',
     aiTreeBtn: isPersian ? '🌳 سنتز درخت ۳ پرده‌ای' : '🌳 Synthesize 3-Act Tree',
     aiSagaBtn: isPersian ? '👑 سنتز حماسه ۵ فصلی' : '👑 Synthesize Full 5-Chapter Epic Saga',
+    aiWeaveBtn: isPersian ? '✨ بافت تار و پود داستان' : '✨ Weave Connected Story',
+    aiWeavingBtn: isPersian ? 'در حال بافت داستان...' : 'Weaving Story...',
     flatBeatsTab: isPersian ? '📜 صحنه‌های تکی' : '📜 Flat Beats',
     addChapterBtn: isPersian ? '+ فصل جدید' : '+ Add Chapter',
     goalLabel: isPersian ? 'هدف روایی فصل:' : 'Chapter Goal:',
@@ -409,6 +422,85 @@ export default function StoryBeatsStudioPage() {
     );
   };
 
+  const handleWeaveStory = async () => {
+    try {
+      setIsWeavingStory(true);
+      const anchors =
+        weaveScope === 'act' && activeChapter
+          ? activeChapter.scenes
+          : (story.initialStoryBeats || []).length > 0
+          ? story.initialStoryBeats
+          : sagaChapters.flatMap((c) => c.scenes);
+
+      const res = await fetch('/api/studio/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'weave_story',
+          scope: weaveScope,
+          story,
+          anchors,
+          actGoal: activeChapter?.narrativeGoal,
+          chapterNumber: activeChapter?.chapterNumber,
+          rpgStatIds: (story.rpgSystem?.stats || []).map((s) => s.id),
+          isPersian,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.data?.sequence && Array.isArray(json.data.sequence)) {
+        setWeavePreview({
+          beats: json.data.sequence,
+          qualityReport: json.qualityAudit,
+        });
+        notify.success(
+          isPersian
+            ? 'تار و پود داستان با موفقیت تنیده شد! تفاوت‌ها و صحنه‌ها را بررسی کنید.'
+            : 'Story woven! Review graph diff & approve beats.'
+        );
+      } else {
+        notify.error(
+          isPersian
+            ? json.error || 'خطا در بافت تار و پود داستان'
+            : json.error || 'Failed to weave story'
+        );
+      }
+    } catch (err) {
+      notify.error(
+        err instanceof Error ? err.message : 'Error weaving story'
+      );
+    } finally {
+      setIsWeavingStory(false);
+    }
+  };
+
+  const handleCommitWeave = (selectedBeats: WeavedBeat[]) => {
+    const beatsToCommit: StoryBeat[] = selectedBeats.map((b) => ({
+      sceneId: b.sceneId,
+      locationId: b.locationId,
+      narrativeText: b.narrativeText,
+      imageUrl: b.imageUrl,
+      choices: b.choices,
+      chapterId: weaveScope === 'act' && activeChapter ? activeChapter.id : undefined,
+    }));
+
+    const cleanBeats = evictPlaceholderBeats(beatsToCommit);
+    const { resolvedBeats } = resolveSceneChoiceEdges(cleanBeats);
+
+    if (weaveScope === 'act' && activeChapter) {
+      handleChapterScenesChange(resolvedBeats);
+    } else {
+      updateStoryBeats(() => resolvedBeats);
+    }
+
+    setWeavePreview(null);
+    notify.success(
+      isPersian
+        ? `${resolvedBeats.length} صحنه جدید با موفقیت در گراف داستان ثبت شد`
+        : `${resolvedBeats.length} woven beats committed to story graph`
+    );
+  };
+
   const getChoiceStyleMeta = (style: string) => {
     switch (style) {
       case 'defensive_diplomatic':
@@ -425,6 +517,15 @@ export default function StoryBeatsStudioPage() {
   // Plan responsiveness: single source for header actions (inline on desktop,
   // collapsed into the ⋯ overflow menu on mobile).
   const headerActions = [
+    {
+      key: 'weave',
+      label: isWeavingStory ? t.aiWeavingBtn : t.aiWeaveBtn,
+      icon: Waypoints,
+      onClick: handleWeaveStory,
+      disabled: isWeavingStory,
+      className:
+        'bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-emerald-500/20',
+    },
     {
       key: 'saga',
       label:
@@ -500,7 +601,30 @@ export default function StoryBeatsStudioPage() {
               {actionsMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-[99]" onClick={() => setActionsMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-2 z-[100] w-60 rounded-2xl bg-zinc-900 border border-zinc-700 shadow-2xl p-1.5 space-y-1 animate-fadeIn">
+                  <div className="absolute right-0 top-full mt-2 z-[100] w-64 rounded-2xl bg-zinc-900 border border-zinc-700 shadow-2xl p-2 space-y-1.5 animate-fadeIn">
+                    <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-zinc-800 text-[11px]">
+                      <span className="text-zinc-400 font-medium">{isPersian ? 'محدوده بافت:' : 'Weave Scope:'}</span>
+                      <div className="flex items-center gap-1 bg-zinc-950 rounded-lg p-0.5 border border-zinc-800">
+                        <button
+                          type="button"
+                          onClick={() => setWeaveScope('act')}
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            weaveScope === 'act' ? 'bg-teal-600 text-white' : 'text-zinc-400'
+                          }`}
+                        >
+                          {isPersian ? 'فصل' : 'Act'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWeaveScope('whole_arc')}
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            weaveScope === 'whole_arc' ? 'bg-teal-600 text-white' : 'text-zinc-400'
+                          }`}
+                        >
+                          {isPersian ? 'کمان' : 'Arc'}
+                        </button>
+                      </div>
+                    </div>
                     {headerActions.map((a) => (
                       <button
                         key={a.key}
@@ -523,6 +647,30 @@ export default function StoryBeatsStudioPage() {
           </div>
 
           {/* Desktop group */}
+          <div className="hidden md:flex items-center bg-zinc-950/80 border border-zinc-800 rounded-xl p-0.5 text-[11px] font-medium mr-1">
+            <button
+              type="button"
+              onClick={() => setWeaveScope('act')}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                weaveScope === 'act'
+                  ? 'bg-zinc-800 text-teal-300 font-bold shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              {isPersian ? 'پرده / فصل' : 'Act'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setWeaveScope('whole_arc')}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                weaveScope === 'whole_arc'
+                  ? 'bg-zinc-800 text-teal-300 font-bold shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              {isPersian ? 'کل کمان' : 'Arc'}
+            </button>
+          </div>
           {headerActions.map((a) => (
             <button
               key={a.key}
@@ -1038,6 +1186,20 @@ export default function StoryBeatsStudioPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Plan 12: Story-Weaver Preview & Quality Audit Modal */}
+      {weavePreview && (
+        <StoryWeavePreviewModal
+          open={!!weavePreview}
+          isPersian={isPersian}
+          scope={weaveScope}
+          weavedBeats={weavePreview.beats}
+          qualityReport={weavePreview.qualityReport}
+          story={story}
+          onClose={() => setWeavePreview(null)}
+          onCommit={handleCommitWeave}
+        />
       )}
     </div>
   );
