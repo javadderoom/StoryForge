@@ -13,6 +13,7 @@ import {
   MapPin,
   RotateCcw,
   Crown,
+  Plus,
 } from 'lucide-react';
 import { notify } from '@/lib/notify';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
@@ -61,6 +62,14 @@ export default function SceneAiCopilotModal({
   const [mode, setMode] = useState<CopilotMode>(initialMode);
   const [step, setStep] = useState<'config' | 'review'>('config');
   const [isLoading, setIsLoading] = useState(false);
+  // Arc & Stage Selection State
+  const sagaChapters: StoryChapter[] = story.saga?.chapters || [];
+  const defaultChapterId =
+    activeChapter?.id ||
+    activeBeat?.chapterId ||
+    (sagaChapters.length > 0 ? sagaChapters[0].id : '');
+
+  const [selectedChapterId, setSelectedChapterId] = useState<string>(defaultChapterId);
   const [activeStageId, setActiveStageId] = useState<string>('');
 
   // Mode 1: Choices Generator State
@@ -117,6 +126,12 @@ export default function SceneAiCopilotModal({
     }>
   >([]);
 
+  // Inline stage creation state inside modal
+  const [isAddingStage, setIsAddingStage] = useState(false);
+  const [newStageTitle, setNewStageTitle] = useState('');
+  const [newStageDesc, setNewStageDesc] = useState('');
+  const [localExtraStages, setLocalExtraStages] = useState<Record<string, any[]>>({});
+
   // Sync state whenever activeBeat or selectedChoice changes
   useEffect(() => {
     if (activeBeat) {
@@ -126,11 +141,17 @@ export default function SceneAiCopilotModal({
       if (activeBeat.choices && activeBeat.choices.length > 0) {
         setNextSourceChoiceId(selectedChoice?.id || activeBeat.choices[0].id);
       }
+      if (activeBeat.chapterId && !activeChapter) {
+        setSelectedChapterId(activeBeat.chapterId);
+      }
+    }
+    if (activeChapter) {
+      setSelectedChapterId(activeChapter.id);
     }
     if (initialMode) {
       setMode(initialMode);
     }
-  }, [activeBeat, selectedChoice, initialMode, isOpen]);
+  }, [activeBeat, selectedChoice, initialMode, isOpen, activeChapter]);
 
   if (!isOpen) return null;
 
@@ -146,16 +167,23 @@ export default function SceneAiCopilotModal({
   }));
   const rpgStatIds = (story.rpgSystem?.stats || []).map((s: any) => s.id);
 
-  const selectedStage = (activeChapter?.stages || []).find((s) => s.id === activeStageId);
+  // Resolve current active chapter / arc
+  const matchedChapter = sagaChapters.find((c) => c.id === selectedChapterId) || activeChapter || sagaChapters[0] || null;
+  const combinedStages = [
+    ...(matchedChapter?.stages || []),
+    ...(matchedChapter?.id ? (localExtraStages[matchedChapter.id] || []) : []),
+  ];
 
-  const arcContext = activeChapter
+  const selectedStage = combinedStages.find((s) => s.id === activeStageId);
+
+  const arcContext = matchedChapter
     ? {
-        chapterNumber: activeChapter.chapterNumber,
-        title: activeChapter.title,
-        scopeTier: activeChapter.scopeTier,
-        narrativeGoal: activeChapter.narrativeGoal,
+        chapterNumber: matchedChapter.chapterNumber,
+        title: matchedChapter.title,
+        scopeTier: matchedChapter.scopeTier,
+        narrativeGoal: matchedChapter.narrativeGoal,
         milestoneGoal: activeMilestoneGoal || story.activeMilestoneGoal,
-        stages: (activeChapter.stages || []).map((s) => ({
+        stages: combinedStages.map((s) => ({
           id: s.id,
           order: s.order,
           title: s.title,
@@ -535,33 +563,52 @@ export default function SceneAiCopilotModal({
           {step === 'config' && (
             <>
               {/* Active Arc & Stage Limiter Control Banner */}
-              {activeChapter && (
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-950/40 via-zinc-900/80 to-zinc-900/80 border border-purple-500/30 space-y-3 animate-fadeIn shadow-lg">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                    <div className="flex items-center gap-2">
-                      <Crown className="w-4 h-4 text-amber-400 shrink-0" />
-                      <span className="text-xs font-bold text-purple-200">
-                        #{activeChapter.chapterNumber} {activeChapter.title}
-                      </span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/20 border border-purple-500/40 text-purple-300">
-                        {activeChapter.scopeTier}
-                      </span>
-                    </div>
-                    {activeChapter.narrativeGoal && (
-                      <span className="text-[11px] text-zinc-400 truncate max-w-md" title={activeChapter.narrativeGoal}>
-                        🎯 {activeChapter.narrativeGoal}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-950/40 via-zinc-900/80 to-zinc-900/80 border border-purple-500/30 space-y-3 animate-fadeIn shadow-lg">
+                {/* Chapter / Arc Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span className="text-xs font-bold text-purple-200">
+                      {isPersian ? 'قوس روایی / فصل:' : 'Narrative Arc / Chapter:'}
+                    </span>
+                    {sagaChapters.length > 0 ? (
+                      <select
+                        value={matchedChapter?.id || ''}
+                        onChange={(e) => {
+                          setSelectedChapterId(e.target.value);
+                          setActiveStageId('');
+                        }}
+                        className="bg-zinc-950 border border-purple-500/40 focus:border-amber-400 rounded-xl px-2.5 py-1 text-xs text-purple-200 focus:outline-none cursor-pointer"
+                      >
+                        {sagaChapters.map((ch) => (
+                          <option key={ch.id} value={ch.id}>
+                            #{ch.chapterNumber}: {ch.title} ({ch.scopeTier})
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="text-xs text-zinc-400 italic">
+                        {isPersian ? 'فصلی تعریف نشده است' : 'No chapters defined'}
                       </span>
                     )}
                   </div>
 
-                  {/* Arc Stage Limiter Selector */}
-                  {activeChapter.stages && activeChapter.stages.length > 0 && (
-                    <div className="pt-2.5 border-t border-purple-500/20 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                          <span>{isPersian ? 'محدودسازی به مرحله روایی قوس داستان:' : 'Constrain to Arc Stage:'}</span>
-                        </label>
+                  {matchedChapter?.narrativeGoal && (
+                    <span className="text-[11px] text-zinc-400 truncate max-w-md" title={matchedChapter.narrativeGoal}>
+                      🎯 {matchedChapter.narrativeGoal}
+                    </span>
+                  )}
+                </div>
+
+                {/* Arc Stage Limiter Selector */}
+                {matchedChapter && (
+                  <div className="pt-2.5 border-t border-purple-500/20 space-y-2">
+                    <div className="flex items-center justify-between flex-wrap gap-1">
+                      <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                        <span>{isPersian ? 'محدودسازی به مرحله روایی قوس داستان:' : 'Constrain to Arc Stage:'}</span>
+                      </label>
+                      <div className="flex items-center gap-2">
                         {activeStageId && (
                           <button
                             type="button"
@@ -571,7 +618,81 @@ export default function SceneAiCopilotModal({
                             {isPersian ? 'آزادسازی محدوده' : 'Clear Constraint'}
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingStage((v) => !v)}
+                          className="text-[10px] text-purple-300 hover:text-purple-200 font-bold bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 px-2 py-0.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>{isPersian ? 'افزودن مرحله به این قوس' : '+ Add Stage'}</span>
+                        </button>
                       </div>
+                    </div>
+
+                    {/* Inline Stage Creation Form */}
+                    {isAddingStage && (
+                      <div className="p-3 rounded-xl bg-zinc-950/90 border border-purple-500/40 space-y-2 animate-fadeIn">
+                        <div className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                          <Plus className="w-3.5 h-3.5 text-purple-400" />
+                          <span>{isPersian ? 'افزودن مرحله جدید به قوس جاری' : 'Add New Stage to Current Arc'}</span>
+                        </div>
+                        <input
+                          type="text"
+                          value={newStageTitle}
+                          onChange={(e) => setNewStageTitle(e.target.value)}
+                          placeholder={isPersian ? 'عنوان مرحله (مثلاً: اوج‌گیری و درگیری با گارد)' : 'Stage title (e.g., Climax / Gate Breach)'}
+                          className="w-full bg-zinc-900 border border-zinc-700/80 rounded-lg px-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400"
+                        />
+                        <textarea
+                          value={newStageDesc}
+                          onChange={(e) => setNewStageDesc(e.target.value)}
+                          rows={2}
+                          placeholder={isPersian ? 'توضیحات و رخدادهای کلیدی این مرحله...' : 'Key events, dramatic stakes, or constraints for this stage...'}
+                          className="w-full bg-zinc-900 border border-zinc-700/80 rounded-lg px-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400"
+                        />
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsAddingStage(false);
+                              setNewStageTitle('');
+                              setNewStageDesc('');
+                            }}
+                            className="px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 cursor-pointer"
+                          >
+                            {isPersian ? 'انصراف' : 'Cancel'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!newStageTitle.trim()}
+                            onClick={() => {
+                              if (!newStageTitle.trim() || !matchedChapter) return;
+                              const newStage = {
+                                id: makeId('stage'),
+                                order: combinedStages.length + 1,
+                                title: newStageTitle.trim(),
+                                stageType: 'custom',
+                                description: newStageDesc.trim(),
+                              };
+                              setLocalExtraStages((prev) => ({
+                                ...prev,
+                                [matchedChapter.id]: [...(prev[matchedChapter.id] || []), newStage],
+                              }));
+                              setActiveStageId(newStage.id);
+                              setIsAddingStage(false);
+                              setNewStageTitle('');
+                              setNewStageDesc('');
+                              notify.success(isPersian ? 'مرحله به قوس اضافه شد' : 'Stage added to arc');
+                            }}
+                            className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-40 cursor-pointer shadow"
+                          >
+                            {isPersian ? 'ثبت مرحله' : 'Save Stage'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {combinedStages.length > 0 ? (
                       <select
                         value={activeStageId}
                         onChange={(e) => setActiveStageId(e.target.value)}
@@ -582,24 +703,39 @@ export default function SceneAiCopilotModal({
                             ? '✨ تمام مراحل روایی (بدون محدودیت مرحله‌ای)'
                             : '✨ All Stages / Freeform (Unrestricted)'}
                         </option>
-                        {activeChapter.stages.map((st) => (
+                        {combinedStages.map((st) => (
                           <option key={st.id} value={st.id}>
                             مرحله {st.order}: {st.title}
                           </option>
                         ))}
                       </select>
+                    ) : (
+                      <div className="text-[11px] text-zinc-400 bg-zinc-950/60 border border-dashed border-zinc-800 rounded-xl p-2.5 flex items-center justify-between">
+                        <span>
+                          {isPersian
+                            ? 'هنوز مرحله‌ای برای این قوس تعریف نشده است.'
+                            : 'No stages defined for this arc yet.'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingStage(true)}
+                          className="text-[10px] text-amber-400 hover:text-amber-300 font-bold underline cursor-pointer"
+                        >
+                          {isPersian ? '+ ایجاد مرحله' : '+ Create stage'}
+                        </button>
+                      </div>
+                    )}
 
-                      {/* Selected Stage Description Preview */}
-                      {selectedStage && (
-                        <div className="p-2.5 rounded-xl bg-zinc-950/80 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed animate-fadeIn">
-                          <strong className="text-amber-300">{selectedStage.title}: </strong>
-                          {selectedStage.description}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+                    {/* Selected Stage Description Preview */}
+                    {selectedStage && (
+                      <div className="p-2.5 rounded-xl bg-zinc-950/80 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed animate-fadeIn">
+                        <strong className="text-amber-300">{selectedStage.title}: </strong>
+                        {selectedStage.description}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               {/* MODE 1: CHOICES */}
               {mode === 'choices' && (
                 <div className="space-y-4 animate-fadeIn">

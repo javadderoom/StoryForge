@@ -19,32 +19,6 @@ const SCOPE_OPTIONS: { value: ScopeTier; en: string; fa: string }[] = [
   { value: 'mythic', en: 'Mythic — cosmic climax', fa: 'اسطوره‌ای — اوج کیهانی' },
 ];
 
-const FOUR_STAGE_PRESET = [
-  {
-    order: 1,
-    stageType: 'inciting_incident',
-    title: 'برانگیختگی (Inciting Incident) — زمینگیر شدن در بارانداز',
-    description: 'کاروانها پشت دروازهٔ غربی متوقف شده‌اند. گزمه‌ها مانع ورودند و شایعهٔ نشت آلودگی از آبراهه دهان‌به‌دهان می‌چرخد. رادمان و دیگر تجار بدون ورود به پل، نه دستمزدی می‌پردازند و نه توان بقا دارند.',
-  },
-  {
-    order: 2,
-    stageType: 'rising_action',
-    title: 'اوج‌گیری و پیچش (Rising Action) — آشکار شدن منافع متضاد',
-    description: 'تلاش برای عبور عادی به بن‌بست می‌خورد؛ گزمه‌ها رشوهٔ سنگین‌تری از حد توان طلب می‌کنند و کاتبان دیوان به دنبال مصادرهٔ بارها هستند. بازیکن پی می‌برد که معبر دیگری وجود دارد: جعل سند برای ورود به بازارچه بالای پل، یا نفوذ از ساحل گل‌آلود به پایاب زیرین پل.',
-  },
-  {
-    order: 3,
-    stageType: 'climax',
-    title: 'نقطهٔ اوج (Climax) — شکستن بن‌بست در دهانهٔ غربی',
-    description: 'با وقوع حادثه (درگیری ساربانان با گزمه‌ها یا پیدا شدن جسد دگرگون‌شده در لجن پایاب)، گلوگاه منفجر می‌شود. بازیکن باید بین عبور از شلوغی به کف بازارچه معلق یا فرود مخفیانه به زیر طاق اول و معامله با بلم‌رانان پایاب تصمیم نهایی را بگیرد.',
-  },
-  {
-    order: 4,
-    stageType: 'resolution',
-    title: 'گره‌گشایی و فرود (Resolution) — ورود به قفس سنگی',
-    description: 'بازیکن از آستانهٔ غربی می‌گذرد و پای در دل شهر می‌گذارد، اما دروازه پشت سرش پلمب می‌شود. او اکنون درون هزارتوی پُل‌زرین است؛ جایی که فساد عمیق‌تر از بارانداز جریان دارد.',
-  },
-];
 
 interface ArcForm {
   title: string;
@@ -433,20 +407,6 @@ export default function NarrativeArcsPage() {
                   <span className="text-[10px] text-zinc-500">
                     {isPersian ? 'مراحل روایی هنوز تعریف نشده' : 'No stages defined yet'}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const presetWithIds = FOUR_STAGE_PRESET.map((p) => ({ ...p, id: makeId('stage') }));
-                      persistChapters((prev) =>
-                        prev.map((c) => (c.id === act.id ? { ...c, stages: presetWithIds } : c))
-                      );
-                      notify.success(isPersian ? 'الگوی ۴ مرحله‌ای روایی بارگذاری شد' : '4-Stage preset loaded');
-                    }}
-                    className="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1 font-bold cursor-pointer"
-                  >
-                    <Sparkles className="w-2.5 h-2.5" />
-                    <span>{isPersian ? 'بارگذاری ۴ مرحله روایی' : 'Load 4 Stages'}</span>
-                  </button>
                 </div>
               )}
 

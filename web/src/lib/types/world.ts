@@ -1386,6 +1386,7 @@ export const ArcStageSchema = z.object({
 });
 export type ArcStage = z.infer<typeof ArcStageSchema>;
 
+
 export const StoryBeatSchema = z.object({
   sceneId: z.string().min(1),
   locationId: z.string().default(''),

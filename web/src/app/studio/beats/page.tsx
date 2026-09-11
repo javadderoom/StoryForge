@@ -33,34 +33,6 @@ const SCOPE_TIER_META: Record<
   continental: { labelEn: 'Continental', labelFa: 'قاره‌ای', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' },
   mythic: { labelEn: 'Mythic', labelFa: 'اسطوره‌ای', color: 'text-purple-400 bg-purple-500/10 border-purple-500/30' },
 };
-
-const FOUR_STAGE_PRESET = [
-  {
-    order: 1,
-    stageType: 'inciting_incident',
-    title: 'برانگیختگی (Inciting Incident) — زمینگیر شدن در بارانداز',
-    description: 'کاروانها پشت دروازهٔ غربی متوقف شده‌اند. گزمه‌ها مانع ورودند و شایعهٔ نشت آلودگی از آبراهه دهان‌به‌دهان می‌چرخد. رادمان و دیگر تجار بدون ورود به پل، نه دستمزدی می‌پردازند و نه توان بقا دارند.',
-  },
-  {
-    order: 2,
-    stageType: 'rising_action',
-    title: 'اوج‌گیری و پیچش (Rising Action) — آشکار شدن منافع متضاد',
-    description: 'تلاش برای عبور عادی به بن‌بست می‌خورد؛ گزمه‌ها رشوهٔ سنگین‌تری از حد توان طلب می‌کنند و کاتبان دیوان به دنبال مصادرهٔ بارها هستند. بازیکن پی می‌برد که معبر دیگری وجود دارد: جعل سند برای ورود به بازارچه بالای پل، یا نفوذ از ساحل گل‌آلود به پایاب زیرین پل.',
-  },
-  {
-    order: 3,
-    stageType: 'climax',
-    title: 'نقطهٔ اوج (Climax) — شکستن بن‌بست در دهانهٔ غربی',
-    description: 'با وقوع حادثه (درگیری ساربانان با گزمه‌ها یا پیدا شدن جسد دگرگون‌شده در لجن پایاب)، گلوگاه منفجر می‌شود. بازیکن باید بین عبور از شلوغی به کف بازارچه معلق یا فرود مخفیانه به زیر طاق اول و معامله با بلم‌رانان پایاب تصمیم نهایی را بگیرد.',
-  },
-  {
-    order: 4,
-    stageType: 'resolution',
-    title: 'گره‌گشایی و فرود (Resolution) — ورود به قفس سنگی',
-    description: 'بازیکن از آستانهٔ غربی می‌گذرد و پای در دل شهر می‌گذارد، اما دروازه پشت سرش پلمب می‌شود. او اکنون درون هزارتوی پُل‌زرین است؛ جایی که فساد عمیق‌تر از بارانداز جریان دارد.',
-  },
-];
-
 // Module-scope so the React Compiler never treats timestamped IDs as
 // render-phase side effects.
 const makeId = (prefix: string) => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -211,21 +183,6 @@ export default function StoryBeatsStudioPage() {
     });
     if (editingStageId === stageId) setEditingStageId(null);
     notify.info(isPersian ? 'مرحله روایی حذف شد' : 'Arc stage deleted');
-  };
-
-  const handleLoadPresetStages = (chapterId: string) => {
-    const presetWithIds: ArcStage[] = FOUR_STAGE_PRESET.map((p) => ({
-      ...p,
-      id: makeId('stage'),
-    }));
-    updateSaga((prev) => {
-      const base = prev ?? { sagaTitle: story.title || 'Untitled Saga', premise: '', chapters: [] };
-      return {
-        ...base,
-        chapters: base.chapters.map((ch) => (ch.id === chapterId ? { ...ch, stages: presetWithIds } : ch)),
-      };
-    });
-    notify.success(isPersian ? 'الگوی ۴ مرحله‌ای روایی بارگذاری شد' : '4-Stage narrative preset loaded');
   };
 
   // ----------------------------------------------------------------
@@ -605,16 +562,6 @@ export default function StoryBeatsStudioPage() {
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                 <span>{isPersian ? 'مراحل قوس روایی فصل:' : 'Chapter Narrative Stages:'}</span>
               </span>
-              {(!activeChapter.stages || activeChapter.stages.length === 0) && (
-                <button
-                  type="button"
-                  onClick={() => handleLoadPresetStages(activeChapter.id)}
-                  className="text-xs text-amber-400 hover:text-amber-300 font-bold bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3 py-1 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Sparkles className="w-3 h-3" />
-                  <span>{isPersian ? 'بارگذاری الگوی ۴ مرحله‌ای روایی' : 'Load 4-Stage Preset'}</span>
-                </button>
-              )}
             </div>
 
             {/* Stage Cards Grid */}
@@ -690,25 +637,17 @@ export default function StoryBeatsStudioPage() {
               <div className="p-4 rounded-xl bg-zinc-950/60 border border-dashed border-zinc-800 text-center space-y-2">
                 <p className="text-xs text-zinc-400">
                   {isPersian
-                    ? 'این فصل هنوز دارای مراحل روایی نیست. می‌توانید مراحل دلخواه بیافزایید یا الگوی استاندارد ۴ مرحله‌ای را بارگذاری کنید.'
-                    : 'This chapter has no stages defined yet. Add custom stages or load the 4-stage dramatic preset.'}
+                    ? 'این فصل هنوز دارای مراحل روایی نیست. می‌توانید مراحل دلخواه بیافزایید.'
+                    : 'This chapter has no stages defined yet. You can add custom stages.'}
                 </p>
                 <div className="flex items-center justify-center gap-2">
                   <button
                     type="button"
-                    onClick={() => handleLoadPresetStages(activeChapter.id)}
-                    className="text-xs bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>{isPersian ? 'بارگذاری الگوی ۴ مرحله‌ای روایی' : 'Load 4-Stage Preset'}</span>
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => handleAddStage(activeChapter.id)}
-                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer border border-zinc-700"
+                    className="text-xs bg-purple-600 hover:bg-purple-500 text-white font-bold px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-sm"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>{isPersian ? '+ افزودن مرحله دستی' : '+ Custom Stage'}</span>
+                    <span>{isPersian ? '+ افزودن مرحله' : '+ Add Stage'}</span>
                   </button>
                 </div>
               </div>
