@@ -18,6 +18,7 @@ import {
   Maximize2,
   Minimize2,
   Image as ImageIcon,
+  Star,
 } from 'lucide-react';
 
 interface StoryBeatChoice {
@@ -47,6 +48,8 @@ interface StoryTreeCanvasProps {
   onScenesChange?: (scenes: StoryBeat[]) => void;
   /** Commit handler for flat story beat edits so changes persist to storage and database. */
   onFlatBeatsChange?: (scenes: StoryBeat[]) => void;
+  /** Set starting/initial scene ID on the story manifest */
+  onSetInitialSceneId?: (sceneId: string) => void;
 }
 
 // Helper: Calculate automatic hierarchical tree layout via BFS
@@ -120,6 +123,7 @@ export function StoryTreeCanvas({
   chapter,
   onScenesChange,
   onFlatBeatsChange,
+  onSetInitialSceneId,
 }: StoryTreeCanvasProps) {
   const isChapterMode = !!chapter;
 
@@ -618,6 +622,34 @@ export function StoryTreeCanvas({
 
             {/* Scene ID & Location Picker */}
             <div className="space-y-3">
+              {/* Initial Starting Scene Badge & Action */}
+              <div className="flex items-center justify-between p-2.5 rounded-2xl bg-zinc-950/80 border border-zinc-800">
+                <div className="flex items-center gap-2">
+                  <Star
+                    className={`w-4 h-4 ${
+                      story.initialSceneId === selectedBeat.sceneId
+                        ? 'text-amber-400 fill-amber-400'
+                        : 'text-zinc-600'
+                    }`}
+                  />
+                  <span className="text-xs font-bold text-zinc-300">
+                    {story.initialSceneId === selectedBeat.sceneId
+                      ? (isPersian ? 'نقطه شروع داستان' : 'Story Starting Scene')
+                      : (isPersian ? 'صحنه عادی' : 'Standard Scene')}
+                  </span>
+                </div>
+                {story.initialSceneId !== selectedBeat.sceneId && onSetInitialSceneId && (
+                  <button
+                    type="button"
+                    onClick={() => onSetInitialSceneId(selectedBeat.sceneId)}
+                    className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 transition-all cursor-pointer"
+                  >
+                    <Star className="w-3 h-3" />
+                    <span>{isPersian ? 'تنظیم به عنوان شروع' : 'Set as Starting Scene'}</span>
+                  </button>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
                   {t.location}
@@ -1075,6 +1107,15 @@ export function StoryTreeCanvas({
                       <span className="text-xs font-mono text-zinc-300 font-bold">
                         {beat.sceneId}
                       </span>
+                      {story.initialSceneId === beat.sceneId && (
+                        <span
+                          title={isPersian ? 'نقطه شروع داستان' : 'Initial Starting Scene'}
+                          className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                        >
+                          <Star className="w-2.5 h-2.5 fill-amber-300" />
+                          <span>{isPersian ? 'شروع' : 'Start'}</span>
+                        </span>
+                      )}
                     </div>
                     <span className="text-[11px] font-medium text-sky-400 bg-sky-500/15 border border-sky-500/30 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
                       <MapPin className="w-3 h-3" />

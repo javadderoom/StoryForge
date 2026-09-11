@@ -201,13 +201,23 @@ export async function POST(req: NextRequest) {
       );
     }
     const rawStory = await StoryRepository.getStoryById(storyId);
-    if (!rawStory) {
+    if (!rawStory && !body?.draftManifest) {
       return NextResponse.json(
         { success: false, error: 'Story not found' },
         { status: 404, headers: corsHeaders }
       );
     }
-    const story = migrateStoryManifestToUnifiedGraph(rawStory);
+    const baseStory = rawStory || (body.draftManifest as any);
+    const storyToMigrate = body?.draftManifest
+      ? {
+          ...baseStory,
+          ...body.draftManifest,
+          initialStoryBeats: body.draftManifest.initialStoryBeats?.length
+            ? body.draftManifest.initialStoryBeats
+            : baseStory.initialStoryBeats,
+        }
+      : baseStory;
+    const story = migrateStoryManifestToUnifiedGraph(storyToMigrate);
 
     const characterSetup = body?.characterSetup;
 
@@ -337,10 +347,16 @@ export async function POST(req: NextRequest) {
       };
     }
 
+    const beats = story.initialStoryBeats || [];
+    const designatedBeat = story.initialSceneId
+      ? beats.find((b) => b.sceneId === story.initialSceneId && !isPlaceholderBeat(b))
+      : null;
+
     const openingBeat =
-      story.initialStoryBeats?.find((b) => !b.chapterId && !isPlaceholderBeat(b)) ||
-      story.initialStoryBeats?.find((b) => !isPlaceholderBeat(b)) ||
-      story.initialStoryBeats?.[0] || {
+      designatedBeat ||
+      beats.find((b) => !b.chapterId && !isPlaceholderBeat(b)) ||
+      beats.find((b) => !isPlaceholderBeat(b)) ||
+      beats[0] || {
         sceneId: story.initialSceneId || 'scene_start',
         locationId: story.worldBible.locations[0]?.id || '',
         narrativeText: '',

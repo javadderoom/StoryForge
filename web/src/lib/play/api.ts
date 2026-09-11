@@ -52,12 +52,13 @@ export async function fetchCatalog(): Promise<CatalogStory[]> {
 
 export async function startSession(
   storyId: string,
-  characterSetup?: CharacterSetup
+  characterSetup?: CharacterSetup,
+  draftManifest?: any
 ): Promise<StartSessionResult> {
   const res = await fetch('/api/play/session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ storyId, characterSetup }),
+    body: JSON.stringify({ storyId, characterSetup, draftManifest }),
   });
   const json = await asJson(res);
   if (!json.success) throw new Error(json.error || 'Failed to start session');

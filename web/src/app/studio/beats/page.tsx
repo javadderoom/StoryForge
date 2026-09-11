@@ -867,6 +867,14 @@ export default function StoryBeatsStudioPage() {
         onFlatBeatsChange={(newScenes) => {
           updateStoryBeats(() => newScenes as any);
         }}
+        onSetInitialSceneId={(sceneId) => {
+          updateStoryMeta({ initialSceneId: sceneId });
+          notify.success(
+            isPersian
+              ? `صحنه «${sceneId}» به عنوان نقطه شروع ماجراجویی تنظیم شد`
+              : `Scene "${sceneId}" set as the adventure starting scene`
+          );
+        }}
       />
 
       {/* Plan 06: 3-Act Branching Plot Tree Synthesis Preview Modal */}

@@ -172,6 +172,15 @@ export default function Home() {
       setErrorMessage(null);
       setLastOutcome(null);
       try {
+        // Read any local draft created or modified in Studio
+        let localDraft: any = undefined;
+        try {
+          const draftRaw = localStorage.getItem(`storyforge_studio_draft_v1_${storyId}`);
+          if (draftRaw) localDraft = JSON.parse(draftRaw);
+        } catch {
+          /* ignore */
+        }
+
         let data: StartSessionResult | null;
         if (resumeId) {
           data = await resumeSession(resumeId);
@@ -185,8 +194,14 @@ export default function Home() {
             setIsCharCreationOpen(true);
             return;
           }
+          // If the resumed session has no narrative content (e.g. started before scenes were written),
+          // clear the blank session and start a fresh session with the newly authored beats/draft.
+          if (!data.currentBeat?.narrative || data.currentBeat.narrative.trim().length === 0) {
+            clearStoredSession(storyId);
+            data = await startSession(storyId, setup, localDraft);
+          }
         } else {
-          data = await startSession(storyId, setup);
+          data = await startSession(storyId, setup, localDraft);
         }
         if (!data) throw new Error('No session data');
         const resolvedSessionId = data.sessionId || (data as any).session?.sessionId;
@@ -461,8 +476,15 @@ export default function Home() {
 
   const restartAdventure = async () => {
     if (!selectedStory) return;
+    const ok = await notify.confirm(
+      isRtl
+        ? 'آیا از شروع مجدد ماجراجویی اطمینان دارید؟ تمام پیشرفت فعلی این جلسه بازنشانی خواهد شد.'
+        : 'Are you sure you want to restart your adventure? Current session progress will be reset.'
+    );
+    if (!ok) return;
     clearStoredSession(selectedStory.id);
     setSessionId('');
+    setCurrentBeat(null);
     audioService.stopAmbient();
     setIsCharCreationOpen(true);
   };

@@ -913,7 +913,6 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
                 publishedDowngraded: !!data.publishedDowngraded,
                 updatedAt: new Date(),
               });
-              setPublishGateOpen(true);
             } else {
               setPublishGate(null);
             }
