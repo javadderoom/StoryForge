@@ -2,8 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { getCachedD20Model, preloadD20, isD20Preloaded } from '@/lib/play/diceAssetCache';
 
 interface ThreeD20DiceProps {
   resultNumber: number;
@@ -123,7 +123,7 @@ export function ThreeD20Dice({
   size = 230,
 }: ThreeD20DiceProps) {
   const mountRef = useRef<HTMLDivElement>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => !isD20Preloaded());
 
   const stateRef = useRef<{
     isRolling: boolean;
@@ -214,67 +214,31 @@ export function ThreeD20Dice({
     const startQuaternion = new THREE.Quaternion();
     let targetQuaternion = computeTargetQuaternion(stateRef.current.resultNumber || 20);
 
-    // 4. Load High-Quality d20.glb Model
-    const loader = new GLTFLoader();
-    loader.load(
-      '/models/d20.glb',
-      (gltf) => {
-        if (isDestroyed) return;
-
-        const model = gltf.scene;
-
-        // Center model geometry
-        const box = new THREE.Box3().setFromObject(model);
-        const center = box.getCenter(new THREE.Vector3());
-        const sizeBox = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(sizeBox.x, sizeBox.y, sizeBox.z);
-
-        // Normalize scale to fit viewer
-        const scaleFactor = 3.2 / (maxDim || 1);
-        model.scale.setScalar(scaleFactor);
-        model.position.copy(center.negate().multiplyScalar(scaleFactor));
-
-        // Configure radiant gold numbers & polished obsidian materials
-        model.traverse((child) => {
-          if ((child as THREE.Mesh).isMesh) {
-            const mesh = child as THREE.Mesh;
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-
-            if (mesh.material) {
-              const mat = mesh.material as THREE.MeshStandardMaterial;
-              const isLettersMesh = mesh.name.toLowerCase().includes('letter');
-
-              if (isLettersMesh) {
-                // Radiant Polished Gold Numbers
-                mat.color = new THREE.Color(0xffd700);
-                mat.metalness = 0.95;
-                mat.roughness = 0.15;
-                mat.envMapIntensity = 2.5;
-              } else {
-                // Deep Obsidian / Marble Facet Body
-                mat.metalness = 0.2;
-                mat.roughness = 0.35;
-                mat.envMapIntensity = 1.2;
-              }
-              mat.needsUpdate = true;
-            }
+    // 4. Attach Pre-warmed / Cached d20.glb Model
+    const cachedModel = getCachedD20Model();
+    if (cachedModel) {
+      dicePivot.add(cachedModel);
+      setIsLoading(false);
+      if (!stateRef.current.isRolling) {
+        dicePivot.quaternion.copy(targetQuaternion);
+      }
+    } else {
+      preloadD20()
+        .then((model) => {
+          if (isDestroyed) return;
+          dicePivot.add(model.clone(true));
+          setIsLoading(false);
+          if (!stateRef.current.isRolling) {
+            dicePivot.quaternion.copy(targetQuaternion);
+          }
+        })
+        .catch((error) => {
+          console.error('Error loading /models/d20.glb:', error);
+          if (!isDestroyed) {
+            setIsLoading(false);
           }
         });
-
-        dicePivot.add(model);
-        setIsLoading(false);
-
-        if (!stateRef.current.isRolling) {
-          dicePivot.quaternion.copy(targetQuaternion);
-        }
-      },
-      undefined,
-      (error) => {
-        console.error('Error loading /models/d20.glb:', error);
-        setIsLoading(false);
-      }
-    );
+    }
 
     // 5. Animation & Physics Loop
     const animate = () => {

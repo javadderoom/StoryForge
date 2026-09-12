@@ -25,6 +25,8 @@ class GameSessionState {
   final String? storyCoverImageUrl;
   final String? currentSceneImageUrl;
   final List<Map<String, dynamic>> rpgResources;
+  /// Plan 13: display name of the hazard zone after a displacement turn.
+  final String? lastDisplacement;
 
   GameSessionState({
     this.isLoading = false,
@@ -44,6 +46,7 @@ class GameSessionState {
     this.storyCoverImageUrl,
     this.currentSceneImageUrl,
     this.rpgResources = const [],
+    this.lastDisplacement,
   });
 
   bool get isPersian {
@@ -71,8 +74,10 @@ class GameSessionState {
     String? storyCoverImageUrl,
     String? currentSceneImageUrl,
     List<Map<String, dynamic>>? rpgResources,
+    String? lastDisplacement,
     bool clearSceneImage = false,
     bool clearPendingTurn = false,
+    bool clearDisplacement = false,
   }) {
     return GameSessionState(
       isLoading: isLoading ?? this.isLoading,
@@ -94,7 +99,22 @@ class GameSessionState {
       currentSceneImageUrl: clearSceneImage
           ? null
           : (currentSceneImageUrl ?? this.currentSceneImageUrl),
+      lastDisplacement: clearDisplacement ? null : (lastDisplacement ?? this.lastDisplacement),
     );
+  }
+
+  /// Plan 13: resolves a location display name for displacement banners.
+  static String? displacementName(Map<String, dynamic>? data, Map<String, dynamic>? lore) {
+    if (data == null || data['locationChanged'] != true) return null;
+    final id = (data['displacedLocationId'] ??
+            (data['updatedPlayerState'] as Map<String, dynamic>?)?['currentLocationId'])
+        ?.toString();
+    if (id == null || id.isEmpty) return id;
+    final locations = (lore?['locations'] as List<dynamic>?) ?? const [];
+    for (final l in locations) {
+      if (l is Map && l['id']?.toString() == id) return (l['name']?.toString().isNotEmpty == true) ? l['name'].toString() : id;
+    }
+    return id;
   }
 
   /// Merges server resource definitions with live maxResources so Studio
@@ -235,6 +255,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             pendingTurnData: result['data'],
             lastResolution: resolution,
             isCreditDepleted: false,
+            lastDisplacement: GameSessionState.displacementName(result['data'], state.lore),
+            clearDisplacement: GameSessionState.displacementName(result['data'], state.lore) == null,
           );
         } else {
           final beatData = result['data']['beat'];
@@ -259,7 +281,10 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             turnNumber: state.turnNumber + 1,
             isCreditDepleted: false,
             clearPendingTurn: true,
+            lastDisplacement: GameSessionState.displacementName(result['data'], state.lore),
+            clearDisplacement: GameSessionState.displacementName(result['data'], state.lore) == null,
           );
+          ref.read(audioProvider.notifier).updateLocationAmbient(updatedPlayer.currentLocationId);
         }
         return resolution;
       } else {
@@ -310,6 +335,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       turnNumber: state.turnNumber + 1,
       isCreditDepleted: false,
       clearPendingTurn: true,
+      lastDisplacement: GameSessionState.displacementName(data, state.lore),
+      clearDisplacement: GameSessionState.displacementName(data, state.lore) == null,
     );
 
     // Audio feedback on turn progress

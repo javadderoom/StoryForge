@@ -68,6 +68,11 @@ export interface WorkingContextEnvelope {
   ontologySummary?: string;
   locations?: string[];
   npcs?: string[];
+  // Plan 13: Director & Scribe runtime (threat clocks, displacement, contextual choices)
+  activeClocks?: string[];
+  displacementDirective?: string;
+  inventoryTerms?: string[];
+  environmentInteractables?: string[];
   // Plan 07/08: long-form saga grounding
   activeChapterTitle?: string;
   activeChapterGoal?: string;

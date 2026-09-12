@@ -106,6 +106,11 @@ export default function LocationsStudioPage() {
   const [locSpecialRules, setLocSpecialRules] = useState('');
   const [locConnectedIds, setLocConnectedIds] = useState<string[]>([]);
   const [connectedSearch, setConnectedSearch] = useState('');
+  // Plan 13: hazard fallback + default threat clock
+  const [locHazardFallbackId, setLocHazardFallbackId] = useState('');
+  const [locThreatName, setLocThreatName] = useState('');
+  const [locThreatMax, setLocThreatMax] = useState<number>(4);
+  const [locThreatCrisis, setLocThreatCrisis] = useState('');
 
   // Directory controls: text search + category facet + focus-location
   // (connections & children) + sort + grouping.
@@ -301,6 +306,10 @@ export default function LocationsStudioPage() {
     setLocSpecialRules('');
     setLocConnectedIds([]);
     setConnectedSearch('');
+    setLocHazardFallbackId('');
+    setLocThreatName('');
+    setLocThreatMax(4);
+    setLocThreatCrisis('');
     setShowAddModal(true);
   };
 
@@ -316,6 +325,10 @@ export default function LocationsStudioPage() {
     setLocSpecialRules(Array.isArray(loc.specialRules) ? loc.specialRules.join('\n') : (typeof loc.specialRules === 'string' ? loc.specialRules : ''));
     setLocConnectedIds(loc.connectedLocationIds || []);
     setConnectedSearch('');
+    setLocHazardFallbackId(loc.hazardFallbackLocationId || '');
+    setLocThreatName(loc.threatClockDefault?.name || '');
+    setLocThreatMax(loc.threatClockDefault?.maxSegments || 4);
+    setLocThreatCrisis(loc.threatClockDefault?.crisisDescription || '');
     setShowAddModal(true);
   };
 
@@ -357,6 +370,14 @@ export default function LocationsStudioPage() {
       specialRules: specialRulesArray.length > 0 ? specialRulesArray : undefined,
       subZones: existingLoc?.subZones,
       pointsOfInterest: existingLoc?.pointsOfInterest,
+      hazardFallbackLocationId: (locHazardFallbackId || '').trim() || undefined,
+      threatClockDefault: (locThreatName || '').trim()
+        ? {
+            name: (locThreatName || '').trim(),
+            maxSegments: Math.min(12, Math.max(2, locThreatMax || 4)),
+            crisisDescription: (locThreatCrisis || '').trim(),
+          }
+        : undefined,
     };
 
     if (editingLocationId) {
@@ -1478,6 +1499,46 @@ export default function LocationsStudioPage() {
                     </div>
                   );
                 })()}
+              </div>
+
+              <div className="border border-red-500/25 bg-red-500/5 rounded-2xl p-3 space-y-2">
+                <label className="text-xs font-bold text-red-300 block">
+                  {isPersian ? 'سقوط خطرناک و ساعت تهدید (Plan 13):' : 'Hazard Fallback & Threat Clock (Plan 13):'}
+                </label>
+                <select
+                  value={locHazardFallbackId}
+                  onChange={(e) => setLocHazardFallbackId(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
+                >
+                  <option value="">{isPersian ? 'بدون سقوط (پیش‌فرض)' : 'No fallback (default)'}</option>
+                  {eligibleParentLocations.filter((l) => l.id !== editingLocationId).map((l) => (
+                    <option key={l.id} value={l.id}>{l.name} — {l.region}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={locThreatName}
+                  onChange={(e) => setLocThreatName(e.target.value)}
+                  placeholder={isPersian ? 'نام ساعت تهدید (مثال: هشدار گارد شهر)' : 'Threat clock name (e.g. City Watch Alert)'}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
+                />
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min={2}
+                    max={12}
+                    value={locThreatMax}
+                    onChange={(e) => setLocThreatMax(Number(e.target.value) || 4)}
+                    className="w-24 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
+                  />
+                  <input
+                    type="text"
+                    value={locThreatCrisis}
+                    onChange={(e) => setLocThreatCrisis(e.target.value)}
+                    placeholder={isPersian ? 'بحران هنگام پر شدن (مثال: گاردها درها را می‌شکنند)' : 'Crisis when filled (e.g. guards breach the doors)'}
+                    className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
+                  />
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">

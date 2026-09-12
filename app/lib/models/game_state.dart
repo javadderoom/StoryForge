@@ -238,6 +238,45 @@ class NpcRelationship {
       };
 }
 
+/// Plan 13: Tension & Threat Clock (mirrors web TensionClock).
+class TensionClock {
+  final String id;
+  final String name;
+  final int currentSegments;
+  final int maxSegments;
+  final String crisisDescription;
+  final bool isTriggered;
+
+  const TensionClock({
+    required this.id,
+    required this.name,
+    this.currentSegments = 0,
+    this.maxSegments = 4,
+    this.crisisDescription = '',
+    this.isTriggered = false,
+  });
+
+  factory TensionClock.fromJson(Map<String, dynamic> json) {
+    return TensionClock(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      currentSegments: (json['currentSegments'] as num?)?.toInt() ?? 0,
+      maxSegments: (json['maxSegments'] as num?)?.toInt() ?? 4,
+      crisisDescription: json['crisisDescription']?.toString() ?? '',
+      isTriggered: json['isTriggered'] == true,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'currentSegments': currentSegments,
+        'maxSegments': maxSegments,
+        'crisisDescription': crisisDescription,
+        'isTriggered': isTriggered,
+      };
+}
+
 class PlayerState {
   final String? characterName;
   final String? archetypeId;
@@ -255,6 +294,7 @@ class PlayerState {
   final Map<String, NpcRelationship> relationships;
   final List<String> activeQuestIds;
   final List<String> completedQuestIds;
+  final List<TensionClock> activeTensionClocks;
 
   PlayerState({
     this.characterName,
@@ -273,6 +313,7 @@ class PlayerState {
     this.relationships = const {},
     this.activeQuestIds = const [],
     this.completedQuestIds = const [],
+    this.activeTensionClocks = const [],
   });
 
   int maxFor(String key, int fallback) => maxResources[key] ?? fallback;
@@ -316,6 +357,7 @@ class PlayerState {
     Map<String, NpcRelationship>? relationships,
     List<String>? activeQuestIds,
     List<String>? completedQuestIds,
+    List<TensionClock>? activeTensionClocks,
   }) {
     return PlayerState(
       characterName: characterName ?? this.characterName,
@@ -334,6 +376,7 @@ class PlayerState {
       relationships: relationships ?? this.relationships,
       activeQuestIds: activeQuestIds ?? this.activeQuestIds,
       completedQuestIds: completedQuestIds ?? this.completedQuestIds,
+      activeTensionClocks: activeTensionClocks ?? this.activeTensionClocks,
     );
   }
 
@@ -348,6 +391,7 @@ class PlayerState {
     final rawActiveQuests = json['activeQuestIds'] as List<dynamic>? ?? [];
     final rawCompQuests = json['completedQuestIds'] as List<dynamic>? ?? [];
     final rawTraits = json['traits'] as List<dynamic>? ?? [];
+    final rawClocks = json['activeTensionClocks'] as List<dynamic>? ?? [];
 
     return PlayerState(
       characterName: json['characterName'],
@@ -366,6 +410,7 @@ class PlayerState {
       relationships: rawRel.map((k, v) => MapEntry(k, NpcRelationship.fromJson(v as Map<String, dynamic>))),
       activeQuestIds: rawActiveQuests.map((e) => e.toString()).toList(),
       completedQuestIds: rawCompQuests.map((e) => e.toString()).toList(),
+      activeTensionClocks: rawClocks.map((e) => TensionClock.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
     );
   }
 
@@ -386,5 +431,6 @@ class PlayerState {
         'relationships': relationships.map((k, v) => MapEntry(k, v.toJson())),
         'activeQuestIds': activeQuestIds,
         'completedQuestIds': completedQuestIds,
+        'activeTensionClocks': activeTensionClocks.map((c) => c.toJson()).toList(),
       };
 }

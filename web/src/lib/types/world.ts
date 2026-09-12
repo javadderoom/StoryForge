@@ -163,6 +163,12 @@ export interface LocationSubZone {
   pointsOfInterest: LocationPointOfInterest[];
 }
 
+export interface ThreatClockDefault {
+  name: string;
+  maxSegments: number; // typically 4 or 6
+  crisisDescription: string;
+}
+
 export interface WorldLocation {
   id: string;
   name: string;
@@ -176,6 +182,10 @@ export interface WorldLocation {
   specialRules?: string[];
   subZones?: LocationSubZone[];
   pointsOfInterest?: LocationPointOfInterest[];
+  /** Plan 13: location the character falls into / is displaced to on catastrophic high-risk failure. */
+  hazardFallbackLocationId?: string;
+  /** Plan 13: default threat clock spawned when entering this zone without an active clock. */
+  threatClockDefault?: ThreatClockDefault;
 }
 
 /**
@@ -919,6 +929,12 @@ export const LocationSubZonesEnvelopeSchema = z.object({
   subZones: z.array(LocationSubZoneSchema).min(1),
 });
 
+export const ThreatClockDefaultSchema = z.object({
+  name: z.string().min(1),
+  maxSegments: z.number().int().min(2).max(12).default(4),
+  crisisDescription: z.string().default(''),
+});
+
 export const WorldLocationSchema = z.object({
   id: z.string(),
   name: z.string().min(2),
@@ -932,6 +948,8 @@ export const WorldLocationSchema = z.object({
   specialRules: z.array(z.string()).optional(),
   subZones: z.array(LocationSubZoneSchema).optional(),
   pointsOfInterest: z.array(LocationPointOfInterestSchema).optional(),
+  hazardFallbackLocationId: z.string().min(1).optional(),
+  threatClockDefault: ThreatClockDefaultSchema.optional(),
 });
 
 

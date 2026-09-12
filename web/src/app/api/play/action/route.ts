@@ -170,6 +170,10 @@ export async function POST(req: NextRequest) {
             riskLevel,
             targetDC,
             forcedDiceRoll: typeof forcedDiceRoll === 'number' ? forcedDiceRoll : undefined,
+            // Plan 13: world context for hazard displacement + threat clocks.
+            worldBible: story.worldBible,
+            currentLocationId: playerState.currentLocationId,
+            activeClocks: playerState.activeTensionClocks,
           }
         );
 
@@ -265,6 +269,38 @@ export async function POST(req: NextRequest) {
       resolution.stateDiff,
       story.rpgSystem
     );
+
+    // 3a½. Plan 13: backfill full threat-clock metadata for newly spawned
+    // clocks (applyStateMutation only records deltas; names/max live here).
+    const preTurnLocationId = playerState.currentLocationId;
+    if (resolution.clockUpdate) {
+      if (!updatedPlayerState.activeTensionClocks) updatedPlayerState.activeTensionClocks = [];
+      const cu = resolution.clockUpdate;
+      const locForClock =
+        story.worldBible.locations.find((l) => `clock_${l.id}` === cu.clockId) ||
+        story.worldBible.locations.find((l) => l.id === preTurnLocationId);
+      const existing = updatedPlayerState.activeTensionClocks.find((c) => c.id === cu.clockId);
+      if (existing) {
+        existing.currentSegments = cu.newSegments;
+        existing.maxSegments = cu.maxSegments;
+        if (cu.isCrisis) existing.isTriggered = true;
+        if ((!existing.name || existing.name === existing.id) && locForClock?.threatClockDefault?.name) {
+          existing.name = locForClock.threatClockDefault.name;
+          existing.crisisDescription = locForClock.threatClockDefault.crisisDescription || existing.crisisDescription;
+        }
+      } else {
+        updatedPlayerState.activeTensionClocks.push({
+          id: cu.clockId,
+          name: locForClock?.threatClockDefault?.name || cu.clockId,
+          currentSegments: cu.newSegments,
+          maxSegments: cu.maxSegments,
+          crisisDescription: locForClock?.threatClockDefault?.crisisDescription || '',
+          isTriggered: cu.isCrisis || undefined,
+        });
+      }
+    }
+    const displacedLocationId = resolution.displacedLocationId || resolution.stateDiff.displacedLocationId;
+    const previousLocation = story.worldBible.locations.find((l) => l.id === preTurnLocationId);
 
     // 3a. Plan 11: Quest item triggers & active quest progress/completion
     const itemTriggerResult = GameEngine.evaluateQuestItemTriggers(
@@ -448,6 +484,20 @@ export async function POST(req: NextRequest) {
     // Tier 2 rollups + Tier 3 ledger lines from the merged Living World Ledger
     const threeTier = new MemoryEngine(memoryEntries).buildThreeTierEnvelope(nextLedger);
 
+    // Plan 13: threat clocks + displacement + contextual choice material.
+    const activeClockLines = (updatedPlayerState.activeTensionClocks ?? []).map(
+      (c) => `${c.name}: ${c.currentSegments}/${c.maxSegments}${c.isTriggered ? ' — CRISIS TRIGGERED' : ''}${c.crisisDescription ? ` (crisis: ${c.crisisDescription})` : ''}`
+    );
+    const newLocation = story.worldBible.locations.find((l) => l.id === updatedPlayerState.currentLocationId);
+    const displacementDirective = displacedLocationId && previousLocation && newLocation
+      ? `[CRITICAL LOCATION DISPLACEMENT]: The action failed catastrophically. The player was knocked/fell from ${previousLocation.name} into ${newLocation.name}. Dramatize the bone-jarring impact, physical damage, and the sudden survival crisis in this new environment!`
+      : undefined;
+    const inventoryTerms = updatedPlayerState.inventory.map((i) => i.name).filter(Boolean).slice(0, 12);
+    const environmentInteractables = [
+      ...(currentLocation.pointsOfInterest ?? []).map((p) => p.name),
+      ...(currentLocation.subZones ?? []).flatMap((z) => (z.pointsOfInterest ?? []).map((p) => p.name)),
+    ].filter(Boolean).slice(0, 12);
+
     const contextEnvelope: WorkingContextEnvelope = {
       storyTitle: story.title,
       worldLaws: story.worldBible.laws.map((l) => `${l.rule}: ${l.description}`),
@@ -500,6 +550,11 @@ export async function POST(req: NextRequest) {
       activeChapterGoal: activeChapter?.narrativeGoal || story.activeMilestoneGoal || undefined,
       episodicRollup: threeTier.episodicRollup,
       livingWorldLedger: threeTier.livingWorldLedger,
+      // Plan 13: Director & Scribe runtime
+      activeClocks: activeClockLines.length ? activeClockLines : undefined,
+      displacementDirective,
+      inventoryTerms: inventoryTerms.length ? inventoryTerms : undefined,
+      environmentInteractables: environmentInteractables.length ? environmentInteractables : undefined,
     };
 
     // ------------------------------------------------------------------
@@ -699,6 +754,10 @@ export async function POST(req: NextRequest) {
           proseRepaired,
           isDefeat: !!defeatNarrativeHint,
           defeatCount: updatedPlayerState.defeatCount ?? 0,
+          // Plan 13: lets readers shift audio + banners without diffing states.
+          locationChanged: !!displacedLocationId,
+          displacedLocationId: displacedLocationId || undefined,
+          activeTensionClocks: updatedPlayerState.activeTensionClocks ?? [],
         },
       },
       { headers: corsHeaders }

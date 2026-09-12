@@ -12,6 +12,7 @@ import '../../services/audio_service.dart';
 import '../../models/game_state.dart';
 import '../../models/choice_option.dart';
 import '../widgets/atmosphere_canvas.dart';
+import '../widgets/tension_clock_widget.dart';
 import '../widgets/three_d_choice_card.dart';
 import '../widgets/realm_relic_badge.dart';
 import '../widgets/rpg_hud_drawer.dart';
@@ -406,6 +407,38 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                 ),
                               ),
                             ),
+
+                            // Plan 13: threat clocks + displacement banner
+                            TensionClockWidget(
+                              clocks: session.playerState?.activeTensionClocks ?? const [],
+                              isPersian: isPersian,
+                            ),
+                            if (session.lastDisplacement != null) ...[
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade900.withValues(alpha: 0.7),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: Colors.redAccent.withValues(alpha: 0.6)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 18),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        isPersian
+                                            ? 'سقوط مرگبار! به «${session.lastDisplacement}» پرتاب شدید.'
+                                            : 'Catastrophic fall! Displaced into "${session.lastDisplacement}".',
+                                        style: GoogleFonts.vazirmatn(
+                                            fontSize: 12, fontWeight: FontWeight.bold, color: Colors.red.shade100),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
 
                             // Last Dice Resolution Banner (Tap to Re-inspect 3D Die)
                             if (session.lastResolution != null) ...[

@@ -83,11 +83,17 @@ export class PromptAssembler {
 
     const statsDirective = validStatIds.length
       ? isEnglish
-        ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Every choice's "requiredStatId" MUST be one of exactly these stat ids: [${validStatIds.join(', ')}].`
-        : `4. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای و طبیعی ارائه کن. «requiredStatId» هر انتخاب باید دقیقاً یکی از این شناسه‌ها باشد: [${validStatIds.join('، ')}].`
+        ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Every choice's "requiredStatId" MUST be one of exactly these stat ids: [${validStatIds.join(', ')}]. Ground choices in equipped gear, environmental interactables, and NPC secrets where plausible; span distinct philosophies (tactical, aggressive, defensive, inquisitive).`
+        : `4. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای و طبیعی ارائه کن. «requiredStatId» هر انتخاب باید دقیقاً یکی از این شناسه‌ها باشد: [${validStatIds.join('، ')}]. انتخاب‌ها را بر تجهیزات همراه، عناصر محیطی و اسرار شخصیت‌ها استوار کن و فلسفه‌های متفاوت (تاکتیکی، تهاجمی، تدافعی، کنجکاوانه) را پوشش بده.`
       : isEnglish
-      ? '4. Provide 2 to 4 natural, contextual next choices for the reader in English.'
-      : '4. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای طبیعی ارائه کن. هر انتخاب باید شامل آمار مناسب و درجه سختی (۹ تا ۱۶) باشد.';
+      ? '4. Provide 2 to 4 natural, contextual next choices for the reader in English. Ground choices in equipped gear and environmental interactables; span distinct philosophies (tactical, aggressive, defensive, inquisitive).'
+      : '4. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای طبیعی ارائه کن. هر انتخاب باید شامل آمار مناسب و درجه سختی (۹ تا ۱۶) باشد و بر تجهیزات و محیط استوار باشد.';
+
+    // Plan 13: contextual choice material shared by both language branches.
+    const choiceMaterial = [
+      context.inventoryTerms?.length ? `Equipped gear / inventory: ${context.inventoryTerms.join(', ')}` : '',
+      context.environmentInteractables?.length ? `Environmental interactables: ${context.environmentInteractables.join(', ')}` : '',
+    ].filter(Boolean).join('\n');
 
     const systemPrompt = isEnglish
       ? `[ROLE & PERSONA: LITERARY NOVELIST & RPG NARRATIVE DIRECTOR]
@@ -197,6 +203,19 @@ You MUST respond with a valid JSON object matching this schema:
         );
       }
 
+      // Plan 13: threat clocks, displacement, contextual choice material.
+      if (context.activeClocks?.length) {
+        parts.push(
+          `[ACTIVE THREAT CLOCKS]\n${context.activeClocks.map((x) => `• ${x}`).join('\n')}\nReflect rising tension in the prose; when a clock hits its maximum, unleash its crisis event NOW, then stand the clock down.`
+        );
+      }
+      if (context.displacementDirective) {
+        parts.push(context.displacementDirective);
+      }
+      if (choiceMaterial) {
+        parts.push(`[CONTEXTUAL CHOICE MATERIAL — weave into proposed choices]\n${choiceMaterial}`);
+      }
+
       parts.push(`[FINAL INSTRUCTION]\nWrite the next scene prose in English reflecting the pre-resolved check outcome and return 2 to 4 contextual choices in pure JSON.`);
     } else {
       // Persian Context
@@ -253,6 +272,19 @@ You MUST respond with a valid JSON object matching this schema:
         parts.push(
           `[دفتر جهان زنده / LIVING WORLD LEDGER]\n${context.livingWorldLedger.map((x) => `• ${x}`).join('\n')}\n(هرگز شخصیات مرده یا دگرگون‌شده را زنده نکن؛ به جایگاه جناح‌ها پایبند بمان.)`
         );
+      }
+
+      // Plan 13: threat clocks, displacement, contextual choice material.
+      if (context.activeClocks?.length) {
+        parts.push(
+          `[ساعت‌های تهدید فعال / ACTIVE THREAT CLOCKS]\n${context.activeClocks.map((x) => `• ${x}`).join('\n')}\nتنش فزاینده را در نثر منعکس کن؛ وقتی ساعتی به سقف رسید، بحرانش را همین حالا آزاد کن و سپس آن را بخوابان.`
+        );
+      }
+      if (context.displacementDirective) {
+        parts.push(context.displacementDirective);
+      }
+      if (choiceMaterial) {
+        parts.push(`[مصالح انتخاب زمینه‌ای / CONTEXTUAL CHOICE MATERIAL]\n${choiceMaterial}`);
       }
 
       parts.push(`[دستور نهایی]\nصحنه بعدی داستان را با نثر ادبی و تاثیر نتیجه تاس بنویس و ۲ تا ۴ انتخاب زمینه ای در قالب JSON برگردان.`);

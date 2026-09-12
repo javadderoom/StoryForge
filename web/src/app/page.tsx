@@ -1,6 +1,6 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
   Shield,
@@ -24,9 +24,12 @@ import { DiceRollModal } from '@/components/DiceRollModal';
 import { ReaderSettingsModal } from '@/components/ReaderSettingsModal';
 import { StoryCatalogModal } from '@/components/StoryCatalogModal';
 import { CharacterCreationModal } from '@/components/play/CharacterCreationModal';
+import { GameLoadingScreen } from '@/components/play/GameLoadingScreen';
 import { Compendium } from '@/components/play/Compendium';
 import { AtmosphereCanvas } from '@/components/play/AtmosphereCanvas';
 import { ThreeDChoiceCard } from '@/components/play/ThreeDChoiceCard';
+import { TensionClockWidget } from '@/components/play/TensionClockWidget';
+import { preloadD20 } from '@/lib/play/diceAssetCache';
 import {
   fetchCatalog,
   startSession,
@@ -112,6 +115,8 @@ export default function Home() {
   const [turnNumber, setTurnNumber] = useState<number>(1);
   const [freeTextAction, setFreeTextAction] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isGameLoading, setIsGameLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [lastOutcome, setLastOutcome] = useState<DiceResolution | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -125,6 +130,12 @@ export default function Home() {
   const [diceResolution, setDiceResolution] = useState<DiceResolution | null>(null);
   const [diceActionText, setDiceActionText] = useState('');
   const [pendingTurn, setPendingTurn] = useState<any | null>(null);
+  // Plan 13: hazard displacement banner (location name resolved from lore list).
+  const [displacementBanner, setDisplacementBanner] = useState<string | null>(null);
+  const isDiceModalOpenRef = useRef(false);
+  useEffect(() => {
+    isDiceModalOpenRef.current = isDiceModalOpen;
+  }, [isDiceModalOpen]);
 
   // Auth & Billing
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -166,11 +177,35 @@ export default function Home() {
     return audioService.subscribe(apply);
   }, []);
 
+  // Proactively pre-cache 3D D20 dice model in the background on app mount
+  useEffect(() => {
+    preloadD20().catch(() => {});
+  }, []);
+
+  // Plan 13: surface hazard displacement as an animated banner (auto-dismiss).
+  const showDisplacementBanner = useCallback((data: any, loreList: { id: string; name: string }[]) => {
+    if (!data?.locationChanged) return;
+    const locId = data?.displacedLocationId || data?.updatedPlayerState?.currentLocationId;
+    const name = loreList?.find((l) => l.id === locId)?.name || locId || '';
+    setDisplacementBanner(name);
+    window.setTimeout(() => setDisplacementBanner(null), 8000);
+  }, []);
+
   const startGame = useCallback(
     async (storyId: string, resumeId?: string, setup?: CharacterSetup, genres?: string[]) => {
+      setIsGameLoading(true);
+      setLoadingProgress(15);
       setLoading(true);
       setErrorMessage(null);
       setLastOutcome(null);
+
+      // Start preloading the 3D D20 dice model in parallel with the session setup
+      const dicePreloadPromise = preloadD20((ratio) => {
+        setLoadingProgress((prev) => Math.max(prev, Math.round(15 + ratio * 65)));
+      }).catch((err) => {
+        console.warn('Background D20 preload non-fatal warning:', err);
+      });
+
       try {
         // Read any local draft created or modified in Studio
         let localDraft: any = undefined;
@@ -220,10 +255,18 @@ export default function Home() {
         if (resolvedPlayerState?.currentLocationId) {
           audioService.playAmbient(ambientFromLocation(resolvedPlayerState.currentLocationId));
         }
+
+        setLoadingProgress((prev) => Math.max(prev, 85));
+        // Await 3D D20 model pre-caching so it is 100% in memory
+        await dicePreloadPromise;
+        setLoadingProgress(100);
       } catch (e: any) {
         setErrorMessage(e?.message || 'Failed to start session');
       } finally {
         setLoading(false);
+        setTimeout(() => {
+          setIsGameLoading(false);
+        }, 400);
       }
     },
     []
@@ -374,6 +417,7 @@ export default function Home() {
         });
         setPlayerState(json.data.updatedPlayerState);
         setTurnNumber(nextTurn);
+        showDisplacementBanner(json.data, lore.locations);
       } catch (e: any) {
         setErrorMessage(e?.message || 'Network error');
       } finally {
@@ -398,6 +442,8 @@ export default function Home() {
     setIsDiceModalOpen(true);
     setDiceRolling(true);
 
+    const minRollDelay = new Promise((resolve) => setTimeout(resolve, 1100));
+
     try {
       const json = await sendAction({
         storyId: selectedStory.id,
@@ -417,32 +463,66 @@ export default function Home() {
         setErrorMessage(json.rejectionReason);
         notify.error(isRtl ? 'اقدام شما توسط قوانین جهان رد شد.' : 'Action blocked by world laws.');
         setIsDiceModalOpen(false);
+        setDiceRolling(false);
         return;
       }
       if (!json.success) {
         setErrorMessage(json.error || 'The scribe is silent.');
         setIsDiceModalOpen(false);
+        setDiceRolling(false);
         return;
       }
-      // Park the beat until the reader taps "Continue Narrative"
-      setPendingTurn(json.data);
+
+      await minRollDelay;
+
+      // If the reader already dismissed the dice modal or if it's closed, immediately apply the new scene
+      if (!isDiceModalOpenRef.current) {
+        setCurrentBeat({
+          narrative: json.data.beat.narrativeProse,
+          choices: json.data.beat.presentedChoices,
+        });
+        setPlayerState(json.data.updatedPlayerState);
+        setTurnNumber(nextTurn);
+        showDisplacementBanner(json.data, lore.locations);
+        if (json.data.updatedPlayerState?.currentLocationId) {
+          audioService.playAmbient(ambientFromLocation(json.data.updatedPlayerState.currentLocationId));
+        }
+        audioService.playSfx('pageTurn');
+        setFreeTextAction('');
+        setPendingTurn(null);
+        setDiceResolution(null);
+        setDiceRolling(false);
+      } else {
+        // Settle the dice and reveal the outcome & continue button
+        setPendingTurn(json.data);
+        setDiceRolling(false);
+      }
     } catch (e: any) {
       setErrorMessage(e?.message || 'Network error');
       setIsDiceModalOpen(false);
+      setDiceRolling(false);
     }
   };
 
   const applyPendingTurn = () => {
-    if (!pendingTurn) return;
+    if (!pendingTurn) {
+      setIsDiceModalOpen(false);
+      setDiceRolling(false);
+      return;
+    }
     setCurrentBeat({ narrative: pendingTurn.beat.narrativeProse, choices: pendingTurn.beat.presentedChoices });
     setPlayerState(pendingTurn.updatedPlayerState);
+    showDisplacementBanner(pendingTurn, lore.locations);
     setTurnNumber((t) => t + 1);
-    audioService.playAmbient(ambientFromLocation(pendingTurn.updatedPlayerState.currentLocationId));
+    if (pendingTurn.updatedPlayerState?.currentLocationId) {
+      audioService.playAmbient(ambientFromLocation(pendingTurn.updatedPlayerState.currentLocationId));
+    }
     audioService.playSfx('pageTurn');
     setFreeTextAction('');
     setIsDiceModalOpen(false);
     setPendingTurn(null);
     setDiceResolution(null);
+    setDiceRolling(false);
   };
 
   const handleFreeTextSubmit = (e: React.FormEvent) => {
@@ -574,6 +654,16 @@ export default function Home() {
       }}
       className="min-h-screen flex flex-col font-sans transition-colors duration-500"
     >
+      {/* Cinematic Game Loading & 3D Dice Pre-caching Screen */}
+      <GameLoadingScreen
+        isLoading={isGameLoading}
+        progress={loadingProgress}
+        storyTitle={storyMeta?.title || selectedStory?.title}
+        storyTagline={selectedStory?.tagline}
+        isPersian={isRtl}
+        theme={themeObj}
+      />
+
       {/* Ambient particles */}
       {settings.enableParticles && (
         <AtmosphereCanvas theme={themeObj} enableParticles={settings.enableParticles} isDanger={isDanger} />
@@ -705,6 +795,13 @@ export default function Home() {
         <div className="grid w-full max-w-6xl flex-1 grid-cols-1 items-start gap-6 p-4 md:mx-auto md:grid-cols-12 md:p-6">
           {/* Reader */}
           <div className="space-y-6 md:col-span-8">
+            {/* Plan 13: threat clocks + displacement banner */}
+            <TensionClockWidget clocks={playerState?.activeTensionClocks || []} isRtl={isRtl} />
+            {displacementBanner && (
+              <div className="animate-pulse rounded-2xl border border-red-500/50 bg-red-950/60 p-3 text-xs font-bold text-red-200 shadow-[0_0_18px_rgba(239,68,68,0.4)]">
+                {isRtl ? `سقوط مرگبار! به «${displacementBanner}» پرتاب شدید.` : `Catastrophic fall! Displaced into “${displacementBanner}”.`}
+              </div>
+            )}
             <div
               style={{ backgroundColor: themeObj.cardBg, borderColor: themeObj.cardBorder }}
               className="relative overflow-hidden rounded-3xl border p-6 shadow-2xl md:p-8"
@@ -874,7 +971,14 @@ export default function Home() {
         actionText={diceActionText}
         isPersian={isRtl}
         onContinue={applyPendingTurn}
-        onClose={() => setIsDiceModalOpen(false)}
+        onClose={() => {
+          if (pendingTurn) {
+            applyPendingTurn();
+          } else {
+            setIsDiceModalOpen(false);
+            setDiceRolling(false);
+          }
+        }}
       />
 
       <ReaderSettingsModal

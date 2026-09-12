@@ -5,11 +5,18 @@ import {
   RiskLevel,
   StateMutationDiff,
   ChoiceOption,
+  TensionClock,
 } from '@/lib/types/gameplay';
 import { RPGSystemSchema, GameItem } from '@/lib/types/rpg';
 import { WorldBible, WorldStateLedger, NPCDossier, SecretRevealMethod, WorldQuest, QuestObjective } from '@/lib/types/world';
 import { resolveResourceMax, resolveResourceMin } from './resourcePools';
 import { computeMaxResources } from './vitalScaling';
+import {
+  tickTensionClock,
+  ensureClockForLocation,
+  resolveDisplacement,
+  clockIdForLocation,
+} from './threatClock';
 
 export interface RevealCheckContext {
   trust?: number;
@@ -53,6 +60,10 @@ export interface RollOptions {
   riskLevel?: RiskLevel;
   environmentalModifier?: number;
   forcedDiceRoll?: number; // Useful for deterministic testing
+  /** Plan 13: world context for hazard displacement + threat clock ticking. */
+  worldBible?: WorldBible;
+  currentLocationId?: string;
+  activeClocks?: TensionClock[];
 }
 
 export class GameEngine {
@@ -1071,6 +1082,50 @@ export class GameEngine {
       };
     }
 
+    // ------------------------------------------------------------------
+    // Plan 13: Threat clock ticking + hazard displacement (deterministic).
+    // ------------------------------------------------------------------
+    let displacedLocationId: string | undefined;
+    let clockUpdate: CheckResolution['clockUpdate'];
+    try {
+      const locId = options.currentLocationId || playerState.currentLocationId;
+      const bible = options.worldBible;
+      const location = bible?.locations?.find((l) => l.id === locId);
+      const activeClock =
+        (options.activeClocks ?? playerState.activeTensionClocks ?? []).find(
+          (c) => c.id === clockIdForLocation(locId)
+        ) || ensureClockForLocation(options.activeClocks ?? playerState.activeTensionClocks, location);
+
+      if (activeClock) {
+        const { newSegments, isCrisis } = tickTensionClock(activeClock, outcome);
+        clockUpdate = {
+          clockId: activeClock.id,
+          newSegments,
+          maxSegments: Math.max(2, activeClock.maxSegments || 4),
+          isCrisis,
+        };
+        stateDiff.clockUpdates = [{ id: activeClock.id, delta: newSegments - (activeClock.currentSegments || 0), isCrisis }];
+        if (isCrisis) {
+          consequenceSummary += ` Danger peaks — ${activeClock.name} triggers: ${activeClock.crisisDescription || 'crisis erupts!'}`;
+        }
+      }
+
+      displacedLocationId = bible ? resolveDisplacement(bible, locId, options.riskLevel, outcome) : undefined;
+      if (displacedLocationId) {
+        stateDiff.displacedLocationId = displacedLocationId;
+        // Mirror into locationChange so applyStateMutation moves + discovers.
+        stateDiff.locationChange = displacedLocationId;
+        const fallDamage = outcome === 'critical_failure' ? 15 : 10;
+        stateDiff.resourceChanges = {
+          ...(stateDiff.resourceChanges || {}),
+          [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) - fallDamage,
+        };
+        consequenceSummary += ` Catastrophic failure hurls the player into a hazard zone.`;
+      }
+    } catch {
+      /* non-fatal: clock/displacement must never break the core roll */
+    }
+
     return {
       actionDescription: actionText,
       statId: effectiveStatId,
@@ -1083,6 +1138,8 @@ export class GameEngine {
       outcome,
       consequenceSummary,
       stateDiff,
+      ...(displacedLocationId ? { displacedLocationId } : {}),
+      ...(clockUpdate ? { clockUpdate } : {}),
     };
   }
 
@@ -1143,11 +1200,37 @@ export class GameEngine {
       }
     }
 
-    // 5. Apply Location Change
-    if (diff.locationChange) {
-      updated.currentLocationId = diff.locationChange;
-      if (!updated.discoveredLocationIds.includes(diff.locationChange)) {
-        updated.discoveredLocationIds.push(diff.locationChange);
+    // 5. Apply Location Change (Plan 13: displacedLocationId mirrors here)
+    const effectiveLocation = diff.displacedLocationId || diff.locationChange;
+    if (effectiveLocation) {
+      updated.currentLocationId = effectiveLocation;
+      if (!updated.discoveredLocationIds.includes(effectiveLocation)) {
+        updated.discoveredLocationIds.push(effectiveLocation);
+      }
+    }
+
+    // 5b. Plan 13: Apply threat clock updates (spawn-or-update by id).
+    if (diff.clockUpdates && diff.clockUpdates.length > 0) {
+      if (!updated.activeTensionClocks) updated.activeTensionClocks = [];
+      for (const cu of diff.clockUpdates) {
+        const existing = updated.activeTensionClocks.find((c) => c.id === cu.id);
+        if (existing) {
+          existing.currentSegments = Math.min(
+            Math.max(2, existing.maxSegments || 4),
+            Math.max(0, (existing.currentSegments || 0) + cu.delta)
+          );
+          if (cu.isCrisis) existing.isTriggered = true;
+        } else if (cu.delta !== 0 || cu.isCrisis) {
+          // Clock metadata unknown here (route seeds full clocks); record minimal entry.
+          updated.activeTensionClocks.push({
+            id: cu.id,
+            name: cu.id,
+            currentSegments: Math.max(0, cu.delta),
+            maxSegments: 4,
+            crisisDescription: '',
+            isTriggered: cu.isCrisis || undefined,
+          });
+        }
       }
     }
 

@@ -37,6 +37,16 @@ export interface PlayerEquipment {
   relic?: string;    // Amulet / Talisman / Ring
 }
 
+// Plan 13: Tension & Threat Clock (Blades in the Dark / D&D)
+export interface TensionClock {
+  id: string;
+  name: string;
+  currentSegments: number;
+  maxSegments: number; // typically 4 or 6
+  crisisDescription: string;
+  isTriggered?: boolean;
+}
+
 export interface PlayerState {
   characterName?: string;
   archetypeId?: string;
@@ -64,6 +74,8 @@ export interface PlayerState {
   activeQuestIds: string[];
   completedQuestIds: string[];
   currentLocationId: string;
+  /** Plan 13: active tension/threat clocks travelling with the session. */
+  activeTensionClocks?: TensionClock[];
   /** Unlocked or learned ability IDs */
   abilities?: string[];
   /** Number of times the player has been defeated (HP → 0). Used by Hybrid Defeat system. */
@@ -82,6 +94,9 @@ export interface StateMutationDiff {
   relationshipChanges?: Record<string, { trustDelta: number; newSecret?: string }>;
   questUpdates?: { questId: string; status: 'active' | 'completed' | 'failed' }[];
   npcStatusChanges?: Array<{ npcId: string; status: 'alive' | 'dead' | 'missing' | 'transformed' | 'companion' | 'imprisoned'; note?: string }>;
+  /** Plan 13: hazard displacement target (mirrored into locationChange for applyStateMutation). */
+  displacedLocationId?: string;
+  clockUpdates?: Array<{ id: string; delta: number; isCrisis: boolean }>;
 }
 
 export interface CheckResolution {
@@ -96,6 +111,14 @@ export interface CheckResolution {
   outcome: DiceOutcome;
   consequenceSummary: string;
   stateDiff: StateMutationDiff;
+  /** Plan 13: hazard fallback the check displaced the player into. */
+  displacedLocationId?: string;
+  clockUpdate?: {
+    clockId: string;
+    newSegments: number;
+    maxSegments: number;
+    isCrisis: boolean;
+  };
 }
 
 export interface TurnBeat {
