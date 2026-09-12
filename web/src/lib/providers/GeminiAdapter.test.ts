@@ -9,19 +9,52 @@ import { GenerationPromptPayload } from '../engines/narrative/PromptAssembler';
 
 describe('Plan 08 - AI Output Normalization (choice & memory guardrails)', () => {
   describe('normalizeChoices', () => {
-    it('drops choices referencing stats that do not exist in the story', () => {
+    it('keeps valid choices and never empties the panel for stat drift', () => {
       const out = normalizeChoices(
         [
           { id: 'c1', text: 'Swing the axe', requiredStatId: 'might', targetDC: 12 },
-          { id: 'c2', text: 'Hack the terminal', requiredStatId: 'hacking', targetDC: 14 }, // not in story
-          { id: 'c3', text: 'No stat provided' },
+          { id: 'c2', text: 'Hack the terminal', requiredStatId: 'hacking', targetDC: 14 }, // unknown stat -> binds to first valid stat
+          { id: 'c3', text: 'Follow quietly' }, // no stat -> safe diceless continuation
         ],
         ['might', 'cunning'],
         true
       );
-      assert.equal(out.length, 1);
+      assert.equal(out.length, 3);
       assert.equal(out[0].id, 'c1');
       assert.equal(out[0].requiredStatId, 'might');
+      assert.equal(out[1].id, 'c2');
+      assert.equal(out[1].requiredStatId, 'might'); // fallback, not dropped
+      assert.equal(out[2].id, 'c3');
+      assert.equal(out[2].requiredStatId, undefined);
+      assert.equal(out[2].targetDC, undefined);
+    });
+
+    it('resolves synonyms and Persian statutory names to canonical stat ids', () => {
+      const out = normalizeChoices(
+        [
+          { id: 's1', text: 'Punch the gate', requiredStatId: 'strength' }, // synonym of might
+          { id: 's2', text: 'نگاهی موذیانه بینداز', stat: 'نیرو' }, // Persian name -> might
+          { id: 's3', text: 'Cast a spell', check: { stat: 'arcana' } }, // Studio check.stat shape
+        ],
+        ['might', 'cunning', 'arcana', 'agility', 'charisma'],
+        true
+      );
+      assert.equal(out.length, 3);
+      assert.equal(out[0].requiredStatId, 'might');
+      assert.equal(out[1].requiredStatId, 'might');
+      assert.equal(out[2].requiredStatId, 'arcana');
+    });
+
+    it('maps story-authored stat display names via statIdAliases', () => {
+      const out = normalizeChoices(
+        [{ id: 'a1', text: 'جادوگری کن', requiredStatId: 'جادو' }],
+        ['arcana'],
+        true,
+        false,
+        { arcana: ['جادو', 'Magick'] }
+      );
+      assert.equal(out.length, 1);
+      assert.equal(out[0].requiredStatId, 'arcana');
     });
 
     it('clamps out-of-range DCs and coerces invalid enums to safe defaults', () => {

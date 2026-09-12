@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { SessionRepository } from '@/lib/db/repositories/sessionRepository';
-import { PlaythroughSession, PlayerState } from '@/lib/types/gameplay';
+import { PlaythroughSession, PlayerState, ChoiceOption } from '@/lib/types/gameplay';
 import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
 import { getAuthenticatedUser } from '@/lib/auth/getUser';
 import { artifactToGameItem } from '@/lib/play/artifactItems';
@@ -10,6 +10,10 @@ import { reconcilePlayerResources } from '@/lib/engines/game/resourcePools';
 import { addToPurse } from '@/lib/engines/game/currencyEngine';
 import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
 import { isPlaceholderBeat } from '@/lib/engines/world/sceneResolution';
+import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
+import { buildWorldContextBlocks, formatNpcCombatSummary } from '@/lib/engines/narrative/worldContext';
+import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
+import { WorkingContextEnvelope } from '@/lib/types/memory';
 
 /**
  * Lightweight, player-safe projection of the World Bible consumed by the
@@ -65,6 +69,7 @@ function buildPlayLore(story: any) {
       description: a.description || '',
       rarity: a.rarity || 'uncommon',
       statModifiers: a.statModifiers || {},
+      resourceModifiers: a.resourceModifiers || {},
       slot: a.slot || 'relic',
       powers: a.powers || [],
       curseOrCost: a.curseOrCost || '',
@@ -73,6 +78,100 @@ function buildPlayLore(story: any) {
       nonEquippable: a.nonEquippable || undefined,
     })),
   };
+}
+
+/**
+ * When the authored opening beat ships no choices, the AI synthesizes 2-4
+ * contextual opening choices at session creation/resume so the reader never
+ * sits on an empty decision panel. Returns [] on the mock/offline path so
+ * session creation still proceeds (the free-text bar remains usable).
+ */
+const openingGeminiAdapter = new GeminiAdapter();
+
+async function generateOpeningChoices(
+  story: any,
+  beat: { sceneId?: string; locationId?: string; narrativeText?: string },
+  playerState: PlayerState
+): Promise<ChoiceOption[]> {
+  try {
+    const wb = story.worldBible ?? {};
+    const locationId =
+      (typeof beat.locationId === 'string' && beat.locationId) ||
+      playerState.currentLocationId ||
+      wb.locations?.[0]?.id ||
+      'loc_default';
+    const location =
+      wb.locations?.find((l: any) => l.id === locationId) ||
+      wb.locations?.[0] || {
+        id: locationId,
+        name: 'Citadel',
+        description: '',
+      };
+    const activeNPCs = (wb.npcs ?? []).filter((n: any) => n.currentLocationId === locationId);
+    const activeNpcIds = activeNPCs.map((n: any) => n.id);
+    const world = buildWorldContextBlocks(story, {
+      scopeTier: 'regional',
+      locationIds: [locationId],
+      npcIds: activeNpcIds,
+    });
+    const activeChapter = story.saga?.chapters?.[0];
+
+    const activeNpcDossiers: WorkingContextEnvelope['activeNpcDossiers'] = activeNPCs.map(
+      (n: any) => ({
+        id: n.id,
+        name: n.name,
+        trust: n.initialTrust ?? 0,
+        knownSecrets: [],
+        speechStyle: n.speechStyle || 'neutral',
+        vitalsLine: formatNpcCombatSummary(n) || undefined,
+      })
+    );
+
+    const context: WorkingContextEnvelope = {
+      storyTitle: story.title,
+      worldLaws: world.laws,
+      currentLocationName: location.name,
+      currentLocationDescription: location.description || '',
+      activeNpcDossiers,
+      relevantMemories: [],
+      playerStatus: {
+        stats: playerState.stats || {},
+        resources: playerState.resources || {},
+        equippedItems: (playerState.inventory || []).map((i: any) => i.name),
+      },
+      statsConfig: story.rpgSystem?.stats,
+      recentSceneSnippets: [String(beat.narrativeText || '')].filter(Boolean),
+      languageDirective: (story.language === 'en' ? 'en' : 'fa') as 'en' | 'fa',
+      authoredSystemPrompt: world.authoredSystemPrompt,
+      worldSummary: world.worldSummary,
+      themeNotes: world.themeNotes,
+      factions: world.factions,
+      factionRelations: world.factionRelations,
+      timeline: world.timeline,
+      artifacts: world.artifacts,
+      bestiary: world.bestiary,
+      religions: world.religions,
+      dramaBonds: world.dramaBonds,
+      ontologySummary: world.ontologySummary,
+      locations: world.locations,
+      npcs: world.npcs,
+      activeChapterTitle: activeChapter
+        ? `${activeChapter.chapterNumber}. ${activeChapter.title}`
+        : undefined,
+      activeChapterGoal: activeChapter?.narrativeGoal || undefined,
+    };
+
+    const promptPayload = PromptAssembler.buildNarrativePrompt(context);
+    const generated = await openingGeminiAdapter.generateScene(promptPayload);
+    if (generated.isMock) {
+      console.warn('[session] Opening choice generation unavailable (mock) — opening with authored choices.');
+      return [];
+    }
+    return generated.choices;
+  } catch (e) {
+    console.warn('[session] Opening choice generation failed — falling back to authored choices:', e);
+    return [];
+  }
 }
 
 export async function OPTIONS() {
@@ -125,6 +224,22 @@ export async function GET(req: NextRequest) {
       /* non-fatal: serve stored state */
     }
 
+    // Plan: fresh sessions whose opening beat has no choices (and no recorded
+    // turn yet) get AI-synthesized opening choices on resume too, so a reload
+    // never strands the reader on an empty decision panel.
+    let resumeChoices =
+      lastTurn?.presentedChoices ??
+      (story.initialStoryBeats?.[0]?.choices as any[]) ??
+      [];
+    if (Array.isArray(resumeChoices) && resumeChoices.length === 0) {
+      const resumeBeat =
+        story.initialStoryBeats?.find((b: any) => b.sceneId === session.currentSceneId) ||
+        story.initialStoryBeats?.[0];
+      if (resumeBeat && !isPlaceholderBeat(resumeBeat) && (session as any).playerState) {
+        resumeChoices = await generateOpeningChoices(story, resumeBeat, (session as any).playerState);
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -141,7 +256,7 @@ export async function GET(req: NextRequest) {
           lore: buildPlayLore(story),
           currentBeat: {
             narrative: lastTurn?.narrativeProse ?? story.initialStoryBeats?.[0]?.narrativeText ?? '',
-            choices: lastTurn?.presentedChoices ?? story.initialStoryBeats?.[0]?.choices ?? [],
+            choices: resumeChoices,
             imageUrl:
               story.initialStoryBeats?.find((b) => b.sceneId === session.currentSceneId)?.imageUrl ??
               undefined,
@@ -402,6 +517,16 @@ export async function POST(req: NextRequest) {
     const auth = await getAuthenticatedUser(req);
     const userId = auth?.user?.id || (body.userId && body.userId !== 'guest_user' ? body.userId : null);
 
+    // Plan: kick-start the AI when the authored opening beat ships no choices,
+    // so the reader is never stranded on an empty decision panel. The generated
+    // opening choices are persisted into the turn-1 history record so loading /
+    // resuming the session shows them again.
+    const authoredBeatChoices: any[] = initialBeat.choices || [];
+    const openingChoices: ChoiceOption[] =
+      authoredBeatChoices.length > 0 || isPlaceholderBeat(initialBeat as any)
+        ? authoredBeatChoices
+        : await generateOpeningChoices(story, initialBeat, playerState);
+
     const session: PlaythroughSession = {
       sessionId: `sess_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
       userId: userId as any,
@@ -427,7 +552,7 @@ export async function POST(req: NextRequest) {
           playerActionText: 'Awakening',
           actionStyle: 'tactical',
           narrativeProse: initialBeat.narrativeText,
-          presentedChoices: initialBeat.choices,
+          presentedChoices: openingChoices,
           timestamp: Date.now(),
         },
       ],
@@ -456,7 +581,7 @@ export async function POST(req: NextRequest) {
           lore: buildPlayLore(story),
           currentBeat: {
             narrative: initialBeat.narrativeText,
-            choices: initialBeat.choices,
+            choices: openingChoices,
             imageUrl: initialBeat.imageUrl,
           },
         },

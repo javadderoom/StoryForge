@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { GenerationPromptPayload } from '../engines/narrative/PromptAssembler';
+import { STAT_CANONICAL_ALIASES } from '../engines/world/ActionNormalizer';
 import { ChoiceOption, ActionStyle, RiskLevel } from '../types/gameplay';
 import { MemoryCategory } from '../types/memory';
 
@@ -41,35 +42,57 @@ const VALID_MEMORY_CATEGORIES = new Set(['world', 'character', 'story', 'player'
  * Rejects choices referencing stats that do not exist in the active RPG system
  * (they would silently roll with a 0 modifier), clamps DCs to a sane range,
  * and coerces style/riskLevel into their unions.
+ *
+ * Unlike the original strict mode, choices are never silently dropped for
+ * terminology drift: synonyms (`strength`→`might`, Persian statutory names,
+ * …) are resolved through `STAT_CANONICAL_ALIASES` + the story's authored stat
+ * names (`statIdAliases`); an unknown stat value binds to the story's first
+ * stat so the next turn still resolves as a real check; and a choice with no
+ * stat field at all survives as a safe diceless continuation. This guarantees
+ * the reader never receives an empty choice panel merely because the model
+ * reworded a stat.
  */
 export function normalizeChoices(
   rawChoices: unknown,
   validStatIds: string[],
   isEnglish: boolean,
-  isLowBase: boolean = false
+  isLowBase: boolean = false,
+  statIdAliases?: Record<string, string[]>
 ): ChoiceOption[] {
   if (!Array.isArray(rawChoices)) return [];
   const statIds = new Set(validStatIds.map((id) => id.toLowerCase()));
+  const firstStatId = validStatIds.length ? validStatIds[0] : undefined;
   const defaultChoiceText = isEnglish ? 'Proceed forward...' : 'ادامه مسیر...';
+
+  // Canonical id -> alias lookup (ids, common synonyms/typos, story-authored localized names).
+  const aliasToStat = new Map<string, string>();
+  const registerAlias = (alias: string, canon: string | undefined) => {
+    if (!canon || !statIds.has(canon.toLowerCase())) return;
+    const key = String(alias).trim().toLowerCase();
+    if (key) aliasToStat.set(key, canon);
+  };
+  for (const id of validStatIds) {
+    const canon = id.toLowerCase();
+    registerAlias(canon, canon);
+    for (const [alias, target] of Object.entries(STAT_CANONICAL_ALIASES)) {
+      if (target.toLowerCase() === canon) registerAlias(alias, canon);
+    }
+    for (const alias of statIdAliases?.[id] ?? []) registerAlias(alias, canon);
+  }
+  const resolveStat = (value: unknown): string | undefined => {
+    if (value === null || value === undefined) return undefined;
+    const v = String(value).trim().toLowerCase();
+    return v ? aliasToStat.get(v) : undefined;
+  };
 
   const normalized: ChoiceOption[] = [];
   for (const c of rawChoices) {
     if (!c || typeof c !== 'object') continue;
+    if (normalized.length >= 4) break;
     const raw = c as Record<string, unknown>;
     const text = typeof raw.text === 'string' && raw.text.trim() ? raw.text.trim() : defaultChoiceText;
 
-    // A choice whose required stat does not exist in this story would break
-    // the next turn's deterministic check — drop it rather than corrupt canon.
-    let requiredStatId: string | undefined =
-      (raw.requiredStatId as string) ||
-      (raw.required_stat_id as string) ||
-      (raw.statId as string) ||
-      (raw.stat_id as string);
-    if (!requiredStatId) continue;
-    requiredStatId = requiredStatId.toLowerCase();
-    if (!statIds.has(requiredStatId)) continue;
-
-      const style = VALID_ACTION_STYLES.has(raw.style as string) ? (raw.style as ActionStyle) : 'tactical';
+    const style = VALID_ACTION_STYLES.has(raw.style as string) ? (raw.style as ActionStyle) : 'tactical';
     const riskLevelRaw =
       VALID_RISK_LEVELS.has(raw.riskLevel as string)
         ? (raw.riskLevel as RiskLevel)
@@ -78,30 +101,56 @@ export function normalizeChoices(
         : 'medium';
     const riskLevel: RiskLevel = riskLevelRaw;
 
-    let targetDC =
-      typeof raw.targetDC === 'number'
-        ? raw.targetDC
-        : typeof raw.target_dc === 'number'
-        ? raw.target_dc
-        : isLowBase
-        ? riskLevel === 'high'
-          ? 11
-          : riskLevel === 'low'
-          ? 7
-          : 9
-        : riskLevel === 'high'
-        ? 14
-        : riskLevel === 'low'
-        ? 10
-        : 12;
+    // Resolve the checked stat from any supported key shape, including the
+    // Studio-style `stat` / `check.stat` variants.
+    const rawCheck =
+      raw.check && typeof raw.check === 'object'
+        ? (raw.check as Record<string, unknown>)
+        : undefined;
+    const rawStatValue =
+      (raw.requiredStatId as string) ||
+      (raw.required_stat_id as string) ||
+      (raw.statId as string) ||
+      (raw.stat_id as string) ||
+      (typeof raw.stat === 'string' ? (raw.stat as string) : '') ||
+      (typeof rawCheck?.stat === 'string' ? (rawCheck.stat as string) : '');
+    const hasStatValue = typeof rawStatValue === 'string' && rawStatValue.trim().length > 0;
 
-    if (isLowBase) {
-      targetDC = Math.min(16, Math.max(4, Math.round(targetDC)));
-      if (riskLevel === 'low' && targetDC > 8) targetDC = 8;
-      if (riskLevel === 'medium' && targetDC > 10) targetDC = 10;
-      if (riskLevel === 'high' && targetDC > 12) targetDC = 11;
-    } else {
-      targetDC = Math.min(30, Math.max(5, Math.round(targetDC)));
+    let requiredStatId = hasStatValue ? resolveStat(rawStatValue) : undefined;
+    // Unknown / unparseable stat value (e.g. `"strength"` in a story with no
+    // strength stat): bind to the story's first stat rather than dropping the
+    // choice — the reader keeps it and the engine still resolves a real check.
+    if (!requiredStatId && hasStatValue && firstStatId) {
+      requiredStatId = firstStatId;
+    }
+
+    let targetDC: number | undefined;
+    if (requiredStatId) {
+      targetDC =
+        typeof raw.targetDC === 'number'
+          ? raw.targetDC
+          : typeof raw.target_dc === 'number'
+          ? raw.target_dc
+          : isLowBase
+          ? riskLevel === 'high'
+            ? 11
+            : riskLevel === 'low'
+            ? 7
+            : 9
+          : riskLevel === 'high'
+          ? 14
+          : riskLevel === 'low'
+          ? 10
+          : 12;
+
+      if (isLowBase) {
+        targetDC = Math.min(16, Math.max(4, Math.round(targetDC)));
+        if (riskLevel === 'low' && targetDC > 8) targetDC = 8;
+        if (riskLevel === 'medium' && targetDC > 10) targetDC = 10;
+        if (riskLevel === 'high' && targetDC > 12) targetDC = 11;
+      } else {
+        targetDC = Math.min(30, Math.max(5, Math.round(targetDC)));
+      }
     }
 
     normalized.push({
@@ -109,8 +158,7 @@ export function normalizeChoices(
       text,
       style,
       riskLevel,
-      targetDC,
-      requiredStatId,
+      ...(requiredStatId ? { requiredStatId, targetDC } : {}),
     });
   }
   return normalized.slice(0, 4);
@@ -185,7 +233,13 @@ export class GeminiAdapter {
             typeof parsed.narrative === 'string' && parsed.narrative.trim()
               ? parsed.narrative
               : defaultNarrative,
-          choices: normalizeChoices(parsed.choices, validStatIds, prompt.isEnglish),
+          choices: normalizeChoices(
+            parsed.choices,
+            validStatIds,
+            prompt.isEnglish,
+            prompt.isLowBase ?? false,
+            prompt.statIdAliases
+          ),
           extractedMemories: normalizeExtractedMemories(parsed.extractedMemories),
           isMock: false,
         };
@@ -221,7 +275,13 @@ export class GeminiAdapter {
             typeof parsed.narrative === 'string' && parsed.narrative.trim()
               ? parsed.narrative
               : defaultNarrative,
-          choices: normalizeChoices(parsed.choices, validStatIds, prompt.isEnglish, isLowBase),
+          choices: normalizeChoices(
+            parsed.choices,
+            validStatIds,
+            prompt.isEnglish,
+            isLowBase,
+            prompt.statIdAliases
+          ),
           extractedMemories: normalizeExtractedMemories(parsed.extractedMemories),
           isMock: false,
         };

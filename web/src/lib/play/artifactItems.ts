@@ -41,6 +41,12 @@ export function artifactToGameItem(artifact: WorldArtifact): GameItem {
     rarity: (artifact.rarity === 'mythic' ? 'legendary' : artifact.rarity) as GameItem['rarity'],
     grip,
     statModifiers: artifact.statModifiers,
+    // CRITICAL: passive pool max modifiers must survive the vault->inventory
+    // conversion. Per-turn recomputes (GameEngine.applyStateMutation step 7b,
+    // reader maxResources sync) derive equipped gear from inventory GameItems
+    // — dropping resourceModifiers here silently shrinks health/resolve maxima
+    // on the first turn (e.g. 43/43 -> 40/40).
+    resourceModifiers: artifact.resourceModifiers,
     startsQuestId: artifact.startsQuestId,
     nonEquippable: artifact.nonEquippable,
   };

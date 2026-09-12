@@ -8,6 +8,12 @@ export interface GenerationPromptPayload {
   playerStatIds?: Record<string, number>;
   /** Low-base calibration flag: true when story uses low starting attributes (< 8) */
   isLowBase?: boolean;
+  /**
+   * Story-aware stat aliases (canonical stat id -> its authored display names,
+   * e.g. might -> ['نیرو']). Lets choice normalization survive the model using
+   * synonyms or localized names instead of silently dropping the choice.
+   */
+  statIdAliases?: Record<string, string[]>;
 }
 
 /**
@@ -63,6 +69,26 @@ function worldContextBlock(context: WorkingContextEnvelope, isEnglish: boolean):
 }
 
 export class PromptAssembler {
+  /**
+   * Builds a canonical stat-id -> authored display names map so choice
+   * normalization can tolerate the model emitting a stat's Persian/English
+   * name or a synonym instead of the exact schema id.
+   */
+  private static buildStatIdAliases(
+    statsDefs: NonNullable<WorkingContextEnvelope['statsConfig']>
+  ): Record<string, string[]> {
+    const out: Record<string, string[]> = {};
+    for (const s of statsDefs) {
+      const id = s.id?.trim().toLowerCase();
+      if (!id) continue;
+      const names = [s.name, s.nameFa, s.nameEn]
+        .filter((n): n is string => typeof n === 'string' && n.trim().length > 0)
+        .map((n) => n.trim());
+      if (names.length) out[id] = names;
+    }
+    return out;
+  }
+
   /**
    * Builds the structured, high-density prompt envelope for Gemini 3.7.
    * Accurately adapts language and format based on the story manifest language.
@@ -328,6 +354,7 @@ You MUST respond with a valid JSON object matching this schema:
       isEnglish,
       playerStatIds: context.playerStatus?.stats || {},
       isLowBase,
+      statIdAliases: PromptAssembler.buildStatIdAliases(statsDefs),
     };
   }
 }

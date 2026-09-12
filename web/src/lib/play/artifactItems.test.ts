@@ -85,4 +85,26 @@ describe('artifactToGameItem', () => {
     assert.equal(item.startsQuestId, 'quest_sigil');
     assert.equal(item.nonEquippable, true);
   });
+
+  it('carries resourceModifiers through so equipped passive pool maxima survive turn-time recompute', () => {
+    const armor = artifactToGameItem(
+      makeArtifact({
+        id: 'art_breastplate',
+        slot: 'armor',
+        statModifiers: {},
+        resourceModifiers: { health: 2 },
+      })
+    );
+    const relic = artifactToGameItem(
+      makeArtifact({
+        id: 'art_bead',
+        slot: 'relic',
+        resourceModifiers: { health: 1, resolve: 1 },
+      })
+    );
+    assert.deepEqual(armor.resourceModifiers, { health: 2 });
+    assert.deepEqual(relic.resourceModifiers, { health: 1, resolve: 1 });
+    // An artifact without resource modifiers must not invent any.
+    assert.deepEqual(artifactToGameItem(makeArtifact({ slot: 'main_hand' })).resourceModifiers, undefined);
+  });
 });
