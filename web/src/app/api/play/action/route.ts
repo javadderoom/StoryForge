@@ -124,15 +124,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Guardrail Validation
-    const lastTurn = session?.history?.[session.history.length - 1];
+            // 1. Guardrail Validation
+    // Presented (AI- or authored-generated) choices are trusted: they were built
+    // from the player's own state at generation time, so re-validating them as
+    // free text causes false secret-leak rejections. We match either on exact
+    // text or — preferred — on the explicit `choiceId` the reader now sends.
+    const sessionTurns =
+      (session?.turns ?? (session as any)?.history ?? []) as Array<{
+        presentedChoices?: any[];
+      }>;
+    const lastTurn = sessionTurns.length > 0 ? sessionTurns[sessionTurns.length - 1] : null;
     const isPresetChoice = Boolean(
       lastTurn?.presentedChoices?.some(
-        (c: any) => c.text?.trim() === playerActionText.trim() || (body.choiceId && c.id === body.choiceId)
+        (c: any) =>
+          (body.choiceId && c.id === body.choiceId) ||
+          (body.choiceId == null && c.text?.trim() === playerActionText.trim())
       ) ||
-      story.initialStoryBeats?.some((b: any) =>
-        b.choices?.some((c: any) => c.text?.trim() === playerActionText.trim() || (body.choiceId && c.id === body.choiceId))
-      )
+      (body.choiceId != null &&
+        story.initialStoryBeats?.some((b: any) =>
+          b.choices?.some((c: any) => c.id === body.choiceId)
+        )) ||
+      (body.choiceId == null &&
+        story.initialStoryBeats?.some((b: any) =>
+          b.choices?.some((c: any) => c.text?.trim() === playerActionText.trim())
+        ))
     );
 
     const validation = ActionValidator.validateAction(
@@ -243,39 +258,37 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2c. Passive secret unlocks the engine can observe: trust thresholds
-    // and completed quests. One per NPC per turn (lowest threshold first);
-    // pressure/item/ritual/location/custom need triggers or the narrator.
+        // 2c. Strict, method-sourced secret discovery (Plan 08 Phase 3): a secret
+    //      is added to knownSecrets ONLY through a method the NPC's own
+    //      revealMethods declare (trust threshold, possessed item, present
+    //      location, or a completed quest). pressure/social already granted
+    //      one this turn is skipped; ritual/custom are never auto-satisfied.
     const completedIds = [
       ...(playerState.completedQuestIds ?? []),
       ...((resolution.stateDiff.questUpdates ?? [])
         .filter((q: any) => q.status === 'completed')
         .map((q: any) => q.questId)),
     ];
-    for (const npc of story.worldBible.npcs ?? []) {
-      const existing = resolution.stateDiff.relationshipChanges?.[npc.id];
-      if (existing?.newSecret) continue; // already granted this turn (e.g. pressure)
-      const baseTrust =
-        playerState.relationships?.[npc.id]?.trust ?? npc.initialTrust ?? 0;
-      const pendingDelta = existing?.trustDelta ?? 0;
-      const knownIds = playerState.relationships?.[npc.id]?.knownSecrets ?? [];
-      const unlock = GameEngine.findTrustUnlockedSecret(
-        npc,
-        baseTrust + pendingDelta,
-        knownIds,
-        completedIds
-      );
-      if (unlock) {
-        const changes = resolution.stateDiff.relationshipChanges ?? {};
-        changes[npc.id] = {
-          trustDelta: pendingDelta,
-          newSecret: unlock.id,
-        };
-        resolution.stateDiff.relationshipChanges = changes;
-        resolution.consequenceSummary +=
-          ` Through earned trust, ${npc.name} opens up and reveals: "${unlock.description}"`;
+    const existingChanges = resolution.stateDiff.relationshipChanges ?? {};
+    const discoveredSecrets = GameEngine.discoverSecretsForTurn(
+      story.worldBible.npcs ?? [],
+      playerState,
+      {
+        completedQuestIds: completedIds,
+        existingRelationshipChanges: existingChanges,
       }
+    );
+    const relationshipChanges = { ...existingChanges };
+    for (const [npcId, grant] of Object.entries(discoveredSecrets)) {
+      const npc = story.worldBible.npcs.find((n) => n.id === npcId);
+      const priorTrustDelta = relationshipChanges[npcId]?.trustDelta ?? 0;
+      relationshipChanges[npcId] = {
+        trustDelta: priorTrustDelta,
+        newSecret: grant.newSecretId,
+      };
+      resolution.consequenceSummary += ` ${npc?.name || npcId} reveals a truth through ${grant.revealMethod}: "${grant.newSecretDescription}"`;
     }
+    resolution.stateDiff.relationshipChanges = relationshipChanges;
 
     // 3. Apply State Mutation Diff
     let updatedPlayerState = GameEngine.applyStateMutation(
@@ -678,18 +691,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Filter out any AI-generated choices that violate secret boundaries
-    if (aiResponse.choices && aiResponse.choices.length > 0) {
-      aiResponse.choices = aiResponse.choices.filter((c) => {
-        const violation = ActionValidator.detectUndiscoveredSecret(
-          c.text,
-          updatedPlayerState,
-          story.worldBible,
-          story.storyNpcOverrides
-        );
-        return !violation;
-      });
-    }
+    // Defense-in-depth: drop any AI-generated choice that would leak a secret
+    // the player has not yet discovered, so the reader never presents a button
+    // the guardrail would reject if clicked. (Presented choices are also
+    // trusted via the bypass above, but the text must never reach the player.)
+    aiResponse.choices = ActionValidator.sanitizeChoices(
+      aiResponse.choices,
+      updatedPlayerState,
+      story.worldBible,
+      story.storyNpcOverrides
+    );
 
     // Carry the real authored scene id when known; fixes stuck-currentSceneId
     const beatSceneId =

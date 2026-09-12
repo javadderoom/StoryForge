@@ -97,6 +97,8 @@ export async function sendAction(payload: {
   turnNumber: number;
   targetSceneId?: string;
   draftManifest?: any;
+  /** id of the presented choice being acted on, when not free text. */
+  choiceId?: string;
 }): Promise<any> {
   const res = await fetch('/api/play/action', {
     method: 'POST',

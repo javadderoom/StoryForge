@@ -81,6 +81,7 @@ class GameApiService {
     int? targetDC,
     int? forcedDiceRoll,
     String? targetSceneId,
+    String? choiceId,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/play/action'),
@@ -95,6 +96,7 @@ class GameApiService {
         'targetDC': targetDC,
         'forcedDiceRoll': forcedDiceRoll,
         if (targetSceneId != null && targetSceneId.isNotEmpty) 'targetSceneId': targetSceneId,
+        if (choiceId != null && choiceId.isNotEmpty) 'choiceId': choiceId,
         'playerState': playerState.toJson(),
         'turnNumber': turnNumber,
       }),

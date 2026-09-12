@@ -27,6 +27,19 @@ export interface RevealCheckContext {
   completedQuestIds?: string[];
 }
 
+/**
+ * Context for strict, method-only secret discovery (item / location / ritual /
+ * custom). Only secrets whose STATED `revealMethods` are satisfied may enter
+ * `knownSecrets` — no other path exists in the engine.
+ */
+export interface ContextualRevealContext extends RevealCheckContext {
+  knownSecretIds?: string[];
+  /** The current turn's raw action text (for ritual/custom keyword triggers). */
+  actionText?: string;
+  /** True when the turn resolved with a successful outcome. */
+  isSuccessful?: boolean;
+}
+
 export interface PressureOutcome {
   revealedSecretId?: string;
   revealedSecretDescription?: string;
@@ -343,9 +356,98 @@ export class GameEngine {
             completedQuestIds.includes(m.questId))
       );
     });
-    candidates.sort((a, b) => a.requiredTrustLevel - b.requiredTrustLevel);
+        candidates.sort((a, b) => a.requiredTrustLevel - b.requiredTrustLevel);
     const first = candidates[0];
     return first ? { id: first.id, description: first.description } : null;
+  }
+
+  /**
+   * Strict, method-sourced passive secret discovery for a turn.
+   *
+   * A secret enters `knownSecrets` ONLY through a method the NPC's own
+   * `revealMethods` declare — trust threshold, possessed item, being at a
+   * location, or a completed quest. `pressure` is resolved separately by
+   * `applyPressureOutcome`; `ritual` and `custom` require narrator adjudication
+   * and therefore never auto-satisfy here.
+   *
+   * - One secret per NPC per turn (lowest requiredTrustLevel first).
+   * - Skips NPCs already granted a secret this turn (e.g. via pressure),
+   *   preserving any pending trust delta on the relationship change.
+   * - Uses the post-mutation trust (pre-turn trust + this turn's delta) so a
+   *   successful social check that raised trust this turn can unlock a secret.
+   *
+   * @returns a map of npcId -> { newSecretId, newSecretDescription, revealMethod }
+   */
+  public static discoverSecretsForTurn(
+    npcs: NPCDossier[],
+    playerState: {
+      relationships?: Record<string, { knownSecrets?: string[]; trust?: number }>;
+      completedQuestIds?: string[];
+      inventory?: Array<{ id: string; name: string }>;
+      currentLocationId?: string;
+    },
+    opts: {
+      /** Quest ids completed this turn (overrides playerState.completedQuestIds). */
+      completedQuestIds?: string[];
+      /** Relationship changes already produced this turn (e.g. from pressure/social checks). */
+      existingRelationshipChanges?: Record<string, { newSecret?: string; trustDelta?: number }>;
+    } = {}
+  ): Record<string, { newSecretId: string; newSecretDescription: string; revealMethod: string }> {
+    const grants: Record<string, { newSecretId: string; newSecretDescription: string; revealMethod: string }> = {};
+    const completedIds =
+      opts.completedQuestIds ?? (playerState.completedQuestIds as string[] | undefined) ?? [];
+    const inventoryTerms = (playerState.inventory ?? []).map((i) => i.name).filter(Boolean);
+    const currentLocationId = playerState.currentLocationId;
+    const existing = opts.existingRelationshipChanges ?? {};
+
+    for (const npc of npcs) {
+      // Pressure/social resolution already revealed something this turn — do not double-grant.
+      if (existing[npc.id]?.newSecret) continue;
+
+      const rel = playerState.relationships?.[npc.id];
+      const knownIds = new Set(rel?.knownSecrets ?? []);
+      const pendingDelta = existing[npc.id]?.trustDelta ?? 0;
+      const effectiveTrust = (rel?.trust ?? npc.initialTrust ?? 0) + pendingDelta;
+
+      const candidates = (npc.secrets ?? []).filter(
+        (s) => !s.revealed && s.description && s.description.length >= 12 && !knownIds.has(s.id)
+      );
+      if (candidates.length === 0) continue;
+
+      // Legacy secret (no revealMethods): trust threshold only.
+      const isLegacySatisfied = (s: { revealMethods?: SecretRevealMethod[]; requiredTrustLevel: number }) =>
+        (!s.revealMethods || s.revealMethods.length === 0) && effectiveTrust >= s.requiredTrustLevel;
+
+      const unlocked = candidates.filter((s) => {
+        if (isLegacySatisfied(s)) return true;
+        const methods = s.revealMethods;
+        if (!methods || methods.length === 0) return false;
+        return methods.some((m) =>
+          GameEngine.isRevealMethodSatisfied(m, s.requiredTrustLevel, {
+            trust: effectiveTrust,
+            inventoryTerms,
+            currentLocationId,
+            completedQuestIds: completedIds,
+          })
+        );
+      });
+      if (unlocked.length === 0) continue;
+
+      unlocked.sort((a, b) => a.requiredTrustLevel - b.requiredTrustLevel);
+      const next = unlocked[0];
+      let revealMethod = 'earned understanding';
+      if (next.revealMethods && next.revealMethods.length > 0) {
+        revealMethod = next.revealMethods
+          .map((m) => GameEngine.describeRevealMethod(m, next.requiredTrustLevel))
+          .join(' / ');
+      }
+      grants[npc.id] = {
+        newSecretId: next.id,
+        newSecretDescription: next.description,
+        revealMethod,
+      };
+    }
+    return grants;
   }
 
   /**

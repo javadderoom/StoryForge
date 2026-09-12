@@ -13,6 +13,7 @@ import { isPlaceholderBeat } from '@/lib/engines/world/sceneResolution';
 import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
 import { buildWorldContextBlocks, formatNpcCombatSummary } from '@/lib/engines/narrative/worldContext';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
+import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import { WorkingContextEnvelope } from '@/lib/types/memory';
 
 /**
@@ -161,13 +162,21 @@ async function generateOpeningChoices(
       activeChapterGoal: activeChapter?.narrativeGoal || undefined,
     };
 
-    const promptPayload = PromptAssembler.buildNarrativePrompt(context);
+        const promptPayload = PromptAssembler.buildNarrativePrompt(context);
     const generated = await openingGeminiAdapter.generateScene(promptPayload);
     if (generated.isMock) {
       console.warn('[session] Opening choice generation unavailable (mock) — opening with authored choices.');
       return [];
     }
-    return generated.choices;
+    // Defense-in-depth: never present an opening choice that would leak a
+    // secret the player has not yet discovered. (The presented-choice bypass
+    // would otherwise still block the click, but the text must never appear.)
+    return ActionValidator.sanitizeChoices(
+      generated.choices,
+      playerState,
+      story.worldBible,
+      (story as any).storyNpcOverrides
+    );
   } catch (e) {
     console.warn('[session] Opening choice generation failed — falling back to authored choices:', e);
     return [];

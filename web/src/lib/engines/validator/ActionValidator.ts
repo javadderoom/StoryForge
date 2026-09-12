@@ -317,4 +317,34 @@ export class ActionValidator {
     }
     return null;
   }
+
+  /**
+   * Filters AI-authored or AI-generated choices so the reader never presents a
+   * button that acts on secret knowledge the player has not yet discovered
+   * through play. A choice whose text would be rejected by the knowledge-
+   * boundary guardrail is dropped before it ever reaches the player.
+   *
+   * This is defense-in-depth alongside the presented-choice bypass: even when
+   * a presented choice is trusted (not re-validated), it must already be
+   * leak-free so the player never *sees* secret text on a button.
+   */
+  public static sanitizeChoices(
+    choices: any[] | null | undefined,
+    playerState: PlayerState,
+    worldBible: WorldBible,
+    storyNpcOverrides?: Record<string, any>
+  ): any[] {
+    if (!Array.isArray(choices) || choices.length === 0) return [];
+    return choices.filter((c) => {
+      const text = typeof c?.text === 'string' ? c.text : '';
+      if (!text) return false;
+      const violation = ActionValidator.detectUndiscoveredSecret(
+        text,
+        playerState,
+        worldBible,
+        storyNpcOverrides
+      );
+      return !violation;
+    });
+  }
 }

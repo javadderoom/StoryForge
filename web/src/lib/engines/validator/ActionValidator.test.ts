@@ -363,3 +363,98 @@ describe('Plan 08 - World Lore Guardrails (Check 3)', () => {
     assert.equal(reachable.isValid, true);
   });
 });
+
+describe('ActionValidator - sanitizeChoices (pre-presentation filter)', () => {
+  const worldBible: WorldBible = {
+    worldId: 'world_valoria',
+    worldName: 'Valoria',
+    summary: 'A dark realm',
+    themeNotes: 'Gritty',
+    laws: [],
+    factions: [],
+    locations: [],
+    timeline: [],
+    npcs: [
+      {
+        id: 'npc_baroness',
+        name: 'Baroness Vey',
+        title: 'Ruler',
+        currentLocationId: 'loc_court',
+        personalityTraits: ['cunning'],
+        speechStyle: 'Speaks softly',
+        goals: ['Hold power'],
+        secrets: [
+          {
+            id: 'secret_poison',
+            description: 'The baroness poisoned the royal wine to seize the throne.',
+            requiredTrustLevel: 80,
+            revealed: false,
+          },
+        ],
+        initialTrust: 0,
+      },
+    ],
+  };
+
+  const playerState: PlayerState = {
+    stats: { might: 12 },
+    resources: {},
+    inventory: [],
+    equipment: {},
+    discoveredLocationIds: [],
+    relationships: {},
+    activeQuestIds: [],
+    completedQuestIds: [],
+    currentLocationId: 'loc_court',
+  };
+
+  it('strips a choice that acts on an undiscovered secret', () => {
+    const sanitized = ActionValidator.sanitizeChoices(
+      [
+        { id: 'c1', text: 'I ask the baroness about the poisoned royal wine', targetDC: 8 },
+        { id: 'c2', text: 'I compliment the baroness on her gardens', targetDC: 8 },
+      ],
+      playerState,
+      worldBible
+    );
+    assert.equal(sanitized.length, 1);
+    assert.equal(sanitized[0].id, 'c2');
+  });
+
+  it('keeps every choice once the secret is known to the player', () => {
+    const discovered: PlayerState = {
+      ...playerState,
+      relationships: { npc_baroness: { trust: 85, knownSecrets: ['secret_poison'], notes: [] } },
+    };
+    const sanitized = ActionValidator.sanitizeChoices(
+      [{ id: 'c1', text: 'I ask the baroness about the poisoned royal wine', targetDC: 8 }],
+      discovered,
+      worldBible
+    );
+    assert.equal(sanitized.length, 1);
+  });
+
+  it('returns an empty array for null / undefined / empty input', () => {
+    assert.deepEqual(
+      ActionValidator.sanitizeChoices(null, playerState, worldBible),
+      []
+    );
+    assert.deepEqual(
+      ActionValidator.sanitizeChoices([] as any, playerState, worldBible),
+      []
+    );
+  });
+
+  it('never returns more choices than it was given', () => {
+    const sanitized = ActionValidator.sanitizeChoices(
+      [
+        { id: 'c1', text: 'I confront the baroness about the royal wine', targetDC: 8 },
+        { id: 'c2', text: 'The baroness poisoned the wine', targetDC: 8 },
+        { id: 'c3', text: 'I ask where the crypt entrance is', targetDC: 8 },
+      ],
+      playerState,
+      worldBible
+    );
+    assert.ok(sanitized.length <= 3);
+  });
+});

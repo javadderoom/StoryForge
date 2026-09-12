@@ -237,7 +237,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     }
 
     try {
-      final result = await GameApiService.sendAction(
+    final result = await GameApiService.sendAction(
         storyId: state.storyId,
         sessionId: state.sessionId.isNotEmpty ? state.sessionId : null,
         actionText: choice.text,
@@ -249,6 +249,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         targetDC: choice.targetDC,
         forcedDiceRoll: forcedDiceRoll,
         targetSceneId: choice.targetSceneId,
+        choiceId: choice.id,
       );
 
       if (result['creditDepleted'] == true) {

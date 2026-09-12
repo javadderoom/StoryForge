@@ -329,21 +329,15 @@ export default function Home() {
     return story;
   }, []);
 
-  // ---- Boot: load catalog + resume ----
+  // ---- Boot: load catalog, always land on the library ----
+  // Saved sessions are resumed only when the reader explicitly picks a story.
   useEffect(() => {
     let active = true;
     (async () => {
       const catalog = await fetchCatalog();
       if (!active) return;
       const mergedCatalog = [...catalog];
-      let savedStoryId = '';
-      let savedSession = '';
       try {
-        savedStoryId =
-          localStorage.getItem(PLAY_SELECTED_STORY_KEY) ||
-          localStorage.getItem('storyforge_studio_selected_story_v1') ||
-          '';
-        savedSession = '';
         const activeStudioId = localStorage.getItem('storyforge_studio_selected_story_v1');
         if (activeStudioId && !mergedCatalog.some((s) => s.id === activeStudioId)) {
           const draftStory = resolveStoryWithLocalDraft(null, activeStudioId);
@@ -353,26 +347,12 @@ export default function Home() {
         /* ignore */
       }
       setStories(mergedCatalog);
-      if (savedStoryId) savedSession = readStoredSession(savedStoryId);
-      if (savedSession && savedStoryId) {
-        const baseStory = mergedCatalog.find((s) => s.id === savedStoryId) || null;
-        const story = resolveStoryWithLocalDraft(baseStory, savedStoryId);
-        setSelectedStory(story);
-        if (story) await startGame(savedStoryId, savedSession, undefined, story.genres);
-        else setIsCatalogOpen(true);
-      } else if (savedStoryId) {
-        const baseStory = mergedCatalog.find((s) => s.id === savedStoryId) || null;
-        const story = resolveStoryWithLocalDraft(baseStory, savedStoryId);
-        setSelectedStory(story);
-        setIsCharCreationOpen(true);
-      } else {
-        setIsCatalogOpen(true);
-      }
+      setIsCatalogOpen(true);
     })();
     return () => {
       active = false;
     };
-  }, [startGame, resolveStoryWithLocalDraft]);
+  }, [resolveStoryWithLocalDraft]);
 
   const onSelectStory = async (story: CatalogStory) => {
     const resolved = resolveStoryWithLocalDraft(story, story.id) || story;
@@ -441,6 +421,7 @@ export default function Home() {
           turnNumber: nextTurn,
           targetSceneId,
           draftManifest: localDraft,
+          choiceId: choice.id ?? choice.choiceId,
         });
         if (json.isGuardrailViolation) {
           setErrorMessage(json.rejectionReason);
@@ -511,6 +492,7 @@ export default function Home() {
         turnNumber: nextTurn,
         targetSceneId,
         draftManifest: localDraft,
+        choiceId: choice.id ?? choice.choiceId,
       });
       if (json.isGuardrailViolation) {
         clearTimeout(rollTimer);

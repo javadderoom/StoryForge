@@ -515,6 +515,167 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
       const questHit = GameEngine.findTrustUnlockedSecret(questNpc, 0, [], ['q_cult']);
       assert.equal(questHit?.id, 'secret_oath');
     });
+
+    it('discoverSecretsForTurn grants strictly through satisfied declared methods', () => {
+      // trust method satisfied -> trusted secret unlocks, lowest threshold first
+      const grant = GameEngine.discoverSecretsForTurn(
+        [surgeon],
+        {
+          relationships: { npc_surgeon_case: { trust: 65, knownSecrets: [] } },
+          inventory: [],
+          currentLocationId: 'loc_clinic',
+        },
+        {}
+      );
+      assert.equal(grant['npc_surgeon_case']?.newSecretId, 'secret_implant');
+      assert.ok((grant['npc_surgeon_case']?.revealMethod ?? '').includes('trust 60'));
+    });
+
+    it('does not auto-grant pressure-bound secrets via discoverSecretsForTurn', () => {
+      const pressureOnly: NPCDossier = {
+        ...surgeon,
+        secrets: [
+          {
+            id: 'secret_cache',
+            description: 'Stash coordinates tattooed under the scalp',
+            requiredTrustLevel: 30,
+            revealed: false,
+            revealMethods: [{ kind: 'pressure' }],
+          },
+        ],
+      };
+      const grant = GameEngine.discoverSecretsForTurn(
+        [pressureOnly],
+        {
+          relationships: { npc_surgeon_case: { trust: 99, knownSecrets: [] } },
+          inventory: [],
+          currentLocationId: 'loc_clinic',
+        },
+        {}
+      );
+      assert.equal(grant['npc_surgeon_case'], undefined);
+    });
+
+    it('does not auto-grant ritual/custom secrets (narrator adjudication only)', () => {
+      const ritualOnly: NPCDossier = {
+        ...surgeon,
+        secrets: [
+          {
+            id: 'secret_mark',
+            description: 'Mark of the syndicate dyed under the fingernails',
+            requiredTrustLevel: 10,
+            revealed: false,
+            revealMethods: [{ kind: 'ritual', ritual: 'examined under a brass lamp' }],
+          },
+        ],
+      };
+      const grant = GameEngine.discoverSecretsForTurn(
+        [ritualOnly],
+        {
+          relationships: { npc_surgeon_case: { trust: 100, knownSecrets: [] } },
+          inventory: [],
+          currentLocationId: 'loc_clinic',
+        },
+        {}
+      );
+      assert.equal(grant['npc_surgeon_case'], undefined);
+    });
+
+    it('grants item-bound secrets only when the player possesses the stated item', () => {
+      const itemSecret: NPCDossier = {
+        ...surgeon,
+        secrets: [
+          {
+            id: 'secret_vault',
+            description: 'Combination to the clinic safe is etched on the iron scroll pull',
+            requiredTrustLevel: 20,
+            revealed: false,
+            revealMethods: [{ kind: 'item', itemName: 'Iron Scroll Pull' }],
+          },
+        ],
+      };
+      const have = GameEngine.discoverSecretsForTurn(
+        [itemSecret],
+        {
+          relationships: { npc_surgeon_case: { trust: 0, knownSecrets: [] } },
+          inventory: [{ id: 'i_pull', name: 'Iron Scroll Pull' }],
+          currentLocationId: 'loc_clinic',
+        },
+        {}
+      );
+      assert.equal(have['npc_surgeon_case']?.newSecretId, 'secret_vault');
+      const lack = GameEngine.discoverSecretsForTurn(
+        [itemSecret],
+        {
+          relationships: { npc_surgeon_case: { trust: 0, knownSecrets: [] } },
+          inventory: [{ id: 'i_nail', name: 'Rusty Nail' }],
+          currentLocationId: 'loc_clinic',
+        },
+        {}
+      );
+      assert.equal(lack['npc_surgeon_case'], undefined);
+    });
+
+    it('grants location-bound secrets only at the stated location', () => {
+      const locSecret: NPCDossier = {
+        ...surgeon,
+        secrets: [
+          {
+            id: 'secret_safe',
+            description: 'Keys to the clinic safe hide in the morgue drain',
+            requiredTrustLevel: 20,
+            revealed: false,
+            revealMethods: [{ kind: 'location', locationId: 'loc_morgue' }],
+          },
+        ],
+      };
+      const there = GameEngine.discoverSecretsForTurn(
+        [locSecret],
+        {
+          relationships: { npc_surgeon_case: { trust: 0, knownSecrets: [] } },
+          inventory: [],
+          currentLocationId: 'loc_morgue',
+        },
+        {}
+      );
+      assert.equal(there['npc_surgeon_case']?.newSecretId, 'secret_safe');
+      const elsewhere = GameEngine.discoverSecretsForTurn(
+        [locSecret],
+        {
+          relationships: { npc_surgeon_case: { trust: 0, knownSecrets: [] } },
+          inventory: [],
+          currentLocationId: 'loc_clinic',
+        },
+        {}
+      );
+      assert.equal(elsewhere['npc_surgeon_case'], undefined);
+    });
+
+    it('applies this turn trust delta when evaluating the trust method', () => {
+      const grant = GameEngine.discoverSecretsForTurn(
+        [surgeon],
+        {
+          relationships: { npc_surgeon_case: { trust: 55, knownSecrets: [] } },
+          inventory: [],
+          currentLocationId: 'loc_clinic',
+        },
+        { existingRelationshipChanges: { npc_surgeon_case: { trustDelta: 10 } } }
+      );
+      assert.equal(grant['npc_surgeon_case']?.newSecretId, 'secret_implant');
+    });
+
+    it('skips NPCs already granted a secret this turn (e.g. via pressure)', () => {
+      const grant = GameEngine.discoverSecretsForTurn(
+        [surgeon],
+        {
+          relationships: { npc_surgeon_case: { trust: 99, knownSecrets: [] } },
+          inventory: [],
+          currentLocationId: 'loc_clinic',
+        },
+        { existingRelationshipChanges: { npc_surgeon_case: { newSecret: 'secret_cache' } } }
+      );
+      assert.equal(grant['npc_surgeon_case'], undefined);
+    });
   });
 
   describe('Archetype & Character Creation Resolution', () => {
