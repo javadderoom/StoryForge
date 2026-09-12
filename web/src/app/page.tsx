@@ -27,6 +27,7 @@ import { CharacterCreationModal } from '@/components/play/CharacterCreationModal
 import { GameLoadingScreen } from '@/components/play/GameLoadingScreen';
 import { Compendium } from '@/components/play/Compendium';
 import { AtmosphereCanvas } from '@/components/play/AtmosphereCanvas';
+import { NarrativeProse } from '@/components/play/NarrativeProse';
 import { ThreeDChoiceCard } from '@/components/play/ThreeDChoiceCard';
 import { TensionClockWidget } from '@/components/play/TensionClockWidget';
 import { preloadD20 } from '@/lib/play/diceAssetCache';
@@ -194,14 +195,30 @@ export default function Home() {
   const startGame = useCallback(
     async (storyId: string, resumeId?: string, setup?: CharacterSetup, genres?: string[]) => {
       setIsGameLoading(true);
-      setLoadingProgress(15);
+      setLoadingProgress(3);
       setLoading(true);
       setErrorMessage(null);
       setLastOutcome(null);
 
+      // Natural progress: the ~7MB D20 download dominates load time, so it owns
+      // ~85% of the bar; session setup owns ~10%. The displayed value eases toward
+      // the real target (never jumps, never stalls) and only hits 100 when both
+      // are truly done. Capped at 97 until completion.
+      let diceRatio = 0;
+      let sessionDone = false;
+      const target = () => 3 + diceRatio * 85 + (sessionDone ? 9 : 0);
+      const progressTimer = window.setInterval(() => {
+        setLoadingProgress((prev) => {
+          const t = Math.min(97, target());
+          if (prev >= t) return prev;
+          const next = prev + Math.max(0.4, (t - prev) * 0.08);
+          return Math.round(Math.min(t, next) * 10) / 10;
+        });
+      }, 120);
+
       // Start preloading the 3D D20 dice model in parallel with the session setup
       const dicePreloadPromise = preloadD20((ratio) => {
-        setLoadingProgress((prev) => Math.max(prev, Math.round(15 + ratio * 65)));
+        diceRatio = Math.min(1, Math.max(0, ratio));
       }).catch((err) => {
         console.warn('Background D20 preload non-fatal warning:', err);
       });
@@ -256,13 +273,17 @@ export default function Home() {
           audioService.playAmbient(ambientFromLocation(resolvedPlayerState.currentLocationId));
         }
 
-        setLoadingProgress((prev) => Math.max(prev, 85));
+        sessionDone = true;
         // Await 3D D20 model pre-caching so it is 100% in memory
         await dicePreloadPromise;
+        diceRatio = 1;
+        window.clearInterval(progressTimer);
         setLoadingProgress(100);
       } catch (e: any) {
+        window.clearInterval(progressTimer);
         setErrorMessage(e?.message || 'Failed to start session');
       } finally {
+        window.clearInterval(progressTimer);
         setLoading(false);
         setTimeout(() => {
           setIsGameLoading(false);
@@ -856,9 +877,16 @@ export default function Home() {
                     <p className="text-sm font-medium">{isRtl ? 'داستان در حال شکل‌گیری است...' : 'The narrative unfolds...'}</p>
                   </div>
                 ) : (
-                  <p className={`whitespace-pre-line tracking-wide transition-all ${fontSizeClass[settings.fontSize]} ${lineHeightClass[settings.lineHeight]}`}>
-                    {currentBeat?.narrative}
-                  </p>
+                  <div className="transition-all">
+                    <NarrativeProse
+                      text={currentBeat?.narrative || ''}
+                      isPersian={isRtl}
+                      bodyColor={themeObj.bodyText}
+                      accentColor={themeObj.primaryAccent}
+                      fontSizeClass={fontSizeClass[settings.fontSize]}
+                      lineHeightClass={lineHeightClass[settings.lineHeight]}
+                    />
+                  </div>
                 )}
               </div>
 

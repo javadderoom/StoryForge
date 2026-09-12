@@ -95,6 +95,10 @@ export class PromptAssembler {
       context.environmentInteractables?.length ? `Environmental interactables: ${context.environmentInteractables.join(', ')}` : '',
     ].filter(Boolean).join('\n');
 
+    const dialogueDirective = isEnglish
+      ? '5. Wrap every line of direct speech in double quotation marks ("...") so dialogue stays visually distinct from narration.'
+      : '۵. هر گفت‌وگوی مستقیم را داخل «...» بنویس تا از روایت متمایز بماند.';
+
     const systemPrompt = isEnglish
       ? `[ROLE & PERSONA: LITERARY NOVELIST & RPG NARRATIVE DIRECTOR]
 You are the narrative author for an interactive dark RPG novel titled "${context.storyTitle}".
@@ -106,6 +110,7 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 2. You MUST strictly depict the pre-calculated outcome. Do NOT contradict or alter the mechanical result.
 3. Keep the prose focused (between 200 and 350 words). Maintain narrative momentum and visceral tension.
 ${statsDirective}
+${dialogueDirective}
 
 [OUTPUT FORMAT]
 You MUST respond with a valid JSON object matching this schema:
@@ -129,6 +134,7 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 2. You MUST strictly depict the pre-calculated outcome. Do NOT contradict or alter the mechanical result.
 3. Keep the prose focused (between 200 and 350 words). Maintain narrative momentum and visceral tension.
 ${statsDirective}
+${dialogueDirective}
 
 [OUTPUT FORMAT]
 You MUST respond with a valid JSON object matching this schema:

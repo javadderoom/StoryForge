@@ -12,6 +12,7 @@ import '../../services/audio_service.dart';
 import '../../models/game_state.dart';
 import '../../models/choice_option.dart';
 import '../widgets/atmosphere_canvas.dart';
+import '../widgets/narrative_prose.dart';
 import '../widgets/tension_clock_widget.dart';
 import '../widgets/three_d_choice_card.dart';
 import '../widgets/realm_relic_badge.dart';
@@ -684,21 +685,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    session.currentNarrative,
-                                    style: isPersian
-                                        ? GoogleFonts.vazirmatn(
-                                            fontSize: _fontSize,
-                                            height: _lineHeight,
-                                            color: const Color(0xFFE4E4E7),
-                                            fontWeight: FontWeight.w400,
-                                          )
-                                        : GoogleFonts.merriweather(
-                                            fontSize: _fontSize + 1,
-                                            height: _lineHeight,
-                                            color: const Color(0xFFE4E4E7),
-                                            letterSpacing: 0.2,
-                                          ),
+                                  NarrativeProse(
+                                    text: session.currentNarrative,
+                                    isPersian: isPersian,
+                                    fontSize: _fontSize,
+                                    lineHeight: _lineHeight,
+                                    accentColor: theme.primaryAccent,
                                   ),
                                   if (session.isLoading) ...[
                                     const SizedBox(height: 20),

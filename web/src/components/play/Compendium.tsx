@@ -12,6 +12,7 @@ import {
   formatStatName,
 } from '@/lib/play/rpgEngine';
 import { equipItem, unequipItem, consumeItem, getItem, isEquipped } from '@/lib/play/inventory';
+import { normalizeCurrencySystem } from '@/lib/engines/game/currencyEngine';
 import { toPersianDigits } from '@/lib/play/persianNumbers';
 import { ItemDetailSheet } from './ItemDetailSheet';
 
@@ -152,6 +153,36 @@ export function Compendium({
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Coins */}
+              <div>
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{isPersian ? 'سکه‌ها' : 'COINS'}</div>
+                <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-3 space-y-1.5">
+                  {(() => {
+                    const system = normalizeCurrencySystem(
+                      storyMeta?.rpgSystem?.currencySystem ?? storyMeta?.rpgSystem?.currency
+                    );
+                    const purse = (playerState as any).purse ?? {};
+                    return system.denominations.map((d) => {
+                      const count = purse[d.id] ?? 0;
+                      return (
+                        <div key={d.id} className="flex items-center justify-between text-[12px]">
+                          <span className="text-zinc-200">
+                            <span className="mr-1.5">{d.symbol}</span>
+                            {isPersian ? d.nameFa : d.nameEn}
+                          </span>
+                          <span
+                            className="font-mono font-bold"
+                            style={{ color: count > 0 ? '#FBBF24' : '#71717A' }}
+                          >
+                            {toPersianDigits(count)}
+                          </span>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
               </div>
 
               {/* Equipment paperdoll */}

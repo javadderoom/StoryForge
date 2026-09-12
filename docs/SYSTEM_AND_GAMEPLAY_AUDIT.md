@@ -127,9 +127,10 @@ private static checkUnownedArtifact(lowerAction: string, playerState: PlayerStat
 * When `applyStateMutation` runs, it finds no resource definition for `'hp'`. It writes to an orphaned key `resources['hp'] = 90`, while the player's visible `resources['health']` **remains at 20/20 forever**.
 * The player cannot take visible damage in combat.
 
-#### B. Total Absence of Death / Defeat Conditions
-* Neither `GameEngine.ts` nor `action/route.ts` contains any check for `current <= 0`, `isDead`, or `gameOver`.
-* Reaching 0 health produces no narrative defeat, no checkpoint reload, and no notification to the AI narrator. The character continues taking turns indefinitely at 0 HP.
+#### B. Hybrid Defeat & Lingering Injuries (The "Passing Out" Death Loop)
+* When health drops to 0 or below, `GameEngine.resolveDefeat` triggers escalating penalties (gold loss, trust drop, item loss on 2nd defeat, and -1 permanent stat scar on 3rd+ defeat).
+* **The 25% Revive Trap**: Because `resolveDefeat` revives characters at only 25% HP (5–7 HP in 20–30 HP systems), any single subsequent failure (-10 HP) immediately drops HP to 0 again, forcing an infinite loop of fainting, waking up, and taking permanent scars.
+* See [DEFEAT_AND_STAT_CONSEQUENCES.md](file:///d:/Code/StoryForge/docs/DEFEAT_AND_STAT_CONSEQUENCES.md) for root-cause analysis on the passing out loop, damage tables, and architectural solutions.
 
 #### C. Enemies Have No State
 * In StoryForge, combat is currently a **single generic D20 roll against a static DC (12 or 15).**
@@ -152,8 +153,10 @@ private static checkUnownedArtifact(lowerAction: string, playerState: PlayerStat
   * The secret can **never** be unlocked peacefully.
   * The only way to crack secrets is through threats (`pressure`), which damages trust further.
 
-#### B. Every Utterance is a High-Stakes D20 Check
-* There is no dialogue mode or conversation buffer. Saying *"Good morning"* and *"Tell me your secrets or die"* are both evaluated through the same high-stakes D20 roll. A bad roll on casual dialogue inflicts physical damage (`-10 HP`) or relationship ruin (`-10 Trust`).
+#### B. Every Utterance is a High-Stakes D20 Check & Flat HP Damage Attrition
+* There is no dialogue mode or conversation buffer. Saying *"Good morning"* and *"Tell me your secrets or die"* are both evaluated through the same high-stakes D20 roll. A bad roll on casual dialogue inflicts bodily physical damage (`-10 HP`) or relationship ruin (`-10 Trust`).
+* Unconditional flat bodily damage on all check failures causes characters to reach 0 HP in 4–5 turns of exploration/social play ("0 HP Over Nothing").
+* See [INVESTIGATION_ARCHETYPE_CHOICES_AND_HP_DRAIN.md](file:///d:/Code/StoryForge/docs/INVESTIGATION_ARCHETYPE_CHOICES_AND_HP_DRAIN.md) for root cause analysis on archetype blindness in choices and indiscriminate HP drain.
 
 ---
 

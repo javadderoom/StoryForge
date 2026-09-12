@@ -27,6 +27,8 @@ class GameSessionState {
   final String? currentSceneImageUrl;
   final List<Map<String, dynamic>> rpgResources;
   final List<StoryStatSummary> rpgStats;
+  /// Coin denominations of the story currency system (id, nameFa, nameEn, symbol).
+  final List<Map<String, dynamic>> currencyDenominations;
   /// Plan 13: display name of the hazard zone after a displacement turn.
   final String? lastDisplacement;
 
@@ -49,6 +51,7 @@ class GameSessionState {
     this.currentSceneImageUrl,
     this.rpgResources = const [],
     this.rpgStats = const [],
+    this.currencyDenominations = const [],
     this.lastDisplacement,
   });
 
@@ -78,6 +81,7 @@ class GameSessionState {
     String? currentSceneImageUrl,
     List<Map<String, dynamic>>? rpgResources,
     List<StoryStatSummary>? rpgStats,
+    List<Map<String, dynamic>>? currencyDenominations,
     String? lastDisplacement,
     bool clearSceneImage = false,
     bool clearPendingTurn = false,
@@ -101,6 +105,7 @@ class GameSessionState {
       storyCoverImageUrl: storyCoverImageUrl ?? this.storyCoverImageUrl,
       rpgResources: rpgResources ?? this.rpgResources,
       rpgStats: rpgStats ?? this.rpgStats,
+      currencyDenominations: currencyDenominations ?? this.currencyDenominations,
       currentSceneImageUrl: clearSceneImage
           ? null
           : (currentSceneImageUrl ?? this.currentSceneImageUrl),
@@ -135,6 +140,16 @@ class GameSessionState {
     final raw = storyData?['rpgSystem']?['stats'] as List<dynamic>?;
     if (raw == null) return const [];
     return raw.whereType<Map>().map((e) => StoryStatSummary.fromJson(Map<String, dynamic>.from(e))).toList();
+  }
+
+  /// Parses the story currency system denominations (highest value first).
+  static List<Map<String, dynamic>> parseCurrencyDenominations(Map<String, dynamic>? storyData) {
+    final system = storyData?['rpgSystem']?['currencySystem'] ?? storyData?['rpgSystem']?['currency'];
+    final raw = (system is Map ? system['denominations'] : null) as List<dynamic>?;
+    if (raw == null) return const [];
+    final denoms = raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    denoms.sort((a, b) => ((b['valueInBase'] as num?) ?? 0).compareTo((a['valueInBase'] as num?) ?? 0));
+    return denoms;
   }
 }
 
@@ -189,6 +204,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         lore: rawLore,
         rpgResources: GameSessionState.parseRpgResources(storyData),
         rpgStats: GameSessionState.parseRpgStats(storyData),
+        currencyDenominations: GameSessionState.parseCurrencyDenominations(storyData),
         currentNarrative: currentBeat['narrative'] ?? '',
         choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
         playerState: playerState,

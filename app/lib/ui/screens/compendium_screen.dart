@@ -327,7 +327,8 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                 controller: _tabController,
                 children: [
                   // Tab 1: Hero & Equipment
-                  _buildHeroSheetTab(playerState, theme, isPersian, session.rpgResources, session.rpgStats),
+                  _buildHeroSheetTab(playerState, theme, isPersian, session.rpgResources, session.rpgStats,
+                      session.currencyDenominations),
 
                   // Tab 2: Inventory & Stash
                   _buildInventoryTab(playerState, theme, isPersian),
@@ -349,7 +350,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
   // ===========================================================================
   // TAB 1: HERO & STATS SHEET
   // ===========================================================================
-  Widget _buildHeroSheetTab(PlayerState player, RealmTheme theme, bool isPersian, [List<Map<String, dynamic>> defs = const [], List<StoryStatSummary> statDefs = const []]) {
+  Widget _buildHeroSheetTab(PlayerState player, RealmTheme theme, bool isPersian, [List<Map<String, dynamic>> defs = const [], List<StoryStatSummary> statDefs = const [], List<Map<String, dynamic>> denoms = const []]) {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       children: [
@@ -457,6 +458,19 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
           _buildResourceBar(player, resEntry.key, resEntry.value, isPersian, defs),
           const SizedBox(height: 12),
         ],
+        const SizedBox(height: 12),
+
+        // Coin Purse
+        Text(
+          isPersian ? 'سکه‌ها' : 'COINS',
+          style: GoogleFonts.vazirmatn(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF9CA3AF),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildCoinPurse(player, isPersian, denoms),
         const SizedBox(height: 24),
 
         // Visual Equipment Paperdoll
@@ -484,6 +498,54 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
         const SizedBox(height: 12),
         _buildAttributesGrid(player, isPersian, statDefs),
       ],
+    );
+  }
+
+  static const _fallbackDenoms = [
+    {'id': 'gold', 'nameFa': 'دینار زرین', 'nameEn': 'Gold Dinar', 'symbol': '🪙'},
+    {'id': 'silver', 'nameFa': 'درهم سیمین', 'nameEn': 'Silver Dirham', 'symbol': '🔘'},
+    {'id': 'copper', 'nameFa': 'پشیز مسی', 'nameEn': 'Copper Fals', 'symbol': '🟤'},
+  ];
+
+  Widget _buildCoinPurse(PlayerState player, bool isPersian, List<Map<String, dynamic>> denoms) {
+    final effective = denoms.isNotEmpty ? denoms : _fallbackDenoms;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF59E0B).withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          for (final d in effective)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${d['symbol'] ?? '🪙'} ${isPersian ? (d['nameFa'] ?? d['id']) : (d['nameEn'] ?? d['id'])}',
+                    style: GoogleFonts.vazirmatn(fontSize: 13, color: Colors.white),
+                  ),
+                  Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Text(
+                      (player.purse[d['id']] ?? 0).toPersianDigits(enable: isPersian),
+                      style: GoogleFonts.vazirmatn(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.bold,
+                        color: (player.purse[d['id']] ?? 0) > 0
+                            ? const Color(0xFFFBBF24)
+                            : Colors.white38,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 

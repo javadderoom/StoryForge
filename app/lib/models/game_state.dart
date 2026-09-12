@@ -295,6 +295,8 @@ class PlayerState {
   final List<String> activeQuestIds;
   final List<String> completedQuestIds;
   final List<TensionClock> activeTensionClocks;
+  /// Multi-denomination coin purse, e.g. {gold: 2, silver: 15, copper: 30}.
+  final Map<String, int> purse;
 
   PlayerState({
     this.characterName,
@@ -314,6 +316,7 @@ class PlayerState {
     this.activeQuestIds = const [],
     this.completedQuestIds = const [],
     this.activeTensionClocks = const [],
+    this.purse = const {},
   });
 
   int maxFor(String key, int fallback) => maxResources[key] ?? fallback;
@@ -358,6 +361,7 @@ class PlayerState {
     List<String>? activeQuestIds,
     List<String>? completedQuestIds,
     List<TensionClock>? activeTensionClocks,
+    Map<String, int>? purse,
   }) {
     return PlayerState(
       characterName: characterName ?? this.characterName,
@@ -377,6 +381,7 @@ class PlayerState {
       activeQuestIds: activeQuestIds ?? this.activeQuestIds,
       completedQuestIds: completedQuestIds ?? this.completedQuestIds,
       activeTensionClocks: activeTensionClocks ?? this.activeTensionClocks,
+      purse: purse ?? this.purse,
     );
   }
 
@@ -391,6 +396,7 @@ class PlayerState {
     final rawActiveQuests = json['activeQuestIds'] as List<dynamic>? ?? [];
     final rawCompQuests = json['completedQuestIds'] as List<dynamic>? ?? [];
     final rawTraits = json['traits'] as List<dynamic>? ?? [];
+    final rawPurse = json['purse'] as Map<String, dynamic>? ?? {};
     final rawClocks = json['activeTensionClocks'] as List<dynamic>? ?? [];
 
     return PlayerState(
@@ -411,6 +417,7 @@ class PlayerState {
       activeQuestIds: rawActiveQuests.map((e) => e.toString()).toList(),
       completedQuestIds: rawCompQuests.map((e) => e.toString()).toList(),
       activeTensionClocks: rawClocks.map((e) => TensionClock.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
+      purse: rawPurse.map((k, v) => MapEntry(k, (v as num).toInt())),
     );
   }
 
@@ -432,5 +439,6 @@ class PlayerState {
         'activeQuestIds': activeQuestIds,
         'completedQuestIds': completedQuestIds,
         'activeTensionClocks': activeTensionClocks.map((c) => c.toJson()).toList(),
+        'purse': purse,
       };
 }
