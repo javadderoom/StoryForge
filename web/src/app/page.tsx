@@ -401,10 +401,18 @@ export default function Home() {
     const syncBalance = (json: any) => {
       if (typeof json?.data?.remainingCredits === 'number') {
         updateCreditBalance(json.data.remainingCredits);
+        if (json.data.remainingCredits <= 0) setIsShopModalOpen(true);
       } else if (json?.creditDepleted) {
         updateCreditBalance(0);
+        setIsShopModalOpen(true);
       }
     };
+    // Guests never spend credits; authenticated users at 0 go straight to the shop.
+    if (isAuthenticated && (user?.creditBalance ?? 0) <= 0) {
+      setIsShopModalOpen(true);
+      setActionInFlight(false);
+      return;
+    }
 
     const targetSceneId = choice.targetSceneId || choice.destinationSceneId || choice.leadToSceneId;
     const isDiceless = choice.targetDC === undefined && choice.requiredStatId === undefined;
@@ -926,47 +934,67 @@ export default function Home() {
 
               {!loading && currentBeat?.choices && (
                 <div className="mt-8 space-y-4 border-t pt-8" style={{ borderColor: themeObj.cardBorder }}>
-                  <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider" style={{ color: themeObj.mutedText }}>
-                    <Sparkles className="h-3.5 w-3.5" style={{ color: themeObj.primaryAccent }} />
-                    <span>{isRtl ? 'چه تصمیمی می‌گیری؟' : 'What will you do?'}</span>
-                  </h3>
+                  {isAuthenticated && (user?.creditBalance ?? 0) <= 0 ? (
+                    <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 text-center">
+                      <Zap className="mx-auto h-8 w-8 text-amber-400" />
+                      <p className="mt-2 text-sm font-bold text-amber-200">
+                        {isRtl ? 'اعتبار صحنه‌های شما تمام شده است' : 'You are out of scene credits'}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-400">
+                        {isRtl ? 'برای ادامه ماجراجویی، بسته اعتباری تهیه کنید.' : 'Top up credits to continue your adventure.'}
+                      </p>
+                      <button
+                        onClick={() => setIsShopModalOpen(true)}
+                        className="mt-4 rounded-xl bg-amber-500 px-6 py-2.5 text-xs font-bold text-black transition-all hover:bg-amber-400"
+                      >
+                        {isRtl ? 'خرید اعتبار' : 'Buy credits'}
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider" style={{ color: themeObj.mutedText }}>
+                        <Sparkles className="h-3.5 w-3.5" style={{ color: themeObj.primaryAccent }} />
+                        <span>{isRtl ? 'چه تصمیمی می‌گیری؟' : 'What will you do?'}</span>
+                      </h3>
 
-                  <div className="space-y-3">
-                    {currentBeat.choices.map((choice: any, idx: number) => (
-                      <div key={idx} className={actionInFlight ? 'pointer-events-none opacity-60' : ''}>
-                        <ThreeDChoiceCard
-                          choice={choice}
-                          theme={themeObj}
-                          isPersian={isRtl}
-                          statsConfig={storyMeta?.rpgSystem?.stats}
-                          onTap={() => onChoice(choice)}
-                        />
+                      <div className="space-y-3">
+                        {currentBeat.choices.map((choice: any, idx: number) => (
+                          <div key={idx} className={actionInFlight ? 'pointer-events-none opacity-60' : ''}>
+                            <ThreeDChoiceCard
+                              choice={choice}
+                              theme={themeObj}
+                              isPersian={isRtl}
+                              statsConfig={storyMeta?.rpgSystem?.stats}
+                              onTap={() => onChoice(choice)}
+                            />
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
 
-                  <form onSubmit={handleFreeTextSubmit} className="mt-4 flex gap-2">
-                    <input
-                      type="text"
-                      value={freeTextAction}
-                      onChange={(e) => setFreeTextAction(e.target.value)}
-                      placeholder={
-                        isRtl
-                          ? 'یا هر عمل دلخواهی را بنویسید (مثلاً: جستجوی زیر نیمکت)...'
-                          : 'Or type any custom action (e.g. search under the wooden bench)...'
-                      }
-                      className="flex-1 rounded-xl border bg-zinc-900 px-4 py-2.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-1"
-                      style={{ borderColor: themeObj.cardBorder, ['--tw-ring-color' as any]: themeObj.primaryAccent }}
-                    />
-                    <button
-                      type="submit"
-                      disabled={!freeTextAction.trim() || actionInFlight}
-                      className="flex shrink-0 items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-black transition-all hover:bg-amber-400 disabled:opacity-40"
-                    >
-                      <Send className="h-3.5 w-3.5" />
-                      <span>{isRtl ? 'انجام بده' : 'Act'}</span>
-                    </button>
-                  </form>
+                      <form onSubmit={handleFreeTextSubmit} className="mt-4 flex gap-2">
+                        <input
+                          type="text"
+                          value={freeTextAction}
+                          onChange={(e) => setFreeTextAction(e.target.value)}
+                          placeholder={
+                            isRtl
+                              ? 'یا هر عمل دلخواهی را بنویسید (مثلاً: جستجوی زیر نیمکت)...'
+                              : 'Or type any custom action (e.g. search under the wooden bench)...'
+                          }
+                          className="flex-1 rounded-xl border bg-zinc-900 px-4 py-2.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-1"
+                          style={{ borderColor: themeObj.cardBorder, ['--tw-ring-color' as any]: themeObj.primaryAccent }}
+                        />
+                        <button
+                          type="submit"
+                          disabled={!freeTextAction.trim() || actionInFlight}
+                          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-black transition-all hover:bg-amber-400 disabled:opacity-40"
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                          <span>{isRtl ? 'انجام بده' : 'Act'}</span>
+                        </button>
+                      </form>
+                    </>
+                  )}
                 </div>
               )}
             </div>
