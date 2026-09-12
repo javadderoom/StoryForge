@@ -125,11 +125,25 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Guardrail Validation
+    const lastTurn = session?.history?.[session.history.length - 1];
+    const isPresetChoice = Boolean(
+      lastTurn?.presentedChoices?.some(
+        (c: any) => c.text?.trim() === playerActionText.trim() || (body.choiceId && c.id === body.choiceId)
+      ) ||
+      story.initialStoryBeats?.some((b: any) =>
+        b.choices?.some((c: any) => c.text?.trim() === playerActionText.trim() || (body.choiceId && c.id === body.choiceId))
+      )
+    );
+
     const validation = ActionValidator.validateAction(
       playerActionText,
       playerState,
       story.worldBible,
-      story.rpgSystem
+      story.rpgSystem,
+      {
+        isPresetChoice,
+        storyNpcOverrides: story.storyNpcOverrides,
+      }
     );
 
     if (!validation.isValid) {
@@ -524,6 +538,7 @@ export async function POST(req: NextRequest) {
         resources: updatedPlayerState.resources,
         equippedItems: updatedPlayerState.inventory.map((i) => i.name),
       },
+      statsConfig: story.rpgSystem?.stats,
       resolvedGameOutcome: {
         actionText: playerActionText,
         outcome: resolution.outcome,
@@ -661,6 +676,19 @@ export async function POST(req: NextRequest) {
           );
         }
       }
+    }
+
+    // Filter out any AI-generated choices that violate secret boundaries
+    if (aiResponse.choices && aiResponse.choices.length > 0) {
+      aiResponse.choices = aiResponse.choices.filter((c) => {
+        const violation = ActionValidator.detectUndiscoveredSecret(
+          c.text,
+          updatedPlayerState,
+          story.worldBible,
+          story.storyNpcOverrides
+        );
+        return !violation;
+      });
     }
 
     // Carry the real authored scene id when known; fixes stuck-currentSceneId

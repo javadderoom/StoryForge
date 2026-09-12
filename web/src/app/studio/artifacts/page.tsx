@@ -593,11 +593,14 @@ export default function ArtifactsStudioPage() {
                       )}
                       {art.statModifiers && Object.keys(art.statModifiers).length > 0 && (
                         <>
-                          {Object.entries(art.statModifiers).map(([sKey, sVal]) => (
-                            <span key={sKey} className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                              {sVal > 0 ? `+${sVal}` : sVal} {sKey}
-                            </span>
-                          ))}
+                          {Object.entries(art.statModifiers).map(([sKey, sVal]) => {
+                            const stName = (story.rpgSystem?.stats || []).find((s: any) => s.id === sKey)?.name || sKey;
+                            return (
+                              <span key={sKey} className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                                {sVal > 0 ? `+${sVal}` : sVal} {stName}
+                              </span>
+                            );
+                          })}
                         </>
                       )}
                       {art.resourceModifiers && Object.keys(art.resourceModifiers).length > 0 && (

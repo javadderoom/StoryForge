@@ -166,8 +166,8 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
 
   String _formatStatName(String key, bool isPersian) {
     for (final s in _getEffectiveStats()) {
-      if (s.id.toLowerCase() == key.toLowerCase() && s.name.isNotEmpty) {
-        return s.name;
+      if (s.id.toLowerCase() == key.toLowerCase()) {
+        return s.getLocalizedName(isPersian);
       }
     }
     if (!isPersian) return key.toUpperCase();

@@ -45,7 +45,8 @@ const VALID_MEMORY_CATEGORIES = new Set(['world', 'character', 'story', 'player'
 export function normalizeChoices(
   rawChoices: unknown,
   validStatIds: string[],
-  isEnglish: boolean
+  isEnglish: boolean,
+  isLowBase: boolean = false
 ): ChoiceOption[] {
   if (!Array.isArray(rawChoices)) return [];
   const statIds = new Set(validStatIds.map((id) => id.toLowerCase()));
@@ -82,12 +83,26 @@ export function normalizeChoices(
         ? raw.targetDC
         : typeof raw.target_dc === 'number'
         ? raw.target_dc
+        : isLowBase
+        ? riskLevel === 'high'
+          ? 11
+          : riskLevel === 'low'
+          ? 7
+          : 9
         : riskLevel === 'high'
         ? 14
         : riskLevel === 'low'
         ? 10
         : 12;
-    targetDC = Math.min(30, Math.max(5, Math.round(targetDC)));
+
+    if (isLowBase) {
+      targetDC = Math.min(16, Math.max(4, Math.round(targetDC)));
+      if (riskLevel === 'low' && targetDC > 8) targetDC = 8;
+      if (riskLevel === 'medium' && targetDC > 10) targetDC = 10;
+      if (riskLevel === 'high' && targetDC > 12) targetDC = 11;
+    } else {
+      targetDC = Math.min(30, Math.max(5, Math.round(targetDC)));
+    }
 
     normalized.push({
       id: typeof raw.id === 'string' && raw.id ? raw.id : `choice_${normalized.length + 1}`,
@@ -200,15 +215,16 @@ export class GeminiAdapter {
       const text = response.text || '{}';
       const parsed = JSON.parse(text);
 
-      return {
-        narrative:
-          typeof parsed.narrative === 'string' && parsed.narrative.trim()
-            ? parsed.narrative
-            : defaultNarrative,
-        choices: normalizeChoices(parsed.choices, validStatIds, prompt.isEnglish),
-        extractedMemories: normalizeExtractedMemories(parsed.extractedMemories),
-        isMock: false,
-      };
+        const isLowBase = prompt.isLowBase ?? Object.values(prompt.playerStatIds || {}).some((v) => v < 8);
+        return {
+          narrative:
+            typeof parsed.narrative === 'string' && parsed.narrative.trim()
+              ? parsed.narrative
+              : defaultNarrative,
+          choices: normalizeChoices(parsed.choices, validStatIds, prompt.isEnglish, isLowBase),
+          extractedMemories: normalizeExtractedMemories(parsed.extractedMemories),
+          isMock: false,
+        };
     } catch (error) {
       // Plan 08: a failed generation must NOT silently degrade into fake canon.
       console.error('[GeminiAdapter] Direct API generation error:', error);

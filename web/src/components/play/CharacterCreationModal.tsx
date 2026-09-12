@@ -6,6 +6,7 @@ import { RealmTheme } from '@/lib/play/realmTheme';
 import { audioService } from '@/lib/play/audioService';
 import { toPersianDigits } from '@/lib/play/persianNumbers';
 import { CharacterSetup } from '@/lib/play/api';
+import { formatStatName } from '@/lib/play/rpgEngine';
 
 interface CharacterCreationModalProps {
   isOpen: boolean;
@@ -18,12 +19,9 @@ interface CharacterCreationModalProps {
 
 const TOTAL_FREE_POINTS = 4;
 
-function getStatName(id: string, isPersian: boolean, statObj?: any): string {
-  if (statObj?.name) return statObj.name;
-  const map: Record<string, string> = {
-    might: 'قدرت', agility: 'چابکی', cunning: 'ذکاوت', arcana: 'دانش کهن', charm: 'جذابیت',
-  };
-  return isPersian ? map[id] ?? id : id.toUpperCase();
+function getStatName(id: string, isPersian: boolean, statObj?: any, statsConfig?: any[]): string {
+  if (statObj?.name?.trim()) return statObj.name.trim();
+  return formatStatName(id, isPersian, statsConfig || (statObj ? [statObj] : undefined));
 }
 
 const STEPS = (isPersian: boolean) => [isPersian ? 'نقش' : 'Role', isPersian ? 'پیشینه' : 'Origin', isPersian ? 'ویژگی‌ها' : 'Stats', isPersian ? 'هویت' : 'Identity'];

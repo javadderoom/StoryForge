@@ -69,14 +69,28 @@ export function calculateEquipmentModifier(playerState: PlayerState, effectiveSt
   let modifier = 0;
   const equippedIds = allEquippedIds(playerState.equipment);
   const raw = (effectiveStatId || '').trim();
-  const canonical = STAT_CANONICAL_ALIASES[raw.toLowerCase()] || STAT_CANONICAL_ALIASES[raw] || raw;
+  const rawLower = raw.toLowerCase().replaceAll(' ', '_');
+  const canonical = STAT_CANONICAL_ALIASES[rawLower] || STAT_CANONICAL_ALIASES[raw] || rawLower;
+  const canonicalLower = canonical.toLowerCase().replaceAll(' ', '_');
+
   for (const item of playerState.inventory) {
     const isEquipped = equippedIds.includes(item.id);
     const isRelevantTool = item.type === 'quest_item';
     if ((isEquipped || isRelevantTool) && item.statModifiers) {
-      const val = item.statModifiers[canonical] ?? item.statModifiers[effectiveStatId];
-      if (val != null) {
-        modifier += val;
+      for (const [modKey, modVal] of Object.entries(item.statModifiers)) {
+        if (typeof modVal !== 'number') continue;
+        const cleanModKey = modKey.toLowerCase().replaceAll(' ', '_');
+        const canonModKey = STAT_CANONICAL_ALIASES[cleanModKey] || cleanModKey;
+        if (
+          cleanModKey === rawLower ||
+          cleanModKey === canonicalLower ||
+          canonModKey === rawLower ||
+          canonModKey === canonicalLower ||
+          modKey === raw ||
+          modKey === canonical
+        ) {
+          modifier += modVal;
+        }
       }
     }
   }
@@ -155,9 +169,12 @@ export function resolveActionCheck(opts: {
 
   const totalScore = roll + statModifier + equipmentModifier + tacticalEnvMod;
 
+  const isLowBase = baseline < 8;
   const baseDC =
     targetDC ??
-    (riskLevel === 'high' ? 15 : riskLevel === 'low' ? 9 : 12);
+    (isLowBase
+      ? (riskLevel === 'high' ? 11 : riskLevel === 'low' ? 7 : 9)
+      : (riskLevel === 'high' ? 15 : riskLevel === 'low' ? 9 : 12));
 
   let outcome: DiceOutcome;
   let consequenceSummary: string;
@@ -215,9 +232,56 @@ export function resolveActionCheck(opts: {
   };
 }
 
+/**
+ * Normalizes an authoritative server CheckResolution (or client DiceResolution)
+ * into the client's DiceResolution structure for rendering in the dice modal and HUD.
+ */
+export function serverToCheckResolution(serverRes: any): DiceResolution {
+  if (!serverRes) {
+    return {
+      success: true,
+      outcome: 'success',
+      resultNumber: 10,
+      d20: 10,
+      statModifier: 0,
+      tacticalModifier: 0,
+      equipmentModifier: 0,
+      total: 10,
+      difficultyClass: 10,
+      requiredStat: '',
+      consequenceSummary: '',
+      criticalSuccess: false,
+      criticalFailure: false,
+    };
+  }
+  const roll = serverRes.diceRoll ?? serverRes.d20 ?? serverRes.resultNumber ?? 10;
+  const outcome: DiceOutcome = serverRes.outcome ?? 'failure';
+  const total = serverRes.totalScore ?? serverRes.total ?? roll;
+  const dc = serverRes.difficultyClass ?? 10;
+  return {
+    success: outcome === 'success' || outcome === 'critical_success' || outcome === 'mixed_success',
+    outcome,
+    resultNumber: roll,
+    d20: roll,
+    statModifier: serverRes.statModifier ?? 0,
+    tacticalModifier: serverRes.tacticalModifier ?? 0,
+    equipmentModifier: serverRes.equipmentModifier ?? 0,
+    total,
+    difficultyClass: dc,
+    requiredStat: serverRes.statId ?? serverRes.requiredStat ?? '',
+    consequenceSummary: serverRes.consequenceSummary ?? '',
+    criticalSuccess: outcome === 'critical_success',
+    criticalFailure: outcome === 'critical_failure',
+  };
+}
+
 /** Effective stat = base + all equipped (and passive tool) bonuses. */
-export function getEffectiveStatValue(playerState: PlayerState, statId: string): number {
-  const base = playerState.stats?.[statId] ?? 10;
+export function getEffectiveStatValue(
+  playerState: PlayerState,
+  statId: string,
+  baseValueFallback: number = 10
+): number {
+  const base = playerState.stats?.[statId] ?? baseValueFallback;
   return base + calculateEquipmentModifier(playerState, statId);
 }
 
@@ -255,16 +319,31 @@ export function isConsumableItem(item?: GameItem): boolean {
 export function formatStatName(
   statId: string,
   isPersian: boolean,
-  statsConfig?: Array<{ id: string; nameFa?: string; nameEn?: string }>
+  statsConfig?: Array<{ id: string; name?: string; nameFa?: string; nameEn?: string }>
 ): string {
   if (!statId) return '';
   const cleanId = statId.toLowerCase().replaceAll(' ', '_');
 
   if (statsConfig && Array.isArray(statsConfig)) {
-    const match = statsConfig.find(
-      (s) => s.id.toLowerCase().replaceAll(' ', '_') === cleanId
-    );
+    const alias = STAT_CANONICAL_ALIASES[cleanId] || cleanId;
+    const match = statsConfig.find((s) => {
+      const sClean = (s.id || '').toLowerCase().replaceAll(' ', '_');
+      const sAlias = STAT_CANONICAL_ALIASES[sClean] || sClean;
+      return (
+        sClean === cleanId ||
+        sClean === alias ||
+        sAlias === cleanId ||
+        sAlias === alias ||
+        (s.name && s.name.toLowerCase().replaceAll(' ', '_') === cleanId)
+      );
+    });
+
     if (match) {
+      // 1. Studio authored name is ALWAYS top priority
+      if (match.name && match.name.trim()) {
+        return match.name.trim();
+      }
+      // 2. Language-specific overrides if primary name is not set
       if (isPersian && match.nameFa && match.nameFa.trim()) {
         return match.nameFa.trim();
       }

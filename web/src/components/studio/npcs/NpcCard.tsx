@@ -785,7 +785,7 @@ export function NpcCard({
                             const statDef = story.rpgSystem?.stats?.find(
                               (s) => s.id.toLowerCase() === stName.toLowerCase() || s.name.toLowerCase() === stName.toLowerCase()
                             );
-                            const displayName = isPersian ? (statDef?.name || stName) : (statDef?.id || stName);
+                            const displayName = statDef?.name || stName;
                             return (
                               <div
                                 key={stName}

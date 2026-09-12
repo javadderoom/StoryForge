@@ -125,6 +125,18 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
       );
       assert.equal(res.outcome, 'success');
       assert.equal(res.totalScore, 13);
+      assert.equal(res.stateDiff.resourceChanges?.hp, undefined);
+    });
+
+    it('does not penalize HP on low risk mixed success', () => {
+      const res = GameEngine.resolveActionCheck(
+        'Observe the crowd quietly',
+        initialPlayerState,
+        sampleRpgSystem,
+        { statId: 'cunning', forcedDiceRoll: 12, targetDC: 13, riskLevel: 'low' }
+      );
+      assert.equal(res.outcome, 'mixed_success');
+      assert.equal(res.stateDiff.resourceChanges?.hp, undefined);
     });
 
     it('resolves Mixed Success (with cost) when score is within 3 of DC', () => {

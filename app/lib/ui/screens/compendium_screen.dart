@@ -58,7 +58,16 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
     super.dispose();
   }
 
-  String _formatStatName(String key, bool isPersian) {
+  String _formatStatName(String key, bool isPersian, [List<StoryStatSummary>? statsConfig]) {
+    final cleanId = key.toLowerCase().replaceAll(' ', '_');
+    final cfg = statsConfig ?? ref.read(gameSessionProvider).rpgStats;
+    if (cfg.isNotEmpty) {
+      for (final s in cfg) {
+        if (s.id.toLowerCase().replaceAll(' ', '_') == cleanId) {
+          return s.getLocalizedName(isPersian);
+        }
+      }
+    }
     if (!isPersian) {
       return key
           .replaceAll('_', ' ')
@@ -66,7 +75,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
           .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
           .join(' ');
     }
-    switch (key.toLowerCase().replaceAll(' ', '_')) {
+    switch (cleanId) {
       case 'might':
       case 'strength':
         return 'قدرت';

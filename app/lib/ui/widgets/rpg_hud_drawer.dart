@@ -7,6 +7,7 @@ import '../../models/game_state.dart';
 import '../../providers/game_session_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/audio_service.dart';
+import '../../models/story.dart';
 import '../screens/compendium_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/shop_screen.dart';
@@ -61,7 +62,16 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
     }
   }
 
-  String _formatStatName(String key) {
+  String _formatStatName(String key, [List<StoryStatSummary>? statsConfig]) {
+    final cleanId = key.toLowerCase().replaceAll(' ', '_');
+    final cfg = statsConfig ?? ref.read(gameSessionProvider).rpgStats;
+    if (cfg.isNotEmpty) {
+      for (final s in cfg) {
+        if (s.id.toLowerCase().replaceAll(' ', '_') == cleanId) {
+          return s.getLocalizedName(widget.isPersian);
+        }
+      }
+    }
     if (!widget.isPersian) {
       return key
           .replaceAll('_', ' ')
@@ -69,7 +79,7 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
           .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
           .join(' ');
     }
-    switch (key.toLowerCase().replaceAll(' ', '_')) {
+    switch (cleanId) {
       case 'might':
       case 'strength':
         return 'قدرت';

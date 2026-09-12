@@ -55,7 +55,7 @@ class DiceRollOverlay extends StatelessWidget {
         case 'success':
           return 'موفقیت‌آمیز';
         case 'mixed_success':
-          return 'موفقیت نسبی';
+          return 'موفقیت نسبی (با هزینه)';
         case 'critical_failure':
           return 'شکست فاجعه‌بار';
         case 'failure':
@@ -69,7 +69,7 @@ class DiceRollOverlay extends StatelessWidget {
         case 'success':
           return 'SUCCESS';
         case 'mixed_success':
-          return 'MIXED SUCCESS';
+          return 'MIXED SUCCESS (WITH COST)';
         case 'critical_failure':
           return 'CRITICAL FAILURE';
         case 'failure':

@@ -175,6 +175,17 @@ describe('ActionValidator - Knowledge Boundary Guardrail', () => {
     );
     assert.equal(res.isValid, true);
   });
+
+  it('allows preset choices even if they contain secret-related terms', () => {
+    const res = ActionValidator.validateAction(
+      'I confront the baroness about how she poisoned the royal wine',
+      playerState,
+      worldBible,
+      rpgSystem,
+      { isPresetChoice: true }
+    );
+    assert.equal(res.isValid, true);
+  });
 });
 
 describe('Plan 08 - World Lore Guardrails (Check 3)', () => {

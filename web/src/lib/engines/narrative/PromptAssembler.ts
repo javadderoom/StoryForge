@@ -6,6 +6,8 @@ export interface GenerationPromptPayload {
   isEnglish: boolean;
   /** Plan 08: valid stat ids of the active RPG system, for choice validation. */
   playerStatIds?: Record<string, number>;
+  /** Low-base calibration flag: true when story uses low starting attributes (< 8) */
+  isLowBase?: boolean;
 }
 
 /**
@@ -71,9 +73,19 @@ export class PromptAssembler {
       /[\u0600-\u06FF]/.test(context.storyTitle || '') ||
       /[\u0600-\u06FF]/.test(context.worldSummary || '');
     const isEnglish = !isExplicitlyPersian && context.languageDirective === 'en';
-    // Plan 08: only the story's real stats may appear in AI-proposed choices —
-    // hardcoded generic stat names produced ids that silently rolled with 0.
+    // Plan 08 & Custom stats: real stats from RPG system or player status
+    const statsDefs = context.statsConfig || [];
     const validStatIds = Object.keys(context.playerStatus?.stats || {});
+    const statDescriptors = statsDefs.length > 0
+      ? statsDefs.map((s) => `${s.id}${s.name ? ` (${s.name})` : ''}`).join(', ')
+      : validStatIds.join(', ');
+
+    const isLowBase = statsDefs.length > 0
+      ? statsDefs.some((s) => (s.baseValue ?? 10) < 8)
+      : Object.values(context.playerStatus?.stats || {}).some((v) => v < 8);
+
+    const exampleLowDC = isLowBase ? 7 : 10;
+    const exampleMedDC = isLowBase ? 9 : 12;
 
     const authorDirective = context.authoredSystemPrompt
       ? `\n\n[AUTHOR'S DIRECTIVE — honor the story author's voice, rules, and constraints below]\n${context.authoredSystemPrompt}`
@@ -81,13 +93,21 @@ export class PromptAssembler {
 
     const worldBlock = worldContextBlock(context, isEnglish);
 
+    const dcDirective = isLowBase
+      ? isEnglish
+        ? `Difficulty targets (targetDC) for choices MUST be calibrated between 6 and 11 (Low risk: 6-7, Medium risk: 8-9, High risk: 10-11). Because character base attributes are low, avoid DCs above 10 for standard choices so outcomes are not purely luck-dependent.`
+        : `درجه سختی (targetDC) برای انتخاب‌ها باید بین ۶ تا ۱۱ باشد (ساده: ۶-۷، متوسط: ۸-۹، دشوار: ۱۰-۱۱). با توجه به اینکه مقادیر ویژگی‌های پایه پایین است، از درجات سختی بالای ۱۰ برای انتخاب‌های عادی پرهیز کن تا موفقیت وابسته به شانس صرف نباشد.`
+      : isEnglish
+      ? `Difficulty targets (targetDC) for choices MUST be calibrated between 9 and 15 (Low risk: 9-10, Medium risk: 11-13, High risk: 14-15).`
+      : `درجه سختی (targetDC) برای انتخاب‌ها باید بین ۹ تا ۱۵ باشد (ساده: ۹-۱۰، متوسط: ۱۱-۱۳، دشوار: ۱۴-۱۵).`;
+
     const statsDirective = validStatIds.length
       ? isEnglish
-        ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Every choice's "requiredStatId" MUST be one of exactly these stat ids: [${validStatIds.join(', ')}]. Ground choices in equipped gear, environmental interactables, and NPC secrets where plausible; span distinct philosophies (tactical, aggressive, defensive, inquisitive).`
-        : `4. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای و طبیعی ارائه کن. «requiredStatId» هر انتخاب باید دقیقاً یکی از این شناسه‌ها باشد: [${validStatIds.join('، ')}]. انتخاب‌ها را بر تجهیزات همراه، عناصر محیطی و اسرار شخصیت‌ها استوار کن و فلسفه‌های متفاوت (تاکتیکی، تهاجمی، تدافعی، کنجکاوانه) را پوشش بده.`
+        ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Every choice's "requiredStatId" MUST be one of exactly these stat ids: [${validStatIds.join(', ')}] (Authored stats: ${statDescriptors}). ${dcDirective} Ground choices in equipped gear, environmental interactables, and discovered clues. NEVER reveal or base choices on hidden/undiscovered NPC secrets; choices must strictly offer actions based on what the protagonist currently knows and directly observes. Span distinct philosophies (tactical, aggressive, defensive, inquisitive).`
+        : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای و طبیعی ارائه کن. «requiredStatId» هر انتخاب باید دقیقاً یکی از این شناسه‌ها باشد: [${validStatIds.join('، ')}] (نام‌های ویژگی: ${statDescriptors}). ${dcDirective} انتخاب‌ها را بر تجهیزات همراه، عناصر محیطی و سرنخ‌های فاش‌شده استوار کن. هرگز اسرار کشف‌نشده یا پنهان را در گزینه‌ها نیاور و انتخاب‌ها نباید بر پایه رازهای ناگفته شخصیت‌ها باشند. فلسفه‌های متفاوت (تاکتیکی، تهاجمی، تدافعی، کنجکاوانه) را پوشش بده.`
       : isEnglish
-      ? '4. Provide 2 to 4 natural, contextual next choices for the reader in English. Ground choices in equipped gear and environmental interactables; span distinct philosophies (tactical, aggressive, defensive, inquisitive).'
-      : '4. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای طبیعی ارائه کن. هر انتخاب باید شامل آمار مناسب و درجه سختی (۹ تا ۱۶) باشد و بر تجهیزات و محیط استوار باشد.';
+      ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. ${dcDirective} Ground choices in equipped gear and environmental interactables. NEVER reveal or base choices on hidden NPC secrets; span distinct philosophies (tactical, aggressive, defensive, inquisitive).`
+      : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای طبیعی ارائه کن. ${dcDirective} انتخاب‌ها را بر تجهیزات و محیط استوار کن و هرگز اسرار کشف‌نشده را لو نده.`;
 
     // Plan 13: contextual choice material shared by both language branches.
     const choiceMaterial = [
@@ -98,6 +118,10 @@ export class PromptAssembler {
     const dialogueDirective = isEnglish
       ? '5. Wrap every line of direct speech in double quotation marks ("...") so dialogue stays visually distinct from narration.'
       : '۵. هر گفت‌وگوی مستقیم را داخل «...» بنویس تا از روایت متمایز بماند.';
+
+    const secretGuardDirective = isEnglish
+      ? '6. KNOWLEDGE BOUNDARY: Never expose or offer choices that act upon unrevealed NPC secrets or hidden plot twists. The protagonist only knows what has been explicitly discovered or experienced in the story.'
+      : '۶. مرز دانش شخصیت: هرگز در گزینه‌های انتخابی یا روایت، اسرار پنهان و ناگفته شخصیت‌ها را پیش از کشف توسط بازیکن لو نده. انتخاب‌ها باید صرفاً بر اساس دانسته‌ها و شواهد ملموس صحنه باشند.';
 
     const systemPrompt = isEnglish
       ? `[ROLE & PERSONA: LITERARY NOVELIST & RPG NARRATIVE DIRECTOR]
@@ -111,14 +135,15 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 3. Keep the prose focused (between 200 and 350 words). Maintain narrative momentum and visceral tension.
 ${statsDirective}
 ${dialogueDirective}
+${secretGuardDirective}
 
 [OUTPUT FORMAT]
 You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "Visceral, atmospheric next scene prose in English...",
   "choices": [
-    { "id": "choice_1", "text": "First choice description in English...", "style": "defensive", "riskLevel": "low", "targetDC": 10, "requiredStatId": "${validStatIds[0] || 'might'}" },
-    { "id": "choice_2", "text": "Second choice description in English...", "style": "tactical", "riskLevel": "medium", "targetDC": 12, "requiredStatId": "${validStatIds[1] || validStatIds[0] || 'might'}" }
+    { "id": "choice_1", "text": "First choice description in English...", "style": "defensive", "riskLevel": "low", "targetDC": ${exampleLowDC}, "requiredStatId": "${validStatIds[0] || 'might'}" },
+    { "id": "choice_2", "text": "Second choice description in English...", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[1] || validStatIds[0] || 'might'}" }
   ],
   "extractedMemories": [
     { "category": "character", "importance": 7, "summary": "Key discovery about a character in English..." }
@@ -135,14 +160,15 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 3. Keep the prose focused (between 200 and 350 words). Maintain narrative momentum and visceral tension.
 ${statsDirective}
 ${dialogueDirective}
+${secretGuardDirective}
 
 [OUTPUT FORMAT]
 You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "متن ادبی و فضاسازی صحنه بعدی...",
   "choices": [
-    { "id": "choice_1", "text": "متن تصمیم اول...", "style": "defensive", "riskLevel": "low", "targetDC": 10, "requiredStatId": "${validStatIds[0] || 'might'}" },
-    { "id": "choice_2", "text": "متن تصمیم دوم...", "style": "tactical", "riskLevel": "medium", "targetDC": 12, "requiredStatId": "${validStatIds[1] || validStatIds[0] || 'might'}" }
+    { "id": "choice_1", "text": "متن تصمیم اول...", "style": "defensive", "riskLevel": "low", "targetDC": ${exampleLowDC}, "requiredStatId": "${validStatIds[0] || 'might'}" },
+    { "id": "choice_2", "text": "متن تصمیم دوم...", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[1] || validStatIds[0] || 'might'}" }
   ],
   "extractedMemories": [
     { "category": "character", "importance": 7, "summary": "کشف رازی مهم در مورد شخصیت..." }
@@ -301,6 +327,7 @@ You MUST respond with a valid JSON object matching this schema:
       userPrompt: parts.join('\n\n'),
       isEnglish,
       playerStatIds: context.playerStatus?.stats || {},
+      isLowBase,
     };
   }
 }

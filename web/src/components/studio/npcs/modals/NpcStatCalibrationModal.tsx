@@ -262,7 +262,7 @@ export function NpcStatCalibrationModal({
                 const statDef = story?.rpgSystem?.stats?.find(
                   (s) => s.id.toLowerCase() === stKey.toLowerCase() || s.name.toLowerCase() === stKey.toLowerCase()
                 );
-                const displayName = isPersian ? (statDef?.name || stKey) : (statDef?.id || stKey);
+                const displayName = statDef?.name || stKey;
                 return (
                   <div
                     key={stKey}

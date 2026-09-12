@@ -141,13 +141,12 @@ class RpgEngine {
     // 5. Total calculation
     final totalScore = roll + statModifier + equipmentModifier + tacticalEnvMod;
 
-    // 6. Base DC
+    // 6. Base DC (calibrated for low-base attribute systems)
+    final isLowBase = baseline < 8;
     final baseDC = targetDC ??
-        (riskLevel == 'high'
-            ? 15
-            : riskLevel == 'low'
-                ? 9
-                : 12);
+        (isLowBase
+            ? (riskLevel == 'high' ? 11 : riskLevel == 'low' ? 7 : 9)
+            : (riskLevel == 'high' ? 15 : riskLevel == 'low' ? 9 : 12));
 
     // 7. Outcome Determination
     String outcome;

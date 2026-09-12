@@ -47,6 +47,22 @@ describe('Plan 08 - AI Output Normalization (choice & memory guardrails)', () =>
       assert.equal(out.length, 4);
       assert.equal(out[0].requiredStatId, 'cunning');
     });
+
+    it('calibrates DCs between 6 and 11 when isLowBase is true', () => {
+      const out = normalizeChoices(
+        [
+          { id: 'c1', text: 'Sneak past guard', requiredStatId: 'stealth', riskLevel: 'low' },
+          { id: 'c2', text: 'Climb the wall', requiredStatId: 'might', riskLevel: 'medium', targetDC: 14 },
+          { id: 'c3', text: 'Break the gate', requiredStatId: 'might', riskLevel: 'high', targetDC: 18 },
+        ],
+        ['stealth', 'might'],
+        true,
+        true // isLowBase
+      );
+      assert.equal(out[0].targetDC, 7); // low default is 7
+      assert.equal(out[1].targetDC, 10); // medium clamped to <= 10
+      assert.equal(out[2].targetDC, 11); // high clamped to <= 11
+    });
   });
 
   describe('normalizeExtractedMemories', () => {

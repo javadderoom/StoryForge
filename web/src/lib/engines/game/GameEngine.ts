@@ -1045,9 +1045,16 @@ export class GameEngine {
     const totalScore = roll + statModifier + skillBonus + equipmentModifier + envMod;
 
     // Default DC based on risk level if not explicitly provided
+    const isLowBase = baseValue < 8;
     const baseDC =
       options.targetDC !== undefined
         ? options.targetDC
+        : isLowBase
+        ? options.riskLevel === 'high'
+          ? 11
+          : options.riskLevel === 'medium'
+          ? 9
+          : 7
         : options.riskLevel === 'high'
         ? 15
         : options.riskLevel === 'medium'
@@ -1082,9 +1089,10 @@ export class GameEngine {
     } else if (totalScore >= baseDC - 3) {
       outcome = 'mixed_success';
       consequenceSummary = 'Mixed success: goal achieved, but with cost, minor injury, or alert raised.';
+      const hpPenalty = options.riskLevel === 'low' ? 0 : -5;
       stateDiff.resourceChanges = {
         ...(stateDiff.resourceChanges || {}),
-        [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) - 5,
+        ...(hpPenalty < 0 ? { [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) + hpPenalty } : {}),
         ...(staminaKey
           ? { [staminaKey]: (stateDiff.resourceChanges?.[staminaKey] || 0) - 10 }
           : {}),
@@ -1096,6 +1104,13 @@ export class GameEngine {
         ...(stateDiff.resourceChanges || {}),
         [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) - 10,
       };
+    }
+
+    // Bulletproof safeguard: Success and Critical Success NEVER take bodily health damage
+    if ((outcome === 'success' || outcome === 'critical_success') && stateDiff.resourceChanges?.[healthKey]) {
+      if (stateDiff.resourceChanges[healthKey] < 0) {
+        delete stateDiff.resourceChanges[healthKey];
+      }
     }
 
     // ------------------------------------------------------------------

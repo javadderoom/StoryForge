@@ -46,6 +46,8 @@ export interface WorkingContextEnvelope {
     resources: Record<string, number>;
     equippedItems: string[];
   };
+  /** Story RPG stat definitions (id, authored name, baseValue) for prompt guidance */
+  statsConfig?: Array<{ id: string; name?: string; nameFa?: string; nameEn?: string; baseValue?: number }>;
   resolvedGameOutcome?: {
     actionText: string;
     outcome: string;

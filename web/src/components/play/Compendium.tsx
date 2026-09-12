@@ -217,16 +217,18 @@ export function Compendium({
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{isPersian ? 'ویژگی‌ها' : 'ATTRIBUTES'}</div>
                 <div className="grid grid-cols-2 gap-2">
                   {stats.map((s: any) => {
-                    const eff = getEffectiveStatValue(playerState, s.id);
                     const baseDef = s.baseValue ?? 10;
+                    const eff = getEffectiveStatValue(playerState, s.id, baseDef);
                     const mod = Math.floor((eff - baseDef) / 2);
                     const base = playerState.stats?.[s.id] ?? baseDef;
                     const bonus = eff - base;
                     return (
                       <div key={s.id} className="rounded-xl border border-zinc-800 bg-zinc-900/90 p-2.5">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-zinc-300">{formatStatName(s.id, isPersian)}</span>
-                          <span className="flex items-center gap-1">
+                          <span className="text-xs text-zinc-300 truncate font-medium">
+                            {s.name?.trim() || formatStatName(s.id, isPersian, stats)}
+                          </span>
+                          <span className="flex items-center gap-1 shrink-0" dir="ltr">
                             <span
                               className="rounded px-1.5 py-0.5 text-[11px] font-bold"
                               style={{ color: mod >= 0 ? '#10B981' : '#EF4444', backgroundColor: mod >= 0 ? '#10B98126' : '#EF444426' }}
@@ -236,7 +238,11 @@ export function Compendium({
                             <span className="font-mono text-sm font-bold" style={{ color: accent }}>{toPersianDigits(eff)}</span>
                           </span>
                         </div>
-                        {bonus > 0 && <div className="mt-0.5 text-[10px] text-zinc-500">(Base {toPersianDigits(base)} + Eq {toPersianDigits(bonus)})</div>}
+                        {bonus > 0 && (
+                          <div className="mt-0.5 text-[10px] text-zinc-500 font-mono" dir="ltr">
+                            ({isPersian ? `پایه ${toPersianDigits(base)} + تجهیزات ${toPersianDigits(bonus)}` : `Base ${base} + Eq ${bonus}`})
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -351,6 +357,7 @@ export function Compendium({
         playerState={playerState}
         theme={theme}
         isPersian={isPersian}
+        statsConfig={stats}
         onClose={() => setDetailItem(null)}
         onEquip={handleEquip}
         onUnequip={handleUnequip}

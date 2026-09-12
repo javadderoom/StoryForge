@@ -18,24 +18,42 @@ class StoryStatSummary {
   });
 
   factory StoryStatSummary.fromJson(Map<String, dynamic> json) {
+    final rawName = (json['name'] as String?)?.trim();
+    final rawNameFa = (json['nameFa'] as String?)?.trim();
+    final rawNameEn = (json['nameEn'] as String?)?.trim();
+    final primaryName = (rawName != null && rawName.isNotEmpty)
+        ? rawName
+        : (rawNameFa != null && rawNameFa.isNotEmpty)
+            ? rawNameFa
+            : (rawNameEn != null && rawNameEn.isNotEmpty)
+                ? rawNameEn
+                : '';
     return StoryStatSummary(
       id: json['id'] ?? '',
-      name: json['name'] ?? json['nameFa'] ?? json['nameEn'] ?? '',
-      nameFa: json['nameFa'] ?? json['name'],
-      nameEn: json['nameEn'],
+      name: primaryName,
+      nameFa: rawNameFa,
+      nameEn: rawNameEn,
       description: json['description'] ?? '',
       baseValue: (json['baseValue'] as num?)?.toInt() ?? 10,
     );
   }
 
   String getLocalizedName(bool isPersian) {
+    if (name.trim().isNotEmpty) {
+      return name.trim();
+    }
     if (isPersian && nameFa != null && nameFa!.trim().isNotEmpty) {
       return nameFa!.trim();
     }
     if (!isPersian && nameEn != null && nameEn!.trim().isNotEmpty) {
       return nameEn!.trim();
     }
-    if (name.isNotEmpty) return name;
+    if (nameFa != null && nameFa!.trim().isNotEmpty) {
+      return nameFa!.trim();
+    }
+    if (nameEn != null && nameEn!.trim().isNotEmpty) {
+      return nameEn!.trim();
+    }
     return id;
   }
 }

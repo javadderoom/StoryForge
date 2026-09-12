@@ -258,14 +258,17 @@ export function InventorySection({
                   )}
                   {item.statModifiers && Object.keys(item.statModifiers).length > 0 && (
                     <div className="mt-2.5 pt-2 border-t border-zinc-800/60 flex flex-wrap gap-1">
-                      {Object.entries(item.statModifiers).map(([statId, mod]) => (
-                        <span
-                          key={statId}
-                          className="text-[10px] bg-amber-500/10 text-amber-300 font-mono px-2 py-0.5 rounded border border-amber-500/20"
-                        >
-                          {statId}: +{String(mod)}
-                        </span>
-                      ))}
+                      {Object.entries(item.statModifiers).map(([statId, mod]) => {
+                        const stName = stats.find((s) => s.id === statId)?.name || statId;
+                        return (
+                          <span
+                            key={statId}
+                            className="text-[10px] bg-amber-500/10 text-amber-300 font-mono px-2 py-0.5 rounded border border-amber-500/20"
+                          >
+                            {stName}: +{String(mod)}
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

@@ -22,6 +22,7 @@ interface ItemDetailSheetProps {
   playerState: PlayerState;
   theme: RealmTheme;
   isPersian?: boolean;
+  statsConfig?: Array<{ id: string; name?: string; nameFa?: string; nameEn?: string }>;
   onClose: () => void;
   onEquip: (itemId: string, slot?: 'mainHand' | 'offHand') => void;
   onUnequip: (slot: 'mainHand' | 'offHand' | 'armor' | 'relic') => void;
@@ -63,6 +64,7 @@ export function ItemDetailSheet({
   playerState,
   theme,
   isPersian = false,
+  statsConfig,
   onClose,
   onEquip,
   onUnequip,
@@ -124,7 +126,7 @@ export function ItemDetailSheet({
             {item.statModifiers &&
               Object.entries(item.statModifiers).map(([k, v]) => (
                 <span key={k} className="flex items-center gap-1 rounded-lg border border-blue-500/50 bg-blue-500/15 px-2.5 py-1 text-[12px] font-bold text-blue-300">
-                  ⚡ +{v} {formatStatName(k, isPersian)}
+                  ⚡ +{v} {formatStatName(k, isPersian, statsConfig)}
                 </span>
               ))}
             {item.healValue != null && (

@@ -49,7 +49,7 @@ import {
   LineHeight,
   realmFromStory,
 } from '@/lib/play/realmTheme';
-import { resolveActionCheck, DiceResolution } from '@/lib/play/rpgEngine';
+import { resolveActionCheck, serverToCheckResolution, DiceResolution, getEffectiveStatValue, formatStatName } from '@/lib/play/rpgEngine';
 import { audioService, ambientFromLocation } from '@/lib/play/audioService';
 import { toPersianDigits } from '@/lib/play/persianNumbers';
 import { notify } from '@/lib/notify';
@@ -476,6 +476,7 @@ export default function Home() {
     const roll = rollD20();
     const resolution = resolveActionCheck({
       actionText: choice.text,
+      requiredStatId: choice.requiredStatId,
       playerState,
       targetDC: choice.targetDC,
       riskLevel: choice.riskLevel || 'medium',
@@ -552,8 +553,13 @@ export default function Home() {
         setDiceRolling(false);
         setIsGeneratingBeat(false);
       } else {
-        // Settle the dice and reveal the outcome & continue button
+        // Settle the dice and reveal the authoritative outcome & continue button
         setPendingTurn(json.data);
+        if (json.data?.resolution) {
+          const authOutcome = serverToCheckResolution(json.data.resolution);
+          setDiceResolution(authOutcome);
+          setLastOutcome(authOutcome);
+        }
         setIsGeneratingBeat(false);
         setDiceRolling(false);
       }
@@ -581,6 +587,9 @@ export default function Home() {
     setTurnNumber((t) => t + 1);
     if (pendingTurn.updatedPlayerState?.currentLocationId) {
       audioService.playAmbient(ambientFromLocation(pendingTurn.updatedPlayerState.currentLocationId));
+    }
+    if (pendingTurn.resolution) {
+      setLastOutcome(serverToCheckResolution(pendingTurn.resolution));
     }
     audioService.playSfx('pageTurn');
     setFreeTextAction('');
@@ -897,11 +906,27 @@ export default function Home() {
                   <span
                     className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase"
                     style={{
-                      backgroundColor: lastOutcome.success ? 'rgba(16,185,129,0.18)' : 'rgba(244,63,94,0.18)',
-                      color: lastOutcome.success ? '#34d399' : '#fb7185',
+                      backgroundColor:
+                        lastOutcome.outcome === 'critical_success' || lastOutcome.outcome === 'success'
+                          ? 'rgba(16,185,129,0.18)'
+                          : lastOutcome.outcome === 'mixed_success'
+                          ? 'rgba(245,158,11,0.18)'
+                          : 'rgba(244,63,94,0.18)',
+                      color:
+                        lastOutcome.outcome === 'critical_success' || lastOutcome.outcome === 'success'
+                          ? '#34d399'
+                          : lastOutcome.outcome === 'mixed_success'
+                          ? '#f59e0b'
+                          : '#fb7185',
                     }}
                   >
-                    {lastOutcome.outcome.replace('_', ' ')}
+                    {lastOutcome.outcome === 'critical_success'
+                      ? (isRtl ? 'پیروزی قاطع' : 'Critical Success')
+                      : lastOutcome.outcome === 'success'
+                      ? (isRtl ? 'موفقیت' : 'Success')
+                      : lastOutcome.outcome === 'mixed_success'
+                      ? (isRtl ? 'موفقیت نسبی (با هزینه)' : 'Mixed Success')
+                      : (isRtl ? 'شکست' : 'Failure')}
                   </span>
                 </button>
               )}
@@ -1035,12 +1060,47 @@ export default function Home() {
                   {isRtl ? 'ویژگی‌ها' : 'Attributes'}
                 </h3>
                 <div className="grid grid-cols-2 gap-2">
-                  {(storyMeta?.rpgSystem?.stats ?? []).map((stat: any) => (
-                    <div key={stat.id} className="flex items-center justify-between rounded-xl border p-2.5" style={{ backgroundColor: themeObj.cardBg, borderColor: themeObj.cardBorder }}>
-                      <span className="text-xs" style={{ color: themeObj.bodyText }}>{stat.name}</span>
-                      <span className="font-mono text-xs font-bold" style={{ color: themeObj.primaryAccent }}>{toPersianDigits(playerState?.stats?.[stat.id] ?? stat.baseValue ?? 0)}</span>
-                    </div>
-                  ))}
+                  {(storyMeta?.rpgSystem?.stats ?? []).map((stat: any) => {
+                    const baseDef = stat.baseValue ?? 10;
+                    const base = playerState?.stats?.[stat.id] ?? baseDef;
+                    const eff = playerState ? getEffectiveStatValue(playerState, stat.id, baseDef) : base;
+                    const bonus = eff - base;
+                    const statTitle = stat.name?.trim() || formatStatName(stat.id, isRtl, storyMeta?.rpgSystem?.stats);
+                    return (
+                      <div
+                        key={stat.id}
+                        className="flex items-center justify-between rounded-xl border p-2.5 transition-all"
+                        style={{
+                          backgroundColor: themeObj.cardBg,
+                          borderColor: bonus > 0 ? '#10B98160' : themeObj.cardBorder,
+                        }}
+                      >
+                        <div className="flex flex-col min-w-0 pr-1">
+                          <span className="text-xs truncate font-medium" style={{ color: themeObj.bodyText }}>
+                            {statTitle}
+                          </span>
+                          {bonus > 0 && (
+                            <span className="text-[10px] text-emerald-400 font-mono">
+                              {isRtl ? `+${toPersianDigits(bonus)} از تجهیزات` : `+${bonus} from gear`}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0" dir="ltr">
+                          {bonus > 0 && (
+                            <span className="rounded px-1.5 py-0.5 text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30">
+                              +{bonus}
+                            </span>
+                          )}
+                          <span
+                            className="font-mono text-xs font-bold"
+                            style={{ color: bonus > 0 ? '#34D399' : themeObj.primaryAccent }}
+                          >
+                            {toPersianDigits(eff)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

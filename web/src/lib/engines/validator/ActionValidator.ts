@@ -20,7 +20,11 @@ export class ActionValidator {
     actionText: string,
     playerState: PlayerState,
     worldBible: WorldBible,
-    rpgSystem: RPGSystemSchema
+    rpgSystem: RPGSystemSchema,
+    options?: {
+      isPresetChoice?: boolean;
+      storyNpcOverrides?: Record<string, any>;
+    }
   ): ValidationResult {
     const trimmed = actionText.trim();
     const lower = trimmed.toLowerCase();
@@ -94,16 +98,23 @@ export class ActionValidator {
     }
 
     // 4. Knowledge-boundary guardrail: block actions that rely on NPC secrets
-    //    the player has not yet discovered through play.
-    const secretViolation = ActionValidator.detectUndiscoveredSecret(trimmed, playerState, worldBible);
-    if (secretViolation) {
-      return {
-        isValid: false,
-        isGuardrailViolation: true,
-        rejectionReason: secretViolation,
-        suggestedAction: 'You do not yet possess this knowledge. Discover it through play before acting on it.',
-        normalizedAction: trimmed,
-      };
+    //    the player has not yet discovered through play. (Bypassed if player clicked an official presented choice)
+    if (!options?.isPresetChoice) {
+      const secretViolation = ActionValidator.detectUndiscoveredSecret(
+        trimmed,
+        playerState,
+        worldBible,
+        options?.storyNpcOverrides
+      );
+      if (secretViolation) {
+        return {
+          isValid: false,
+          isGuardrailViolation: true,
+          rejectionReason: secretViolation,
+          suggestedAction: 'You do not yet possess this knowledge. Discover it through play before acting on it.',
+          normalizedAction: trimmed,
+        };
+      }
     }
 
     // 5. Action is valid and plausible
@@ -220,10 +231,11 @@ export class ActionValidator {
    * it matches an explicit secret id or a substantive overlap (>=2 distinctive
    * terms) with an undiscovered secret's description.
    */
-  private static detectUndiscoveredSecret(
+  public static detectUndiscoveredSecret(
     actionText: string,
     playerState: PlayerState,
-    worldBible: WorldBible
+    worldBible: WorldBible,
+    storyNpcOverrides?: Record<string, any>
   ): string | null {
     const lower = actionText.toLowerCase();
     const stopwords = new Set([
@@ -255,7 +267,18 @@ export class ActionValidator {
     for (const npc of worldBible.npcs ?? []) {
       const rel = playerState.relationships?.[npc.id];
       const knownIds = new Set(rel?.knownSecrets ?? []);
-      for (const secret of npc.secrets ?? []) {
+      const allSecrets: Array<{ id: string; description: string; revealed?: boolean }> = [
+        ...(npc.secrets ?? []),
+      ];
+      const ovSecret = storyNpcOverrides?.[npc.id]?.storySecret;
+      if (ovSecret && typeof ovSecret === 'string' && ovSecret.trim().length >= 12) {
+        allSecrets.push({
+          id: `override_secret_${npc.id}`,
+          description: ovSecret.trim(),
+        });
+      }
+
+      for (const secret of allSecrets) {
         const discovered = secret.revealed || knownIds.has(secret.id);
         if (discovered || secret.description.length < 12) continue;
 

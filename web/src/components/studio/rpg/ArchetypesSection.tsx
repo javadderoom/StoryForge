@@ -299,14 +299,17 @@ export function ArchetypesSection({
 
                   {arch.statBonuses && Object.keys(arch.statBonuses).length > 0 && (
                     <div className="flex flex-wrap gap-1.5 pt-1">
-                      {Object.entries(arch.statBonuses).map(([statId, bonus]) => (
-                        <span
-                          key={statId}
-                          className="text-[10px] bg-purple-500/10 text-purple-300 font-mono px-2 py-0.5 rounded-md border border-purple-500/20"
-                        >
-                          {statId}: +{String(bonus)}
-                        </span>
-                      ))}
+                      {Object.entries(arch.statBonuses).map(([statId, bonus]) => {
+                        const stName = stats.find((s) => s.id === statId)?.name || statId;
+                        return (
+                          <span
+                            key={statId}
+                            className="text-[10px] bg-purple-500/10 text-purple-300 font-mono px-2 py-0.5 rounded-md border border-purple-500/20"
+                          >
+                            {stName}: +{String(bonus)}
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
 
