@@ -10,9 +10,9 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
     hasCombat: true,
     diceType: 'd20',
     stats: [
-      { id: 'might', name: 'Might', description: 'Strength', baseValue: 14 },
-      { id: 'agility', name: 'Agility', description: 'Speed', baseValue: 12 },
-      { id: 'cunning', name: 'Cunning', description: 'Wit', baseValue: 8 },
+      { id: 'might', name: 'Might', description: 'Strength', baseValue: 10 },
+      { id: 'agility', name: 'Agility', description: 'Speed', baseValue: 10 },
+      { id: 'cunning', name: 'Cunning', description: 'Wit', baseValue: 10 },
     ],
     resources: [
       { id: 'hp', name: 'Health', current: 100, max: 100, min: 0 },
@@ -43,7 +43,7 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
   };
 
   describe('Stat Modifiers', () => {
-    it('calculates correct D20 modifiers for various stat levels', () => {
+    it('calculates correct D20 modifiers for various stat levels with default baseValue 10', () => {
       assert.equal(GameEngine.getStatModifier(10), 0);
       assert.equal(GameEngine.getStatModifier(11), 0);
       assert.equal(GameEngine.getStatModifier(12), 1);
@@ -51,6 +51,21 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
       assert.equal(GameEngine.getStatModifier(18), 4);
       assert.equal(GameEngine.getStatModifier(8), -1);
       assert.equal(GameEngine.getStatModifier(6), -2);
+    });
+
+    it('calculates correct modifiers dynamically when custom baseValue is provided', () => {
+      // 1-10 attribute system where baseValue is 3
+      assert.equal(GameEngine.getStatModifier(3, 3), 0);
+      assert.equal(GameEngine.getStatModifier(4, 3), 0);
+      assert.equal(GameEngine.getStatModifier(5, 3), 1);
+      assert.equal(GameEngine.getStatModifier(7, 3), 2);
+      assert.equal(GameEngine.getStatModifier(2, 3), -1);
+      assert.equal(GameEngine.getStatModifier(1, 3), -1);
+
+      // System with baseValue 5
+      assert.equal(GameEngine.getStatModifier(5, 5), 0);
+      assert.equal(GameEngine.getStatModifier(7, 5), 1);
+      assert.equal(GameEngine.getStatModifier(3, 5), -1);
     });
   });
 
@@ -135,13 +150,54 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
 
     it('correctly includes skill bonuses in total calculation', () => {
       const res = GameEngine.resolveActionCheck(
-        'Parry the enemy sword',
+        'Engage in sword duel',
         initialPlayerState,
         sampleRpgSystem,
-        { statId: 'might', skillId: 'swordsmanship', forcedDiceRoll: 10, targetDC: 13 }
+        { statId: 'might', skillId: 'swordsmanship', forcedDiceRoll: 10, targetDC: 12 }
       );
-      assert.equal(res.totalScore, 14);
+      assert.equal(res.totalScore, 14); // 10 (roll) + 2 (might mod 14-10)/2 + 2 (swordsmanship)
       assert.equal(res.outcome, 'success');
+    });
+
+    it('respects custom authored stat baseline without penalizing baseline stats', () => {
+      const customRpgSystem: RPGSystemSchema = {
+        hasCombat: true,
+        diceType: 'd20',
+        stats: [
+          { id: 'might', name: 'Might', description: '', baseValue: 3, minValue: 1, maxValue: 10 },
+          { id: 'agility', name: 'Agility', description: '', baseValue: 3, minValue: 1, maxValue: 10 },
+        ],
+        resources: [{ id: 'hp', name: 'Health', current: 100, max: 100, min: 0 }],
+        skills: [],
+        startingInventory: [],
+        inventoryCapacity: 10,
+      };
+      const baselinePlayer: PlayerState = {
+        ...initialPlayerState,
+        stats: { might: 3, agility: 5 },
+      };
+
+      // Stat at baseline 3 -> modifier MUST be 0, NOT -4!
+      const resBaseline = GameEngine.resolveActionCheck(
+        'Lift the heavy portcullis',
+        baselinePlayer,
+        customRpgSystem,
+        { statId: 'might', forcedDiceRoll: 10, targetDC: 10 }
+      );
+      assert.equal(resBaseline.statModifier, 0);
+      assert.equal(resBaseline.totalScore, 10);
+      assert.equal(resBaseline.outcome, 'success');
+
+      // Stat above baseline (5 vs base 3) -> modifier is +1
+      const resAbove = GameEngine.resolveActionCheck(
+        'Dodge the falling chandelier',
+        baselinePlayer,
+        customRpgSystem,
+        { statId: 'agility', forcedDiceRoll: 10, targetDC: 11 }
+      );
+      assert.equal(resAbove.statModifier, 1);
+      assert.equal(resAbove.totalScore, 11);
+      assert.equal(resAbove.outcome, 'success');
     });
   });
 
@@ -679,8 +735,8 @@ describe('GameEngine - Hybrid Defeat System', () => {
     hasCombat: true,
     diceType: 'd20',
     stats: [
-      { id: 'might', name: 'Might', description: 'Strength', baseValue: 14 },
-      { id: 'agility', name: 'Agility', description: 'Speed', baseValue: 12 },
+      { id: 'might', name: 'Might', description: 'Strength', baseValue: 10 },
+      { id: 'agility', name: 'Agility', description: 'Speed', baseValue: 10 },
     ],
     resources: [
       { id: 'hp', name: 'Health', current: 100, max: 100, min: 0 },

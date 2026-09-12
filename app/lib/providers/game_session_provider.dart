@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/game_state.dart';
 import '../models/choice_option.dart';
 import '../models/character_creation.dart';
+import '../models/story.dart';
 import '../services/game_api_service.dart';
 import '../services/audio_service.dart';
 import 'audio_provider.dart';
@@ -25,6 +26,7 @@ class GameSessionState {
   final String? storyCoverImageUrl;
   final String? currentSceneImageUrl;
   final List<Map<String, dynamic>> rpgResources;
+  final List<StoryStatSummary> rpgStats;
   /// Plan 13: display name of the hazard zone after a displacement turn.
   final String? lastDisplacement;
 
@@ -46,6 +48,7 @@ class GameSessionState {
     this.storyCoverImageUrl,
     this.currentSceneImageUrl,
     this.rpgResources = const [],
+    this.rpgStats = const [],
     this.lastDisplacement,
   });
 
@@ -74,6 +77,7 @@ class GameSessionState {
     String? storyCoverImageUrl,
     String? currentSceneImageUrl,
     List<Map<String, dynamic>>? rpgResources,
+    List<StoryStatSummary>? rpgStats,
     String? lastDisplacement,
     bool clearSceneImage = false,
     bool clearPendingTurn = false,
@@ -96,6 +100,7 @@ class GameSessionState {
       lore: lore ?? this.lore,
       storyCoverImageUrl: storyCoverImageUrl ?? this.storyCoverImageUrl,
       rpgResources: rpgResources ?? this.rpgResources,
+      rpgStats: rpgStats ?? this.rpgStats,
       currentSceneImageUrl: clearSceneImage
           ? null
           : (currentSceneImageUrl ?? this.currentSceneImageUrl),
@@ -123,6 +128,13 @@ class GameSessionState {
     final raw = storyData?['rpgSystem']?['resources'] as List<dynamic>?;
     if (raw == null) return const [];
     return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  /// Parses server RPG stats definitions to resolve baseline values for each stat.
+  static List<StoryStatSummary> parseRpgStats(Map<String, dynamic>? storyData) {
+    final raw = storyData?['rpgSystem']?['stats'] as List<dynamic>?;
+    if (raw == null) return const [];
+    return raw.whereType<Map>().map((e) => StoryStatSummary.fromJson(Map<String, dynamic>.from(e))).toList();
   }
 }
 
@@ -176,6 +188,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         language: extractedLang,
         lore: rawLore,
         rpgResources: GameSessionState.parseRpgResources(storyData),
+        rpgStats: GameSessionState.parseRpgStats(storyData),
         currentNarrative: currentBeat['narrative'] ?? '',
         choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
         playerState: playerState,

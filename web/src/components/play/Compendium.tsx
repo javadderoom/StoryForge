@@ -187,8 +187,9 @@ export function Compendium({
                 <div className="grid grid-cols-2 gap-2">
                   {stats.map((s: any) => {
                     const eff = getEffectiveStatValue(playerState, s.id);
-                    const mod = Math.floor((eff - 10) / 2);
-                    const base = playerState.stats?.[s.id] ?? s.baseValue ?? 10;
+                    const baseDef = s.baseValue ?? 10;
+                    const mod = Math.floor((eff - baseDef) / 2);
+                    const base = playerState.stats?.[s.id] ?? baseDef;
                     const bonus = eff - base;
                     return (
                       <div key={s.id} className="rounded-xl border border-zinc-800 bg-zinc-900/90 p-2.5">

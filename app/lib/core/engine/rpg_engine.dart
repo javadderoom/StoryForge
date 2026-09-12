@@ -1,11 +1,12 @@
 import 'dart:math';
 import '../../models/game_state.dart';
+import '../../models/story.dart';
 
 class RpgEngine {
-  /// Translates raw stat value to a standard D20 modifier (-5 to +5 range based on standard D&D math).
-  /// Formula: floor((stat - 10) / 2)
-  static int getStatModifier(int statValue) {
-    return ((statValue - 10) / 2).floor();
+  /// Translates raw stat value to a standard D20 modifier dynamically relative to authored baseline.
+  /// Formula: floor((stat - baseValue) / 2)
+  static int getStatModifier(int statValue, [int baseValue = 10]) {
+    return ((statValue - baseValue) / 2).floor();
   }
 
   /// Automatically infers the most relevant RPG stat ID from action text and available stats.
@@ -111,6 +112,7 @@ class RpgEngine {
     String? riskLevel = 'medium',
     int? forcedDiceRoll,
     bool isPersian = false,
+    List<StoryStatSummary>? statsConfig,
   }) {
     final roll = forcedDiceRoll ?? (Random().nextInt(20) + 1);
     final isNatMax = roll == 20;
@@ -119,9 +121,16 @@ class RpgEngine {
     // 1. Determine effective stat ID
     final effectiveStatId = requiredStatId ?? inferStatId(actionText, riskLevel, playerState);
 
-    // 2. Calculate natural stat modifier
-    final baseStatVal = playerState.stats[effectiveStatId] ?? 10;
-    final statModifier = getStatModifier(baseStatVal);
+    // 2. Resolve authored baseValue and calculate natural stat modifier
+    int baseline = 10;
+    if (statsConfig != null && statsConfig.isNotEmpty) {
+      final match = statsConfig.where((s) => s.id.toLowerCase() == effectiveStatId.toLowerCase()).toList();
+      if (match.isNotEmpty) {
+        baseline = match.first.baseValue;
+      }
+    }
+    final baseStatVal = playerState.stats[effectiveStatId] ?? baseline;
+    final statModifier = getStatModifier(baseStatVal, baseline);
 
     // 3. Calculate equipment and tool bonus
     final equipmentModifier = calculateEquipmentModifier(playerState, effectiveStatId);

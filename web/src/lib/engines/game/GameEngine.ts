@@ -17,6 +17,7 @@ import {
   resolveDisplacement,
   clockIdForLocation,
 } from './threatClock';
+import { STAT_CANONICAL_ALIASES } from '@/lib/engines/world/ActionNormalizer';
 
 export interface RevealCheckContext {
   trust?: number;
@@ -116,11 +117,13 @@ export class GameEngine {
   }
 
   /**
-   * Computes standard stat modifier.
-   * For standard D20: (Stat - 10) / 2 (e.g. 14 -> +2, 8 -> -1)
+   * Computes standard stat modifier dynamically relative to authored baseline.
+   * Formula: floor((Stat - baseValue) / 2).
+   * For standard D20 (baseValue = 10): 14 -> +2, 10 -> 0, 8 -> -1.
+   * For custom systems (e.g. baseValue = 3): 3 -> 0, 5 -> +1, 1 -> -1.
    */
-  public static getStatModifier(statValue: number): number {
-    return Math.floor((statValue - 10) / 2);
+  public static getStatModifier(statValue: number, baseValue: number = 10): number {
+    return Math.floor((statValue - baseValue) / 2);
   }
 
   /**
@@ -940,11 +943,20 @@ export class GameEngine {
 
     // Determine effective stat ID (dynamically infer from actionText and rpgSystem if omitted)
     const effectiveStatId = options.statId || this.inferStatId(actionText, rpgSystem, options.riskLevel);
+    const rawStatId = (effectiveStatId || '').trim();
+    const canonicalStatId = STAT_CANONICAL_ALIASES[rawStatId.toLowerCase()] || STAT_CANONICAL_ALIASES[rawStatId] || rawStatId;
+
+    // Look up authored baseValue for the stat from rpgSystem (defaults to 10 if not defined)
+    const targetStat = rpgSystem.stats?.find(
+      (s) => s.id?.toLowerCase() === canonicalStatId.toLowerCase() || s.id?.toLowerCase() === rawStatId.toLowerCase()
+    );
+    const baseValue = targetStat?.baseValue ?? 10;
 
     // Calculate stat bonus
     let statModifier = 0;
-    if (effectiveStatId && playerState.stats[effectiveStatId] !== undefined) {
-      statModifier = this.getStatModifier(playerState.stats[effectiveStatId]);
+    const currentStatVal = playerState.stats[canonicalStatId] ?? playerState.stats[effectiveStatId];
+    if (currentStatVal !== undefined) {
+      statModifier = this.getStatModifier(currentStatVal, baseValue);
     }
 
     // Calculate skill / ability bonus

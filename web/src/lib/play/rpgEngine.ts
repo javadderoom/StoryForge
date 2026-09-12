@@ -1,10 +1,10 @@
 import { PlayerState } from '@/lib/types/gameplay';
-import { GameItem, ItemRarity, WeaponGrip } from '@/lib/types/rpg';
+import { GameItem, ItemRarity, WeaponGrip, RPGSystemSchema } from '@/lib/types/rpg';
 import { STAT_CANONICAL_ALIASES } from '@/lib/engines/world/ActionNormalizer';
 
-/** D&D-style stat modifier: floor((stat - 10) / 2). */
-export function getStatModifier(statValue: number): number {
-  return Math.floor((statValue - 10) / 2);
+/** D&D-style stat modifier: floor((stat - baseValue) / 2). Defaults to baseline 10 if not specified. */
+export function getStatModifier(statValue: number, baseValue: number = 10): number {
+  return Math.floor((statValue - baseValue) / 2);
 }
 
 /** Resolve an RPG stat id from action text + available stats (bilingual). */
@@ -127,8 +127,10 @@ export function resolveActionCheck(opts: {
   riskLevel?: string;
   forcedDiceRoll?: number;
   isPersian?: boolean;
+  rpgSystem?: { stats?: Array<{ id: string; baseValue?: number }> } | RPGSystemSchema;
+  statsConfig?: Array<{ id: string; baseValue?: number }>;
 }): DiceResolution {
-  const { actionText, playerState, requiredStatId, targetDC, riskLevel = 'medium', forcedDiceRoll, isPersian = false } = opts;
+  const { actionText, playerState, requiredStatId, targetDC, riskLevel = 'medium', forcedDiceRoll, isPersian = false, rpgSystem, statsConfig } = opts;
   const roll = forcedDiceRoll ?? Math.floor(Math.random() * 20) + 1;
   const isNatMax = roll === 20;
   const isNatMin = roll === 1;
@@ -136,11 +138,18 @@ export function resolveActionCheck(opts: {
   const effectiveStatId = requiredStatId ?? inferStatId(actionText, riskLevel, playerState);
   const rawId = (effectiveStatId || '').trim();
   const canonicalStatId = STAT_CANONICAL_ALIASES[rawId.toLowerCase()] || STAT_CANONICAL_ALIASES[rawId] || rawId;
+
+  const statsList = statsConfig ?? (rpgSystem as any)?.stats ?? [];
+  const targetStatDef = statsList.find(
+    (s: any) => s.id?.toLowerCase() === canonicalStatId.toLowerCase() || s.id?.toLowerCase() === rawId.toLowerCase()
+  );
+  const baseline = targetStatDef?.baseValue ?? 10;
+
   const baseStatVal =
     playerState?.stats?.[canonicalStatId] ??
     playerState?.stats?.[effectiveStatId] ??
-    10;
-  const statModifier = getStatModifier(baseStatVal);
+    baseline;
+  const statModifier = getStatModifier(baseStatVal, baseline);
   const equipmentModifier = playerState ? calculateEquipmentModifier(playerState, canonicalStatId) : 0;
   const tacticalEnvMod = playerState ? detectTacticalModifier(actionText, playerState) : 0;
 

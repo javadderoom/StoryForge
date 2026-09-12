@@ -691,7 +691,7 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
 
   Widget _buildStatAllocatorRow(StoryStatSummary stat, bool isPersian) {
     final total = _calculateTotalStat(stat.id);
-    final mod = RpgEngine.getStatModifier(total);
+    final mod = RpgEngine.getStatModifier(total, stat.baseValue);
     final allocated = _allocatedPoints[stat.id] ?? 0;
 
     return Container(

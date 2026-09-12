@@ -73,9 +73,8 @@ export function GameLoadingScreen({
   return (
     <div
       dir={isPersian ? 'rtl' : 'ltr'}
-      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-[#07080D] transition-opacity duration-700 ease-in-out ${
-        isLoading ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-      }`}
+      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-[#07080D] transition-opacity duration-700 ease-in-out ${isLoading ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
     >
       {/* Dynamic Realm Ambient Background Glow */}
       <div
@@ -186,7 +185,7 @@ export function GameLoadingScreen({
       {/* Subtle Footer Watermark */}
       <div className="absolute bottom-6 flex items-center gap-2 text-[10px] text-zinc-600 uppercase tracking-widest font-mono">
         <Compass className="h-3 w-3 text-amber-500/40" />
-        <span>StoryForge World Engine</span>
+        <span>AfsanehSaz World Engine</span>
       </div>
     </div>
   );

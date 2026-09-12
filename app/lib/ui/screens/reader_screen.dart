@@ -91,6 +91,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             riskLevel: choice.riskLevel,
             forcedDiceRoll: rolledD20,
             isPersian: isPersian,
+            statsConfig: session.rpgStats,
           )
         : CheckResolution(
             outcome: (rolledD20 >= 12) ? 'success' : 'failure',

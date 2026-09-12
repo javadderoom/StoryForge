@@ -436,6 +436,8 @@ export default function Home() {
       riskLevel: choice.riskLevel || 'medium',
       forcedDiceRoll: roll,
       isPersian: isRtl,
+      statsConfig: storyMeta?.rpgSystem?.stats,
+      rpgSystem: storyMeta?.rpgSystem,
     });
     setDiceResolution(resolution);
     setLastOutcome(resolution);

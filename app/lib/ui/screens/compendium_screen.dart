@@ -5,6 +5,7 @@ import '../../core/engine/rpg_engine.dart';
 import '../../core/theme/realm_theme.dart';
 import '../../core/utils/persian_numbers.dart';
 import '../../models/game_state.dart';
+import '../../models/story.dart';
 import '../../providers/game_session_provider.dart';
 import '../../providers/audio_provider.dart';
 import '../../services/audio_service.dart';
@@ -326,7 +327,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                 controller: _tabController,
                 children: [
                   // Tab 1: Hero & Equipment
-                  _buildHeroSheetTab(playerState, theme, isPersian, session.rpgResources),
+                  _buildHeroSheetTab(playerState, theme, isPersian, session.rpgResources, session.rpgStats),
 
                   // Tab 2: Inventory & Stash
                   _buildInventoryTab(playerState, theme, isPersian),
@@ -348,7 +349,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
   // ===========================================================================
   // TAB 1: HERO & STATS SHEET
   // ===========================================================================
-  Widget _buildHeroSheetTab(PlayerState player, RealmTheme theme, bool isPersian, [List<Map<String, dynamic>> defs = const []]) {
+  Widget _buildHeroSheetTab(PlayerState player, RealmTheme theme, bool isPersian, [List<Map<String, dynamic>> defs = const [], List<StoryStatSummary> statDefs = const []]) {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       children: [
@@ -481,7 +482,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
           ),
         ),
         const SizedBox(height: 12),
-        _buildAttributesGrid(player, isPersian),
+        _buildAttributesGrid(player, isPersian, statDefs),
       ],
     );
   }
@@ -676,7 +677,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
     );
   }
 
-  Widget _buildAttributesGrid(PlayerState player, bool isPersian) {
+  Widget _buildAttributesGrid(PlayerState player, bool isPersian, [List<StoryStatSummary> statDefs = const []]) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -689,9 +690,16 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
       itemCount: player.stats.length,
       itemBuilder: (context, index) {
         final statKey = player.stats.keys.elementAt(index);
-        final baseVal = player.stats[statKey] ?? 10;
+        int authoredBase = 10;
+        if (statDefs.isNotEmpty) {
+          final match = statDefs.where((s) => s.id.toLowerCase() == statKey.toLowerCase()).toList();
+          if (match.isNotEmpty) {
+            authoredBase = match.first.baseValue;
+          }
+        }
+        final baseVal = player.stats[statKey] ?? authoredBase;
         final totalVal = player.getEffectiveStat(statKey);
-        final mod = RpgEngine.getStatModifier(totalVal);
+        final mod = RpgEngine.getStatModifier(totalVal, authoredBase);
         final diff = totalVal - baseVal;
 
         return Container(
