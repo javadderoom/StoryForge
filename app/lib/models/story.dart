@@ -3,12 +3,16 @@ import 'character_creation.dart';
 class StoryStatSummary {
   final String id;
   final String name;
+  final String? nameFa;
+  final String? nameEn;
   final String description;
   final int baseValue;
 
   const StoryStatSummary({
     required this.id,
     required this.name,
+    this.nameFa,
+    this.nameEn,
     required this.description,
     this.baseValue = 10,
   });
@@ -16,10 +20,23 @@ class StoryStatSummary {
   factory StoryStatSummary.fromJson(Map<String, dynamic> json) {
     return StoryStatSummary(
       id: json['id'] ?? '',
-      name: json['name'] ?? '',
+      name: json['name'] ?? json['nameFa'] ?? json['nameEn'] ?? '',
+      nameFa: json['nameFa'] ?? json['name'],
+      nameEn: json['nameEn'],
       description: json['description'] ?? '',
       baseValue: (json['baseValue'] as num?)?.toInt() ?? 10,
     );
+  }
+
+  String getLocalizedName(bool isPersian) {
+    if (isPersian && nameFa != null && nameFa!.trim().isNotEmpty) {
+      return nameFa!.trim();
+    }
+    if (!isPersian && nameEn != null && nameEn!.trim().isNotEmpty) {
+      return nameEn!.trim();
+    }
+    if (name.isNotEmpty) return name;
+    return id;
   }
 }
 

@@ -115,6 +115,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       resolution: resolution,
       actionText: choice.text,
       isPersian: isPersian,
+      statsConfig: session.rpgStats,
       onContinue: () {
         ref.read(gameSessionProvider.notifier).applyPendingTurn();
       },
@@ -726,6 +727,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                     choice: choice,
                                     theme: theme,
                                     isPersian: isPersian,
+                                    statsConfig: session.rpgStats,
                                     onTap: () => _handleAction(choice),
                                   ),
                                 ),

@@ -594,11 +594,15 @@ export class GameEngine {
     }
 
     // --- HP: restore to 25% of max to allow play to continue ---
-    const hpResource = rpgSystem.resources.find((r) => r.id === 'hp');
-    const hpMax = hpResource?.max ?? 100;
-    const currentHp = currentState.resources?.hp ?? 0;
+    const healthResource =
+      rpgSystem.resources.find((r) => /^(health|hp|سلامت|تندرستی)$/i.test(r.id)) ||
+      rpgSystem.resources.find((r) => /health|hp|vital/i.test(r.id)) ||
+      rpgSystem.resources[0];
+    const healthKey = healthResource?.id || 'health';
+    const hpMax = healthResource?.max ?? 100;
+    const currentHp = currentState.resources?.[healthKey] ?? 0;
     const reviveHp = Math.max(1, Math.floor(hpMax * 0.25));
-    diff.resourceChanges!['hp'] = reviveHp - currentHp;
+    diff.resourceChanges![healthKey] = reviveHp - currentHp;
 
     // --- Trust penalty: -5 to all known relationships ---
     const relChanges: Record<string, { trustDelta: number }> = {};

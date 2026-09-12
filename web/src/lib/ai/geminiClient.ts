@@ -3,14 +3,12 @@
  * Supports Cloudflare Worker proxy via GEMINI_PROXY_URL and automated cascading queue across available models.
  */
 
-// Frontier heavy model queue for World Generation (prioritizing 3.7/3.6 Flash, 3.5/3.1 Flash-Lite, 2.5 Flash/Lite, and Gemma-4-IT)
+// Frontier heavy model queue for World Generation (prioritizing 3.7/3.6 Flash, 3.5/3.1 Flash-Lite, and Gemma-4-IT)
 export const WORLD_GENERATION_QUEUE = [
   'gemini-3.7-flash',
   'gemini-3.6-flash',
   'gemini-3.5-flash-lite',
   'gemini-3.1-flash-lite',
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
   'gemma-4-31b-it',
   'gemma-4-26b-a4b-it',
 ] as const;
@@ -19,10 +17,8 @@ export const WORLD_GENERATION_QUEUE = [
 export const SCENE_GENERATION_QUEUE = [
   'gemini-3.5-flash-lite',
   'gemini-3.1-flash-lite',
-  'gemini-3.7-flash',
   'gemini-3.6-flash',
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
+  'gemini-3.7-flash',
   'gemma-4-31b-it',
   'gemma-4-26b-a4b-it',
 ] as const;

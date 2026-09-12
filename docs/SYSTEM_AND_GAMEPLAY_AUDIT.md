@@ -353,3 +353,14 @@ The following high-priority fixes have been implemented and verified:
   * **Remediation**: Formulated and documented **[Plan 11: Quests, Quest Lines & NPC Trust Progression](file:///d:/Code/StoryForge/docs/plans/11_QUESTS_OBJECTIVES_AND_TRUST_PROGRESSION_PLAN.md)**, establishing trigger items, turn-in items, sequential quest lines, and direct NPC trust / secret unlocks.
 
 
+### 6.9 Fix 9: Choice Stat Visibility, Dynamic Stat Name Resolution, Dice Modal Settle Flow & Ghost Zero-HP Defeat Fix
+* **Problem 1 (Hardcoded Stat Names in Reader & Dice Modal)**:
+  * In [`rpgEngine.ts`](file:///d:/Code/StoryForge/web/src/lib/play/rpgEngine.ts#L255-L298) and [`dice_roll_overlay.dart`](file:///d:/Code/StoryForge/app/lib/ui/widgets/dice_roll_overlay.dart#L312-L355), `formatStatName` / `_formatStatLabel` used a hardcoded switch-case of stat translations (e.g. `'arcana'` $\to$ `'دانش کهن'` instead of the story's actual authored `nameFa: 'جادو'`), violating the Database Integrity rule against in-code fallbacks.
+* **Problem 2 (Stat Blind Choices)**:
+  * In [`ThreeDChoiceCard.tsx`](file:///d:/Code/StoryForge/web/src/components/play/ThreeDChoiceCard.tsx), `choice.requiredStatId` was available in the data model but never displayed on the card, giving the player no indication of which attribute is tested by each action.
+* **Problem 3 (Dice Modal Stalling)**:
+  * In [`page.tsx`](file:///d:/Code/StoryForge/web/src/app/page.tsx), `ThreeD20Dice` completed its 1.3s physics roll, but `setDiceRolling(false)` was blocked on `await sendAction(...)`, leaving the modal frozen on *"تاس در حال چرخش... / Rolling D20..."* for 4.5+ seconds with no equation, outcome, or progress message.
+* **Problem 4 (Ghost Zero-HP Defeat Bug)**:
+  * In [`route.ts`](file:///d:/Code/StoryForge/web/src/app/api/play/action/route.ts#L375) and [`GameEngine.ts`](file:///d:/Code/StoryForge/web/src/lib/engines/game/GameEngine.ts#L599), defeat checking looked for `resources?.hp`. When stories named their health pool `'health'`, `undefined ?? 0` triggered Defeat on Turn 1, forcing blackout prose and deducting stats.
+* **Problem 5 (Model Queue Deprecation)**:
+  * In [`geminiClient.ts`](file:///d:/Code/StoryForge/web/src/lib/ai/geminiClient.ts), `gemini-2.5-flash` and `gemini-2.5-flash-lite` were deprecated by Google (returning HTTP 404), while `gemini-3.5-flash-lite` and `gemini-3.1-flash-lite` are verified functional and fast (~1.3s - 2.0s).

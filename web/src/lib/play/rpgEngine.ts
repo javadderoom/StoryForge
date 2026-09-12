@@ -252,7 +252,30 @@ export function isConsumableItem(item?: GameItem): boolean {
   );
 }
 
-export function formatStatName(statId: string, isPersian: boolean): string {
+export function formatStatName(
+  statId: string,
+  isPersian: boolean,
+  statsConfig?: Array<{ id: string; nameFa?: string; nameEn?: string }>
+): string {
+  if (!statId) return '';
+  const cleanId = statId.toLowerCase().replaceAll(' ', '_');
+
+  if (statsConfig && Array.isArray(statsConfig)) {
+    const match = statsConfig.find(
+      (s) => s.id.toLowerCase().replaceAll(' ', '_') === cleanId
+    );
+    if (match) {
+      if (isPersian && match.nameFa && match.nameFa.trim()) {
+        return match.nameFa.trim();
+      }
+      if (!isPersian && match.nameEn && match.nameEn.trim()) {
+        return match.nameEn.trim();
+      }
+      if (match.nameFa && match.nameFa.trim()) return match.nameFa.trim();
+      if (match.nameEn && match.nameEn.trim()) return match.nameEn.trim();
+    }
+  }
+
   if (!isPersian) {
     return statId
       .replaceAll('_', ' ')
@@ -260,7 +283,7 @@ export function formatStatName(statId: string, isPersian: boolean): string {
       .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ''))
       .join(' ');
   }
-  switch (statId.toLowerCase().replaceAll(' ', '_')) {
+  switch (cleanId) {
     case 'might':
     case 'strength':
       return 'قدرت';
@@ -274,7 +297,7 @@ export function formatStatName(statId: string, isPersian: boolean): string {
     case 'arcana':
     case 'magic':
     case 'sorcery':
-      return 'دانش کهن';
+      return 'جادو';
     case 'charm':
     case 'charisma':
       return 'جذابیت';

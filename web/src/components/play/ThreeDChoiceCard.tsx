@@ -3,6 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { RealmTheme, riskColor } from '@/lib/play/realmTheme';
 import { audioService } from '@/lib/play/audioService';
+import { formatStatName } from '@/lib/play/rpgEngine';
 import { GitBranch } from 'lucide-react';
 
 interface ChoiceOption {
@@ -19,10 +20,11 @@ interface ThreeDChoiceCardProps {
   choice: ChoiceOption;
   theme: RealmTheme;
   isPersian?: boolean;
+  statsConfig?: Array<{ id: string; nameFa?: string; nameEn?: string }>;
   onTap: () => void;
 }
 
-export function ThreeDChoiceCard({ choice, theme, onTap }: ThreeDChoiceCardProps) {
+export function ThreeDChoiceCard({ choice, theme, isPersian = false, statsConfig, onTap }: ThreeDChoiceCardProps) {
   const ref = useRef<HTMLButtonElement | null>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0, px: 50, py: 50 });
   const [hover, setHover] = useState(false);
@@ -77,15 +79,31 @@ export function ThreeDChoiceCard({ choice, theme, onTap }: ThreeDChoiceCardProps
       />
       <span className="relative flex items-start gap-3">
         <span
-          className="mt-0.5 h-2 w-2 shrink-0 rounded-full"
+          className="mt-1 h-2 w-2 shrink-0 rounded-full"
           style={{ backgroundColor: edgeColor, boxShadow: `0 0 8px ${edgeColor}` }}
         />
-        <span
-          className="flex-1 text-sm leading-relaxed transition-colors"
-          style={{ color: hover ? theme.primaryAccent : '#E4E4E7' }}
-        >
-          {choice.text}
-        </span>
+        <div className="flex-1 min-w-0">
+          {choice.requiredStatId && (
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <span
+                className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wider"
+                style={{
+                  backgroundColor: 'rgba(96,165,250,0.12)',
+                  color: '#60A5FA',
+                  border: '1px solid rgba(96,165,250,0.25)',
+                }}
+              >
+                {formatStatName(choice.requiredStatId, isPersian, statsConfig)}
+              </span>
+            </div>
+          )}
+          <span
+            className="block text-sm leading-relaxed transition-colors"
+            style={{ color: hover ? theme.primaryAccent : '#E4E4E7' }}
+          >
+            {choice.text}
+          </span>
+        </div>
         {choice.targetSceneId && (
           <span
             className="ms-auto shrink-0 opacity-40 group-hover:opacity-80 transition-opacity"

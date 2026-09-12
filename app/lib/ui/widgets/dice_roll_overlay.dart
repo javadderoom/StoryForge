@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/utils/persian_numbers.dart';
 import '../../models/game_state.dart';
+import '../../models/story.dart';
 import 'three_d20_dice_view.dart';
 
 class DiceRollOverlay extends StatelessWidget {
@@ -10,6 +11,7 @@ class DiceRollOverlay extends StatelessWidget {
   final bool isVisible;
   final bool isRolling;
   final bool isPersian;
+  final List<StoryStatSummary>? statsConfig;
   final GlobalKey<ThreeD20DiceViewState>? diceKey;
   final VoidCallback onContinue;
   final VoidCallback onRollComplete;
@@ -21,6 +23,7 @@ class DiceRollOverlay extends StatelessWidget {
     required this.isVisible,
     required this.isRolling,
     required this.isPersian,
+    this.statsConfig,
     this.diceKey,
     required this.onContinue,
     required this.onRollComplete,
@@ -313,6 +316,14 @@ class DiceRollOverlay extends StatelessWidget {
     if (statId == null || statId.isEmpty) {
       return isPersian ? 'اصلاحگر' : 'Mod';
     }
+    final cleanId = statId.toLowerCase().replaceAll(' ', '_');
+    if (statsConfig != null && statsConfig!.isNotEmpty) {
+      for (final s in statsConfig!) {
+        if (s.id.toLowerCase().replaceAll(' ', '_') == cleanId) {
+          return s.getLocalizedName(isPersian);
+        }
+      }
+    }
     if (!isPersian) {
       return statId
           .replaceAll('_', ' ')
@@ -320,7 +331,7 @@ class DiceRollOverlay extends StatelessWidget {
           .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
           .join(' ');
     }
-    switch (statId.toLowerCase().replaceAll(' ', '_')) {
+    switch (cleanId) {
       case 'might':
       case 'strength':
         return 'قدرت';
@@ -334,7 +345,7 @@ class DiceRollOverlay extends StatelessWidget {
       case 'arcana':
       case 'magic':
       case 'sorcery':
-        return 'دانش کهن';
+        return 'جادو';
       case 'charm':
       case 'charisma':
         return 'جذابیت';

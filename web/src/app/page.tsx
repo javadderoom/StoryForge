@@ -131,6 +131,7 @@ export default function Home() {
   const [diceResolution, setDiceResolution] = useState<DiceResolution | null>(null);
   const [diceActionText, setDiceActionText] = useState('');
   const [pendingTurn, setPendingTurn] = useState<any | null>(null);
+  const [isGeneratingBeat, setIsGeneratingBeat] = useState(false);
   // Plan 13: hazard displacement banner (location name resolved from lore list).
   const [displacementBanner, setDisplacementBanner] = useState<string | null>(null);
   const isDiceModalOpenRef = useRef(false);
@@ -139,7 +140,9 @@ export default function Home() {
   }, [isDiceModalOpen]);
 
   // Auth & Billing
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, updateCreditBalance } = useAuth();
+  // Guards double-tap double-spend: one turn (and one credit) per tap.
+  const [actionInFlight, setActionInFlight] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isShopModalOpen, setIsShopModalOpen] = useState(false);
 
@@ -391,9 +394,17 @@ export default function Home() {
   };
 
   const onChoice = async (choice: any) => {
-    if (loading || !playerState || !selectedStory) return;
+    if (loading || actionInFlight || !playerState || !selectedStory) return;
+    setActionInFlight(true);
     audioService.playSfx('buttonClick');
     setErrorMessage(null);
+    const syncBalance = (json: any) => {
+      if (typeof json?.data?.remainingCredits === 'number') {
+        updateCreditBalance(json.data.remainingCredits);
+      } else if (json?.creditDepleted) {
+        updateCreditBalance(0);
+      }
+    };
 
     const targetSceneId = choice.targetSceneId || choice.destinationSceneId || choice.leadToSceneId;
     const isDiceless = choice.targetDC === undefined && choice.requiredStatId === undefined;
@@ -426,10 +437,13 @@ export default function Home() {
         if (json.isGuardrailViolation) {
           setErrorMessage(json.rejectionReason);
           notify.error(isRtl ? 'اقدام شما توسط قوانین جهان رد شد.' : 'Action blocked by world laws.');
+          setActionInFlight(false);
           return;
         }
         if (!json.success) {
+          syncBalance(json);
           setErrorMessage(json.error || 'The scribe is silent.');
+          setActionInFlight(false);
           return;
         }
         setCurrentBeat({
@@ -439,10 +453,12 @@ export default function Home() {
         setPlayerState(json.data.updatedPlayerState);
         setTurnNumber(nextTurn);
         showDisplacementBanner(json.data, lore.locations);
+        syncBalance(json);
       } catch (e: any) {
         setErrorMessage(e?.message || 'Network error');
       } finally {
         setLoading(false);
+        setActionInFlight(false);
       }
       return;
     }
@@ -464,8 +480,13 @@ export default function Home() {
     setLastOutcome(resolution);
     setIsDiceModalOpen(true);
     setDiceRolling(true);
+    setIsGeneratingBeat(true);
+    setPendingTurn(null);
 
-    const minRollDelay = new Promise((resolve) => setTimeout(resolve, 1100));
+    // Auto-settle the 3D dice physics after 1300ms so the user sees the roll outcome immediately
+    const rollTimer = setTimeout(() => {
+      setDiceRolling(false);
+    }, 1300);
 
     try {
       const json = await sendAction({
@@ -483,20 +504,26 @@ export default function Home() {
         draftManifest: localDraft,
       });
       if (json.isGuardrailViolation) {
+        clearTimeout(rollTimer);
         setErrorMessage(json.rejectionReason);
         notify.error(isRtl ? 'اقدام شما توسط قوانین جهان رد شد.' : 'Action blocked by world laws.');
         setIsDiceModalOpen(false);
         setDiceRolling(false);
+        setIsGeneratingBeat(false);
+        setActionInFlight(false);
         return;
       }
       if (!json.success) {
+        clearTimeout(rollTimer);
+        syncBalance(json);
         setErrorMessage(json.error || 'The scribe is silent.');
         setIsDiceModalOpen(false);
         setDiceRolling(false);
+        setIsGeneratingBeat(false);
+        setActionInFlight(false);
         return;
       }
-
-      await minRollDelay;
+      syncBalance(json);
 
       // If the reader already dismissed the dice modal or if it's closed, immediately apply the new scene
       if (!isDiceModalOpenRef.current) {
@@ -515,15 +542,21 @@ export default function Home() {
         setPendingTurn(null);
         setDiceResolution(null);
         setDiceRolling(false);
+        setIsGeneratingBeat(false);
       } else {
         // Settle the dice and reveal the outcome & continue button
         setPendingTurn(json.data);
+        setIsGeneratingBeat(false);
         setDiceRolling(false);
       }
+      setActionInFlight(false);
     } catch (e: any) {
+      clearTimeout(rollTimer);
       setErrorMessage(e?.message || 'Network error');
       setIsDiceModalOpen(false);
       setDiceRolling(false);
+      setIsGeneratingBeat(false);
+      setActionInFlight(false);
     }
   };
 
@@ -531,6 +564,7 @@ export default function Home() {
     if (!pendingTurn) {
       setIsDiceModalOpen(false);
       setDiceRolling(false);
+      setIsGeneratingBeat(false);
       return;
     }
     setCurrentBeat({ narrative: pendingTurn.beat.narrativeProse, choices: pendingTurn.beat.presentedChoices });
@@ -899,13 +933,15 @@ export default function Home() {
 
                   <div className="space-y-3">
                     {currentBeat.choices.map((choice: any, idx: number) => (
-                      <ThreeDChoiceCard
-                        key={idx}
-                        choice={choice}
-                        theme={themeObj}
-                        isPersian={isRtl}
-                        onTap={() => onChoice(choice)}
-                      />
+                      <div key={idx} className={actionInFlight ? 'pointer-events-none opacity-60' : ''}>
+                        <ThreeDChoiceCard
+                          choice={choice}
+                          theme={themeObj}
+                          isPersian={isRtl}
+                          statsConfig={storyMeta?.rpgSystem?.stats}
+                          onTap={() => onChoice(choice)}
+                        />
+                      </div>
                     ))}
                   </div>
 
@@ -924,7 +960,7 @@ export default function Home() {
                     />
                     <button
                       type="submit"
-                      disabled={!freeTextAction.trim()}
+                      disabled={!freeTextAction.trim() || actionInFlight}
                       className="flex shrink-0 items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-black transition-all hover:bg-amber-400 disabled:opacity-40"
                     >
                       <Send className="h-3.5 w-3.5" />
@@ -997,9 +1033,13 @@ export default function Home() {
       <DiceRollModal
         isOpen={isDiceModalOpen}
         isRolling={diceRolling}
+        isGenerating={isGeneratingBeat}
+        statsConfig={storyMeta?.rpgSystem?.stats}
         resolution={diceResolution}
         actionText={diceActionText}
         isPersian={isRtl}
+        inspectMode={!pendingTurn && !isGeneratingBeat}
+        onRollComplete={() => setDiceRolling(false)}
         onContinue={applyPendingTurn}
         onClose={() => {
           if (pendingTurn) {
@@ -1007,6 +1047,7 @@ export default function Home() {
           } else {
             setIsDiceModalOpen(false);
             setDiceRolling(false);
+            setIsGeneratingBeat(false);
           }
         }}
       />

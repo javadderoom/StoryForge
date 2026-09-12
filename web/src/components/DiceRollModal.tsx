@@ -13,8 +13,11 @@ interface DiceRollModalProps {
   actionText: string;
   isPersian?: boolean;
   isRolling?: boolean;
+  isGenerating?: boolean;
+  statsConfig?: Array<{ id: string; nameFa?: string; nameEn?: string }>;
   /** Inspect mode: no pending turn to reveal, so "Continue" just closes. */
   inspectMode?: boolean;
+  onRollComplete?: () => void;
   onContinue: () => void;
   onClose: () => void;
 }
@@ -84,7 +87,10 @@ export function DiceRollModal({
   actionText,
   isPersian = false,
   isRolling = false,
+  isGenerating = false,
+  statsConfig,
   inspectMode = false,
+  onRollComplete,
   onContinue,
   onClose,
 }: DiceRollModalProps) {
@@ -124,12 +130,12 @@ export function DiceRollModal({
             resultNumber={resolution?.d20 ?? 10}
             isRolling={isRolling}
             size={160}
-            onRollComplete={() => {}}
+            onRollComplete={onRollComplete || (() => {})}
           />
         </div>
 
         {isRolling && (
-          <p className="text-center text-xs font-bold" style={{ color: '#F59E0B' }}>
+          <p className="text-center text-xs font-bold animate-pulse" style={{ color: '#F59E0B' }}>
             {isPersian ? 'تاس در حال چرخش...' : 'Rolling D20...'}
           </p>
         )}
@@ -144,7 +150,7 @@ export function DiceRollModal({
               <StatBox label={isPersian ? 'تاس' : 'Roll'} value={toPersianDigits(resolution.d20, isPersian)} />
               <span className="font-bold text-zinc-500">+</span>
               <StatBox
-                label={formatStatName(resolution.requiredStat ?? '', isPersian)}
+                label={formatStatName(resolution.requiredStat ?? '', isPersian, statsConfig)}
                 value={`${resolution.statModifier >= 0 ? '+' : ''}${toPersianDigits(resolution.statModifier, isPersian)}`}
                 color="#60A5FA"
               />
@@ -166,19 +172,33 @@ export function DiceRollModal({
               </p>
             </div>
 
-            <button
-              onClick={onContinue}
-              className="mt-4 w-full rounded-2xl py-3 text-sm font-bold text-black transition-transform hover:scale-[1.01]"
-              style={{ backgroundColor: '#F59E0B' }}
-            >
-              {inspectMode
-                ? isPersian
-                  ? 'بستن'
-                  : 'Close'
-                : isPersian
-                  ? 'ادامه ماجراجویی'
-                  : 'Continue Narrative'}
-            </button>
+            {isGenerating && !inspectMode ? (
+              <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/5 py-3 px-4 text-center">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
+                  <span className="text-xs font-bold text-amber-300">
+                    {isPersian ? 'راوی در حال نگارش سرنوشت شماست...' : 'The Scribe is weaving your destiny...'}
+                  </span>
+                </div>
+                <div className="h-1 w-36 overflow-hidden rounded-full bg-zinc-800">
+                  <div className="h-full w-full bg-gradient-to-r from-amber-500/20 via-amber-400 to-amber-500/20 animate-pulse" />
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={onContinue}
+                className="mt-4 w-full rounded-2xl py-3 text-sm font-bold text-black transition-transform hover:scale-[1.01] shadow-lg shadow-amber-500/20"
+                style={{ backgroundColor: '#F59E0B' }}
+              >
+                {inspectMode
+                  ? isPersian
+                    ? 'بستن'
+                    : 'Close'
+                  : isPersian
+                    ? 'ادامه ماجراجویی'
+                    : 'Continue Narrative'}
+              </button>
+            )}
           </div>
         )}
       </div>

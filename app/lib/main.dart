@@ -39,6 +39,7 @@ class AfsanehSazApp extends ConsumerWidget {
                 resolution: diceState.resolution,
                 actionText: diceState.actionText,
                 isPersian: diceState.isPersian,
+                statsConfig: diceState.statsConfig,
                 onRollComplete: () {
                   ref.read(diceOverlayProvider.notifier).finishRoll();
                 },

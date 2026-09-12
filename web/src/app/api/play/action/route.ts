@@ -372,7 +372,12 @@ export async function POST(req: NextRequest) {
     // is NOT killed; instead escalating penalties are applied and the
     // narrative resumes at the last safe location.
     let defeatNarrativeHint: string | undefined;
-    const hpAfterMutation = updatedPlayerState.resources?.hp ?? 0;
+    const healthResource =
+      (story.rpgSystem.resources ?? []).find((r: any) => /^(health|hp|سلامت|تندرستی)$/i.test(r.id)) ||
+      (story.rpgSystem.resources ?? []).find((r: any) => /health|hp|vital/i.test(r.id)) ||
+      story.rpgSystem.resources?.[0];
+    const healthKey = healthResource?.id || 'health';
+    const hpAfterMutation = updatedPlayerState.resources?.[healthKey] ?? (healthResource?.max ?? 100);
     if (hpAfterMutation <= 0) {
       const defeat = GameEngine.resolveDefeat(
         updatedPlayerState,

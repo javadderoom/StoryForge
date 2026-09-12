@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/realm_theme.dart';
 import '../../models/choice_option.dart';
+import '../../models/story.dart';
 import '../../services/audio_service.dart';
 
 class ThreeDChoiceCard extends StatefulWidget {
   final ChoiceOption choice;
   final RealmTheme theme;
   final bool isPersian;
+  final List<StoryStatSummary>? statsConfig;
   final VoidCallback onTap;
 
   const ThreeDChoiceCard({
@@ -17,6 +19,7 @@ class ThreeDChoiceCard extends StatefulWidget {
     required this.theme,
     required this.onTap,
     this.isPersian = true,
+    this.statsConfig,
   });
 
   @override
@@ -80,6 +83,59 @@ class _ThreeDChoiceCardState extends State<ThreeDChoiceCard>
     _springController.forward(from: 0.0);
   }
 
+  String _formatStatName(String statId) {
+    final cleanId = statId.toLowerCase().replaceAll(' ', '_');
+    if (widget.statsConfig != null && widget.statsConfig!.isNotEmpty) {
+      for (final s in widget.statsConfig!) {
+        if (s.id.toLowerCase().replaceAll(' ', '_') == cleanId) {
+          return s.getLocalizedName(widget.isPersian);
+        }
+      }
+    }
+    if (!widget.isPersian) {
+      return statId
+          .replaceAll('_', ' ')
+          .split(' ')
+          .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+          .join(' ');
+    }
+    switch (cleanId) {
+      case 'might':
+      case 'strength':
+        return 'قدرت';
+      case 'agility':
+      case 'dexterity':
+      case 'speed':
+        return 'چابکی';
+      case 'cunning':
+      case 'wit':
+        return 'ذکاوت';
+      case 'arcana':
+      case 'magic':
+      case 'sorcery':
+        return 'جادو';
+      case 'charm':
+      case 'charisma':
+        return 'جذابیت';
+      case 'empathy':
+        return 'همدلی';
+      case 'passion':
+        return 'شور و اشتیاق';
+      case 'deduction':
+        return 'استنتاج';
+      case 'perception':
+      case 'observation':
+        return 'دقت و بینش';
+      case 'hacking':
+      case 'tech':
+        return 'نفوذ سایبری';
+      case 'cyberware':
+        return 'افزونه‌های سایبری';
+      default:
+        return statId.replaceAll('_', ' ');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -139,15 +195,42 @@ class _ThreeDChoiceCardState extends State<ThreeDChoiceCard>
                       width: _isPressed ? 1.5 : 1.1,
                     ),
                   ),
-                  child: Text(
-                    widget.choice.text,
-                    textAlign: TextAlign.start,
-                    style: GoogleFonts.vazirmatn(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFFF4F4F5),
-                      height: 1.6,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (widget.choice.requiredStatId != null &&
+                          widget.choice.requiredStatId!.trim().isNotEmpty) ...[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF60A5FA).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: const Color(0xFF60A5FA).withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Text(
+                            _formatStatName(widget.choice.requiredStatId!),
+                            style: GoogleFonts.vazirmatn(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF60A5FA),
+                            ),
+                          ),
+                        ),
+                      ],
+                      Text(
+                        widget.choice.text,
+                        textAlign: TextAlign.start,
+                        style: GoogleFonts.vazirmatn(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFFF4F4F5),
+                          height: 1.6,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
