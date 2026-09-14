@@ -47,14 +47,56 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
     }
   }
 
+  /// Studio is the source of truth for pool colors (`ResourceDefinition.color`).
+  /// Mirrors web `res.color || '#ef4444'` with semantic fallbacks only for
+  /// legacy sessions that predate the color field — kept identical to
+  /// CompendiumScreen._getResourceColor.
+  Color _resolveResourceColor(String key, [Map<String, dynamic>? def]) {
+    final hex = def?['color'] as String?;
+    if (hex != null && hex.isNotEmpty) return _colorFromHex(hex, const Color(0xFFEF4444));
+    switch (key.toLowerCase()) {
+      case 'hp':
+      case 'health':
+        return const Color(0xFFEF4444);
+      case 'stamina':
+      case 'energy':
+        return const Color(0xFF3B82F6);
+      case 'mana':
+        return const Color(0xFF8B5CF6);
+      case 'sanity':
+      case 'resolve':
+        return const Color(0xFF10B981);
+      case 'gold':
+      case 'credit':
+      case 'credits':
+        return const Color(0xFFEAB308);
+      default:
+        return const Color(0xFFEF4444);
+    }
+  }
+
+  int _resolveResourceMax(String key, int currentValue, PlayerState player, [Map<String, dynamic>? def]) {
+    // Priority: live scaled max -> Studio def `max`/`maxValue` -> current value.
+    // No hardcoded 100/50/9999 caps; Studio owns the ceiling.
+    final scaled = player.maxResources[key];
+    if (scaled != null) return scaled;
+    final defMax = (def?['max'] as num?)?.toInt() ?? (def?['maxValue'] as num?)?.toInt();
+    if (defMax != null) return defMax;
+    return currentValue;
+  }
+
   String _formatResourceName(String key, [Map<String, dynamic>? def]) {
     if (def?['name'] != null && (def!['name'] as String).isNotEmpty) return def['name'] as String;
     if (!widget.isPersian) return key.toUpperCase();
     switch (key.toLowerCase()) {
       case 'hp':
-        return 'سلامت (HP)';
+      case 'health':
+        return 'تندرستی (HP)';
       case 'stamina':
+      case 'energy':
         return 'استقامت (Stamina)';
+      case 'mana':
+        return 'مانا / انرژی کهن (Mana)';
       case 'gold':
         return 'سکه طلا (Gold)';
       default:
@@ -353,17 +395,11 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                           Builder(builder: (context) {
                             final defs = session.rpgResources;
                             final def = _findDef(entry.key, defs);
-                            final isGold = entry.key == 'gold';
-                            final fallbackMax = entry.key == 'hp' ? 100 : (isGold ? 9999 : 50);
-                            final defMax = (def?['max'] as num?)?.toInt() ?? fallbackMax;
-                            final maxVal = player.maxResources[entry.key] ?? defMax;
-                            final clamped = entry.value.clamp(0, maxVal);
-                            final fallbackColor = entry.key == 'hp'
-                                ? const Color(0xFFEF4444)
-                                : isGold
-                                    ? const Color(0xFFEAB308)
-                                    : const Color(0xFF3B82F6);
-                            final color = _colorFromHex(def?['color'] as String?, fallbackColor);
+                            final isGold = entry.key.toLowerCase() == 'gold';
+                            final maxVal = _resolveResourceMax(entry.key, entry.value, player, def);
+                            final safeMax = maxVal <= 0 ? entry.value : maxVal;
+                            final clamped = entry.value.clamp(0, safeMax);
+                            final color = _resolveResourceColor(entry.key, def);
 
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 10),
@@ -386,7 +422,7 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                                         child: Text(
                                           isGold
                                               ? entry.value.toPersianDigits(enable: widget.isPersian)
-                                              : '${clamped.toPersianDigits(enable: widget.isPersian)} / ${maxVal.toPersianDigits(enable: widget.isPersian)}',
+                                              : '${clamped.toPersianDigits(enable: widget.isPersian)} / ${safeMax.toPersianDigits(enable: widget.isPersian)}',
                                           style: GoogleFonts.vazirmatn(
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
@@ -401,7 +437,7 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(4),
                                       child: LinearProgressIndicator(
-                                        value: (clamped / maxVal).clamp(0.0, 1.0),
+                                        value: safeMax <= 0 ? 0.0 : (clamped / safeMax).clamp(0.0, 1.0),
                                         backgroundColor: const Color(0xFF1E2235),
                                         color: color,
                                         minHeight: 5,

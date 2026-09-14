@@ -28,13 +28,17 @@ class StoryStatSummary {
             : (rawNameEn != null && rawNameEn.isNotEmpty)
                 ? rawNameEn
                 : '';
+    // Studio uses `baseValue`; theme-synthesis payloads use `defaultValue`.
+    // Accept both (plus legacy `value`) so we never fall back to a
+    // hardcoded 10 when the author defined a different baseline.
+    final rawBase = json['baseValue'] ?? json['defaultValue'] ?? json['value'];
     return StoryStatSummary(
       id: json['id'] ?? '',
       name: primaryName,
       nameFa: rawNameFa,
       nameEn: rawNameEn,
       description: json['description'] ?? '',
-      baseValue: (json['baseValue'] as num?)?.toInt() ?? 10,
+      baseValue: (rawBase as num?)?.toInt() ?? 10,
     );
   }
 

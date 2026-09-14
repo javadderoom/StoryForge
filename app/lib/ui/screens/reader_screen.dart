@@ -34,6 +34,7 @@ class ReaderScreen extends ConsumerStatefulWidget {
 class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   final TextEditingController _freeTextController = TextEditingController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final ScrollController _scrollController = ScrollController();
 
   // Atmosphere & Realm Theme State
   RealmPreset? _customRealmPreset;
@@ -65,7 +66,55 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   void dispose() {
     _freeTextController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToTop() {
+    if (!_scrollController.hasClients) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  /// Danger vignette when the story's primary vital pool drops below 30%.
+  /// Resolves the health key dynamically (health/hp/…) instead of hardcoding 'hp'.
+  bool _isLowVitals(GameSessionState session) {
+    final player = session.playerState;
+    if (player == null || player.resources.isEmpty) return false;
+    final defs = session.rpgResources;
+    String? healthKey;
+    const aliases = ['health', 'hp', 'سلامت', 'تندرستی'];
+    for (final a in aliases) {
+      for (final k in player.resources.keys) {
+        if (k.toLowerCase() == a) {
+          healthKey = k;
+          break;
+        }
+      }
+      if (healthKey != null) break;
+    }
+    healthKey ??= player.resources.keys.first;
+    final resolvedKey = healthKey;
+    final current = player.resources[resolvedKey] ?? 0;
+    Map<String, dynamic>? def;
+    for (final d in defs) {
+      if ((d['id']?.toString().toLowerCase()) == resolvedKey.toLowerCase()) {
+        def = d;
+        break;
+      }
+    }
+    final maxVal = player.maxResources[resolvedKey] ??
+        (def?['max'] as num?)?.toInt() ??
+        (def?['maxValue'] as num?)?.toInt() ??
+        current;
+    if (maxVal <= 0) return false;
+    return current / maxVal < 0.3;
   }
 
   RealmTheme _getActiveTheme(String storyId) {
@@ -140,9 +189,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(gameSessionProvider);
+    // After the dice modal closes and the pending turn is applied, the new
+    // narrative arrives with an incremented turnNumber — scroll back to the
+    // top so the player reads the new prose instead of stale choices.
+    ref.listen<GameSessionState>(gameSessionProvider, (prev, next) {
+      if (prev != null && next.turnNumber != prev.turnNumber) {
+        _scrollToTop();
+      }
+    });
     final isPersian = session.isPersian;
     final theme = _getActiveTheme(session.storyId);
-    final isLowHp = (session.playerState?.resources['hp'] ?? 100) < 30;
+    final isLowHp = _isLowVitals(session);
 
     return Directionality(
       textDirection: isPersian ? TextDirection.rtl : TextDirection.ltr,
@@ -291,6 +348,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                       ? _buildInitialRealmLoader(theme, isPersian)
                       : SingleChildScrollView(
                           key: const ValueKey('reader_content'),
+                          controller: _scrollController,
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                           child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -721,16 +779,31 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               ),
                               const SizedBox(height: 14),
                               for (final choice in session.choices) ...[
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: ThreeDChoiceCard(
-                                    choice: choice,
-                                    theme: theme,
-                                    isPersian: isPersian,
-                                    statsConfig: session.rpgStats,
-                                    onTap: () => _handleAction(choice),
-                                  ),
-                                ),
+                                Builder(builder: (context) {
+                                  // Always show the tested stat: authored requiredStatId
+                                  // first, otherwise the deterministic inference the
+                                  // dice roll itself will use.
+                                  final hasAuthored = choice.requiredStatId != null &&
+                                      choice.requiredStatId!.trim().isNotEmpty;
+                                  final fallbackStatId = hasAuthored
+                                      ? null
+                                      : RpgEngine.inferStatId(
+                                          choice.text,
+                                          choice.riskLevel,
+                                          session.playerState,
+                                        );
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: ThreeDChoiceCard(
+                                      choice: choice,
+                                      theme: theme,
+                                      isPersian: isPersian,
+                                      statsConfig: session.rpgStats,
+                                      fallbackStatId: fallbackStatId,
+                                      onTap: () => _handleAction(choice),
+                                    ),
+                                  );
+                                }),
                               ],
 
                               const SizedBox(height: 14),

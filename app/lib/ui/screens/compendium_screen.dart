@@ -159,8 +159,10 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
     if (!isPersian) return key.toUpperCase();
     switch (key.toLowerCase()) {
       case 'hp':
+      case 'health':
         return 'تندرستی (HP)';
       case 'stamina':
+      case 'energy':
         return 'استقامت (Stamina)';
       case 'mana':
         return 'مانا / انرژی کهن (Mana)';
@@ -172,6 +174,9 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
   }
 
   Color _getResourceColor(String key, [Map<String, dynamic>? def]) {
+    // Studio is the source of truth (`ResourceDefinition.color`, mirrors web
+    // `res.color || '#ef4444'`). Semantic fallbacks below are only for legacy
+    // sessions without a color — kept identical to RpgHudDrawer.
     final hex = def?['color'] as String?;
     if (hex != null && hex.isNotEmpty) {
       try {
@@ -182,31 +187,33 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
     }
     switch (key.toLowerCase()) {
       case 'hp':
+      case 'health':
         return const Color(0xFFEF4444);
       case 'stamina':
-        return const Color(0xFF10B981);
+      case 'energy':
+        return const Color(0xFF3B82F6);
       case 'mana':
-        return const Color(0xFF6366F1);
+        return const Color(0xFF8B5CF6);
+      case 'sanity':
+      case 'resolve':
+        return const Color(0xFF10B981);
       case 'gold':
+      case 'credit':
+      case 'credits':
         return const Color(0xFFF59E0B);
       default:
-        return const Color(0xFF3B82F6);
+        return const Color(0xFFEF4444);
     }
   }
 
   int _resolveMax(PlayerState player, String key, Map<String, dynamic>? def) {
+    // Priority: live scaled max -> Studio def `max`/`maxValue` -> current value.
+    // No hardcoded 100/50 caps; Studio owns the ceiling.
     final scaled = player.maxResources[key];
     if (scaled != null) return scaled;
-    final defMax = (def?['max'] as num?)?.toInt();
+    final defMax = (def?['max'] as num?)?.toInt() ?? (def?['maxValue'] as num?)?.toInt();
     if (defMax != null) return defMax;
-    switch (key.toLowerCase()) {
-      case 'hp':
-        return 100;
-      case 'stamina':
-        return 50;
-      default:
-        return 100;
-    }
+    return player.resources[key] ?? 100;
   }
 
   Color _getRarityColor(ItemRarity rarity) {
@@ -563,8 +570,9 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
     final color = _getResourceColor(key, def);
     final isGold = key.toLowerCase() == 'gold';
     final maxVal = _resolveMax(player, key, def);
-    final clamped = value.clamp(0, maxVal);
-    final ratio = isGold ? 1.0 : (clamped / maxVal).clamp(0.0, 1.0);
+    final safeMax = maxVal <= 0 ? value : maxVal;
+    final clamped = value.clamp(0, safeMax);
+    final ratio = isGold ? 1.0 : (safeMax <= 0 ? 0.0 : (clamped / safeMax).clamp(0.0, 1.0));
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -589,8 +597,8 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                   isGold
                       ? (isPersian ? '${value.toPersianDigits()} سکه' : '$value G')
                       : (isPersian
-                          ? '${clamped.toPersianDigits()} / ${maxVal.toPersianDigits()}'
-                          : '$clamped / $maxVal'),
+                          ? '${clamped.toPersianDigits()} / ${safeMax.toPersianDigits()}'
+                          : '$clamped / $safeMax'),
                   style: isPersian
                       ? GoogleFonts.vazirmatn(
                           fontSize: 13.5,

@@ -11,6 +11,10 @@ class ThreeDChoiceCard extends StatefulWidget {
   final RealmTheme theme;
   final bool isPersian;
   final List<StoryStatSummary>? statsConfig;
+  /// Inferred stat when the AI did not author `requiredStatId`.
+  /// ReaderScreen computes this via RpgEngine.inferStatId so the badge
+  /// never silently disappears.
+  final String? fallbackStatId;
   final VoidCallback onTap;
 
   const ThreeDChoiceCard({
@@ -20,6 +24,7 @@ class ThreeDChoiceCard extends StatefulWidget {
     required this.onTap,
     this.isPersian = true,
     this.statsConfig,
+    this.fallbackStatId,
   });
 
   @override
@@ -198,9 +203,12 @@ class _ThreeDChoiceCardState extends State<ThreeDChoiceCard>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (widget.choice.requiredStatId != null &&
-                          widget.choice.requiredStatId!.trim().isNotEmpty) ...[
-                        Container(
+                      Builder(builder: (context) {
+                        final raw = widget.choice.requiredStatId?.trim() ?? '';
+                        final effectiveStatId =
+                            raw.isNotEmpty ? raw : (widget.fallbackStatId?.trim() ?? '');
+                        if (effectiveStatId.isEmpty) return const SizedBox.shrink();
+                        return Container(
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
@@ -211,15 +219,15 @@ class _ThreeDChoiceCardState extends State<ThreeDChoiceCard>
                             ),
                           ),
                           child: Text(
-                            _formatStatName(widget.choice.requiredStatId!),
+                            _formatStatName(effectiveStatId),
                             style: GoogleFonts.vazirmatn(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                               color: const Color(0xFF60A5FA),
                             ),
                           ),
-                        ),
-                      ],
+                        );
+                      }),
                       Text(
                         widget.choice.text,
                         textAlign: TextAlign.start,

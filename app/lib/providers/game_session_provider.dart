@@ -472,7 +472,9 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     }
   }
 
-  /// Uses a consumable item (e.g. healing potion)
+  /// Uses a consumable item (e.g. healing potion).
+  /// Vital keys and ceilings resolve dynamically from Studio defs —
+  /// no hardcoded 'hp'/'stamina' ids or 100/50 caps.
   ItemUseResult useConsumable(String itemId) {
     if (state.playerState == null) {
       return ItemUseResult(success: false);
@@ -492,14 +494,16 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
 
     final player = state.playerState!;
     final resources = Map<String, int>.from(player.resources);
-    final hpMax = player.maxFor('hp', 100);
-    final staminaMax = player.maxFor('stamina', 50);
-    final prevHp = resources['hp'] ?? hpMax;
-    final prevStamina = resources['stamina'] ?? staminaMax;
+    final healthKey = _resolveVitalKey(player, state.rpgResources, const ['health', 'hp', 'سلامت', 'تندرستی']);
+    final staminaKey = _resolveVitalKey(player, state.rpgResources, const ['stamina', 'energy', 'استقامت', 'انرژی']);
+    final hpMax = _resolveVitalMax(player, state.rpgResources, healthKey);
+    final staminaMax = staminaKey != null ? _resolveVitalMax(player, state.rpgResources, staminaKey) : 0;
+    final prevHp = healthKey != null ? (resources[healthKey] ?? hpMax) : 0;
+    final prevStamina = staminaKey != null ? (resources[staminaKey] ?? staminaMax) : 0;
 
     // Check if player is already at full capacity
     final isHealingOnly = item.healValue != null && (item.staminaValue == null || item.staminaValue == 0);
-    if (isHealingOnly && prevHp >= hpMax) {
+    if (isHealingOnly && healthKey != null && prevHp >= hpMax) {
       return ItemUseResult(
         success: false,
         isFull: true,
@@ -511,12 +515,12 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     ref.read(audioProvider.notifier).playSfx(SfxType.potionDrink);
 
     int newHp = prevHp;
-    if (item.healValue != null && item.healValue! > 0) {
+    if (healthKey != null && item.healValue != null && item.healValue! > 0) {
       newHp = (prevHp + item.healValue!).clamp(0, hpMax).toInt();
-      resources['hp'] = newHp;
+      resources[healthKey] = newHp;
     }
-    if (item.staminaValue != null && item.staminaValue! > 0) {
-      resources['stamina'] = (prevStamina + item.staminaValue!).clamp(0, staminaMax).toInt();
+    if (staminaKey != null && item.staminaValue != null && item.staminaValue! > 0) {
+      resources[staminaKey] = (prevStamina + item.staminaValue!).clamp(0, staminaMax).toInt();
     }
 
     // Decrement item quantity or remove from inventory
@@ -573,6 +577,48 @@ class ItemUseResult {
     this.newHp = 0,
     this.healedAmount = 0,
   });
+}
+
+/// Finds the player's vital pool id matching [aliases] (case-insensitive),
+/// falling back to the first non-currency pool. Mirrors backend GameEngine
+/// dynamic vital resolution.
+String? _resolveVitalKey(
+  PlayerState player,
+  List<Map<String, dynamic>> defs,
+  List<String> aliases,
+) {
+  final lowerAliases = aliases.map((a) => a.toLowerCase()).toSet();
+  for (final k in player.resources.keys) {
+    if (lowerAliases.contains(k.toLowerCase())) return k;
+  }
+  for (final d in defs) {
+    final id = d['id']?.toString() ?? '';
+    if (lowerAliases.contains(id.toLowerCase()) && player.resources.containsKey(id)) {
+      return id;
+    }
+  }
+  for (final k in player.resources.keys) {
+    if (k.toLowerCase() != 'gold') return k;
+  }
+  return player.resources.keys.isNotEmpty ? player.resources.keys.first : null;
+}
+
+/// Ceiling for a vital pool: live scaled max -> Studio def max/maxValue -> current.
+int _resolveVitalMax(
+  PlayerState player,
+  List<Map<String, dynamic>> defs,
+  String? key,
+) {
+  if (key == null) return 0;
+  final scaled = player.maxResources[key];
+  if (scaled != null) return scaled;
+  for (final d in defs) {
+    if ((d['id']?.toString().toLowerCase()) == key.toLowerCase()) {
+      final defMax = (d['max'] as num?)?.toInt() ?? (d['maxValue'] as num?)?.toInt();
+      if (defMax != null) return defMax;
+    }
+  }
+  return player.resources[key] ?? 0;
 }
 
 final gameSessionProvider = NotifierProvider<GameSessionNotifier, GameSessionState>(GameSessionNotifier.new);
