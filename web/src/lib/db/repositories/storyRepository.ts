@@ -249,6 +249,7 @@ export class StoryRepository {
           rpgSystem: rpg ? {
             hasCombat: rpg.hasCombat,
             diceType: rpg.diceType,
+            universalBaseValue: (rpg as any).universalBaseValue ?? (s.manifest as any)?.rpgSystem?.universalBaseValue ?? 10,
             inventoryCapacity: rpg.inventoryCapacity,
             stats: rpg.stats || [],
             resources: rpg.resources || [],

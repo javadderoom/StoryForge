@@ -75,6 +75,7 @@ class StorySummary {
   final List<StoryStatSummary> stats;
   final List<ArchetypeModel> archetypes;
   final List<BackgroundOriginModel> backgrounds;
+  final int universalBaseValue;
 
   StorySummary({
     required this.id,
@@ -89,6 +90,7 @@ class StorySummary {
     this.stats = const [],
     this.archetypes = const [],
     this.backgrounds = const [],
+    this.universalBaseValue = 10,
   });
 
   factory StorySummary.fromJson(Map<String, dynamic> json) {
@@ -118,6 +120,7 @@ class StorySummary {
       stats: rawStats.map((s) => StoryStatSummary.fromJson(s as Map<String, dynamic>)).toList(),
       archetypes: rawArch.map((a) => ArchetypeModel.fromJson(a as Map<String, dynamic>)).toList(),
       backgrounds: rawBg.map((b) => BackgroundOriginModel.fromJson(b as Map<String, dynamic>)).toList(),
+      universalBaseValue: (json['universalBaseValue'] ?? json['rpgSystem']?['universalBaseValue'] as num?)?.toInt() ?? 10,
     );
   }
 }

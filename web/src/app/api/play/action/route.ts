@@ -555,6 +555,7 @@ export async function POST(req: NextRequest) {
         abilities: updatedPlayerState.abilities,
       },
       statsConfig: story.rpgSystem?.stats,
+      universalBaseValue: (story.rpgSystem as any)?.universalBaseValue,
       resolvedGameOutcome: {
         actionText: playerActionText,
         outcome: resolution.outcome,

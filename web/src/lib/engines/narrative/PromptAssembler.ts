@@ -106,9 +106,10 @@ export class PromptAssembler {
       ? statsDefs.map((s) => `${s.id}${s.name ? ` (${s.name})` : ''}`).join(', ')
       : validStatIds.join(', ');
 
-    // A system is genuinely low-base only if the RPG system's authored baselines across all stats
-    // are low (e.g. a 1-5 or 1-6 indie stat system where base values are < 7).
-    const isLowBase = statsDefs.length > 0
+    // A system is genuinely low-base if universalBaseValue is < 8, or if all authored stats have base < 8.
+    const isLowBase = context.universalBaseValue !== undefined
+      ? context.universalBaseValue < 8
+      : statsDefs.length > 0
       ? statsDefs.every((s) => (s.baseValue ?? 10) < 8)
       : false;
 

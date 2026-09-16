@@ -51,6 +51,7 @@ export interface WorkingContextEnvelope {
   };
   /** Story RPG stat definitions (id, authored name, baseValue) for prompt guidance */
   statsConfig?: Array<{ id: string; name?: string; nameFa?: string; nameEn?: string; baseValue?: number }>;
+  universalBaseValue?: number;
   resolvedGameOutcome?: {
     actionText: string;
     outcome: string;

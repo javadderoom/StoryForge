@@ -190,6 +190,7 @@ export interface CharacterSetupPayload {
 export interface RPGSystemSchema {
   hasCombat: boolean;
   diceType: 'd20' | '2d6' | 'd100';
+  universalBaseValue?: number; // System-wide zero-modifier baseline (e.g. 10 for d20, 5 for 1-10 scale)
   stats: StatDefinition[];
   resources: ResourceDefinition[];
   abilities?: AbilityDefinition[];
@@ -290,6 +291,7 @@ export const AbilityDefinitionSchema = z.object({
 export const RPGSystemSchemaValidator = z.object({
   hasCombat: z.boolean().default(true),
   diceType: z.enum(['d20', '2d6', 'd100']).default('d20'),
+  universalBaseValue: z.number().int().default(10),
   stats: z.array(StatDefinitionSchema).default([]),
   resources: z.array(ResourceDefinitionSchema).default([]),
   abilities: z.array(AbilityDefinitionSchema).default([]),

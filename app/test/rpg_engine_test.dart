@@ -64,5 +64,46 @@ void main() {
       expect(resAbove.totalScore, 11);
       expect(resAbove.outcome, 'success');
     });
+
+    test('resolveActionCheck uses universalBaseValue across disparate stats', () {
+      final statsConfig = [
+        const StoryStatSummary(id: 'might', name: 'Might', description: '', baseValue: 5),
+        const StoryStatSummary(id: 'magic', name: 'Magic', description: '', baseValue: 3),
+      ];
+      final playerState = PlayerState(
+        stats: {'might': 7, 'magic': 5},
+        resources: {'hp': 100},
+        inventory: [],
+        equipment: const PlayerEquipment(),
+        discoveredLocationIds: [],
+        relationships: {},
+        activeQuestIds: [],
+        completedQuestIds: [],
+        currentLocationId: 'loc_start',
+      );
+
+      // With universalBaseValue = 5, both Might (7) and Magic (5) are judged by the same baseline:
+      // Might 7 -> floor((7-5)/2) = +1
+      // Magic 5 -> floor((5-5)/2) = +0
+      final resMight = RpgEngine.resolveActionCheck(
+        actionText: 'Smash with Might',
+        playerState: playerState,
+        requiredStatId: 'might',
+        forcedDiceRoll: 10,
+        universalBaseValue: 5,
+        statsConfig: statsConfig,
+      );
+      expect(resMight.statModifier, 1);
+
+      final resMagic = RpgEngine.resolveActionCheck(
+        actionText: 'Cast a cantrip',
+        playerState: playerState,
+        requiredStatId: 'magic',
+        forcedDiceRoll: 10,
+        universalBaseValue: 5,
+        statsConfig: statsConfig,
+      );
+      expect(resMagic.statModifier, 0);
+    });
   });
 }

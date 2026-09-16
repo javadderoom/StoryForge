@@ -71,3 +71,41 @@ describe('serverToCheckResolution', () => {
     assert.equal(clientRes.success, true);
   });
 });
+
+describe('resolveDiceRoll with universalBaseValue', () => {
+  it('applies universalBaseValue across stats instead of divergent individual base values', async () => {
+    const { resolveDiceRoll } = await import('./rpgEngine');
+    const rpgSystem: any = {
+      universalBaseValue: 5,
+      stats: [
+        { id: 'might', baseValue: 5 },
+        { id: 'magic', baseValue: 3 },
+      ],
+    };
+    const playerState: any = {
+      stats: { might: 7, magic: 5 },
+      inventory: [],
+      equipment: {},
+    };
+
+    const resMight = resolveDiceRoll({
+      actionText: 'Smash barricade',
+      playerState,
+      requiredStatId: 'might',
+      forcedDiceRoll: 10,
+      rpgSystem,
+    });
+    // Might 7 vs baseline 5 -> +1 modifier
+    assert.equal(resMight.statModifier, 1);
+
+    const resMagic = resolveDiceRoll({
+      actionText: 'Cast flare',
+      playerState,
+      requiredStatId: 'magic',
+      forcedDiceRoll: 10,
+      rpgSystem,
+    });
+    // Magic 5 vs baseline 5 -> +0 modifier (despite magic.baseValue being 3)
+    assert.equal(resMagic.statModifier, 0);
+  });
+});

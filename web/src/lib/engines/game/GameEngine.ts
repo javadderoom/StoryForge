@@ -1052,17 +1052,17 @@ export class GameEngine {
     const rawStatId = (effectiveStatId || '').trim();
     const canonicalStatId = STAT_CANONICAL_ALIASES[rawStatId.toLowerCase()] || STAT_CANONICAL_ALIASES[rawStatId] || rawStatId;
 
-    // Look up authored baseValue for the stat from rpgSystem (defaults to 10 if not defined)
+    // Look up universalBaseValue for the system (falls back to authored stat baseValue or 10)
     const targetStat = rpgSystem.stats?.find(
       (s) => s.id?.toLowerCase() === canonicalStatId.toLowerCase() || s.id?.toLowerCase() === rawStatId.toLowerCase()
     );
-    const baseValue = targetStat?.baseValue ?? 10;
+    const systemBaseValue = rpgSystem.universalBaseValue ?? targetStat?.baseValue ?? 10;
 
     // Calculate stat bonus
     let statModifier = 0;
     const currentStatVal = playerState.stats[canonicalStatId] ?? playerState.stats[effectiveStatId];
     if (currentStatVal !== undefined) {
-      statModifier = this.getStatModifier(currentStatVal, baseValue);
+      statModifier = this.getStatModifier(currentStatVal, systemBaseValue);
     }
 
     // Calculate skill / ability bonus
@@ -1147,7 +1147,7 @@ export class GameEngine {
     const totalScore = roll + statModifier + skillBonus + equipmentModifier + envMod;
 
     // Default DC based on risk level if not explicitly provided
-    const isLowBase = baseValue < 8;
+    const isLowBase = systemBaseValue < 8;
     const baseDC =
       options.targetDC !== undefined
         ? options.targetDC

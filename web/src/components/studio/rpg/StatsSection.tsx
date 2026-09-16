@@ -282,8 +282,8 @@ export function StatsSection({ stats, resources = [], isPersian, updateRpgSystem
                 </div>
 
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">
-                    {isPersian ? 'مقدار پایه پیش‌فرض' : 'Base Value'}
+                  <label className="block text-xs text-zinc-400 mb-1" title={isPersian ? 'امتیاز اولیه این ویژگی برای کاراکتر تازه؛ اصلاحیه تاس از مبنای سراسری قوانین محاسبه می‌شود.' : 'Initial starting points for new characters; dice modifiers are evaluated against the global ruleset baseline.'}>
+                    {isPersian ? 'امتیاز شروع (پیدایش)' : 'Genesis Start'}
                   </label>
                   <input
                     type="number"

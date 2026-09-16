@@ -31,6 +31,7 @@ export function getEmptyStoryManifest(language: 'en' | 'fa'): StoryManifest {
     rpgSystem: {
       hasCombat: true,
       diceType: 'd20',
+      universalBaseValue: 10,
       stats: [
         { id: 'might', name: language === 'fa' ? 'نیرو' : 'Might', description: '', baseValue: 3, minValue: 1, maxValue: 10 },
         { id: 'cunning', name: language === 'fa' ? 'هوش' : 'Cunning', description: '', baseValue: 3, minValue: 1, maxValue: 10 },

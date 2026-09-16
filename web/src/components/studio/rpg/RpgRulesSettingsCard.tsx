@@ -29,6 +29,7 @@ export function RpgRulesSettingsCard({
 
   const [settingsForm, setSettingsForm] = useState({
     diceType: story.rpgSystem.diceType || 'd20',
+    universalBaseValue: story.rpgSystem.universalBaseValue ?? 10,
     inventoryCapacity: story.rpgSystem.inventoryCapacity || 10,
     hasCombat: story.rpgSystem.hasCombat ?? true,
     currencyPresetId: initialPreset,
@@ -40,6 +41,7 @@ export function RpgRulesSettingsCard({
     updateRpgSystem((prev: any) => ({
       ...prev,
       diceType: settingsForm.diceType,
+      universalBaseValue: Number(settingsForm.universalBaseValue) || 10,
       inventoryCapacity: Number(settingsForm.inventoryCapacity),
       hasCombat: settingsForm.hasCombat,
       currencySystem: settingsForm.currencySystem,
@@ -79,6 +81,11 @@ export function RpgRulesSettingsCard({
                   )
                 </span>
               </span>
+              <span className="text-xs font-mono text-zinc-300 bg-zinc-800/80 px-2.5 py-1 rounded-xl border border-zinc-700/60 flex items-center gap-1.5">
+                <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-zinc-400">{isPersian ? 'مبنای سراسری تاس:' : 'Stat Baseline:'}</span>
+                <span className="text-amber-300 font-semibold">{story.rpgSystem.universalBaseValue ?? 10}</span>
+              </span>
               <span className="text-xs font-mono text-zinc-300 bg-zinc-800/80 px-2.5 py-1 rounded-xl border border-zinc-700/60">
                 🎲 {story.rpgSystem.diceType || 'd20'}
               </span>
@@ -112,6 +119,7 @@ export function RpgRulesSettingsCard({
                 onClick: () => {
                   setSettingsForm({
                     diceType: story.rpgSystem.diceType || 'd20',
+                    universalBaseValue: story.rpgSystem.universalBaseValue ?? 10,
                     inventoryCapacity: story.rpgSystem.inventoryCapacity || 10,
                     hasCombat: story.rpgSystem.hasCombat ?? true,
                     currencyPresetId: initialPreset,
@@ -149,7 +157,7 @@ export function RpgRulesSettingsCard({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
             <div>
               <label className="block text-xs text-zinc-400 mb-1">
                 {isPersian ? 'موتور محاسبات تاس' : 'Dice Resolution Engine'}
@@ -168,6 +176,49 @@ export function RpgRulesSettingsCard({
                 <option value="2d6">2d6 Bell-Curve (PbtA / City of Mist)</option>
                 <option value="d100">d100 Percentile (Call of Cthulhu / BRP)</option>
               </select>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs text-zinc-400">
+                  {isPersian ? 'مبنای سراسری تاس (صفر تاس)' : 'Stat Baseline (+0)'}
+                </label>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setSettingsForm((p) => ({ ...p, universalBaseValue: 10 }))}
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-amber-400 cursor-pointer"
+                  >
+                    d20 (10)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSettingsForm((p) => ({ ...p, universalBaseValue: 5 }))}
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-cyan-400 cursor-pointer"
+                  >
+                    1-10 (5)
+                  </button>
+                </div>
+              </div>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={settingsForm.universalBaseValue}
+                onChange={(e) =>
+                  setSettingsForm((prev) => ({
+                    ...prev,
+                    universalBaseValue: Number(e.target.value),
+                  }))
+                }
+                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+                required
+              />
+              <p className="text-[10px] text-zinc-500 mt-1 truncate">
+                {isPersian
+                  ? `امتیاز ${settingsForm.universalBaseValue} = ۰+ | ${settingsForm.universalBaseValue + 2} = ۱+ | ${settingsForm.universalBaseValue - 2} = ۱-`
+                  : `Score ${settingsForm.universalBaseValue} = +0 | ${settingsForm.universalBaseValue + 2} = +1 | ${settingsForm.universalBaseValue - 2} = -1`}
+              </p>
             </div>
 
             <div>

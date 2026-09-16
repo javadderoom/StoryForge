@@ -27,6 +27,7 @@ class GameSessionState {
   final String? currentSceneImageUrl;
   final List<Map<String, dynamic>> rpgResources;
   final List<StoryStatSummary> rpgStats;
+  final int universalBaseValue;
   /// Coin denominations of the story currency system (id, nameFa, nameEn, symbol).
   final List<Map<String, dynamic>> currencyDenominations;
   /// Plan 13: display name of the hazard zone after a displacement turn.
@@ -53,6 +54,7 @@ class GameSessionState {
     this.currentSceneImageUrl,
     this.rpgResources = const [],
     this.rpgStats = const [],
+    this.universalBaseValue = 10,
     this.currencyDenominations = const [],
     this.lastDisplacement,
     this.lastActionText,
@@ -84,6 +86,7 @@ class GameSessionState {
     String? currentSceneImageUrl,
     List<Map<String, dynamic>>? rpgResources,
     List<StoryStatSummary>? rpgStats,
+    int? universalBaseValue,
     List<Map<String, dynamic>>? currencyDenominations,
     String? lastDisplacement,
     String? lastActionText,
@@ -110,6 +113,7 @@ class GameSessionState {
       storyCoverImageUrl: storyCoverImageUrl ?? this.storyCoverImageUrl,
       rpgResources: rpgResources ?? this.rpgResources,
       rpgStats: rpgStats ?? this.rpgStats,
+      universalBaseValue: universalBaseValue ?? this.universalBaseValue,
       currencyDenominations: currencyDenominations ?? this.currencyDenominations,
       currentSceneImageUrl: clearSceneImage
           ? null
@@ -146,6 +150,16 @@ class GameSessionState {
     final raw = storyData?['rpgSystem']?['stats'] as List<dynamic>?;
     if (raw == null) return const [];
     return raw.whereType<Map>().map((e) => StoryStatSummary.fromJson(Map<String, dynamic>.from(e))).toList();
+  }
+
+  /// Parses server RPG universal base value (zero-modifier baseline).
+  static int parseUniversalBaseValue(Map<String, dynamic>? storyData) {
+    final rpg = storyData?['rpgSystem'];
+    if (rpg is Map) {
+      final val = rpg['universalBaseValue'];
+      if (val is num) return val.toInt();
+    }
+    return 10;
   }
 
   /// Parses the story currency system denominations (highest value first).
@@ -210,6 +224,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         lore: rawLore,
         rpgResources: GameSessionState.parseRpgResources(storyData),
         rpgStats: GameSessionState.parseRpgStats(storyData),
+        universalBaseValue: GameSessionState.parseUniversalBaseValue(storyData),
         currencyDenominations: GameSessionState.parseCurrencyDenominations(storyData),
         currentNarrative: currentBeat['narrative'] ?? '',
         choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),

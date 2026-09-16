@@ -769,7 +769,9 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
       itemCount: player.stats.length,
       itemBuilder: (context, index) {
         final statKey = player.stats.keys.elementAt(index);
-        int authoredBase = 10;
+        final sessionState = ref.watch(gameSessionProvider);
+        final universalBase = sessionState.universalBaseValue;
+        int authoredBase = universalBase;
         if (statDefs.isNotEmpty) {
           final match = statDefs.where((s) => s.id.toLowerCase() == statKey.toLowerCase()).toList();
           if (match.isNotEmpty) {
@@ -778,7 +780,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
         }
         final baseVal = player.stats[statKey] ?? authoredBase;
         final totalVal = player.getEffectiveStat(statKey);
-        final mod = RpgEngine.getStatModifier(totalVal, authoredBase);
+        final mod = RpgEngine.getStatModifier(totalVal, universalBase);
         final diff = totalVal - baseVal;
 
         return Container(

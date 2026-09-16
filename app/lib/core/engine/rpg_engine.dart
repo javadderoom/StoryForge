@@ -113,6 +113,7 @@ class RpgEngine {
     int? forcedDiceRoll,
     bool isPersian = false,
     List<StoryStatSummary>? statsConfig,
+    int? universalBaseValue,
   }) {
     final roll = forcedDiceRoll ?? (Random().nextInt(20) + 1);
     final isNatMax = roll == 20;
@@ -121,9 +122,9 @@ class RpgEngine {
     // 1. Determine effective stat ID
     final effectiveStatId = requiredStatId ?? inferStatId(actionText, riskLevel, playerState);
 
-    // 2. Resolve authored baseValue and calculate natural stat modifier
-    int baseline = 10;
-    if (statsConfig != null && statsConfig.isNotEmpty) {
+    // 2. Resolve universalBaseValue or authored baseValue and calculate natural stat modifier
+    int baseline = universalBaseValue ?? 10;
+    if (universalBaseValue == null && statsConfig != null && statsConfig.isNotEmpty) {
       final match = statsConfig.where((s) => s.id.toLowerCase() == effectiveStatId.toLowerCase()).toList();
       if (match.isNotEmpty) {
         baseline = match.first.baseValue;

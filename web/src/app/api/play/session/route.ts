@@ -144,6 +144,7 @@ async function generateOpeningChoices(
         abilities: playerState.abilities,
       },
       statsConfig: story.rpgSystem?.stats,
+      universalBaseValue: (story.rpgSystem as any)?.universalBaseValue,
       recentSceneSnippets: [String(beat.narrativeText || '')].filter(Boolean),
       languageDirective: (story.language === 'en' ? 'en' : 'fa') as 'en' | 'fa',
       authoredSystemPrompt: world.authoredSystemPrompt,

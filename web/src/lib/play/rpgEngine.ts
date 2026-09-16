@@ -157,7 +157,7 @@ export function resolveActionCheck(opts: {
   const targetStatDef = statsList.find(
     (s: any) => s.id?.toLowerCase() === canonicalStatId.toLowerCase() || s.id?.toLowerCase() === rawId.toLowerCase()
   );
-  const baseline = targetStatDef?.baseValue ?? 10;
+  const baseline = (rpgSystem as any)?.universalBaseValue ?? targetStatDef?.baseValue ?? 10;
 
   const baseStatVal =
     playerState?.stats?.[canonicalStatId] ??
