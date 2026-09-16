@@ -72,9 +72,9 @@ describe('serverToCheckResolution', () => {
   });
 });
 
-describe('resolveDiceRoll with universalBaseValue', () => {
+describe('resolveActionCheck with universalBaseValue', () => {
   it('applies universalBaseValue across stats instead of divergent individual base values', async () => {
-    const { resolveDiceRoll } = await import('./rpgEngine');
+    const { resolveActionCheck } = await import('./rpgEngine');
     const rpgSystem: any = {
       universalBaseValue: 5,
       stats: [
@@ -88,7 +88,7 @@ describe('resolveDiceRoll with universalBaseValue', () => {
       equipment: {},
     };
 
-    const resMight = resolveDiceRoll({
+    const resMight = resolveActionCheck({
       actionText: 'Smash barricade',
       playerState,
       requiredStatId: 'might',
@@ -98,7 +98,7 @@ describe('resolveDiceRoll with universalBaseValue', () => {
     // Might 7 vs baseline 5 -> +1 modifier
     assert.equal(resMight.statModifier, 1);
 
-    const resMagic = resolveDiceRoll({
+    const resMagic = resolveActionCheck({
       actionText: 'Cast flare',
       playerState,
       requiredStatId: 'magic',
