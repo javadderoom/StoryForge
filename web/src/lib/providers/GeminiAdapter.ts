@@ -124,6 +124,42 @@ export function normalizeChoices(
       requiredStatId = firstStatId;
     }
 
+    // Safety net: if AI omitted requiredStatId but the choice text or risk indicates
+    // a high-stakes, confrontational, threatening, or hazardous action, infer a stat check
+    // rather than letting it bypass the RPG dice mechanics as diceless.
+    if (!requiredStatId && firstStatId) {
+      const isConfrontational =
+        /(?:threat|intimidat|interrogat|attack|strike|stab|shoot|cast|dodge|sneak|steal|pickpocket|climb|leap|force|coerce|bribe|deceive|تهدید|ارعاب|بازجویی|حمله|ضربه|خنجر|شلیک|طلسم|جاخالی|پنهان|مخفی|دزدی|جیب‌بری|زور|اجبار|رشوه|دروغ|فریب|جنگ|درگیری|یورش)/i.test(
+          text
+        ) || riskLevel === 'high';
+
+      if (isConfrontational) {
+        if (/(?:threat|intimidat|force|تهدید|ارعاب|زور|اجبار|حمله|ضربه|جنگ|یورش)/i.test(text)) {
+          requiredStatId =
+            resolveStat('might') ||
+            resolveStat('strength') ||
+            resolveStat('presence') ||
+            resolveStat('charisma') ||
+            firstStatId;
+        } else if (/(?:sneak|steal|pickpocket|dodge|climb|leap|پنهان|مخفی|دزدی|جیب‌بری|جاخالی)/i.test(text)) {
+          requiredStatId =
+            resolveStat('agility') ||
+            resolveStat('dexterity') ||
+            resolveStat('cunning') ||
+            firstStatId;
+        } else if (/(?:interrogat|bribe|deceive|lie|بازجویی|رشوه|فریب|دروغ)/i.test(text)) {
+          requiredStatId =
+            resolveStat('cunning') ||
+            resolveStat('guile') ||
+            resolveStat('presence') ||
+            resolveStat('charisma') ||
+            firstStatId;
+        } else {
+          requiredStatId = firstStatId;
+        }
+      }
+    }
+
     let targetDC: number | undefined;
     if (requiredStatId) {
       targetDC =

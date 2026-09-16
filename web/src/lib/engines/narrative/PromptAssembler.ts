@@ -132,20 +132,22 @@ export class PromptAssembler {
         ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English.
 - ATOMIC SINGLE-BEAT GRANULARITY: Every choice MUST represent exactly ONE immediate physical or verbal step happening right now. Never chain multiple consecutive actions (e.g. avoid "Action A and Action B and Action C").
 - NO PRE-BAKED OUTCOMES: State ONLY what the character physically does right now. NEVER include the intended outcome, consequence, or motivation in the choice text (e.g. avoid "in order to...", "to find a safe path", "so that..."). The dice roll and narrative director determine the outcome.
-- SELECTIVE DICE CHECKS (DICELESS VS. STAT CHECKS): Not all choices require a dice roll.
-  * Routine actions, normal dialogue questions/responses, and safe exploratory choices must be DICELESS: OMIT "requiredStatId" and OMIT "targetDC" entirely for them.
-  * Only actions involving genuine physical danger, deception, athletic exertion, combat, or high stakes require a dice check. For those, "requiredStatId" MUST be one of: [${validStatIds.join(', ')}] (Authored stats: ${statDescriptors}) and ${dcDirective}
+- SELECTIVE DICE CHECKS (DICELESS VS. STAT CHECKS):
+  * AT LEAST 2 CHOICES (or the majority of choices) per turn MUST have a stat check ("requiredStatId" and "targetDC") so the RPG system and dice rolls remain engaging.
+  * HIGH-STAKES, ADVERSARIAL & SOCIAL CONFLICT CHOICES ALWAYS REQUIRE A STAT CHECK: Any action involving threats, intimidation, aggressive interrogation of sentries/guards, coercion, deception, lying, bribery, stealth, combat, physical force, or persuading suspicious figures MUST include "requiredStatId" (one of: [${validStatIds.join(', ')}], Authored stats: ${statDescriptors}) and ${dcDirective}. NEVER make threats, intimidation, or interrogation diceless!
+  * DICELESS IS STRICTLY FOR SAFE, PEACEFUL ACTIONS: Only truly peaceful, safe, and low-stakes actions (e.g. asking a calm question to an ally/vendor, quietly observing surroundings, resting, or examining an obvious safe object) must omit "requiredStatId" and "targetDC".
 - GROUNDING: Ground choices in equipped gear, environmental interactables, and discovered clues. NEVER reveal or base choices on hidden/undiscovered NPC secrets. Span distinct philosophies (tactical, aggressive, defensive, inquisitive).`
         : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای و طبیعی ارائه کن:
 - گام‌های اتمیک و تک‌مرحله‌ای (ATOMIC SINGLE-BEAT): هر انتخاب باید دقیقاً «یک اقدام فیزیکی یا گفتاری فوری» را در همین لحظه بیان کند. هرگز چند اقدام پیاپی را با «و» به هم متصل نکن (از فرمول «کار الف و سپس کار ب و کار ج» اکیداً پرهیز کن).
 - ممنوعیت درج نتیجه در متن انتخاب: متن انتخاب باید صرفاً کنشِ عینی شخصیت باشد، نه هدف یا نتیجهٔ از پیش‌تعیین‌شده (از عباراتی چون «برای اینکه...»، «به منظور فرار...»، «تا مسیر امن را پیدا کند» پرهیز کن). نتیجه و پیامد کار تنها پس از تاس و توسط راوی مشخص می‌شود.
-- بررسی انتخابی تاس (DICELESS در برابر بررسی ویژگی): همهٔ انتخاب‌ها نیازمند تاس نیستند.
-  * گفت‌وگوهای عادی، پرسش از دیگران، حرکات ساده، و وارسی‌های بدون خطر باید بدون تاس (DICELESS) باشند: برای این انتخاب‌ها فیلدهای «requiredStatId» و «targetDC» را اصلاً قرار نده (حذف کن).
-  * تنها اقدامات دارای خطر فیزیکی، فریب‌کاری، نبرد، یا تنش بالا نیازمند تاس هستند؛ برای این دست انتخاب‌ها «requiredStatId» باید یکی از این شناسه‌ها باشد: [${validStatIds.join('، ')}] (نام‌های ویژگی: ${statDescriptors}) و ${dcDirective}
+- بررسی انتخابی تاس (DICELESS در برابر بررسی ویژگی):
+  * حداقل ۲ انتخاب (یا اکثریت گزینه‌ها) در هر نوبت حتماً باید دارای بررسی ویژگی و درجه سختی («requiredStatId» و «targetDC») باشند تا هیجان بازی و مکانیک‌های تاس زنده بماند.
+  * اقدامات پرریسک، تعارضی و تنش‌زا حتماً نیازمند تاس هستند: هرگونه تهدید، ارعاب، بازجویی از نگهبانان/گزمه‌ها با لحن تند، اجبار، فریب، دروغ‌گویی، رشوه، مخفی‌کاری، نبرد، زورآزمایی، یا اقناع افراد مشکوک اکیداً باید دارای «requiredStatId» (از بین: [${validStatIds.join('، ')}] با نام‌های: ${statDescriptors}) و ${dcDirective} باشد. هرگز تهدید، بازجویی و اقدامات پرخاشگرانه را بدون تاس (DICELESS) نگذار!
+  * حالت بدون تاس (DICELESS) صرفاً مختص اقدامات کاملاً بی‌خطر و آرام است: فقط گفت‌وگوهای عادی و مسالمت‌آمیز با یاران یا فروشندگان، استراحت، بررسی آرام محیط امن، یا پیگیری عادی مسیر می‌توانند بدون تاس باشند (فاقد requiredStatId و targetDC).
 - زمینه و تجهیزات: انتخاب‌ها را بر تجهیزات، عناصر محیطی و سرنخ‌ها استوار کن. هرگز اسرار کشف‌نشده را لو نده. فلسفه‌های متفاوت (تاکتیکی، تهاجمی، تدافعی، کنجکاوانه) را پوشش بده.`
       : isEnglish
-      ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Keep choices strictly atomic (one single immediate physical/verbal beat) without pre-baked outcomes. Routine dialogue and safe choices must omit "requiredStatId" and "targetDC".`
-      : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای تک‌مرحله‌ای (اتمیک) ارائه کن. از درج نتیجه در متن پرهیز کن و گفت‌وگوها یا اقدامات بی‌خطر را بدون تاس (بدون requiredStatId و targetDC) بگذار.`;
+      ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Keep choices strictly atomic without pre-baked outcomes. Threats, interrogation, and risky actions must have a stat check and DC; only safe, peaceful actions omit them.`
+      : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای تک‌مرحله‌ای (اتمیک) ارائه کن. اقدامات ریسک‌دار، تهدید و بازجویی حتماً باید دارای بررسی ویژگی و سختی باشند؛ فقط اقدامات مسالمت‌آمیز و بی‌خطر می‌توانند بدون تاس باشند.`;
 
     // Plan 13: contextual choice material shared by both language branches.
     const choiceMaterial = [

@@ -96,6 +96,40 @@ describe('Plan 08 - AI Output Normalization (choice & memory guardrails)', () =>
       assert.equal(out[1].targetDC, 10); // medium clamped to <= 10
       assert.equal(out[2].targetDC, 11); // high clamped to <= 11
     });
+
+    it('rescues confrontational and threatening choices omitted by AI as diceless', () => {
+      const out = normalizeChoices(
+        [
+          // Persian threatening choice with no stat field
+          { id: 'c1', text: 'با لحنی تهدیدآمیز از گزمه‌ها بازجویی کن' },
+          // English interrogation with no stat field
+          { id: 'c2', text: 'Interrogate the sentry aggressively', riskLevel: 'high' },
+          // High risk action without stat
+          { id: 'c3', text: 'Rush past the spears', riskLevel: 'high' },
+          // Peaceful routine dialogue - should remain diceless
+          { id: 'c4', text: 'پرسیدن نام از پیرمرد مهمان‌خانه‌دار' },
+        ],
+        ['might', 'cunning', 'agility'],
+        false
+      );
+
+      assert.equal(out.length, 4);
+      // c1 has threat keywords -> bound to might or cunning, targetDC calculated
+      assert.ok(out[0].requiredStatId !== undefined);
+      assert.ok(typeof out[0].targetDC === 'number');
+
+      // c2 has interrogation keywords -> bound to cunning or might, targetDC calculated
+      assert.ok(out[1].requiredStatId !== undefined);
+      assert.ok(typeof out[1].targetDC === 'number');
+
+      // c3 has high risk -> bound to stat, targetDC calculated
+      assert.ok(out[2].requiredStatId !== undefined);
+      assert.ok(typeof out[2].targetDC === 'number');
+
+      // c4 is peaceful routine dialogue -> remains diceless!
+      assert.equal(out[3].requiredStatId, undefined);
+      assert.equal(out[3].targetDC, undefined);
+    });
   });
 
   describe('normalizeExtractedMemories', () => {
