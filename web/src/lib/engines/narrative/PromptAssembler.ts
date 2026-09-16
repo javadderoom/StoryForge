@@ -171,6 +171,10 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 1. All game mechanics (dice rolls, stats, and consequences) are ALREADY pre-resolved deterministically.
 2. You MUST strictly depict the pre-calculated outcome. Do NOT contradict or alter the mechanical result.
 3. Keep the prose focused (between 200 and 350 words). Maintain narrative momentum and visceral tension.
+[CAUSE & EFFECT PRIORITY — IMMEDIATE ACTION RESPONSIVENESS]
+- The prose MUST open with or directly dramatize the protagonist performing the player's specific action and the immediate direct reaction of the world or target NPC.
+- CONVERSATIONAL ACTIONS: If the player spoke, asked, greeted, questioned, or negotiated with someone, the scene MUST feature direct spoken dialogue ("...") from the protagonist and a personal, direct reply or confrontation from the targeted NPC. Never reduce the player's speech to silence or generic ambient crowd noise!
+- NO FLOATING CAMERA SYNDROME: Do NOT open with detached panoramic scenery (weather, distant campfires, tobacco smoke) that ignores what the protagonist just did or said. Action and immediate reaction come first!
 ${statsDirective}
 ${dialogueDirective}
 ${secretGuardDirective}
@@ -196,6 +200,10 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 1. All game mechanics (dice rolls, stats, and consequences) are ALREADY pre-resolved deterministically.
 2. You MUST strictly depict the pre-calculated outcome. Do NOT contradict or alter the mechanical result.
 3. Keep the prose focused (between 200 and 350 words). Maintain narrative momentum and visceral tension.
+[اولویت علت و معلول — پاسخگویی مستقیم به اقدام بازیکن / CAUSE & EFFECT PRIORITY]
+- صحنه باید فوراً با نشان دادن خودِ کنش بازیکن و واکنش بلافاصلهٔ جهان یا شخصیت مقابل آغاز شود یا بر آن متمرکز باشد.
+- اقدامات گفتاری و پرسش: اگر بازیکن سخنی گفت، سؤالی پرسید، سلام کرد یا با کسی وارد مذاکره شد، صحنه حتماً باید شامل دیالوگ مستقیم با علامت «...» باشد که به شکل شخصی و مستقیم به خودِ بازیکن پاسخ می‌دهد (یا با کلام و یا با تهدید/برخورد فیزیکی مشخص). هرگز دیالوگ بازیکن را بی‌پاسخ نگذار و آن را به فریادهای نامربوط در پس‌زمینه تبدیل نکن!
+- منع زاویه دید دوربین معلق: صحنه را با توصیفات کلی و منفعلانه از منظره و دود و آتش‌های دوردست شروع نکن که عمل مشخصِ بازیکن در آن نادیده گرفته شود. اقدام و واکنش در اولویت اول هستند!
 ${statsDirective}
 ${dialogueDirective}
 ${secretGuardDirective}
@@ -247,7 +255,8 @@ You MUST respond with a valid JSON object matching this schema:
           `[PRE-RESOLVED GAME ENGINE OUTCOME]\n` +
           `• Player Action: "${context.resolvedGameOutcome.actionText}"\n` +
           `• Check Result: ${context.resolvedGameOutcome.outcome.toUpperCase()}\n` +
-          `• Consequence: ${context.resolvedGameOutcome.consequence}`
+          `• Consequence: ${context.resolvedGameOutcome.consequence}\n` +
+          `• DIRECTIVE: Immediately open with the protagonist performing this exact action and depict the direct, personal reaction of the target NPC or environment! If speaking or asking a question, use direct dialogue.`
         );
       }
 
@@ -318,7 +327,8 @@ You MUST respond with a valid JSON object matching this schema:
           `[نتیجه محاسباتی موتور بازی / PRE-RESOLVED OUTCOME]\n` +
           `• عمل انجام شده توسط بازیکن: "${context.resolvedGameOutcome.actionText}"\n` +
           `• نتیجه تاس و بررسی: ${context.resolvedGameOutcome.outcome.toUpperCase()}\n` +
-          `• پیامد: ${context.resolvedGameOutcome.consequence}`
+          `• پیامد: ${context.resolvedGameOutcome.consequence}\n` +
+          `• دستور مؤکد روایی: روایت را بلافاصله با انجام همین اقدام توسط قهرمان داستان آغاز کن و واکنش مستقیم، شخصی و عینیِ شخصیت مقابل یا محیط را با دیالوگ مستقیم («...») نشان بده! هرگز صحنه را با توصیفات منفعل پس‌زمینه که این اقدام در آن گم شود پر نکن.`
         );
       }
 

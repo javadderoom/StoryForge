@@ -754,6 +754,61 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  if (session.turnNumber > 1 &&
+                                      session.lastActionText != null &&
+                                      session.lastActionText!.isNotEmpty) ...[
+                                    Container(
+                                      margin: const EdgeInsets.only(bottom: 20),
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: theme.primaryAccent.withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: theme.primaryAccent.withValues(alpha: 0.28),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 2),
+                                            child: Icon(
+                                              Icons.history_edu_rounded,
+                                              size: 16,
+                                              color: theme.primaryAccent,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: RichText(
+                                              text: TextSpan(
+                                                style: isPersian
+                                                    ? GoogleFonts.vazirmatn(fontSize: 12.5, height: 1.5)
+                                                    : GoogleFonts.inter(fontSize: 12.5, height: 1.4),
+                                                children: [
+                                                  TextSpan(
+                                                    text: isPersian ? 'اقدام شما: ' : 'Your Action: ',
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      color: theme.primaryAccent,
+                                                    ),
+                                                  ),
+                                                  TextSpan(
+                                                    text: session.lastActionText!,
+                                                    style: const TextStyle(
+                                                      color: Color(0xFFE2E8F0),
+                                                      fontStyle: FontStyle.italic,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                   NarrativeProse(
                                     text: session.currentNarrative,
                                     isPersian: isPersian,

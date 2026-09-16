@@ -31,6 +31,8 @@ class GameSessionState {
   final List<Map<String, dynamic>> currencyDenominations;
   /// Plan 13: display name of the hazard zone after a displacement turn.
   final String? lastDisplacement;
+  /// The player's most recent choice or custom action text that led to the current scene.
+  final String? lastActionText;
 
   GameSessionState({
     this.isLoading = false,
@@ -53,6 +55,7 @@ class GameSessionState {
     this.rpgStats = const [],
     this.currencyDenominations = const [],
     this.lastDisplacement,
+    this.lastActionText,
   });
 
   bool get isPersian {
@@ -83,9 +86,11 @@ class GameSessionState {
     List<StoryStatSummary>? rpgStats,
     List<Map<String, dynamic>>? currencyDenominations,
     String? lastDisplacement,
+    String? lastActionText,
     bool clearSceneImage = false,
     bool clearPendingTurn = false,
     bool clearDisplacement = false,
+    bool clearLastAction = false,
   }) {
     return GameSessionState(
       isLoading: isLoading ?? this.isLoading,
@@ -110,6 +115,7 @@ class GameSessionState {
           ? null
           : (currentSceneImageUrl ?? this.currentSceneImageUrl),
       lastDisplacement: clearDisplacement ? null : (lastDisplacement ?? this.lastDisplacement),
+      lastActionText: clearLastAction ? null : (lastActionText ?? this.lastActionText),
     );
   }
 
@@ -284,6 +290,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
           state = state.copyWith(
             pendingTurnData: result['data'],
             lastResolution: resolution,
+            lastActionText: choice.text,
             isCreditDepleted: false,
             lastDisplacement: GameSessionState.displacementName(result['data'], state.lore),
             clearDisplacement: GameSessionState.displacementName(result['data'], state.lore) == null,
@@ -308,6 +315,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
             playerState: updatedPlayer,
             lastResolution: resolution,
+            lastActionText: choice.text,
             turnNumber: state.turnNumber + 1,
             isCreditDepleted: false,
             clearPendingTurn: true,
