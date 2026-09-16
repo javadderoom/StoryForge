@@ -18,6 +18,39 @@ function makeEnvelope(overrides: Partial<WorkingContextEnvelope> = {}): WorkingC
   };
 }
 
+describe('PromptAssembler - scene continuity', () => {
+  const statCases: Array<Record<string, number>> = [{}, { might: 10 }];
+  for (const languageDirective of ['en', 'fa'] as const) {
+    for (const stats of statCases) {
+      it(`preserves action scope, witnesses, and choice premises (${languageDirective}, ${Object.keys(stats).length} stats)`, () => {
+        const outcome = {
+          actionText: 'Push through the sentries',
+          outcome: 'success' as const,
+          consequence: 'A narrow opening appears in their line.',
+        };
+        const recentScene = 'Armed sentries block the exit beside the merchant.';
+        const { systemPrompt, userPrompt } = PromptAssembler.buildNarrativePrompt(makeEnvelope({
+          languageDirective,
+          playerStatus: { stats, resources: {}, equippedItems: [] },
+          resolvedGameOutcome: outcome,
+          recentSceneSnippets: [recentScene],
+        }));
+
+        assert.ok(systemPrompt.includes('[SCENE CONTINUITY & CHOICE PREMISES]'));
+        assert.ok(systemPrompt.includes("Resolve only the player's stated action against its actual target"));
+        assert.ok(systemPrompt.includes('Preserve present participants, their positions, and unresolved threats'));
+        assert.ok(systemPrompt.includes("account for witnesses' reactions"));
+        assert.ok(systemPrompt.includes('must not present an unproven premise as fact'));
+        assert.ok(systemPrompt.includes('Do not offer leverage that this scene has already spent'));
+        assert.ok(systemPrompt.includes('without changing the authoritative game outcome'));
+        assert.ok(userPrompt.includes(outcome.actionText));
+        assert.ok(userPrompt.includes(outcome.consequence));
+        assert.ok(userPrompt.includes(recentScene));
+      });
+    }
+  }
+});
+
 describe('PromptAssembler - expanded world context', () => {
   it('injects the authored system prompt into the narrator persona (EN)', () => {
     const env = makeEnvelope({ authoredSystemPrompt: 'Write like a weary chronicler.' });

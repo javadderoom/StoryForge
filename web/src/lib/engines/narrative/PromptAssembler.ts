@@ -194,6 +194,14 @@ export class PromptAssembler {
       ? '6. KNOWLEDGE BOUNDARY: Never expose or offer choices that act upon unrevealed NPC secrets or hidden plot twists. The protagonist only knows what has been explicitly discovered or experienced in the story.'
       : '۶. مرز دانش شخصیت: هرگز در گزینه‌های انتخابی یا روایت، اسرار پنهان و ناگفته شخصیت‌ها را پیش از کشف توسط بازیکن لو نده. انتخاب‌ها باید صرفاً بر اساس دانسته‌ها و شواهد ملموس صحنه باشند.';
 
+    const continuityDirective = `[SCENE CONTINUITY & CHOICE PREMISES]
+- Resolve only the player's stated action against its actual target. Success does not authorize unrelated victories, confessions, or extra player actions beyond the pre-resolved consequence.
+- Preserve present participants, their positions, and unresolved threats from recent prose. Do not silently remove opposition or treat a brief opening as a fully secured scene.
+- Track who can see and hear each action. When a pre-resolved consequence requires a revelation, stage its delivery plausibly and account for witnesses' reactions; do not invent privacy or let nearby adversaries ignore an audible confession.
+- Every choice must be possible at the end of this scene and grounded in facts the protagonist has actually learned. Do not invent profits, motives, ownership, accomplices, or available escape routes from a loosely related clue. Questions may investigate uncertainty, but must not present an unproven premise as fact.
+- Do not offer leverage that this scene has already spent, such as threatening to disclose information to someone who just heard it. Do not ask an NPC to remove an obstacle they do not control.
+- Before returning JSON, check narrative and choices together for action scope, remaining opposition, witness knowledge, and supported premises. Revise contradictions without changing the authoritative game outcome.`;
+
     const systemPrompt = isEnglish
       ? `[ROLE & PERSONA: LITERARY NOVELIST & RPG NARRATIVE DIRECTOR]
 You are the narrative author for an interactive dark RPG novel titled "${context.storyTitle}".
@@ -211,6 +219,7 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 ${statsDirective}
 ${dialogueDirective}
 ${secretGuardDirective}
+${continuityDirective}
 
 [OUTPUT FORMAT]
 You MUST respond with a valid JSON object matching this schema:
@@ -240,6 +249,7 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 ${statsDirective}
 ${dialogueDirective}
 ${secretGuardDirective}
+${continuityDirective}
 
 [OUTPUT FORMAT]
 You MUST respond with a valid JSON object matching this schema:
