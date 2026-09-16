@@ -204,6 +204,7 @@ class _ThreeDChoiceCardState extends State<ThreeDChoiceCard>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Builder(builder: (context) {
+                        if (!widget.choice.requiresRoll) return const SizedBox.shrink();
                         final raw = widget.choice.requiredStatId?.trim() ?? '';
                         final effectiveStatId =
                             raw.isNotEmpty ? raw : (widget.fallbackStatId?.trim() ?? '');

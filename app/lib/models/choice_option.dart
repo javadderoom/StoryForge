@@ -28,4 +28,11 @@ class ChoiceOption {
       targetSceneId: json['targetSceneId'] ?? json['destinationSceneId'],
     );
   }
+
+  /// Whether this choice requires a D20 dice check.
+  /// Routine dialogue, basic movement, and low-stakes actions are diceless.
+  bool get requiresRoll =>
+      requiredStatId != null &&
+      requiredStatId!.trim().isNotEmpty &&
+      targetDC != null;
 }

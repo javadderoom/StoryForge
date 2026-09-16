@@ -129,11 +129,23 @@ export class PromptAssembler {
 
     const statsDirective = validStatIds.length
       ? isEnglish
-        ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Every choice's "requiredStatId" MUST be one of exactly these stat ids: [${validStatIds.join(', ')}] (Authored stats: ${statDescriptors}). ${dcDirective} Ground choices in equipped gear, environmental interactables, and discovered clues. NEVER reveal or base choices on hidden/undiscovered NPC secrets; choices must strictly offer actions based on what the protagonist currently knows and directly observes. Span distinct philosophies (tactical, aggressive, defensive, inquisitive).`
-        : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای و طبیعی ارائه کن. «requiredStatId» هر انتخاب باید دقیقاً یکی از این شناسه‌ها باشد: [${validStatIds.join('، ')}] (نام‌های ویژگی: ${statDescriptors}). ${dcDirective} انتخاب‌ها را بر تجهیزات همراه، عناصر محیطی و سرنخ‌های فاش‌شده استوار کن. هرگز اسرار کشف‌نشده یا پنهان را در گزینه‌ها نیاور و انتخاب‌ها نباید بر پایه رازهای ناگفته شخصیت‌ها باشند. فلسفه‌های متفاوت (تاکتیکی، تهاجمی، تدافعی، کنجکاوانه) را پوشش بده.`
+        ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English.
+- ATOMIC SINGLE-BEAT GRANULARITY: Every choice MUST represent exactly ONE immediate physical or verbal step happening right now. Never chain multiple consecutive actions (e.g. avoid "Action A and Action B and Action C").
+- NO PRE-BAKED OUTCOMES: State ONLY what the character physically does right now. NEVER include the intended outcome, consequence, or motivation in the choice text (e.g. avoid "in order to...", "to find a safe path", "so that..."). The dice roll and narrative director determine the outcome.
+- SELECTIVE DICE CHECKS (DICELESS VS. STAT CHECKS): Not all choices require a dice roll.
+  * Routine actions, normal dialogue questions/responses, and safe exploratory choices must be DICELESS: OMIT "requiredStatId" and OMIT "targetDC" entirely for them.
+  * Only actions involving genuine physical danger, deception, athletic exertion, combat, or high stakes require a dice check. For those, "requiredStatId" MUST be one of: [${validStatIds.join(', ')}] (Authored stats: ${statDescriptors}) and ${dcDirective}
+- GROUNDING: Ground choices in equipped gear, environmental interactables, and discovered clues. NEVER reveal or base choices on hidden/undiscovered NPC secrets. Span distinct philosophies (tactical, aggressive, defensive, inquisitive).`
+        : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای و طبیعی ارائه کن:
+- گام‌های اتمیک و تک‌مرحله‌ای (ATOMIC SINGLE-BEAT): هر انتخاب باید دقیقاً «یک اقدام فیزیکی یا گفتاری فوری» را در همین لحظه بیان کند. هرگز چند اقدام پیاپی را با «و» به هم متصل نکن (از فرمول «کار الف و سپس کار ب و کار ج» اکیداً پرهیز کن).
+- ممنوعیت درج نتیجه در متن انتخاب: متن انتخاب باید صرفاً کنشِ عینی شخصیت باشد، نه هدف یا نتیجهٔ از پیش‌تعیین‌شده (از عباراتی چون «برای اینکه...»، «به منظور فرار...»، «تا مسیر امن را پیدا کند» پرهیز کن). نتیجه و پیامد کار تنها پس از تاس و توسط راوی مشخص می‌شود.
+- بررسی انتخابی تاس (DICELESS در برابر بررسی ویژگی): همهٔ انتخاب‌ها نیازمند تاس نیستند.
+  * گفت‌وگوهای عادی، پرسش از دیگران، حرکات ساده، و وارسی‌های بدون خطر باید بدون تاس (DICELESS) باشند: برای این انتخاب‌ها فیلدهای «requiredStatId» و «targetDC» را اصلاً قرار نده (حذف کن).
+  * تنها اقدامات دارای خطر فیزیکی، فریب‌کاری، نبرد، یا تنش بالا نیازمند تاس هستند؛ برای این دست انتخاب‌ها «requiredStatId» باید یکی از این شناسه‌ها باشد: [${validStatIds.join('، ')}] (نام‌های ویژگی: ${statDescriptors}) و ${dcDirective}
+- زمینه و تجهیزات: انتخاب‌ها را بر تجهیزات، عناصر محیطی و سرنخ‌ها استوار کن. هرگز اسرار کشف‌نشده را لو نده. فلسفه‌های متفاوت (تاکتیکی، تهاجمی، تدافعی، کنجکاوانه) را پوشش بده.`
       : isEnglish
-      ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. ${dcDirective} Ground choices in equipped gear and environmental interactables. NEVER reveal or base choices on hidden NPC secrets; span distinct philosophies (tactical, aggressive, defensive, inquisitive).`
-      : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای طبیعی ارائه کن. ${dcDirective} انتخاب‌ها را بر تجهیزات و محیط استوار کن و هرگز اسرار کشف‌نشده را لو نده.`;
+      ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Keep choices strictly atomic (one single immediate physical/verbal beat) without pre-baked outcomes. Routine dialogue and safe choices must omit "requiredStatId" and "targetDC".`
+      : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای تک‌مرحله‌ای (اتمیک) ارائه کن. از درج نتیجه در متن پرهیز کن و گفت‌وگوها یا اقدامات بی‌خطر را بدون تاس (بدون requiredStatId و targetDC) بگذار.`;
 
     // Plan 13: contextual choice material shared by both language branches.
     const choiceMaterial = [
@@ -168,8 +180,8 @@ You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "Visceral, atmospheric next scene prose in English...",
   "choices": [
-    { "id": "choice_1", "text": "First choice description in English...", "style": "defensive", "riskLevel": "low", "targetDC": ${exampleLowDC}, "requiredStatId": "${validStatIds[0] || 'might'}" },
-    { "id": "choice_2", "text": "Second choice description in English...", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[1] || validStatIds[0] || 'might'}" }
+    { "id": "choice_1", "text": "Ask the sentry about the recent patrol orders", "style": "inquisitive", "riskLevel": "low" },
+    { "id": "choice_2", "text": "Quietly draw the dagger and step behind the granite pillar", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
   ],
   "extractedMemories": [
     { "category": "character", "importance": 7, "summary": "Key discovery about a character in English..." }
@@ -193,8 +205,8 @@ You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "متن ادبی و فضاسازی صحنه بعدی...",
   "choices": [
-    { "id": "choice_1", "text": "متن تصمیم اول...", "style": "defensive", "riskLevel": "low", "targetDC": ${exampleLowDC}, "requiredStatId": "${validStatIds[0] || 'might'}" },
-    { "id": "choice_2", "text": "متن تصمیم دوم...", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[1] || validStatIds[0] || 'might'}" }
+    { "id": "choice_1", "text": "پرسیدن نام نگهبان و مقصد کاروان", "style": "inquisitive", "riskLevel": "low" },
+    { "id": "choice_2", "text": "کشیدن بی‌صدای خنجر و پناه گرفتن پشت ستون سنگی", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
   ],
   "extractedMemories": [
     { "category": "character", "importance": 7, "summary": "کشف رازی مهم در مورد شخصیت..." }

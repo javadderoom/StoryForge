@@ -1,0 +1,46 @@
+group 'ir.cafebazaar.flutter_poolakey'
+version '2.2.0+1.0.0'
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    namespace 'ir.cafebazaar.flutter_poolakey'
+    compileSdkVersion 34
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    defaultConfig {
+        minSdkVersion 21
+        versionCode 2002001000
+        versionName "2.2.0+1.0.0"
+    }
+
+    buildTypes {
+        debug {
+            buildConfigField "String", "POOLAKEY_VERSION", '"2.2.0"'
+        }
+        release {
+            buildConfigField "String", "POOLAKEY_VERSION", '"2.2.0"'
+        }
+    }
+
+    dependencies {
+        implementation "com.github.cafebazaar.Poolakey:poolakey:2.2.0"
+    }
+}

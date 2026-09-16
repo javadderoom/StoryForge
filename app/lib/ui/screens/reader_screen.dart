@@ -128,6 +128,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final session = ref.read(gameSessionProvider);
     final isPersian = session.isPersian;
 
+    if (!choice.requiresRoll) {
+      // Routine dialogue, basic movement, or low-stakes action:
+      // Directly advance the story with smooth page-turn feedback without a dice modal.
+      ref.read(gameSessionProvider.notifier).submitAction(
+        choice,
+        holdNarrativeUpdate: false,
+      );
+      return;
+    }
+
     // 1. Roll D20 on device for instant feedback
     final rolledD20 = Random().nextInt(20) + 1;
 
@@ -779,31 +789,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               ),
                               const SizedBox(height: 14),
                               for (final choice in session.choices) ...[
-                                Builder(builder: (context) {
-                                  // Always show the tested stat: authored requiredStatId
-                                  // first, otherwise the deterministic inference the
-                                  // dice roll itself will use.
-                                  final hasAuthored = choice.requiredStatId != null &&
-                                      choice.requiredStatId!.trim().isNotEmpty;
-                                  final fallbackStatId = hasAuthored
-                                      ? null
-                                      : RpgEngine.inferStatId(
-                                          choice.text,
-                                          choice.riskLevel,
-                                          session.playerState,
-                                        );
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 12),
-                                    child: ThreeDChoiceCard(
-                                      choice: choice,
-                                      theme: theme,
-                                      isPersian: isPersian,
-                                      statsConfig: session.rpgStats,
-                                      fallbackStatId: fallbackStatId,
-                                      onTap: () => _handleAction(choice),
-                                    ),
-                                  );
-                                }),
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: ThreeDChoiceCard(
+                                    choice: choice,
+                                    theme: theme,
+                                    isPersian: isPersian,
+                                    statsConfig: session.rpgStats,
+                                    onTap: () => _handleAction(choice),
+                                  ),
+                                ),
                               ],
 
                               const SizedBox(height: 14),
