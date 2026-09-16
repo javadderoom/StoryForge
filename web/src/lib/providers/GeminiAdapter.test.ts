@@ -130,6 +130,34 @@ describe('Plan 08 - AI Output Normalization (choice & memory guardrails)', () =>
       assert.equal(out[3].requiredStatId, undefined);
       assert.equal(out[3].targetDC, undefined);
     });
+
+    it('ensures tense armed standoff and sentry confrontation choices are never diceless', () => {
+      const out = normalizeChoices(
+        [
+          // Standoff hand on weapon staring at guard
+          { id: 's1', text: 'دست گذاشتن روی دستهٔ شمشیر و نگاه کردن به چشمهای گزمه با خونسردی تمام' },
+          // Cold interrogation of armed checkpoint sentry
+          { id: 's2', text: 'پرسیدن با لحنی سرد از دلیل بسته شدن پل و نام فرماندهٔ این بخش' },
+          // Drawing blade in English
+          { id: 's3', text: 'Rest hand on the hilt of the sword and lock eyes with the sentry' },
+        ],
+        ['might', 'cunning', 'agility'],
+        false
+      );
+
+      assert.equal(out.length, 3);
+      // s1 has weapon standoff -> must have stat check and valid DC
+      assert.ok(out[0].requiredStatId !== undefined, 'Standoff with sword must not be diceless');
+      assert.ok(typeof out[0].targetDC === 'number' && out[0].targetDC! >= 9);
+
+      // s2 confronts sentry & commander -> must have stat check and valid DC
+      assert.ok(out[1].requiredStatId !== undefined, 'Confronting sentry must not be diceless');
+      assert.ok(typeof out[1].targetDC === 'number' && out[1].targetDC! >= 9);
+
+      // s3 English sword hilt sentry standoff -> must not be diceless
+      assert.ok(out[2].requiredStatId !== undefined, 'English sword standoff must not be diceless');
+      assert.ok(typeof out[2].targetDC === 'number' && out[2].targetDC! >= 9);
+    });
   });
 
   describe('normalizeExtractedMemories', () => {

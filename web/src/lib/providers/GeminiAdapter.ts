@@ -129,12 +129,12 @@ export function normalizeChoices(
     // rather than letting it bypass the RPG dice mechanics as diceless.
     if (!requiredStatId && firstStatId) {
       const isConfrontational =
-        /(?:threat|intimidat|interrogat|attack|strike|stab|shoot|cast|dodge|sneak|steal|pickpocket|climb|leap|force|coerce|bribe|deceive|تهدید|ارعاب|بازجویی|حمله|ضربه|خنجر|شلیک|طلسم|جاخالی|پنهان|مخفی|دزدی|جیب‌بری|زور|اجبار|رشوه|دروغ|فریب|جنگ|درگیری|یورش)/i.test(
+        /(?:threat|intimidat|interrogat|attack|strike|stab|shoot|cast|dodge|sneak|steal|pickpocket|climb|leap|force|coerce|bribe|deceive|sword|blade|weapon|spear|shield|sentry|guard|standoff|تهدید|ارعاب|بازجویی|حمله|ضربه|خنجر|شمشیر|سلاح|تیغ|تیغه|نیزه|سپر|شلیک|طلسم|جاخالی|پنهان|مخفی|دزدی|جیب‌بری|زور|اجبار|رشوه|دروغ|فریب|جنگ|درگیری|یورش|گزمه|نگهبان|پاسبان|فرمانده|سرد|تشر)/i.test(
           text
         ) || riskLevel === 'high';
 
       if (isConfrontational) {
-        if (/(?:threat|intimidat|force|تهدید|ارعاب|زور|اجبار|حمله|ضربه|جنگ|یورش)/i.test(text)) {
+        if (/(?:threat|intimidat|force|sword|blade|weapon|spear|shield|تهدید|ارعاب|زور|اجبار|حمله|ضربه|جنگ|یورش|شمشیر|سلاح|تیغ|تیغه|نیزه|سپر)/i.test(text)) {
           requiredStatId =
             resolveStat('might') ||
             resolveStat('strength') ||
@@ -147,7 +147,7 @@ export function normalizeChoices(
             resolveStat('dexterity') ||
             resolveStat('cunning') ||
             firstStatId;
-        } else if (/(?:interrogat|bribe|deceive|lie|بازجویی|رشوه|فریب|دروغ)/i.test(text)) {
+        } else if (/(?:interrogat|bribe|deceive|lie|sentry|guard|standoff|بازجویی|رشوه|فریب|دروغ|گزمه|نگهبان|پاسبان|فرمانده|سرد|تشر)/i.test(text)) {
           requiredStatId =
             resolveStat('cunning') ||
             resolveStat('guile') ||
@@ -305,7 +305,7 @@ export class GeminiAdapter {
       const text = response.text || '{}';
       const parsed = JSON.parse(text);
 
-        const isLowBase = prompt.isLowBase ?? Object.values(prompt.playerStatIds || {}).some((v) => v < 8);
+        const isLowBase = prompt.isLowBase ?? false;
         return {
           narrative:
             typeof parsed.narrative === 'string' && parsed.narrative.trim()

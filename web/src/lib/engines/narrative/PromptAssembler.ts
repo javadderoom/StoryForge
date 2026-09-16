@@ -106,9 +106,11 @@ export class PromptAssembler {
       ? statsDefs.map((s) => `${s.id}${s.name ? ` (${s.name})` : ''}`).join(', ')
       : validStatIds.join(', ');
 
+    // A system is genuinely low-base only if the RPG system's authored baselines across all stats
+    // are low (e.g. a 1-5 or 1-6 indie stat system where base values are < 7).
     const isLowBase = statsDefs.length > 0
-      ? statsDefs.some((s) => (s.baseValue ?? 10) < 8)
-      : Object.values(context.playerStatus?.stats || {}).some((v) => v < 8);
+      ? statsDefs.every((s) => (s.baseValue ?? 10) < 8)
+      : false;
 
     const exampleLowDC = isLowBase ? 7 : 10;
     const exampleMedDC = isLowBase ? 9 : 12;
@@ -121,11 +123,19 @@ export class PromptAssembler {
 
     const dcDirective = isLowBase
       ? isEnglish
-        ? `Difficulty targets (targetDC) for choices MUST be calibrated between 6 and 11 (Low risk: 6-7, Medium risk: 8-9, High risk: 10-11). Because character base attributes are low, avoid DCs above 10 for standard choices so outcomes are not purely luck-dependent.`
-        : `درجه سختی (targetDC) برای انتخاب‌ها باید بین ۶ تا ۱۱ باشد (ساده: ۶-۷، متوسط: ۸-۹، دشوار: ۱۰-۱۱). با توجه به اینکه مقادیر ویژگی‌های پایه پایین است، از درجات سختی بالای ۱۰ برای انتخاب‌های عادی پرهیز کن تا موفقیت وابسته به شانس صرف نباشد.`
+        ? `Difficulty targets (targetDC) for choices MUST be calibrated between 7 and 13 (Low risk: 7-8, Medium risk: 9-11, High risk: 12-13).`
+        : `درجه سختی (targetDC) برای انتخاب‌ها باید بین ۷ تا ۱۳ باشد (ساده: ۷-۸، متوسط: ۹-۱۱، دشوار: ۱۲-۱۳).`
       : isEnglish
-      ? `Difficulty targets (targetDC) for choices MUST be calibrated between 9 and 15 (Low risk: 9-10, Medium risk: 11-13, High risk: 14-15).`
-      : `درجه سختی (targetDC) برای انتخاب‌ها باید بین ۹ تا ۱۵ باشد (ساده: ۹-۱۰، متوسط: ۱۱-۱۳، دشوار: ۱۴-۱۵).`;
+      ? `Difficulty targets (targetDC) for choices MUST realistically match the physical, tactical, and opposition scale:
+- Low risk: 8-10 (standard minor checks, non-adversarial actions).
+- Medium risk: 11-13 (moderate obstacles, cautious guards, standard adventure challenges).
+- High risk: 14-16 (dangerous opposition, alert armed sentries, high-pressure interrogation or deceit).
+- Heroic / Extreme feats: 17-19 (tremendous physical force such as crashing through barricades bare-bodied, dodging point-blank volleys, resisting lethal toxins).`
+      : `درجه سختی (targetDC) برای انتخاب‌ها باید دقیقاً متناسب با دشواری واقعی و مقاومت موانع تعیین شود:
+- ریسک پایین: ۸-۱۰ (اقدامات استاندارد، بدون مقاومت جدی).
+- ریسک متوسط: ۱۱-۱۳ (موانع معمولی، نگهبانان محتاط، چالش‌های معمول ماجراجویی).
+- ریسک بالا: ۱۴-۱۶ (مقاومت جدی، گزمه‌های مسلح و هوشیار، موقعیت‌های پرخطر جسمی یا فریب دشوار).
+- کارهای خارق‌العاده و پرفشار (Extreme / Heroic): ۱۷-۱۹ (اعمال نیروی فیزیکی سهمگین مانند خرد کردن موانع چوبی نظامی با شانه بدون ابزار، جاخالی دادن به تیرهای نزدیک، خلع سلاح در محاصره).`;
 
     const statsDirective = validStatIds.length
       ? isEnglish
@@ -134,20 +144,34 @@ export class PromptAssembler {
 - NO PRE-BAKED OUTCOMES: State ONLY what the character physically does right now. NEVER include the intended outcome, consequence, or motivation in the choice text (e.g. avoid "in order to...", "to find a safe path", "so that..."). The dice roll and narrative director determine the outcome.
 - SELECTIVE DICE CHECKS (DICELESS VS. STAT CHECKS):
   * AT LEAST 2 CHOICES (or the majority of choices) per turn MUST have a stat check ("requiredStatId" and "targetDC") so the RPG system and dice rolls remain engaging.
+  * HIGH TENSION & CONFRONTATION RULE (NO DICELESS IN STANDOFFS):
+    When the current scene involves an active armed confrontation, standoff, combat, pursuit, or life-or-death tension (e.g. sentries with drawn swords, shouting threats, weapons readied):
+    EVERY choice carries peril and MUST have a stat check ("requiredStatId" and "targetDC").
+    DO NOT provide ANY diceless choices in hostile or standoff situations!
+    Seemingly calm actions in a standoff are NOT safe: staring down an armed guard with a hand on a weapon is Intimidation/Presence (stat check); questioning an enraged sentry who is threatening to kill you is Persuasion/De-escalation (stat check).
   * HIGH-STAKES, ADVERSARIAL & SOCIAL CONFLICT CHOICES ALWAYS REQUIRE A STAT CHECK: Any action involving threats, intimidation, aggressive interrogation of sentries/guards, coercion, deception, lying, bribery, stealth, combat, physical force, or persuading suspicious figures MUST include "requiredStatId" (one of: [${validStatIds.join(', ')}], Authored stats: ${statDescriptors}) and ${dcDirective}. NEVER make threats, intimidation, or interrogation diceless!
-  * DICELESS IS STRICTLY FOR SAFE, PEACEFUL ACTIONS: Only truly peaceful, safe, and low-stakes actions (e.g. asking a calm question to an ally/vendor, quietly observing surroundings, resting, or examining an obvious safe object) must omit "requiredStatId" and "targetDC".
+  * DICELESS IS STRICTLY FOR SAFE, PEACEFUL ACTIONS: Only truly peaceful, safe, and low-stakes actions (e.g. asking a calm question to an ally/vendor in a calm inn, quietly observing safe surroundings, resting, or examining an obvious safe object) must omit "requiredStatId" and "targetDC".
+- GROUNDED PHYSICAL REALISM & DC CALIBRATION:
+  * Never offer cartoonish brute-force solutions (e.g., shattering fortified military barriers without tools) as low-difficulty casual options. If an extraordinary physical feat is offered, its DC must be realistically high (15-18), requiring real effort and carrying genuine consequences on failure.
 - GROUNDING: Ground choices in equipped gear, environmental interactables, and discovered clues. NEVER reveal or base choices on hidden/undiscovered NPC secrets. Span distinct philosophies (tactical, aggressive, defensive, inquisitive).`
         : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای و طبیعی ارائه کن:
 - گام‌های اتمیک و تک‌مرحله‌ای (ATOMIC SINGLE-BEAT): هر انتخاب باید دقیقاً «یک اقدام فیزیکی یا گفتاری فوری» را در همین لحظه بیان کند. هرگز چند اقدام پیاپی را با «و» به هم متصل نکن (از فرمول «کار الف و سپس کار ب و کار ج» اکیداً پرهیز کن).
 - ممنوعیت درج نتیجه در متن انتخاب: متن انتخاب باید صرفاً کنشِ عینی شخصیت باشد، نه هدف یا نتیجهٔ از پیش‌تعیین‌شده (از عباراتی چون «برای اینکه...»، «به منظور فرار...»، «تا مسیر امن را پیدا کند» پرهیز کن). نتیجه و پیامد کار تنها پس از تاس و توسط راوی مشخص می‌شود.
 - بررسی انتخابی تاس (DICELESS در برابر بررسی ویژگی):
   * حداقل ۲ انتخاب (یا اکثریت گزینه‌ها) در هر نوبت حتماً باید دارای بررسی ویژگی و درجه سختی («requiredStatId» و «targetDC») باشند تا هیجان بازی و مکانیک‌های تاس زنده بماند.
+  * موقعیت‌های پرتنش و مواجهه با دشمن (ممنوعیت کامل گزینه‌های بدون تاس در تنش بالا):
+    هنگامی که صحنه در شرایط تعارض مسلحانه، تنش بالا، ایست‌بازرسی خصمانه، نبرد یا تعقیب است (مانند کشیده شدن شمشیرها، فریادهای تهدیدآمیز گزمه‌ها، محاصره):
+    تک‌تک گزینه‌ها دارای خطر هستند و اکیداً باید دارای بررسی ویژگی و درجه سختی («requiredStatId» و «targetDC») باشند.
+    در شرایط درگیری و بن‌بست مسلحانه، قرار دادن هرگونه گزینهٔ بدون تاس (DICELESS) اکیداً ممنوع است!
+    در چنین تنشی، حتی رفتارهای به ظاهر خونسردانه هم بی‌خطر نیستند: دست گذاشتن روی شمشیر در برابر گزمه یعنی ارعاب و ایستادگی روانی (تاس نیرو یا حضور ذهن)؛ سؤال پرسیدن از گزمه‌ای که شمشیر کشیده و تهدید به مرگ می‌کند یعنی اقناع و خواباندن غائله (تاس هوش، کاریزما یا حیله‌گری).
   * اقدامات پرریسک، تعارضی و تنش‌زا حتماً نیازمند تاس هستند: هرگونه تهدید، ارعاب، بازجویی از نگهبانان/گزمه‌ها با لحن تند، اجبار، فریب، دروغ‌گویی، رشوه، مخفی‌کاری، نبرد، زورآزمایی، یا اقناع افراد مشکوک اکیداً باید دارای «requiredStatId» (از بین: [${validStatIds.join('، ')}] با نام‌های: ${statDescriptors}) و ${dcDirective} باشد. هرگز تهدید، بازجویی و اقدامات پرخاشگرانه را بدون تاس (DICELESS) نگذار!
   * حالت بدون تاس (DICELESS) صرفاً مختص اقدامات کاملاً بی‌خطر و آرام است: فقط گفت‌وگوهای عادی و مسالمت‌آمیز با یاران یا فروشندگان، استراحت، بررسی آرام محیط امن، یا پیگیری عادی مسیر می‌توانند بدون تاس باشند (فاقد requiredStatId و targetDC).
+- واقع‌گرایی فیزیکی و تناسب اعمال:
+  * کارهای محیرالعقول یا تلاش‌های فیزیکی سنگین (مانند درهم شکستن یک‌تنهٔ موانع و سدهای سنگین نظامی با شانه) را به عنوان گزینه‌های ساده یا کم‌دردسر ارائه نده. اگر چنین گزینه‌ای ارائه می‌شود، درجه سختی آن باید واقع‌گرایانه و بالا (۱۵ تا ۱۸) باشد تا موفقیت آن بدون ریسک و پیش‌پاافتاده نباشد.
 - زمینه و تجهیزات: انتخاب‌ها را بر تجهیزات، عناصر محیطی و سرنخ‌ها استوار کن. هرگز اسرار کشف‌نشده را لو نده. فلسفه‌های متفاوت (تاکتیکی، تهاجمی، تدافعی، کنجکاوانه) را پوشش بده.`
       : isEnglish
-      ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Keep choices strictly atomic without pre-baked outcomes. Threats, interrogation, and risky actions must have a stat check and DC; only safe, peaceful actions omit them.`
-      : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای تک‌مرحله‌ای (اتمیک) ارائه کن. اقدامات ریسک‌دار، تهدید و بازجویی حتماً باید دارای بررسی ویژگی و سختی باشند؛ فقط اقدامات مسالمت‌آمیز و بی‌خطر می‌توانند بدون تاس باشند.`;
+      ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Keep choices strictly atomic without pre-baked outcomes. In tense standoffs or conflicts, all choices must have a stat check and DC.`
+      : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای تک‌مرحله‌ای (اتمیک) ارائه کن. در شرایط درگیری، بن‌بست مسلحانه یا تنش با دشمنان، تمام گزینه‌ها باید دارای بررسی ویژگی و درجه سختی باشند.`;
 
     // Plan 13: contextual choice material shared by both language branches.
     const choiceMaterial = [
