@@ -151,8 +151,11 @@ export class PromptAssembler {
     Seemingly calm actions in a standoff are NOT safe: staring down an armed guard with a hand on a weapon is Intimidation/Presence (stat check); questioning an enraged sentry who is threatening to kill you is Persuasion/De-escalation (stat check).
   * HIGH-STAKES, ADVERSARIAL & SOCIAL CONFLICT CHOICES ALWAYS REQUIRE A STAT CHECK: Any action involving threats, intimidation, aggressive interrogation of sentries/guards, coercion, deception, lying, bribery, stealth, combat, physical force, or persuading suspicious figures MUST include "requiredStatId" (one of: [${validStatIds.join(', ')}], Authored stats: ${statDescriptors}) and ${dcDirective}. NEVER make threats, intimidation, or interrogation diceless!
   * DICELESS IS STRICTLY FOR SAFE, PEACEFUL ACTIONS: Only truly peaceful, safe, and low-stakes actions (e.g. asking a calm question to an ally/vendor in a calm inn, quietly observing safe surroundings, resting, or examining an obvious safe object) must omit "requiredStatId" and "targetDC".
-- GROUNDED PHYSICAL REALISM & DC CALIBRATION:
-  * Never offer cartoonish brute-force solutions (e.g., shattering fortified military barriers without tools) as low-difficulty casual options. If an extraordinary physical feat is offered, its DC must be realistically high (15-18), requiring real effort and carrying genuine consequences on failure.
+- DYNAMIC CAPABILITY & PROGRESSION SCALING:
+  * Calibrate the physical, tactical, and magical scale of choices to the protagonist's actual attributes, gear, and abilities shown in [PROTAGONIST STATUS & CAPABILITIES]:
+    - Mortal / Starting Tier (attributes under 10, mundane gear): The character is an ordinary mortal. Keep choices physically grounded, tactical, and plausible (using tools, stealth, environment, or social wits). Do NOT offer effortless superheroic brute force (e.g. shattering fortified barricades bare-bodied).
+    - Heroic / Superhuman Tier (attributes 12+, 16+, 20+, enchanted relics, powerful spells, or mythic world scope): The character has grown beyond ordinary limits! Dynamically unlock larger-than-life, heroic, magical, or superhuman feats that match their high attributes and magical gear.
+  * Appropriate DC Matching: Truly extreme or superhuman feats carry commensurate DCs (14-18) so that high attributes or legendary gear are what make them achievable and rewarding.
 - GROUNDING: Ground choices in equipped gear, environmental interactables, and discovered clues. NEVER reveal or base choices on hidden/undiscovered NPC secrets. Span distinct philosophies (tactical, aggressive, defensive, inquisitive).`
         : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای و طبیعی ارائه کن:
 - گام‌های اتمیک و تک‌مرحله‌ای (ATOMIC SINGLE-BEAT): هر انتخاب باید دقیقاً «یک اقدام فیزیکی یا گفتاری فوری» را در همین لحظه بیان کند. هرگز چند اقدام پیاپی را با «و» به هم متصل نکن (از فرمول «کار الف و سپس کار ب و کار ج» اکیداً پرهیز کن).
@@ -166,8 +169,11 @@ export class PromptAssembler {
     در چنین تنشی، حتی رفتارهای به ظاهر خونسردانه هم بی‌خطر نیستند: دست گذاشتن روی شمشیر در برابر گزمه یعنی ارعاب و ایستادگی روانی (تاس نیرو یا حضور ذهن)؛ سؤال پرسیدن از گزمه‌ای که شمشیر کشیده و تهدید به مرگ می‌کند یعنی اقناع و خواباندن غائله (تاس هوش، کاریزما یا حیله‌گری).
   * اقدامات پرریسک، تعارضی و تنش‌زا حتماً نیازمند تاس هستند: هرگونه تهدید، ارعاب، بازجویی از نگهبانان/گزمه‌ها با لحن تند، اجبار، فریب، دروغ‌گویی، رشوه، مخفی‌کاری، نبرد، زورآزمایی، یا اقناع افراد مشکوک اکیداً باید دارای «requiredStatId» (از بین: [${validStatIds.join('، ')}] با نام‌های: ${statDescriptors}) و ${dcDirective} باشد. هرگز تهدید، بازجویی و اقدامات پرخاشگرانه را بدون تاس (DICELESS) نگذار!
   * حالت بدون تاس (DICELESS) صرفاً مختص اقدامات کاملاً بی‌خطر و آرام است: فقط گفت‌وگوهای عادی و مسالمت‌آمیز با یاران یا فروشندگان، استراحت، بررسی آرام محیط امن، یا پیگیری عادی مسیر می‌توانند بدون تاس باشند (فاقد requiredStatId و targetDC).
-- واقع‌گرایی فیزیکی و تناسب اعمال:
-  * کارهای محیرالعقول یا تلاش‌های فیزیکی سنگین (مانند درهم شکستن یک‌تنهٔ موانع و سدهای سنگین نظامی با شانه) را به عنوان گزینه‌های ساده یا کم‌دردسر ارائه نده. اگر چنین گزینه‌ای ارائه می‌شود، درجه سختی آن باید واقع‌گرایانه و بالا (۱۵ تا ۱۸) باشد تا موفقیت آن بدون ریسک و پیش‌پاافتاده نباشد.
+- مقیاس‌پذیری پویا بر اساس قدرت و پیشرفت شخصیت (DYNAMIC CAPABILITY SCALING):
+  * مقیاس گزینه‌ها را با صفات، تجهیزات و توانمندی‌های فعلی قهرمان (مشخص‌شده در بخش وضعیت قهرمان) هماهنگ کن:
+    - سطح فانی و آغاز بازی (ویژگی‌های زیر ۱۰ و ابزارهای معمولی): شخصیت هنوز یک انسان عادی و آسیب‌پذیر است. گزینه‌ها باید واقع‌گرایانه، تاکتیکی و هوشمندانه باشند (استفاده از اهرم‌ها، مخفی‌کاری، ترفندها یا ضعف‌های محیطی). کارهای ابرقهرمانی بی‌دلیل (مانند خرد کردن موانع سنگین با شانهٔ خالی) را به عنوان گزینه عادی پیشنهاد نده.
+    - سطح قهرمانی و فراانسانی (ویژگی‌های ۱۲، ۱۶، ۲۰ به بالا، ابزارها و سلاح‌های جادویی، طلسم‌های قوی، یا جهان‌های حماسی): با رشد و پیشرفت شخصیت، این محدودیت‌ها برداشته می‌شوند! با ارتقای ویژگی‌ها و دستیابی به یادگارهای کهن، اعمال حماسی، ماوراءطبیعی و فراانسانیِ متناسب با قدرت جدید قهرمان را در گزینه‌ها آزاد و پیشنهاد کن.
+  * تناسب درجه سختی (DC): اعمال بسیار سنگین یا فراانسانی سختی متناسب (۱۴ تا ۱۸) دارند تا بازیکن با داشتن ویژگی‌های بالا و تجهیزات برتر طعم غلبه بر چالش‌های ناممکن اولیه را بچشد.
 - زمینه و تجهیزات: انتخاب‌ها را بر تجهیزات، عناصر محیطی و سرنخ‌ها استوار کن. هرگز اسرار کشف‌نشده را لو نده. فلسفه‌های متفاوت (تاکتیکی، تهاجمی، تدافعی، کنجکاوانه) را پوشش بده.`
       : isEnglish
       ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Keep choices strictly atomic without pre-baked outcomes. In tense standoffs or conflicts, all choices must have a stat check and DC.`
@@ -247,6 +253,61 @@ You MUST respond with a valid JSON object matching this schema:
   ]
 }`;
 
+    // Build Protagonist Status & Capabilities block
+    const playerStats = context.playerStatus?.stats || {};
+    const playerResources = context.playerStatus?.resources || {};
+    const playerEquipped = context.playerStatus?.equippedItems || [];
+
+    const statsLineEn = Object.entries(playerStats)
+      .map(([id, val]) => {
+        const def = statsDefs.find((s) => s.id?.toLowerCase() === id.toLowerCase());
+        const label = def?.nameEn || def?.name || id;
+        return `${label}: ${val}`;
+      })
+      .join(', ');
+
+    const statsLineFa = Object.entries(playerStats)
+      .map(([id, val]) => {
+        const def = statsDefs.find((s) => s.id?.toLowerCase() === id.toLowerCase());
+        const label = def?.nameFa || def?.name || id;
+        return `${label}: ${val}`;
+      })
+      .join('، ');
+
+    const resourcesLine = Object.entries(playerResources)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(', ');
+
+    const enProtagonistBlock = (statsLineEn || resourcesLine || playerEquipped.length)
+      ? [
+          '[PROTAGONIST STATUS & CAPABILITIES]',
+          context.playerStatus?.characterName
+            ? `• Name: ${context.playerStatus.characterName}${context.playerStatus.archetypeName ? ` (${context.playerStatus.archetypeName})` : ''}`
+            : '',
+          statsLineEn ? `• Attributes: ${statsLineEn}` : '',
+          resourcesLine ? `• Vitals: ${resourcesLine}` : '',
+          playerEquipped.length ? `• Equipped / Carried Gear: ${playerEquipped.join(', ')}` : '',
+          context.playerStatus?.abilities?.length ? `• Known Abilities / Spells: ${context.playerStatus.abilities.join(', ')}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n')
+      : '';
+
+    const faProtagonistBlock = (statsLineFa || resourcesLine || playerEquipped.length)
+      ? [
+          '[وضعیت و توانمندی‌های قهرمان داستان / PROTAGONIST STATUS]',
+          context.playerStatus?.characterName
+            ? `• نام: ${context.playerStatus.characterName}${context.playerStatus.archetypeName ? ` (${context.playerStatus.archetypeName})` : ''}`
+            : '',
+          statsLineFa ? `• ویژگی‌ها و صفات: ${statsLineFa}` : '',
+          resourcesLine ? `• منابع و وضعیت حیاتی: ${resourcesLine}` : '',
+          playerEquipped.length ? `• تجهیزات و اشیاء همراه: ${playerEquipped.join('، ')}` : '',
+          context.playerStatus?.abilities?.length ? `• توانایی‌ها و جادوهای فعال: ${context.playerStatus.abilities.join('، ')}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n')
+      : '';
+
     // Build the user prompt context envelope
     const parts: string[] = [];
 
@@ -257,6 +318,10 @@ You MUST respond with a valid JSON object matching this schema:
       }
 
       parts.push(...worldBlock);
+
+      if (enProtagonistBlock) {
+        parts.push(enProtagonistBlock);
+      }
 
       parts.push(
         `[CURRENT LOCATION: ${context.currentLocationName}]\nDescription: ${context.currentLocationDescription}`
@@ -329,6 +394,10 @@ You MUST respond with a valid JSON object matching this schema:
       }
 
       parts.push(...worldBlock);
+
+      if (faProtagonistBlock) {
+        parts.push(faProtagonistBlock);
+      }
 
       parts.push(
         `[موقعیت مکانی فعلی / CURRENT LOCATION: ${context.currentLocationName}]\nتوضیحات: ${context.currentLocationDescription}`

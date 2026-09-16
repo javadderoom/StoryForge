@@ -550,6 +550,9 @@ export async function POST(req: NextRequest) {
         stats: updatedPlayerState.stats,
         resources: updatedPlayerState.resources,
         equippedItems: updatedPlayerState.inventory.map((i) => i.name),
+        characterName: updatedPlayerState.characterName,
+        archetypeName: updatedPlayerState.archetypeName,
+        abilities: updatedPlayerState.abilities,
       },
       statsConfig: story.rpgSystem?.stats,
       resolvedGameOutcome: {
