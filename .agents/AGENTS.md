@@ -36,9 +36,9 @@
 - **No Hardcoded/Fallback Data for Database Entities**: If an entity, field, or collection exists in the database or is designed to exist in the database (e.g., stories, archetypes, backgrounds, stats, lore, items, factions, locations), **NEVER** write fallback or hardcoded mock/dummy data for it inside application code or repository layers.
 - If data is missing or empty in the database, return empty collections or let the UI handle empty states cleanly. Data must always originate from the database/API, never from in-code fallbacks.
 
-## Git Commit & Push Rule
-- **Commit & Push at Completion**: Whenever code changes, feature implementations, bug fixes, or requested modifications are completed at the end of a turn/conversation, ALWAYS stage all relevant changes (`git add`), write a clear and concise conventional commit message (`git commit -m "..."`), and push to the remote repository (`git push`).
-- Never leave completed work uncommitted or unpushed.
+## Git Commit Rule (No Auto-Push)
+- **Commit at Completion**: Whenever code changes, feature implementations, bug fixes, or requested modifications are completed at the end of a turn/conversation, ALWAYS stage all relevant changes (`git add`) and write a clear, concise conventional commit message (`git commit -m "..."`).
+- **NEVER automatically run `git push`**: Do NOT automatically push commits to the remote repository. Always remind/inform the user that changes have been committed locally and tell them to push when ready.
 
 
 
