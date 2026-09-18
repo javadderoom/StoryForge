@@ -152,7 +152,7 @@ describe('Tier 3 Layer A — evaluateRawScene', () => {
         { id: 'a', text: 'Push through the line', style: 'aggressive', riskLevel: 'high', requiredStatId: 'might', targetDC: 12 },
       ]),
       {
-        expectations: { lowBaseDcBand: { low: [7, 8], medium: [9, 10], high: [11, 12] } },
+        expectations: { minChoices: 1, lowBaseDcBand: { low: [7, 8], medium: [9, 10], high: [11, 12] } },
         validStatIds: STATS,
         isEnglish: true,
         isLowBase: true,
@@ -165,7 +165,7 @@ describe('Tier 3 Layer A — evaluateRawScene', () => {
         { id: 'a', text: 'Push through the line', style: 'aggressive', riskLevel: 'high', requiredStatId: 'might', targetDC: 15 },
       ]),
       {
-        expectations: { lowBaseDcBand: { low: [7, 8], medium: [9, 10], high: [11, 12] } },
+        expectations: { minChoices: 1, lowBaseDcBand: { low: [7, 8], medium: [9, 10], high: [11, 12] } },
         validStatIds: STATS,
         isEnglish: true,
         isLowBase: true,

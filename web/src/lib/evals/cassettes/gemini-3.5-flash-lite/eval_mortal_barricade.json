@@ -1,0 +1,34 @@
+{
+  "narrative": "You lurch forward, throwing your shoulder against the salted pine timbers of the gate, but the barricade does not yield an inch. The damp wood smells of old resin and cold sweat, meeting your desperate push with unyielding, stubborn density. You bounce back, stumbling slightly on the frosty cobbles. A grizzled sergeant standing atop the watch-platform lets out a dry, hacking laugh, leaning his heavy crossbow against the rampart. He looks down at you with heavy-lidded contempt, shaking his head. \"You think we open these massive gates for every stray beggar with a bruised shoulder?\" he barks, his voice grating like iron on stone. Yet, as the laughter dies away among the surrounding guards, a momentary lapse in their formation occurs. The soldier on the left flank shifts his weight, turning his head to spit into the trench, leaving a narrow, unguarded sliver of space between the reinforced timber post and the frost-crusted stone pier.",
+  "choices": [
+    {
+      "id": "choice_1",
+      "text": "Squeeze through the momentary gap in the guard's formation",
+      "style": "tactical",
+      "riskLevel": "medium",
+      "targetDC": 12,
+      "requiredStatId": "agility"
+    },
+    {
+      "id": "choice_2",
+      "text": "\"My business inside concerns the captain directly.\"",
+      "style": "inquisitive",
+      "riskLevel": "high",
+      "targetDC": 14,
+      "requiredStatId": "charisma"
+    },
+    {
+      "id": "choice_3",
+      "text": "Press your back against the damp stone wall to wait for another opening",
+      "style": "defensive",
+      "riskLevel": "low"
+    }
+  ],
+  "extractedMemories": [
+    {
+      "category": "environment",
+      "importance": 5,
+      "summary": "The main timber gate is heavily fortified, but a brief lapse in the guard's attention left a narrow gap by the stone pier."
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "narrative": "You step deliberately into the yawning maw of the Drowned Corridor, your boots plunging through the black surface. The water instantly surges upward, swirling ice-cold around your knees and dragging heavy at your shins with every inch gained. The rusted iron grating beneath your tread groans under the sudden shift in weight. Up ahead, where the flickering torchlight dies against slick, vaulted stone, a sudden, heavy splash echoes through the confined vault. Something massive shifts in the dark, sending a violent ripple across the stagnant water straight toward your position.",
+  "choices": [
+    {
+      "id": "choice_1",
+      "text": "Raise your weapon and demand whatever is hiding in the dark to show itself",
+      "style": "aggressive",
+      "riskLevel": "medium",
+      "targetDC": 12,
+      "requiredStatId": "charisma"
+    },
+    {
+      "id": "choice_2",
+      "text": "Press your back flat against the dripping stone wall and wait in silence",
+      "style": "tactical",
+      "riskLevel": "low",
+      "targetDC": 10,
+      "requiredStatId": "agility"
+    },
+    {
+      "id": "choice_3",
+      "text": "Dash forward through the freezing water to close the distance before it attacks",
+      "style": "aggressive",
+      "riskLevel": "high",
+      "targetDC": 14,
+      "requiredStatId": "might"
+    }
+  ],
+  "extractedMemories": [
+    {
+      "category": "environment",
+      "importance": 6,
+      "summary": "Entered the Drowned Corridor; knee-deep water limits movement and an unseen creature lurks ahead."
+    }
+  ]
+}

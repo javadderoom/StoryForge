@@ -1,0 +1,36 @@
+{
+  "narrative": "Thick oak groans, then shatters with a thunderous detonation of timber as armored shoulders strike the barricade. Iron-shod splinters erupt like shrapnel across the cobblestones. The Gauntlets of the Dawn-Titan hum with residual solar heat, searing the splintered grain where massive fists tore the gate apart from its iron hinges. Drilled soldiers tumble backward, scrambling over one another in a panic as dust and pulverized bark choke the damp air. The sergeant, his face pale beneath a battered nasal helm, stumbles to his feet and levels a notched shortsword with a trembling hand. \"Hold the breach! By the Iron Gate, don't let the beast through!\" he screams, spitting blood and rallying three remaining piked guards who rush forward to form a bristling wall of steel against the settling ruin.",
+  "choices": [
+    {
+      "id": "choice_1",
+      "text": "Ramslam through the advancing pikemen with absolute brute force",
+      "style": "aggressive",
+      "riskLevel": "high",
+      "targetDC": 14,
+      "requiredStatId": "might"
+    },
+    {
+      "id": "choice_2",
+      "text": "Leap over the collapsing debris to flank the trembling sergeant",
+      "style": "tactical",
+      "riskLevel": "medium",
+      "targetDC": 12,
+      "requiredStatId": "agility"
+    },
+    {
+      "id": "choice_3",
+      "text": "Deafen the guards with a terrifying roar channeled through the gauntlets",
+      "style": "heroic",
+      "riskLevel": "heroic",
+      "targetDC": 15,
+      "requiredStatId": "charisma"
+    }
+  ],
+  "extractedMemories": [
+    {
+      "category": "event",
+      "importance": 9,
+      "summary": "Smashed through the military gate's primary timber barricade using the Gauntlets of the Dawn-Titan, scattering the defending garrison."
+    }
+  ]
+}

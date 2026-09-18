@@ -1,0 +1,36 @@
+{
+  "narrative": "Your fingers close over the leather drawstring, but the merchant's thick wrist snaps down like a bear trap, pinning your hand hard against his hip. \"Thief! By the Maker, a cutpurse in broad daylight!\" he shrieks, his face blooming into a furious, congested purple as he shoves you backward into the crowded stalls. Two armored city watchmen, their copper plates clinking sharply against their breastplates, whip around at the alarm. Their hands instinctively drop to the pommels of heavy iron shortswords as they push through the panicked, scattering citizenry, eyes locking directly onto your trapped posture.",
+  "choices": [
+    {
+      "id": "choice_1",
+      "text": "Lunge toward the narrow alleyway between the spice racks",
+      "style": "tactical",
+      "riskLevel": "high",
+      "targetDC": 14,
+      "requiredStatId": "agility"
+    },
+    {
+      "id": "choice_2",
+      "text": "Draw your concealed blade to carve a path through the closing guards",
+      "style": "aggressive",
+      "riskLevel": "high",
+      "targetDC": 15,
+      "requiredStatId": "might"
+    },
+    {
+      "id": "choice_3",
+      "text": "Point frantically at a fleeing urchin and shout accusations of framing",
+      "style": "deceptive",
+      "riskLevel": "high",
+      "targetDC": 14,
+      "requiredStatId": "charisma"
+    }
+  ],
+  "extractedMemories": [
+    {
+      "category": "event",
+      "importance": 9,
+      "summary": "Attempted to pick a merchant's pocket in the Gilded Market, resulting in a critical failure and alerting the city watchmen."
+    }
+  ]
+}

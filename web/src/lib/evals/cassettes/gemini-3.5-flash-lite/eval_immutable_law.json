@@ -1,0 +1,36 @@
+{
+  "narrative": "Heavy iron-shod boots cross the threshold, your shoulders passing beneath the carved stone edict of the Silent Charter. The air within Charter Hall tastes of aged tallow and cold river-damp, thick with the silent judgment of the Order. Enforcer Vahl stands beside the brazier, his mail coat catching the sullen amber glare. He does not turn his head as you approach, yet his gloved hand rests deliberately upon the pommel of his broadsword. His flat, watchful eyes slide sideways to fix upon your face.\n\n\"State your business within the Charter's pale, traveler,\" Vahl says, his voice carrying the rasp of dry parchment.",
+  "choices": [
+    {
+      "id": "choice_1",
+      "text": "\"I carry a sealed inquiry regarding the harbor wardens.\"",
+      "style": "inquisitive",
+      "riskLevel": "medium",
+      "targetDC": 11,
+      "requiredStatId": "charisma"
+    },
+    {
+      "id": "choice_2",
+      "text": "Stare down the enforcer without speaking.",
+      "style": "aggressive",
+      "riskLevel": "high",
+      "targetDC": 14,
+      "requiredStatId": "might"
+    },
+    {
+      "id": "choice_3",
+      "text": "Step past him toward the inner corridor while keeping your hands visible.",
+      "style": "tactical",
+      "riskLevel": "high",
+      "targetDC": 15,
+      "requiredStatId": "agility"
+    }
+  ],
+  "extractedMemories": [
+    {
+      "category": "character",
+      "importance": 7,
+      "summary": "Enforcer Vahl monitors the Charter Hall entrance with immediate hostility and a hand resting on his sword pommel."
+    }
+  ]
+}

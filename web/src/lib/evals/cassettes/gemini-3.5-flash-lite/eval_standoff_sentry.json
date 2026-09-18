@@ -1,25 +1,25 @@
 {
-  "narrative": "You step past the threshold of the narrow stone bridge, your boots scraping against the frost-bitten masonry. Before you can utter a word, the Sentry Captain lunges forward, the ashwood shaft of his spear slamming into the cobblestones a mere breath away from your chest. Cold iron gleams in the grey morning light, held steady by trembling, battle-hardened hands. The captain narrows his eyes, his breath pluming into white vapor as he leans in close, his voice a gravelly rasp. \"Name and business, traveler,\" he barks, the tip of his weapon pressing just hard enough against your coat to test your nerve. The other guards lock their grips on their longspears, forming an impenetrable wall of steel across the Ashen Bridge.",
+  "narrative": "You step forward onto the frost-rimed flags of the Ashen Bridge, boots crunching against the grey grit. The iron-tipped shafts of the sentry-guard drop instantly, forming a rigid fence of ash-wood and gleaming steel that blocks the span. The Sentry Captain pushes past the barrier, his heavy greaves ringing sharply against the stone. He steps directly into your personal space, the reek of cheap pipeweed and damp leather rolling off his breastplate. With a gauntleted hand, he shoves you back a half-pace by the shoulder, his voice dropping into a harsh, grating rasp.\n\n\"You walk slow for a man with no blood on his boots,\" the captain snarls, his hand resting deliberately on the pommel of a notched broadsword at his hip. The other guards lock their eyes upon you, their knuckles whitening around their spears. \"State your business in the grey ward before I have these lads throw your carcass into the gorge.\"",
   "choices": [
     {
       "id": "choice_1",
-      "text": "\"My name is of no concern to you, captain; I merely cross the bridge.\"",
-      "style": "aggressive",
+      "text": "Give a false name and claim you are a merchant seeking shelter from the fog",
+      "style": "deceptive",
       "riskLevel": "high",
       "targetDC": 14,
-      "requiredStatId": "charisma"
-    },
-    {
-      "id": "choice_2",
-      "text": "Slowly reach into your coat toward a pouch of hidden coin",
-      "style": "tactical",
-      "riskLevel": "high",
-      "targetDC": 15,
       "requiredStatId": "cunning"
     },
     {
+      "id": "choice_2",
+      "text": "Glare back at the captain and place a hand firmly over the hilt of your weapon",
+      "style": "aggressive",
+      "riskLevel": "high",
+      "targetDC": 14,
+      "requiredStatId": "might"
+    },
+    {
       "id": "choice_3",
-      "text": "\"I am a traveler from the lowlands, seeking safe passage north.\"",
+      "text": "Step away from the spear-tips and ask which commander currently holds the gate",
       "style": "inquisitive",
       "riskLevel": "medium",
       "targetDC": 12,
@@ -27,18 +27,18 @@
     },
     {
       "id": "choice_4",
-      "text": "Shift your weight onto your back foot and prepare to deflect the spear-tip",
-      "style": "defensive",
+      "text": "Drop into a low stance and eye the space between the sentry's legs for a sudden sprint",
+      "style": "tactical",
       "riskLevel": "high",
-      "targetDC": 14,
+      "targetDC": 15,
       "requiredStatId": "agility"
     }
   ],
   "extractedMemories": [
     {
-      "category": "encounter",
+      "category": "character",
       "importance": 7,
-      "summary": "Halted at spear-point on the Ashen Bridge by a hostile Sentry Captain demanding identity."
+      "summary": "The Sentry Captain at the Ashen Bridge is hostile, suspicious, and currently blocks the gate."
     }
   ]
 }

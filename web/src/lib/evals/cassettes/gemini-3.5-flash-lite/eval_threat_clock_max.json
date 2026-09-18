@@ -1,0 +1,36 @@
+{
+  "narrative": "You push across the torchlit flags of the courtyard just as the iron teeth of the portcullis shriek downward into the stone. The heavy gate slams shut with a bone-rattling concussion that vibrates through your boots, sealing off the outer escape route entirely. Heavy armored boots thunder from the upper gallery as a dozen watchmen pour out onto the stone ramparts, their cross-bows cranked and ready. Sergeant Vane steps to the stone balustrade, his face purple with rage in the flickering torchlight, and points directly down at you. \"There! Down in the yard! Cut the intruder down before they reach the keep doors!\" A volley of heavy iron-tipped bolts rattles down from the battlements, clattering against the paving stones inches from your heels.",
+  "choices": [
+    {
+      "id": "choice_1",
+      "text": "Dash for the shadowed archway of the stables",
+      "style": "tactical",
+      "riskLevel": "medium",
+      "targetDC": 12,
+      "requiredStatId": "agility"
+    },
+    {
+      "id": "choice_2",
+      "text": "Hurl a heavy iron brazier into the path of the oncoming watch",
+      "style": "aggressive",
+      "riskLevel": "high",
+      "targetDC": 14,
+      "requiredStatId": "might"
+    },
+    {
+      "id": "choice_3",
+      "text": "Shout a false command to confuse the archmen above",
+      "style": "deceptive",
+      "riskLevel": "high",
+      "targetDC": 15,
+      "requiredStatId": "charisma"
+    }
+  ],
+  "extractedMemories": [
+    {
+      "category": "event",
+      "importance": 8,
+      "summary": "The main courtyard gates are sealed and Sergeant Vane has spotted you with a squad of cross-bowmen."
+    }
+  ]
+}

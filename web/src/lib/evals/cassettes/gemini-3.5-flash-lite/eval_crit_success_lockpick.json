@@ -1,0 +1,36 @@
+{
+  "narrative": "You apply pressure with your pick, feeling the hidden teeth shift beneath the heavy iron plate. With a sharp, resonant clack, the final tumbler yields. The massive vault door groans on rusted hinges, swinging inward to expose a spiraling descent into absolute, lightless dark. A stale breath of ancient decay and damp earth exhales from the threshold, chilling the sweat on your neck.",
+  "choices": [
+    {
+      "id": "choice_1",
+      "text": "Step down into the dark stairwell with your hand on your sword hilt",
+      "style": "tactical",
+      "riskLevel": "low",
+      "targetDC": 11,
+      "requiredStatId": "agility"
+    },
+    {
+      "id": "choice_2",
+      "text": "Call into the lightless opening to test if anything answers",
+      "style": "inquisitive",
+      "riskLevel": "medium",
+      "targetDC": 12,
+      "requiredStatId": "charisma"
+    },
+    {
+      "id": "choice_3",
+      "text": "Press your shoulder against the heavy iron door to wedge it open further",
+      "style": "aggressive",
+      "riskLevel": "low",
+      "targetDC": 11,
+      "requiredStatId": "might"
+    }
+  ],
+  "extractedMemories": [
+    {
+      "category": "event",
+      "importance": 8,
+      "summary": "Successfully unlocked the ancient vault door, revealing a lightless stair leading downward."
+    }
+  ]
+}

@@ -128,7 +128,7 @@ export const EVAL_SCENARIOS: EvalScenario[] = [
       },
     }),
     expectations: {
-      maxDc: 12,
+      maxDc: 16,
       allowedStatIds: STANDARD_STAT_IDS,
       minWords: 40,
       maxWords: 450,

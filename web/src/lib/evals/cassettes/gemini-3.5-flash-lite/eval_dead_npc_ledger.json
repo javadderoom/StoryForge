@@ -1,0 +1,34 @@
+{
+  "narrative": "You drop to one knee beside the fresh, damp earth of Rostam's shallow grave, pressing your palm against the turned stone marker. The cold bite of the ruined chapel's flagstones seeps through your trousers, but you stay grounded there, feeling the heavy, collective gaze of the surviving company settle upon your shoulders. Beside you, Captain Vance shifts his weight, the leather of his greaves creaking in the silence, his weathered face shadowed by the skeletal remains of the vaulted ceiling above. \"He held the gate long enough for every soul here to cross,\" Vance murmurs, his voice rough with fatigue and grief, breaking the heavy quiet as the company lowers their heads in unison.",
+  "choices": [
+    {
+      "id": "choice_1",
+      "text": "Stand up and ask Vance where we march next",
+      "style": "inquisitive",
+      "riskLevel": "low"
+    },
+    {
+      "id": "choice_2",
+      "text": "Press a hand to Vance's shoulder to steady him",
+      "style": "tactical",
+      "riskLevel": "medium",
+      "targetDC": 11,
+      "requiredStatId": "charisma"
+    },
+    {
+      "id": "choice_3",
+      "text": "Scrape together loose shale to reinforce the burial mound against scavengers",
+      "style": "defensive",
+      "riskLevel": "medium",
+      "targetDC": 12,
+      "requiredStatId": "might"
+    }
+  ],
+  "extractedMemories": [
+    {
+      "category": "character",
+      "importance": 8,
+      "summary": "Captain Vance acknowledges Rostam's sacrifice at the gate."
+    }
+  ]
+}

@@ -178,9 +178,14 @@ export function evaluateRawScene(raw: RawSceneData, opts: EvaluateOptions): Heur
           rule: 'dc.missing_from_model',
           detail: `Choice ${i + 1} declares a stat but no DC; the deterministic normalizer supplied one.`,
         });
+      } else {
+        checkedDcs.push(dc);
+        checkDc(i, dc, rc);
       }
-      }
+    }
   });
+
+  const outcome = exp.outcome;
   if (outcome === 'failure' || outcome === 'critical_failure') {
     if (SUCCESS_WORDS.test(prose) && !FAILURE_WORDS.test(prose)) {
       findings.push({
