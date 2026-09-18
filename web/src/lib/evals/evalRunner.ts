@@ -71,7 +71,7 @@ export async function runScenario(scenario: EvalScenario, options: RunOptions = 
             detail: `No model output available for model "${modelId}". Record cassettes with \`npm run eval:record\`.`,
           },
         ],
-        stats: { choiceCount: 0, dicelessCount: 0, wordCount: 0, checkedDcs: [], rescuedChoices: 0 },
+        stats: { choiceCount: 0, dicelessCount: 0, wordCount: 0, checkedDcs: [], rescuedChoices: 0, sensoryAnchorCount: 0 },
       },
       choices: [],
       narrative: '',

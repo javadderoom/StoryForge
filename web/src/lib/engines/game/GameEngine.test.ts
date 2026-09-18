@@ -286,6 +286,61 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
       assert.equal(res.stateDiff.resourceChanges?.hp, 30);
       assert.ok(res.stateDiff.itemsRemovedIds?.includes('healing_tincture'));
     });
+
+    it('applies powerRankChanges and powerMasteryChanges in applyStateMutation', () => {
+      const mutated = GameEngine.applyStateMutation(initialPlayerState, {
+        powerRankChanges: { school_pyromancy: 2 },
+        powerMasteryChanges: { school_pyromancy: 45 },
+      });
+      assert.equal(mutated.powerRanks?.school_pyromancy, 2);
+      assert.equal(mutated.powerSchoolMastery?.school_pyromancy, 45);
+
+      // Stack mastery changes
+      const secondMutation = GameEngine.applyStateMutation(mutated, {
+        powerMasteryChanges: { school_pyromancy: 55 },
+      });
+      assert.equal(secondMutation.powerSchoolMastery?.school_pyromancy, 100);
+    });
+
+    it('performs point-driven breakthrough via attemptPowerBreakthrough', () => {
+      const school: any = {
+        id: 'school_pyro',
+        name: 'Zarvanite Pyromancy',
+        ranks: [
+          {
+            rank: 1,
+            name: 'Spark',
+            advancementCost: { masteryPointsRequired: 50, resourceCosts: { mana: 10 } },
+            statBonuses: { arcana: 1 },
+            resourceBonuses: { mana: 5 },
+            unlockedAbilityIds: ['ab_ignite'],
+          },
+        ],
+      };
+
+      const startState = {
+        ...initialPlayerState,
+        resources: { hp: 20, mana: 25 },
+        powerSchoolMastery: { school_pyro: 30 },
+      };
+
+      // Fails when mastery insufficient
+      const fail = GameEngine.attemptPowerBreakthrough(startState, school);
+      assert.equal(fail.success, false);
+      assert.ok(fail.reason?.includes('Insufficient mastery points'));
+
+      // Succeeds when mastery and resource are satisfied
+      const readyState = {
+        ...startState,
+        powerSchoolMastery: { school_pyro: 60 },
+      };
+      const success = GameEngine.attemptPowerBreakthrough(readyState, school);
+      assert.equal(success.success, true);
+      assert.equal(success.updatedState.powerRanks?.school_pyro, 1);
+      assert.equal(success.updatedState.resources.mana, 20); // 25 - 10 + 5 bonus = 20
+      assert.equal(success.updatedState.stats.arcana, (readyState.stats.arcana || 10) + 1);
+      assert.ok(success.updatedState.abilities?.includes('ab_ignite'));
+    });
   });
 
   describe('Pressure Revelation (coercion vs breaking point)', () => {

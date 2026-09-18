@@ -301,7 +301,19 @@ You MUST respond with a valid JSON object matching this schema:
       .map(([k, v]) => `${k}: ${v}`)
       .join(', ');
 
-    const enProtagonistBlock = (statsLineEn || resourcesLine || playerEquipped.length)
+    const powerRanksLineEn = context.activePowerRanks?.length
+      ? context.activePowerRanks
+          .map((pr) => `• ${pr.schoolName}: Rank ${pr.rank} - ${pr.rankName}${pr.rankTitle ? ` (${pr.rankTitle})` : ''} [Tier: ${pr.scope || 'seasoned'}] — ${pr.capabilities}`)
+          .join('\n')
+      : '';
+
+    const powerRanksLineFa = context.activePowerRanks?.length
+      ? context.activePowerRanks
+          .map((pr) => `• ${pr.schoolName}: مرتبه ${pr.rank} - ${pr.rankName}${pr.rankTitle ? ` (${pr.rankTitle})` : ''} [سطح: ${pr.scope || 'seasoned'}] — ${pr.capabilities}`)
+          .join('\n')
+      : '';
+
+    const enProtagonistBlock = (statsLineEn || resourcesLine || playerEquipped.length || powerRanksLineEn)
       ? [
           '[PROTAGONIST STATUS & CAPABILITIES]',
           context.playerStatus?.characterName
@@ -311,12 +323,13 @@ You MUST respond with a valid JSON object matching this schema:
           resourcesLine ? `• Vitals: ${resourcesLine}` : '',
           playerEquipped.length ? `• Equipped / Carried Gear: ${playerEquipped.join(', ')}` : '',
           context.playerStatus?.abilities?.length ? `• Known Abilities / Spells: ${context.playerStatus.abilities.join(', ')}` : '',
+          powerRanksLineEn ? `\n[POWER SCHOOL RANKINGS & MASTERY]\n${powerRanksLineEn}` : '',
         ]
           .filter(Boolean)
           .join('\n')
       : '';
 
-    const faProtagonistBlock = (statsLineFa || resourcesLine || playerEquipped.length)
+    const faProtagonistBlock = (statsLineFa || resourcesLine || playerEquipped.length || powerRanksLineFa)
       ? [
           '[وضعیت و توانمندی‌های قهرمان داستان / PROTAGONIST STATUS]',
           context.playerStatus?.characterName
@@ -326,6 +339,7 @@ You MUST respond with a valid JSON object matching this schema:
           resourcesLine ? `• منابع و وضعیت حیاتی: ${resourcesLine}` : '',
           playerEquipped.length ? `• تجهیزات و اشیاء همراه: ${playerEquipped.join('، ')}` : '',
           context.playerStatus?.abilities?.length ? `• توانایی‌ها و جادوهای فعال: ${context.playerStatus.abilities.join('، ')}` : '',
+          powerRanksLineFa ? `\n[مکاتب قدرت و درجات تسلط / POWER SYSTEM RANKINGS]\n${powerRanksLineFa}` : '',
         ]
           .filter(Boolean)
           .join('\n')
@@ -352,7 +366,7 @@ You MUST respond with a valid JSON object matching this schema:
 
       if (context.activeNpcDossiers.length > 0) {
         const npcs = context.activeNpcDossiers
-          .map((npc) => `• ${npc.name} (Trust: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - Speech: ${npc.speechStyle}${npc.vitalsLine ? ` - Vitals: ${npc.vitalsLine}` : ''}`)
+          .map((npc) => `• ${npc.name} (Trust: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - Speech: ${npc.speechStyle}${npc.vitalsLine ? ` - Vitals: ${npc.vitalsLine}` : ''}${npc.powerAffiliationLine ? ` - Power: [${npc.powerAffiliationLine}]` : ''}`)
           .join('\n');
         parts.push(`[PRESENT NPCS]\n${npcs}`);
       }
@@ -428,7 +442,7 @@ You MUST respond with a valid JSON object matching this schema:
 
       if (context.activeNpcDossiers.length > 0) {
         const npcs = context.activeNpcDossiers
-          .map((npc) => `• ${npc.name} (میزان اعتماد: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - لحن صحبت: ${npc.speechStyle}${npc.vitalsLine ? ` - علائم حیاتی: ${npc.vitalsLine}` : ''}`)
+          .map((npc) => `• ${npc.name} (میزان اعتماد: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - لحن صحبت: ${npc.speechStyle}${npc.vitalsLine ? ` - علائم حیاتی: ${npc.vitalsLine}` : ''}${npc.powerAffiliationLine ? ` - قدرت: [${npc.powerAffiliationLine}]` : ''}`)
           .join('\n');
         parts.push(`[شخصیت‌های حاضر / PRESENT NPCS]\n${npcs}`);
       }

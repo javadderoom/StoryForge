@@ -148,6 +148,9 @@ export default function StudioOracleDrawer() {
     addTradeRoute,
     editTradeRoute,
     deleteTradeRoute,
+    addPowerSchool,
+    editPowerSchool,
+    deletePowerSchool,
   } = useStudioStory();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -535,6 +538,7 @@ export default function StudioOracleDrawer() {
     relation_type: { add: addCustomRelationType, edit: editCustomRelationType, del: deleteCustomRelationType },
     quest: { add: addQuest, edit: editQuest, del: deleteQuest },
     trade_route: { add: addTradeRoute, edit: editTradeRoute, del: deleteTradeRoute },
+    power_school: { add: addPowerSchool, edit: editPowerSchool, del: deletePowerSchool },
   });
 
   const applyOneChange = (change: WorldActionChange) => {

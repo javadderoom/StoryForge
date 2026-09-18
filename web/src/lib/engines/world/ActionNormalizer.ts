@@ -221,6 +221,7 @@ export function normalizeEntity(entity: EntityType, data: any): any {
       relation_type: 'rel',
       quest: 'qst',
       trade_route: 'route',
+      power_school: 'sch',
     };
     const isOntology = [
       'place_category',
@@ -746,6 +747,54 @@ export function normalizeEntity(entity: EntityType, data: any): any {
     if (!['active', 'raided', 'blockaded', 'seasonal', 'secret'].includes(res.status)) res.status = 'active';
     if (res.smugglingRiskDC !== undefined) {
       res.smugglingRiskDC = Math.max(8, Math.min(25, Math.round(Number(res.smugglingRiskDC) || 14)));
+    }
+  } else if (entity === 'power_school') {
+    if (!res.name && res.title) res.name = res.title;
+    if (!res.name) res.name = 'Unnamed Power School';
+    if (typeof res.description !== 'string') res.description = '';
+    const validCategories = ['arcane', 'martial', 'divine', 'occult', 'technological', 'spiritual', 'alchemical', 'psionic', 'custom'];
+    if (!validCategories.includes(res.category)) res.category = 'arcane';
+    if (typeof res.sourceOfPower !== 'string') res.sourceOfPower = '';
+    if (res.linkedStatId && typeof res.linkedStatId !== 'string') delete res.linkedStatId;
+    if (res.linkedResourceId && typeof res.linkedResourceId !== 'string') delete res.linkedResourceId;
+    if (res.taboosAndCosts && typeof res.taboosAndCosts !== 'string') delete res.taboosAndCosts;
+
+    const validScopes = ['mortal', 'seasoned', 'heroic', 'superhuman', 'mythic'];
+    if (!Array.isArray(res.ranks) || res.ranks.length === 0) {
+      res.ranks = [
+        {
+          rank: 1,
+          name: 'Initiate',
+          description: 'Initial entry into the fundamental techniques of the school.',
+          narrativeScope: 'mortal',
+          unlockedAbilityIds: [],
+          advancementCost: {
+            masteryPointsRequired: 100,
+          },
+        },
+      ];
+    } else {
+      res.ranks = res.ranks.map((r: any, idx: number) => ({
+        rank: typeof r.rank === 'number' ? r.rank : idx + 1,
+        name: r.name || `Rank ${idx + 1}`,
+        ...(r.nameEn ? { nameEn: r.nameEn } : {}),
+        ...(r.title ? { title: r.title } : {}),
+        description: typeof r.description === 'string' ? r.description : (r.sensoryDescription || ''),
+        narrativeScope: validScopes.includes(r.narrativeScope) ? r.narrativeScope : 'seasoned',
+        unlockedAbilityIds: Array.isArray(r.unlockedAbilityIds)
+          ? r.unlockedAbilityIds.filter((a: unknown) => typeof a === 'string')
+          : (Array.isArray(r.unlockedAbilities) ? r.unlockedAbilities.filter((a: unknown) => typeof a === 'string') : []),
+        ...(r.statBonuses && typeof r.statBonuses === 'object' ? { statBonuses: r.statBonuses } : (r.passiveStatBonuses ? { statBonuses: r.passiveStatBonuses } : {})),
+        ...(r.resourceBonuses && typeof r.resourceBonuses === 'object' ? { resourceBonuses: r.resourceBonuses } : (r.passiveResourceBonuses ? { resourceBonuses: r.passiveResourceBonuses } : {})),
+        advancementCost: {
+          masteryPointsRequired: typeof r.advancementCost?.masteryPointsRequired === 'number' ? r.advancementCost.masteryPointsRequired : 100 * (idx + 1),
+          ...(r.advancementCost?.resourceCosts ? { resourceCosts: r.advancementCost.resourceCosts } : (r.advancementCost?.requiredResources ? { resourceCosts: r.advancementCost.requiredResources } : {})),
+          ...(Array.isArray(r.advancementCost?.requiredItemIds)
+            ? { requiredItemIds: r.advancementCost.requiredItemIds }
+            : (Array.isArray(r.advancementCost?.requiredItems) ? { requiredItemIds: r.advancementCost.requiredItems } : {})),
+          ...(r.advancementCost?.narrativeMilestoneRequirement ? { narrativeMilestoneRequirement: r.advancementCost.narrativeMilestoneRequirement } : {}),
+        },
+      }));
     }
   }
 

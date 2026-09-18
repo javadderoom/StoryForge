@@ -170,6 +170,13 @@ function StudioShell({ children }: { children: React.ReactNode }) {
       count: story.rpgSystem.stats.length,
     },
     {
+      href: '/studio/power-systems',
+      label: isPersian ? 'مکاتب و درجات قدرت' : 'Power Systems & Schools',
+      shortLabel: isPersian ? 'مکاتب قدرت' : 'Power',
+      icon: Zap,
+      count: story.worldBible.powerSchools?.length || 0,
+    },
+    {
       href: '/studio/npcs',
       label: isPersian ? 'پرونده‌های NPC' : 'NPC Dossiers',
       shortLabel: isPersian ? 'شخصیت‌ها' : 'NPCs',

@@ -28,6 +28,7 @@ import {
   StoryNpcOverride,
   WorldQuest,
   WorldTradeRoute,
+  PowerSchool,
 } from '@/lib/types';
 import { mergeFactionRelations, syncLegacyFactionLinks } from '@/lib/engines/world/factionRelations';
 import type { WorldActionChange } from '@/lib/engines/world/oracleActions';
@@ -50,8 +51,9 @@ export function resolveEntityRef(wb: WorldBible, ref: string): string {
     wb.religions,
     wb.laws,
     wb.timeline,
+    wb.powerSchools,
   ];
-  const nameFields = ['name', 'name', 'name', 'name', 'name', 'name', 'rule', 'title'];
+  const nameFields = ['name', 'name', 'name', 'name', 'name', 'name', 'rule', 'title', 'name'];
   const low = ref.toLowerCase();
   for (let i = 0; i < arrays.length; i++) {
     const arr: any[] = arrays[i] || [];
@@ -464,6 +466,10 @@ interface StudioStoryContextType {
   addTradeRoute: (route: WorldTradeRoute) => void;
   editTradeRoute: (id: string, updated: Partial<WorldTradeRoute>) => void;
   deleteTradeRoute: (id: string) => void;
+  // Power Systems CRUD
+  addPowerSchool: (school: PowerSchool) => void;
+  editPowerSchool: (id: string, updated: Partial<PowerSchool>) => void;
+  deletePowerSchool: (id: string) => void;
   // Story Beats CRUD
   updateStoryBeats: (updater: (prev: StoryManifest['initialStoryBeats']) => StoryManifest['initialStoryBeats']) => void;
   // Plan 07: Saga / Multi-Chapter Campaign CRUD
@@ -1304,6 +1310,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         let timeline = [...(prev.timeline || [])];
         let quests = [...(prev.quests || [])];
         let tradeRoutes = [...(prev.tradeRoutes || [])];
+        let powerSchools = [...(prev.powerSchools || [])];
         const ont = normalizeOntology(prev.ontology, isPersian);
         let placeCategories = [...ont.placeCategories];
         let lawCategories = [...ont.lawCategories];
@@ -1478,6 +1485,14 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
             } else if (c.op === 'update') {
               tradeRoutes = tradeRoutes.map((r) => (r.id === c.targetId ? { ...r, ...c.newData } : r));
             }
+          } else if (c.entity === 'power_school') {
+            if (c.op === 'create') {
+              if (!powerSchools.some((s) => s.id === c.newData.id)) powerSchools.push(c.newData);
+            } else if (c.op === 'delete') {
+              powerSchools = powerSchools.filter((s) => s.id !== c.targetId);
+            } else if (c.op === 'update') {
+              powerSchools = powerSchools.map((s) => (s.id === c.targetId ? { ...s, ...c.newData } : s));
+            }
           }
         }
 
@@ -1494,6 +1509,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
           timeline,
           quests,
           tradeRoutes,
+          powerSchools,
           ontology: {
             ...ont,
             placeCategories,
@@ -2393,6 +2409,46 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     [isPersian, updateWorldBible]
   );
 
+  // ----------------------------------------------------
+  // Power Systems CRUD
+  // ----------------------------------------------------
+  const addPowerSchool = useCallback(
+    (school: PowerSchool) => {
+      updateWorldBible((prev) => {
+        const prevSchools = prev.powerSchools || [];
+        if (prevSchools.some((s) => s.id === school.id)) return prev;
+        return {
+          ...prev,
+          powerSchools: [...prevSchools, school],
+        };
+      });
+      notify.success(isPersian ? 'مکتب قدرت جدید ثبت شد' : 'Power school registered');
+    },
+    [isPersian, updateWorldBible]
+  );
+
+  const editPowerSchool = useCallback(
+    (id: string, updated: Partial<PowerSchool>) => {
+      updateWorldBible((prev) => ({
+        ...prev,
+        powerSchools: (prev.powerSchools || []).map((s) => (s.id === id ? { ...s, ...updated } : s)),
+      }));
+      notify.success(isPersian ? 'مکتب قدرت به‌روز شد' : 'Power school updated');
+    },
+    [isPersian, updateWorldBible]
+  );
+
+  const deletePowerSchool = useCallback(
+    (id: string) => {
+      updateWorldBible((prev) => ({
+        ...prev,
+        powerSchools: (prev.powerSchools || []).filter((s) => s.id !== id),
+      }));
+      notify.info(isPersian ? 'مکتب قدرت حذف شد' : 'Power school deleted');
+    },
+    [isPersian, updateWorldBible]
+  );
+
   // Story Beats CRUD
   const updateStoryBeats = useCallback(
     (updater: (prev: StoryManifest['initialStoryBeats']) => StoryManifest['initialStoryBeats']) => {
@@ -2592,6 +2648,9 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         addTradeRoute,
         editTradeRoute,
         deleteTradeRoute,
+        addPowerSchool,
+        editPowerSchool,
+        deletePowerSchool,
         updateStoryBeats,
         updateSaga,
         resetToDefault,

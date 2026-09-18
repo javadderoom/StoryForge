@@ -50,6 +50,7 @@ export const ORACLE_ENTITY_LABELS: Record<EntityType, { en: string; fa: string }
   relation_type: { en: 'Relation Type', fa: 'نوع پیوند' },
   quest: { en: 'Quest', fa: 'ماموریت' },
   trade_route: { en: 'Trade Route', fa: 'مسیر تجاری' },
+  power_school: { en: 'Power School', fa: 'مکتب قدرت' },
 };
 
 async function callGenerate(payload: any): Promise<any> {

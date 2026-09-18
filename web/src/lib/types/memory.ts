@@ -35,6 +35,8 @@ export interface WorkingContextEnvelope {
     speechStyle: string;
     /** Compact combat/vitals line (tier, CR, HP, pools) — omitted when uncalibrated. */
     vitalsLine?: string;
+    /** Compact power school ranking line (e.g. "Rank 3 in Hiram Sandblade") */
+    powerAffiliationLine?: string;
   }>;
   relevantMemories: Array<{
     category: MemoryCategory;
@@ -86,6 +88,16 @@ export interface WorkingContextEnvelope {
   episodicRollup?: string[];
   /** Tier 3 — living world state lines (factions, NPC statuses, key items) */
   livingWorldLedger?: string[];
+  /** Active power school rankings of the protagonist */
+  activePowerRanks?: Array<{
+    schoolId: string;
+    schoolName: string;
+    rank: number;
+    rankName: string;
+    rankTitle?: string;
+    capabilities: string;
+    scope?: string;
+  }>;
 }
 
 export const MemoryEntrySchema = z.object({

@@ -80,6 +80,10 @@ export interface PlayerState {
   abilities?: string[];
   /** Number of times the player has been defeated (HP → 0). Used by Hybrid Defeat system. */
   defeatCount?: number;
+  /** Active power ranks in schools (schoolId -> rankNumber, e.g. { school_pyromancy: 2 }) */
+  powerRanks?: Record<string, number>;
+  /** Accumulated mastery/cultivation points per school (schoolId -> points) */
+  powerSchoolMastery?: Record<string, number>;
 }
 
 export interface StateMutationDiff {
@@ -97,6 +101,10 @@ export interface StateMutationDiff {
   /** Plan 13: hazard displacement target (mirrored into locationChange for applyStateMutation). */
   displacedLocationId?: string;
   clockUpdates?: Array<{ id: string; delta: number; isCrisis: boolean }>;
+  /** Power system rank updates (schoolId -> newRank) */
+  powerRankChanges?: Record<string, number>;
+  /** Power mastery point updates (schoolId -> pointsDelta) */
+  powerMasteryChanges?: Record<string, number>;
 }
 
 export interface CheckResolution {

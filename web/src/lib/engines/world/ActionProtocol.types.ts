@@ -14,6 +14,7 @@ export const ALLOWED_ENTITIES = [
   'relation_type',
   'quest',
   'trade_route',
+  'power_school',
 ] as const;
 
 export type EntityType = (typeof ALLOWED_ENTITIES)[number];
@@ -87,6 +88,17 @@ export const ENTITY_ALIASES: Record<string, EntityType> = {
   caravans: 'trade_route',
   route: 'trade_route',
   economy: 'trade_route',
+  power_school: 'power_school',
+  powerschool: 'power_school',
+  school_of_power: 'power_school',
+  cultivation_system: 'power_school',
+  magic_system: 'power_school',
+  power_system: 'power_school',
+  powersystem: 'power_school',
+  martial_art: 'power_school',
+  martial_arts: 'power_school',
+  school: 'power_school',
+  schools: 'power_school',
   // Persian aliases
   'ماموریت': 'quest',
   'ماموریت‌ها': 'quest',
@@ -170,6 +182,15 @@ export const ENTITY_ALIASES: Record<string, EntityType> = {
   'کاروان': 'trade_route',
   'تجارت': 'trade_route',
   'شاهراه': 'trade_route',
+  'مکتب قدرت': 'power_school',
+  'مکاتب قدرت': 'power_school',
+  'مکتب': 'power_school',
+  'مکاتب': 'power_school',
+  'سیستم قدرت': 'power_school',
+  'سیستم جادو': 'power_school',
+  'جادو': 'power_school',
+  'کشتگری': 'power_school',
+  'پرورش روح': 'power_school',
 };
 
 export interface ActionBlock {

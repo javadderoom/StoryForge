@@ -192,6 +192,18 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
     currentLocationDescription: currentLocation.description,
     activeNpcDossiers: activeNPCs.map((npc: any) => {
       const ov = story.storyNpcOverrides?.[npc.id];
+      let powerAffiliationLine: string | undefined;
+      if (npc.powerAffiliations?.length && story.worldBible?.powerSchools?.length) {
+        const parts = npc.powerAffiliations.map((aff: any) => {
+          const school = story.worldBible.powerSchools.find((s: any) => s.id === aff.schoolId);
+          const rankObj = school?.ranks?.find((r: any) => r.rank === aff.rank);
+          const schoolName = school?.name || aff.schoolId;
+          const rankName = rankObj?.name || `Rank ${aff.rank}`;
+          const title = aff.title || rankObj?.title;
+          return `${schoolName}: ${rankName}${title ? ` (${title})` : ''}`;
+        });
+        powerAffiliationLine = parts.join(' • ');
+      }
       return {
         name: npc.name,
         trust:
@@ -204,6 +216,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
           ? `[Role in this story: ${ov.storyRole}] ${npc.speechStyle}`
           : npc.speechStyle,
         vitalsLine: formatNpcCombatSummary(npc) || undefined,
+        powerAffiliationLine,
       };
     }),
     relevantMemories,
@@ -253,6 +266,27 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
     displacementDirective,
     inventoryTerms: inventoryTerms.length ? inventoryTerms : undefined,
     environmentInteractables: environmentInteractables.length ? environmentInteractables : undefined,
+    activePowerRanks: (() => {
+      const userRanks = playerState.powerRanks || {};
+      const schools = story.worldBible?.powerSchools || [];
+      const out: NonNullable<WorkingContextEnvelope['activePowerRanks']> = [];
+      for (const [schoolId, rankNum] of Object.entries(userRanks)) {
+        if (!rankNum || rankNum <= 0) continue;
+        const school = schools.find((s: any) => s.id === schoolId);
+        if (!school) continue;
+        const rankObj = school.ranks?.find((r: any) => r.rank === rankNum);
+        out.push({
+          schoolId,
+          schoolName: school.name,
+          rank: rankNum,
+          rankName: rankObj?.name || `Rank ${rankNum}`,
+          rankTitle: rankObj?.title,
+          capabilities: rankObj?.description || '',
+          scope: rankObj?.narrativeScope || 'seasoned',
+        });
+      }
+      return out.length ? out : undefined;
+    })(),
   };
 }
 

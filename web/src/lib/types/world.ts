@@ -438,6 +438,12 @@ export interface NPCDossier {
   initialTrust: number; // e.g. 0 (-100 to 100)
   voiceGuide?: NpcVoiceGuide;
   statCalibration?: NpcStatCalibration;
+  /** Power system affiliations (schoolId -> rank) */
+  powerAffiliations?: Array<{
+    schoolId: string;
+    rank: number;
+    title?: string;
+  }>;
 }
 
 export interface ArtifactVaultLore {
@@ -623,6 +629,39 @@ export interface WorldOntology {
   domains: CustomDomain[];
 }
 
+export interface PowerRankAdvancementCost {
+  masteryPointsRequired?: number; // Mastery points required to attempt/breakthrough to this rank
+  resourceCosts?: Record<string, number>; // e.g. { mana: 50, resolve: 20 }
+  requiredItemIds?: string[]; // e.g. ["item_elixir_tier2"]
+  narrativeMilestoneRequirement?: string; // Story event or trial requirement
+}
+
+export interface PowerRank {
+  rank: number; // 1, 2, 3, 4, 5... (ascending rank level)
+  name: string; // e.g. "شاگرد / Initiate", "استاد آتش / Flame Magister"
+  nameEn?: string;
+  title?: string; // Honorific or title granted (e.g. "Flame-Bearer")
+  description: string; // Visual, sensory, and mechanical capabilities of this tier
+  unlockedAbilityIds?: string[]; // Abilities unlocked at this rank
+  statBonuses?: Record<string, number>; // Passive stat modifiers (+1 Might, +2 Arcana)
+  resourceBonuses?: Record<string, number>; // Passive vital max pool boosts (+10 Mana)
+  advancementCost?: PowerRankAdvancementCost; // Point/resource fallback requirement
+  narrativeScope?: 'mortal' | 'seasoned' | 'heroic' | 'superhuman' | 'mythic';
+}
+
+export interface PowerSchool {
+  id: string; // e.g. "school_zarvan_fire"
+  name: string; // e.g. "جادوی آتش زروانی / Zarvanite Pyromancy"
+  nameEn?: string;
+  description: string;
+  category: 'arcane' | 'martial' | 'divine' | 'occult' | 'technological' | 'spiritual' | 'alchemical' | 'psionic' | 'custom';
+  sourceOfPower: string; // The origin/fuel (e.g. ancient ruins, blood sacrifice, celestial alignment)
+  linkedStatId?: string; // Associated primary RPG stat (e.g. "arcana", "might")
+  linkedResourceId?: string; // Vital pool consumed (e.g. "mana", "stamina")
+  taboosAndCosts?: string; // Corruption, toll, or forbidden practices
+  ranks: PowerRank[]; // 1 to 10+ flexible ranks
+}
+
 export interface WorldBible {
   worldId: string;
   worldName: string;
@@ -648,6 +687,8 @@ export interface WorldBible {
   quests?: WorldQuest[];
   /** Plan 10: caravan corridors carrying commodities between settlements. */
   tradeRoutes?: WorldTradeRoute[];
+  /** Power systems: distinct traditions of power with custom rankings and breakthroughs. */
+  powerSchools?: PowerSchool[];
 }
 
 // ----------------------------------------------------
@@ -1069,6 +1110,11 @@ export const NPCDossierSchema = z.object({
   initialTrust: z.number().default(0),
   voiceGuide: NpcVoiceGuideSchema.optional(),
   statCalibration: NpcStatCalibrationSchema.optional(),
+  powerAffiliations: z.array(z.object({
+    schoolId: z.string(),
+    rank: z.number().int().min(1),
+    title: z.string().optional(),
+  })).optional().default([]),
 });
 
 // ----------------------------------------------------
@@ -1257,7 +1303,38 @@ export interface WorldTradeRoute {
   secretLore?: string;
 }
 
-export type WorldTradeRoutePayload = z.infer<typeof WorldTradeRouteSchema>;
+export const PowerRankAdvancementCostSchema = z.object({
+  masteryPointsRequired: z.number().int().min(0).optional(),
+  resourceCosts: z.record(z.number()).optional(),
+  requiredItemIds: z.array(z.string()).optional(),
+  narrativeMilestoneRequirement: z.string().optional(),
+});
+
+export const PowerRankSchema = z.object({
+  rank: z.number().int().min(1),
+  name: z.string().min(1),
+  nameEn: z.string().optional(),
+  title: z.string().optional(),
+  description: z.string().default(''),
+  unlockedAbilityIds: z.array(z.string()).optional().default([]),
+  statBonuses: z.record(z.number()).optional(),
+  resourceBonuses: z.record(z.number()).optional(),
+  advancementCost: PowerRankAdvancementCostSchema.optional(),
+  narrativeScope: z.enum(['mortal', 'seasoned', 'heroic', 'superhuman', 'mythic']).optional().default('seasoned'),
+});
+
+export const PowerSchoolSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  nameEn: z.string().optional(),
+  description: z.string().default(''),
+  category: z.enum(['arcane', 'martial', 'divine', 'occult', 'technological', 'spiritual', 'alchemical', 'psionic', 'custom']).default('arcane'),
+  sourceOfPower: z.string().default(''),
+  linkedStatId: z.string().optional(),
+  linkedResourceId: z.string().optional(),
+  taboosAndCosts: z.string().optional(),
+  ranks: z.array(PowerRankSchema).default([]),
+});
 
 export const WorldBibleSchema = z.object({
   worldId: z.string(),
@@ -1280,6 +1357,7 @@ export const WorldBibleSchema = z.object({
   customRelations: z.array(CustomLoreRelationSchema).default([]),
   quests: z.array(WorldQuestSchema).default([]),
   tradeRoutes: z.array(WorldTradeRouteSchema).default([]),
+  powerSchools: z.array(PowerSchoolSchema).default([]),
 });
 
 export const PopulateLocationSchema = z.object({

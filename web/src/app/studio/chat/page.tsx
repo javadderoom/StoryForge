@@ -207,6 +207,9 @@ export default function AiOraclePage() {
     addTradeRoute,
     editTradeRoute,
     deleteTradeRoute,
+    addPowerSchool,
+    editPowerSchool,
+    deletePowerSchool,
   } = useStudioStory();
 
   const worldContext = useMemo(() => buildWorldContextString(story), [story]);
@@ -325,6 +328,7 @@ export default function AiOraclePage() {
         relation_type: 'نوع پیوند',
         quest: 'ماموریت',
         trade_route: 'مسیر تجاری',
+        power_school: 'مکتب قدرت',
       }
     : {
         faction: 'Faction',
@@ -342,6 +346,7 @@ export default function AiOraclePage() {
         relation_type: 'Relation Type',
         quest: 'Quest',
         trade_route: 'Trade Route',
+        power_school: 'Power School',
       };
 
   const MUTATORS: Record<
@@ -363,6 +368,7 @@ export default function AiOraclePage() {
     relation_type: { add: addCustomRelationType, edit: editCustomRelationType, del: deleteCustomRelationType },
     quest: { add: addQuest, edit: editQuest, del: deleteQuest },
     trade_route: { add: addTradeRoute, edit: editTradeRoute, del: deleteTradeRoute },
+    power_school: { add: addPowerSchool, edit: editPowerSchool, del: deletePowerSchool },
   };
 
   const PERSONA_ORDER: PersonaId[] = [

@@ -109,3 +109,68 @@ describe('Tier 1 — DC calibration invariants', () => {
     assert.ok(systemPrompt.includes('High risk: 14-16'));
   });
 });
+
+describe('Tier 1 — Power System Invariants', () => {
+  it('injects protagonist power school rankings in English and Persian', () => {
+    const activePowerRanks = [
+      {
+        schoolId: 'school_pyro',
+        schoolName: 'Zarvanite Pyromancy',
+        rank: 2,
+        rankName: 'Flame-Weaver',
+        rankTitle: 'Flame-Bearer',
+        capabilities: 'Summons flame blades, immune to minor burns.',
+        scope: 'heroic',
+      },
+    ];
+
+    // English
+    const en = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'en',
+        activePowerRanks,
+      })
+    );
+    assert.ok(en.userPrompt.includes('[POWER SCHOOL RANKINGS & MASTERY]'));
+    assert.ok(en.userPrompt.includes('Zarvanite Pyromancy: Rank 2 - Flame-Weaver (Flame-Bearer)'));
+    assert.ok(en.userPrompt.includes('Summons flame blades'));
+
+    // Persian
+    const fa = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'fa',
+        activePowerRanks: [
+          {
+            schoolId: 'school_pyro',
+            schoolName: 'جادوی آتش زروانی',
+            rank: 2,
+            rankName: 'آتش‌افروز',
+            rankTitle: 'آذرخش‌بان',
+            capabilities: 'احضار تیغه‌های آتشین و مصونیت در برابر سوختگی‌های سطحی',
+            scope: 'heroic',
+          },
+        ],
+      })
+    );
+    assert.ok(fa.userPrompt.includes('[مکاتب قدرت و درجات تسلط / POWER SYSTEM RANKINGS]'));
+    assert.ok(fa.userPrompt.includes('جادوی آتش زروانی: مرتبه 2 - آتش‌افروز (آذرخش‌بان)'));
+  });
+
+  it('renders NPC power affiliations in present NPCs block', () => {
+    const en = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'en',
+        activeNpcDossiers: [
+          {
+            name: 'Radman',
+            trust: 10,
+            knownSecrets: [],
+            speechStyle: 'Gruff',
+            powerAffiliationLine: 'Hiram Sandblade: Rank 2 (Wind-Slicer)',
+          },
+        ],
+      })
+    );
+    assert.ok(en.userPrompt.includes('Power: [Hiram Sandblade: Rank 2 (Wind-Slicer)]'));
+  });
+});

@@ -113,6 +113,8 @@ export function getEntityArray(wb: WorldBible | undefined, entity: EntityType): 
       return (w as any).quests || [];
     case 'trade_route':
       return (w as any).tradeRoutes || [];
+    case 'power_school':
+      return (w as any).powerSchools || [];
     default:
       return [];
   }
