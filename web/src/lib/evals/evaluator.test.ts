@@ -174,4 +174,72 @@ describe('Tier 3 Layer A — evaluateRawScene', () => {
     assert.equal(outOfBand.passed, false);
     assert.ok(outOfBand.findings.some((f) => f.rule === 'choices.dc_range'));
   });
+
+  it('flags choice style monopoly when all choices share the identical style', () => {
+    const report = evaluateRawScene(
+      raw('The corridor goes dark. A shadow emerges.', [
+        { id: 'a', text: 'Strike with your sword', style: 'aggressive', riskLevel: 'medium', requiredStatId: 'might', targetDC: 12 },
+        { id: 'b', text: 'Lunge with your spear', style: 'aggressive', riskLevel: 'high', requiredStatId: 'might', targetDC: 14 },
+        { id: 'c', text: 'Slash with your dagger', style: 'aggressive', riskLevel: 'low', requiredStatId: 'might', targetDC: 10 },
+      ]),
+      { expectations: { requireDivergentChoices: true }, validStatIds: STATS, isEnglish: true }
+    );
+    assert.equal(report.passed, false);
+    assert.ok(report.findings.some((f) => f.rule === 'choices.style_monopoly'));
+  });
+
+  it('flags near-duplicate choices with high text similarity', () => {
+    const report = evaluateRawScene(
+      raw('The corridor goes dark. A shadow emerges.', [
+        { id: 'a', text: 'Attack the guard at the gate with your sharp sword', style: 'aggressive', riskLevel: 'high', requiredStatId: 'might', targetDC: 14 },
+        { id: 'b', text: 'Attack the guard at the gate with your heavy sword', style: 'tactical', riskLevel: 'high', requiredStatId: 'might', targetDC: 14 },
+      ]),
+      { expectations: { requireDivergentChoices: true }, validStatIds: STATS, isEnglish: true }
+    );
+    assert.equal(report.passed, false);
+    assert.ok(report.findings.some((f) => f.rule === 'choices.near_duplicate'));
+  });
+
+  it('detects generic stock cliches in English and Persian prose', () => {
+    const enCliche = evaluateRawScene(
+      raw('The corridor is dark. A choice lies before you, and a chill ran down your spine.', [
+        { id: 'a', text: 'Step forward', style: 'tactical', riskLevel: 'low' },
+        { id: 'b', text: 'Wait quietly', style: 'defensive', riskLevel: 'low' },
+      ]),
+      { expectations: { banCliches: true }, validStatIds: STATS, isEnglish: true }
+    );
+    assert.equal(enCliche.passed, false);
+    assert.ok(enCliche.findings.some((f) => f.rule === 'prose.stock_cliche'));
+
+    const faCliche = evaluateRawScene(
+      raw('در تاریکی ایستاده‌ای و سکوت سنگینی حاکم شد. تصمیم با توست.', [
+        { id: 'a', text: 'پیش برو', style: 'tactical', riskLevel: 'low' },
+        { id: 'b', text: 'سکوت کن', style: 'defensive', riskLevel: 'low' },
+      ]),
+      { expectations: { banCliches: true }, validStatIds: STATS, isEnglish: false }
+    );
+    assert.equal(faCliche.passed, false);
+    assert.ok(faCliche.findings.some((f) => f.rule === 'prose.stock_cliche'));
+  });
+
+  it('counts sensory anchors and flags prose lacking sensory grounding', () => {
+    const sensoryProse = evaluateRawScene(
+      raw('Frost clings to the slick iron bars; the bitter stench of wet ash rolls off the damp floor as boots crunch on grit.', [
+        { id: 'a', text: 'Inspect the iron lock', style: 'inquisitive', riskLevel: 'low' },
+        { id: 'b', text: 'Listen for footsteps', style: 'defensive', riskLevel: 'low' },
+      ]),
+      { expectations: { requireSensoryDetail: true }, validStatIds: STATS, isEnglish: true }
+    );
+    assert.equal(sensoryProse.passed, true);
+    assert.ok(sensoryProse.stats.sensoryAnchorCount >= 3);
+
+    const abstractProse = evaluateRawScene(
+      raw('You consider the situation carefully, thinking about the past and your destination.', [
+        { id: 'a', text: 'Proceed onward', style: 'tactical', riskLevel: 'low' },
+        { id: 'b', text: 'Turn back', style: 'defensive', riskLevel: 'low' },
+      ]),
+      { expectations: { requireSensoryDetail: true }, validStatIds: STATS, isEnglish: true }
+    );
+    assert.ok(abstractProse.findings.some((f) => f.rule === 'prose.lacks_sensory_detail'));
+  });
 });

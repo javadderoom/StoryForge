@@ -24,8 +24,8 @@ export const JUDGE_SCHEMA = z.object({
 export const JUDGE_RUBRIC = [
   'causeEffect — Did the opening paragraph immediately depict the player\'s prior action and the direct reaction of the target NPC/environment?',
   'feasibility — Are the proposed choices feasible given the protagonist\'s actual attributes, health, and carried gear?',
-  'divergence — Do the choices offer meaningfully different approaches (combat vs. stealth vs. diplomacy vs. investigation)?',
-  'polish — Is the prose immersive, evocative, and free of generic AI tropes such as "The choice is yours"?',
+  'divergence — Do the choices offer genuinely distinct strategic philosophies (combat vs. stealth vs. diplomacy vs. environmental leverage) rather than superficial cosmetic variations of the same intent?',
+  'polish — Is the prose sensory-rich and evocative, free of stock AI clichés (such as "The choice is yours"), and do NPCs speak with authentic, characterful voices rather than flat generic dialogue?',
 ].join('\n');
 
 export interface JudgeOptions {

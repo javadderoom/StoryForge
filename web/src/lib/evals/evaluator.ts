@@ -29,6 +29,44 @@ export function hasHostileActors(prose: string): boolean {
 const PREBAKED_OUTCOME =
   /\b(in order to|so that|to find|to escape|you escape|you safely|you succeed|manage to|successfully)\b|تا اینکه|تا بتوانی|موفق می‌شوی|فرار می‌کنی|سالم می‌رسی/i;
 
+/** Stock filler and cliché phrases that degrade literary quality. */
+export const STOCK_CLICHE_PATTERNS = [
+  // English
+  /\b(the\s+choice\s+is\s+yours|a\s+choice\s+(lies|stands)\s+before\s+you|what\s+will\s+you\s+do\??)\b/i,
+  /\b(little\s+did\s+(you|he|she)\s+know)\b/i,
+  /\b(a\s+chill\s+ran\s+down\s+(your|his|her)\s+spine)\b/i,
+  /\b(the\s+air\s+(grew|turned|was)\s+thick\s+with\s+tension)\b/i,
+  /\b(an\s+eerie\s+silence\s+(fell|hung|settled))\b/i,
+  /\b(shadows\s+danced\s+across\s+the\s+walls?)\b/i,
+  // Persian
+  /(تصمیم|انتخاب)\s+با\s+(تو|شما)ست/i,
+  /چه\s+(خواهی\s+کرد|تصمیمی\s+می‌گیری)\??/i,
+  /سکوت\s+(سنگین|مرگبار)ی\s+(حاکم|حکمفرما)\s+شد/i,
+  /گویی\s+زمان\s+متوقف\s+شده\s+بود/i,
+  /لرزه‌ای\s+بر\s+اندامت\s+افتاد/i,
+];
+
+/** Sensory grounding patterns (smell, sound, tactile texture, lighting). */
+export const SENSORY_PATTERNS = [
+  /\b(smell|odor|scent|reek|perfume|resin|stench|fragrance|brine)\b|بوی|رایحه|عطر|تعفن|بوی نم/i,
+  /\b(sound|echo|groan|screech|whisper|crunch|splash|clang|creak|rasp|scrape)\b|صدای|پژواک|غرش|خش‌خش|فریاد|طنین/i,
+  /\b(cold|frost|ice|damp|sweat|grit|rough|slick|sharp|burning|chill|freeze|warmth)\b|گرم|سرد|یخ|رطوبت|عرق|زبر|تیز|خنک/i,
+  /\b(flicker|shadow|gleam|glint|murk|glow|dim|blinding|pallor)\b|درخشش|سایه|کم‌سو|تاریک|روشنایی|تلألو/i,
+];
+
+/** Calculate pairwise token Jaccard similarity to detect semantic clone choices. */
+export function choiceTextSimilarity(a: string, b: string): number {
+  const wordsA = new Set(a.toLowerCase().split(/[\s,.;:!?«»"']+/).filter((w) => w.length > 2));
+  const wordsB = new Set(b.toLowerCase().split(/[\s,.;:!?«»"']+/).filter((w) => w.length > 2));
+  if (!wordsA.size || !wordsB.size) return 0;
+  let matches = 0;
+  for (const w of wordsA) {
+    if (wordsB.has(w)) matches++;
+  }
+  const union = wordsA.size + wordsB.size - matches;
+  return union > 0 ? matches / union : 0;
+}
+
 /** Extract the stat field from a raw choice in any supported key shape. */
 export function rawStatValue(c: unknown): string | undefined {
   if (!c || typeof c !== 'object') return undefined;
@@ -261,12 +299,70 @@ export function evaluateRawScene(raw: RawSceneData, opts: EvaluateOptions): Heur
     findings.push({ severity: 'warning', rule: 'prose.too_long', detail: `Prose is ${wordCount} words (> ${exp.maxWords}).` });
   }
 
+  // --- Choice Semantic & Tactical Diversity -------------------------------
+  const styles = new Set<string>();
+  const choiceTexts: string[] = [];
+  for (const rc of rawChoices.slice(0, maxChoices)) {
+    if (rc && typeof rc === 'object') {
+      const r = rc as Record<string, unknown>;
+      if (typeof r.style === 'string' && r.style.trim()) styles.add(r.style.trim().toLowerCase());
+      if (typeof r.text === 'string' && r.text.trim()) choiceTexts.push(r.text.trim());
+    }
+  }
+
+  if (rawChoices.length >= 3 && styles.size === 1) {
+    findings.push({
+      severity: exp.requireDivergentChoices ? 'error' : 'warning',
+      rule: 'choices.style_monopoly',
+      detail: `All ${rawChoices.length} choices share the single style "${[...styles][0]}"; choices should span distinct tactical philosophies.`,
+    });
+  }
+
+  for (let i = 0; i < choiceTexts.length; i++) {
+    for (let j = i + 1; j < choiceTexts.length; j++) {
+      const sim = choiceTextSimilarity(choiceTexts[i], choiceTexts[j]);
+      if (sim >= 0.7) {
+        findings.push({
+          severity: exp.requireDivergentChoices ? 'error' : 'warning',
+          rule: 'choices.near_duplicate',
+          detail: `Choice ${i + 1} and Choice ${j + 1} have high text overlap (${Math.round(sim * 100)}%): "${choiceTexts[i]}" vs "${choiceTexts[j]}".`,
+        });
+      }
+    }
+  }
+
+  // --- Cliché & Filler Detection ------------------------------------------
+  for (const pattern of STOCK_CLICHE_PATTERNS) {
+    const match = prose.match(pattern);
+    if (match) {
+      findings.push({
+        severity: exp.banCliches ? 'error' : 'warning',
+        rule: 'prose.stock_cliche',
+        detail: `Prose contains generic stock cliché: "${match[0]}".`,
+      });
+    }
+  }
+
+  // --- Sensory Grounding --------------------------------------------------
+  let sensoryAnchorCount = 0;
+  for (const sp of SENSORY_PATTERNS) {
+    if (sp.test(prose)) sensoryAnchorCount++;
+  }
+  if (exp.requireSensoryDetail && sensoryAnchorCount === 0) {
+    findings.push({
+      severity: 'warning',
+      rule: 'prose.lacks_sensory_detail',
+      detail: 'Prose lacks sensory immersion anchors (smell, sound, tactile texture, or visual lighting).',
+    });
+  }
+
   const stats: HeuristicStats = {
     choiceCount: normalized.length,
     dicelessCount,
     wordCount,
     checkedDcs,
     rescuedChoices,
+    sensoryAnchorCount,
   };
 
   return { passed: !findings.some((f) => f.severity === 'error'), findings, stats };

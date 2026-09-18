@@ -41,6 +41,12 @@ export interface EvalExpectations {
   requirePersianQuotes?: boolean;
   /** Prose must reference the direct consequence / progression of the action. */
   requireConsequenceEcho?: string;
+  /** Choices must span at least 2 distinct action styles when >= 2 choices exist. */
+  requireDivergentChoices?: boolean;
+  /** Prose must contain sensory immersion details (sight, sound, smell, touch). */
+  requireSensoryDetail?: boolean;
+  /** Treat stock AI filler clichés as hard errors instead of warnings. */
+  banCliches?: boolean;
 }
 
 export interface EvalScenario {
@@ -66,6 +72,7 @@ export interface HeuristicStats {
   checkedDcs: number[];
   /** Choices the normalizer had to repair (bound a missing/unknown stat). */
   rescuedChoices: number;
+  sensoryAnchorCount: number;
 }
 
 export interface HeuristicReport {
