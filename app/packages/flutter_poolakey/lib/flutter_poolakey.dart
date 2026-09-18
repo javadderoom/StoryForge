@@ -14,7 +14,7 @@ export 'sku_details.dart';
 /// It uses [Poolakey](https://github.com/cafebazaar/Poolakey) SDK under the hood.
 class FlutterPoolakey {
   static const MethodChannel _channel =
-      const MethodChannel('ir.cafebazaar.flutter_poolakey');
+      MethodChannel('ir.cafebazaar.flutter_poolakey');
 
   static Future<String> getVersion() async {
     return await _channel.invokeMethod('version', {});

@@ -3,18 +3,14 @@ import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { SessionRepository } from '@/lib/db/repositories/sessionRepository';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import { GameEngine } from '@/lib/engines/game/GameEngine';
-import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
-import { validateProse, buildProseRepairInstruction } from '@/lib/engines/narrative/ProseValidator';
-import { buildWorldContextBlocks, formatNpcCombatSummary } from '@/lib/engines/narrative/worldContext';
-import { MemoryEngine } from '@/lib/engines/memory/MemoryEngine';
+import { generateValidatedScene } from '@/lib/engines/narrative/narrativeTurn';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { PlayerState, ActionStyle, RiskLevel, TurnBeat, CheckResolution } from '@/lib/types/gameplay';
 import { WorldStateLedger } from '@/lib/types/world';
-import { WorkingContextEnvelope, MemoryCategory, MemoryEntry } from '@/lib/types/memory';
 import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
 import { getAuthenticatedUser } from '@/lib/auth/getUser';
 import { getPrisma } from '@/lib/db/client';
-import { reconcilePlayerResources } from '@/lib/engines/game/resourcePools';
+import { reconcilePlayerResources, resolveHealthKey } from '@/lib/engines/game/resourcePools';
 import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
 
 const geminiAdapter = new GeminiAdapter();
@@ -399,11 +395,8 @@ export async function POST(req: NextRequest) {
     // is NOT killed; instead escalating penalties are applied and the
     // narrative resumes at the last safe location.
     let defeatNarrativeHint: string | undefined;
-    const healthResource =
-      (story.rpgSystem.resources ?? []).find((r: any) => /^(health|hp|سلامت|تندرستی)$/i.test(r.id)) ||
-      (story.rpgSystem.resources ?? []).find((r: any) => /health|hp|vital/i.test(r.id)) ||
-      story.rpgSystem.resources?.[0];
-    const healthKey = healthResource?.id || 'health';
+    const healthKey = resolveHealthKey(story.rpgSystem);
+    const healthResource = story.rpgSystem.resources?.find((r) => r.id === healthKey);
     const hpAfterMutation = updatedPlayerState.resources?.[healthKey] ?? (healthResource?.max ?? 100);
     if (hpAfterMutation <= 0) {
       const defeat = GameEngine.resolveDefeat(
@@ -438,273 +431,85 @@ export async function POST(req: NextRequest) {
       story.saga?.chapters.find((c) => c.id === (requestedChapterId || session?.currentChapterId)) ||
       null;
 
-    const currentLocationId = updatedPlayerState.currentLocationId;
-
-    const currentLocation =
-      story.worldBible.locations.find((l) => l.id === currentLocationId) ||
-      story.worldBible.locations[0] || {
-        id: 'loc_default',
-        name: 'Citadel',
-        description: 'Dark fortress',
-      };
-
-    const activeNPCs = story.worldBible.npcs.filter(
-      (npc) => npc.currentLocationId === currentLocationId
-    );
-    const activeNpcIds = activeNPCs.map((n) => n.id);
-
-    const world = activeChapter
-      ? buildWorldContextBlocks(story, {
-          scopeTier: activeChapter.scopeTier,
-          locationIds: [currentLocationId],
-          npcIds: activeNpcIds,
-        })
-      : buildWorldContextBlocks(story, {
-          scopeTier: 'regional',
-          locationIds: [currentLocationId],
-          npcIds: activeNpcIds,
-        });
-
-    // Hierarchical memory retrieval from the persisted session log
-    const turnSceneByNumber = new Map<number, string>();
-    for (const t of (session?.turns ?? []) as Array<{ turnNumber: number; sceneId?: string }>) {
-      turnSceneByNumber.set(t.turnNumber, t.sceneId ?? currentLocation.id);
-    }
-    const memoryLogs = (session?.memories ?? []) as Array<{
-      category: string;
-      importance?: number;
-      summary: string;
-      detail?: string | null;
-      turnNumber?: number;
-      sceneId?: string | null;
-      entityIds?: string[];
-      tags?: string[];
-    }>;
-    const memoryEntries = memoryLogs.map((m, i) => ({
-      id: `mem_${m.turnNumber ?? 0}_${i}`,
-      category: m.category,
-      importance: typeof m.importance === 'number' ? m.importance : 5,
-      summary: m.summary,
-      detail: m.detail ?? undefined,
-      tags: m.tags ?? [],
-      entityIds: m.entityIds ?? [],
-      // Prefer the dedicated scene column; fall back to the turn lookup.
-      sceneId: m.sceneId ?? turnSceneByNumber.get(m.turnNumber ?? 0) ?? currentLocation.id,
-      turnNumber: m.turnNumber ?? 0,
-      createdAt: m.turnNumber ?? 0,
-    })) as unknown as MemoryEntry[];
-    const retrieved = memoryEntries.length
-      ? new MemoryEngine(memoryEntries).getRelevantMemories(currentLocationId, activeNpcIds, 6)
-      : [];
-    const relevantMemories = [
-      ...retrieved.map((m) => ({ category: m.category, importance: m.importance, summary: m.summary })),
-      {
-        category: 'player' as MemoryCategory,
-        importance: 8,
-        summary: `Player performed action "${playerActionText}" with outcome ${resolution.outcome}`,
-      },
-    ];
-
-    // Sliding-window recent prose from prior turns (fallback to opening beat)
-    const priorProse = ((session?.turns ?? []) as Array<{ narrativeProse?: string }>)
-      .slice(-3)
-      .map((t) => t.narrativeProse)
-      .filter((p): p is string => typeof p === 'string' && p.length > 0);
-    const recentSceneSnippets =
-      priorProse.length > 0 ? priorProse : [story.initialStoryBeats[0]?.narrativeText || ''];
-
-    // Tier 2 rollups + Tier 3 ledger lines from the merged Living World Ledger
-    const threeTier = new MemoryEngine(memoryEntries).buildThreeTierEnvelope(nextLedger);
-
-    // Plan 13: threat clocks + displacement + contextual choice material.
-    const activeClockLines = (updatedPlayerState.activeTensionClocks ?? []).map(
-      (c) => `${c.name}: ${c.currentSegments}/${c.maxSegments}${c.isTriggered ? ' — CRISIS TRIGGERED' : ''}${c.crisisDescription ? ` (crisis: ${c.crisisDescription})` : ''}`
-    );
-    const newLocation = story.worldBible.locations.find((l) => l.id === updatedPlayerState.currentLocationId);
-    const displacementDirective = displacedLocationId && previousLocation && newLocation
-      ? `[CRITICAL LOCATION DISPLACEMENT]: The action failed catastrophically. The player was knocked/fell from ${previousLocation.name} into ${newLocation.name}. Dramatize the bone-jarring impact, physical damage, and the sudden survival crisis in this new environment!`
-      : undefined;
-    const inventoryTerms = updatedPlayerState.inventory.map((i) => i.name).filter(Boolean).slice(0, 12);
-    const environmentInteractables = [
-      ...(currentLocation.pointsOfInterest ?? []).map((p) => p.name),
-      ...(currentLocation.subZones ?? []).flatMap((z) => (z.pointsOfInterest ?? []).map((p) => p.name)),
-    ].filter(Boolean).slice(0, 12);
-
-    const contextEnvelope: WorkingContextEnvelope = {
-      storyTitle: story.title,
-      worldLaws: story.worldBible.laws.map((l) => `${l.rule}: ${l.description}`),
-      currentLocationName: currentLocation.name,
-      currentLocationDescription: currentLocation.description,
-      activeNpcDossiers: activeNPCs.map((npc) => {
-        const ov = story.storyNpcOverrides?.[npc.id];
-        return {
-          name: npc.name,
-          trust: updatedPlayerState.relationships[npc.id]?.trust ?? ov?.customInitialTrust ?? npc.initialTrust ?? 0,
-          knownSecrets: updatedPlayerState.relationships[npc.id]?.knownSecrets || [],
-          speechStyle: ov?.storyRole ? `[Role in this story: ${ov.storyRole}] ${npc.speechStyle}` : npc.speechStyle,
-          vitalsLine: formatNpcCombatSummary(npc) || undefined,
-        };
-      }),
-      relevantMemories,
-      playerStatus: {
-        stats: updatedPlayerState.stats,
-        resources: updatedPlayerState.resources,
-        equippedItems: updatedPlayerState.inventory.map((i) => i.name),
-        characterName: updatedPlayerState.characterName,
-        archetypeName: updatedPlayerState.archetypeName,
-        abilities: updatedPlayerState.abilities,
-      },
-      statsConfig: story.rpgSystem?.stats,
-      universalBaseValue: (story.rpgSystem as any)?.universalBaseValue,
-      resolvedGameOutcome: {
-        actionText: playerActionText,
-        outcome: resolution.outcome,
-        consequence: resolution.consequenceSummary,
-      },
-      recentSceneSnippets,
-      languageDirective: story.language,
-      authoredSystemPrompt: world.authoredSystemPrompt,
-      worldSummary: world.worldSummary,
-      themeNotes: world.themeNotes,
-      factions: world.factions,
-      factionRelations: world.factionRelations,
-      timeline: world.timeline,
-      artifacts: world.artifacts,
-      bestiary: world.bestiary,
-      religions: world.religions,
-      dramaBonds: world.dramaBonds,
-      ontologySummary: world.ontologySummary,
-      locations: world.locations,
-      npcs: world.npcs,
-      // Plan 08 saga grounding
-      activeChapterTitle: activeChapter
-        ? `${activeChapter.chapterNumber}. ${activeChapter.title}`
-        : story.activeMilestoneGoal
-        ? story.language === 'fa'
-          ? 'هدف روایی و برخورد پیش‌رو'
-          : 'Active Milestone Encounter'
-        : undefined,
-      activeChapterGoal: activeChapter?.narrativeGoal || story.activeMilestoneGoal || undefined,
-      episodicRollup: threeTier.episodicRollup,
-      livingWorldLedger: threeTier.livingWorldLedger,
-      // Plan 13: Director & Scribe runtime
-      activeClocks: activeClockLines.length ? activeClockLines : undefined,
-      displacementDirective,
-      inventoryTerms: inventoryTerms.length ? inventoryTerms : undefined,
-      environmentInteractables: environmentInteractables.length ? environmentInteractables : undefined,
-    };
-
     // ------------------------------------------------------------------
-    // Plan 12 Phase 5: HYBRID READER
-    // Traversal: if choice targets a valid authored beat in the unified graph,
-    // present its authored prose and choices verbatim.
-    // Fallback: unlinked / dangling / free-text choices continue via Gemini LLM.
+    // Plan 14: shared narrative-turn core (envelope → prompt → model →
+    // prose validation → secret sanitization). Extracted into
+    // `generateValidatedScene` so the evaluation harness exercises the exact
+    // production path as live play.
     // ------------------------------------------------------------------
     const resolvedAuthoredBeat = targetSceneId
-      ? story.initialStoryBeats?.find((b) => b.sceneId === targetSceneId)
+      ? story.initialStoryBeats?.find((b: any) => b.sceneId === targetSceneId)
       : undefined;
 
-    let aiResponse: {
-      narrative: string;
-      choices: any[];
-      extractedMemories: any[];
-      isMock?: boolean;
-    };
-    let proseRepaired = false;
-    let proseFindings: ReturnType<typeof validateProse>['findings'] = [];
-
-    if (resolvedAuthoredBeat && resolvedAuthoredBeat.narrativeText?.trim()) {
-      aiResponse = {
-        narrative: resolvedAuthoredBeat.narrativeText,
-        choices: (resolvedAuthoredBeat.choices || []).map((c: any) => ({
-          id: c.id,
-          text: c.text,
-          style: c.style || 'tactical',
-          riskLevel: c.riskLevel || 'medium',
-          targetDC: c.targetDC,
-          requiredStatId: c.requiredStatId,
-          targetSceneId: c.targetSceneId,
-        })),
-        extractedMemories: [],
-        isMock: false,
-      };
-    } else {
-      // 4. Build prompt and generate prose with Gemini
-      const promptPayload = PromptAssembler.buildNarrativePrompt(contextEnvelope);
-      const generated = await geminiAdapter.generateScene(promptPayload);
-      aiResponse = generated;
-
-      // Plan 08 Phase 1: NEVER persist mock/offline output as story canon.
-      if (aiResponse.isMock) {
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              'AI narration is unavailable right now (offline or API failure). The turn was NOT recorded to protect story consistency. Please retry.',
-            isMock: true,
-          },
-          { status: 503, headers: corsHeaders }
-        );
-      }
-
-      // Post-generation prose validation with one auto-repair attempt.
-      const firstCheck = validateProse(aiResponse.narrative, {
-        ledger: nextLedger,
+    const sceneOutcome = await generateValidatedScene(
+      {
+        story,
+        playerState: updatedPlayerState,
         resolution,
-        worldBible: story.worldBible,
-      });
-      proseFindings = firstCheck.findings;
-      if (!firstCheck.ok) {
-        const repairPayload = {
-          ...promptPayload,
-          userPrompt: `${promptPayload.userPrompt}\n\n${buildProseRepairInstruction(firstCheck.findings)}\n\nPREVIOUS PROSE:\n${aiResponse.narrative}`,
-        };
-        const repaired = await geminiAdapter.generateScene(repairPayload);
-        if (!repaired.isMock) {
-          const secondCheck = validateProse(repaired.narrative, {
-            ledger: nextLedger,
-            resolution,
-            worldBible: story.worldBible,
-          });
-          if (secondCheck.ok) {
-            aiResponse = repaired;
-            proseFindings = secondCheck.findings;
-            proseRepaired = true;
-          } else {
-            return NextResponse.json(
-              {
-                success: false,
-                error: 'Generated prose violated world canon and could not be repaired. The turn was NOT recorded. Please retry.',
-                proseInvalid: true,
-                proseFindings: secondCheck.findings,
-              },
-              { status: 503, headers: corsHeaders }
-            );
-          }
-        } else {
-          return NextResponse.json(
-            {
-              success: false,
-              error: 'Prose repair unavailable (AI offline). The turn was NOT recorded. Please retry.',
-              proseInvalid: true,
-              proseFindings: firstCheck.findings,
-            },
-            { status: 503, headers: corsHeaders }
-          );
-        }
-      }
+        playerActionText,
+        ledger: nextLedger,
+        sessionTurns: (session?.turns ?? []) as Array<{
+          turnNumber?: number;
+          sceneId?: string;
+          narrativeProse?: string;
+        }>,
+        sessionMemories: (session?.memories ?? []) as Array<{
+          category: string;
+          importance?: number;
+          summary: string;
+          detail?: string | null;
+          turnNumber?: number;
+          sceneId?: string | null;
+          entityIds?: string[];
+          tags?: string[];
+        }>,
+        targetSceneId,
+        activeChapter,
+        displacedLocationId,
+        previousLocationId: preTurnLocationId,
+      },
+      geminiAdapter,
+      (choices) =>
+        ActionValidator.sanitizeChoices(
+          choices,
+          updatedPlayerState,
+          story.worldBible,
+          story.storyNpcOverrides
+        )
+    );
+
+    // Plan 08 Phase 1: NEVER persist mock/offline output as story canon.
+    if (sceneOutcome.status === 'mock_unavailable') {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'AI narration is unavailable right now (offline or API failure). The turn was NOT recorded to protect story consistency. Please retry.',
+          isMock: true,
+        },
+        { status: 503, headers: corsHeaders }
+      );
     }
 
-    // Defense-in-depth: drop any AI-generated choice that would leak a secret
-    // the player has not yet discovered, so the reader never presents a button
-    // the guardrail would reject if clicked. (Presented choices are also
-    // trusted via the bypass above, but the text must never reach the player.)
-    aiResponse.choices = ActionValidator.sanitizeChoices(
-      aiResponse.choices,
-      updatedPlayerState,
-      story.worldBible,
-      story.storyNpcOverrides
-    );
+    // Prose failed validation and could not be repaired.
+    if (sceneOutcome.status === 'prose_invalid') {
+      const repairUnavailable = sceneOutcome.proseInvalidReason === 'repair_unavailable';
+      return NextResponse.json(
+        {
+          success: false,
+          error: repairUnavailable
+            ? 'Prose repair unavailable (AI offline). The turn was NOT recorded. Please retry.'
+            : 'Generated prose violated world canon and could not be repaired. The turn was NOT recorded. Please retry.',
+          proseInvalid: true,
+          proseFindings: sceneOutcome.proseFindings,
+        },
+        { status: 503, headers: corsHeaders }
+      );
+    }
+
+    const aiResponse = sceneOutcome.aiResponse;
+    const proseFindings = sceneOutcome.proseFindings;
+    const proseRepaired = sceneOutcome.proseRepaired;
 
     // Carry the real authored scene id when known; fixes stuck-currentSceneId
     const beatSceneId =

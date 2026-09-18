@@ -131,12 +131,14 @@ export class PromptAssembler {
 - Low risk: 8-10 (standard minor checks, non-adversarial actions).
 - Medium risk: 11-13 (moderate obstacles, cautious guards, standard adventure challenges).
 - High risk: 14-16 (dangerous opposition, alert armed sentries, high-pressure interrogation or deceit).
-- Heroic / Extreme feats: 17-19 (tremendous physical force such as crashing through barricades bare-bodied, dodging point-blank volleys, resisting lethal toxins).`
+- Heroic / Extreme feats: 17-19 (tremendous physical force such as crashing through barricades bare-bodied, dodging point-blank volleys, resisting lethal toxins).
+IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at 11-13 (never 10 or below), high-risk at 14-16, heroic at 17-19 (never 20 or above). The storyboard below shows real failures to avoid: a standoff choice at DC 11 is too easy; a heroic barricade feat at DC 20 is effectively unrollable.`
       : `درجه سختی (targetDC) برای انتخاب‌ها باید دقیقاً متناسب با دشواری واقعی و مقاومت موانع تعیین شود:
 - ریسک پایین: ۸-۱۰ (اقدامات استاندارد، بدون مقاومت جدی).
 - ریسک متوسط: ۱۱-۱۳ (موانع معمولی، نگهبانان محتاط، چالش‌های معمول ماجراجویی).
 - ریسک بالا: ۱۴-۱۶ (مقاومت جدی، گزمه‌های مسلح و هوشیار، موقعیت‌های پرخطر جسمی یا فریب دشوار).
-- کارهای خارق‌العاده و پرفشار (Extreme / Heroic): ۱۷-۱۹ (اعمال نیروی فیزیکی سهمگین مانند خرد کردن موانع چوبی نظامی با شانه بدون ابزار، جاخالی دادن به تیرهای نزدیک، خلع سلاح در محاصره).`;
+- کارهای خارق‌العاده و پرفشار (Extreme / Heroic): ۱۷-۱۹ (اعمال نیروی فیزیکی سهمگین مانند خرد کردن موانع چوبی نظامی با شانه بدون ابزار، جاخالی دادن به تیرهای نزدیک، خلع سلاح در محاصره).
+مهم — هرگز درجه‌ای از باند اشتباه نده: متوسط ۱۱ تا ۱۳ (نه ۱۰ یا کمتر)، بالا ۱۴ تا ۱۶، حماسی ۱۷ تا ۱۹ (نه ۲۰ یا بیشتر).`;
 
     const statsDirective = validStatIds.length
       ? isEnglish

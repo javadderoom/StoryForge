@@ -43,6 +43,7 @@ import {
   Zap,
   ListChecks,
   Route,
+  FlaskConical,
 } from 'lucide-react';
 
 function StudioShell({ children }: { children: React.ReactNode }) {
@@ -190,6 +191,13 @@ function StudioShell({ children }: { children: React.ReactNode }) {
       isSpecial: true,
     },
     {
+      href: '/studio/diagnostics/ai',
+      label: isPersian ? 'عیب‌یابی روایت هوش مصنوعی' : 'AI Narrative Diagnostics',
+      shortLabel: isPersian ? 'عیب‌یابی' : 'Diagnostics',
+      icon: FlaskConical,
+      isSpecial: true,
+    },
+    {
       href: '/studio/admin',
       label: isPersian ? 'مدیریت کاربران و مالی' : 'Admin & Finance',
       shortLabel: isPersian ? 'مدیریت' : 'Admin',
@@ -225,6 +233,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
     '/studio/rpg': 'story',
     '/studio/sandbox': 'ai',
     '/studio/chat': 'ai',
+    '/studio/diagnostics/ai': 'ai',
     '/studio/admin': 'admin',
   };
 

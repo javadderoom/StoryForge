@@ -3,7 +3,7 @@ import type { CheckResolution } from '@/lib/types/gameplay';
 
 export interface ProseFinding {
   severity: 'error' | 'warning';
-  category: 'resurrection' | 'new_entity' | 'outcome_mismatch' | 'lore_violation';
+  category: 'resurrection' | 'new_entity' | 'outcome_mismatch' | 'lore_violation' | 'script_leak';
   detail: string;
 }
 
@@ -17,6 +17,18 @@ const MEMORIAL_PATTERN = /in memory|slain|fallen|grave|once |late |memory of|ی�
 const SUCCESS_WORDS = /triumph|victor|effortless|flawless|prevail|easily overcame|پیروزی|ظفر|آسان|بی‌نقص/i;
 const FAILURE_WORDS = /fail|fumble|disaster|collapse|overwhelm|defeat|شکست|نافرجام|فاجعه|مغلوب/i;
 
+/** Shared Persian-script check for production validation and diagnostic reports. */
+export function unexpectedPersianScriptCharacters(text: string): string[] {
+  return [...new Set([...text].filter((char) =>
+    // Explicitly reject Bengali, including vowel signs in the sentinel বাংলা.
+    /[\u0980-\u09FF]/u.test(char) || (
+      /[\p{L}\p{M}]/u.test(char) &&
+      !/[\p{Script_Extensions=Arabic}\p{Script_Extensions=Latin}\p{Script=Common}\p{Script=Inherited}]/u.test(char)
+    )
+  ))];
+}
+
+
 /**
  * Deterministic post-generation prose validator (bilingual EN/FA).
  * Checks resurrected NPCs, smuggled entities, outcome mismatch, and
@@ -28,11 +40,29 @@ export function validateProse(
     ledger?: WorldStateLedger | null;
     resolution?: CheckResolution | null;
     worldBible?: WorldBible | null;
+    /** Explicit story language; omitted callers retain the existing behavior. */
+    language?: string;
   } = {}
 ): ProseValidationResult {
   const findings: ProseFinding[] = [];
   const text = prose || '';
   const lower = text.toLowerCase();
+
+  // Persian permits Arabic-script letters/marks, common punctuation, digits,
+  // joiners and Latin proper names. Reject unrelated letter/mark scripts rather
+  // than arbitrary Unicode blocks (which would reject legitimate typography).
+  if (/^(fa(?:[-_].*)?|persian|farsi)$/i.test(opts.language?.trim() ?? '')) {
+    const unexpected = unexpectedPersianScriptCharacters(text);
+    if (unexpected.length) {
+      findings.push({
+        severity: 'error',
+        category: 'script_leak',
+        detail: `Persian prose contains unexpected script characters: ${unexpected.slice(0, 12).map((c) =>
+          `U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}`
+        ).join(', ')}. Rewrite affected words in Persian; preserve valid names and punctuation.`,
+      });
+    }
+  }
 
   // 1. Resurrection: dead/transformed/missing NPCs must not act alive.
   for (const n of opts.ledger?.npcStatuses || []) {

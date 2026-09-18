@@ -1,0 +1,31 @@
+
+> storyforge-web@0.1.0 eval:story
+> tsx scripts/evalStory.ts --turns=3 --persona=shadow --seed=42 --json --out=g:\Code\StoryForge\scratch\remediation-live.json
+
+
+[2mStoryForge real-world harness — story_mt4ofllt vs http://localhost:3000[0m
+[2mpersona=shadow turns=3 seed=42 rawProbe=off[0m
+
+  [2msession=sess_1789673929172_akerga[0m
+  story: خاکسترِ زروان (fa)
+  open : پشت سرت، افق خشک و غبارآلود دشت هیرام آرام‌آرام در سرمای گرگ‌ومیش فرو می‌رود؛ خاکی سرخ و فرساینده که فرسنگ‌ها بی‌آبی و ز…
+  stats: might, cunning, arcana, agility, charisma  lowBase=true
+  pools: health, resolve, mana  healthKey=health
+  opening choices=3  hp=30
+
+  [2mturn 1[0m roll 13 critical_success dc  7 hp  30 [2m[0m [2mقدم جلو گذاشتن و با لحنی پرسشگر از گزمه علت [0m
+  [2mturn 2[0m roll  9 mixed_success    dc 10 hp  25 [2m[0m [2mبررسی دقیق سطح آب و لبه‌های پل برای یافتن را[0m
+  [2mturn 3[0m roll 18 critical_success dc 10 hp  25 [2m[0m [2mلغزیدن به درون سایهٔ پایه‌های پل و آزمودن شک[0m
+
+[2m──────────────────────────────────────────────────────────────────────────────[0m
+  خاکسترِ زروان · fa · session sess_1789673929172_akerga
+  turns: 3 ok, 0 rejected, 0 failed
+  model: (route-internal cascade)
+  latency: avg 4031ms · max 4496ms
+  prose: 136–211 words (avg 182)
+  choices: 8 checked · 2 diceless (post-guardrail)
+
+  report written to g:\Code\StoryForge\scratch\remediation-live.json
+
+  [32mPASS[0m — 0 error(s), 0 warning(s)  [2m(16.4s)[0m
+

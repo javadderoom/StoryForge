@@ -1,0 +1,3706 @@
+
+> storyforge-web@0.1.0 test
+> tsx scripts/testAll.ts
+
+Discovered 48 test files.
+TAP version 13
+# [GeminiClient] Attempting chat with model: gemini-3.5-flash-lite...
+# [GeminiClient] Chat response succeeded using model: gemini-3.5-flash-lite
+# [GeminiClient] Attempting chat with model: gemini-3.5-flash-lite...
+# [GeminiClient] Chat response succeeded using model: gemini-3.5-flash-lite
+# [GeminiClient] Attempting chat with model: gemini-3.5-flash-lite...
+# [GeminiClient] Chat response succeeded using model: gemini-3.5-flash-lite
+# [GeminiClient] Attempting chat with model: gemini-3.5-flash-lite...
+# [GeminiClient] Chat response succeeded using model: gemini-3.5-flash-lite
+# [GeminiClient] Attempting chat with model: gemini-3.5-flash-lite...
+# [GeminiClient] Chat response succeeded using model: gemini-3.5-flash-lite
+# Subtest: StudioChat API - AI Oracle (Context-Aware)
+    # Subtest: rejects requests with no messages (400)
+    ok 1 - rejects requests with no messages (400)
+      ---
+      duration_ms: 8.2219
+      type: 'test'
+      ...
+    # Subtest: returns a grounded Oracle reply and injects the world context into the prompt
+    ok 2 - returns a grounded Oracle reply and injects the world context into the prompt
+      ---
+      duration_ms: 13.6791
+      type: 'test'
+      ...
+    # Subtest: localizes the Oracle system prompt for Persian
+    ok 3 - localizes the Oracle system prompt for Persian
+      ---
+      duration_ms: 6.0039
+      type: 'test'
+      ...
+    # Subtest: injects the selected persona prompt and focused-entity context
+    ok 4 - injects the selected persona prompt and focused-entity context
+      ---
+      duration_ms: 3.4593
+      type: 'test'
+      ...
+    # Subtest: falls back to the oracle persona for an unknown persona id
+    ok 5 - falls back to the oracle persona for an unknown persona id
+      ---
+      duration_ms: 2.049
+      type: 'test'
+      ...
+    # Subtest: injects permanent author directives and canon memories into system instruction
+    ok 6 - injects permanent author directives and canon memories into system instruction
+      ---
+      duration_ms: 2.5607
+      type: 'test'
+      ...
+    1..6
+ok 1 - StudioChat API - AI Oracle (Context-Aware)
+  ---
+  duration_ms: 39.8856
+  type: 'suite'
+  ...
+# Subtest: StudioGenerate API - AI Co-Pilot & Procedural Synthesis Engine
+    # Subtest: No-Mock Error Guardrail (503 on unauthenticated/offline failure)
+        # Subtest: returns 503 without fake mock fallback when offline for world
+        ok 1 - returns 503 without fake mock fallback when offline for world
+          ---
+          duration_ms: 11.2891
+          type: 'test'
+          ...
+        # Subtest: returns 503 without fake mock fallback when offline for location
+        ok 2 - returns 503 without fake mock fallback when offline for location
+          ---
+          duration_ms: 1.5825
+          type: 'test'
+          ...
+        # Subtest: returns 503 without fake mock fallback when offline for npc
+        ok 3 - returns 503 without fake mock fallback when offline for npc
+          ---
+          duration_ms: 1.8969
+          type: 'test'
+          ...
+        # Subtest: returns 503 without fake mock fallback when offline for artifact
+        ok 4 - returns 503 without fake mock fallback when offline for artifact
+          ---
+          duration_ms: 1.997
+          type: 'test'
+          ...
+        # Subtest: returns 503 without fake mock fallback when offline for creature
+        ok 5 - returns 503 without fake mock fallback when offline for creature
+          ---
+          duration_ms: 2.1227
+          type: 'test'
+          ...
+        # Subtest: returns 503 without fake mock fallback when offline for deity
+        ok 6 - returns 503 without fake mock fallback when offline for deity
+          ---
+          duration_ms: 1.0082
+          type: 'test'
+          ...
+        # Subtest: returns 503 without fake mock fallback when offline for timeline_event
+        ok 7 - returns 503 without fake mock fallback when offline for timeline_event
+          ---
+          duration_ms: 0.6789
+          type: 'test'
+          ...
+        # Subtest: returns 503 without fake mock fallback when offline for world_law
+        ok 8 - returns 503 without fake mock fallback when offline for world_law
+          ---
+          duration_ms: 0.605
+          type: 'test'
+          ...
+        # Subtest: returns 503 without fake mock fallback when offline for scene
+        ok 9 - returns 503 without fake mock fallback when offline for scene
+          ---
+          duration_ms: 1.663
+          type: 'test'
+          ...
+        # Subtest: returns 503 without fake mock fallback when offline for location_subzones
+        ok 10 - returns 503 without fake mock fallback when offline for location_subzones
+          ---
+          duration_ms: 1.9464
+          type: 'test'
+          ...
+        # Subtest: returns 503 without fake mock fallback when offline for populate_location
+        ok 11 - returns 503 without fake mock fallback when offline for populate_location
+          ---
+          duration_ms: 1.0314
+          type: 'test'
+          ...
+        # Subtest: returns 503 without fake mock fallback when offline for npc_relationships
+        ok 12 - returns 503 without fake mock fallback when offline for npc_relationships
+          ---
+          duration_ms: 0.6057
+          type: 'test'
+          ...
+        # Subtest: returns 503 without fake mock fallback when offline for npc_voice_guide
+        ok 13 - returns 503 without fake mock fallback when offline for npc_voice_guide
+          ---
+          duration_ms: 0.5238
+          type: 'test'
+          ...
+        # Subtest: returns 503 without fake mock fallback when offline for npc_stat_calibration
+        ok 14 - returns 503 without fake mock fallback when offline for npc_stat_calibration
+          ---
+          duration_ms: 0.6293
+          type: 'test'
+          ...
+        # Subtest: returns 503 without fake mock fallback when offline for epic_saga_synthesis
+        ok 15 - returns 503 without fake mock fallback when offline for epic_saga_synthesis
+          ---
+          duration_ms: 0.4706
+          type: 'test'
+          ...
+        1..15
+    ok 1 - No-Mock Error Guardrail (503 on unauthenticated/offline failure)
+      ---
+      duration_ms: 29.7848
+      type: 'suite'
+      ...
+    # Subtest: Schema Validation on Synthetic AI Outputs
+        # Subtest: validates a schema-compliant Genesis world package
+        ok 1 - validates a schema-compliant Genesis world package
+          ---
+          duration_ms: 4.4881
+          type: 'test'
+          ...
+        # Subtest: validates schema compliance across all single entity types
+        ok 2 - validates schema compliance across all single entity types
+          ---
+          duration_ms: 3.194
+          type: 'test'
+          ...
+        1..2
+    ok 2 - Schema Validation on Synthetic AI Outputs
+      ---
+      duration_ms: 7.8843
+      type: 'suite'
+      ...
+    # Subtest: Plan 01 — Genesis Generator
+        # Subtest: returns 503 error without silent mock fallback when offline
+        ok 1 - returns 503 error without silent mock fallback when offline
+          ---
+          duration_ms: 2.5333
+          type: 'test'
+          ...
+        1..1
+    ok 3 - Plan 01 — Genesis Generator
+      ---
+      duration_ms: 2.7204
+      type: 'suite'
+      ...
+    # Subtest: Plan 01 — Contradiction Radar (audit_world)
+        # Subtest: audits a world and returns a ContradictionAuditReport with findings
+        ok 1 - audits a world and returns a ContradictionAuditReport with findings
+          ---
+          duration_ms: 4.7055
+          type: 'test'
+          ...
+        # Subtest: rejects audit_world without a worldBible payload
+        ok 2 - rejects audit_world without a worldBible payload
+          ---
+          duration_ms: 0.6195
+          type: 'test'
+          ...
+        1..2
+    ok 4 - Plan 01 — Contradiction Radar (audit_world)
+      ---
+      duration_ms: 5.5501
+      type: 'suite'
+      ...
+    1..4
+ok 2 - StudioGenerate API - AI Co-Pilot & Procedural Synthesis Engine
+  ---
+  duration_ms: 47.2549
+  type: 'suite'
+  ...
+# Subtest: StoryManifestIntegrity - Default Story Factory
+    # Subtest: Manifest Integrity: Empty Manifest (Persian)
+        # Subtest: strictly conforms to StoryManifestSchema without Zod errors
+        ok 1 - strictly conforms to StoryManifestSchema without Zod errors
+          ---
+          duration_ms: 13.6428
+          type: 'test'
+          ...
+        # Subtest: ensures initialSceneId matches an existing beat
+        ok 2 - ensures initialSceneId matches an existing beat
+          ---
+          duration_ms: 0.4371
+          type: 'test'
+          ...
+        # Subtest: ensures all NPCs reference valid existing locations and factions
+        ok 3 - ensures all NPCs reference valid existing locations and factions
+          ---
+          duration_ms: 0.2137
+          type: 'test'
+          ...
+        # Subtest: ensures all artifacts reference valid holder entities
+        ok 4 - ensures all artifacts reference valid holder entities
+          ---
+          duration_ms: 0.2036
+          type: 'test'
+          ...
+        # Subtest: ensures all bestiary creatures reference valid habitat locations
+        ok 5 - ensures all bestiary creatures reference valid habitat locations
+          ---
+          duration_ms: 0.2208
+          type: 'test'
+          ...
+        # Subtest: ensures all deities reference valid factions and holy locations
+        ok 6 - ensures all deities reference valid factions and holy locations
+          ---
+          duration_ms: 0.1963
+          type: 'test'
+          ...
+        # Subtest: ensures all drama bonds connect two distinct, existing NPCs
+        ok 7 - ensures all drama bonds connect two distinct, existing NPCs
+          ---
+          duration_ms: 0.251
+          type: 'test'
+          ...
+        # Subtest: ensures RPG system defines essential stats and positive resources
+        ok 8 - ensures RPG system defines essential stats and positive resources
+          ---
+          duration_ms: 0.2317
+          type: 'test'
+          ...
+        1..8
+    ok 1 - Manifest Integrity: Empty Manifest (Persian)
+      ---
+      duration_ms: 26.3697
+      type: 'suite'
+      ...
+    # Subtest: Manifest Integrity: Empty Manifest (English)
+        # Subtest: strictly conforms to StoryManifestSchema without Zod errors
+        ok 1 - strictly conforms to StoryManifestSchema without Zod errors
+          ---
+          duration_ms: 0.6888
+          type: 'test'
+          ...
+        # Subtest: ensures initialSceneId matches an existing beat
+        ok 2 - ensures initialSceneId matches an existing beat
+          ---
+          duration_ms: 0.4787
+          type: 'test'
+          ...
+        # Subtest: ensures all NPCs reference valid existing locations and factions
+        ok 3 - ensures all NPCs reference valid existing locations and factions
+          ---
+          duration_ms: 0.213
+          type: 'test'
+          ...
+        # Subtest: ensures all artifacts reference valid holder entities
+        ok 4 - ensures all artifacts reference valid holder entities
+          ---
+          duration_ms: 0.0791
+          type: 'test'
+          ...
+        # Subtest: ensures all bestiary creatures reference valid habitat locations
+        ok 5 - ensures all bestiary creatures reference valid habitat locations
+          ---
+          duration_ms: 0.0932
+          type: 'test'
+          ...
+        # Subtest: ensures all deities reference valid factions and holy locations
+        ok 6 - ensures all deities reference valid factions and holy locations
+          ---
+          duration_ms: 0.0844
+          type: 'test'
+          ...
+        # Subtest: ensures all drama bonds connect two distinct, existing NPCs
+        ok 7 - ensures all drama bonds connect two distinct, existing NPCs
+          ---
+          duration_ms: 0.0759
+          type: 'test'
+          ...
+        # Subtest: ensures RPG system defines essential stats and positive resources
+        ok 8 - ensures RPG system defines essential stats and positive resources
+          ---
+          duration_ms: 0.2677
+          type: 'test'
+          ...
+        1..8
+    ok 2 - Manifest Integrity: Empty Manifest (English)
+      ---
+      duration_ms: 3.4015
+      type: 'suite'
+      ...
+    1..2
+ok 3 - StoryManifestIntegrity - Default Story Factory
+  ---
+  duration_ms: 30.4512
+  type: 'suite'
+  ...
+# Subtest: extractJsonPayload
+    # Subtest: passes clean JSON through untouched
+    ok 1 - passes clean JSON through untouched
+      ---
+      duration_ms: 2.3414
+      type: 'test'
+      ...
+    # Subtest: strips fenced blocks with or without the json tag
+    ok 2 - strips fenced blocks with or without the json tag
+      ---
+      duration_ms: 0.6108
+      type: 'test'
+      ...
+    # Subtest: tolerates leading prose and trailing junk
+    ok 3 - tolerates leading prose and trailing junk
+      ---
+      duration_ms: 0.1914
+      type: 'test'
+      ...
+    # Subtest: returns input unchanged when no brackets exist
+    ok 4 - returns input unchanged when no brackets exist
+      ---
+      duration_ms: 0.1248
+      type: 'test'
+      ...
+    1..4
+ok 4 - extractJsonPayload
+  ---
+  duration_ms: 7.3312
+  type: 'suite'
+  ...
+# Subtest: Auth Utilities & JWT
+    # Subtest: Phone Number Normalization & Validation
+        # Subtest: normalizes 09xxxxxxxxx to +989xxxxxxxxx
+        ok 1 - normalizes 09xxxxxxxxx to +989xxxxxxxxx
+          ---
+          duration_ms: 1.5334
+          type: 'test'
+          ...
+        # Subtest: normalizes +98 or 0098 correctly
+        ok 2 - normalizes +98 or 0098 correctly
+          ---
+          duration_ms: 0.396
+          type: 'test'
+          ...
+        # Subtest: validates genuine Iranian mobile numbers
+        ok 3 - validates genuine Iranian mobile numbers
+          ---
+          duration_ms: 0.3049
+          type: 'test'
+          ...
+        1..3
+    ok 1 - Phone Number Normalization & Validation
+      ---
+      duration_ms: 3.2041
+      type: 'suite'
+      ...
+    # Subtest: Password Hashing & Salt Verification
+        # Subtest: hashes passwords securely and verifies correctly
+        ok 1 - hashes passwords securely and verifies correctly
+          ---
+          duration_ms: 55.3894
+          type: 'test'
+          ...
+        1..1
+    ok 2 - Password Hashing & Salt Verification
+      ---
+      duration_ms: 55.561
+      type: 'suite'
+      ...
+    # Subtest: JWT Signing & Verification
+        # Subtest: signs and verifies payload correctly
+        ok 1 - signs and verifies payload correctly
+          ---
+          duration_ms: 10.5468
+          type: 'test'
+          ...
+        # Subtest: rejects tampered tokens
+        ok 2 - rejects tampered tokens
+          ---
+          duration_ms: 1.1309
+          type: 'test'
+          ...
+        1..2
+    ok 3 - JWT Signing & Verification
+      ---
+      duration_ms: 12.2075
+      type: 'suite'
+      ...
+    1..3
+ok 5 - Auth Utilities & JWT
+  ---
+  duration_ms: 71.7461
+  type: 'suite'
+  ...
+# Subtest: StoryRepository — Selective Queries & Partial Updates
+    # Subtest: exposes granular getter methods for all 10 lore domains
+    ok 1 - exposes granular getter methods for all 10 lore domains
+      ---
+      duration_ms: 1.0118
+      type: 'test'
+      ...
+    # Subtest: exposes partial atomic updater method updateLoreCollection
+    ok 2 - exposes partial atomic updater method updateLoreCollection
+      ---
+      duration_ms: 0.1963
+      type: 'test'
+      ...
+    # Subtest: returns empty array / mock response when database is in mock mode
+    ok 3 - returns empty array / mock response when database is in mock mode
+      ---
+      duration_ms: 0.6716
+      type: 'test'
+      ...
+    1..3
+ok 6 - StoryRepository — Selective Queries & Partial Updates
+  ---
+  duration_ms: 3.181
+  type: 'suite'
+  ...
+# Subtest: GameEngine - Deterministic Mechanics & Math
+    # Subtest: Stat Modifiers
+        # Subtest: calculates correct D20 modifiers for various stat levels with default baseValue 10
+        ok 1 - calculates correct D20 modifiers for various stat levels with default baseValue 10
+          ---
+          duration_ms: 1.0879
+          type: 'test'
+          ...
+        # Subtest: calculates correct modifiers dynamically when custom baseValue is provided
+        ok 2 - calculates correct modifiers dynamically when custom baseValue is provided
+          ---
+          duration_ms: 0.3273
+          type: 'test'
+          ...
+        1..2
+    ok 1 - Stat Modifiers
+      ---
+      duration_ms: 2.3723
+      type: 'suite'
+      ...
+    # Subtest: Dice Rolling
+        # Subtest: respects forced rolls for deterministic outcomes
+        ok 1 - respects forced rolls for deterministic outcomes
+          ---
+          duration_ms: 0.3263
+          type: 'test'
+          ...
+        # Subtest: rolls within valid bounds when using RNG
+        ok 2 - rolls within valid bounds when using RNG
+          ---
+          duration_ms: 0.464
+          type: 'test'
+          ...
+        1..2
+    ok 2 - Dice Rolling
+      ---
+      duration_ms: 1.0537
+      type: 'suite'
+      ...
+    # Subtest: Action Resolution Checks
+        # Subtest: resolves a Critical Success on a Natural 20
+        ok 1 - resolves a Critical Success on a Natural 20
+          ---
+          duration_ms: 1.1719
+          type: 'test'
+          ...
+        # Subtest: resolves a Critical Failure on a Natural 1 with automatic damage penalty
+        ok 2 - resolves a Critical Failure on a Natural 1 with automatic damage penalty
+          ---
+          duration_ms: 0.2946
+          type: 'test'
+          ...
+        # Subtest: resolves standard Success when score meets DC
+        ok 3 - resolves standard Success when score meets DC
+          ---
+          duration_ms: 0.375
+          type: 'test'
+          ...
+        # Subtest: does not penalize HP on low risk mixed success
+        ok 4 - does not penalize HP on low risk mixed success
+          ---
+          duration_ms: 0.2321
+          type: 'test'
+          ...
+        # Subtest: resolves Mixed Success (with cost) when score is within 3 of DC
+        ok 5 - resolves Mixed Success (with cost) when score is within 3 of DC
+          ---
+          duration_ms: 0.2465
+          type: 'test'
+          ...
+        # Subtest: resolves Failure when score is significantly below DC
+        ok 6 - resolves Failure when score is significantly below DC
+          ---
+          duration_ms: 0.3009
+          type: 'test'
+          ...
+        # Subtest: correctly includes skill bonuses in total calculation
+        ok 7 - correctly includes skill bonuses in total calculation
+          ---
+          duration_ms: 0.1792
+          type: 'test'
+          ...
+        # Subtest: respects custom authored stat baseline without penalizing baseline stats
+        ok 8 - respects custom authored stat baseline without penalizing baseline stats
+          ---
+          duration_ms: 0.6043
+          type: 'test'
+          ...
+        1..8
+    ok 3 - Action Resolution Checks
+      ---
+      duration_ms: 3.8902
+      type: 'suite'
+      ...
+    # Subtest: State Mutations & Reducer Integrity
+        # Subtest: applies resource damage and clamps to minimum zero
+        ok 1 - applies resource damage and clamps to minimum zero
+          ---
+          duration_ms: 1.2253
+          type: 'test'
+          ...
+        # Subtest: adds new inventory items or stacks quantities for existing items
+        ok 2 - adds new inventory items or stacks quantities for existing items
+          ---
+          duration_ms: 0.2295
+          type: 'test'
+          ...
+        # Subtest: decrements item quantity by 1 for stacked items
+        ok 3 - decrements item quantity by 1 for stacked items
+          ---
+          duration_ms: 0.2095
+          type: 'test'
+          ...
+        # Subtest: triggers tactical smoke pellet environmental bonus and item removal in action text
+        ok 4 - triggers tactical smoke pellet environmental bonus and item removal in action text
+          ---
+          duration_ms: 0.7359
+          type: 'test'
+          ...
+        # Subtest: triggers potion healing and item removal in action text
+        ok 5 - triggers potion healing and item removal in action text
+          ---
+          duration_ms: 0.948
+          type: 'test'
+          ...
+        1..5
+    ok 4 - State Mutations & Reducer Integrity
+      ---
+      duration_ms: 3.5932
+      type: 'suite'
+      ...
+    # Subtest: Pressure Revelation (coercion vs breaking point)
+        # Subtest: detects pressure intent in English and Persian, ignoring plain actions
+        ok 1 - detects pressure intent in English and Persian, ignoring plain actions
+          ---
+          duration_ms: 0.4567
+          type: 'test'
+          ...
+        # Subtest: targets the named NPC, or null without pressure or a name
+        ok 2 - targets the named NPC, or null without pressure or a name
+          ---
+          duration_ms: 0.5196
+          type: 'test'
+          ...
+        # Subtest: cracks the lowest-threshold secret on success, costing trust scaled to the -100..100 range
+        ok 3 - cracks the lowest-threshold secret on success, costing trust scaled to the -100..100 range
+          ---
+          duration_ms: 0.5437
+          type: 'test'
+          ...
+        # Subtest: cuts deeper when the threat targets loved ones
+        ok 4 - cuts deeper when the threat targets loved ones
+          ---
+          duration_ms: 0.2974
+          type: 'test'
+          ...
+        # Subtest: resists unbreakable core secrets on plain success
+        ok 5 - resists unbreakable core secrets on plain success
+          ---
+          duration_ms: 0.2186
+          type: 'test'
+          ...
+        # Subtest: cracks anything on critical success
+        ok 6 - cracks anything on critical success
+          ---
+          duration_ms: 0.1249
+          type: 'test'
+          ...
+        # Subtest: skips already-known secrets and punishes failed pressure
+        ok 7 - skips already-known secrets and punishes failed pressure
+          ---
+          duration_ms: 0.304
+          type: 'test'
+          ...
+        # Subtest: costs trust even when there is nothing left to reveal
+        ok 8 - costs trust even when there is nothing left to reveal
+          ---
+          duration_ms: 0.119
+          type: 'test'
+          ...
+        1..8
+    ok 5 - Pressure Revelation (coercion vs breaking point)
+      ---
+      duration_ms: 2.9106
+      type: 'suite'
+      ...
+    # Subtest: Secret reveal methods (trust / pressure / item / ritual / quest / custom)
+        # Subtest: labels methods without leaking the secret
+        ok 1 - labels methods without leaking the secret
+          ---
+          duration_ms: 0.4304
+          type: 'test'
+          ...
+        # Subtest: gates pressure: surgery-bound secrets do not crack under threats
+        ok 2 - gates pressure: surgery-bound secrets do not crack under threats
+          ---
+          duration_ms: 0.2092
+          type: 'test'
+          ...
+        # Subtest: checks engine-observable methods and leaves ritual/custom to the narrator
+        ok 3 - checks engine-observable methods and leaves ritual/custom to the narrator
+          ---
+          duration_ms: 0.2597
+          type: 'test'
+          ...
+        # Subtest: unlocks trust- and quest-bound secrets passively, lowest first
+        ok 4 - unlocks trust- and quest-bound secrets passively, lowest first
+          ---
+          duration_ms: 0.2315
+          type: 'test'
+          ...
+        # Subtest: discoverSecretsForTurn grants strictly through satisfied declared methods
+        ok 5 - discoverSecretsForTurn grants strictly through satisfied declared methods
+          ---
+          duration_ms: 0.3653
+          type: 'test'
+          ...
+        # Subtest: does not auto-grant pressure-bound secrets via discoverSecretsForTurn
+        ok 6 - does not auto-grant pressure-bound secrets via discoverSecretsForTurn
+          ---
+          duration_ms: 0.2828
+          type: 'test'
+          ...
+        # Subtest: does not auto-grant ritual/custom secrets (narrator adjudication only)
+        ok 7 - does not auto-grant ritual/custom secrets (narrator adjudication only)
+          ---
+          duration_ms: 0.1548
+          type: 'test'
+          ...
+        # Subtest: grants item-bound secrets only when the player possesses the stated item
+        ok 8 - grants item-bound secrets only when the player possesses the stated item
+          ---
+          duration_ms: 0.2986
+          type: 'test'
+          ...
+        # Subtest: grants location-bound secrets only at the stated location
+        ok 9 - grants location-bound secrets only at the stated location
+          ---
+          duration_ms: 0.188
+          type: 'test'
+          ...
+        # Subtest: applies this turn trust delta when evaluating the trust method
+        ok 10 - applies this turn trust delta when evaluating the trust method
+          ---
+          duration_ms: 0.1511
+          type: 'test'
+          ...
+        # Subtest: skips NPCs already granted a secret this turn (e.g. via pressure)
+        ok 11 - skips NPCs already granted a secret this turn (e.g. via pressure)
+          ---
+          duration_ms: 0.1221
+          type: 'test'
+          ...
+        1..11
+    ok 6 - Secret reveal methods (trust / pressure / item / ritual / quest / custom)
+      ---
+      duration_ms: 3.0199
+      type: 'suite'
+      ...
+    # Subtest: Archetype & Character Creation Resolution
+        # Subtest: applies archetype stat bonuses and custom point allocations
+        ok 1 - applies archetype stat bonuses and custom point allocations
+          ---
+          duration_ms: 0.2387
+          type: 'test'
+          ...
+        # Subtest: ensures two-handed weapons do not allow off-hand equipment
+        ok 2 - ensures two-handed weapons do not allow off-hand equipment
+          ---
+          duration_ms: 0.2271
+          type: 'test'
+          ...
+        1..2
+    ok 7 - Archetype & Character Creation Resolution
+      ---
+      duration_ms: 0.5976
+      type: 'suite'
+      ...
+    1..7
+ok 7 - GameEngine - Deterministic Mechanics & Math
+  ---
+  duration_ms: 18.4803
+  type: 'suite'
+  ...
+# Subtest: Plan 08 - Living World State Ledger derivation
+    # Subtest: derives faction reputation drift from NPC relationship changes
+    ok 1 - derives faction reputation drift from NPC relationship changes
+      ---
+      duration_ms: 0.4936
+      type: 'test'
+      ...
+    # Subtest: flags story-critical item gains as key ledger items
+    ok 2 - flags story-critical item gains as key ledger items
+      ---
+      duration_ms: 0.4174
+      type: 'test'
+      ...
+    # Subtest: merges patches cumulatively and clamps reputation scores
+    ok 3 - merges patches cumulatively and clamps reputation scores
+      ---
+      duration_ms: 1.1332
+      type: 'test'
+      ...
+    1..3
+ok 8 - Plan 08 - Living World State Ledger derivation
+  ---
+  duration_ms: 2.2178
+  type: 'suite'
+  ...
+# Subtest: GameEngine - Social Trust Detection
+    # Subtest: isSocialAction
+        # Subtest: detects positive social keywords (EN)
+        ok 1 - detects positive social keywords (EN)
+          ---
+          duration_ms: 0.5169
+          type: 'test'
+          ...
+        # Subtest: detects positive social keywords (FA)
+        ok 2 - detects positive social keywords (FA)
+          ---
+          duration_ms: 0.2315
+          type: 'test'
+          ...
+        # Subtest: rejects non-social actions
+        ok 3 - rejects non-social actions
+          ---
+          duration_ms: 0.1203
+          type: 'test'
+          ...
+        # Subtest: pressure overrides social (mutually exclusive)
+        ok 4 - pressure overrides social (mutually exclusive)
+          ---
+          duration_ms: 0.1679
+          type: 'test'
+          ...
+        1..4
+    ok 1 - isSocialAction
+      ---
+      duration_ms: 1.2694
+      type: 'suite'
+      ...
+    # Subtest: detectSocialTarget
+        # Subtest: finds named NPC in social action
+        ok 1 - finds named NPC in social action
+          ---
+          duration_ms: 0.3254
+          type: 'test'
+          ...
+        # Subtest: returns null for social action without named NPC
+        ok 2 - returns null for social action without named NPC
+          ---
+          duration_ms: 0.3692
+          type: 'test'
+          ...
+        # Subtest: returns null for non-social action even with NPC name
+        ok 3 - returns null for non-social action even with NPC name
+          ---
+          duration_ms: 0.1183
+          type: 'test'
+          ...
+        1..3
+    ok 2 - detectSocialTarget
+      ---
+      duration_ms: 0.9542
+      type: 'suite'
+      ...
+    # Subtest: applySocialOutcome
+        # Subtest: awards maximum trust on critical success
+        ok 1 - awards maximum trust on critical success
+          ---
+          duration_ms: 2.63
+          type: 'test'
+          ...
+        # Subtest: awards standard trust on success
+        ok 2 - awards standard trust on success
+          ---
+          duration_ms: 0.1403
+          type: 'test'
+          ...
+        # Subtest: awards small trust on failure (tried)
+        ok 3 - awards small trust on failure (tried)
+          ---
+          duration_ms: 0.0965
+          type: 'test'
+          ...
+        # Subtest: penalizes on critical failure
+        ok 4 - penalizes on critical failure
+          ---
+          duration_ms: 0.0945
+          type: 'test'
+          ...
+        1..4
+    ok 3 - applySocialOutcome
+      ---
+      duration_ms: 3.1344
+      type: 'suite'
+      ...
+    1..3
+ok 9 - GameEngine - Social Trust Detection
+  ---
+  duration_ms: 5.6485
+  type: 'suite'
+  ...
+# Subtest: GameEngine - Hybrid Defeat System
+    # Subtest: 1st defeat: 50% gold loss, revive at 25% HP, trust -5, relocation
+    ok 1 - 1st defeat: 50% gold loss, revive at 25% HP, trust -5, relocation
+      ---
+      duration_ms: 0.5645
+      type: 'test'
+      ...
+    # Subtest: 2nd defeat: also loses a random non-quest item
+    ok 2 - 2nd defeat: also loses a random non-quest item
+      ---
+      duration_ms: 0.329
+      type: 'test'
+      ...
+    # Subtest: 3rd+ defeat: also applies permanent stat penalty
+    ok 3 - 3rd+ defeat: also applies permanent stat penalty
+      ---
+      duration_ms: 0.2124
+      type: 'test'
+      ...
+    # Subtest: quest items are never lost
+    ok 4 - quest items are never lost
+      ---
+      duration_ms: 0.1379
+      type: 'test'
+      ...
+    1..4
+ok 10 - GameEngine - Hybrid Defeat System
+  ---
+  duration_ms: 1.4109
+  type: 'suite'
+  ...
+# Subtest: Plan 11: Quests, Quest Lines & NPC Trust Progression
+    # Subtest: Item-Triggered Quest Activation
+        # Subtest: automatically activates quest when player possesses trigger item
+        ok 1 - automatically activates quest when player possesses trigger item
+          ---
+          duration_ms: 1.7243
+          type: 'test'
+          ...
+        # Subtest: does not re-trigger quests that are already active or completed
+        ok 2 - does not re-trigger quests that are already active or completed
+          ---
+          duration_ms: 0.7517
+          type: 'test'
+          ...
+        1..2
+    ok 1 - Item-Triggered Quest Activation
+      ---
+      duration_ms: 4.1124
+      type: 'suite'
+      ...
+    # Subtest: Quest Prerequisites & Offering
+        # Subtest: approves quest offering when trust and prerequisites are met
+        ok 1 - approves quest offering when trust and prerequisites are met
+          ---
+          duration_ms: 0.6973
+          type: 'test'
+          ...
+        # Subtest: rejects quest offering if trust is below requirement
+        ok 2 - rejects quest offering if trust is below requirement
+          ---
+          duration_ms: 0.1931
+          type: 'test'
+          ...
+        # Subtest: rejects chained quest if prerequisite quest is not completed
+        ok 3 - rejects chained quest if prerequisite quest is not completed
+          ---
+          duration_ms: 0.1802
+          type: 'test'
+          ...
+        1..3
+    ok 2 - Quest Prerequisites & Offering
+      ---
+      duration_ms: 1.3335
+      type: 'suite'
+      ...
+    # Subtest: Objective Fulfillment & Quest Completion
+        # Subtest: detects when all objectives are satisfied
+        ok 1 - detects when all objectives are satisfied
+          ---
+          duration_ms: 0.536
+          type: 'test'
+          ...
+        # Subtest: does not complete fetch quest if required items are missing or insufficient
+        ok 2 - does not complete fetch quest if required items are missing or insufficient
+          ---
+          duration_ms: 0.4661
+          type: 'test'
+          ...
+        # Subtest: completes quest: consumes turn-in item, grants trust, gold, rewards, unmasks secret, and advances line
+        ok 3 - completes quest: consumes turn-in item, grants trust, gold, rewards, unmasks secret, and advances line
+          ---
+          duration_ms: 2.3026
+          type: 'test'
+          ...
+        1..3
+    ok 3 - Objective Fulfillment & Quest Completion
+      ---
+      duration_ms: 3.6581
+      type: 'suite'
+      ...
+    # Subtest: Zod Schema Boundary Validations
+        # Subtest: validates a correct WorldQuest payload and defaults optional structures
+        ok 1 - validates a correct WorldQuest payload and defaults optional structures
+          ---
+          duration_ms: 3.9454
+          type: 'test'
+          ...
+        # Subtest: rejects an objective with an invalid type
+        ok 2 - rejects an objective with an invalid type
+          ---
+          duration_ms: 1.5178
+          type: 'test'
+          ...
+        # Subtest: rejects a quest with zero objectives
+        ok 3 - rejects a quest with zero objectives
+          ---
+          duration_ms: 1.0374
+          type: 'test'
+          ...
+        1..3
+    ok 4 - Zod Schema Boundary Validations
+      ---
+      duration_ms: 6.7868
+      type: 'suite'
+      ...
+    1..4
+ok 11 - Plan 11: Quests, Quest Lines & NPC Trust Progression
+  ---
+  duration_ms: 23.0893
+  type: 'suite'
+  ...
+# Subtest: Abilities & Spells System — Types, Validation & DC Resolution
+    # Subtest: validates ability properties, costs, and archetype restrictions
+    ok 1 - validates ability properties, costs, and archetype restrictions
+      ---
+      duration_ms: 4.2625
+      type: 'test'
+      ...
+    # Subtest: correctly identifies universal vs class-gated abilities
+    ok 2 - correctly identifies universal vs class-gated abilities
+      ---
+      duration_ms: 0.3837
+      type: 'test'
+      ...
+    # Subtest: GameEngine.inferStatId recognizes ability names and infers linked attribute
+    ok 3 - GameEngine.inferStatId recognizes ability names and infers linked attribute
+      ---
+      duration_ms: 0.4841
+      type: 'test'
+      ...
+    # Subtest: GameEngine.resolveActionCheck awards ability tier bonus when skillId matches an ability
+    ok 4 - GameEngine.resolveActionCheck awards ability tier bonus when skillId matches an ability
+      ---
+      duration_ms: 1.2173
+      type: 'test'
+      ...
+    1..4
+ok 12 - Abilities & Spells System — Types, Validation & DC Resolution
+  ---
+  duration_ms: 8.3838
+  type: 'suite'
+  ...
+# Subtest: Currency Engine — Multi-denomination Coinage & Making Change
+    # Subtest: calculates total base value from purse coins
+    ok 1 - calculates total base value from purse coins
+      ---
+      duration_ms: 3.8657
+      type: 'test'
+      ...
+    # Subtest: converts base units into optimal denomination breakdown
+    ok 2 - converts base units into optimal denomination breakdown
+      ---
+      duration_ms: 1.1094
+      type: 'test'
+      ...
+    # Subtest: deducts cost and makes change seamlessly by breaking larger coins
+    ok 3 - deducts cost and makes change seamlessly by breaking larger coins
+      ---
+      duration_ms: 4.9725
+      type: 'test'
+      ...
+    # Subtest: rejects transaction when funds are insufficient
+    ok 4 - rejects transaction when funds are insufficient
+      ---
+      duration_ms: 0.6733
+      type: 'test'
+      ...
+    # Subtest: adds coins directly into the purse
+    ok 5 - adds coins directly into the purse
+      ---
+      duration_ms: 3.842
+      type: 'test'
+      ...
+    # Subtest: formats purse nicely into Persian and English labels
+    ok 6 - formats purse nicely into Persian and English labels
+      ---
+      duration_ms: 0.3929
+      type: 'test'
+      ...
+    1..6
+ok 13 - Currency Engine — Multi-denomination Coinage & Making Change
+  ---
+  duration_ms: 16.4612
+  type: 'suite'
+  ...
+# Subtest: resourcePools
+    # Subtest: adds newly created pools from studio edits
+    ok 1 - adds newly created pools from studio edits
+      ---
+      duration_ms: 1.4923
+      type: 'test'
+      ...
+    # Subtest: a full pool moves with a studio max edit
+    ok 2 - a full pool moves with a studio max edit
+      ---
+      duration_ms: 0.276
+      type: 'test'
+      ...
+    # Subtest: a damaged pool keeps its damage when max grows
+    ok 3 - a damaged pool keeps its damage when max grows
+      ---
+      duration_ms: 0.2205
+      type: 'test'
+      ...
+    # Subtest: clamps over-max currents and drops deleted pools
+    ok 4 - clamps over-max currents and drops deleted pools
+      ---
+      duration_ms: 0.2975
+      type: 'test'
+      ...
+    # Subtest: resolveResourceMax prefers scaled maxResources
+    ok 5 - resolveResourceMax prefers scaled maxResources
+      ---
+      duration_ms: 0.2019
+      type: 'test'
+      ...
+    # Subtest: resolveHealthKey selects the shared named and fallback pools
+    ok 6 - resolveHealthKey selects the shared named and fallback pools
+      ---
+      duration_ms: 0.4139
+      type: 'test'
+      ...
+    1..6
+ok 14 - resourcePools
+  ---
+  duration_ms: 4.2334
+  type: 'suite'
+  ...
+# Subtest: Plan 13: threat clocks
+    # Subtest: ticks +1 on mixed_success and failure, +2 on critical_failure
+    ok 1 - ticks +1 on mixed_success and failure, +2 on critical_failure
+      ---
+      duration_ms: 0.9108
+      type: 'test'
+      ...
+    # Subtest: ticks 0 on success and relieves 1 on critical_success (floored at 0)
+    ok 2 - ticks 0 on success and relieves 1 on critical_success (floored at 0)
+      ---
+      duration_ms: 0.7357
+      type: 'test'
+      ...
+    # Subtest: raises crisis flag when currentSegments >= maxSegments
+    ok 3 - raises crisis flag when currentSegments >= maxSegments
+      ---
+      duration_ms: 0.2391
+      type: 'test'
+      ...
+    # Subtest: spawns a default clock for a zone with threatClockDefault
+    ok 4 - spawns a default clock for a zone with threatClockDefault
+      ---
+      duration_ms: 0.2857
+      type: 'test'
+      ...
+    1..4
+ok 15 - Plan 13: threat clocks
+  ---
+  duration_ms: 3.3209
+  type: 'suite'
+  ...
+# Subtest: Plan 13: hazard displacement
+    # Subtest: displaces to hazardFallbackLocationId on high-risk failure
+    ok 1 - displaces to hazardFallbackLocationId on high-risk failure
+      ---
+      duration_ms: 0.3467
+      type: 'test'
+      ...
+    # Subtest: does not displace on low/medium risk, success, or missing fallback
+    ok 2 - does not displace on low/medium risk, success, or missing fallback
+      ---
+      duration_ms: 0.1153
+      type: 'test'
+      ...
+    # Subtest: resolveActionCheck wires displacement + clock into the resolution
+    ok 3 - resolveActionCheck wires displacement + clock into the resolution
+      ---
+      duration_ms: 1.5065
+      type: 'test'
+      ...
+    # Subtest: applyStateMutation moves location and persists the clock
+    ok 4 - applyStateMutation moves location and persists the clock
+      ---
+      duration_ms: 1.3727
+      type: 'test'
+      ...
+    1..4
+ok 16 - Plan 13: hazard displacement
+  ---
+  duration_ms: 3.7447
+  type: 'suite'
+  ...
+# Subtest: Vital Scaling Engine — Dynamic Stat-to-Vital & Loadout Matrix
+    # Subtest: calculates baseline maximums when stats match base values
+    ok 1 - calculates baseline maximums when stats match base values
+      ---
+      duration_ms: 1.7584
+      type: 'test'
+      ...
+    # Subtest: scales HP when Constitution increases above base (e.g. 14 -> +8 HP)
+    ok 2 - scales HP when Constitution increases above base (e.g. 14 -> +8 HP)
+      ---
+      duration_ms: 0.2627
+      type: 'test'
+      ...
+    # Subtest: reduces HP when Constitution is below base (e.g. 8 -> -4 HP)
+    ok 3 - reduces HP when Constitution is below base (e.g. 8 -> -4 HP)
+      ---
+      duration_ms: 0.1949
+      type: 'test'
+      ...
+    # Subtest: incorporates Archetype and Background vital pool bonuses
+    ok 4 - incorporates Archetype and Background vital pool bonuses
+      ---
+      duration_ms: 0.221
+      type: 'test'
+      ...
+    # Subtest: incorporates equipped gear resource modifiers
+    ok 5 - incorporates equipped gear resource modifiers
+      ---
+      duration_ms: 0.313
+      type: 'test'
+      ...
+    1..5
+ok 17 - Vital Scaling Engine — Dynamic Stat-to-Vital & Loadout Matrix
+  ---
+  duration_ms: 4.4277
+  type: 'suite'
+  ...
+# Subtest: MemoryEngine - Hierarchical 0-10 Importance & Retrieval
+    # Subtest: discards ephemeral memories with importance < 3
+    ok 1 - discards ephemeral memories with importance < 3
+      ---
+      duration_ms: 2.2367
+      type: 'test'
+      ...
+    # Subtest: persists significant memories with importance >= 3
+    ok 2 - persists significant memories with importance >= 3
+      ---
+      duration_ms: 0.3359
+      type: 'test'
+      ...
+    # Subtest: boosts memories related to active NPCs in scene retrieval
+    ok 3 - boosts memories related to active NPCs in scene retrieval
+      ---
+      duration_ms: 2.0397
+      type: 'test'
+      ...
+    1..3
+ok 18 - MemoryEngine - Hierarchical 0-10 Importance & Retrieval
+  ---
+  duration_ms: 6.1035
+  type: 'suite'
+  ...
+# Subtest: Plan 07 - Hierarchical 3-Tier Saga Memory
+    # Subtest: Tier 1 working memory returns only the most recent N turns in reverse order
+    ok 1 - Tier 1 working memory returns only the most recent N turns in reverse order
+      ---
+      duration_ms: 0.4656
+      type: 'test'
+      ...
+    # Subtest: Tier 2 episodic rollup renders chronological chapter milestones with irreversible flags
+    ok 2 - Tier 2 episodic rollup renders chronological chapter milestones with irreversible flags
+      ---
+      duration_ms: 0.4775
+      type: 'test'
+      ...
+    # Subtest: buildThreeTierEnvelope assembles all three tiers from a saga ledger
+    ok 3 - buildThreeTierEnvelope assembles all three tiers from a saga ledger
+      ---
+      duration_ms: 3.5441
+      type: 'test'
+      ...
+    # Subtest: buildThreeTierEnvelope tolerates an empty/missing ledger
+    ok 4 - buildThreeTierEnvelope tolerates an empty/missing ledger
+      ---
+      duration_ms: 11.486
+      type: 'test'
+      ...
+    1..4
+ok 19 - Plan 07 - Hierarchical 3-Tier Saga Memory
+  ---
+  duration_ms: 29.6256
+  type: 'suite'
+  ...
+# Subtest: PromptAssembler - scene continuity
+    # Subtest: preserves action scope, witnesses, and choice premises (en, 0 stats)
+    ok 1 - preserves action scope, witnesses, and choice premises (en, 0 stats)
+      ---
+      duration_ms: 2.9028
+      type: 'test'
+      ...
+    # Subtest: preserves action scope, witnesses, and choice premises (en, 1 stats)
+    ok 2 - preserves action scope, witnesses, and choice premises (en, 1 stats)
+      ---
+      duration_ms: 0.4564
+      type: 'test'
+      ...
+    # Subtest: preserves action scope, witnesses, and choice premises (fa, 0 stats)
+    ok 3 - preserves action scope, witnesses, and choice premises (fa, 0 stats)
+      ---
+      duration_ms: 0.1945
+      type: 'test'
+      ...
+    # Subtest: preserves action scope, witnesses, and choice premises (fa, 1 stats)
+    ok 4 - preserves action scope, witnesses, and choice premises (fa, 1 stats)
+      ---
+      duration_ms: 0.1688
+      type: 'test'
+      ...
+    1..4
+ok 20 - PromptAssembler - scene continuity
+  ---
+  duration_ms: 5.1248
+  type: 'suite'
+  ...
+# Subtest: PromptAssembler - expanded world context
+    # Subtest: injects the authored system prompt into the narrator persona (EN)
+    ok 1 - injects the authored system prompt into the narrator persona (EN)
+      ---
+      duration_ms: 0.3434
+      type: 'test'
+      ...
+    # Subtest: renders expanded world sections (EN)
+    ok 2 - renders expanded world sections (EN)
+      ---
+      duration_ms: 0.3185
+      type: 'test'
+      ...
+    # Subtest: renders NPC vitals lines for calibrated present NPCs (EN + FA)
+    ok 3 - renders NPC vitals lines for calibrated present NPCs (EN + FA)
+      ---
+      duration_ms: 0.7154
+      type: 'test'
+      ...
+    # Subtest: omits expanded sections when absent and works in Persian
+    ok 4 - omits expanded sections when absent and works in Persian
+      ---
+      duration_ms: 0.4943
+      type: 'test'
+      ...
+    1..4
+ok 21 - PromptAssembler - expanded world context
+  ---
+  duration_ms: 2.2297
+  type: 'suite'
+  ...
+# Subtest: actual Persian prose validator rejects Bengali sentinel and accepts Persian control
+ok 22 - actual Persian prose validator rejects Bengali sentinel and accepts Persian control
+  ---
+  duration_ms: 6.9942
+  type: 'test'
+  ...
+# Subtest: actual Persian prose validator rejects Odia vowel sign U+0B3F
+ok 23 - actual Persian prose validator rejects Odia vowel sign U+0B3F
+  ---
+  duration_ms: 0.4142
+  type: 'test'
+  ...
+# Subtest: ProseValidator — canon guardrails
+    # Subtest: flags resurrected NPCs as errors
+    ok 1 - flags resurrected NPCs as errors
+      ---
+      duration_ms: 1.6807
+      type: 'test'
+      ...
+    # Subtest: passes memorial mentions of the dead
+    ok 2 - passes memorial mentions of the dead
+      ---
+      duration_ms: 0.5627
+      type: 'test'
+      ...
+    # Subtest: flags outcome mismatch (failure narrated as triumph)
+    ok 3 - flags outcome mismatch (failure narrated as triumph)
+      ---
+      duration_ms: 0.4222
+      type: 'test'
+      ...
+    # Subtest: passes clean prose
+    ok 4 - passes clean prose
+      ---
+      duration_ms: 0.2736
+      type: 'test'
+      ...
+    1..4
+ok 24 - ProseValidator — canon guardrails
+  ---
+  duration_ms: 4.5208
+  type: 'suite'
+  ...
+# Subtest: ProseValidator — Persian script integrity
+    # Subtest: rejects foreign letter/mark U+b3f
+    ok 1 - rejects foreign letter/mark U+b3f
+      ---
+      duration_ms: 10.2358
+      type: 'test'
+      ...
+    # Subtest: rejects foreign letter/mark U+9bf
+    ok 2 - rejects foreign letter/mark U+9bf
+      ---
+      duration_ms: 0.2849
+      type: 'test'
+      ...
+    # Subtest: rejects foreign letter/mark U+6f22
+    ok 3 - rejects foreign letter/mark U+6f22
+      ---
+      duration_ms: 0.2449
+      type: 'test'
+      ...
+    # Subtest: rejects foreign letter/mark U+915
+    ok 4 - rejects foreign letter/mark U+915
+      ---
+      duration_ms: 0.4244
+      type: 'test'
+      ...
+    # Subtest: rejects foreign letter/mark U+e01
+    ok 5 - rejects foreign letter/mark U+e01
+      ---
+      duration_ms: 0.2243
+      type: 'test'
+      ...
+    # Subtest: rejects foreign letter/mark U+b85
+    ok 6 - rejects foreign letter/mark U+b85
+      ---
+      duration_ms: 0.2317
+      type: 'test'
+      ...
+    # Subtest: accepts Persian letters, vowel marks, joiners, digits and punctuation
+    ok 7 - accepts Persian letters, vowel marks, joiners, digits and punctuation
+      ---
+      duration_ms: 0.4158
+      type: 'test'
+      ...
+    # Subtest: does not impose Persian script rules on other or unspecified languages
+    ok 8 - does not impose Persian script rules on other or unspecified languages
+      ---
+      duration_ms: 0.1593
+      type: 'test'
+      ...
+    # Subtest: includes actionable script repair guidance
+    ok 9 - includes actionable script repair guidance
+      ---
+      duration_ms: 0.2675
+      type: 'test'
+      ...
+    1..9
+ok 25 - ProseValidator — Persian script integrity
+  ---
+  duration_ms: 13.2763
+  type: 'suite'
+  ...
+# Subtest: Plan 07 — Dynamic Context-Aware Lore Retrieval (scope pruning)
+    # Subtest: street scope injects only scene-relevant lore (1-hop locations, resident NPCs)
+    ok 1 - street scope injects only scene-relevant lore (1-hop locations, resident NPCs)
+      ---
+      duration_ms: 3.5799
+      type: 'test'
+      ...
+    # Subtest: continental/mythic scopes widen the aperture to empire-level politics
+    ok 2 - continental/mythic scopes widen the aperture to empire-level politics
+      ---
+      duration_ms: 3.9125
+      type: 'test'
+      ...
+    # Subtest: prunes to a strict minority of the total universe for street-level play
+    ok 3 - prunes to a strict minority of the total universe for street-level play
+      ---
+      duration_ms: 0.5915
+      type: 'test'
+      ...
+    # Subtest: unscoped calls retain full-bible compression behavior
+    ok 4 - unscoped calls retain full-bible compression behavior
+      ---
+      duration_ms: 0.2753
+      type: 'test'
+      ...
+    1..4
+ok 26 - Plan 07 — Dynamic Context-Aware Lore Retrieval (scope pruning)
+  ---
+  duration_ms: 11.2186
+  type: 'suite'
+  ...
+# Subtest: Plan 07b — Faction scope gating (cosmic dominions stay hidden until escalation)
+    # Subtest: street chapters prune even scene-anchored factions whose scope outranks the chapter
+    ok 1 - street chapters prune even scene-anchored factions whose scope outranks the chapter
+      ---
+      duration_ms: 1.1785
+      type: 'test'
+      ...
+    # Subtest: continental chapters still hide it; mythic chapters reveal it
+    ok 2 - continental chapters still hide it; mythic chapters reveal it
+      ---
+      duration_ms: 0.3835
+      type: 'test'
+      ...
+    # Subtest: regional-scope factions surface once the chapter reaches regional tier
+    ok 3 - regional-scope factions surface once the chapter reaches regional tier
+      ---
+      duration_ms: 0.5301
+      type: 'test'
+      ...
+    1..3
+ok 27 - Plan 07b — Faction scope gating (cosmic dominions stay hidden until escalation)
+  ---
+  duration_ms: 2.5333
+  type: 'suite'
+  ...
+# Subtest: Plan 07 — Living World Ledger & Chapter Context Envelope
+    # Subtest: formats faction reputations, NPC statuses, key items, and plot threads
+    ok 1 - formats faction reputations, NPC statuses, key items, and plot threads
+      ---
+      duration_ms: 3.2587
+      type: 'test'
+      ...
+    # Subtest: buildChapterContextString appends episodic rollup and ledger sections
+    ok 2 - buildChapterContextString appends episodic rollup and ledger sections
+      ---
+      duration_ms: 1.3397
+      type: 'test'
+      ...
+    # Subtest: omits memory sections when no ledger exists
+    ok 3 - omits memory sections when no ledger exists
+      ---
+      duration_ms: 0.5045
+      type: 'test'
+      ...
+    # Subtest: studio / unconstrained mode includes all locations without tight gameplay scope truncation
+    ok 4 - studio / unconstrained mode includes all locations without tight gameplay scope truncation
+      ---
+      duration_ms: 0.8855
+      type: 'test'
+      ...
+    1..4
+ok 28 - Plan 07 — Living World Ledger & Chapter Context Envelope
+  ---
+  duration_ms: 8.2398
+  type: 'suite'
+  ...
+# Subtest: Story-Level NPC Role Overrides
+    # Subtest: validates StoryNpcOverrideSchema with defaults
+    ok 1 - validates StoryNpcOverrideSchema with defaults
+      ---
+      duration_ms: 4.1068
+      type: 'test'
+      ...
+    # Subtest: validates StoryManifestSchema containing storyNpcOverrides
+    ok 2 - validates StoryManifestSchema containing storyNpcOverrides
+      ---
+      duration_ms: 3.2222
+      type: 'test'
+      ...
+    # Subtest: buildWorldContextBlocks applies story overrides and preserves un-overridden NPCs
+    ok 3 - buildWorldContextBlocks applies story overrides and preserves un-overridden NPCs
+      ---
+      duration_ms: 1.2743
+      type: 'test'
+      ...
+    # Subtest: automatically pins central importance NPCs during tight scope pruning
+    ok 4 - automatically pins central importance NPCs during tight scope pruning
+      ---
+      duration_ms: 0.8848
+      type: 'test'
+      ...
+    # Subtest: buildWorldContextString renders the customized story role
+    ok 5 - buildWorldContextString renders the customized story role
+      ---
+      duration_ms: 0.3518
+      type: 'test'
+      ...
+    # Subtest: respects firstAppearanceChapter gating during scoped chapter context build
+    ok 6 - respects firstAppearanceChapter gating during scoped chapter context build
+      ---
+      duration_ms: 0.5011
+      type: 'test'
+      ...
+    # Subtest: validates StoryScale across all supported scale tiers
+    ok 7 - validates StoryScale across all supported scale tiers
+      ---
+      duration_ms: 4.9122
+      type: 'test'
+      ...
+    1..7
+ok 29 - Story-Level NPC Role Overrides
+  ---
+  duration_ms: 17.5384
+  type: 'suite'
+  ...
+# Subtest: NPC Group Archetype & Mob Templates (Option A)
+    # Subtest: validates NPCDossierSchema defaults for individual characters
+    ok 1 - validates NPCDossierSchema defaults for individual characters
+      ---
+      duration_ms: 1.3371
+      type: 'test'
+      ...
+    # Subtest: validates NPCDossierSchema for template mob archetypes with multiple locations
+    ok 2 - validates NPCDossierSchema for template mob archetypes with multiple locations
+      ---
+      duration_ms: 0.5879
+      type: 'test'
+      ...
+    # Subtest: pruneWorldBibleToScope retains templates matching active locations through applicableLocationIds
+    ok 3 - pruneWorldBibleToScope retains templates matching active locations through applicableLocationIds
+      ---
+      duration_ms: 0.492
+      type: 'test'
+      ...
+    # Subtest: buildWorldContextBlocks labels templates with [GROUP ARCHETYPE]
+    ok 4 - buildWorldContextBlocks labels templates with [GROUP ARCHETYPE]
+      ---
+      duration_ms: 0.2929
+      type: 'test'
+      ...
+    1..4
+ok 30 - NPC Group Archetype & Mob Templates (Option A)
+  ---
+  duration_ms: 3.1875
+  type: 'suite'
+  ...
+# Subtest: StoryWeaver Engine — Plan 12 Phase 2
+    # Subtest: buildWeavePrompt formats prompt with anchors, locations, and RPG stats
+    ok 1 - buildWeavePrompt formats prompt with anchors, locations, and RPG stats
+      ---
+      duration_ms: 1.7514
+      type: 'test'
+      ...
+    # Subtest: coerceWeave preserves anchor text verbatim and assigns server-side bridge IDs
+    ok 2 - coerceWeave preserves anchor text verbatim and assigns server-side bridge IDs
+      ---
+      duration_ms: 3.9206
+      type: 'test'
+      ...
+    # Subtest: auditWeaveQuality flags omitted or mutated anchors and dangling edges
+    ok 3 - auditWeaveQuality flags omitted or mutated anchors and dangling edges
+      ---
+      duration_ms: 0.8512
+      type: 'test'
+      ...
+    # Subtest: auditWeaveQuality gives high score to compliant weave
+    ok 4 - auditWeaveQuality gives high score to compliant weave
+      ---
+      duration_ms: 3.6923
+      type: 'test'
+      ...
+    1..4
+ok 31 - StoryWeaver Engine — Plan 12 Phase 2
+  ---
+  duration_ms: 11.6885
+  type: 'suite'
+  ...
+# Subtest: buildWorldContextBlocks
+    # Subtest: compresses the world bible into bounded one-liner blocks
+    ok 1 - compresses the world bible into bounded one-liner blocks
+      ---
+      duration_ms: 2.0842
+      type: 'test'
+      ...
+    # Subtest: prioritizes recent/present timeline events first
+    ok 2 - prioritizes recent/present timeline events first
+      ---
+      duration_ms: 2.2046
+      type: 'test'
+      ...
+    # Subtest: returns empty blocks when there is no world bible
+    ok 3 - returns empty blocks when there is no world bible
+      ---
+      duration_ms: 1.0191
+      type: 'test'
+      ...
+    # Subtest: appends combat, vitals, and pools to calibrated NPC lines
+    ok 4 - appends combat, vitals, and pools to calibrated NPC lines
+      ---
+      duration_ms: 0.5166
+      type: 'test'
+      ...
+    # Subtest: leaves uncalibrated NPC lines untouched
+    ok 5 - leaves uncalibrated NPC lines untouched
+      ---
+      duration_ms: 0.2214
+      type: 'test'
+      ...
+    # Subtest: lists hidden-secret ways in without leaking descriptions
+    ok 6 - lists hidden-secret ways in without leaking descriptions
+      ---
+      duration_ms: 0.3192
+      type: 'test'
+      ...
+    1..6
+ok 32 - buildWorldContextBlocks
+  ---
+  duration_ms: 7.7726
+  type: 'suite'
+  ...
+# Subtest: ActionValidator - Lore & Inventory Guardrails
+    # Subtest: rejects using specific items not present in inventory
+    ok 1 - rejects using specific items not present in inventory
+      ---
+      duration_ms: 1.5921
+      type: 'test'
+      ...
+    # Subtest: accepts valid plausible actions using existing items
+    ok 2 - accepts valid plausible actions using existing items
+      ---
+      duration_ms: 1.3244
+      type: 'test'
+      ...
+    # Subtest: accepts standard physical maneuvers
+    ok 3 - accepts standard physical maneuvers
+      ---
+      duration_ms: 0.5791
+      type: 'test'
+      ...
+    1..3
+ok 33 - ActionValidator - Lore & Inventory Guardrails
+  ---
+  duration_ms: 4.7201
+  type: 'suite'
+  ...
+# Subtest: ActionValidator - Knowledge Boundary Guardrail
+    # Subtest: blocks actions that rely on an undiscovered NPC secret
+    ok 1 - blocks actions that rely on an undiscovered NPC secret
+      ---
+      duration_ms: 0.6476
+      type: 'test'
+      ...
+    # Subtest: allows the same action once the secret is discovered
+    ok 2 - allows the same action once the secret is discovered
+      ---
+      duration_ms: 0.2939
+      type: 'test'
+      ...
+    # Subtest: does not flag overlapping terms when the NPC is not named (Plan 08 precision)
+    ok 3 - does not flag overlapping terms when the NPC is not named (Plan 08 precision)
+      ---
+      duration_ms: 0.1781
+      type: 'test'
+      ...
+    # Subtest: allows preset choices even if they contain secret-related terms
+    ok 4 - allows preset choices even if they contain secret-related terms
+      ---
+      duration_ms: 0.2046
+      type: 'test'
+      ...
+    1..4
+ok 34 - ActionValidator - Knowledge Boundary Guardrail
+  ---
+  duration_ms: 1.8411
+  type: 'suite'
+  ...
+# Subtest: Plan 08 - World Lore Guardrails (Check 3)
+    # Subtest: rejects summoning creatures declared extinct by an immutable law
+    ok 1 - rejects summoning creatures declared extinct by an immutable law
+      ---
+      duration_ms: 0.3667
+      type: 'test'
+      ...
+    # Subtest: rejects claiming a world artifact the player does not possess
+    ok 2 - rejects claiming a world artifact the player does not possess
+      ---
+      duration_ms: 0.4102
+      type: 'test'
+      ...
+    # Subtest: enforces movement plausibility against the location graph
+    ok 3 - enforces movement plausibility against the location graph
+      ---
+      duration_ms: 0.4698
+      type: 'test'
+      ...
+    1..3
+ok 35 - Plan 08 - World Lore Guardrails (Check 3)
+  ---
+  duration_ms: 1.4964
+  type: 'suite'
+  ...
+# Subtest: ActionValidator - sanitizeChoices (pre-presentation filter)
+    # Subtest: strips a choice that acts on an undiscovered secret
+    ok 1 - strips a choice that acts on an undiscovered secret
+      ---
+      duration_ms: 0.3983
+      type: 'test'
+      ...
+    # Subtest: keeps every choice once the secret is known to the player
+    ok 2 - keeps every choice once the secret is known to the player
+      ---
+      duration_ms: 0.1542
+      type: 'test'
+      ...
+    # Subtest: returns an empty array for null / undefined / empty input
+    ok 3 - returns an empty array for null / undefined / empty input
+      ---
+      duration_ms: 1.0309
+      type: 'test'
+      ...
+    # Subtest: never returns more choices than it was given
+    ok 4 - never returns more choices than it was given
+      ---
+      duration_ms: 0.18
+      type: 'test'
+      ...
+    1..4
+ok 36 - ActionValidator - sanitizeChoices (pre-presentation filter)
+  ---
+  duration_ms: 1.9496
+  type: 'suite'
+  ...
+# Subtest: ActionProtocol — entity normalization
+    # Subtest: maps natural-language aliases to canonical entity types
+    ok 1 - maps natural-language aliases to canonical entity types
+      ---
+      duration_ms: 0.9443
+      type: 'test'
+      ...
+    # Subtest: exposes the 15 allowed entities (8 primary + 5 ontology types + quest + trade_route)
+    ok 2 - exposes the 15 allowed entities (8 primary + 5 ontology types + quest + trade_route)
+      ---
+      duration_ms: 0.3902
+      type: 'test'
+      ...
+    1..2
+ok 37 - ActionProtocol — entity normalization
+  ---
+  duration_ms: 10.7643
+  type: 'suite'
+  ...
+# Subtest: ActionProtocol — action block parsing
+    # Subtest: extracts a valid create action from a fenced block
+    ok 1 - extracts a valid create action from a fenced block
+      ---
+      duration_ms: 0.8228
+      type: 'test'
+      ...
+    # Subtest: rejects malformed JSON blocks
+    ok 2 - rejects malformed JSON blocks
+      ---
+      duration_ms: 0.3947
+      type: 'test'
+      ...
+    # Subtest: ignores blocks with an invalid op
+    ok 3 - ignores blocks with an invalid op
+      ---
+      duration_ms: 0.1708
+      type: 'test'
+      ...
+    # Subtest: accepts update/delete blocks even without an explicit entity by deferring resolution
+    ok 4 - accepts update/delete blocks even without an explicit entity by deferring resolution
+      ---
+      duration_ms: 0.2317
+      type: 'test'
+      ...
+    # Subtest: parses multiple distinct action blocks from a single message
+    ok 5 - parses multiple distinct action blocks from a single message
+      ---
+      duration_ms: 0.2668
+      type: 'test'
+      ...
+    # Subtest: parses an array of action blocks inside a single fenced block
+    ok 6 - parses an array of action blocks inside a single fenced block
+      ---
+      duration_ms: 0.3345
+      type: 'test'
+      ...
+    # Subtest: parses fence tag variations such as storyforge_action and json
+    ok 7 - parses fence tag variations such as storyforge_action and json
+      ---
+      duration_ms: 0.4946
+      type: 'test'
+      ...
+    # Subtest: handles unclosed fences and infers entity from nested data fields
+    ok 8 - handles unclosed fences and infers entity from nested data fields
+      ---
+      duration_ms: 0.5172
+      type: 'test'
+      ...
+    1..8
+ok 38 - ActionProtocol — action block parsing
+  ---
+  duration_ms: 3.965
+  type: 'suite'
+  ...
+# Subtest: ActionProtocol — validation
+    # Subtest: flags a create without a prompt
+    ok 1 - flags a create without a prompt
+      ---
+      duration_ms: 0.3532
+      type: 'test'
+      ...
+    # Subtest: flags an update without match.byName
+    ok 2 - flags an update without match.byName
+      ---
+      duration_ms: 0.277
+      type: 'test'
+      ...
+    # Subtest: accepts a complete update
+    ok 3 - accepts a complete update
+      ---
+      duration_ms: 0.3136
+      type: 'test'
+      ...
+    1..3
+ok 39 - ActionProtocol — validation
+  ---
+  duration_ms: 1.5634
+  type: 'suite'
+  ...
+# Subtest: ActionProtocol — entity resolution
+    # Subtest: resolves by exact, partial, and ordinal references
+    ok 1 - resolves by exact, partial, and ordinal references
+      ---
+      duration_ms: 1.7686
+      type: 'test'
+      ...
+    # Subtest: returns undefined for a missing entity
+    ok 2 - returns undefined for a missing entity
+      ---
+      duration_ms: 0.412
+      type: 'test'
+      ...
+    # Subtest: nameMatch is case-insensitive and supports containment
+    ok 3 - nameMatch is case-insensitive and supports containment
+      ---
+      duration_ms: 0.2462
+      type: 'test'
+      ...
+    # Subtest: matches Persian text across ZWNJ, Hamza, and letter variants
+    ok 4 - matches Persian text across ZWNJ, Hamza, and letter variants
+      ---
+      duration_ms: 0.3525
+      type: 'test'
+      ...
+    1..4
+ok 40 - ActionProtocol — entity resolution
+  ---
+  duration_ms: 2.9627
+  type: 'suite'
+  ...
+# Subtest: ActionProtocol — persona system prompts
+    # Subtest: builds the oracle prompt with world context and action protocol
+    ok 1 - builds the oracle prompt with world context and action protocol
+      ---
+      duration_ms: 10.1689
+      type: 'test'
+      ...
+    # Subtest: instructs personas about faction strategic fields (scope + secretAgendas)
+    ok 2 - instructs personas about faction strategic fields (scope + secretAgendas)
+      ---
+      duration_ms: 0.3754
+      type: 'test'
+      ...
+    # Subtest: builds a persona-specific prompt (cosmologist) and injects focused entity
+    ok 3 - builds a persona-specific prompt (cosmologist) and injects focused entity
+      ---
+      duration_ms: 1.8611
+      type: 'test'
+      ...
+    # Subtest: localizes the persona prompt to Persian
+    ok 4 - localizes the persona prompt to Persian
+      ---
+      duration_ms: 0.4077
+      type: 'test'
+      ...
+    # Subtest: exposes five adviser personas
+    ok 5 - exposes five adviser personas
+      ---
+      duration_ms: 0.1629
+      type: 'test'
+      ...
+    1..5
+ok 41 - ActionProtocol — persona system prompts
+  ---
+  duration_ms: 13.3559
+  type: 'suite'
+  ...
+# Subtest: ActionProtocol — lore gap detection
+    # Subtest: flags missing laws, npcs, and orphan factions
+    ok 1 - flags missing laws, npcs, and orphan factions
+      ---
+      duration_ms: 0.2937
+      type: 'test'
+      ...
+    # Subtest: flags an orphan faction (no territory) and faith without a holy site
+    ok 2 - flags an orphan faction (no territory) and faith without a holy site
+      ---
+      duration_ms: 0.2211
+      type: 'test'
+      ...
+    1..2
+ok 42 - ActionProtocol — lore gap detection
+  ---
+  duration_ms: 0.622
+  type: 'suite'
+  ...
+# Subtest: LoreAuditor — deterministic consistency checks
+    # Subtest: returns a perfect score for an empty world (no entities)
+    ok 1 - returns a perfect score for an empty world (no entities)
+      ---
+      duration_ms: 5.1717
+      type: 'test'
+      ...
+    # Subtest: flags a dangling faction reference to a missing location
+    ok 2 - flags a dangling faction reference to a missing location
+      ---
+      duration_ms: 2.7083
+      type: 'test'
+      ...
+    # Subtest: flags magic_violation when a banned-magic law coexists with a casting artifact
+    ok 3 - flags magic_violation when a banned-magic law coexists with a casting artifact
+      ---
+      duration_ms: 0.5629
+      type: 'test'
+      ...
+    # Subtest: flags one-sided faction rivalry as a suggestion
+    ok 4 - flags one-sided faction rivalry as a suggestion
+      ---
+      duration_ms: 0.4886
+      type: 'test'
+      ...
+    # Subtest: flags orphaned factions and locations as suggestions
+    ok 5 - flags orphaned factions and locations as suggestions
+      ---
+      duration_ms: 0.3248
+      type: 'test'
+      ...
+    # Subtest: produces a high score for a fully connected, consistent world
+    ok 6 - produces a high score for a fully connected, consistent world
+      ---
+      duration_ms: 0.7439
+      type: 'test'
+      ...
+    1..6
+ok 43 - LoreAuditor — deterministic consistency checks
+  ---
+  duration_ms: 11.3622
+  type: 'suite'
+  ...
+# Subtest: Plan 08 — LoreAuditor v2 cross-vault integrity
+    # Subtest: flags artifacts held by missing NPCs (previously unchecked)
+    ok 1 - flags artifacts held by missing NPCs (previously unchecked)
+      ---
+      duration_ms: 0.9569
+      type: 'test'
+      ...
+    # Subtest: flags deity holy sites and creature habitats that do not exist
+    ok 2 - flags deity holy sites and creature habitats that do not exist
+      ---
+      duration_ms: 0.825
+      type: 'test'
+      ...
+    # Subtest: flags drama bonds with missing endpoints and duplicate entity names
+    ok 3 - flags drama bonds with missing endpoints and duplicate entity names
+      ---
+      duration_ms: 0.6561
+      type: 'test'
+      ...
+    1..3
+ok 44 - Plan 08 — LoreAuditor v2 cross-vault integrity
+  ---
+  duration_ms: 2.9986
+  type: 'suite'
+  ...
+# Subtest: Plan 08 — Saga graph audit (auditSaga)
+    # Subtest: accepts a coherent saga graph without findings
+    ok 1 - accepts a coherent saga graph without findings
+      ---
+      duration_ms: 0.6648
+      type: 'test'
+      ...
+    # Subtest: detects duplicate scene ids across chapters
+    ok 2 - detects duplicate scene ids across chapters
+      ---
+      duration_ms: 0.27
+      type: 'test'
+      ...
+    # Subtest: detects dangling branch edges, empty chapters, and scope regressions
+    ok 3 - detects dangling branch edges, empty chapters, and scope regressions
+      ---
+      duration_ms: 0.4308
+      type: 'test'
+      ...
+    1..3
+ok 45 - Plan 08 — Saga graph audit (auditSaga)
+  ---
+  duration_ms: 1.5443
+  type: 'suite'
+  ...
+# Subtest: 5-State Faction Relation Spectrum Audit
+    # Subtest: accepts clean 5-state spectrum relations without false positives
+    ok 1 - accepts clean 5-state spectrum relations without false positives
+      ---
+      duration_ms: 0.7138
+      type: 'test'
+      ...
+    # Subtest: detects allied vs hostile contradiction between factions
+    ok 2 - detects allied vs hostile contradiction between factions
+      ---
+      duration_ms: 0.4915
+      type: 'test'
+      ...
+    # Subtest: detects legacy array vs spectrum contradiction
+    ok 3 - detects legacy array vs spectrum contradiction
+      ---
+      duration_ms: 0.2814
+      type: 'test'
+      ...
+    1..3
+ok 46 - 5-State Faction Relation Spectrum Audit
+  ---
+  duration_ms: 1.6341
+  type: 'suite'
+  ...
+# Subtest: factionRelations — normalization, target resolution & merging
+    # Subtest: normalizes relation spectrum values correctly
+    ok 1 - normalizes relation spectrum values correctly
+      ---
+      duration_ms: 2.0342
+      type: 'test'
+      ...
+    # Subtest: resolves target factions by ID, exact name, loose name, and substring
+    ok 2 - resolves target factions by ID, exact name, loose name, and substring
+      ---
+      duration_ms: 2.5945
+      type: 'test'
+      ...
+    # Subtest: merges AI array relations into factionRelations
+    ok 3 - merges AI array relations into factionRelations
+      ---
+      duration_ms: 1.3902
+      type: 'test'
+      ...
+    # Subtest: merges dictionary/map relations from forms
+    ok 4 - merges dictionary/map relations from forms
+      ---
+      duration_ms: 0.2912
+      type: 'test'
+      ...
+    # Subtest: falls back to alliedFactionIds / rivalFactionIds when explicit relations not given
+    ok 5 - falls back to alliedFactionIds / rivalFactionIds when explicit relations not given
+      ---
+      duration_ms: 0.4559
+      type: 'test'
+      ...
+    # Subtest: syncs legacy faction links reciprocally across factions
+    ok 6 - syncs legacy faction links reciprocally across factions
+      ---
+      duration_ms: 1.2779
+      type: 'test'
+      ...
+    # Subtest: resolves compound Persian names with parenthetical aliases and slashes
+    ok 7 - resolves compound Persian names with parenthetical aliases and slashes
+      ---
+      duration_ms: 1.1273
+      type: 'test'
+      ...
+    # Subtest: auto-provisions missing factions when relations specify uncreated entities
+    ok 8 - auto-provisions missing factions when relations specify uncreated entities
+      ---
+      duration_ms: 2.271
+      type: 'test'
+      ...
+    1..8
+ok 47 - factionRelations — normalization, target resolution & merging
+  ---
+  duration_ms: 13.3041
+  type: 'suite'
+  ...
+# Subtest: Plan 12 — Unified Beat Graph Migration
+    # Subtest: merges initialStoryBeats and chapter scenes into a unified collection
+    ok 1 - merges initialStoryBeats and chapter scenes into a unified collection
+      ---
+      duration_ms: 2.5343
+      type: 'test'
+      ...
+    # Subtest: remaps legacy destinationSceneId to targetSceneId
+    ok 2 - remaps legacy destinationSceneId to targetSceneId
+      ---
+      duration_ms: 0.3724
+      type: 'test'
+      ...
+    # Subtest: is strictly idempotent
+    ok 3 - is strictly idempotent
+      ---
+      duration_ms: 0.5504
+      type: 'test'
+      ...
+    # Subtest: getBeatsForChapter and getOpeningBeats extract the proper subsets
+    ok 4 - getBeatsForChapter and getOpeningBeats extract the proper subsets
+      ---
+      duration_ms: 0.5003
+      type: 'test'
+      ...
+    # Subtest: updateUnifiedChapterScenes updates only that chapter beats in the unified list
+    ok 5 - updateUnifiedChapterScenes updates only that chapter beats in the unified list
+      ---
+      duration_ms: 0.3555
+      type: 'test'
+      ...
+    # Subtest: stripLegacyArcPrefix removes [arc X] and [پرده X] prefixes cleanly
+    ok 6 - stripLegacyArcPrefix removes [arc X] and [پرده X] prefixes cleanly
+      ---
+      duration_ms: 0.2294
+      type: 'test'
+      ...
+    # Subtest: normalizeBeatChoices and migrateStoryManifest sanitize [arc 1] prefixes automatically
+    ok 7 - normalizeBeatChoices and migrateStoryManifest sanitize [arc 1] prefixes automatically
+      ---
+      duration_ms: 0.3017
+      type: 'test'
+      ...
+    1..7
+ok 48 - Plan 12 — Unified Beat Graph Migration
+  ---
+  duration_ms: 6.4587
+  type: 'suite'
+  ...
+# Subtest: Location Hierarchy — Multi-tier Parent/Grandparent Ancestry
+    # Subtest: resolves recursive ancestry across 4 tiers (parent, grandparent, great-grandparent)
+    ok 1 - resolves recursive ancestry across 4 tiers (parent, grandparent, great-grandparent)
+      ---
+      duration_ms: 1.1933
+      type: 'test'
+      ...
+    # Subtest: returns an empty array for root locations with no parent
+    ok 2 - returns an empty array for root locations with no parent
+      ---
+      duration_ms: 0.2298
+      type: 'test'
+      ...
+    # Subtest: handles cyclical parentLocationId chains safely without infinite loops
+    ok 3 - handles cyclical parentLocationId chains safely without infinite loops
+      ---
+      duration_ms: 0.173
+      type: 'test'
+      ...
+    # Subtest: generates a clean breadcrumb representation from root to leaf
+    ok 4 - generates a clean breadcrumb representation from root to leaf
+      ---
+      duration_ms: 0.3314
+      type: 'test'
+      ...
+    # Subtest: finds all recursive descendant IDs for cycle prevention
+    ok 5 - finds all recursive descendant IDs for cycle prevention
+      ---
+      duration_ms: 0.2948
+      type: 'test'
+      ...
+    # Subtest: allows travel between direct parent and child locations in ActionValidator
+    ok 6 - allows travel between direct parent and child locations in ActionValidator
+      ---
+      duration_ms: 2.8288
+      type: 'test'
+      ...
+    # Subtest: retains parent and grandparent in active scope during pruneWorldBibleToScope
+    ok 7 - retains parent and grandparent in active scope during pruneWorldBibleToScope
+      ---
+      duration_ms: 0.9072
+      type: 'test'
+      ...
+    1..7
+ok 49 - Location Hierarchy — Multi-tier Parent/Grandparent Ancestry
+  ---
+  duration_ms: 7.4985
+  type: 'suite'
+  ...
+# Subtest: NPC Voice & Dialogue Guides and RPG Stats Normalization
+    # Subtest: normalizes voiceGuide with English structure and clamps invalid contexts
+    ok 1 - normalizes voiceGuide with English structure and clamps invalid contexts
+      ---
+      duration_ms: 3.8038
+      type: 'test'
+      ...
+    # Subtest: normalizes Persian field keys for voiceGuide and sampleDialogue
+    ok 2 - normalizes Persian field keys for voiceGuide and sampleDialogue
+      ---
+      duration_ms: 0.4247
+      type: 'test'
+      ...
+    # Subtest: normalizes statCalibration and clamps challenge rating to 1-30
+    ok 3 - normalizes statCalibration and clamps challenge rating to 1-30
+      ---
+      duration_ms: 0.6692
+      type: 'test'
+      ...
+    # Subtest: passes cosmic CR and over-cap statRatings through unclamped
+    ok 4 - passes cosmic CR and over-cap statRatings through unclamped
+      ---
+      duration_ms: 0.3217
+      type: 'test'
+      ...
+    # Subtest: normalizes vitals and resource pools and clamps current into [0, max]
+    ok 5 - normalizes vitals and resource pools and clamps current into [0, max]
+      ---
+      duration_ms: 0.5795
+      type: 'test'
+      ...
+    # Subtest: resolves nested Persian vitals keys
+    ok 6 - resolves nested Persian vitals keys
+      ---
+      duration_ms: 0.3304
+      type: 'test'
+      ...
+    # Subtest: normalizes secret revealMethods: kinds, aliases, trimming, and drops junk
+    ok 7 - normalizes secret revealMethods: kinds, aliases, trimming, and drops junk
+      ---
+      duration_ms: 0.97
+      type: 'test'
+      ...
+    # Subtest: normalizes crBasis and its Persian aliases, coercing non-strings to empty
+    ok 8 - normalizes crBasis and its Persian aliases, coercing non-strings to empty
+      ---
+      duration_ms: 0.4451
+      type: 'test'
+      ...
+    # Subtest: allows cleanly setting, editing, and deleting voiceGuide and statCalibration on NPCDossier
+    ok 9 - allows cleanly setting, editing, and deleting voiceGuide and statCalibration on NPCDossier
+      ---
+      duration_ms: 0.4056
+      type: 'test'
+      ...
+    1..9
+ok 50 - NPC Voice & Dialogue Guides and RPG Stats Normalization
+  ---
+  duration_ms: 11.1775
+  type: 'suite'
+  ...
+# Subtest: oracleActions — applyWorldChange & summaries
+    # Subtest: routes create/update/delete to the right mutators
+    ok 1 - routes create/update/delete to the right mutators
+      ---
+      duration_ms: 1.6666
+      type: 'test'
+      ...
+    # Subtest: throws when no mutators are registered for the entity
+    ok 2 - throws when no mutators are registered for the entity
+      ---
+      duration_ms: 0.4022
+      type: 'test'
+      ...
+    # Subtest: summarizes changed fields for updates and created shapes
+    ok 3 - summarizes changed fields for updates and created shapes
+      ---
+      duration_ms: 0.4049
+      type: 'test'
+      ...
+    1..3
+ok 51 - oracleActions — applyWorldChange & summaries
+  ---
+  duration_ms: 3.7719
+  type: 'suite'
+  ...
+# [prepareWorldChanges] Skipping duplicate create for already-existing location: "گذرگاه هیرام (Hiram Pass)"
+# [prepareWorldChanges] Skipping duplicate create in same batch for location: "برج خاموش"
+# Subtest: Oracle Easy Insert — Direct Data Ingestion
+    # Subtest: parses action blocks with structured data payload
+    ok 1 - parses action blocks with structured data payload
+      ---
+      duration_ms: 2.2217
+      type: 'test'
+      ...
+    # Subtest: validates action block with data even without prompt
+    ok 2 - validates action block with data even without prompt
+      ---
+      duration_ms: 0.5949
+      type: 'test'
+      ...
+    # Subtest: normalizes Persian field keys to canonical schema properties
+    ok 3 - normalizes Persian field keys to canonical schema properties
+      ---
+      duration_ms: 7.3271
+      type: 'test'
+      ...
+    # Subtest: resolves parentLocationName to parentLocationId in prepareWorldChanges
+    ok 4 - resolves parentLocationName to parentLocationId in prepareWorldChanges
+      ---
+      duration_ms: 2.1815
+      type: 'test'
+      ...
+    # Subtest: supports direct data insertion across factions, NPCs, artifacts and laws
+    ok 5 - supports direct data insertion across factions, NPCs, artifacts and laws
+      ---
+      duration_ms: 0.7013
+      type: 'test'
+      ...
+    # Subtest: correctly ingests user complex location data with category, special rules, and description
+    ok 6 - correctly ingests user complex location data with category, special rules, and description
+      ---
+      duration_ms: 1.1316
+      type: 'test'
+      ...
+    # Subtest: findExistingEntityByName correctly matches existing entities across aliases and diacritics
+    ok 7 - findExistingEntityByName correctly matches existing entities across aliases and diacritics
+      ---
+      duration_ms: 5.3893
+      type: 'test'
+      ...
+    # Subtest: prevents recreating already available locations in prepareWorldChanges (multi-turn de-duplication)
+    ok 8 - prevents recreating already available locations in prepareWorldChanges (multi-turn de-duplication)
+      ---
+      duration_ms: 9.057
+      type: 'test'
+      ...
+    # Subtest: drops duplicate create actions in the same batch
+    ok 9 - drops duplicate create actions in the same batch
+      ---
+      duration_ms: 0.7225
+      type: 'test'
+      ...
+    # Subtest: clamps common artifact stats, resolves slot, and strips curses
+    ok 10 - clamps common artifact stats, resolves slot, and strips curses
+      ---
+      duration_ms: 1.4304
+      type: 'test'
+      ...
+    # Subtest: enforces 1-handed legendary budget and preserves legendary curses
+    ok 11 - enforces 1-handed legendary budget and preserves legendary curses
+      ---
+      duration_ms: 1.7379
+      type: 'test'
+      ...
+    # Subtest: enforces 2-handed weapons double (2x) stat budget across rarities
+    ok 12 - enforces 2-handed weapons double (2x) stat budget across rarities
+      ---
+      duration_ms: 0.4256
+      type: 'test'
+      ...
+    1..12
+ok 52 - Oracle Easy Insert — Direct Data Ingestion
+  ---
+  duration_ms: 36.001
+  type: 'suite'
+  ...
+# Subtest: Oracle Ontology Actions & Category Management
+    # Subtest: normalizes entity names for ontology types and Persian aliases
+    ok 1 - normalizes entity names for ontology types and Persian aliases
+      ---
+      duration_ms: 1.2416
+      type: 'test'
+      ...
+    # Subtest: parses structured storyforge-action code blocks for place_category
+    ok 2 - parses structured storyforge-action code blocks for place_category
+      ---
+      duration_ms: 0.8323
+      type: 'test'
+      ...
+    # Subtest: normalizes ontology entity fields, Persian keys, and ID generation
+    ok 3 - normalizes ontology entity fields, Persian keys, and ID generation
+      ---
+      duration_ms: 2.3599
+      type: 'test'
+      ...
+    # Subtest: preserves custom location categories like "capital" without forcing to wilderness
+    ok 4 - preserves custom location categories like "capital" without forcing to wilderness
+      ---
+      duration_ms: 0.3037
+      type: 'test'
+      ...
+    # Subtest: resolves ontology targets by name or ID from worldBible.ontology
+    ok 5 - resolves ontology targets by name or ID from worldBible.ontology
+      ---
+      duration_ms: 1.15
+      type: 'test'
+      ...
+    # Subtest: prepares world changes for ontology categories with prepareWorldChanges
+    ok 6 - prepares world changes for ontology categories with prepareWorldChanges
+      ---
+      duration_ms: 1.2348
+      type: 'test'
+      ...
+    # Subtest: routes applyWorldChange to registered ontology mutators
+    ok 7 - routes applyWorldChange to registered ontology mutators
+      ---
+      duration_ms: 0.6941
+      type: 'test'
+      ...
+    1..7
+ok 53 - Oracle Ontology Actions & Category Management
+  ---
+  duration_ms: 9.7574
+  type: 'suite'
+  ...
+# Subtest: Pacification Entity Extractor — ghost-species false positives
+    # Subtest: rejects the reported verb phrase "برای سرگرم کردن"
+    ok 1 - rejects the reported verb phrase "برای سرگرم کردن"
+      ---
+      duration_ms: 5.1427
+      type: 'test'
+      ...
+    # Subtest: rejects trapping / calming verb phrases
+    ok 2 - rejects trapping / calming verb phrases
+      ---
+      duration_ms: 1.8305
+      type: 'test'
+      ...
+    # Subtest: still extracts legitimate flora and mineral entities
+    ok 3 - still extracts legitimate flora and mineral entities
+      ---
+      duration_ms: 1.1512
+      type: 'test'
+      ...
+    # Subtest: classifies verb phrases vs entity names
+    ok 4 - classifies verb phrases vs entity names
+      ---
+      duration_ms: 0.2758
+      type: 'test'
+      ...
+    # Subtest: resolves suggested categories
+    ok 5 - resolves suggested categories
+      ---
+      duration_ms: 0.1644
+      type: 'test'
+      ...
+    1..5
+ok 54 - Pacification Entity Extractor — ghost-species false positives
+  ---
+  duration_ms: 10.1183
+  type: 'suite'
+  ...
+# Subtest: Publish gate + placeholder + saga-stat checks
+    # Subtest: detects placeholder genesis entities
+    ok 1 - detects placeholder genesis entities
+      ---
+      duration_ms: 1.3712
+      type: 'test'
+      ...
+    # Subtest: flags duplicate ids as errors
+    ok 2 - flags duplicate ids as errors
+      ---
+      duration_ms: 2.8746
+      type: 'test'
+      ...
+    # Subtest: flags saga choices with unknown stats
+    ok 3 - flags saga choices with unknown stats
+      ---
+      duration_ms: 0.489
+      type: 'test'
+      ...
+    # Subtest: blocks publishing a placeholder world
+    ok 4 - blocks publishing a placeholder world
+      ---
+      duration_ms: 1.6842
+      type: 'test'
+      ...
+    # Subtest: allows publishing a world with arbitrary entity counts (2 laws, 10 factions, 0 locations, 8 religions)
+    ok 5 - allows publishing a world with arbitrary entity counts (2 laws, 10 factions, 0 locations, 8 religions)
+      ---
+      duration_ms: 1.5949
+      type: 'test'
+      ...
+    1..5
+ok 55 - Publish gate + placeholder + saga-stat checks
+  ---
+  duration_ms: 13.754
+  type: 'suite'
+  ...
+# Subtest: sceneResolution — Plan 12 Phase 1 edge key & placeholder engine
+    # Subtest: correctly identifies placeholder seed beats
+    ok 1 - correctly identifies placeholder seed beats
+      ---
+      duration_ms: 1.1338
+      type: 'test'
+      ...
+    # Subtest: evicts placeholder beats when real authored beats exist
+    ok 2 - evicts placeholder beats when real authored beats exist
+      ---
+      duration_ms: 0.3742
+      type: 'test'
+      ...
+    # Subtest: keeps the single placeholder if no real beats exist yet
+    ok 3 - keeps the single placeholder if no real beats exist yet
+      ---
+      duration_ms: 0.3404
+      type: 'test'
+      ...
+    # Subtest: resolves exact choice targets and strips legacy keys
+    ok 4 - resolves exact choice targets and strips legacy keys
+      ---
+      duration_ms: 1.1116
+      type: 'test'
+      ...
+    # Subtest: resolves scene targets via title/narrative slug matching
+    ok 5 - resolves scene targets via title/narrative slug matching
+      ---
+      duration_ms: 0.4806
+      type: 'test'
+      ...
+    # Subtest: clears hallucinated IDs and warns rather than persisting broken links
+    ok 6 - clears hallucinated IDs and warns rather than persisting broken links
+      ---
+      duration_ms: 0.3781
+      type: 'test'
+      ...
+    1..6
+ok 56 - sceneResolution — Plan 12 Phase 1 edge key & placeholder engine
+  ---
+  duration_ms: 5.5932
+  type: 'suite'
+  ...
+# Subtest: Plan 10 — WorldTradeRoute schema validation
+    # Subtest: applies defaults for status, dangerLevel, commodities and waypoints
+    ok 1 - applies defaults for status, dangerLevel, commodities and waypoints
+      ---
+      duration_ms: 4.7192
+      type: 'test'
+      ...
+    # Subtest: rejects an invalid status and out-of-range dangerLevel
+    ok 2 - rejects an invalid status and out-of-range dangerLevel
+      ---
+      duration_ms: 1.5775
+      type: 'test'
+      ...
+    # Subtest: rejects smuggling DC outside 8..25 and empty names
+    ok 3 - rejects smuggling DC outside 8..25 and empty names
+      ---
+      duration_ms: 0.9425
+      type: 'test'
+      ...
+    # Subtest: round-trips through the WorldBible schema (tradeRoutes default [])
+    ok 4 - round-trips through the WorldBible schema (tradeRoutes default [])
+      ---
+      duration_ms: 0.351
+      type: 'test'
+      ...
+    1..4
+ok 57 - Plan 10 — WorldTradeRoute schema validation
+  ---
+  duration_ms: 9.7847
+  type: 'suite'
+  ...
+# Subtest: Plan 10 — market availability resolution
+    # Subtest: resolves native goods at the extraction habitat
+    ok 1 - resolves native goods at the extraction habitat
+      ---
+      duration_ms: 0.5194
+      type: 'test'
+      ...
+    # Subtest: resolves imported goods at the destination of an active route
+    ok 2 - resolves imported goods at the destination of an active route
+      ---
+      duration_ms: 0.2278
+      type: 'test'
+      ...
+    # Subtest: marks goods scarce when the route is raided
+    ok 3 - marks goods scarce when the route is raided
+      ---
+      duration_ms: 0.2475
+      type: 'test'
+      ...
+    # Subtest: marks goods in shortage when the route is blockaded
+    ok 4 - marks goods in shortage when the route is blockaded
+      ---
+      duration_ms: 0.3703
+      type: 'test'
+      ...
+    # Subtest: native presence is never downgraded by a disrupted route
+    ok 5 - native presence is never downgraded by a disrupted route
+      ---
+      duration_ms: 0.9935
+      type: 'test'
+      ...
+    # Subtest: bilateral commodities also reach the origin market
+    ok 6 - bilateral commodities also reach the origin market
+      ---
+      duration_ms: 0.5499
+      type: 'test'
+      ...
+    # Subtest: forward-only commodities do NOT flow back to the origin market
+    ok 7 - forward-only commodities do NOT flow back to the origin market
+      ---
+      duration_ms: 0.1843
+      type: 'test'
+      ...
+    # Subtest: getRouteAvailability returns null when no route ever carries the good there
+    ok 8 - getRouteAvailability returns null when no route ever carries the good there
+      ---
+      duration_ms: 0.1715
+      type: 'test'
+      ...
+    1..8
+ok 58 - Plan 10 — market availability resolution
+  ---
+  duration_ms: 4.408
+  type: 'suite'
+  ...
+# Subtest: Plan 10 — narrative context & route helpers
+    # Subtest: formatTradeRouteLine includes name, status, path and commodities
+    ok 1 - formatTradeRouteLine includes name, status, path and commodities
+      ---
+      duration_ms: 0.4896
+      type: 'test'
+      ...
+    # Subtest: formatTradeRouteLine appends economic impact for disrupted routes
+    ok 2 - formatTradeRouteLine appends economic impact for disrupted routes
+      ---
+      duration_ms: 0.1849
+      type: 'test'
+      ...
+    # Subtest: getRoutesForLocation matches origin, destination and waypoints
+    ok 3 - getRoutesForLocation matches origin, destination and waypoints
+      ---
+      duration_ms: 0.1791
+      type: 'test'
+      ...
+    1..3
+ok 59 - Plan 10 — narrative context & route helpers
+  ---
+  duration_ms: 1.0042
+  type: 'suite'
+  ...
+# Subtest: validateCreatureEcology — danger coherence & category bleed
+    # Subtest: flags a danger-4 beast as prey of a danger-2 hunter
+    ok 1 - flags a danger-4 beast as prey of a danger-2 hunter
+      ---
+      duration_ms: 1.7954
+      type: 'test'
+      ...
+    # Subtest: flags a danger-2 predator of a danger-4 creature
+    ok 2 - flags a danger-2 predator of a danger-4 creature
+      ---
+      duration_ms: 0.5136
+      type: 'test'
+      ...
+    # Subtest: downgrades pack-justified inversions to warnings
+    ok 3 - downgrades pack-justified inversions to warnings
+      ---
+      duration_ms: 0.4608
+      type: 'test'
+      ...
+    # Subtest: flags mining prose on a beast as category bleed
+    ok 4 - flags mining prose on a beast as category bleed
+      ---
+      duration_ms: 0.3547
+      type: 'test'
+      ...
+    # Subtest: collects invented names as ghosts without erroring
+    ok 5 - collects invented names as ghosts without erroring
+      ---
+      duration_ms: 0.9538
+      type: 'test'
+      ...
+    # Subtest: warns on self reference and passes clean payloads
+    ok 6 - warns on self reference and passes clean payloads
+      ---
+      duration_ms: 0.4226
+      type: 'test'
+      ...
+    1..6
+ok 60 - validateCreatureEcology — danger coherence & category bleed
+  ---
+  duration_ms: 6.138
+  type: 'suite'
+  ...
+# Subtest: Tier 3 Layer A — evaluateRawScene
+    # Subtest: FAILS a standoff whose raw choices are diceless (the sentry bug)
+    not ok 1 - FAILS a standoff whose raw choices are diceless (the sentry bug)
+      ---
+      duration_ms: 3.8112
+      type: 'test'
+      location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\evaluator.test.ts:2:1211'
+      failureType: 'testCodeFailure'
+      error: 'outcome is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        evaluateRawScene (g:\Code\StoryForge\web\src\lib\evals\evaluator.ts:184:3)
+        TestContext.<anonymous> (g:\Code\StoryForge\web\src\lib\evals\evaluator.test.ts:13:20)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Test.start (node:internal/test_runner/test:944:17)
+        node:internal/test_runner/test:1440:71
+        node:internal/per_context/primordials:483:82
+        new Promise (<anonymous>)
+        new SafePromise (node:internal/per_context/primordials:451:29)
+        node:internal/per_context/primordials:483:9
+      ...
+    # Subtest: PASSES a standoff where the model declared stat + DC on every choice
+    not ok 2 - PASSES a standoff where the model declared stat + DC on every choice
+      ---
+      duration_ms: 0.5885
+      type: 'test'
+      location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\evaluator.test.ts:2:1838'
+      failureType: 'testCodeFailure'
+      error: 'outcome is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        evaluateRawScene (g:\Code\StoryForge\web\src\lib\evals\evaluator.ts:184:3)
+        TestContext.<anonymous> (g:\Code\StoryForge\web\src\lib\evals\evaluator.test.ts:26:20)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
+        Test.postRun (node:internal/test_runner/test:1173:19)
+        Test.run (node:internal/test_runner/test:1101:12)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1442:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: FAILS a barricade assigned a too-low DC
+    not ok 3 - FAILS a barricade assigned a too-low DC
+      ---
+      duration_ms: 0.3017
+      type: 'test'
+      location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\evaluator.test.ts:2:2570'
+      failureType: 'testCodeFailure'
+      error: 'outcome is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        evaluateRawScene (g:\Code\StoryForge\web\src\lib\evals\evaluator.ts:184:3)
+        TestContext.<anonymous> (g:\Code\StoryForge\web\src\lib\evals\evaluator.test.ts:39:20)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
+        Test.postRun (node:internal/test_runner/test:1173:19)
+        Test.run (node:internal/test_runner/test:1101:12)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: reports a rescue when the model omitted a DC entirely (warning, not silent pass)
+    not ok 4 - reports a rescue when the model omitted a DC entirely (warning, not silent pass)
+      ---
+      duration_ms: 0.2785
+      type: 'test'
+      location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\evaluator.test.ts:2:3058'
+      failureType: 'testCodeFailure'
+      error: 'outcome is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        evaluateRawScene (g:\Code\StoryForge\web\src\lib\evals\evaluator.ts:184:3)
+        TestContext.<anonymous> (g:\Code\StoryForge\web\src\lib\evals\evaluator.test.ts:50:20)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
+        Test.postRun (node:internal/test_runner/test:1173:19)
+        Test.run (node:internal/test_runner/test:1101:12)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: FAILS triumphant prose on a critical failure
+    not ok 5 - FAILS triumphant prose on a critical failure
+      ---
+      duration_ms: 0.3353
+      type: 'test'
+      location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\evaluator.test.ts:2:3708'
+      failureType: 'testCodeFailure'
+      error: 'outcome is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        evaluateRawScene (g:\Code\StoryForge\web\src\lib\evals\evaluator.ts:184:3)
+        TestContext.<anonymous> (g:\Code\StoryForge\web\src\lib\evals\evaluator.test.ts:62:20)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
+        Test.postRun (node:internal/test_runner/test:1173:19)
+        Test.run (node:internal/test_runner/test:1101:12)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: FAILS a resurrected companion and PASSES a memorial mention
+    not ok 6 - FAILS a resurrected companion and PASSES a memorial mention
+      ---
+      duration_ms: 0.2574
+      type: 'test'
+      location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\evaluator.test.ts:2:4227'
+      failureType: 'testCodeFailure'
+      error: 'outcome is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        evaluateRawScene (g:\Code\StoryForge\web\src\lib\evals\evaluator.ts:184:3)
+        TestContext.<anonymous> (g:\Code\StoryForge\web\src\lib\evals\evaluator.test.ts:75:19)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
+        Test.postRun (node:internal/test_runner/test:1173:19)
+        Test.run (node:internal/test_runner/test:1101:12)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: flags pre-baked outcomes as a warning without failing the run
+    not ok 7 - flags pre-baked outcomes as a warning without failing the run
+      ---
+      duration_ms: 0.2165
+      type: 'test'
+      location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\evaluator.test.ts:2:5144'
+      failureType: 'testCodeFailure'
+      error: 'outcome is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        evaluateRawScene (g:\Code\StoryForge\web\src\lib\evals\evaluator.ts:184:3)
+        TestContext.<anonymous> (g:\Code\StoryForge\web\src\lib\evals\evaluator.test.ts:96:20)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
+        Test.postRun (node:internal/test_runner/test:1173:19)
+        Test.run (node:internal/test_runner/test:1101:12)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: enforces choice-count bounds
+    not ok 8 - enforces choice-count bounds
+      ---
+      duration_ms: 0.4186
+      type: 'test'
+      location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\evaluator.test.ts:2:5679'
+      failureType: 'testCodeFailure'
+      error: 'outcome is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        evaluateRawScene (g:\Code\StoryForge\web\src\lib\evals\evaluator.ts:184:3)
+        TestContext.<anonymous> (g:\Code\StoryForge\web\src\lib\evals\evaluator.test.ts:108:20)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
+        Test.postRun (node:internal/test_runner/test:1173:19)
+        Test.run (node:internal/test_runner/test:1101:12)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: FAILS schema integrity when choices or narrative are missing
+    not ok 9 - FAILS schema integrity when choices or narrative are missing
+      ---
+      duration_ms: 0.3721
+      type: 'test'
+      location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\evaluator.test.ts:2:6083'
+      failureType: 'testCodeFailure'
+      error: 'outcome is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        evaluateRawScene (g:\Code\StoryForge\web\src\lib\evals\evaluator.ts:184:3)
+        TestContext.<anonymous> (g:\Code\StoryForge\web\src\lib\evals\evaluator.test.ts:119:20)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
+        Test.postRun (node:internal/test_runner/test:1173:19)
+        Test.run (node:internal/test_runner/test:1101:12)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: accepts absolute canonical DC bounds and flags out-of-band DCs
+    not ok 10 - accepts absolute canonical DC bounds and flags out-of-band DCs
+      ---
+      duration_ms: 0.7765
+      type: 'test'
+      location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\evaluator.test.ts:2:6516'
+      failureType: 'testCodeFailure'
+      error: 'outcome is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        evaluateRawScene (g:\Code\StoryForge\web\src\lib\evals\evaluator.ts:184:3)
+        TestContext.<anonymous> (g:\Code\StoryForge\web\src\lib\evals\evaluator.test.ts:130:16)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
+        Test.postRun (node:internal/test_runner/test:1173:19)
+        Test.run (node:internal/test_runner/test:1101:12)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: applies low-base-relative DC bands independently of canonical bounds
+    not ok 11 - applies low-base-relative DC bands independently of canonical bounds
+      ---
+      duration_ms: 0.3927
+      type: 'test'
+      location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\evaluator.test.ts:2:7541'
+      failureType: 'testCodeFailure'
+      error: 'outcome is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        evaluateRawScene (g:\Code\StoryForge\web\src\lib\evals\evaluator.ts:184:3)
+        TestContext.<anonymous> (g:\Code\StoryForge\web\src\lib\evals\evaluator.test.ts:150:20)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:744:18)
+        Test.postRun (node:internal/test_runner/test:1173:19)
+        Test.run (node:internal/test_runner/test:1101:12)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    1..11
+not ok 61 - Tier 3 Layer A — evaluateRawScene
+  ---
+  duration_ms: 9.5099
+  type: 'suite'
+  location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\evaluator.test.ts:2:1141'
+  failureType: 'subtestsFailed'
+  error: '11 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: Tier 1 — normalizeChoices: standoff safety net
+    # Subtest: never leaves an armed standoff / confrontation diceless
+    ok 1 - never leaves an armed standoff / confrontation diceless
+      ---
+      duration_ms: 5.6601
+      type: 'test'
+      ...
+    # Subtest: keeps genuinely peaceful routine actions diceless
+    ok 2 - keeps genuinely peaceful routine actions diceless
+      ---
+      duration_ms: 0.7582
+      type: 'test'
+      ...
+    # Subtest: forces a check for high-risk choices even without confrontational keywords
+    ok 3 - forces a check for high-risk choices even without confrontational keywords
+      ---
+      duration_ms: 0.4238
+      type: 'test'
+      ...
+    1..3
+ok 62 - Tier 1 — normalizeChoices: standoff safety net
+  ---
+  duration_ms: 8.8907
+  type: 'suite'
+  ...
+# Subtest: Tier 1 — normalizeChoices: structural hardening (55 adversarial arrays)
+    # Subtest: survives every adversarial shape with valid ids, styles, risks, and DC bounds
+    ok 1 - survives every adversarial shape with valid ids, styles, risks, and DC bounds
+      ---
+      duration_ms: 18.2236
+      type: 'test'
+      ...
+    # Subtest: binds unknown stat values to the story first stat instead of dropping
+    ok 2 - binds unknown stat values to the story first stat instead of dropping
+      ---
+      duration_ms: 1.469
+      type: 'test'
+      ...
+    # Subtest: resolves synonyms, Persian names, snake_case, and Studio check.stat shape
+    ok 3 - resolves synonyms, Persian names, snake_case, and Studio check.stat shape
+      ---
+      duration_ms: 0.5451
+      type: 'test'
+      ...
+    # Subtest: clamps extreme DCs and coerces invalid enum values
+    ok 4 - clamps extreme DCs and coerces invalid enum values
+      ---
+      duration_ms: 2.202
+      type: 'test'
+      ...
+    # Subtest: caps the panel at 4 choices and returns [] for non-arrays
+    ok 5 - caps the panel at 4 choices and returns [] for non-arrays
+      ---
+      duration_ms: 1.4913
+      type: 'test'
+      ...
+    # Subtest: applies the low-base DC band (6-11) when isLowBase is true
+    ok 6 - applies the low-base DC band (6-11) when isLowBase is true
+      ---
+      duration_ms: 0.676
+      type: 'test'
+      ...
+    1..6
+ok 63 - Tier 1 — normalizeChoices: structural hardening (55 adversarial arrays)
+  ---
+  duration_ms: 27.3023
+  type: 'suite'
+  ...
+# Subtest: Tier 1 — PromptAssembler invariants (EN)
+    # Subtest: injects protagonist capabilities, abilities, gear, laws, and threat clocks
+    ok 1 - injects protagonist capabilities, abilities, gear, laws, and threat clocks
+      ---
+      duration_ms: 9.1263
+      type: 'test'
+      ...
+    # Subtest: always emits scene-continuity and knowledge-boundary guardrails
+    ok 2 - always emits scene-continuity and knowledge-boundary guardrails
+      ---
+      duration_ms: 0.5373
+      type: 'test'
+      ...
+    # Subtest: passes RPG stat ids through for downstream choice validation
+    ok 3 - passes RPG stat ids through for downstream choice validation
+      ---
+      duration_ms: 1.4243
+      type: 'test'
+      ...
+    1..3
+ok 64 - Tier 1 — PromptAssembler invariants (EN)
+  ---
+  duration_ms: 14.5864
+  type: 'suite'
+  ...
+# Subtest: Tier 1 — PromptAssembler invariants (FA parity)
+    # Subtest: injects the same invariants in Persian
+    ok 1 - injects the same invariants in Persian
+      ---
+      duration_ms: 0.4345
+      type: 'test'
+      ...
+    1..1
+ok 65 - Tier 1 — PromptAssembler invariants (FA parity)
+  ---
+  duration_ms: 1.1157
+  type: 'suite'
+  ...
+# Subtest: Tier 1 — DC calibration invariants
+    # Subtest: uses the low-base band when universalBaseValue < 8
+    ok 1 - uses the low-base band when universalBaseValue < 8
+      ---
+      duration_ms: 0.5556
+      type: 'test'
+      ...
+    # Subtest: uses the standard heroic band when universalBaseValue >= 8
+    ok 2 - uses the standard heroic band when universalBaseValue >= 8
+      ---
+      duration_ms: 0.4007
+      type: 'test'
+      ...
+    1..2
+ok 66 - Tier 1 — DC calibration invariants
+  ---
+  duration_ms: 1.5
+  type: 'suite'
+  ...
+# Subtest: Tier 1 — ProseValidator: resurrection catch rate
+    # Subtest: flags 100% of ledger-dead NPCs that act alive
+    ok 1 - flags 100% of ledger-dead NPCs that act alive
+      ---
+      duration_ms: 2.4971
+      type: 'test'
+      ...
+    # Subtest: permits memorial mentions of the dead
+    ok 2 - permits memorial mentions of the dead
+      ---
+      duration_ms: 0.5284
+      type: 'test'
+      ...
+    1..2
+ok 67 - Tier 1 — ProseValidator: resurrection catch rate
+  ---
+  duration_ms: 4.2229
+  type: 'suite'
+  ...
+# Subtest: Tier 1 — ProseValidator: outcome adherence
+    # Subtest: flags triumphant prose on a failed roll (EN)
+    ok 1 - flags triumphant prose on a failed roll (EN)
+      ---
+      duration_ms: 0.3763
+      type: 'test'
+      ...
+    # Subtest: flags disastrous prose on a successful roll (FA)
+    ok 2 - flags disastrous prose on a successful roll (FA)
+      ---
+      duration_ms: 0.5768
+      type: 'test'
+      ...
+    # Subtest: accepts a complication narrated on failure
+    ok 3 - accepts a complication narrated on failure
+      ---
+      duration_ms: 0.237
+      type: 'test'
+      ...
+    1..3
+ok 68 - Tier 1 — ProseValidator: outcome adherence
+  ---
+  duration_ms: 1.5139
+  type: 'suite'
+  ...
+# Subtest: Tier 1 — ProseValidator: immutable-law lore violations
+    # Subtest: flags an extinct creature appearing against immutable law
+    ok 1 - flags an extinct creature appearing against immutable law
+      ---
+      duration_ms: 0.6801
+      type: 'test'
+      ...
+    # Subtest: accepts prose that does not invoke the extinct creature
+    ok 2 - accepts prose that does not invoke the extinct creature
+      ---
+      duration_ms: 1.1182
+      type: 'test'
+      ...
+    1..2
+ok 69 - Tier 1 — ProseValidator: immutable-law lore violations
+  ---
+  duration_ms: 2.1979
+  type: 'suite'
+  ...
+# Subtest: Tier 4 — persona selection
+    # Subtest: Brute prefers aggressive / might
+    ok 1 - Brute prefers aggressive / might
+      ---
+      duration_ms: 1.3312
+      type: 'test'
+      ...
+    # Subtest: Shadow prefers stealthy / agility
+    ok 2 - Shadow prefers stealthy / agility
+      ---
+      duration_ms: 0.4982
+      type: 'test'
+      ...
+    # Subtest: Diplomat prefers diplomatic / charisma
+    ok 3 - Diplomat prefers diplomatic / charisma
+      ---
+      duration_ms: 0.247
+      type: 'test'
+      ...
+    # Subtest: Boundary-Pusher picks the highest-DC option
+    ok 4 - Boundary-Pusher picks the highest-DC option
+      ---
+      duration_ms: 0.2024
+      type: 'test'
+      ...
+    1..4
+ok 70 - Tier 4 — persona selection
+  ---
+  duration_ms: 4.2695
+  type: 'suite'
+  ...
+# Subtest: Tier 4 — simulation determinism
+    # Subtest: produces identical roll sequences for the same seed
+    ok 1 - produces identical roll sequences for the same seed
+      ---
+      duration_ms: 1.1987
+      type: 'test'
+      ...
+    1..1
+ok 71 - Tier 4 — simulation determinism
+  ---
+  duration_ms: 1.3341
+  type: 'suite'
+  ...
+# Subtest: Tier 4 — trajectory audit
+    # Subtest: runs a full multi-turn brute simulation with no trajectory violations
+    not ok 1 - runs a full multi-turn brute simulation with no trajectory violations
+      ---
+      duration_ms: 4.6836
+      type: 'test'
+      location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\simulator.test.ts:2:2558'
+      failureType: 'testCodeFailure'
+      error: 'outcome is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        evaluateRawScene (g:\Code\StoryForge\web\src\lib\evals\evaluator.ts:184:3)
+        runSimulation (g:\Code\StoryForge\web\src\lib\evals\simulator.ts:213:24)
+        async TestContext.<anonymous> (g:\Code\StoryForge\web\src\lib\evals\simulator.test.ts:37:20)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1442:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: is reproducible: same seed yields the same trajectory
+    not ok 2 - is reproducible: same seed yields the same trajectory
+      ---
+      duration_ms: 0.8592
+      type: 'test'
+      location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\simulator.test.ts:2:2973'
+      failureType: 'testCodeFailure'
+      error: 'outcome is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        evaluateRawScene (g:\Code\StoryForge\web\src\lib\evals\evaluator.ts:184:3)
+        runSimulation (g:\Code\StoryForge\web\src\lib\evals\simulator.ts:213:24)
+        async TestContext.<anonymous> (g:\Code\StoryForge\web\src\lib\evals\simulator.test.ts:44:15)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: detects a cyclical prose trap and duplicate memories
+    not ok 3 - detects a cyclical prose trap and duplicate memories
+      ---
+      duration_ms: 2.792
+      type: 'test'
+      location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\simulator.test.ts:2:3368'
+      failureType: 'testCodeFailure'
+      error: 'outcome is not defined'
+      code: 'ERR_TEST_FAILURE'
+      name: 'ReferenceError'
+      stack: |-
+        evaluateRawScene (g:\Code\StoryForge\web\src\lib\evals\evaluator.ts:184:3)
+        runSimulation (g:\Code\StoryForge\web\src\lib\evals\simulator.ts:213:24)
+        async TestContext.<anonymous> (g:\Code\StoryForge\web\src\lib\evals\simulator.test.ts:66:20)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    1..3
+not ok 72 - Tier 4 — trajectory audit
+  ---
+  duration_ms: 8.8414
+  type: 'suite'
+  location: 'g:\\Code\\StoryForge\\web\\src\\lib\\evals\\simulator.test.ts:2:2496'
+  failureType: 'subtestsFailed'
+  error: '3 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: artifactToGameItem
+    # Subtest: maps a two-handed weapon slot to a two_handed weapon GameItem
+    ok 1 - maps a two-handed weapon slot to a two_handed weapon GameItem
+      ---
+      duration_ms: 2.0699
+      type: 'test'
+      ...
+    # Subtest: maps an off_hand shield to a non-two-handed off-hand shield GameItem
+    ok 2 - maps an off_hand shield to a non-two-handed off-hand shield GameItem
+      ---
+      duration_ms: 0.244
+      type: 'test'
+      ...
+    # Subtest: maps relic/armor slots to matching GameItem types
+    ok 3 - maps relic/armor slots to matching GameItem types
+      ---
+      duration_ms: 0.2018
+      type: 'test'
+      ...
+    # Subtest: defaults an artifact without a slot to a relic
+    ok 4 - defaults an artifact without a slot to a relic
+      ---
+      duration_ms: 0.2167
+      type: 'test'
+      ...
+    # Subtest: folds mythic rarity down to legendary (GameItem has no mythic tier)
+    ok 5 - folds mythic rarity down to legendary (GameItem has no mythic tier)
+      ---
+      duration_ms: 0.1442
+      type: 'test'
+      ...
+    # Subtest: appends curseOrCost to the description so the cost of wielding is visible
+    ok 6 - appends curseOrCost to the description so the cost of wielding is visible
+      ---
+      duration_ms: 0.2918
+      type: 'test'
+      ...
+    # Subtest: preserves startsQuestId and nonEquippable plot-token flags
+    ok 7 - preserves startsQuestId and nonEquippable plot-token flags
+      ---
+      duration_ms: 0.2445
+      type: 'test'
+      ...
+    # Subtest: carries resourceModifiers through so equipped passive pool maxima survive turn-time recompute
+    ok 8 - carries resourceModifiers through so equipped passive pool maxima survive turn-time recompute
+      ---
+      duration_ms: 0.328
+      type: 'test'
+      ...
+    1..8
+ok 73 - artifactToGameItem
+  ---
+  duration_ms: 5.2171
+  type: 'suite'
+  ...
+# Subtest: segmentProse: narrative vs dialogue
+    # Subtest: splits Persian guillemet dialogue from narration
+    ok 1 - splits Persian guillemet dialogue from narration
+      ---
+      duration_ms: 1.3495
+      type: 'test'
+      ...
+    # Subtest: handles English double-quoted speech
+    ok 2 - handles English double-quoted speech
+      ---
+      duration_ms: 1.142
+      type: 'test'
+      ...
+    # Subtest: treats dash-led lines as dialogue
+    ok 3 - treats dash-led lines as dialogue
+      ---
+      duration_ms: 1.317
+      type: 'test'
+      ...
+    # Subtest: styles unterminated quotes as dialogue
+    ok 4 - styles unterminated quotes as dialogue
+      ---
+      duration_ms: 0.2272
+      type: 'test'
+      ...
+    # Subtest: returns pure narrative untouched
+    ok 5 - returns pure narrative untouched
+      ---
+      duration_ms: 0.2269
+      type: 'test'
+      ...
+    1..5
+ok 74 - segmentProse: narrative vs dialogue
+  ---
+  duration_ms: 5.8369
+  type: 'suite'
+  ...
+# Subtest: formatStatName
+    # Subtest: uses custom authored stat name when provided, prioritizing Studio term over legacy nameFa
+    ok 1 - uses custom authored stat name when provided, prioritizing Studio term over legacy nameFa
+      ---
+      duration_ms: 1.2313
+      type: 'test'
+      ...
+    # Subtest: falls back to nameFa / nameEn when primary authored name is empty or not provided
+    ok 2 - falls back to nameFa / nameEn when primary authored name is empty or not provided
+      ---
+      duration_ms: 0.3327
+      type: 'test'
+      ...
+    # Subtest: falls back to default Persian translations when no config is passed
+    ok 3 - falls back to default Persian translations when no config is passed
+      ---
+      duration_ms: 0.1874
+      type: 'test'
+      ...
+    # Subtest: formats unknown English stat ids cleanly
+    ok 4 - formats unknown English stat ids cleanly
+      ---
+      duration_ms: 0.1845
+      type: 'test'
+      ...
+    1..4
+ok 75 - formatStatName
+  ---
+  duration_ms: 3.1957
+  type: 'suite'
+  ...
+# Subtest: getEffectiveStatValue and calculateEquipmentModifier
+    # Subtest: calculates effective stat with equipment bonuses and respects fallback
+    ok 1 - calculates effective stat with equipment bonuses and respects fallback
+      ---
+      duration_ms: 37.1812
+      type: 'test'
+      ...
+    1..1
+ok 76 - getEffectiveStatValue and calculateEquipmentModifier
+  ---
+  duration_ms: 37.4971
+  type: 'suite'
+  ...
+# Subtest: serverToCheckResolution
+    # Subtest: maps server CheckResolution fields to client DiceResolution
+    ok 1 - maps server CheckResolution fields to client DiceResolution
+      ---
+      duration_ms: 16.5949
+      type: 'test'
+      ...
+    1..1
+ok 77 - serverToCheckResolution
+  ---
+  duration_ms: 17.1607
+  type: 'suite'
+  ...
+# Subtest: resolveActionCheck with universalBaseValue
+    # Subtest: applies universalBaseValue across stats instead of divergent individual base values
+    ok 1 - applies universalBaseValue across stats instead of divergent individual base values
+      ---
+      duration_ms: 6.5176
+      type: 'test'
+      ...
+    1..1
+ok 78 - resolveActionCheck with universalBaseValue
+  ---
+  duration_ms: 6.7893
+  type: 'suite'
+  ...
+# Subtest: Plan 08 - AI Output Normalization (choice & memory guardrails)
+    # Subtest: normalizeChoices
+        # Subtest: keeps valid choices and never empties the panel for stat drift
+        ok 1 - keeps valid choices and never empties the panel for stat drift
+          ---
+          duration_ms: 2.3221
+          type: 'test'
+          ...
+        # Subtest: resolves synonyms and Persian statutory names to canonical stat ids
+        ok 2 - resolves synonyms and Persian statutory names to canonical stat ids
+          ---
+          duration_ms: 0.3378
+          type: 'test'
+          ...
+        # Subtest: maps story-authored stat display names via statIdAliases
+        ok 3 - maps story-authored stat display names via statIdAliases
+          ---
+          duration_ms: 0.1452
+          type: 'test'
+          ...
+        # Subtest: clamps out-of-range DCs and coerces invalid enums to safe defaults
+        ok 4 - clamps out-of-range DCs and coerces invalid enums to safe defaults
+          ---
+          duration_ms: 0.2015
+          type: 'test'
+          ...
+        # Subtest: accepts snake_case fallback fields and caps results at 4 choices
+        ok 5 - accepts snake_case fallback fields and caps results at 4 choices
+          ---
+          duration_ms: 0.1512
+          type: 'test'
+          ...
+        # Subtest: calibrates DCs within low-base risk bands (7–12)
+        ok 6 - calibrates DCs within low-base risk bands (7–12)
+          ---
+          duration_ms: 0.1087
+          type: 'test'
+          ...
+        # Subtest: rescues confrontational and threatening choices omitted by AI as diceless
+        ok 7 - rescues confrontational and threatening choices omitted by AI as diceless
+          ---
+          duration_ms: 1.2167
+          type: 'test'
+          ...
+        # Subtest: ensures tense armed standoff and sentry confrontation choices are never diceless
+        ok 8 - ensures tense armed standoff and sentry confrontation choices are never diceless
+          ---
+          duration_ms: 0.6803
+          type: 'test'
+          ...
+        1..8
+    ok 1 - normalizeChoices
+      ---
+      duration_ms: 6.2518
+      type: 'suite'
+      ...
+    # Subtest: normalizeExtractedMemories
+        # Subtest: clamps importance, whitelists categories, and drops ephemeral memories
+        ok 1 - clamps importance, whitelists categories, and drops ephemeral memories
+          ---
+          duration_ms: 2.4296
+          type: 'test'
+          ...
+        1..1
+    ok 2 - normalizeExtractedMemories
+      ---
+      duration_ms: 2.8871
+      type: 'suite'
+      ...
+    # Subtest: generateScene mock flag (Plan 08 canon guard)
+        # Subtest: flags mock responses with isMock=true so callers can reject them
+        ok 1 - flags mock responses with isMock=true so callers can reject them
+          ---
+          duration_ms: 1.4544
+          type: 'test'
+          ...
+        1..1
+    ok 3 - generateScene mock flag (Plan 08 canon guard)
+      ---
+      duration_ms: 1.6232
+      type: 'suite'
+      ...
+    1..3
+ok 79 - Plan 08 - AI Output Normalization (choice & memory guardrails)
+  ---
+  duration_ms: 12.0291
+  type: 'suite'
+  ...
+# Subtest: Shared World 1:N Stories — storyFactory
+    # Subtest: fresh story carries its own new worldId (solo universe by default)
+    ok 1 - fresh story carries its own new worldId (solo universe by default)
+      ---
+      duration_ms: 1.4894
+      type: 'test'
+      ...
+    # Subtest: second story in the same world links the SAME worldId and inherits lore
+    ok 2 - second story in the same world links the SAME worldId and inherits lore
+      ---
+      duration_ms: 0.5119
+      type: 'test'
+      ...
+    # Subtest: stories in different worlds stay isolated
+    ok 3 - stories in different worlds stay isolated
+      ---
+      duration_ms: 0.2272
+      type: 'test'
+      ...
+    1..3
+ok 80 - Shared World 1:N Stories — storyFactory
+  ---
+  duration_ms: 4.175
+  type: 'suite'
+  ...
+# Subtest: Plan 07 — Saga, Chapter & World State Ledger Schemas
+    # Subtest: accepts a valid StoryChapter with scenes and defaults missing fields
+    ok 1 - accepts a valid StoryChapter with scenes and defaults missing fields
+      ---
+      duration_ms: 3.4239
+      type: 'test'
+      ...
+    # Subtest: applies defaults for optional chapter fields (scopeTier falls back to street)
+    ok 2 - applies defaults for optional chapter fields (scopeTier falls back to street)
+      ---
+      duration_ms: 1.1539
+      type: 'test'
+      ...
+    # Subtest: rejects an invalid scopeTier value
+    ok 3 - rejects an invalid scopeTier value
+      ---
+      duration_ms: 0.6485
+      type: 'test'
+      ...
+    # Subtest: rejects a chapter numbered below 1
+    ok 4 - rejects a chapter numbered below 1
+      ---
+      duration_ms: 0.5538
+      type: 'test'
+      ...
+    # Subtest: accepts a full SagaManifest with 5 escalating chapters and a ledger
+    ok 5 - accepts a full SagaManifest with 5 escalating chapters and a ledger
+      ---
+      duration_ms: 5.0803
+      type: 'test'
+      ...
+    # Subtest: fills WorldStateLedger defaults for an empty payload
+    ok 6 - fills WorldStateLedger defaults for an empty payload
+      ---
+      duration_ms: 0.4165
+      type: 'test'
+      ...
+    # Subtest: clamps out-of-range reputation scores to the schema bounds (rejection)
+    ok 7 - clamps out-of-range reputation scores to the schema bounds (rejection)
+      ---
+      duration_ms: 0.558
+      type: 'test'
+      ...
+    # Subtest: validates an AI epic_saga_synthesis draft payload
+    ok 8 - validates an AI epic_saga_synthesis draft payload
+      ---
+      duration_ms: 0.812
+      type: 'test'
+      ...
+    # Subtest: rejects saga drafts with fewer than 3 chapters
+    ok 9 - rejects saga drafts with fewer than 3 chapters
+      ---
+      duration_ms: 1.5873
+      type: 'test'
+      ...
+    1..9
+ok 81 - Plan 07 — Saga, Chapter & World State Ledger Schemas
+  ---
+  duration_ms: 16.1448
+  type: 'suite'
+  ...
+# Subtest: WorldBibleSchema - Zod Runtime Schema Boundary Tests
+    # Subtest: TimelineEventSchema
+        # Subtest: accepts valid timeline event
+        ok 1 - accepts valid timeline event
+          ---
+          duration_ms: 2.4387
+          type: 'test'
+          ...
+        # Subtest: rejects timeline event with invalid eraCategory
+        ok 2 - rejects timeline event with invalid eraCategory
+          ---
+          duration_ms: 1.6114
+          type: 'test'
+          ...
+        1..2
+    ok 1 - TimelineEventSchema
+      ---
+      duration_ms: 5.0473
+      type: 'suite'
+      ...
+    # Subtest: WorldArtifactSchema
+        # Subtest: accepts valid artifact with powers and attunement rules
+        ok 1 - accepts valid artifact with powers and attunement rules
+          ---
+          duration_ms: 0.9783
+          type: 'test'
+          ...
+        # Subtest: rejects artifact with invalid rarity tier
+        ok 2 - rejects artifact with invalid rarity tier
+          ---
+          duration_ms: 0.3881
+          type: 'test'
+          ...
+        1..2
+    ok 2 - WorldArtifactSchema
+      ---
+      duration_ms: 1.5682
+      type: 'suite'
+      ...
+    # Subtest: WorldCreatureSchema
+        # Subtest: accepts valid creature with danger ratings 1 through 5
+        ok 1 - accepts valid creature with danger ratings 1 through 5
+          ---
+          duration_ms: 0.8133
+          type: 'test'
+          ...
+        # Subtest: rejects creature with invalid danger level out of 1-5 bounds
+        ok 2 - rejects creature with invalid danger level out of 1-5 bounds
+          ---
+          duration_ms: 0.8042
+          type: 'test'
+          ...
+        1..2
+    ok 3 - WorldCreatureSchema
+      ---
+      duration_ms: 2.0322
+      type: 'suite'
+      ...
+    # Subtest: WorldDeitySchema
+        # Subtest: accepts valid deity with dogma and blessings
+        ok 1 - accepts valid deity with dogma and blessings
+          ---
+          duration_ms: 0.3742
+          type: 'test'
+          ...
+        1..1
+    ok 4 - WorldDeitySchema
+      ---
+      duration_ms: 0.5711
+      type: 'suite'
+      ...
+    # Subtest: NPCDramaBondSchema
+        # Subtest: accepts valid drama bond with positive or negative affinity
+        ok 1 - accepts valid drama bond with positive or negative affinity
+          ---
+          duration_ms: 0.54
+          type: 'test'
+          ...
+        # Subtest: rejects affinity greater than 100 or less than -100
+        ok 2 - rejects affinity greater than 100 or less than -100
+          ---
+          duration_ms: 0.5433
+          type: 'test'
+          ...
+        1..2
+    ok 5 - NPCDramaBondSchema
+      ---
+      duration_ms: 1.5981
+      type: 'suite'
+      ...
+    # Subtest: WorldLawSchema
+        # Subtest: enforces that laws must be strictly immutable
+        ok 1 - enforces that laws must be strictly immutable
+          ---
+          duration_ms: 0.5702
+          type: 'test'
+          ...
+        1..1
+    ok 6 - WorldLawSchema
+      ---
+      duration_ms: 0.7485
+      type: 'suite'
+      ...
+    1..6
+ok 82 - WorldBibleSchema - Zod Runtime Schema Boundary Tests
+  ---
+  duration_ms: 12.6856
+  type: 'suite'
+  ...
+1..82
+# tests 449
+# suites 112
+# pass 435
+# fail 14
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7409.2206

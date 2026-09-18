@@ -49,3 +49,31 @@ describe('ProseValidator — canon guardrails', () => {
     assert.equal(r.ok, true);
   });
 });
+
+describe('ProseValidator — Persian script integrity', () => {
+  for (const character of ['\u0B3F', '\u09BF', '漢', 'क', 'ก', 'அ']) {
+    it(`rejects foreign letter/mark U+${character.codePointAt(0)!.toString(16)}`, () => {
+      const result = validateProse(`در سایه ${character} می‌ایستی.`, { language: 'fa' });
+      assert.equal(result.ok, false);
+      assert.ok(result.findings.some((f) => f.category === 'script_leak'));
+    });
+  }
+
+  it('accepts Persian letters, vowel marks, joiners, digits and punctuation', () => {
+    const result = validateProse('«آرام می‌روی؛ زَروان ۱۲۳ — Rostam…»', { language: 'fa-IR' });
+    assert.equal(result.ok, true);
+  });
+
+  it('does not impose Persian script rules on other or unspecified languages', () => {
+    for (const language of ['en', 'bn', undefined]) {
+      assert.equal(validateProse('漢 ক', { language }).ok, true);
+    }
+  });
+
+  it('includes actionable script repair guidance', () => {
+    const result = validateProse('زروان\u0B3F', { language: 'persian' });
+    assert.match(result.findings[0].detail, /U\+0B3F/);
+    assert.match(result.findings[0].detail, /Rewrite affected words in Persian/);
+  });
+});
+

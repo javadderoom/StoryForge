@@ -1,0 +1,6 @@
+src/lib/evals/evaluator.ts(184,7): error TS2304: Cannot find name 'outcome'.
+src/lib/evals/evaluator.ts(184,32): error TS2304: Cannot find name 'outcome'.
+src/lib/evals/evaluator.ts(189,31): error TS2304: Cannot find name 'outcome'.
+src/lib/evals/evaluator.ts(192,14): error TS2304: Cannot find name 'outcome'.
+src/lib/evals/evaluator.ts(192,39): error TS2304: Cannot find name 'outcome'.
+src/lib/evals/evaluator.ts(197,31): error TS2304: Cannot find name 'outcome'.

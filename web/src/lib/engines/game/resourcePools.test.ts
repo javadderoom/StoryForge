@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { reconcilePlayerResources, resolveResourceMax } from './resourcePools';
+import { reconcilePlayerResources, resolveHealthKey, resolveResourceMax } from './resourcePools';
 
 const baseRpg: any = {
   stats: [],
@@ -67,5 +67,13 @@ describe('resourcePools', () => {
   it('resolveResourceMax prefers scaled maxResources', () => {
     assert.equal(resolveResourceMax('hp', baseRpg, { maxResources: { hp: 35 } }), 35);
     assert.equal(resolveResourceMax('hp', baseRpg, {}), 20);
+  });
+
+  it('resolveHealthKey selects the shared named and fallback pools', () => {
+    assert.equal(resolveHealthKey({ resources: [{ id: 'health' }, { id: 'mana' }] }), 'health');
+    assert.equal(resolveHealthKey({ resources: [{ id: 'سلامت' }, { id: 'mana' }] }), 'سلامت');
+    assert.equal(resolveHealthKey({ resources: [{ id: 'vitality' }, { id: 'mana' }] }), 'vitality');
+    assert.equal(resolveHealthKey({ resources: [{ id: 'mana' }, { id: 'resolve' }] }), 'mana');
+    assert.equal(resolveHealthKey(undefined), 'health');
   });
 });

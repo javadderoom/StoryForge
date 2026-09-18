@@ -1,0 +1,267 @@
+TAP version 13
+# Subtest: Auth Utilities & JWT
+    # Subtest: Phone Number Normalization & Validation
+        # Subtest: normalizes 09xxxxxxxxx to +989xxxxxxxxx
+        ok 1 - normalizes 09xxxxxxxxx to +989xxxxxxxxx
+          ---
+          duration_ms: 1.2497
+          type: 'test'
+          ...
+        # Subtest: normalizes +98 or 0098 correctly
+        ok 2 - normalizes +98 or 0098 correctly
+          ---
+          duration_ms: 0.4013
+          type: 'test'
+          ...
+        # Subtest: validates genuine Iranian mobile numbers
+        ok 3 - validates genuine Iranian mobile numbers
+          ---
+          duration_ms: 0.3226
+          type: 'test'
+          ...
+        1..3
+    ok 1 - Phone Number Normalization & Validation
+      ---
+      duration_ms: 2.9135
+      type: 'suite'
+      ...
+    # Subtest: Password Hashing & Salt Verification
+        # Subtest: hashes passwords securely and verifies correctly
+        ok 1 - hashes passwords securely and verifies correctly
+          ---
+          duration_ms: 34.9846
+          type: 'test'
+          ...
+        1..1
+    ok 2 - Password Hashing & Salt Verification
+      ---
+      duration_ms: 35.223
+      type: 'suite'
+      ...
+    # Subtest: JWT Signing & Verification
+        # Subtest: signs and verifies payload correctly
+        ok 1 - signs and verifies payload correctly
+          ---
+          duration_ms: 1.0625
+          type: 'test'
+          ...
+        # Subtest: rejects tampered tokens
+        ok 2 - rejects tampered tokens
+          ---
+          duration_ms: 0.3196
+          type: 'test'
+          ...
+        1..2
+    ok 3 - JWT Signing & Verification
+      ---
+      duration_ms: 1.8042
+      type: 'suite'
+      ...
+    1..3
+ok 1 - Auth Utilities & JWT
+  ---
+  duration_ms: 40.6359
+  type: 'suite'
+  ...
+# Subtest: Abilities & Spells System — Types, Validation & DC Resolution
+    # Subtest: validates ability properties, costs, and archetype restrictions
+    ok 1 - validates ability properties, costs, and archetype restrictions
+      ---
+      duration_ms: 1.8118
+      type: 'test'
+      ...
+    # Subtest: correctly identifies universal vs class-gated abilities
+    ok 2 - correctly identifies universal vs class-gated abilities
+      ---
+      duration_ms: 0.3366
+      type: 'test'
+      ...
+    # Subtest: GameEngine.inferStatId recognizes ability names and infers linked attribute
+    ok 3 - GameEngine.inferStatId recognizes ability names and infers linked attribute
+      ---
+      duration_ms: 1.7824
+      type: 'test'
+      ...
+    # Subtest: GameEngine.resolveActionCheck awards ability tier bonus when skillId matches an ability
+    ok 4 - GameEngine.resolveActionCheck awards ability tier bonus when skillId matches an ability
+      ---
+      duration_ms: 1.3695
+      type: 'test'
+      ...
+    1..4
+ok 2 - Abilities & Spells System — Types, Validation & DC Resolution
+  ---
+  duration_ms: 7.7901
+  type: 'suite'
+  ...
+# Subtest: Currency Engine — Multi-denomination Coinage & Making Change
+    # Subtest: calculates total base value from purse coins
+    ok 1 - calculates total base value from purse coins
+      ---
+      duration_ms: 0.8925
+      type: 'test'
+      ...
+    # Subtest: converts base units into optimal denomination breakdown
+    ok 2 - converts base units into optimal denomination breakdown
+      ---
+      duration_ms: 0.9988
+      type: 'test'
+      ...
+    # Subtest: deducts cost and makes change seamlessly by breaking larger coins
+    ok 3 - deducts cost and makes change seamlessly by breaking larger coins
+      ---
+      duration_ms: 0.2989
+      type: 'test'
+      ...
+    # Subtest: rejects transaction when funds are insufficient
+    ok 4 - rejects transaction when funds are insufficient
+      ---
+      duration_ms: 0.2973
+      type: 'test'
+      ...
+    # Subtest: adds coins directly into the purse
+    ok 5 - adds coins directly into the purse
+      ---
+      duration_ms: 0.2129
+      type: 'test'
+      ...
+    # Subtest: formats purse nicely into Persian and English labels
+    ok 6 - formats purse nicely into Persian and English labels
+      ---
+      duration_ms: 0.3217
+      type: 'test'
+      ...
+    1..6
+ok 3 - Currency Engine — Multi-denomination Coinage & Making Change
+  ---
+  duration_ms: 4.2576
+  type: 'suite'
+  ...
+# Subtest: Oracle Ontology Actions & Category Management
+    # Subtest: normalizes entity names for ontology types and Persian aliases
+    ok 1 - normalizes entity names for ontology types and Persian aliases
+      ---
+      duration_ms: 1.3627
+      type: 'test'
+      ...
+    # Subtest: parses structured storyforge-action code blocks for place_category
+    ok 2 - parses structured storyforge-action code blocks for place_category
+      ---
+      duration_ms: 0.7152
+      type: 'test'
+      ...
+    # Subtest: normalizes ontology entity fields, Persian keys, and ID generation
+    ok 3 - normalizes ontology entity fields, Persian keys, and ID generation
+      ---
+      duration_ms: 1.9542
+      type: 'test'
+      ...
+    # Subtest: preserves custom location categories like "capital" without forcing to wilderness
+    ok 4 - preserves custom location categories like "capital" without forcing to wilderness
+      ---
+      duration_ms: 0.2864
+      type: 'test'
+      ...
+    # Subtest: resolves ontology targets by name or ID from worldBible.ontology
+    ok 5 - resolves ontology targets by name or ID from worldBible.ontology
+      ---
+      duration_ms: 1.072
+      type: 'test'
+      ...
+    # Subtest: prepares world changes for ontology categories with prepareWorldChanges
+    ok 6 - prepares world changes for ontology categories with prepareWorldChanges
+      ---
+      duration_ms: 3.6775
+      type: 'test'
+      ...
+    # Subtest: routes applyWorldChange to registered ontology mutators
+    ok 7 - routes applyWorldChange to registered ontology mutators
+      ---
+      duration_ms: 0.542
+      type: 'test'
+      ...
+    1..7
+ok 4 - Oracle Ontology Actions & Category Management
+  ---
+  duration_ms: 11.2518
+  type: 'suite'
+  ...
+# Subtest: formatStatName
+    # Subtest: uses custom authored stat name when provided, prioritizing Studio term over legacy nameFa
+    ok 1 - uses custom authored stat name when provided, prioritizing Studio term over legacy nameFa
+      ---
+      duration_ms: 1.3236
+      type: 'test'
+      ...
+    # Subtest: falls back to nameFa / nameEn when primary authored name is empty or not provided
+    ok 2 - falls back to nameFa / nameEn when primary authored name is empty or not provided
+      ---
+      duration_ms: 0.3694
+      type: 'test'
+      ...
+    # Subtest: falls back to default Persian translations when no config is passed
+    ok 3 - falls back to default Persian translations when no config is passed
+      ---
+      duration_ms: 0.3879
+      type: 'test'
+      ...
+    # Subtest: formats unknown English stat ids cleanly
+    ok 4 - formats unknown English stat ids cleanly
+      ---
+      duration_ms: 0.2042
+      type: 'test'
+      ...
+    1..4
+ok 5 - formatStatName
+  ---
+  duration_ms: 3.6423
+  type: 'suite'
+  ...
+# Subtest: getEffectiveStatValue and calculateEquipmentModifier
+    # Subtest: calculates effective stat with equipment bonuses and respects fallback
+    ok 1 - calculates effective stat with equipment bonuses and respects fallback
+      ---
+      duration_ms: 11.1852
+      type: 'test'
+      ...
+    1..1
+ok 6 - getEffectiveStatValue and calculateEquipmentModifier
+  ---
+  duration_ms: 11.4633
+  type: 'suite'
+  ...
+# Subtest: serverToCheckResolution
+    # Subtest: maps server CheckResolution fields to client DiceResolution
+    ok 1 - maps server CheckResolution fields to client DiceResolution
+      ---
+      duration_ms: 2.5449
+      type: 'test'
+      ...
+    1..1
+ok 7 - serverToCheckResolution
+  ---
+  duration_ms: 2.8811
+  type: 'suite'
+  ...
+# Subtest: resolveActionCheck with universalBaseValue
+    # Subtest: applies universalBaseValue across stats instead of divergent individual base values
+    ok 1 - applies universalBaseValue across stats instead of divergent individual base values
+      ---
+      duration_ms: 2.0259
+      type: 'test'
+      ...
+    1..1
+ok 8 - resolveActionCheck with universalBaseValue
+  ---
+  duration_ms: 2.447
+  type: 'suite'
+  ...
+1..8
+# tests 30
+# suites 11
+# pass 30
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 712.4352

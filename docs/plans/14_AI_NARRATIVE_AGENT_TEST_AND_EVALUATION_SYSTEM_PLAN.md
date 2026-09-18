@@ -15,7 +15,7 @@ The StoryForge story generation agent is an emergent, non-deterministic system o
 ### The Limitation of Manual QA
 Previously, bugs (such as an armed sentry standoff offering a free diceless dialogue bypass, or a barricade smash being assigned DC 10) were only discovered through manual end-user playtesting. Every prompt adjustment or model switch risked silent regressions.
 
-**The Solution: A 4-Tier Automated Evaluation System** that provides continuous verification from fast, free local CI to full multi-turn autonomous playtesting.
+**The Solution: A 5-Tier Automated Evaluation System** that provides continuous verification from fast, free local CI to full multi-turn autonomous playtesting.
 
 ---
 
@@ -151,3 +151,141 @@ npm run eval:simulate -- --turns=5 --persona=brute
 ### Phase 4: Studio Diagnostic Bench UI
 - Create `/studio/diagnostics/ai` page in Next.js.
 - Build interactive scenario runner cards, prompt diff viewers, and rubric visualizers.
+
+---
+
+## 5. Implementation Status (shipped)
+
+> Status: **implemented**. All five tiers are live, verified by `npm test`
+> (48 files, 446 passing) and a clean `npm run build`.
+
+### Prerequisite refactors (required to test the real pipeline)
+- **`web/src/lib/engines/narrative/modelCall.ts`** — `SceneModelCall` injection
+  seam returning the **RAW** pre-normalization payload (plus `modelUsed`), with
+  `defaultSceneModelCall` preserving the production cascade.
+- **`GeminiAdapter`** — optional `{ modelCall }` constructor option,
+  `generateSceneRaw()`, and `generateSceneWithRaw()` (one call → raw + normalized).
+  Behaviour is unchanged when no seam is injected, and an injected seam that
+  yields nothing never falls through to the network.
+- **`web/src/lib/engines/narrative/narrativeTurn.ts`** — envelope assembly,
+  prompt building, model call, prose validation + up to two repairs, and secret
+  sanitization extracted from `POST /api/play/action`. The route and the eval
+  harness share this code, so evals exercise the production path.
+
+### Tier 1 — Deterministic invariants (`npm test`, zero cost)
+- `src/lib/evals/invariants/promptInvariants.test.ts` — capabilities, abilities,
+  gear, laws, threat clocks, continuity guardrails, DC bands, EN/FA parity.
+- `src/lib/evals/invariants/choicesInvariants.test.ts` — 21 armed-standoff vs.
+  peaceful EN/FA phrases plus **55 adversarial choice arrays**; verifies the
+  standoff safety net, stat whitelist, DC clamping, and low-base bands.
+- `src/lib/evals/invariants/proseInvariants.test.ts` — resurrection catch rate
+  across the ledger, memorial tolerance, outcome adherence, immutable-law lore.
+
+### Tier 2 — Golden scenarios + cassettes
+- `evalScenarios.ts` — the 10 canonical scenarios.
+- `evaluator.ts` — Layer A heuristics asserted against **raw** model output;
+  normalizer rescues are reported separately (`rescuedChoices`) so a green run
+  cannot hide a model that produced garbage.
+- `modelReplay.ts` + `cassetteStore.ts` + `cassettes/` — deterministic replay.
+- `evalRunner.ts` + `scripts/evalNarrative.ts` → `npm run eval:narrative`,
+  `npm run eval:record` (`--live`, `--record`, `--model`, `--scenario`, `--json`).
+
+### Tier 3 — Dual-layer evaluator
+- Layer A as above; `judge.ts` provides the LLM-as-a-Judge rubric (4 axes, 1-5,
+  Zod-validated) behind `--judge` / `EVAL_JUDGE=1`.
+
+### Tier 4 — Autonomous simulator
+- `simulator.ts` + `scripts/evalSimulate.ts` → `npm run eval:simulate`
+  (`--persona=brute|shadow|diplomat|boundary`, `--turns`, `--seed`, `--live`).
+- Deterministic synthetic model by default (free, reproducible); audits HP,
+  threat-clock ticking/crisis, duplicate memories, and cyclical prose.
+
+### Tier 5 — Studio Diagnostic Bench
+- `GET/POST /api/studio/diagnostics/ai/run` and `/studio/diagnostics/ai`
+  (registered in the Studio nav under AI Studio).
+
+### Deviations from the original text, and why
+1. **Raw-output assertions.** The plan asserts on `GeneratedSceneResponse`,
+   which `normalizeChoices` has already repaired — that would pass even for
+   garbage output. Assertions now run on the raw payload.
+2. **Cassettes were added.** The plan promised free CI but had no replay
+   mechanism; recorder/replay makes Tiers 2-4 deterministic.
+3. **A real guardrail bug was found and fixed.** `eval_standoff_sentry` caught
+   "Level your crossbow at the bandit…" escaping the confrontational detector;
+   `normalizeChoices` now recognises ranged weapons, hostile-actor nouns, and
+   coercive verbs (EN + FA).
+4. **Single canonical scenario path** (`src/lib/evals/evalScenarios.ts`),
+   resolving the §3 vs Phase-1 path drift.
+
+---
+
+## 6. Real-world story harness (`npm run eval:story`)
+
+The five tiers above test the agent against *synthetic* contexts. This harness
+closes the loop by playing a **real authored story** through the **live HTTP
+pipeline** (`POST /api/play/session` + `POST /api/play/action`) — real manifest,
+real DB session, server-authoritative `PlayerState`, real model — then auditing
+the shipped turns with the Tier 3 heuristics plus trajectory rules.
+
+```bash
+npm run dev                    # in web/, the harness talks to it over HTTP
+npm run eval:story             # default: story_mt4ofllt, shadow, 6 turns, seed 42
+npm run eval:story -- --turns=8 --persona=boundary --seed=7 --raw --verbose
+npm run eval:story -- --storyId=<id> --baseUrl=http://localhost:3000 --json --out=report.json
+```
+
+It reports per-turn roll/outcome/DC/HP/clock, prose word counts, choice-panel
+shape, heuristic errors, a trajectory audit, and (with `--raw`) an
+**informational** RAW probe that calls the shared `generateValidatedScene`
+engine in-process to inspect the pre-guardrail payload.
+
+### What it checks
+- **Transport** — every turn reaches the route; guardrail rejections are surfaced
+  as warnings rather than silently skipped.
+- **Standoff safety, scoped per choice** — a *confrontational* choice (production
+  `isConfrontationalChoiceText`, incl. declared `high` risk) must never ship
+  diceless. A peaceful choice in a scene that merely *mentions* guards is
+  legitimately diceless, so a prose-level proxy would produce false positives.
+- **Script purity** — no glyphs from other writing systems in Persian prose.
+  Both production validation (`ProseValidator`, language-gated) and the story
+  harness reuse the same `unexpectedPersianScriptCharacters` detector (see
+  remediation tracker finding 1).
+- **Prose shape** — word count, choice count, DC sanity band, stat whitelist.
+- **Defeat coherence** — the Hybrid Defeat System (Option C) revives the player
+  with escalating penalties; a defeat must restore HP above 0 and increment
+  `defeatCount`. Continuing after a defeat is by design, **not** a violation.
+- **Trajectory** — resource pacing, threat-clock progression, progression drift,
+  unwinnable/unfailable runs, cyclical prose (token-set Jaccard).
+
+### Verified live runs — خاکسترِ زروان (`story_mt4ofllt`, gemini-3.5-flash-lite)
+| Persona | Turns | Result | Notes |
+|---|---|---|---|
+| boundary (seed 7) | 8 | **PASS** — 0 errors, 0 warnings | 3 diceless choices, all legitimately non-confrontational |
+| brute (seed 11) | 6 | **PASS** — 1 warning | `trajectory.no_failures` (all 6 rolls beat their DCs) |
+| diplomat (seed 5) | 6 | **PASS** — 0 errors, 0 warnings | 18/18 choices carried checks; HP 30→20 |
+
+20 turns through the production pipeline; avg latency ~3.5s, prose 92–237 words,
+`healthKey=health` resolved identically to the route's regex chain.
+
+### Findings from live play
+1. **A real prompt defect: walk-away choices on turn 1.** An earlier boundary
+   run shipped *"عقب کشیدن و بازگشتن به سوی آتش کاروانسرا"* — the very first
+   choice walked the player out of the scene while a spear was at their chest.
+   Open (remediation tracker #3): the standoff directive covers checks, not
+   scene abandonment. This needs an explicit contextual-threat contract, not a
+   blanket guard-keyword rule.
+2. **Foreign-script glyph leakage.** A live run emitted an Odia combining mark
+   (U+0B3F, previously misreported as Bengali) inside a Persian sentence
+   (`به بند کشିده است`), which renders as a visible defect in the reader. Fixed
+   (remediation tracker #1): language-gated `ProseValidator` script-leak check
+   plus repair guidance, with regression coverage in `ProseValidator.test.ts`
+   and `ProseValidator.scriptLeak.test.ts`. The story harness reuses the same
+   detector.
+3. **The canon-rejection path is real and reachable.** One turn returned
+   HTTP 503 *"Generated prose violated world canon and could not be repaired.
+   The turn was NOT recorded. Please retry."* The turn loop is correctly
+   non-destructive. Fixed in code (remediation tracker #4): the initial draft
+   plus up to two repair calls with `repair_unavailable` / `unrepairable`
+   guards. Dedicated repair-budget regression tests are still missing.
+
+

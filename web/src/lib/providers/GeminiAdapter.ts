@@ -1,5 +1,12 @@
 import { GoogleGenAI } from '@google/genai';
 import { GenerationPromptPayload } from '../engines/narrative/PromptAssembler';
+import {
+  SceneModelCall,
+  SceneModelOptions,
+  RawSceneResult,
+  RawSceneData,
+  defaultSceneModelCall,
+} from '../engines/narrative/modelCall';
 import { STAT_CANONICAL_ALIASES } from '../engines/world/ActionNormalizer';
 import { ChoiceOption, ActionStyle, RiskLevel } from '../types/gameplay';
 import { MemoryCategory } from '../types/memory';
@@ -36,6 +43,20 @@ const VALID_ACTION_STYLES = new Set([
 const VALID_RISK_LEVELS = new Set(['low', 'medium', 'high']);
 
 const VALID_MEMORY_CATEGORIES = new Set(['world', 'character', 'story', 'player', 'recent']);
+
+export const CONFRONTATIONAL_CHOICE =
+  /(?:threat|intimidat|interrogat|attack|strike|stab|shoot|cast|dodge|sneak|steal|pickpocket|climb|leap|force|coerce|bribe|deceive|sword|blade|weapon|spear|shield|sentry|guard|standoff|crossbow|longbow|bowman|archer|arrow|rifle|musket|pistol|handgun|firearm|bandit|raider|brigand|thug|cutthroat|marauder|ambush|assail|brandish|unsheathe|menace|تهدید|ارعاب|بازجویی|حمله|ضربه|خنجر|شمشیر|سلاح|تیغ|تیغه|نیزه|سپر|شلیک|طلسم|جاخالی|پنهان|مخفی|دزدی|جیب‌بری|زور|اجبار|رشوه|دروغ|فریب|جنگ|درگیری|یورش|گزمه|نگهبان|پاسبان|فرمانده|سرد|تشر|کمان|تیر|تفنگ|خشاب|رهزن|راهزن|تازیانه|غافلگیر)/i;
+
+/**
+ * The production standoff detector, scoped to a single choice's text (plus its
+ * declared risk). Exported so evaluation harnesses assert the *same* contract
+ * the guardrail actually enforces, instead of a coarser prose-level proxy
+ * (which falsely flags peaceful choices in any scene that merely mentions a
+ * guard).
+ */
+export function isConfrontationalChoiceText(text: string, riskLevel?: string): boolean {
+  return CONFRONTATIONAL_CHOICE.test(text ?? '') || riskLevel === 'high';
+}
 
 /**
  * Plan 08 — deterministic normalization of AI-returned choices.
@@ -128,13 +149,10 @@ export function normalizeChoices(
     // a high-stakes, confrontational, threatening, or hazardous action, infer a stat check
     // rather than letting it bypass the RPG dice mechanics as diceless.
     if (!requiredStatId && firstStatId) {
-      const isConfrontational =
-        /(?:threat|intimidat|interrogat|attack|strike|stab|shoot|cast|dodge|sneak|steal|pickpocket|climb|leap|force|coerce|bribe|deceive|sword|blade|weapon|spear|shield|sentry|guard|standoff|تهدید|ارعاب|بازجویی|حمله|ضربه|خنجر|شمشیر|سلاح|تیغ|تیغه|نیزه|سپر|شلیک|طلسم|جاخالی|پنهان|مخفی|دزدی|جیب‌بری|زور|اجبار|رشوه|دروغ|فریب|جنگ|درگیری|یورش|گزمه|نگهبان|پاسبان|فرمانده|سرد|تشر)/i.test(
-          text
-        ) || riskLevel === 'high';
+      const isConfrontational = isConfrontationalChoiceText(text, riskLevel);
 
       if (isConfrontational) {
-        if (/(?:threat|intimidat|force|sword|blade|weapon|spear|shield|تهدید|ارعاب|زور|اجبار|حمله|ضربه|جنگ|یورش|شمشیر|سلاح|تیغ|تیغه|نیزه|سپر)/i.test(text)) {
+        if (/(?:threat|intimidat|force|sword|blade|weapon|spear|shield|crossbow|longbow|arrow|rifle|musket|pistol|firearm|brandish|unsheathe|تهدید|ارعاب|زور|اجبار|حمله|ضربه|جنگ|یورش|شمشیر|سلاح|تیغ|تیغه|نیزه|سپر|کمان|تیر|تفنگ)/i.test(text)) {
           requiredStatId =
             resolveStat('might') ||
             resolveStat('strength') ||
@@ -163,9 +181,9 @@ export function normalizeChoices(
     let targetDC: number | undefined;
     if (requiredStatId) {
       targetDC =
-        typeof raw.targetDC === 'number'
+        typeof raw.targetDC === 'number' && Number.isFinite(raw.targetDC)
           ? raw.targetDC
-          : typeof raw.target_dc === 'number'
+          : typeof raw.target_dc === 'number' && Number.isFinite(raw.target_dc)
           ? raw.target_dc
           : isLowBase
           ? riskLevel === 'high'
@@ -180,12 +198,19 @@ export function normalizeChoices(
           : 12;
 
       if (isLowBase) {
-        targetDC = Math.min(16, Math.max(4, Math.round(targetDC)));
-        if (riskLevel === 'low' && targetDC > 8) targetDC = 8;
-        if (riskLevel === 'medium' && targetDC > 10) targetDC = 10;
-        if (riskLevel === 'high' && targetDC > 12) targetDC = 11;
+        const [floor, ceiling] = riskLevel === 'low' ? [7, 8] : riskLevel === 'high' ? [11, 12] : [9, 10];
+        targetDC = Math.min(ceiling, Math.max(floor, Math.round(targetDC)));
       } else {
+        // Plan 14 — pull a model-assigned DC back inside its risk band so a
+        // single mislabeled number never makes a live turn trivial or unrollable.
         targetDC = Math.min(30, Math.max(5, Math.round(targetDC)));
+        if (riskLevel === 'low' && (targetDC < 8 || targetDC > 10)) {
+          targetDC = targetDC < 8 ? 8 : 10;
+        } else if (riskLevel === 'medium' && (targetDC < 11 || targetDC > 13)) {
+          targetDC = targetDC < 11 ? 11 : 13;
+        } else if (riskLevel === 'high' && (targetDC < 14 || targetDC > 16)) {
+          targetDC = targetDC < 14 ? 14 : 16;
+        }
       }
     }
 
@@ -227,68 +252,58 @@ export function normalizeExtractedMemories(rawMemories: unknown): ExtractedMemor
   return out;
 }
 
+export interface GeminiAdapterOptions {
+  /**
+   * Plan 14 — injectable model seam. When provided, scene generation sources its
+   * raw (pre-normalization) output from this function instead of the live
+   * cascading queue, enabling deterministic record/replay and headless evals.
+   * An injected seam that yields nothing never falls through to the network.
+   */
+  modelCall?: SceneModelCall;
+}
+
 export class GeminiAdapter {
   private client: GoogleGenAI | null = null;
   private modelName: string;
+  private modelCall: SceneModelCall;
+  private hasCustomModelCall: boolean;
 
-  constructor(apiKey?: string, modelName = 'gemini-2.5-flash') {
+  constructor(
+    apiKey?: string,
+    modelName = 'gemini-2.5-flash',
+    options: GeminiAdapterOptions = {}
+  ) {
     const key = apiKey || process.env.GEMINI_API_KEY;
     if (key) {
       this.client = new GoogleGenAI({ apiKey: key });
     }
     this.modelName = modelName;
+    this.hasCustomModelCall = Boolean(options.modelCall);
+    this.modelCall = options.modelCall ?? defaultSceneModelCall;
   }
 
   /**
-   * Generates a complete structured narrative scene and choices using the
-   * multi-model cascading queue and Cloudflare proxy manager to prevent 429 rate limits.
+   * Plan 14 — returns the RAW (pre-normalization) model payload plus the model
+   * that produced it. This is the single choke point all scene generation flows
+   * through, so evaluation harnesses can capture unmodified choices.
    */
-  public async generateScene(prompt: GenerationPromptPayload): Promise<GeneratedSceneResponse> {
-    const defaultNarrative = prompt.isEnglish
-      ? 'The scene shifts as the consequences of your choice unfold before you...'
-      : 'صحنه به آرامی در برابرت ورق می‌خورد...';
-
-    const validStatIds = Object.keys(prompt.playerStatIds || {});
-
-    // Try multi-model cascading queue first (supports proxy and auto-failover across 3.5/3.1/3.7/2.5/gemma)
+  public async generateSceneRaw(
+    prompt: GenerationPromptPayload,
+    options: SceneModelOptions = {}
+  ): Promise<RawSceneResult | null> {
     try {
-      const { generateStructuredJson } = await import('../ai/geminiClient');
-      const queueResult = await generateStructuredJson<Record<string, unknown>>(
-        prompt.userPrompt,
-        prompt.systemPrompt,
-        {
-          taskType: 'scene',
-          temperature: 0.75,
-        }
-      );
-
-      if (queueResult && queueResult.data) {
-        const parsed = queueResult.data;
-        return {
-          narrative:
-            typeof parsed.narrative === 'string' && parsed.narrative.trim()
-              ? parsed.narrative
-              : defaultNarrative,
-          choices: normalizeChoices(
-            parsed.choices,
-            validStatIds,
-            prompt.isEnglish,
-            prompt.isLowBase ?? false,
-            prompt.statIdAliases
-          ),
-          extractedMemories: normalizeExtractedMemories(parsed.extractedMemories),
-          isMock: false,
-        };
-      }
-    } catch (queueErr) {
-      console.warn('[GeminiAdapter] Cascading queue error, falling back to direct SDK:', queueErr);
+      const viaSeam = await this.modelCall(prompt, options);
+      if (viaSeam && viaSeam.data) return viaSeam;
+    } catch (seamErr) {
+      console.warn('[GeminiAdapter] Scene model seam error:', seamErr);
+      if (this.hasCustomModelCall) return null;
     }
 
-    if (!this.client) {
-      // No API key configured: mock response, flagged as mock.
-      return { ...this.generateMockScene(prompt), isMock: true };
-    }
+    // An injected seam that yields nothing must never silently reach the network.
+    if (this.hasCustomModelCall) return null;
 
+    // Legacy direct-SDK fallback (the cascading queue returned nothing).
+    if (!this.client) return null;
     try {
       const response = await this.client.models.generateContent({
         model: this.modelName,
@@ -298,34 +313,71 @@ export class GeminiAdapter {
         ],
         config: {
           responseMimeType: 'application/json',
-          temperature: 0.75,
+          temperature: options.temperature ?? 0.75,
         },
       });
-
       const text = response.text || '{}';
-      const parsed = JSON.parse(text);
-
-        const isLowBase = prompt.isLowBase ?? false;
-        return {
-          narrative:
-            typeof parsed.narrative === 'string' && parsed.narrative.trim()
-              ? parsed.narrative
-              : defaultNarrative,
-          choices: normalizeChoices(
-            parsed.choices,
-            validStatIds,
-            prompt.isEnglish,
-            isLowBase,
-            prompt.statIdAliases
-          ),
-          extractedMemories: normalizeExtractedMemories(parsed.extractedMemories),
-          isMock: false,
-        };
+      return {
+        data: JSON.parse(text) as RawSceneData,
+        rawText: text,
+        modelUsed: this.modelName,
+      };
     } catch (error) {
-      // Plan 08: a failed generation must NOT silently degrade into fake canon.
       console.error('[GeminiAdapter] Direct API generation error:', error);
-      return { ...this.generateMockScene(prompt), isMock: true };
+      return null;
     }
+  }
+
+  /**
+   * Generates a complete structured narrative scene and choices using the
+   * multi-model cascading queue and Cloudflare proxy manager to prevent 429 rate limits.
+   */
+  public async generateScene(prompt: GenerationPromptPayload): Promise<GeneratedSceneResponse> {
+    return (await this.generateSceneWithRaw(prompt)).response;
+  }
+
+  /**
+   * Plan 14 — single-call variant returning BOTH the normalized response and the
+   * raw model payload. Eval harnesses assert on `raw` (what the model actually
+   * produced) while callers consume `response` (guardrail-normalized).
+   */
+  public async generateSceneWithRaw(
+    prompt: GenerationPromptPayload,
+    options: SceneModelOptions = {}
+  ): Promise<{ response: GeneratedSceneResponse; raw: RawSceneResult | null }> {
+    const defaultNarrative = prompt.isEnglish
+      ? 'The scene shifts as the consequences of your choice unfold before you...'
+      : 'صحنه به آرامی در برابرت ورق می‌خورد...';
+
+    const validStatIds = Object.keys(prompt.playerStatIds || {});
+
+    const raw = await this.generateSceneRaw(prompt, options);
+
+    // Plan 08: no usable output (no key, offline, or API failure) → mock, and the
+    // caller is expected to reject it rather than persist fake canon.
+    if (!raw) {
+      return { response: { ...this.generateMockScene(prompt), isMock: true }, raw: null };
+    }
+
+    const parsed = raw.data;
+    return {
+      raw,
+      response: {
+        narrative:
+          typeof parsed.narrative === 'string' && parsed.narrative.trim()
+            ? parsed.narrative
+            : defaultNarrative,
+        choices: normalizeChoices(
+          parsed.choices,
+          validStatIds,
+          prompt.isEnglish,
+          prompt.isLowBase ?? false,
+          prompt.statIdAliases
+        ),
+        extractedMemories: normalizeExtractedMemories(parsed.extractedMemories),
+        isMock: false,
+      },
+    };
   }
 
   /**

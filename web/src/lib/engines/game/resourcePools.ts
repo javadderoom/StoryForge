@@ -2,6 +2,16 @@ import { RPGSystemSchema } from '@/lib/types/rpg';
 import { PlayerState } from '@/lib/types/gameplay';
 import { computeMaxResources } from './vitalScaling';
 
+/** Same health-pool selection for production defeat handling and diagnostics. */
+export function resolveHealthKey(rpgSystem?: { resources?: ReadonlyArray<{ id: string }> }): string {
+  const resources = rpgSystem?.resources ?? [];
+  const health = resources.find((r) => /^(health|hp|سلامت|تندرستی)$/i.test(r.id))
+    ?? resources.find((r) => /health|hp|vital/i.test(r.id))
+    ?? resources[0];
+  return health?.id || 'health';
+}
+
+
 /**
  * Single source of truth for reading a resource pool maximum.
  * Prefers the scaled `playerState.maxResources` (archetype/background/
