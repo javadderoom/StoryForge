@@ -198,7 +198,8 @@ export function normalizeChoices(
           : 12;
 
       if (isLowBase) {
-        const [floor, ceiling] = riskLevel === 'low' ? [7, 8] : riskLevel === 'high' ? [11, 12] : [9, 10];
+        // Low-base dynamic progression: low risk 6-8 (default 7), medium 9-12 (default 9), high/heroic 11-18 (default 11)
+        const [floor, ceiling] = riskLevel === 'low' ? [6, 8] : riskLevel === 'high' ? [11, 18] : [9, 12];
         targetDC = Math.min(ceiling, Math.max(floor, Math.round(targetDC)));
       } else {
         // Plan 14 — pull a model-assigned DC back inside its risk band so a
@@ -208,8 +209,8 @@ export function normalizeChoices(
           targetDC = targetDC < 8 ? 8 : 10;
         } else if (riskLevel === 'medium' && (targetDC < 11 || targetDC > 13)) {
           targetDC = targetDC < 11 ? 11 : 13;
-        } else if (riskLevel === 'high' && (targetDC < 14 || targetDC > 16)) {
-          targetDC = targetDC < 14 ? 14 : 16;
+        } else if (riskLevel === 'high' && (targetDC < 14 || targetDC > 19)) {
+          targetDC = targetDC < 14 ? 14 : 19;
         }
       }
     }

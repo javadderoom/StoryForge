@@ -81,20 +81,22 @@ describe('Plan 08 - AI Output Normalization (choice & memory guardrails)', () =>
       assert.equal(out[0].requiredStatId, 'cunning');
     });
 
-    it('calibrates DCs within low-base risk bands (7–12)', () => {
+    it('calibrates DCs within low-base risk bands (allowing dynamic progression up to 18)', () => {
       const out = normalizeChoices(
         [
           { id: 'c1', text: 'Sneak past guard', requiredStatId: 'stealth', riskLevel: 'low' },
           { id: 'c2', text: 'Climb the wall', requiredStatId: 'might', riskLevel: 'medium', targetDC: 14 },
           { id: 'c3', text: 'Break the gate', requiredStatId: 'might', riskLevel: 'high', targetDC: 18 },
+          { id: 'c4', text: 'Shatter the mountain', requiredStatId: 'might', riskLevel: 'high', targetDC: 22 },
         ],
         ['stealth', 'might'],
         true,
         true // isLowBase
       );
       assert.equal(out[0].targetDC, 7); // low default is 7
-      assert.equal(out[1].targetDC, 10); // medium clamped to <= 10
-      assert.equal(out[2].targetDC, 12); // high clamps to the upper edge, not its default
+      assert.equal(out[1].targetDC, 12); // medium clamped to <= 12
+      assert.equal(out[2].targetDC, 18); // high allows dynamic progression up to 18
+      assert.equal(out[3].targetDC, 18); // high clamps values > 18 to 18
     });
 
     it('rescues confrontational and threatening choices omitted by AI as diceless', () => {

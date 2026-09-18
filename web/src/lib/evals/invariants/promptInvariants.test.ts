@@ -95,7 +95,8 @@ describe('Tier 1 — DC calibration invariants', () => {
         playerStatus: { stats: { might: 5 }, resources: {}, equippedItems: [] },
       })
     );
-    assert.ok(systemPrompt.includes('calibrated between 7 and 13'));
+    assert.ok(systemPrompt.includes('scale dynamically with risk and character progression'));
+    assert.ok(systemPrompt.includes('late saga/heroic challenges scale up to 15-18'));
   });
 
   it('uses the standard heroic band when universalBaseValue >= 8', () => {

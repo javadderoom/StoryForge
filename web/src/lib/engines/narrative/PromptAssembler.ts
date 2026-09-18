@@ -124,8 +124,18 @@ export class PromptAssembler {
 
     const dcDirective = isLowBase
       ? isEnglish
-        ? `Difficulty targets (targetDC) for choices MUST be calibrated between 7 and 13 (Low risk: 7-8, Medium risk: 9-11, High risk: 12-13).`
-        : `درجه سختی (targetDC) برای انتخاب‌ها باید بین ۷ تا ۱۳ باشد (ساده: ۷-۸، متوسط: ۹-۱۱، دشوار: ۱۲-۱۳).`
+        ? `Difficulty targets (targetDC) for choices scale dynamically with risk and character progression:
+- Low risk: 7-8 (standard minor checks, non-adversarial actions).
+- Medium risk: 9-11 (moderate obstacles, cautious opposition).
+- High risk: 11-14 (dangerous opposition, alert armed sentries, high-pressure confrontations).
+- Heroic / Extreme feats & late-saga challenges: 15-18 (superhuman physical or tactical trials matching seasoned attributes 12-20, relics, or climactic chapter stakes).
+Calibrate DCs dynamically to the active chapter and protagonist capabilities: early chapter high risk is 11-12, while late saga/heroic challenges scale up to 15-18.`
+        : `درجه سختی (targetDC) برای انتخاب‌ها به صورت پویا بر اساس میزان ریسک و پیشرفت شخصیت تعیین می‌شود:
+- ریسک پایین: ۷-۸ (اقدامات استاندارد، بدون مقاومت جدی).
+- ریسک متوسط: ۹-۱۱ (موانع معمول، نگهبانان محتاط).
+- ریسک بالا: ۱۱-۱۴ (مقاومت جدی، گزمه‌های مسلح، مواجهه پرخطر).
+- کارهای حماسی و چالش‌های فصول پیشرفته (Heroic/Extreme): ۱۵-۱۸ (اعمال سنگین و موانع مهیب متناسب با صفات ۱۲ تا ۲۰، تجهیزات برتر یا اوج داستان در فصول پایانی).
+درجه سختی را متناسب با فصل جاری و توان قهرمان تنظیم کن: در آغاز داستان، ریسک بالا ۱۱-۱۲ است و با پیشرفت به فصول بالاتر تا ۱۵-۱۸ افزایش می‌یابد.`
       : isEnglish
       ? `Difficulty targets (targetDC) for choices MUST realistically match the physical, tactical, and opposition scale:
 - Low risk: 8-10 (standard minor checks, non-adversarial actions).
