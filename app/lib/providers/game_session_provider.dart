@@ -34,6 +34,8 @@ class GameSessionState {
   final String? lastDisplacement;
   /// The player's most recent choice or custom action text that led to the current scene.
   final String? lastActionText;
+  /// The newly discovered creature spotlight for the current turn beat (if any).
+  final DiscoveredCreature? discoveredCreature;
 
   GameSessionState({
     this.isLoading = false,
@@ -58,6 +60,7 @@ class GameSessionState {
     this.currencyDenominations = const [],
     this.lastDisplacement,
     this.lastActionText,
+    this.discoveredCreature,
   });
 
   bool get isPersian {
@@ -90,10 +93,12 @@ class GameSessionState {
     List<Map<String, dynamic>>? currencyDenominations,
     String? lastDisplacement,
     String? lastActionText,
+    DiscoveredCreature? discoveredCreature,
     bool clearSceneImage = false,
     bool clearPendingTurn = false,
     bool clearDisplacement = false,
     bool clearLastAction = false,
+    bool clearDiscoveredCreature = false,
   }) {
     return GameSessionState(
       isLoading: isLoading ?? this.isLoading,
@@ -120,6 +125,9 @@ class GameSessionState {
           : (currentSceneImageUrl ?? this.currentSceneImageUrl),
       lastDisplacement: clearDisplacement ? null : (lastDisplacement ?? this.lastDisplacement),
       lastActionText: clearLastAction ? null : (lastActionText ?? this.lastActionText),
+      discoveredCreature: clearDiscoveredCreature
+          ? null
+          : (discoveredCreature ?? this.discoveredCreature),
     );
   }
 
@@ -212,6 +220,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       final rawLore = data['lore'] as Map<String, dynamic>?;
       final coverImg = storyData?['coverImageUrl'] as String?;
       final sceneImg = currentBeat['imageUrl'] as String?;
+      final startDiscoveredJson = currentBeat['discoveredCreature'] as Map<String, dynamic>?;
+      final startDiscovered = startDiscoveredJson != null ? DiscoveredCreature.fromJson(startDiscoveredJson) : null;
 
       state = state.copyWith(
         isLoading: false,
@@ -231,6 +241,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         playerState: playerState,
         turnNumber: 1,
         clearPendingTurn: true,
+        discoveredCreature: startDiscovered,
+        clearDiscoveredCreature: startDiscovered == null,
       );
 
       // Trigger location ambient audio
@@ -321,6 +333,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
           }
           final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? [];
           final sceneImg = beatData['imageUrl'] as String?;
+          final discoveredJson = beatData['discoveredCreature'] as Map<String, dynamic>?;
+          final discovered = discoveredJson != null ? DiscoveredCreature.fromJson(discoveredJson) : null;
 
           state = state.copyWith(
             isLoading: false,
@@ -334,6 +348,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             turnNumber: state.turnNumber + 1,
             isCreditDepleted: false,
             clearPendingTurn: true,
+            discoveredCreature: discovered,
+            clearDiscoveredCreature: discovered == null,
             lastDisplacement: GameSessionState.displacementName(result['data'], state.lore),
             clearDisplacement: GameSessionState.displacementName(result['data'], state.lore) == null,
           );
@@ -371,6 +387,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     }
     final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? [];
     final sceneImg = beatData['imageUrl'] as String?;
+    final discoveredJson = beatData['discoveredCreature'] as Map<String, dynamic>?;
+    final discovered = discoveredJson != null ? DiscoveredCreature.fromJson(discoveredJson) : null;
 
     // Update remaining credits in authProvider if provided
     final remainingCredits = data['remainingCredits'];
@@ -388,6 +406,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       turnNumber: state.turnNumber + 1,
       isCreditDepleted: false,
       clearPendingTurn: true,
+      discoveredCreature: discovered,
+      clearDiscoveredCreature: discovered == null,
       lastDisplacement: GameSessionState.displacementName(data, state.lore),
       clearDisplacement: GameSessionState.displacementName(data, state.lore) == null,
     );
@@ -583,6 +603,11 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       newHp: newHp,
       healedAmount: newHp - prevHp,
     );
+  }
+
+  /// Dismisses the active creature discovery spotlight card.
+  void dismissDiscoveredCreature() {
+    state = state.copyWith(clearDiscoveredCreature: true);
   }
 }
 

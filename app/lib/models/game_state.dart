@@ -277,6 +277,74 @@ class TensionClock {
       };
 }
 
+/// Discovered Creature codex entry parsed from beat data on initial encounters.
+class DiscoveredCreature {
+  final String id;
+  final String name;
+  final String speciesCategory;
+  final int dangerLevel;
+  final String? rarity;
+  final bool isDomesticated;
+  final List<String> habitatLocationIds;
+  final String behavioralTactics;
+  final List<String> weaknesses;
+  final List<String> resistances;
+  final List<Map<String, dynamic>> harvestableLoot;
+  final String loreDescription;
+
+  const DiscoveredCreature({
+    required this.id,
+    required this.name,
+    required this.speciesCategory,
+    this.dangerLevel = 1,
+    this.rarity,
+    this.isDomesticated = false,
+    this.habitatLocationIds = const [],
+    this.behavioralTactics = '',
+    this.weaknesses = const [],
+    this.resistances = const [],
+    this.harvestableLoot = const [],
+    this.loreDescription = '',
+  });
+
+  factory DiscoveredCreature.fromJson(Map<String, dynamic> json) {
+    final rawWeaknesses = json['weaknesses'] as List<dynamic>? ?? [];
+    final rawResistances = json['resistances'] as List<dynamic>? ?? [];
+    final rawHabitats = json['habitatLocationIds'] as List<dynamic>? ?? [];
+    final rawLoot = json['harvestableLoot'] as List<dynamic>? ?? [];
+
+    return DiscoveredCreature(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      speciesCategory: json['speciesCategory']?.toString() ?? 'beast',
+      dangerLevel: (json['dangerLevel'] as num?)?.toInt() ?? 1,
+      rarity: json['rarity']?.toString(),
+      isDomesticated: json['isDomesticated'] == true,
+      habitatLocationIds: rawHabitats.map((e) => e.toString()).toList(),
+      behavioralTactics: json['behavioralTactics']?.toString() ?? '',
+      weaknesses: rawWeaknesses.map((e) => e.toString()).toList(),
+      resistances: rawResistances.map((e) => e.toString()).toList(),
+      harvestableLoot: rawLoot.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+      loreDescription: (json['loreDescription'] ?? json['description'])?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'speciesCategory': speciesCategory,
+        'dangerLevel': dangerLevel,
+        if (rarity != null) 'rarity': rarity,
+        'isDomesticated': isDomesticated,
+        'habitatLocationIds': habitatLocationIds,
+        'behavioralTactics': behavioralTactics,
+        'weaknesses': weaknesses,
+        'resistances': resistances,
+        'harvestableLoot': harvestableLoot,
+        'loreDescription': loreDescription,
+      };
+}
+
 class PlayerState {
   final String? characterName;
   final String? archetypeId;
@@ -291,6 +359,7 @@ class PlayerState {
   final PlayerEquipment equipment;
   final String currentLocationId;
   final List<String> discoveredLocationIds;
+  final List<String> discoveredCreatureIds;
   final Map<String, NpcRelationship> relationships;
   final List<String> activeQuestIds;
   final List<String> completedQuestIds;
@@ -312,6 +381,7 @@ class PlayerState {
     this.equipment = const PlayerEquipment(),
     required this.currentLocationId,
     this.discoveredLocationIds = const [],
+    this.discoveredCreatureIds = const [],
     this.relationships = const {},
     this.activeQuestIds = const [],
     this.completedQuestIds = const [],
@@ -357,6 +427,7 @@ class PlayerState {
     PlayerEquipment? equipment,
     String? currentLocationId,
     List<String>? discoveredLocationIds,
+    List<String>? discoveredCreatureIds,
     Map<String, NpcRelationship>? relationships,
     List<String>? activeQuestIds,
     List<String>? completedQuestIds,
@@ -377,6 +448,7 @@ class PlayerState {
       equipment: equipment ?? this.equipment,
       currentLocationId: currentLocationId ?? this.currentLocationId,
       discoveredLocationIds: discoveredLocationIds ?? this.discoveredLocationIds,
+      discoveredCreatureIds: discoveredCreatureIds ?? this.discoveredCreatureIds,
       relationships: relationships ?? this.relationships,
       activeQuestIds: activeQuestIds ?? this.activeQuestIds,
       completedQuestIds: completedQuestIds ?? this.completedQuestIds,
@@ -392,6 +464,7 @@ class PlayerState {
     final rawInv = json['inventory'] as List<dynamic>? ?? [];
     final rawEq = json['equipment'] as Map<String, dynamic>? ?? {};
     final rawLocs = json['discoveredLocationIds'] as List<dynamic>? ?? [];
+    final rawCreatures = json['discoveredCreatureIds'] as List<dynamic>? ?? [];
     final rawRel = json['relationships'] as Map<String, dynamic>? ?? {};
     final rawActiveQuests = json['activeQuestIds'] as List<dynamic>? ?? [];
     final rawCompQuests = json['completedQuestIds'] as List<dynamic>? ?? [];
@@ -413,6 +486,7 @@ class PlayerState {
       equipment: PlayerEquipment.fromJson(rawEq),
       currentLocationId: json['currentLocationId'] ?? '',
       discoveredLocationIds: rawLocs.map((e) => e.toString()).toList(),
+      discoveredCreatureIds: rawCreatures.map((e) => e.toString()).toList(),
       relationships: rawRel.map((k, v) => MapEntry(k, NpcRelationship.fromJson(v as Map<String, dynamic>))),
       activeQuestIds: rawActiveQuests.map((e) => e.toString()).toList(),
       completedQuestIds: rawCompQuests.map((e) => e.toString()).toList(),
@@ -435,6 +509,7 @@ class PlayerState {
         'equipment': equipment.toJson(),
         'currentLocationId': currentLocationId,
         'discoveredLocationIds': discoveredLocationIds,
+        'discoveredCreatureIds': discoveredCreatureIds,
         'relationships': relationships.map((k, v) => MapEntry(k, v.toJson())),
         'activeQuestIds': activeQuestIds,
         'completedQuestIds': completedQuestIds,

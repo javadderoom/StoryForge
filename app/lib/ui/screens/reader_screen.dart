@@ -13,6 +13,7 @@ import '../../models/game_state.dart';
 import '../../models/choice_option.dart';
 import '../widgets/atmosphere_canvas.dart';
 import '../widgets/narrative_prose.dart';
+import '../widgets/creature_discovery_card.dart';
 import '../widgets/tension_clock_widget.dart';
 import '../widgets/three_d_choice_card.dart';
 import '../widgets/realm_relic_badge.dart';
@@ -816,6 +817,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                     lineHeight: _lineHeight,
                                     accentColor: theme.primaryAccent,
                                   ),
+                                  if (session.discoveredCreature != null) ...[
+                                    CreatureDiscoveryCard(
+                                      creature: session.discoveredCreature!,
+                                      isPersian: isPersian,
+                                      accentColor: theme.primaryAccent,
+                                      onDismiss: () {
+                                        ref.read(gameSessionProvider.notifier).dismissDiscoveredCreature();
+                                      },
+                                    ),
+                                  ],
                                   if (session.isLoading) ...[
                                     const SizedBox(height: 20),
                                     _buildNarrativeScribeLoader(theme, isPersian),
