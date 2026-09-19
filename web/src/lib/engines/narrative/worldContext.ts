@@ -99,6 +99,68 @@ export function formatEquippedItemsForContext(
   return results.length > 0 ? results : inventory.map((i) => (typeof i === 'string' ? i : i.name));
 }
 
+/**
+ * Resolves playerState.abilities (which often store raw IDs like `ab_mtw16s8f`)
+ * into detailed, human-readable descriptors with ability name, description, and combat/tactical effects.
+ */
+export function formatAbilitiesForContext(
+  playerState: { abilities?: string[] },
+  story?: any
+): string[] {
+  if (!playerState.abilities || playerState.abilities.length === 0) return [];
+  const definedAbilities: any[] = story?.rpgSystem?.abilities || [];
+  const isEnglish = story?.language === 'en';
+
+  return playerState.abilities.map((abilityIdOrName) => {
+    const defined = definedAbilities.find(
+      (a: any) => a.id === abilityIdOrName || a.name === abilityIdOrName
+    );
+    if (!defined) {
+      return abilityIdOrName;
+    }
+
+    const name = defined.name || abilityIdOrName;
+    const typeLabel = defined.type
+      ? isEnglish
+        ? defined.type === 'active_spell'
+          ? '[Active Spell]'
+          : defined.type === 'active_technique'
+          ? '[Active Technique]'
+          : defined.type === 'passive_skill'
+          ? '[Passive Skill]'
+          : defined.type === 'passive_feat'
+          ? '[Passive Feat]'
+          : `[${defined.type}]`
+        : defined.type === 'active_spell'
+        ? '[ورد / جادوی فعال]'
+        : defined.type === 'active_technique'
+        ? '[تکنیک رزمی / اقدام فعال]'
+        : defined.type === 'passive_skill'
+        ? '[مهارت غیرفعال]'
+        : defined.type === 'passive_feat'
+        ? '[خصلت و ویژگی ذاتی]'
+        : '[توانایی]'
+      : '';
+    const desc = defined.description || defined.effectSummary || '';
+    const effect =
+      defined.effectSummary && defined.description && defined.effectSummary !== defined.description
+        ? isEnglish
+          ? `Effect: ${defined.effectSummary}`
+          : `اثر: ${defined.effectSummary}`
+        : '';
+
+    const parts = [
+      isEnglish ? `"${name}"` : `«${name}»`,
+      typeLabel,
+      desc,
+      effect,
+    ].filter(Boolean);
+
+    return parts.join(' — ');
+  });
+}
+
+
 
 export interface WorldContextBlocks {
   storyScale?: string;

@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
+import { formatAbilitiesForContext } from '@/lib/engines/narrative/worldContext';
 import { WorkingContextEnvelope } from '@/lib/types/memory';
 
 function makeEnvelope(overrides: Partial<WorkingContextEnvelope> = {}): WorkingContextEnvelope {
@@ -174,3 +175,86 @@ describe('Tier 1 — Power System Invariants', () => {
     assert.ok(en.userPrompt.includes('Power: [Hiram Sandblade: Rank 2 (Wind-Slicer)]'));
   });
 });
+
+describe('Tier 1 — Character Ability Invariants & Resolution', () => {
+  it('resolves raw ability IDs into rich descriptors with names, types, and effects', () => {
+    const story = {
+      language: 'fa',
+      rpgSystem: {
+        abilities: [
+          {
+            id: 'ab_wall',
+            name: 'دیوار بارانداز',
+            type: 'passive_skill',
+            description: 'دفاع با سپر در برابر پرتابه‌ها.',
+            effectSummary: '+3 به درجه سختی دفاع',
+          },
+          {
+            id: 'ab_spell',
+            name: 'شعله سرخ',
+            type: 'active_spell',
+            description: 'پرتاب آتش به سوی دشمن.',
+          },
+        ],
+      },
+    };
+
+    const formatted = formatAbilitiesForContext(
+      { abilities: ['ab_wall', 'ab_spell', 'unregistered_ability'] },
+      story
+    );
+
+    assert.equal(formatted.length, 3);
+    assert.ok(formatted[0].includes('«دیوار بارانداز»'));
+    assert.ok(formatted[0].includes('[مهارت غیرفعال]'));
+    assert.ok(formatted[0].includes('+3 به درجه سختی دفاع'));
+    assert.ok(formatted[1].includes('«شعله سرخ»'));
+    assert.ok(formatted[1].includes('[ورد / جادوی فعال]'));
+    assert.equal(formatted[2], 'unregistered_ability');
+  });
+
+  it('renders multi-ability list and ability choice directives in English and Persian prompts', () => {
+    const en = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'en',
+        playerStatus: {
+          stats: { might: 12 },
+          resources: { health: 25 },
+          equippedItems: ['Iron Shield'],
+          abilities: [
+            '"Quay Wall" — [Passive Skill] — Arrow defense bonus',
+            '"Flame Jet" — [Active Spell] — Casts fire stream',
+          ],
+        },
+      })
+    );
+
+    assert.ok(en.systemPrompt.includes('ACTIVE ABILITY & SPELL INTEGRATION (ABILITY FIDELITY)'));
+    assert.ok(en.systemPrompt.includes('ABILITY & SPELL AWARENESS'));
+    assert.ok(en.userPrompt.includes('• Known Abilities / Spells:'));
+    assert.ok(en.userPrompt.includes('• "Quay Wall" — [Passive Skill] — Arrow defense bonus'));
+    assert.ok(en.userPrompt.includes('• "Flame Jet" — [Active Spell] — Casts fire stream'));
+
+    const fa = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'fa',
+        playerStatus: {
+          stats: { might: 12 },
+          resources: { health: 25 },
+          equippedItems: ['سپر آهنی'],
+          abilities: [
+            '«دیوار بارانداز» — [مهارت غیرفعال] — افزایش دفاع',
+            '«کاروان» — [خصلت و ویژگی ذاتی] — جهت‌یابی',
+          ],
+        },
+      })
+    );
+
+    assert.ok(fa.systemPrompt.includes('به‌کارگیری فعال توانایی‌ها، مهارت‌ها و جادوها (ABILITY & SPELL FIDELITY)'));
+    assert.ok(fa.systemPrompt.includes('وفاداری به توانایی‌ها و جادوها (Ability & Spell Awareness)'));
+    assert.ok(fa.userPrompt.includes('• توانایی‌ها و جادوهای فعال:'));
+    assert.ok(fa.userPrompt.includes('• «دیوار بارانداز» — [مهارت غیرفعال] — افزایش دفاع'));
+    assert.ok(fa.userPrompt.includes('• «کاروان» — [خصلت و ویژگی ذاتی] — جهت‌یابی'));
+  });
+});
+

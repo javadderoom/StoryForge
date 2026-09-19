@@ -175,6 +175,7 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
     - Heroic / Superhuman Tier (attributes 12+, 16+, 20+, enchanted relics, powerful spells, or mythic world scope): The character has grown beyond ordinary limits! Dynamically unlock larger-than-life, heroic, magical, or superhuman feats that match their high attributes and magical gear.
   * Appropriate DC Matching: Truly extreme or superhuman feats carry commensurate DCs (14-18) so that high attributes or legendary gear are what make them achievable and rewarding.
 - GROUNDING & ITEM ROLE FIDELITY: Ground choices in equipped gear, environmental interactables, and discovered clues. Honor item role fidelity: equipped relics, charms, and specialized gear must ONLY be proposed in choices when their specific authored function or powers are genuinely relevant. NEVER propose permanent relics or talismans as throwaway diversion pebbles or irrelevant conversational fidget props. Non-consumable gear must never be tossed or destroyed. NEVER reveal or base choices on hidden/undiscovered NPC secrets. Span distinct philosophies (tactical, aggressive, defensive, inquisitive).
+- ACTIVE ABILITY & SPELL INTEGRATION (ABILITY FIDELITY): When the protagonist faces combat, tactical obstacles, physical perils, or specialized challenges, you MUST actively leverage their known abilities, feats, and spells (from [PROTAGONIST STATUS & CAPABILITIES]). In hostile, combat, or high-stakes encounters, at least one offered choice should provide a proactive application of one of their signature abilities or spells (e.g. leveraging defensive shield skills in parries, beast-handling/caravan traits in wilderness, or distinct offensive/utility spells) with an appropriate stat check and targetDC matching the action.
 - STRICT GROUNDING IN SCENE PROSE (NO PHANTOM ENTITIES): Every choice MUST strictly react to the physical obstacles, characters, and events EXPLICITLY established in the scene's narrative prose. NEVER invent phantom entities, unmentioned bystanders, imaginary cargo, caravan inspections, or unstated subplots. All choices must be actions directly referenced or present in the text (e.g. if only a closed gate is described, choices must interact with that gate or visible sentries, NOT inspect unmentioned caravans or baggage).`
         : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای و طبیعی ارائه کن:
 - گام‌های اتمیک و تک‌مرحله‌ای (ATOMIC SINGLE-BEAT): هر انتخاب باید دقیقاً «یک اقدام فیزیکی یا گفتاری فوری» را در همین لحظه بیان کند. هرگز چند اقدام پیاپی را با «و» به هم متصل نکن (از فرمول «کار الف و سپس کار ب و کار ج» اکیداً پرهیز کن).
@@ -194,10 +195,11 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
     - سطح قهرمانی و فراانسانی (ویژگی‌های ۱۲، ۱۶، ۲۰ به بالا، ابزارها و سلاح‌های جادویی، طلسم‌های قوی، یا جهان‌های حماسی): با رشد و پیشرفت شخصیت، این محدودیت‌ها برداشته می‌شوند! با ارتقای ویژگی‌ها و دستیابی به یادگارهای کهن، اعمال حماسی، ماوراءطبیعی و فراانسانیِ متناسب با قدرت جدید قهرمان را در گزینه‌ها آزاد و پیشنهاد کن.
   * تناسب درجه سختی (DC): اعمال بسیار سنگین یا فراانسانی سختی متناسب (۱۴ تا ۱۸) دارند تا بازیکن با داشتن ویژگی‌های بالا و تجهیزات برتر طعم غلبه بر چالش‌های ناممکن اولیه را بچشد.
 - زمینه و وفاداری به کارکرد تجهیزات (ITEM ROLE FIDELITY): انتخاب‌ها را بر تجهیزات، عناصر محیطی و سرنخ‌ها استوار کن. وفاداری به ماهیت آیتم‌ها الزامی است: تجهیزات، یادگارها و طلسم‌های همراه قهرمان باید صرفاً در زمینهٔ کارکرد و قدرت‌های واقعی‌شان در گزینه‌ها پیشنهاد شوند. هرگز یادگارهای باستانی، نمادها یا مهره‌های مقدس و دائمی (مانند دافع عطش و سراب) را به عنوان سنگریزه برای پرتاب و انحراف حواس دشمن، یا فیجت و بازیچهٔ دست در حین صحبت پیشنهاد نده! آیتم‌های دائمی و غیرمصرفی هرگز نباید به عنوان اشیاء پرتابی یا یک‌بارمصرف تلف شوند. هرگز اسرار کشف‌نشده را لو نده. فلسفه‌های متفاوت (تاکتیکی، تهاجمی، تدافعی، کنجکاوانه) را پوشش بده.
+- به‌کارگیری فعال توانایی‌ها، مهارت‌ها و جادوها (ABILITY & SPELL FIDELITY): در شرایط نبرد، موانع فیزیکی، تعارضات یا چالش‌های تاکتیکی، حتماً از توانایی‌ها، مهارت‌ها و جادوهای شناخته‌شدهٔ قهرمان (مندرج در بخش وضعیت و توانمندی‌های قهرمان) استفاده کن. در مواجهه با خطرات، نبرد یا موانع دشوار، حداقل یکی از گزینه‌های پیشنهادی باید استفادهٔ هدفمند و تاکتیکی از یکی از توانایی‌ها، مهارت‌ها یا جادوهای قهرمان را به بازیکن پیشنهاد دهد (مثلاً استفاده از مهارت کاروان در مهار یا آرام کردن حیوانات، بهره‌گیری از مهارت دفاع با سپر در دفع حملات، یا اجرای وردهای جادویی) و برای آن یک بررسی صفت متناسب («requiredStatId» و «targetDC») تعیین کند.
 - انطباق مطلق با متن و صحنه (ممنوعیت توهم و فرضیات ناموجود): تک‌تک گزینه‌ها باید دقیقاً از دلِ موانع، اشخاص، محیط و رویدادهایی که در متنِ همین صحنه صریحاً به آن‌ها اشاره شده است برآیند. ابداع موجودیت‌های فرضی، افراد غایب، کاروان‌ها یا بارهای ذکرنشده، یا بازرسی بارهایی که اصلاً در متن نیامده‌اند اکیداً ممنوع است. تمام انتخاب‌ها باید مواردی باشند که در متن به آن‌ها اشاره شده است (مثلاً اگر در متن فقط از بسته بودن دروازه سخن رفته، گزینه‌ها باید منحصراً پیرامون خودِ دروازه، نگهبانان حاضر یا محیط پیرامونی باشند، نه بازرسی کالاهای خیالی).`
       : isEnglish
-      ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Keep choices strictly atomic without pre-baked outcomes, and strictly grounded in what has been explicitly mentioned in the scene prose without hallucinating unmentioned entities. In tense standoffs or conflicts, all choices must have a stat check and DC.`
-      : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای تک‌مرحله‌ای (اتمیک) ارائه کن که کاملاً بر عناصر و وقایعِ صریحاً ذکرشده در متن صحنه استوار باشند (بدون توهم یا ابداع موارد غایب). در شرایط درگیری، بن‌بست مسلحانه یا تنش با دشمنان، تمام گزینه‌ها باید دارای بررسی ویژگی و درجه سختی باشند.`;
+      ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Keep choices strictly atomic without pre-baked outcomes, actively offer choices leveraging the protagonist's known abilities/spells in combat or obstacles, and strictly ground them in what has been explicitly mentioned in the scene prose without hallucinating unmentioned entities. In tense standoffs or conflicts, all choices must have a stat check and DC.`
+      : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای تک‌مرحله‌ای (اتمیک) ارائه کن که در شرایط نبرد و چالش‌ها به طور فعال از توانایی‌ها و جادوهای قهرمان بهره بگیرند و کاملاً بر عناصر و وقایعِ صریحاً ذکرشده در متن صحنه استوار باشند (بدون توهم یا ابداع موارد غایب). در شرایط درگیری، بن‌بست مسلحانه یا تنش با دشمنان، تمام گزینه‌ها باید دارای بررسی ویژگی و درجه سختی باشند.`;
 
     // Plan 13: contextual choice material shared by both language branches.
     const choiceMaterial = [
@@ -247,6 +249,7 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 - CONVERSATIONAL ACTIONS: If the player spoke, asked, greeted, questioned, or negotiated with someone, the scene MUST feature direct spoken dialogue ("...") from the protagonist and a personal, direct reply or confrontation from the targeted NPC. Never reduce the player's speech to silence or generic ambient crowd noise!
 - SENSORY BESTIARY DEPICTION: When wild beasts or monstrosities appear, describe their physical traits, coloration, and predatory movements viscerally. Avoid putting formal taxonomy names in awkward quotes in the prose (the game UI renders a dedicated Bestiary Discovery card for the player).
 - ITEM ROLE FIDELITY: Equipped relics, talismans, and artifacts must be treated with appropriate weight according to their authored powers and slot. Never treat sacred relics or survival talismans as disposable diversion pebbles or casual conversational fidget props.
+- ABILITY & SPELL AWARENESS: Honor the protagonist's known skills, passive feats, and spells in combat narration and when offering choices. A character with specialized defensive, wilderness, or magical traits instinctively relies on their training during tense encounters.
 - SECOND-PERSON POV CONSISTENCY: Always maintain a strict second-person POV ("You"). Never refer to the protagonist in the third person by their proper name (e.g. avoid "Barzin's footstep"); address the reader directly ("your footstep", "you lunge", "your boots sink into the mud").
 - KINETIC COMBAT CHOREOGRAPHY: When narrating parries, dodges, blocks, or physical clashes, vividly depict BOTH sides of the conflict: first dramatize the adversary's sudden attack, lunge, or strike (e.g., bared fangs, snapping jaws, leaping from the mud, or a sentry's descending blade), and immediately follow with the protagonist's physical reaction, the resounding impact of wood, steel, or shield, and the tactile aftermath. Never omit the enemy's attack, leaving defensive actions to occur in a vacuum.
 - BIOME & CLIMATE FIDELITY: Strictly adhere to the authored biome, climate, and atmospheric conditions of the protagonist's active location (e.g. humid wetlands, warm reed beds, dusty plains). Never hallucinate contradictory environmental extremes (such as frost, ice, half-frozen mud, or snow in warm marshes or arid riverbanks).
@@ -287,6 +290,7 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 - پیوستگی محیطی: از ابداع موانع یا وسایل فیزیکیِ ذکرنشده (مانند بارهای انباشته‌شده یا کاروان‌ها) خودداری کن، مگر اینکه در متن صحنه‌های قبلی صراحتاً آمده باشند.
 - اقدامات گفتاری و پرسش: اگر بازیکن سخنی گفت، سؤالی پرسید، سلام کرد یا با کسی وارد مذاکره شد، صحنه حتماً باید شامل دیالوگ مستقیم با علامت «...» باشد که به شکل شخصی و مستقیم به خودِ بازیکن پاسخ می‌دهد (یا با کلام و یا با تهدید/برخورد فیزیکی مشخص). هرگز دیالوگ بازیکن را بی‌پاسخ نگذار و آن را به فریادهای نامربوط در پس‌زمینه تبدیل نکن!
 - وفاداری به ماهیت آیتم‌ها و ابزارها (Item Role Fidelity): تجهیزات، یادگارها و طلسم‌های همراه قهرمان باید دقیقاً مطابق با ماهیت و کارکرد تعریف‌شده‌شان استفاده شوند. هرگز یادگارهای باستانی، نمادها یا مهره‌های مقدس و دائمی (مانند دافع عطش و سراب) را به عنوان سنگریزه برای پرتاب و انحراف حواس دشمن، یا فیجت و بازیچهٔ دست در حین صحبت به کار نبر! آیتم‌های دائمی و غیرمصرفی هرگز نباید به عنوان اشیاء پرتابی تلف شوند.
+- وفاداری به توانایی‌ها و جادوها (Ability & Spell Awareness): در توصیف صحنه‌های نبرد، خطرات و انتخاب‌های پیش‌رو، به مهارت‌ها، خصلت‌های ذاتی و جادوهای ثبت‌شدهٔ قهرمان وفادار باش. شخصیتی که دارای مهارت‌های دفاعی، کاروانی یا جادویی ویژه است، در مواجهه با بحران‌ها و خطرات باید بتواند بر اساس این آموزش‌ها و توانایی‌ها واکنش نشان دهد.
 - توصیف حسی و طبیعی موجودات (Sensory Bestiary Depiction): هنگام رویارویی با جانوران یا هیولاها، ویژگی‌های عینی، فلس‌ها، صدا و حرکات هولناک آن‌ها را به شکل زنده توصیف کن، اما از گذاشتن نام رسمی کتابچه در داخل گیومه مثل «افعی رسوبی» در متن خودداری کن؛ واسط کاربری بازی خود کارت شناسایی و کشف موجود را نمایش می‌دهد. در گزینه‌ها نیز به شکل طبیعی به آن اشاره کن (مثلاً «خزنده»، «مار»، یا «درنده»).
 - ثبات زاویه دید دوم‌شخص («تو» / Second-Person POV): همواره زاویه دید دوم‌شخص را حفظ کن. هرگز با ذکر نام سوم‌شخصِ قهرمان دربارهٔ او ننویس (از عباراتی مثل «گامِ برزین در گل فرو می‌رود» اکیداً پرهیز کن؛ بنویس: «گام‌هایت»، «پایت در گل فرو می‌رود»، «دستت را دراز می‌کنی»).
 - زبان طبیعی در اشاره به زره و سازوبرگ: از ترکیبات ناشیانهٔ ترجمه‌زده مانند «چرم زره‌پوش» اکیداً خودداری کن (زره‌پوش صفت انسان است، نه چرم). نام دقیق قطعات را از بخش تجهیزات بردار (مانند «زره چرمی‌ات» یا «جوشن چرمی‌ات»).
@@ -350,7 +354,7 @@ You MUST respond with a valid JSON object matching this schema:
           .join('\n')
       : '';
 
-    const enProtagonistBlock = (statsLineEn || resourcesLine || playerEquipped.length || powerRanksLineEn)
+    const enProtagonistBlock = (statsLineEn || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || powerRanksLineEn)
       ? [
           '[PROTAGONIST STATUS & CAPABILITIES]',
           context.playerStatus?.characterName
@@ -359,14 +363,18 @@ You MUST respond with a valid JSON object matching this schema:
           statsLineEn ? `• Attributes: ${statsLineEn}` : '',
           resourcesLine ? `• Vitals: ${resourcesLine}` : '',
           playerEquipped.length ? `• Equipped / Carried Gear: ${playerEquipped.join(', ')}` : '',
-          context.playerStatus?.abilities?.length ? `• Known Abilities / Spells: ${context.playerStatus.abilities.join(', ')}` : '',
+          context.playerStatus?.abilities?.length
+            ? context.playerStatus.abilities.length === 1
+              ? `• Known Abilities / Spells: ${context.playerStatus.abilities[0]}`
+              : `• Known Abilities / Spells:\n  ${context.playerStatus.abilities.map((a) => `• ${a}`).join('\n  ')}`
+            : '',
           powerRanksLineEn ? `\n[POWER SCHOOL RANKINGS & MASTERY]\n${powerRanksLineEn}` : '',
         ]
           .filter(Boolean)
           .join('\n')
       : '';
 
-    const faProtagonistBlock = (statsLineFa || resourcesLine || playerEquipped.length || powerRanksLineFa)
+    const faProtagonistBlock = (statsLineFa || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || powerRanksLineFa)
       ? [
           '[وضعیت و توانمندی‌های قهرمان داستان / PROTAGONIST STATUS]',
           context.playerStatus?.characterName
@@ -375,7 +383,11 @@ You MUST respond with a valid JSON object matching this schema:
           statsLineFa ? `• ویژگی‌ها و صفات: ${statsLineFa}` : '',
           resourcesLine ? `• منابع و وضعیت حیاتی: ${resourcesLine}` : '',
           playerEquipped.length ? `• تجهیزات و اشیاء همراه: ${playerEquipped.join('، ')}` : '',
-          context.playerStatus?.abilities?.length ? `• توانایی‌ها و جادوهای فعال: ${context.playerStatus.abilities.join('، ')}` : '',
+          context.playerStatus?.abilities?.length
+            ? context.playerStatus.abilities.length === 1
+              ? `• توانایی‌ها و جادوهای فعال: ${context.playerStatus.abilities[0]}`
+              : `• توانایی‌ها و جادوهای فعال:\n  ${context.playerStatus.abilities.map((a) => `• ${a}`).join('\n  ')}`
+            : '',
           powerRanksLineFa ? `\n[مکاتب قدرت و درجات تسلط / POWER SYSTEM RANKINGS]\n${powerRanksLineFa}` : '',
         ]
           .filter(Boolean)
