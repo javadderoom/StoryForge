@@ -227,11 +227,14 @@ export default function Home() {
       });
 
       try {
-        // Read any local draft created or modified in Studio
+        // Read local draft only if explicitly previewing an unpublished story draft
         let localDraft: any = undefined;
         try {
-          const draftRaw = localStorage.getItem(`storyforge_studio_draft_v1_${storyId}`);
-          if (draftRaw) localDraft = JSON.parse(draftRaw);
+          const isPublishedInCatalog = stories.some((s) => s.id === storyId && s.published);
+          if (!isPublishedInCatalog) {
+            const draftRaw = localStorage.getItem(`storyforge_studio_draft_v1_${storyId}`);
+            if (draftRaw) localDraft = JSON.parse(draftRaw);
+          }
         } catch {
           /* ignore */
         }
@@ -299,6 +302,8 @@ export default function Home() {
   const resolveStoryWithLocalDraft = useCallback((story: CatalogStory | null, fallbackStoryId?: string): CatalogStory | null => {
     const targetId = story?.id || fallbackStoryId;
     if (!targetId && !story) return null;
+    // Published server stories always take precedence over stale localStorage keys
+    if (story && story.published) return story;
     try {
       if (targetId) {
         const draftKey = `storyforge_studio_draft_v1_${targetId}`;
@@ -398,11 +403,13 @@ export default function Home() {
     const isDiceless = choice.targetDC === undefined && choice.requiredStatId === undefined;
     const nextTurn = turnNumber + 1;
 
-    // Read any local draft created or modified in Studio
+    // Read local draft only if explicitly previewing an unpublished story draft
     let localDraft: any = undefined;
     try {
-      const draftRaw = localStorage.getItem(`storyforge_studio_draft_v1_${selectedStory.id}`);
-      if (draftRaw) localDraft = JSON.parse(draftRaw);
+      if (!selectedStory.published) {
+        const draftRaw = localStorage.getItem(`storyforge_studio_draft_v1_${selectedStory.id}`);
+        if (draftRaw) localDraft = JSON.parse(draftRaw);
+      }
     } catch {
       /* ignore */
     }

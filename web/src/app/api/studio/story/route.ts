@@ -3,6 +3,9 @@ import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { StoryManifest } from '@/lib/types';
 import { canPublish } from '@/lib/engines/world/publishGate';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

@@ -17,6 +17,7 @@ export interface CatalogStory {
   genres: string[];
   language: string;
   author: string;
+  published?: boolean;
   statsPreview?: string[];
   coverImageUrl?: string;
   rpgSystem?: any;
@@ -41,7 +42,7 @@ async function asJson(res: Response) {
 
 export async function fetchCatalog(): Promise<CatalogStory[]> {
   try {
-    const res = await fetch('/api/play/stories');
+    const res = await fetch('/api/play/stories', { cache: 'no-store' });
     const json = await asJson(res);
     if (json.success && Array.isArray(json.data)) return json.data as CatalogStory[];
   } catch {
@@ -66,7 +67,7 @@ export async function startSession(
 }
 
 export async function resumeSession(sessionId: string): Promise<StartSessionResult | null> {
-  const res = await fetch(`/api/play/session?sessionId=${encodeURIComponent(sessionId)}`);
+  const res = await fetch(`/api/play/session?sessionId=${encodeURIComponent(sessionId)}`, { cache: 'no-store' });
   const json = await asJson(res);
   if (!json.success) return null;
   return json.data as StartSessionResult;

@@ -558,7 +558,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
 
   const refreshWorlds = useCallback(async () => {
     try {
-      const res = await fetch('/api/studio/worlds');
+      const res = await fetch('/api/studio/worlds', { cache: 'no-store' });
       if (!res.ok) return;
       const data = await res.json();
       if (data?.success && Array.isArray(data.data)) {
@@ -603,7 +603,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     (async () => {
       if (!cancelled) refreshWorlds();
       try {
-        const res = await fetch('/api/studio/stories');
+        const res = await fetch('/api/studio/stories', { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json();
         if (!data?.success || !Array.isArray(data.data) || cancelled) return;
@@ -637,7 +637,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const selectedWorldId: string =
     story.worldId || story.worldBible?.worldId || selectedStoryId;
 
-  // Load from localStorage on story change.
+  // Load authoritative story from server on story change, falling back to local draft
   // Intentional setState-in-effect: `story` is also mutated in place by ~40 CRUD
   // updaters, so a pure useSyncExternalStore/external-store pattern is impractical.
   // This only fires when `selectedStoryId` changes, not on every commit.
@@ -653,48 +653,92 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    try {
-      const key = getStorageKey(selectedStoryId);
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed?.worldBible) {
-          parsed.worldBible.ontology = normalizeOntology(parsed.worldBible.ontology, parsed.language === 'fa');
+    (async () => {
+      let serverStory: StoryManifest | null = null;
+      try {
+        const res = await fetch(
+          `/api/studio/story?storyId=${encodeURIComponent(selectedStoryId)}`,
+          { cache: 'no-store' }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.success && data?.data) {
+            serverStory = data.data as StoryManifest;
+          }
         }
-        const migrated = migrateStoryManifestToUnifiedGraph(parsed);
+      } catch {
+        // network error / server offline
+      }
+
+      if (cancelled) return;
+
+      // Check if there is an uncommitted local draft in localStorage
+      let localDraft: StoryManifest | null = null;
+      try {
+        const key = getStorageKey(selectedStoryId);
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          localDraft = JSON.parse(stored);
+        }
+      } catch {
+        localDraft = null;
+      }
+
+      if (cancelled) return;
+
+      if (serverStory) {
+        if (localDraft) {
+          // If local draft is identical to server, clean up redundant localStorage copy
+          if (JSON.stringify(localDraft) === JSON.stringify(serverStory)) {
+            try {
+              localStorage.removeItem(getStorageKey(selectedStoryId));
+            } catch {
+              // Ignore
+            }
+            localDraft = null;
+          }
+        }
+
+        if (localDraft) {
+          // User has distinct uncommitted local edits
+          if (localDraft.worldBible) {
+            localDraft.worldBible.ontology = normalizeOntology(localDraft.worldBible.ontology, localDraft.language === 'fa');
+          }
+          const migrated = migrateStoryManifestToUnifiedGraph(localDraft);
+          setStory(migrated);
+          setHasLocalDraft(true);
+          setLastSaved(new Date());
+          return;
+        }
+
+        // Authoritative server story loaded
+        if (serverStory.worldBible) {
+          serverStory.worldBible.ontology = normalizeOntology(serverStory.worldBible.ontology, serverStory.language === 'fa');
+        }
+        const migrated = migrateStoryManifestToUnifiedGraph(serverStory);
+        setStory(migrated);
+        setHasLocalDraft(false);
+        setLastSaved(null);
+        return;
+      }
+
+      // Offline / server error fallback: use local draft if available
+      if (localDraft) {
+        if (localDraft.worldBible) {
+          localDraft.worldBible.ontology = normalizeOntology(localDraft.worldBible.ontology, localDraft.language === 'fa');
+        }
+        const migrated = migrateStoryManifestToUnifiedGraph(localDraft);
         setStory(migrated);
         setHasLocalDraft(true);
         setLastSaved(new Date());
         return;
       }
-    } catch {
-      // fall through to server load
-    }
 
-    // No local draft → load from server (DB is the source of truth; enables
-    // cross-browser sharing of stories created on another device).
-    (async () => {
-      try {
-        const res = await fetch(
-          `/api/studio/story?storyId=${encodeURIComponent(selectedStoryId)}`
-        );
-        if (!res.ok || cancelled) return;
-        const data = await res.json();
-        if (data?.success && data?.data && !cancelled) {
-          const m = data.data as StoryManifest;
-          if (m.worldBible) {
-            m.worldBible.ontology = normalizeOntology(m.worldBible.ontology, m.language === 'fa');
-          }
-          const migrated = migrateStoryManifestToUnifiedGraph(m);
-          setStory(migrated);
-          setHasLocalDraft(false);
-          setLastSaved(null);
-        }
-      } catch {
-        if (!cancelled) {
-          setStory(EMPTY_STORY_PLACEHOLDER);
-          setHasLocalDraft(false);
-        }
+      // Fallback placeholder when story not found
+      if (!cancelled) {
+        setStory(EMPTY_STORY_PLACEHOLDER);
+        setHasLocalDraft(false);
+        setLastSaved(null);
       }
     })();
 
@@ -757,7 +801,8 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         // Fall back to fetching the manifest from the server.
         try {
           const res = await fetch(
-            `/api/studio/story?storyId=${encodeURIComponent(targetStoryId)}`
+            `/api/studio/story?storyId=${encodeURIComponent(targetStoryId)}`,
+            { cache: 'no-store' }
           );
           if (res.ok) {
             const data = await res.json();
@@ -810,7 +855,8 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
       if (openWorldId !== worldId || !worldBible?.worldName) {
         try {
           const res = await fetch(
-            `/api/studio/worlds?worldId=${encodeURIComponent(worldId)}`
+            `/api/studio/worlds?worldId=${encodeURIComponent(worldId)}`,
+            { cache: 'no-store' }
           );
           if (res.ok) {
             const data = await res.json();
@@ -823,7 +869,8 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
                 );
                 if (!sibling) return null;
                 const r = await fetch(
-                  `/api/studio/story?storyId=${encodeURIComponent(sibling.id)}`
+                  `/api/studio/story?storyId=${encodeURIComponent(sibling.id)}`,
+                  { cache: 'no-store' }
                 );
                 if (!r.ok) return null;
                 const d = await r.json();
@@ -904,6 +951,13 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         const data = await res.json();
         if (data.success) {
           setLastServerSynced(new Date());
+          try {
+            const key = getStorageKey(target.id);
+            localStorage.removeItem(key);
+            setHasLocalDraft(false);
+          } catch {
+            // Ignore storage cleanup errors
+          }
           if (data.publishGate) {
             const gate = data.publishGate;
             const errors: string[] = Array.isArray(gate.errors) ? gate.errors : [];
@@ -973,7 +1027,8 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         if (!manifest) {
           try {
             const res = await fetch(
-              `/api/studio/story?storyId=${encodeURIComponent(id)}`
+              `/api/studio/story?storyId=${encodeURIComponent(id)}`,
+              { cache: 'no-store' }
             );
             if (res.ok) {
               const data = await res.json();
@@ -2502,7 +2557,8 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
       if (selectedStoryId) {
         try {
           const res = await fetch(
-            `/api/studio/story?storyId=${encodeURIComponent(selectedStoryId)}`
+            `/api/studio/story?storyId=${encodeURIComponent(selectedStoryId)}`,
+            { cache: 'no-store' }
           );
           if (res.ok) {
             const data = await res.json();

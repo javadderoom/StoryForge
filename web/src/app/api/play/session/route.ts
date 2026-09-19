@@ -16,6 +16,9 @@ import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import { WorkingContextEnvelope } from '@/lib/types/memory';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /**
  * Lightweight, player-safe projection of the World Bible consumed by the
  * in-game Compendium (Codex + NPC dossiers). Laws are excluded (for world building only).

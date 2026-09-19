@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function OPTIONS() {
   return handleCorsPreflight();
 }
