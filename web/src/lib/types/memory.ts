@@ -86,6 +86,12 @@ export interface WorkingContextEnvelope {
   // Plan 07/08: long-form saga grounding
   activeChapterTitle?: string;
   activeChapterGoal?: string;
+  activeChapterStages?: Array<{
+    order: number;
+    title: string;
+    description: string;
+    stageType?: string;
+  }>;
   /** Tier 2 — compressed milestone rollups of completed chapters */
   episodicRollup?: string[];
   /** Tier 3 — living world state lines (factions, NPC statuses, key items) */

@@ -269,6 +269,14 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
         : 'Active Milestone Encounter'
       : undefined,
     activeChapterGoal: activeChapter?.narrativeGoal || story.activeMilestoneGoal || undefined,
+    activeChapterStages: (activeChapter as any)?.stages?.length
+      ? (activeChapter as any).stages.map((st: any) => ({
+          order: st.order,
+          title: st.title,
+          description: st.description,
+          stageType: st.stageType,
+        }))
+      : undefined,
     episodicRollup: threeTier.episodicRollup,
     livingWorldLedger: threeTier.livingWorldLedger,
     // Plan 13: Director & Scribe runtime

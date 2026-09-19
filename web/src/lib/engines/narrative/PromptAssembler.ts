@@ -437,13 +437,20 @@ You MUST respond with a valid JSON object matching this schema:
         parts.push(`[RECENT SCENE PROSE]\n${context.recentSceneSnippets.join('\n\n')}`);
       }
 
-      // Narrative goal / upcoming milestone encounter directive
-      if (context.activeChapterGoal || context.activeChapterTitle) {
+      // Narrative goal / upcoming milestone encounter directive & Arc Stages
+      if (context.activeChapterGoal || context.activeChapterTitle || context.activeChapterStages?.length) {
+        const stageLines = context.activeChapterStages?.length
+          ? `\nNarrative Arc Stages:\n` +
+            context.activeChapterStages
+              .map((st) => `  ${st.order}. [${st.title}]: ${st.description}`)
+              .join('\n')
+          : '';
         parts.push(
           `[UPCOMING MILESTONE & NARRATIVE DIRECTION]\n` +
           (context.activeChapterTitle ? `Chapter: ${context.activeChapterTitle}\n` : '') +
-          (context.activeChapterGoal ? `Target Milestone / Encounter: "${context.activeChapterGoal}"\n` : '') +
-          `• DIRECTIVE: Act as the connective tissue! Subtly steer the environment, obstacles, and choice opportunities across turns toward this milestone encounter without forcing an unnatural instant teleport.`
+          (context.activeChapterGoal ? `Chapter Narrative Goal: "${context.activeChapterGoal}"\n` : '') +
+          stageLines +
+          `\n• DIRECTIVE: Act as the connective tissue! Subtly steer the environment, physical clues, and choice opportunities across turns toward these authored arc stages. Ensure current obstacles, clues, and choices in the prose align with the active arc stage rather than spinning in generic loops.`
         );
       }
       if (context.episodicRollup?.length) {
@@ -521,13 +528,20 @@ You MUST respond with a valid JSON object matching this schema:
         parts.push(`[خلاصه صحنه قبلی / RECENT SCENE]\n${context.recentSceneSnippets.join('\n\n')}`);
       }
 
-      // Narrative goal / upcoming milestone encounter directive
-      if (context.activeChapterGoal || context.activeChapterTitle) {
+      // Narrative goal / upcoming milestone encounter directive & Arc Stages
+      if (context.activeChapterGoal || context.activeChapterTitle || context.activeChapterStages?.length) {
+        const stageLines = context.activeChapterStages?.length
+          ? `\nمراحل قوس روایی فصل / Arc Stages:\n` +
+            context.activeChapterStages
+              .map((st) => `  ${st.order}. [${st.title}]: ${st.description}`)
+              .join('\n')
+          : '';
         parts.push(
-          `[جهت‌گیری روایی و برخورد پیش‌رو / UPCOMING MILESTONE]\n` +
+          `[جهت‌گیری روایی و مراحل قوس داستانی / UPCOMING MILESTONE & ARC STAGES]\n` +
           (context.activeChapterTitle ? `فصل: ${context.activeChapterTitle}\n` : '') +
-          (context.activeChapterGoal ? `هدف روایی / برخورد هدف: «${context.activeChapterGoal}»\n` : '') +
-          `• دستور راوی: شکاف داستانی را پر کن! وقایع، سرنخ‌ها و انتخاب‌ها را در طول نوبت‌ها به شکلی نامحسوس به سمت تحقق این برخورد روایی هدایت کن تا بازیکن در جریان ماجرا به این اتفاق برسد.`
+          (context.activeChapterGoal ? `هدف کلی روایی فصل: «${context.activeChapterGoal}»\n` : '') +
+          stageLines +
+          `\n• دستور مؤکد راوی: وقایع، سرنخ‌های محیطی، بن‌بست‌ها و گزینه‌ها باید دقیقاً در راستای مراحل همین قوس روایی پیش بروند! اگر بازیکن در ساحل گل‌آلود و نیزار است، این پیشروی باید سرنخی ملموس از معبر پنهان نفوذ به پایاب زیرین پل، پایه‌های سنگی، یا بلم‌رانان هور آشکار کند نه اینکه در حلقه‌ای بی‌هدف از خطرات نامربوط بچرخد.`
         );
       }
       if (context.episodicRollup?.length) {
