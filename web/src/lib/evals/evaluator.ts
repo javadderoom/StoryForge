@@ -12,8 +12,8 @@ import { EvalExpectations, EvalFinding, HeuristicReport, HeuristicStats } from '
  * normalizer had to make are reported separately as `rescuedChoices`.
  */
 
-const SUCCESS_WORDS = /triumph|victor|effortless|flawless|prevail|easily overcame|پیروزی|ظفر|آسان|بی‌نقص/i;
-const FAILURE_WORDS = /fail|fumble|disaster|collapse|overwhelm|defeat|شکست|نافرجام|فاجعه|مغلوب/i;
+const SUCCESS_WORDS = /triumph|victor|effortless|flawless|prevail|easily overcame|پیروزی|ظفر|موفق|آسان|بی‌نقص|شکست داد|مغلوب کرد|مغلوب ساخت/i;
+const FAILURE_WORDS = /\b(fail|fumble|disaster|collapse|overwhelm|defeat)\b|شکست خورد|شکست سنگین|شکست قطعی|نافرجام|فاجعه|مغلوب شد/i;
 const MEMORIAL_PATTERN = /in memory|slain|fallen|grave|once |late |memory of|یاد|مزار|کشته|فقید|مرحوم/i;
 const HOSTILE_PROSE =
   /weapon|sword|blade|spear|shield|crossbow|longbow|rifle|musket|pistol|drawn|drew|leveled|raised|hostile|sentry|guard|standoff|سلاح|شمشیر|تیغ|نیزه|سپر|گزمه|نگهبان|پاسبان|کمان|تفنگ|خنجر/i;
