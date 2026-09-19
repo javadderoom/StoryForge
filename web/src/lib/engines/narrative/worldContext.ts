@@ -2,6 +2,7 @@ import { WorldBible, ScopeTier, StoryChapter, WorldStateLedger, FACTION_RELATION
 import { formatTradeRouteLine } from '@/lib/engines/world/tradeRoutes';
 import { StoryNpcOverride, StoryScale } from '@/lib/types/story';
 import { GameEngine } from '@/lib/engines/game/GameEngine';
+import { buildEquippedItemProfiles, formatItemInteractionsForPrompt } from '../game/itemInteractions';
 
 /**
  * Compact combat summary for an NPC (`elite CR9 — HP 64/80, Rage 3/5`).
@@ -158,6 +159,20 @@ export function formatAbilitiesForContext(
 
     return parts.join(' — ');
   });
+}
+
+/**
+ * Generates the structured item capabilities & interaction catalogue for the protagonist's
+ * equipped gear, clarifying exact primary purposes, permitted interactions, forbidden misuses,
+ * and passive bonuses so the AI narrator understands item fidelity.
+ */
+export function formatItemInteractionsCatalogForContext(
+  playerState: any,
+  story?: any
+): string {
+  const isEnglish = story?.language === 'en';
+  const profiles = buildEquippedItemProfiles(playerState, story, isEnglish);
+  return formatItemInteractionsForPrompt(profiles, isEnglish);
 }
 
 

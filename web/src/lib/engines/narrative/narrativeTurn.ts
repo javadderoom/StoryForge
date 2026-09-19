@@ -1,6 +1,6 @@
 import { PromptAssembler } from './PromptAssembler';
 import { validateProse, buildProseRepairInstruction, ProseFinding } from './ProseValidator';
-import { buildWorldContextBlocks, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext } from './worldContext';
+import { buildWorldContextBlocks, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatItemInteractionsCatalogForContext } from './worldContext';
 import { MemoryEngine } from '@/lib/engines/memory/MemoryEngine';
 import { WorkingContextEnvelope, MemoryCategory, MemoryEntry } from '@/lib/types/memory';
 import { PlayerState, CheckResolution } from '@/lib/types/gameplay';
@@ -237,6 +237,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
       characterName: playerState.characterName,
       archetypeName: playerState.archetypeName,
       abilities: formatAbilitiesForContext(playerState, story),
+      itemInteractionsCatalog: formatItemInteractionsCatalogForContext(playerState, story),
     },
     statsConfig: story.rpgSystem?.stats,
     universalBaseValue: (story.rpgSystem as any)?.universalBaseValue,

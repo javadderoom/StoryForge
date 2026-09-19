@@ -148,4 +148,37 @@ describe('PromptAssembler - expanded world context', () => {
     assert.ok(fa.systemPrompt.includes('وفاداری به هدف اقدام (Target Fidelity)'));
     assert.ok(fa.systemPrompt.includes('پیوستگی محیطی'));
   });
+
+  it('renders equipped item interactions catalogue and item fidelity directives in prompts (EN + FA)', () => {
+    const catalogEn = '[EQUIPPED GEAR & ARTIFACT INTERACTION CATALOGUE]\n• Wooden Buckler: Kinetic physical protection';
+    const catalogFa = '[کاتالوگ تعاملات و کارکرد تجهیزات همراه / EQUIPPED GEAR & ARTIFACT INTERACTION CATALOGUE]\n• سپر چوبی: پدافند فیزیکی فعال';
+
+    const en = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'en',
+        playerStatus: {
+          stats: { might: 12 },
+          resources: { hp: 30 },
+          equippedItems: ['Wooden Buckler'],
+          itemInteractionsCatalog: catalogEn,
+        },
+      })
+    );
+    assert.ok(en.userPrompt.includes(catalogEn));
+    assert.ok(en.systemPrompt.includes('ACTIVE ITEM & ARTIFACT INTEGRATION (ITEM FIDELITY)'));
+
+    const fa = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'fa',
+        playerStatus: {
+          stats: { might: 12 },
+          resources: { hp: 30 },
+          equippedItems: ['سپر چوبی'],
+          itemInteractionsCatalog: catalogFa,
+        },
+      })
+    );
+    assert.ok(fa.userPrompt.includes(catalogFa));
+    assert.ok(fa.systemPrompt.includes('به‌کارگیری فعال تجهیزات و یادگارها (ITEM FIDELITY)'));
+  });
 });

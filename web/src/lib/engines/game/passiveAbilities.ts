@@ -1,5 +1,6 @@
 import { PlayerState } from '@/lib/types/gameplay';
 import { AbilityDefinition, RPGSystemSchema } from '@/lib/types/rpg';
+import { buildEquippedItemProfiles } from './itemInteractions';
 
 export interface AppliedPassiveAbility {
   id: string;
@@ -99,22 +100,19 @@ export function evaluatePassiveAbilities(
   actionText: string,
   playerState?: PlayerState,
   rpgSystem?: RPGSystemSchema | { abilities?: AbilityDefinition[] },
-  options?: { effectiveStatId?: string; riskLevel?: string }
+  options?: { effectiveStatId?: string; riskLevel?: string; story?: any }
 ): PassiveEvaluationResult {
   const result: PassiveEvaluationResult = {
     totalModifier: 0,
     appliedPassives: [],
   };
 
-  if (!playerState?.abilities || playerState.abilities.length === 0) {
-    return result;
-  }
-
-  const allAbilities: AbilityDefinition[] = rpgSystem?.abilities || [];
   const text = (actionText || '').toLowerCase();
   const hasShield = isShieldEquipped(playerState);
+  const playerAbilities = playerState?.abilities || [];
+  const allAbilities: AbilityDefinition[] = (rpgSystem as any)?.abilities || [];
 
-  for (const playerAbilityId of playerState.abilities) {
+  for (const playerAbilityId of playerAbilities) {
     const ability = allAbilities.find(
       (a) => a.id === playerAbilityId || a.name === playerAbilityId
     );
@@ -253,6 +251,44 @@ export function evaluatePassiveAbilities(
         modifier: mod,
         reason: reasonEn,
         reasonFa,
+      });
+    }
+  }
+
+  // Evaluate Equipped Gear & Artifact Profiles
+  const itemProfiles = buildEquippedItemProfiles(playerState, options?.story);
+  for (const profile of itemProfiles) {
+    if (!profile.passiveBonus) continue;
+
+    const { value, triggerKeywords, descriptionEn, descriptionFa } = profile.passiveBonus;
+
+    // Check if the action matches any trigger keywords
+    const matchesKeyword = triggerKeywords.some((kw) => text.includes(kw.toLowerCase()));
+    const mentionsItemDirectly =
+      text.includes(profile.name.toLowerCase()) ||
+      (profile.itemId && text.includes(profile.itemId.toLowerCase()));
+
+    if (matchesKeyword || mentionsItemDirectly) {
+      // If this is a shield defense bonus, avoid duplicate bonus if a shield ability already applied
+      const isShieldProfile =
+        profile.slot === 'shield' ||
+        profile.slot === 'off_hand' ||
+        /سپر|shield|buckler/i.test(`${profile.name} ${profile.slot}`);
+
+      if (
+        isShieldProfile &&
+        result.appliedPassives.some((p) => /سپر|shield/i.test(`${p.name} ${p.reason} ${p.reasonFa}`))
+      ) {
+        continue;
+      }
+
+      result.totalModifier += value;
+      result.appliedPassives.push({
+        id: profile.itemId,
+        name: profile.name,
+        modifier: value,
+        reason: descriptionEn,
+        reasonFa: descriptionFa,
       });
     }
   }

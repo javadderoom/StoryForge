@@ -11,7 +11,7 @@ import { addToPurse } from '@/lib/engines/game/currencyEngine';
 import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
 import { isPlaceholderBeat } from '@/lib/engines/world/sceneResolution';
 import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
-import { buildWorldContextBlocks, formatNpcCombatSummary, formatEquippedItemsForContext } from '@/lib/engines/narrative/worldContext';
+import { buildWorldContextBlocks, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatItemInteractionsCatalogForContext } from '@/lib/engines/narrative/worldContext';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import { WorkingContextEnvelope } from '@/lib/types/memory';
@@ -150,7 +150,8 @@ async function generateOpeningChoices(
         equippedItems: formatEquippedItemsForContext(playerState, story),
         characterName: playerState.characterName,
         archetypeName: playerState.archetypeName,
-        abilities: playerState.abilities,
+        abilities: formatAbilitiesForContext(playerState, story),
+        itemInteractionsCatalog: formatItemInteractionsCatalogForContext(playerState, story),
       },
       statsConfig: story.rpgSystem?.stats,
       universalBaseValue: (story.rpgSystem as any)?.universalBaseValue,

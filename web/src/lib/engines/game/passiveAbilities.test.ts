@@ -243,5 +243,66 @@ describe('Passive Abilities Engine — Automated Parsing & Resolution', () => {
       assert.equal(res.appliedPassives.length, 1);
       assert.equal(res.appliedPassives[0].id, 'ab_caravan');
     });
+
+    it('awards innate +3 shield defense bonus when player has a shield equipped even without a shield ability', () => {
+      const playerWithShieldOnly = makePlayerState({
+        abilities: [],
+        inventory: [
+          {
+            id: 'sh_wood',
+            name: 'سپر چوبی بارانداز',
+            type: 'shield',
+            quantity: 1,
+            description: 'Sturdy wooden shield',
+          },
+        ],
+        equipment: {
+          offHand: 'sh_wood',
+        },
+      });
+
+      const res = evaluatePassiveAbilities(
+        'پشت سپر چوبی سنگر می‌گیرم تا ضربه سنگین گرز را دفع کنم',
+        playerWithShieldOnly,
+        rpgSystem
+      );
+
+      assert.equal(res.totalModifier, 3);
+      assert.equal(res.appliedPassives.length, 1);
+      assert.equal(res.appliedPassives[0].id, 'sh_wood');
+      assert.equal(res.appliedPassives[0].modifier, 3);
+      assert.ok(res.appliedPassives[0].reasonFa.includes('سپر'));
+    });
+
+    it('awards +3 survival bonus when equipped with desert survival relic bead', () => {
+      const playerWithBead = makePlayerState({
+        abilities: [],
+        inventory: [
+          {
+            id: 'art_salt_bead',
+            name: 'مهره نمک فیروزه',
+            type: 'relic',
+            quantity: 1,
+            description: 'مهره‌ای فیروزه‌ای جهت مهار عطش و باطل کردن سراب‌های کویر',
+          },
+        ],
+        equipment: {
+          relic: 'art_salt_bead',
+        },
+      });
+
+      const res = evaluatePassiveAbilities(
+        'تحمل عطش سوزان و پیمایش در گرمای ظهر کویر',
+        playerWithBead,
+        rpgSystem
+      );
+
+      assert.equal(res.totalModifier, 3);
+      assert.equal(res.appliedPassives.length, 1);
+      assert.equal(res.appliedPassives[0].id, 'art_salt_bead');
+      assert.equal(res.appliedPassives[0].modifier, 3);
+      assert.ok(res.appliedPassives[0].reasonFa.includes('کویر') || res.appliedPassives[0].reasonFa.includes('عطش'));
+    });
   });
 });
+

@@ -175,6 +175,7 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
     - Heroic / Superhuman Tier (attributes 12+, 16+, 20+, enchanted relics, powerful spells, or mythic world scope): The character has grown beyond ordinary limits! Dynamically unlock larger-than-life, heroic, magical, or superhuman feats that match their high attributes and magical gear.
   * Appropriate DC Matching: Truly extreme or superhuman feats carry commensurate DCs (14-18) so that high attributes or legendary gear are what make them achievable and rewarding.
 - GROUNDING & ITEM ROLE FIDELITY: Ground choices in equipped gear, environmental interactables, and discovered clues. Honor item role fidelity: equipped relics, charms, and specialized gear must ONLY be proposed in choices when their specific authored function or powers are genuinely relevant. NEVER propose permanent relics or talismans as throwaway diversion pebbles or irrelevant conversational fidget props. Non-consumable gear must never be tossed or destroyed. NEVER reveal or base choices on hidden/undiscovered NPC secrets. Span distinct philosophies (tactical, aggressive, defensive, inquisitive).
+- ACTIVE ITEM & ARTIFACT INTEGRATION (ITEM FIDELITY): Consult the [EQUIPPED GEAR & ARTIFACT INTERACTION CATALOGUE]. When relevant tactical, survival, or martial challenges arise (e.g. arrows/missiles, desert heat, deciphering seals, tight combat), actively offer choices utilizing the authentic primary purposes and interactions of the protagonist's equipped items (e.g. bracing behind a shield to intercept incoming missile volleys or executing a shield-bash, focusing through lenses to decipher eroded seals, or relying on desert beads to resist heat). NEVER propose any action listed under [FORBIDDEN MISUSES].
 - ACTIVE ABILITY & SPELL INTEGRATION (ABILITY FIDELITY): When the protagonist faces combat, tactical obstacles, physical perils, or specialized challenges, you MUST actively leverage their known abilities, feats, and spells (from [PROTAGONIST STATUS & CAPABILITIES]). In hostile, combat, or high-stakes encounters, at least one offered choice should provide a proactive application of one of their signature abilities or spells (e.g. leveraging defensive shield skills in parries, beast-handling/caravan traits in wilderness, or distinct offensive/utility spells) with an appropriate stat check and targetDC matching the action.
 - STRICT GROUNDING IN SCENE PROSE (NO PHANTOM ENTITIES): Every choice MUST strictly react to the physical obstacles, characters, and events EXPLICITLY established in the scene's narrative prose. NEVER invent phantom entities, unmentioned bystanders, imaginary cargo, caravan inspections, or unstated subplots. All choices must be actions directly referenced or present in the text (e.g. if only a closed gate is described, choices must interact with that gate or visible sentries, NOT inspect unmentioned caravans or baggage).`
         : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای و طبیعی ارائه کن:
@@ -195,6 +196,7 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
     - سطح قهرمانی و فراانسانی (ویژگی‌های ۱۲، ۱۶، ۲۰ به بالا، ابزارها و سلاح‌های جادویی، طلسم‌های قوی، یا جهان‌های حماسی): با رشد و پیشرفت شخصیت، این محدودیت‌ها برداشته می‌شوند! با ارتقای ویژگی‌ها و دستیابی به یادگارهای کهن، اعمال حماسی، ماوراءطبیعی و فراانسانیِ متناسب با قدرت جدید قهرمان را در گزینه‌ها آزاد و پیشنهاد کن.
   * تناسب درجه سختی (DC): اعمال بسیار سنگین یا فراانسانی سختی متناسب (۱۴ تا ۱۸) دارند تا بازیکن با داشتن ویژگی‌های بالا و تجهیزات برتر طعم غلبه بر چالش‌های ناممکن اولیه را بچشد.
 - زمینه و وفاداری به کارکرد تجهیزات (ITEM ROLE FIDELITY): انتخاب‌ها را بر تجهیزات، عناصر محیطی و سرنخ‌ها استوار کن. وفاداری به ماهیت آیتم‌ها الزامی است: تجهیزات، یادگارها و طلسم‌های همراه قهرمان باید صرفاً در زمینهٔ کارکرد و قدرت‌های واقعی‌شان در گزینه‌ها پیشنهاد شوند. هرگز یادگارهای باستانی، نمادها یا مهره‌های مقدس و دائمی (مانند دافع عطش و سراب) را به عنوان سنگریزه برای پرتاب و انحراف حواس دشمن، یا فیجت و بازیچهٔ دست در حین صحبت پیشنهاد نده! آیتم‌های دائمی و غیرمصرفی هرگز نباید به عنوان اشیاء پرتابی یا یک‌بارمصرف تلف شوند. هرگز اسرار کشف‌نشده را لو نده. فلسفه‌های متفاوت (تاکتیکی، تهاجمی، تدافعی، کنجکاوانه) را پوشش بده.
+- به‌کارگیری فعال تجهیزات و یادگارها (ITEM FIDELITY): به بخش [کاتالوگ تعاملات و کارکرد تجهیزات همراه / EQUIPPED GEAR & ARTIFACT INTERACTION CATALOGUE] مراجعه کن. در رویارویی با چالش‌های تاکتیکی، رزمی یا بقا (مانند باران تیر و پرتابه‌ها، گرمای کویر، جعل یا خواندن اسناد، و نبرد نزدیک)، در صورت تناسب موقعیت حتماً گزینه‌ای متکی بر کارکرد اصیل تجهیزات مجهز قهرمان پیشنهاد کن (مانند سنگر گرفتن پشت سپر برای مهار باران تیر یا اجرای کوبش سپر / Shield Bash، تمرکز از طریق عدسی جهت بازرسی مهرهای مخدوش، یا اتکا به مهره جهت مقاومت در برابر عطش و سراب). اکیداً از پیشنهاد هرگونه اقدامی که تحت عنوان «سوءاستفاده‌های اکیداً ممنوع / FORBIDDEN MISUSES» ثبت شده است خودداری کن.
 - به‌کارگیری فعال توانایی‌ها، مهارت‌ها و جادوها (ABILITY & SPELL FIDELITY): در شرایط نبرد، موانع فیزیکی، تعارضات یا چالش‌های تاکتیکی، حتماً از توانایی‌ها، مهارت‌ها و جادوهای شناخته‌شدهٔ قهرمان (مندرج در بخش وضعیت و توانمندی‌های قهرمان) استفاده کن. در مواجهه با خطرات، نبرد یا موانع دشوار، حداقل یکی از گزینه‌های پیشنهادی باید استفادهٔ هدفمند و تاکتیکی از یکی از توانایی‌ها، مهارت‌ها یا جادوهای قهرمان را به بازیکن پیشنهاد دهد (مثلاً استفاده از مهارت کاروان در مهار یا آرام کردن حیوانات، بهره‌گیری از مهارت دفاع با سپر در دفع حملات، یا اجرای وردهای جادویی) و برای آن یک بررسی صفت متناسب («requiredStatId» و «targetDC») تعیین کند.
 - انطباق مطلق با متن و صحنه (ممنوعیت توهم و فرضیات ناموجود): تک‌تک گزینه‌ها باید دقیقاً از دلِ موانع، اشخاص، محیط و رویدادهایی که در متنِ همین صحنه صریحاً به آن‌ها اشاره شده است برآیند. ابداع موجودیت‌های فرضی، افراد غایب، کاروان‌ها یا بارهای ذکرنشده، یا بازرسی بارهایی که اصلاً در متن نیامده‌اند اکیداً ممنوع است. تمام انتخاب‌ها باید مواردی باشند که در متن به آن‌ها اشاره شده است (مثلاً اگر در متن فقط از بسته بودن دروازه سخن رفته، گزینه‌ها باید منحصراً پیرامون خودِ دروازه، نگهبانان حاضر یا محیط پیرامونی باشند، نه بازرسی کالاهای خیالی).`
       : isEnglish
@@ -354,7 +356,7 @@ You MUST respond with a valid JSON object matching this schema:
           .join('\n')
       : '';
 
-    const enProtagonistBlock = (statsLineEn || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || powerRanksLineEn)
+    const enProtagonistBlock = (statsLineEn || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || powerRanksLineEn || context.playerStatus?.itemInteractionsCatalog)
       ? [
           '[PROTAGONIST STATUS & CAPABILITIES]',
           context.playerStatus?.characterName
@@ -369,12 +371,13 @@ You MUST respond with a valid JSON object matching this schema:
               : `• Known Abilities / Spells:\n  ${context.playerStatus.abilities.map((a) => `• ${a}`).join('\n  ')}`
             : '',
           powerRanksLineEn ? `\n[POWER SCHOOL RANKINGS & MASTERY]\n${powerRanksLineEn}` : '',
+          context.playerStatus?.itemInteractionsCatalog ? `\n${context.playerStatus.itemInteractionsCatalog}` : '',
         ]
           .filter(Boolean)
           .join('\n')
       : '';
 
-    const faProtagonistBlock = (statsLineFa || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || powerRanksLineFa)
+    const faProtagonistBlock = (statsLineFa || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || powerRanksLineFa || context.playerStatus?.itemInteractionsCatalog)
       ? [
           '[وضعیت و توانمندی‌های قهرمان داستان / PROTAGONIST STATUS]',
           context.playerStatus?.characterName
@@ -389,6 +392,7 @@ You MUST respond with a valid JSON object matching this schema:
               : `• توانایی‌ها و جادوهای فعال:\n  ${context.playerStatus.abilities.map((a) => `• ${a}`).join('\n  ')}`
             : '',
           powerRanksLineFa ? `\n[مکاتب قدرت و درجات تسلط / POWER SYSTEM RANKINGS]\n${powerRanksLineFa}` : '',
+          context.playerStatus?.itemInteractionsCatalog ? `\n${context.playerStatus.itemInteractionsCatalog}` : '',
         ]
           .filter(Boolean)
           .join('\n')
