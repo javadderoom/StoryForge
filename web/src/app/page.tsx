@@ -28,6 +28,7 @@ import { LockEncounterModal } from '@/components/play/LockEncounterModal';
 import { GameLoadingScreen } from '@/components/play/GameLoadingScreen';
 
 import { Compendium } from '@/components/play/Compendium';
+import { LevelUpModal } from '@/components/play/LevelUpModal';
 import { AtmosphereCanvas } from '@/components/play/AtmosphereCanvas';
 import { NarrativeProse } from '@/components/play/NarrativeProse';
 import { CreatureDiscoveryCard } from '@/components/play/CreatureDiscoveryCard';
@@ -129,6 +130,8 @@ export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCharCreationOpen, setIsCharCreationOpen] = useState(false);
   const [isCompendiumOpen, setIsCompendiumOpen] = useState(false);
+  const [isLevelUpModalOpen, setIsLevelUpModalOpen] = useState(false);
+  const [xpToast, setXpToast] = useState<{ amount: number; levelUp: boolean } | null>(null);
   const [isDiceModalOpen, setIsDiceModalOpen] = useState(false);
   const [diceRolling, setDiceRolling] = useState(true);
   const [diceResolution, setDiceResolution] = useState<DiceResolution | null>(null);
@@ -548,6 +551,17 @@ export default function Home() {
         setDiceResolution(null);
         setDiceRolling(false);
         setIsGeneratingBeat(false);
+
+        // Progression XP & Level-Up triggers
+        const prog = json.data.progression || json.data.resolution?.progression;
+        if (prog?.xpGained && prog.xpGained > 0) {
+          setXpToast({ amount: prog.xpGained, levelUp: !!prog.levelUpOccurred });
+          setTimeout(() => setXpToast(null), 4500);
+          if (prog.levelUpOccurred) {
+            audioService.playSfx('diceSuccess');
+            setTimeout(() => setIsLevelUpModalOpen(true), 800);
+          }
+        }
       } else {
         // Settle the dice and reveal the authoritative outcome & continue button
         setPendingTurn(json.data);
@@ -592,6 +606,18 @@ export default function Home() {
       setLastOutcome(serverToCheckResolution(pendingTurn.resolution));
     }
     audioService.playSfx('pageTurn');
+
+    // Progression XP & Level-Up triggers from pending turn
+    const prog = pendingTurn.progression || pendingTurn.resolution?.progression;
+    if (prog?.xpGained && prog.xpGained > 0) {
+      setXpToast({ amount: prog.xpGained, levelUp: !!prog.levelUpOccurred });
+      setTimeout(() => setXpToast(null), 4500);
+      if (prog.levelUpOccurred) {
+        audioService.playSfx('diceSuccess');
+        setTimeout(() => setIsLevelUpModalOpen(true), 800);
+      }
+    }
+
     setFreeTextAction('');
     setIsDiceModalOpen(false);
     setPendingTurn(null);
@@ -1052,10 +1078,28 @@ export default function Home() {
           {/* HUD */}
           <div className="space-y-6 md:col-span-4">
             <div style={{ backgroundColor: themeObj.cardBg, borderColor: themeObj.cardBorder }} className="rounded-3xl border p-6 shadow-xl">
-              <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider" style={{ color: themeObj.mutedText }}>
-                <Shield className="h-4 w-4" style={{ color: themeObj.primaryAccent }} />
-                <span>{isRtl ? 'مشخصات شخصیت' : 'Character'}</span>
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider" style={{ color: themeObj.mutedText }}>
+                  <Shield className="h-4 w-4" style={{ color: themeObj.primaryAccent }} />
+                  <span>{isRtl ? 'مشخصات شخصیت' : 'Character'}</span>
+                </h2>
+                {playerState && (
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-bold text-[11px] border border-emerald-500/30 font-mono">
+                      {isRtl ? `سطح ${toPersianDigits(playerState.level ?? 1)}` : `Lvl ${playerState.level ?? 1}`}
+                    </span>
+                    {(playerState.unspentStatPoints ?? 0) > 0 && (
+                      <button
+                        onClick={() => setIsLevelUpModalOpen(true)}
+                        className="px-2 py-0.5 rounded-md bg-amber-500/25 hover:bg-amber-500/40 text-amber-300 font-bold text-[10px] animate-pulse border border-amber-500/40 flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <span>✨</span>
+                        <span>{toPersianDigits(playerState.unspentStatPoints)}</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className="mt-4 space-y-3">
                 {(storyMeta?.rpgSystem?.resources ?? []).map((res: any) => {
@@ -1207,8 +1251,45 @@ export default function Home() {
           theme={themeObj}
           isPersian={isRtl}
           onInventoryChange={onInventoryChange}
+          onOpenLevelUp={() => setIsLevelUpModalOpen(true)}
           onClose={() => setIsCompendiumOpen(false)}
         />
+      )}
+
+      {/* Level Up & Stat Allocation Modal */}
+      {playerState && (
+        <LevelUpModal
+          isOpen={isLevelUpModalOpen}
+          onClose={() => setIsLevelUpModalOpen(false)}
+          playerState={playerState}
+          rpgSystem={storyMeta?.rpgSystem}
+          isPersian={isRtl}
+          sessionId={sessionId}
+          onLevelUpCompleted={(updatedState) => setPlayerState(updatedState)}
+        />
+      )}
+
+      {/* Floating XP Gain / Level-Up Toast */}
+      {xpToast && (
+        <div
+          className={`fixed bottom-20 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl backdrop-blur-md animate-bounce border transition-all ${
+            xpToast.levelUp
+              ? 'bg-amber-950/90 border-amber-400/80 text-amber-200 ring-2 ring-amber-400/40 shadow-amber-500/20'
+              : 'bg-emerald-950/90 border-emerald-500/60 text-emerald-200 shadow-emerald-500/10'
+          }`}
+        >
+          <span className="text-xl">{xpToast.levelUp ? '🌟' : '⚡'}</span>
+          <div className="flex flex-col">
+            <span className="text-xs font-bold font-mono" dir="ltr">
+              +{toPersianDigits(xpToast.amount)} XP
+            </span>
+            {xpToast.levelUp && (
+              <span className="text-[11px] font-extrabold text-amber-300">
+                {isRtl ? 'تبریک! به تراز جدید رسیدید!' : 'Level Up! Upgrades Available!'}
+              </span>
+            )}
+          </div>
+        </div>
       )}
 
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />

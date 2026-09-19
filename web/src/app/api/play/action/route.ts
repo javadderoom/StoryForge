@@ -5,13 +5,15 @@ import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import { GameEngine } from '@/lib/engines/game/GameEngine';
 import { generateValidatedScene } from '@/lib/engines/narrative/narrativeTurn';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
-import { PlayerState, ActionStyle, RiskLevel, TurnBeat, CheckResolution } from '@/lib/types/gameplay';
+import { PlayerState, ActionStyle, RiskLevel, TurnBeat, CheckResolution, StateMutationDiff } from '@/lib/types/gameplay';
 import { WorldStateLedger } from '@/lib/types/world';
 import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
 import { getAuthenticatedUser } from '@/lib/auth/getUser';
 import { getPrisma } from '@/lib/db/client';
 import { reconcilePlayerResources, resolveHealthKey } from '@/lib/engines/game/resourcePools';
 import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
+import { calculateActionXp, applyXpGain } from '@/lib/engines/game/progressionEngine';
+import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
 
 const geminiAdapter = new GeminiAdapter();
 
@@ -172,35 +174,59 @@ export async function POST(req: NextRequest) {
     // 2. Deterministic Game Engine Check Resolution
     // Diceless choices branch without a roll (Plan 12)
     const isDiceless = targetDC === undefined && statId === undefined;
-    const resolution: CheckResolution = isDiceless
-      ? {
-          actionDescription: playerActionText,
-          statId: undefined,
-          statModifier: 0,
-          diceRoll: 20,
-          diceType: 'd20',
-          environmentalModifier: 0,
-          totalScore: 20,
-          difficultyClass: 0,
-          outcome: 'success' as const,
-          consequenceSummary: 'Progresses along the authored story path.',
-          stateDiff: {},
+    let resolution: CheckResolution;
+
+    if (isDiceless) {
+      const progConfig = story.rpgSystem?.progression ?? DEFAULT_PROGRESSION_CONFIG;
+      let progressionResult: CheckResolution['progression'] | undefined;
+      const stateDiff: StateMutationDiff = {};
+
+      if (progConfig.enabled !== false) {
+        const xpAward = calculateActionXp({ riskLevel: 'low', outcome: 'success' }, progConfig);
+        stateDiff.xpGained = xpAward.amount;
+        const advance = applyXpGain(playerState, xpAward.amount, progConfig, story.rpgSystem);
+        progressionResult = {
+          xpAwarded: xpAward.amount,
+          reasonEn: xpAward.reasonEn,
+          reasonFa: xpAward.reasonFa,
+          levelUpOccurred: advance.levelUpOccurred,
+          previousLevel: advance.previousLevel,
+          newLevel: advance.newLevel,
+          unspentStatPoints: advance.updatedPlayerState.unspentStatPoints || 0,
+        };
+      }
+
+      resolution = {
+        actionDescription: playerActionText,
+        statId: undefined,
+        statModifier: 0,
+        diceRoll: 20,
+        diceType: 'd20',
+        environmentalModifier: 0,
+        totalScore: 20,
+        difficultyClass: 0,
+        outcome: 'success' as const,
+        consequenceSummary: 'Progresses along the authored story path.',
+        stateDiff,
+        ...(progressionResult ? { progression: progressionResult } : {}),
+      };
+    } else {
+      resolution = GameEngine.resolveActionCheck(
+        playerActionText,
+        playerState,
+        story.rpgSystem,
+        {
+          statId,
+          riskLevel,
+          targetDC,
+          forcedDiceRoll: typeof forcedDiceRoll === 'number' ? forcedDiceRoll : undefined,
+          // Plan 13: world context for hazard displacement + threat clocks.
+          worldBible: story.worldBible,
+          currentLocationId: playerState.currentLocationId,
+          activeClocks: playerState.activeTensionClocks,
         }
-      : GameEngine.resolveActionCheck(
-          playerActionText,
-          playerState,
-          story.rpgSystem,
-          {
-            statId,
-            riskLevel,
-            targetDC,
-            forcedDiceRoll: typeof forcedDiceRoll === 'number' ? forcedDiceRoll : undefined,
-            // Plan 13: world context for hazard displacement + threat clocks.
-            worldBible: story.worldBible,
-            currentLocationId: playerState.currentLocationId,
-            activeClocks: playerState.activeTensionClocks,
-          }
-        );
+      );
+    }
 
     // 2b. Deterministic pressure revelation: coercion vs breaking point.
     // A cracked secret lands in knownSecrets (so the anti-leak validator
@@ -663,6 +689,7 @@ export async function POST(req: NextRequest) {
             proseFindings: proseFindings.length ? proseFindings : undefined,
             proseRepaired: proseRepaired || undefined,
           },
+          progression: resolution.progression || undefined,
           updatedPlayerState,
           sagaLedger: nextLedger,
           activeChapterId: activeChapter?.id ?? null,

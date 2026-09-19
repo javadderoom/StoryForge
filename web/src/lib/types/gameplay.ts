@@ -88,6 +88,24 @@ export interface PlayerState {
   discoveredCreatureIds?: string[];
   /** Modular World Encounter IDs triggered and resolved during this playthrough */
   completedEncounterIds?: string[];
+  /** Current progression level (starts at 1) */
+  level?: number;
+  /** Current XP progress towards next level */
+  currentXP?: number;
+  /** XP required to reach the next level */
+  nextLevelXP?: number;
+  /** Total lifetime XP accumulated across all levels */
+  totalEarnedXP?: number;
+  /** Stat points available to allocate by the player */
+  unspentStatPoints?: number;
+  /** Ability/feat selection points available */
+  unspentAbilityPicks?: number;
+}
+
+export interface LevelUpRewardPayload {
+  sessionId: string;
+  statAllocations: Record<string, number>;
+  chosenAbilityId?: string;
 }
 
 export interface StateMutationDiff {
@@ -111,6 +129,14 @@ export interface StateMutationDiff {
   powerMasteryChanges?: Record<string, number>;
   /** Modular World Encounter triggered in this turn */
   triggeredEncounterId?: string;
+  /** Experience points gained during this turn */
+  xpGained?: number;
+  /** Level delta from this turn */
+  levelDelta?: number;
+  /** Stat points gained from level up */
+  statPointsDelta?: number;
+  /** Ability pick points gained from level up */
+  abilityPicksDelta?: number;
 }
 
 
@@ -133,6 +159,16 @@ export interface CheckResolution {
     newSegments: number;
     maxSegments: number;
     isCrisis: boolean;
+  };
+  /** Progression XP and level up metadata for client celebrations */
+  progression?: {
+    xpAwarded: number;
+    reasonEn?: string;
+    reasonFa?: string;
+    levelUpOccurred: boolean;
+    previousLevel: number;
+    newLevel: number;
+    unspentStatPoints: number;
   };
 }
 

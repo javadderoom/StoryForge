@@ -19,6 +19,8 @@ import {
 } from './threatClock';
 import { STAT_CANONICAL_ALIASES } from '@/lib/engines/world/ActionNormalizer';
 import { evaluatePassiveAbilities } from './passiveAbilities';
+import { calculateActionXp, applyXpGain } from './progressionEngine';
+import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
 
 export interface RevealCheckContext {
   trust?: number;
@@ -1275,6 +1277,36 @@ export class GameEngine {
       consequenceSummary += ` [${tag}]`;
     }
 
+    // ------------------------------------------------------------------
+    // Progression & Action XP Calculation
+    // ------------------------------------------------------------------
+    let progressionResult: CheckResolution['progression'] | undefined;
+    const progConfig = rpgSystem?.progression ?? DEFAULT_PROGRESSION_CONFIG;
+    if (progConfig.enabled !== false) {
+      const xpAward = calculateActionXp(
+        {
+          riskLevel: options.riskLevel || 'medium',
+          outcome,
+          diceRoll: roll,
+        },
+        progConfig
+      );
+
+      stateDiff.xpGained = xpAward.amount;
+
+      // Predict level advancement for client celebration
+      const advance = applyXpGain(playerState, xpAward.amount, progConfig, rpgSystem);
+      progressionResult = {
+        xpAwarded: xpAward.amount,
+        reasonEn: xpAward.reasonEn,
+        reasonFa: xpAward.reasonFa,
+        levelUpOccurred: advance.levelUpOccurred,
+        previousLevel: advance.previousLevel,
+        newLevel: advance.newLevel,
+        unspentStatPoints: advance.updatedPlayerState.unspentStatPoints || 0,
+      };
+    }
+
     return {
       actionDescription: actionText,
       statId: effectiveStatId,
@@ -1289,6 +1321,7 @@ export class GameEngine {
       stateDiff,
       ...(displacedLocationId ? { displacedLocationId } : {}),
       ...(clockUpdate ? { clockUpdate } : {}),
+      ...(progressionResult ? { progression: progressionResult } : {}),
     };
   }
 
@@ -1481,6 +1514,22 @@ export class GameEngine {
       if (!updated.completedEncounterIds) updated.completedEncounterIds = [];
       if (!updated.completedEncounterIds.includes(diff.triggeredEncounterId)) {
         updated.completedEncounterIds.push(diff.triggeredEncounterId);
+      }
+    }
+
+    // 11. Apply Progression / XP Gain
+    if (diff.xpGained && diff.xpGained > 0) {
+      const progConfig = rpgSystem?.progression ?? DEFAULT_PROGRESSION_CONFIG;
+      const advance = applyXpGain(updated, diff.xpGained, progConfig, rpgSystem);
+      updated.level = advance.updatedPlayerState.level;
+      updated.currentXP = advance.updatedPlayerState.currentXP;
+      updated.nextLevelXP = advance.updatedPlayerState.nextLevelXP;
+      updated.totalEarnedXP = advance.updatedPlayerState.totalEarnedXP;
+      updated.unspentStatPoints = advance.updatedPlayerState.unspentStatPoints;
+      updated.unspentAbilityPicks = advance.updatedPlayerState.unspentAbilityPicks;
+      if (advance.levelUpOccurred && advance.updatedPlayerState.maxResources) {
+        updated.maxResources = advance.updatedPlayerState.maxResources;
+        updated.resources = advance.updatedPlayerState.resources;
       }
     }
 

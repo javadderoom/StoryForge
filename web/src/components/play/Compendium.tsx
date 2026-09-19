@@ -25,6 +25,7 @@ interface CompendiumProps {
   theme: RealmTheme;
   isPersian?: boolean;
   onInventoryChange: (newState: PlayerState, toast?: { kind: 'success' | 'warning' | 'info'; text: string }) => void;
+  onOpenLevelUp?: () => void;
 }
 
 const TABS = (isPersian: boolean) =>
@@ -57,6 +58,7 @@ export function Compendium({
   theme,
   isPersian = false,
   onInventoryChange,
+  onOpenLevelUp,
 }: CompendiumProps) {
   const [tab, setTab] = useState(0);
   const [detailItem, setDetailItem] = useState<string | null>(null);
@@ -134,6 +136,59 @@ export function Compendium({
                     </div>
                   </div>
                 </div>
+
+                {/* Level & XP Progression Card */}
+                {(() => {
+                  const level = playerState.level ?? 1;
+                  const curXp = playerState.currentXP ?? 0;
+                  const nextXp = playerState.nextLevelXP ?? (100 * level);
+                  const pct = Math.min(100, Math.max(0, Math.round((curXp / Math.max(1, nextXp)) * 100)));
+                  const unspentStats = playerState.unspentStatPoints ?? 0;
+                  const unspentAbilities = playerState.unspentAbilityPicks ?? 0;
+
+                  return (
+                    <div className="mt-4 pt-3 border-t border-zinc-800/80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-400 font-bold text-xs border border-emerald-500/30">
+                            {isPersian ? `سطح ${toPersianDigits(level)}` : `Level ${level}`}
+                          </span>
+                          {(unspentStats > 0 || unspentAbilities > 0) && (
+                            <button
+                              onClick={() => {
+                                onClose();
+                                onOpenLevelUp?.();
+                              }}
+                              className="px-2.5 py-0.5 rounded-lg bg-amber-500/25 text-amber-300 hover:bg-amber-500/40 transition-colors font-semibold text-[11px] animate-pulse border border-amber-500/40 flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>✨</span>
+                              <span>
+                                {isPersian
+                                  ? `${toPersianDigits(unspentStats)} امتیاز ارتقا (کلیک برای تخصیص)`
+                                  : `${unspentStats} unspent points (Spend)`}
+                              </span>
+                            </button>
+                          )}
+                        </div>
+                        <div className="text-xs font-mono text-zinc-400" dir="ltr">
+                          <span className="text-emerald-400 font-bold">{toPersianDigits(curXp)}</span> / {toPersianDigits(nextXp)} XP
+                        </div>
+                      </div>
+
+                      {/* XP Progress Bar */}
+                      <div className="relative h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                        <div
+                          className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-emerald-500 to-teal-400"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-zinc-500">
+                        <span>{isPersian ? 'پیشرفت تراز' : 'Progress'}</span>
+                        <span dir="ltr">{pct}%</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Resources */}

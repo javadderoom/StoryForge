@@ -14,6 +14,7 @@ import {
   Users,
   Dices,
   BookOpen,
+  TrendingUp,
 } from 'lucide-react';
 import {
   RpgRulesSettingsCard,
@@ -23,10 +24,11 @@ import {
   ArchetypesSection,
   BackgroundsSection,
   AbilitiesSection,
+  ProgressionSection,
   RpgSynthesisModal,
 } from '@/components/studio/rpg';
 
-type RpgSubTab = 'core' | 'abilities' | 'genesis';
+type RpgSubTab = 'core' | 'abilities' | 'genesis' | 'progression';
 
 export default function RpgMechanicsPage() {
   const { story, isPersian, updateRpgSystem } = useStudioStory();
@@ -210,6 +212,21 @@ export default function RpgMechanicsPage() {
               {archetypesCount + backgroundsCount}
             </span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('progression')}
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'progression'
+                ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-lg shadow-emerald-500/5'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+            }`}
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span>{isPersian ? '۴. پیشرفت، تراز و تجربه' : '4. Progression & Leveling'}</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-zinc-800/80 text-zinc-300">
+              {story.rpgSystem.progression?.enabled !== false ? 'Active' : 'Off'}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -284,6 +301,17 @@ export default function RpgMechanicsPage() {
             stats={story.rpgSystem.stats || []}
             resources={story.rpgSystem.resources || []}
             currencySystem={story.rpgSystem.currencySystem}
+            isPersian={isPersian}
+            updateRpgSystem={updateRpgSystem}
+          />
+        </div>
+      )}
+
+      {/* Tab 4: Progression & Leveling (XP, Stats, Level-Up) */}
+      {activeTab === 'progression' && (
+        <div className="space-y-6 animate-fadeIn">
+          <ProgressionSection
+            story={story}
             isPersian={isPersian}
             updateRpgSystem={updateRpgSystem}
           />

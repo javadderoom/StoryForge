@@ -187,6 +187,60 @@ export interface CharacterSetupPayload {
   characterName?: string;
 }
 
+export type ProgressionCurveType = 'standard' | 'linear' | 'fast' | 'custom';
+export type AbilityUnlockCadence = 'every_level' | 'every_two_levels' | 'milestones_only';
+
+export interface ActionXpConfig {
+  lowRisk: number;
+  mediumRisk: number;
+  highRisk: number;
+  criticalBonus: number;
+  partialSuccessMultiplier: number;
+  failureMultiplier: number;
+  creaturePerDangerLevel: number;
+}
+
+export interface MilestoneXpConfig {
+  questCompleted: number;
+  chapterCompleted: number;
+  discovery: number;
+}
+
+export interface ProgressionConfig {
+  enabled: boolean;
+  maxLevel: number;
+  curveType: ProgressionCurveType;
+  customThresholds?: number[];
+  statPointsPerLevel: number;
+  abilityUnlockCadence: AbilityUnlockCadence;
+  actionXp: ActionXpConfig;
+  milestoneXp: MilestoneXpConfig;
+  healOnLevelUp: boolean;
+}
+
+export const DEFAULT_PROGRESSION_CONFIG: ProgressionConfig = {
+  enabled: true,
+  maxLevel: 10,
+  curveType: 'standard',
+  statPointsPerLevel: 1,
+  abilityUnlockCadence: 'every_two_levels',
+  actionXp: {
+    lowRisk: 10,
+    mediumRisk: 25,
+    highRisk: 50,
+    criticalBonus: 25,
+    partialSuccessMultiplier: 0.5,
+    failureMultiplier: 0.2,
+    creaturePerDangerLevel: 20,
+  },
+  milestoneXp: {
+    questCompleted: 100,
+    chapterCompleted: 250,
+    discovery: 50,
+  },
+  healOnLevelUp: true,
+};
+
 export interface RPGSystemSchema {
   hasCombat: boolean;
   diceType: 'd20' | '2d6' | 'd100';
@@ -201,6 +255,7 @@ export interface RPGSystemSchema {
   currencySystem?: CurrencySystem;
   archetypes?: ArchetypeDefinition[];
   backgrounds?: BackgroundOriginDefinition[];
+  progression?: ProgressionConfig;
 }
 
 export const StatDefinitionSchema = z.object({
@@ -288,6 +343,46 @@ export const AbilityDefinitionSchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 
+export const ProgressionConfigSchema = z.object({
+  enabled: z.boolean().default(true),
+  maxLevel: z.number().int().min(1).max(100).default(10),
+  curveType: z.enum(['standard', 'linear', 'fast', 'custom']).default('standard'),
+  customThresholds: z.array(z.number().int().nonnegative()).optional(),
+  statPointsPerLevel: z.number().int().min(0).max(10).default(1),
+  abilityUnlockCadence: z.enum(['every_level', 'every_two_levels', 'milestones_only']).default('every_two_levels'),
+  actionXp: z
+    .object({
+      lowRisk: z.number().nonnegative().default(10),
+      mediumRisk: z.number().nonnegative().default(25),
+      highRisk: z.number().nonnegative().default(50),
+      criticalBonus: z.number().nonnegative().default(25),
+      partialSuccessMultiplier: z.number().min(0).max(1).default(0.5),
+      failureMultiplier: z.number().min(0).max(1).default(0.2),
+      creaturePerDangerLevel: z.number().nonnegative().default(20),
+    })
+    .default({
+      lowRisk: 10,
+      mediumRisk: 25,
+      highRisk: 50,
+      criticalBonus: 25,
+      partialSuccessMultiplier: 0.5,
+      failureMultiplier: 0.2,
+      creaturePerDangerLevel: 20,
+    }),
+  milestoneXp: z
+    .object({
+      questCompleted: z.number().nonnegative().default(100),
+      chapterCompleted: z.number().nonnegative().default(250),
+      discovery: z.number().nonnegative().default(50),
+    })
+    .default({
+      questCompleted: 100,
+      chapterCompleted: 250,
+      discovery: 50,
+    }),
+  healOnLevelUp: z.boolean().default(true),
+});
+
 export const RPGSystemSchemaValidator = z.object({
   hasCombat: z.boolean().default(true),
   diceType: z.enum(['d20', '2d6', 'd100']).default('d20'),
@@ -300,4 +395,5 @@ export const RPGSystemSchemaValidator = z.object({
   inventoryCapacity: z.number().int().default(12),
   currency: CurrencySystemSchema.optional(),
   currencySystem: CurrencySystemSchema.optional(),
+  progression: ProgressionConfigSchema.optional(),
 });
