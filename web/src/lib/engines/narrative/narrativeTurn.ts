@@ -66,6 +66,7 @@ export interface SceneAiResponse {
   narrative: string;
   choices: any[];
   extractedMemories: any[];
+  encounteredCreatureId?: string;
   isMock?: boolean;
 }
 

@@ -218,7 +218,7 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
 - TARGET FIDELITY & NO TELEPORTING NPCS: If the player acts toward generic guards, sentries, gates, or obstacles, do NOT substitute a named commander or unintroduced off-scene NPC as the immediate responder. Address only the actual recipient of the action.
 - PHYSICAL ENVIRONMENT CONTINUITY: Only depict physical elements, obstacles, and props that exist in the scene. Do NOT hallucinate unmentioned physical objects (e.g., piled cargo, baggage wagons, caravan inspections) out of nowhere unless explicitly introduced by story prose or player action.
 - SINGLE DRAMATIC FOCUS (NO THREAT STACKING): Maintain a single, cohesive source of dramatic conflict per turn. When a check fails or complications escalate, escalate ONE primary threat (e.g., either an encountered creature OR a patrolling sentry), rather than piling multiple uncoordinated antagonists into the same instant. Never depict an NPC completely oblivious to a giant predator coiling in front of them!
-- BESTIARY GROUNDING & VISCERAL TRAITS: When introducing wild beasts, predators, or monstrosities, you MUST draw from the [BESTIARY & CREATURES] section and depict their specific authored physical features, secretions, and behaviors, rather than inventing generic fantasy tropes.
+- BESTIARY GROUNDING & VISCERAL TRAITS: When introducing wild beasts, predators, or monstrosities, you MUST draw from the [BESTIARY & CREATURES] section and depict their specific authored physical features, secretions, and behaviors. Integrate the creature naturally through direct sensory prose (scale patterns, sounds, colors, predatory motion); do not awkwardly put its formal taxonomy name in quotation marks (the game UI automatically renders its Bestiary Discovery Card).
 - COMPREHENSIVE CHOICE COVERAGE: The generated choices MUST directly address the active demands, ultimatums, or physical hazards presented at the end of the prose (e.g., if an adversary orders the protagonist to back away or face violence, choices must provide direct responses such as compliance, de-escalation, deception, cover, or counter-resistance).
 - ITEM ROLE FIDELITY & NO ABSURD MISUSE: Equipped gear, relics, talismans, and artifacts must ONLY be referenced or offered in choices according to their true authored nature and powers (e.g. a desert survival bead, talisman, or sacred relic is NOT a throwaway pebble to toss into mud as a diversion, nor a random fidget prop to touch while talking). Permanent and non-consumable items must NEVER be used as disposable projectiles or distractions!
 - Preserve present participants, their positions, and unresolved threats from recent prose. Do not silently remove opposition or treat a brief opening as a fully secured scene.
@@ -243,6 +243,7 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 - TARGET FIDELITY: Depict the reaction of the EXACT entity targeted by the action (e.g. the closed gate, the wall, or the specific sentry). Do NOT invent or substitute an unintroduced commander or off-scene NPC as the face-to-face responder!
 - SINGLE DRAMATIC CONFLICT: Escalate one focused conflict or obstacle per turn. Do not spawn multiple uncoordinated crises simultaneously.
 - CONVERSATIONAL ACTIONS: If the player spoke, asked, greeted, questioned, or negotiated with someone, the scene MUST feature direct spoken dialogue ("...") from the protagonist and a personal, direct reply or confrontation from the targeted NPC. Never reduce the player's speech to silence or generic ambient crowd noise!
+- SENSORY BESTIARY DEPICTION: When wild beasts or monstrosities appear, describe their physical traits, coloration, and predatory movements viscerally. Avoid putting formal taxonomy names in awkward quotes in the prose (the game UI renders a dedicated Bestiary Discovery card for the player).
 - ITEM ROLE FIDELITY: Equipped relics, talismans, and artifacts must be treated with appropriate weight according to their authored powers and slot. Never treat sacred relics or survival talismans as disposable diversion pebbles or casual conversational fidget props.
 - NO FLOATING CAMERA SYNDROME: Do NOT open with detached panoramic scenery (weather, distant campfires, tobacco smoke) that ignores what the protagonist just did or said. Action and immediate reaction come first!
 ${statsDirective}
@@ -254,6 +255,7 @@ ${continuityDirective}
 You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "Visceral, atmospheric next scene prose in English...",
+  "encounteredCreatureId": null, // If a beast/creature from [BESTIARY & CREATURES] is encountered or featured in this scene, put its ID (or name) here; otherwise null
   "choices": [
     { "id": "choice_1", "text": "Carefully inspect the masonry around the threshold for a hidden lever or latch", "style": "inquisitive", "riskLevel": "low" },
     { "id": "choice_2", "text": "Quietly draw the dagger and step behind the granite pillar", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
@@ -278,6 +280,7 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 - پیوستگی محیطی: از ابداع موانع یا وسایل فیزیکیِ ذکرنشده (مانند بارهای انباشته‌شده یا کاروان‌ها) خودداری کن، مگر اینکه در متن صحنه‌های قبلی صراحتاً آمده باشند.
 - اقدامات گفتاری و پرسش: اگر بازیکن سخنی گفت، سؤالی پرسید، سلام کرد یا با کسی وارد مذاکره شد، صحنه حتماً باید شامل دیالوگ مستقیم با علامت «...» باشد که به شکل شخصی و مستقیم به خودِ بازیکن پاسخ می‌دهد (یا با کلام و یا با تهدید/برخورد فیزیکی مشخص). هرگز دیالوگ بازیکن را بی‌پاسخ نگذار و آن را به فریادهای نامربوط در پس‌زمینه تبدیل نکن!
 - وفاداری به ماهیت آیتم‌ها و ابزارها (Item Role Fidelity): تجهیزات، یادگارها و طلسم‌های همراه قهرمان باید دقیقاً مطابق با ماهیت و کارکرد تعریف‌شده‌شان استفاده شوند. هرگز یادگارهای باستانی، نمادها یا مهره‌های مقدس و دائمی (مانند دافع عطش و سراب) را به عنوان سنگریزه برای پرتاب و انحراف حواس دشمن، یا فیجت و بازیچهٔ دست در حین صحبت به کار نبر! آیتم‌های دائمی و غیرمصرفی هرگز نباید به عنوان اشیاء پرتابی تلف شوند.
+- توصیف حسی و طبیعی موجودات (Sensory Bestiary Depiction): هنگام رویارویی با جانوران یا هیولاها، ویژگی‌های عینی، فلس‌ها، صدا و حرکات هولناک آن‌ها را به شکل زنده توصیف کن، اما از گذاشتن نام رسمی کتابچه در داخل گیومه مثل «افعی رسوبی» در متن خودداری کن؛ واسط کاربری بازی خود کارت شناسایی و کشف موجود را نمایش می‌دهد. در گزینه‌ها نیز به شکل طبیعی به آن اشاره کن (مثلاً «خزنده»، «مار»، یا «درنده»).
 - منع زاویه دید دوربین معلق: صحنه را با توصیفات کلی و منفعلانه از منظره و دود و آتش‌های دوردست شروع نکن که عمل مشخصِ بازیکن در آن نادیده گرفته شود. اقدام و واکنش در اولویت اول هستند!
 ${statsDirective}
 ${dialogueDirective}
@@ -288,6 +291,7 @@ ${continuityDirective}
 You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "متن ادبی و فضاسازی صحنه بعدی...",
+  "encounteredCreatureId": null, // در صورت رویارویی با موجودی از بخش فهرست موجودات، شناسه یا نام آن را در اینجا قرار دهید؛ در غیر این صورت null
   "choices": [
     { "id": "choice_1", "text": "بررسی دقیق نقش‌ونگارهای روی سنگِ درگاه برای یافتن روزنه یا نشانه‌ای پنهان", "style": "inquisitive", "riskLevel": "low" },
     { "id": "choice_2", "text": "کشیدن بی‌صدای خنجر و پناه گرفتن پشت ستون سنگی", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }

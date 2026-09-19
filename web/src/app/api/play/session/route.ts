@@ -541,6 +541,7 @@ export async function POST(req: NextRequest) {
       equipment: startingEquipment,
       abilities: initialAbilities.length > 0 ? initialAbilities : undefined,
       discoveredLocationIds: initialBeat.locationId ? [initialBeat.locationId] : [],
+      discoveredCreatureIds: [],
       relationships: initialRelationships,
       activeQuestIds: ['quest_prologue'],
       completedQuestIds: [],

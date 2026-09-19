@@ -432,9 +432,10 @@ export function buildWorldContextBlocks(
       const descSnippet = c.loreDescription
         ? ` — Description: ${c.loreDescription.replace(/\s+/g, ' ').slice(0, 160)}...`
         : '';
-      return `${c.name} (danger ${c.dangerLevel}, ${c.speciesCategory}${c.isDomesticated ? ', domesticated' : ''})${descSnippet} | habitat: ${
-        c.habitatLocationIds.join('/') || 'unknown'
-      } | weakness: ${c.weaknesses.join(', ') || 'unknown'}`;
+      const idTag = c.id ? ` [ID: ${c.id}]` : '';
+      return `${c.name}${idTag} (danger ${c.dangerLevel}, ${c.speciesCategory}${c.isDomesticated ? ', domesticated' : ''})${descSnippet} | habitat: ${
+        c.habitatLocationIds?.join('/') || 'unknown'
+      } | weakness: ${c.weaknesses?.join(', ') || 'unknown'}`;
     }),
     caps.bestiary
   );

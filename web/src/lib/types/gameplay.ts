@@ -84,6 +84,8 @@ export interface PlayerState {
   powerRanks?: Record<string, number>;
   /** Accumulated mastery/cultivation points per school (schoolId -> points) */
   powerSchoolMastery?: Record<string, number>;
+  /** Discovered creature / beast species IDs encountered during playthrough */
+  discoveredCreatureIds?: string[];
 }
 
 export interface StateMutationDiff {
@@ -141,6 +143,8 @@ export interface TurnBeat {
   chapterNumber?: number;
   imageUrl?: string;
   timestamp: number;
+  /** Bestiary creature discovered for the first time in this turn (triggers Spotlight Card) */
+  discoveredCreature?: any;
 }
 
 export interface PlaythroughSession {

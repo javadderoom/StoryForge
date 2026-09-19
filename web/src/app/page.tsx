@@ -28,6 +28,7 @@ import { GameLoadingScreen } from '@/components/play/GameLoadingScreen';
 import { Compendium } from '@/components/play/Compendium';
 import { AtmosphereCanvas } from '@/components/play/AtmosphereCanvas';
 import { NarrativeProse } from '@/components/play/NarrativeProse';
+import { CreatureDiscoveryCard } from '@/components/play/CreatureDiscoveryCard';
 import { ThreeDChoiceCard } from '@/components/play/ThreeDChoiceCard';
 import { TensionClockWidget } from '@/components/play/TensionClockWidget';
 import { preloadD20 } from '@/lib/play/diceAssetCache';
@@ -112,7 +113,7 @@ export default function Home() {
   const [playerState, setPlayerState] = useState<any>(null);
   const [storyMeta, setStoryMeta] = useState<{ id: string; title: string; language: string; rpgSystem: any } | null>(null);
   const [lore, setLore] = useState<{ laws: any[]; locations: { id: string; name: string }[]; npcs: { id: string; name: string }[] }>({ laws: [], locations: [], npcs: [] });
-  const [currentBeat, setCurrentBeat] = useState<{ narrative: string; choices: any[] } | null>(null);
+  const [currentBeat, setCurrentBeat] = useState<{ narrative: string; choices: any[]; discoveredCreature?: any } | null>(null);
   const [turnNumber, setTurnNumber] = useState<number>(1);
   const [freeTextAction, setFreeTextAction] = useState('');
   const [loading, setLoading] = useState(false);
@@ -445,6 +446,7 @@ export default function Home() {
         setCurrentBeat({
           narrative: json.data.beat.narrativeProse,
           choices: json.data.beat.presentedChoices,
+          discoveredCreature: json.data.beat.discoveredCreature,
         });
         setPlayerState(json.data.updatedPlayerState);
         setTurnNumber(nextTurn);
@@ -528,6 +530,7 @@ export default function Home() {
         setCurrentBeat({
           narrative: json.data.beat.narrativeProse,
           choices: json.data.beat.presentedChoices,
+          discoveredCreature: json.data.beat.discoveredCreature,
         });
         setPlayerState(json.data.updatedPlayerState);
         setTurnNumber(nextTurn);
@@ -570,7 +573,11 @@ export default function Home() {
       setIsGeneratingBeat(false);
       return;
     }
-    setCurrentBeat({ narrative: pendingTurn.beat.narrativeProse, choices: pendingTurn.beat.presentedChoices });
+    setCurrentBeat({
+      narrative: pendingTurn.beat.narrativeProse,
+      choices: pendingTurn.beat.presentedChoices,
+      discoveredCreature: pendingTurn.beat.discoveredCreature,
+    });
     setPlayerState(pendingTurn.updatedPlayerState);
     showDisplacementBanner(pendingTurn, lore.locations);
     setTurnNumber((t) => t + 1);
@@ -942,6 +949,15 @@ export default function Home() {
                       fontSizeClass={fontSizeClass[settings.fontSize]}
                       lineHeightClass={lineHeightClass[settings.lineHeight]}
                     />
+
+                    {currentBeat?.discoveredCreature && (
+                      <CreatureDiscoveryCard
+                        creature={currentBeat.discoveredCreature}
+                        isRtl={isRtl}
+                        accentColor={themeObj.primaryAccent}
+                        cardBorder={themeObj.cardBorder}
+                      />
+                    )}
                   </div>
                 )}
               </div>

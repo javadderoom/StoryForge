@@ -523,6 +523,68 @@ export async function POST(req: NextRequest) {
       story.initialStoryBeats?.find((b) => b.sceneId === beatSceneId) ||
       activeChapter?.scenes?.find((s) => s.sceneId === beatSceneId);
 
+    // Bestiary Creature Discovery Tracking
+    const bestiary: any[] = story.worldBible?.bestiary || [];
+    const discoveredIds = new Set(updatedPlayerState.discoveredCreatureIds || []);
+    let firstDiscoveredCreature: any = undefined;
+
+    const normalizeTextForMatching = (text: string): string =>
+      (text || '')
+        .replace(/[\u200c\u200b\u200d]/g, ' ')
+        .replace(/[\u064B-\u065F\u0670]/g, '')
+        .replace(/[«»"'`]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+
+    // 1. Check direct model-provided encounteredCreatureId
+    if (aiResponse.encounteredCreatureId) {
+      const target = normalizeTextForMatching(aiResponse.encounteredCreatureId);
+      const match = bestiary.find(
+        (c) =>
+          c.id === aiResponse.encounteredCreatureId ||
+          c.name === aiResponse.encounteredCreatureId ||
+          normalizeTextForMatching(c.name) === target ||
+          normalizeTextForMatching(c.id) === target
+      );
+      if (match && !discoveredIds.has(match.id)) {
+        discoveredIds.add(match.id);
+        firstDiscoveredCreature = match;
+      }
+    }
+
+    // 2. Fallback to normalized text & species keyword matching across narrative and choices
+    if (!firstDiscoveredCreature) {
+      const normalizedNarrative = normalizeTextForMatching(aiResponse.narrative);
+      const normalizedChoices = (aiResponse.choices || []).map((c: any) => normalizeTextForMatching(c.text)).join(' ');
+
+      for (const creature of bestiary) {
+        if (!creature.name) continue;
+        const normalizedName = normalizeTextForMatching(creature.name);
+        if (!normalizedName) continue;
+
+        const fullNameMatched =
+          normalizedNarrative.includes(normalizedName) || normalizedChoices.includes(normalizedName);
+
+        const keywords = normalizedName.split(' ').filter((w) => w.length >= 4);
+        const keywordMatched =
+          keywords.length > 0 &&
+          keywords.some((kw) => normalizedNarrative.includes(kw) || normalizedChoices.includes(kw));
+
+        if (fullNameMatched || keywordMatched) {
+          if (!discoveredIds.has(creature.id)) {
+            discoveredIds.add(creature.id);
+            firstDiscoveredCreature = creature;
+          }
+          break;
+        }
+      }
+    }
+
+    if (firstDiscoveredCreature) {
+      updatedPlayerState.discoveredCreatureIds = Array.from(discoveredIds);
+    }
+
     const newBeat: TurnBeat = {
       turnNumber,
       sceneId: beatSceneId,
@@ -533,6 +595,7 @@ export async function POST(req: NextRequest) {
       presentedChoices: aiResponse.choices,
       chapterNumber: activeChapter?.chapterNumber,
       imageUrl: matchedAuthoredBeat?.imageUrl,
+      discoveredCreature: firstDiscoveredCreature,
       timestamp: Date.now(),
     };
 

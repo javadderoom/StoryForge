@@ -21,6 +21,7 @@ export interface GeneratedSceneResponse {
   narrative: string;
   choices: ChoiceOption[];
   extractedMemories: ExtractedMemory[];
+  encounteredCreatureId?: string;
   /**
    * Plan 08: true when this response came from the offline mock generator
    * (no API key configured, or the API call failed). Mock prose must NEVER be
@@ -376,6 +377,10 @@ export class GeminiAdapter {
           prompt.statIdAliases
         ),
         extractedMemories: normalizeExtractedMemories(parsed.extractedMemories),
+        encounteredCreatureId:
+          typeof parsed.encounteredCreatureId === 'string'
+            ? parsed.encounteredCreatureId.trim()
+            : undefined,
         isMock: false,
       },
     };
