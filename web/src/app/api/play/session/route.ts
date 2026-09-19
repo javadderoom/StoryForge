@@ -121,14 +121,20 @@ async function generateOpeningChoices(
     const activeChapter = story.saga?.chapters?.[0];
 
     const activeNpcDossiers: WorkingContextEnvelope['activeNpcDossiers'] = activeNPCs.map(
-      (n: any) => ({
-        id: n.id,
-        name: n.name,
-        trust: n.initialTrust ?? 0,
-        knownSecrets: [],
-        speechStyle: n.speechStyle || 'neutral',
-        vitalsLine: formatNpcCombatSummary(n) || undefined,
-      })
+      (n: any) => {
+        const isMentionedInProse = [String(beat.narrativeText || '')].some(
+          (s) => s.includes(n.name) || (n.title && s.includes(n.title))
+        );
+        return {
+          id: n.id,
+          name: n.name,
+          trust: n.initialTrust ?? 0,
+          knownSecrets: [],
+          speechStyle: n.speechStyle || 'neutral',
+          vitalsLine: formatNpcCombatSummary(n) || undefined,
+          presenceStatus: isMentionedInProse ? ('present' as const) : ('nearby_resident' as const),
+        };
+      }
     );
 
     const context: WorkingContextEnvelope = {

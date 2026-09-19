@@ -37,6 +37,8 @@ export interface WorkingContextEnvelope {
     vitalsLine?: string;
     /** Compact power school ranking line (e.g. "Rank 3 in Hiram Sandblade") */
     powerAffiliationLine?: string;
+    /** Presence state: 'present' if actively mentioned in recent scene prose, 'nearby_resident' if residing at location but not yet in immediate scene */
+    presenceStatus?: 'present' | 'nearby_resident';
   }>;
   relevantMemories: Array<{
     category: MemoryCategory;

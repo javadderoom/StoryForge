@@ -113,4 +113,39 @@ describe('PromptAssembler - expanded world context', () => {
     assert.ok(!userPrompt.includes('FACTIONS & POWER BLOCS'));
     assert.ok(!userPrompt.includes('WORLD SUMMARY'));
   });
+
+  it('tags present and nearby_resident NPCs with appropriate directives (EN + FA)', () => {
+    const dossiers = [
+      {
+        name: 'Commander Vandad',
+        trust: 0,
+        knownSecrets: [],
+        speechStyle: 'Authoritative',
+        presenceStatus: 'nearby_resident' as const,
+      },
+      {
+        name: 'Gate Sentry',
+        trust: 0,
+        knownSecrets: [],
+        speechStyle: 'Gruff',
+        presenceStatus: 'present' as const,
+      },
+    ];
+
+    const en = PromptAssembler.buildNarrativePrompt(makeEnvelope({ activeNpcDossiers: dossiers }));
+    assert.ok(en.userPrompt.includes('Commander Vandad [STATIONED AT LOCATION — NOT currently in this immediate scene]'));
+    assert.ok(en.userPrompt.includes('Gate Sentry [PRESENT IN SCENE]'));
+    assert.ok(en.userPrompt.includes('DIRECTIVE ON NPC PRESENCE'));
+    assert.ok(en.systemPrompt.includes('TARGET FIDELITY'));
+    assert.ok(en.systemPrompt.includes('PHYSICAL ENVIRONMENT CONTINUITY'));
+
+    const fa = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({ languageDirective: 'fa', activeNpcDossiers: dossiers })
+    );
+    assert.ok(fa.userPrompt.includes('Commander Vandad [مستقر در این پایگاه/مکان — هنوز در صحنه حاضر نیست]'));
+    assert.ok(fa.userPrompt.includes('Gate Sentry [حاضر در صحنه]'));
+    assert.ok(fa.userPrompt.includes('دستور حضور شخصیت‌ها'));
+    assert.ok(fa.systemPrompt.includes('وفاداری به هدف اقدام (Target Fidelity)'));
+    assert.ok(fa.systemPrompt.includes('پیوستگی محیطی'));
+  });
 });

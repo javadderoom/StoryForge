@@ -204,6 +204,9 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
         });
         powerAffiliationLine = parts.join(' • ');
       }
+      const isMentionedInProse = recentSceneSnippets.some(
+        (s) => s.includes(npc.name) || (npc.title && s.includes(npc.title))
+      );
       return {
         name: npc.name,
         trust:
@@ -217,6 +220,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
           : npc.speechStyle,
         vitalsLine: formatNpcCombatSummary(npc) || undefined,
         powerAffiliationLine,
+        presenceStatus: isMentionedInProse ? ('present' as const) : ('nearby_resident' as const),
       };
     }),
     relevantMemories,

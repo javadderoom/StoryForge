@@ -210,6 +210,8 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
 
     const continuityDirective = `[SCENE CONTINUITY & CHOICE PREMISES]
 - Resolve only the player's stated action against its actual target. Success does not authorize unrelated victories, confessions, or extra player actions beyond the pre-resolved consequence.
+- TARGET FIDELITY & NO TELEPORTING NPCS: If the player acts toward generic guards, sentries, gates, or obstacles, do NOT substitute a named commander or unintroduced off-scene NPC as the immediate responder. Address only the actual recipient of the action.
+- PHYSICAL ENVIRONMENT CONTINUITY: Only depict physical elements, obstacles, and props that exist in the scene. Do NOT hallucinate unmentioned physical objects (e.g., piled cargo, baggage wagons, caravan inspections) out of nowhere unless explicitly introduced by story prose or player action.
 - Preserve present participants, their positions, and unresolved threats from recent prose. Do not silently remove opposition or treat a brief opening as a fully secured scene.
 - Track who can see and hear each action. When a pre-resolved consequence requires a revelation, stage its delivery plausibly and account for witnesses' reactions; do not invent privacy or let nearby adversaries ignore an audible confession.
 - Every choice must be possible at the end of this scene and grounded in facts the protagonist has actually learned. Do not invent profits, motives, ownership, accomplices, or available escape routes from a loosely related clue. Questions may investigate uncertainty, but must not present an unproven premise as fact.
@@ -229,6 +231,7 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 3. Keep the prose focused (between 200 and 350 words). Maintain narrative momentum and visceral tension.
 [CAUSE & EFFECT PRIORITY — IMMEDIATE ACTION RESPONSIVENESS]
 - The prose MUST open with or directly dramatize the protagonist performing the player's specific action and the immediate direct reaction of the world or target NPC.
+- TARGET FIDELITY: Depict the reaction of the EXACT entity targeted by the action (e.g. the closed gate, the wall, or the specific sentry). Do NOT invent or substitute an unintroduced commander or off-scene NPC as the face-to-face responder!
 - CONVERSATIONAL ACTIONS: If the player spoke, asked, greeted, questioned, or negotiated with someone, the scene MUST feature direct spoken dialogue ("...") from the protagonist and a personal, direct reply or confrontation from the targeted NPC. Never reduce the player's speech to silence or generic ambient crowd noise!
 - NO FLOATING CAMERA SYNDROME: Do NOT open with detached panoramic scenery (weather, distant campfires, tobacco smoke) that ignores what the protagonist just did or said. Action and immediate reaction come first!
 ${statsDirective}
@@ -259,6 +262,8 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 3. Keep the prose focused (between 200 and 350 words). Maintain narrative momentum and visceral tension.
 [اولویت علت و معلول — پاسخگویی مستقیم به اقدام بازیکن / CAUSE & EFFECT PRIORITY]
 - صحنه باید فوراً با نشان دادن خودِ کنش بازیکن و واکنش بلافاصلهٔ جهان یا شخصیت مقابل آغاز شود یا بر آن متمرکز باشد.
+- وفاداری به هدف اقدام (Target Fidelity): دقیقاً واکنش همان هدف، شخص یا مانعی که بازیکن مورد خطاب قرار داده یا بر آن اقدام کرده را نشان بده (مثلاً همان نگهبانان یا درِ بسته). هرگز یک فرمانده یا شخصیت غایب را که در صحنه نبوده ناگهان رو در روی بازیکن ظاهر نکن!
+- پیوستگی محیطی: از ابداع موانع یا وسایل فیزیکیِ ذکرنشده (مانند بارهای انباشته‌شده یا کاروان‌ها) خودداری کن، مگر اینکه در متن صحنه‌های قبلی صراحتاً آمده باشند.
 - اقدامات گفتاری و پرسش: اگر بازیکن سخنی گفت، سؤالی پرسید، سلام کرد یا با کسی وارد مذاکره شد، صحنه حتماً باید شامل دیالوگ مستقیم با علامت «...» باشد که به شکل شخصی و مستقیم به خودِ بازیکن پاسخ می‌دهد (یا با کلام و یا با تهدید/برخورد فیزیکی مشخص). هرگز دیالوگ بازیکن را بی‌پاسخ نگذار و آن را به فریادهای نامربوط در پس‌زمینه تبدیل نکن!
 - منع زاویه دید دوربین معلق: صحنه را با توصیفات کلی و منفعلانه از منظره و دود و آتش‌های دوردست شروع نکن که عمل مشخصِ بازیکن در آن نادیده گرفته شود. اقدام و واکنش در اولویت اول هستند!
 ${statsDirective}
@@ -369,9 +374,17 @@ You MUST respond with a valid JSON object matching this schema:
 
       if (context.activeNpcDossiers.length > 0) {
         const npcs = context.activeNpcDossiers
-          .map((npc) => `• ${npc.name} (Trust: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - Speech: ${npc.speechStyle}${npc.vitalsLine ? ` - Vitals: ${npc.vitalsLine}` : ''}${npc.powerAffiliationLine ? ` - Power: [${npc.powerAffiliationLine}]` : ''}`)
+          .map((npc) => {
+            const statusTag = npc.presenceStatus === 'nearby_resident'
+              ? ' [STATIONED AT LOCATION — NOT currently in this immediate scene]'
+              : (npc.presenceStatus === 'present' ? ' [PRESENT IN SCENE]' : '');
+            return `• ${npc.name}${statusTag} (Trust: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - Speech: ${npc.speechStyle}${npc.vitalsLine ? ` - Vitals: ${npc.vitalsLine}` : ''}${npc.powerAffiliationLine ? ` - Power: [${npc.powerAffiliationLine}]` : ''}`;
+          })
           .join('\n');
-        parts.push(`[PRESENT NPCS]\n${npcs}`);
+        parts.push(
+          `[PRESENT NPCS]\n${npcs}\n` +
+          `• DIRECTIVE ON NPC PRESENCE: NPCs marked as [STATIONED AT LOCATION — NOT currently in this immediate scene] are stationed somewhere in this broad location/garrison, but are NOT currently in front of the protagonist. DO NOT place the protagonist face-to-face with them unless an action or event explicitly summons or seeks them out. Maintain realistic physical space!`
+        );
       }
 
       if (context.relevantMemories.length > 0) {
@@ -387,7 +400,7 @@ You MUST respond with a valid JSON object matching this schema:
           `• Player Action: "${context.resolvedGameOutcome.actionText}"\n` +
           `• Check Result: ${context.resolvedGameOutcome.outcome.toUpperCase()}\n` +
           `• Consequence: ${context.resolvedGameOutcome.consequence}\n` +
-          `• DIRECTIVE: Immediately open with the protagonist performing this exact action and depict the direct, personal reaction of the target NPC or environment! If speaking or asking a question, use direct dialogue.`
+          `• DIRECTIVE: Immediately open with the protagonist performing this exact action and depict the direct, personal reaction of the target NPC or environment! Respond to the exact target addressed, not an off-scene commander. If speaking or asking a question, use direct dialogue.`
         );
       }
 
@@ -445,9 +458,17 @@ You MUST respond with a valid JSON object matching this schema:
 
       if (context.activeNpcDossiers.length > 0) {
         const npcs = context.activeNpcDossiers
-          .map((npc) => `• ${npc.name} (میزان اعتماد: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - لحن صحبت: ${npc.speechStyle}${npc.vitalsLine ? ` - علائم حیاتی: ${npc.vitalsLine}` : ''}${npc.powerAffiliationLine ? ` - قدرت: [${npc.powerAffiliationLine}]` : ''}`)
+          .map((npc) => {
+            const statusTag = npc.presenceStatus === 'nearby_resident'
+              ? ' [مستقر در این پایگاه/مکان — هنوز در صحنه حاضر نیست]'
+              : (npc.presenceStatus === 'present' ? ' [حاضر در صحنه]' : '');
+            return `• ${npc.name}${statusTag} (میزان اعتماد: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - لحن صحبت: ${npc.speechStyle}${npc.vitalsLine ? ` - علائم حیاتی: ${npc.vitalsLine}` : ''}${npc.powerAffiliationLine ? ` - قدرت: [${npc.powerAffiliationLine}]` : ''}`;
+          })
           .join('\n');
-        parts.push(`[شخصیت‌های حاضر / PRESENT NPCS]\n${npcs}`);
+        parts.push(
+          `[شخصیت‌های حاضر / PRESENT NPCS]\n${npcs}\n` +
+          `• دستور حضور شخصیت‌ها: شخصیت‌هایی که برچسب «مستقر در این پایگاه/مکان — هنوز در صحنه حاضر نیست» دارند، در این مکان کلی حضور یا اقامت دارند اما هنوز در این صحنهٔ مشخص رو در روی بازیکن نیستند. هرگز آنها را بدون مقدمه، بدون صدا زدن یا بدون تغییر تدریجی صحنه ناگهان رو در روی قهرمان قرار نده!`
+        );
       }
 
       if (context.relevantMemories.length > 0) {
@@ -463,7 +484,7 @@ You MUST respond with a valid JSON object matching this schema:
           `• عمل انجام شده توسط بازیکن: "${context.resolvedGameOutcome.actionText}"\n` +
           `• نتیجه تاس و بررسی: ${context.resolvedGameOutcome.outcome.toUpperCase()}\n` +
           `• پیامد: ${context.resolvedGameOutcome.consequence}\n` +
-          `• دستور مؤکد روایی: روایت را بلافاصله با انجام همین اقدام توسط قهرمان داستان آغاز کن و واکنش مستقیم، شخصی و عینیِ شخصیت مقابل یا محیط را با دیالوگ مستقیم («...») نشان بده! هرگز صحنه را با توصیفات منفعل پس‌زمینه که این اقدام در آن گم شود پر نکن.`
+          `• دستور مؤکد روایی: روایت را بلافاصله با انجام همین اقدام توسط قهرمان داستان آغاز کن و واکنش مستقیم، شخصی و عینیِ شخصیت یا مانع مورد اقدام (نه یک فرمانده غایب) را با دیالوگ مستقیم («...») نشان بده! از ابداع موانع فیزیکیِ ذکرنشده (مثل بارهای انباشته) بپرهیز و هرگز صحنه را با توصیفات منفعل پس‌زمینه که این اقدام در آن گم شود پر نکن.`
         );
       }
 
