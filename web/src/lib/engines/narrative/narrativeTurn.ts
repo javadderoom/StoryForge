@@ -205,9 +205,14 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
         });
         powerAffiliationLine = parts.join(' • ');
       }
-      const isMentionedInProse = recentSceneSnippets.some(
-        (s) => s.includes(npc.name) || (npc.title && s.includes(npc.title))
-      );
+      const lastSceneProse = recentSceneSnippets[recentSceneSnippets.length - 1] || '';
+      const isTargetOfAction =
+        input.playerActionText.includes(npc.name) ||
+        (npc.title && input.playerActionText.includes(npc.title));
+      const isInImmediateScene =
+        isTargetOfAction ||
+        lastSceneProse.includes(npc.name) ||
+        (npc.title && lastSceneProse.includes(npc.title));
       return {
         name: npc.name,
         trust:
@@ -221,7 +226,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
           : npc.speechStyle,
         vitalsLine: formatNpcCombatSummary(npc) || undefined,
         powerAffiliationLine,
-        presenceStatus: isMentionedInProse ? ('present' as const) : ('nearby_resident' as const),
+        presenceStatus: isInImmediateScene ? ('present' as const) : ('nearby_resident' as const),
       };
     }),
     relevantMemories,

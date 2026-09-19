@@ -216,6 +216,7 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
     const continuityDirective = `[SCENE CONTINUITY & CHOICE PREMISES]
 - Resolve only the player's stated action against its actual target. Success does not authorize unrelated victories, confessions, or extra player actions beyond the pre-resolved consequence.
 - TARGET FIDELITY & NO TELEPORTING NPCS: If the player acts toward generic guards, sentries, gates, or obstacles, do NOT substitute a named commander or unintroduced off-scene NPC as the immediate responder. Address only the actual recipient of the action.
+- SPATIAL CONTINUITY & MICRO-VANTAGE (NO MAGIC NPC TELEPORTATION): If the protagonist stepped away, snuck off, or moved to a distinct micro-feature (e.g. down into the muddy reeds by the riverbank, behind wagons, onto a roof, or down a dark alley), NPCs left behind at camp, at the gates, or by a campfire DO NOT magically spawn or teleport beside the protagonist! They remain at their original post. They do not follow silently unless the player specifically asked them to accompany them. If a violent, noisy, or dramatic event occurs in a secluded spot, distant NPCs can only react from afar (hearing the noise from the campfire, shouting across the gloom, or running over with torches to see what happened). They are NEVER already standing over the aftermath!
 - PHYSICAL ENVIRONMENT CONTINUITY: Only depict physical elements, obstacles, and props that exist in the scene. Do NOT hallucinate unmentioned physical objects (e.g., piled cargo, baggage wagons, caravan inspections) out of nowhere unless explicitly introduced by story prose or player action.
 - SINGLE DRAMATIC FOCUS (NO THREAT STACKING): Maintain a single, cohesive source of dramatic conflict per turn. When a check fails or complications escalate, escalate ONE primary threat (e.g., either an encountered creature OR a patrolling sentry), rather than piling multiple uncoordinated antagonists into the same instant. Never depict an NPC completely oblivious to a giant predator coiling in front of them!
 - BESTIARY GROUNDING & VISCERAL TRAITS: When introducing wild beasts, predators, or monstrosities, you MUST draw from the [BESTIARY & CREATURES] section and depict their specific authored physical features, secretions, and behaviors. Integrate the creature naturally through direct sensory prose (scale patterns, sounds, colors, predatory motion); do not awkwardly put its formal taxonomy name in quotation marks (the game UI automatically renders its Bestiary Discovery Card).
@@ -241,6 +242,7 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 [CAUSE & EFFECT PRIORITY — IMMEDIATE ACTION RESPONSIVENESS]
 - The prose MUST open with or directly dramatize the protagonist performing the player's specific action and the immediate direct reaction of the world or target NPC.
 - TARGET FIDELITY: Depict the reaction of the EXACT entity targeted by the action (e.g. the closed gate, the wall, or the specific sentry). Do NOT invent or substitute an unintroduced commander or off-scene NPC as the face-to-face responder!
+- SPATIAL CONTINUITY & MICRO-VANTAGE: If the protagonist moved to a distinct sub-location or vantage point (e.g. muddy reeds, alley, rooftop), NPCs left at camp or the gate DO NOT magically teleport beside them. They remain at their post and only react from a distance (hearing noise, shouting, or running over).
 - SINGLE DRAMATIC CONFLICT: Escalate one focused conflict or obstacle per turn. Do not spawn multiple uncoordinated crises simultaneously.
 - CONVERSATIONAL ACTIONS: If the player spoke, asked, greeted, questioned, or negotiated with someone, the scene MUST feature direct spoken dialogue ("...") from the protagonist and a personal, direct reply or confrontation from the targeted NPC. Never reduce the player's speech to silence or generic ambient crowd noise!
 - SENSORY BESTIARY DEPICTION: When wild beasts or monstrosities appear, describe their physical traits, coloration, and predatory movements viscerally. Avoid putting formal taxonomy names in awkward quotes in the prose (the game UI renders a dedicated Bestiary Discovery card for the player).
@@ -276,6 +278,7 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 [اولویت علت و معلول — پاسخگویی مستقیم به اقدام بازیکن / CAUSE & EFFECT PRIORITY]
 - صحنه باید فوراً با نشان دادن خودِ کنش بازیکن و واکنش بلافاصلهٔ جهان یا شخصیت مقابل آغاز شود یا بر آن متمرکز باشد.
 - وفاداری به هدف اقدام (Target Fidelity): دقیقاً واکنش همان هدف، شخص یا مانعی که بازیکن مورد خطاب قرار داده یا بر آن اقدام کرده را نشان بده (مثلاً همان نگهبانان یا درِ بسته). هرگز یک فرمانده یا شخصیت غایب را که در صحنه نبوده ناگهان رو در روی بازیکن ظاهر نکن!
+- پیوستگی مکانی و منع تله‌پورت شخصیت‌ها (Spatial Continuity): اگر قهرمان به محلی جداگانه یا دورتر از قرارگاه قدم گذاشته (مانند لجن‌زار حاشیهٔ رودخانه یا میان نی‌زارها)، شخصیت‌های مستقر کنار آتش یا کاروان (مانند رادمان) بی‌صدا پشت سر او نیامده‌اند و ناگهان در همان ثانیه در کنار او در لجن‌زار ظاهر نمی‌شوند! آن‌ها صدای ضربه، شکستن یا غوغا را از دور می‌شنوند، از کنار آتش بانگ می‌زنند یا دوان‌دوان برای وارسی می‌آیند؛ هرگز نباید بدون حرکت، از قبل بالای سر جسد ایستاده باشند.
 - تمرکز بر یک بحران واحد (Single Dramatic Focus): در هر نوبت فقط یک منبع تنش یا خطر را تشدید کن. از رویارویی هم‌زمان بازیکن با دو خطر نامرتبط (مثلاً حملهٔ موجود وحشی همراه با اخطار نیزه‌دار بی‌خبر) اکیداً بپرهیز.
 - پیوستگی محیطی: از ابداع موانع یا وسایل فیزیکیِ ذکرنشده (مانند بارهای انباشته‌شده یا کاروان‌ها) خودداری کن، مگر اینکه در متن صحنه‌های قبلی صراحتاً آمده باشند.
 - اقدامات گفتاری و پرسش: اگر بازیکن سخنی گفت، سؤالی پرسید، سلام کرد یا با کسی وارد مذاکره شد، صحنه حتماً باید شامل دیالوگ مستقیم با علامت «...» باشد که به شکل شخصی و مستقیم به خودِ بازیکن پاسخ می‌دهد (یا با کلام و یا با تهدید/برخورد فیزیکی مشخص). هرگز دیالوگ بازیکن را بی‌پاسخ نگذار و آن را به فریادهای نامربوط در پس‌زمینه تبدیل نکن!
@@ -400,7 +403,7 @@ You MUST respond with a valid JSON object matching this schema:
           .join('\n');
         parts.push(
           `[PRESENT NPCS]\n${npcs}\n` +
-          `• DIRECTIVE ON NPC PRESENCE: NPCs marked as [STATIONED AT LOCATION — NOT currently in this immediate scene] are stationed somewhere in this broad location/garrison, but are NOT currently in front of the protagonist. DO NOT place the protagonist face-to-face with them unless an action or event explicitly summons or seeks them out. Maintain realistic physical space!`
+          `• DIRECTIVE ON NPC PRESENCE & SPATIAL CONTINUITY: NPCs marked as [STATIONED AT LOCATION — NOT currently in this immediate scene] are stationed somewhere in this broad location/garrison, but are NOT currently in front of the protagonist. DO NOT place the protagonist face-to-face with them unless an action or event explicitly summons or seeks them out. Furthermore, if the protagonist stepped away to a secluded micro-location (e.g. riverbank reeds, shadows, alleys), NPCs left at camp remain at their post and only react to loud noises from afar. Maintain realistic physical space!`
         );
       }
 
@@ -484,7 +487,7 @@ You MUST respond with a valid JSON object matching this schema:
           .join('\n');
         parts.push(
           `[شخصیت‌های حاضر / PRESENT NPCS]\n${npcs}\n` +
-          `• دستور حضور شخصیت‌ها: شخصیت‌هایی که برچسب «مستقر در این پایگاه/مکان — هنوز در صحنه حاضر نیست» دارند، در این مکان کلی حضور یا اقامت دارند اما هنوز در این صحنهٔ مشخص رو در روی بازیکن نیستند. هرگز آنها را بدون مقدمه، بدون صدا زدن یا بدون تغییر تدریجی صحنه ناگهان رو در روی قهرمان قرار نده!`
+          `• دستور حضور شخصیت‌ها و پیوستگی مکانی: شخصیت‌هایی که برچسب «مستقر در این پایگاه/مکان — هنوز در صحنه حاضر نیست» دارند، در این مکان کلی حضور یا اقامت دارند اما هنوز در این صحنهٔ مشخص رو در روی بازیکن نیستند. هرگز آنها را بدون مقدمه، بدون صدا زدن یا بدون تغییر تدریجی صحنه ناگهان رو در روی قهرمان قرار نده! اگر قهرمان به حاشیهٔ رودخانه یا میان نی‌ها رفته، افراد کنار آتش در جای خود باقی می‌مانند و تنها صدای حوادث را از دور می‌شنوند.`
         );
       }
 
