@@ -1042,3 +1042,80 @@ describe('GameEngine - Hybrid Defeat System', () => {
     assert.ok(!diff.itemsRemovedIds || diff.itemsRemovedIds.length === 0);
   });
 });
+
+describe('GameEngine - Automated Passive Ability Parsing & Defense Resolution', () => {
+  const abilities = [
+    {
+      id: 'ab_shield_wall',
+      name: 'دیوار بارانداز',
+      type: 'passive_skill' as const,
+      description: 'تا زمانی که سپر در دست دارید، در دفاع در برابر پرتابه‌های سبک پاداش پدافندی دارید.',
+      effectSummary: '+3 پاداش به دفاع در برابر حملات دوربرد سبک (تیر و سنگ) هنگام مجهز بودن به سپر',
+      tier: 1,
+    },
+    {
+      id: 'ab_scribe_mistrust',
+      name: 'بی‌اعتمادی به مهر و قلم',
+      type: 'passive_feat' as const,
+      description: 'آزمون‌های متقاعدسازی کاتبان با دشواری بالاتر انجام می‌شود.',
+      effectSummary: '-3 در آزمون‌های متقاعدسازی یا درک نیت مأموران اداری و کاتبان',
+      tier: 1,
+    },
+  ];
+
+  const rpg: any = {
+    hasCombat: true,
+    diceType: 'd20',
+    stats: [{ id: 'might', baseValue: 10 }, { id: 'cunning', baseValue: 10 }],
+    abilities,
+    resources: [{ id: 'hp', current: 30, max: 30, min: 0 }],
+  };
+
+  it('GameEngine.resolveActionCheck automatically applies +3 defense bonus when defending with shield', () => {
+    const playerWithShield: any = {
+      stats: { might: 10 },
+      resources: { hp: 30 },
+      abilities: ['ab_shield_wall'],
+      inventory: [
+        { id: 'sh_wood', name: 'سپر چوبی', type: 'shield', quantity: 1 },
+      ],
+      equipment: { offHand: 'sh_wood' },
+    };
+
+    const res = GameEngine.resolveActionCheck(
+      'سپر را بالا می‌آورم تا تیرهای کماندار را مهار کنم',
+      playerWithShield,
+      rpg,
+      { statId: 'might', forcedDiceRoll: 10, targetDC: 12 }
+    );
+
+    // Roll 10 + stat 0 + passiveBonus 3 = total 13 >= 12 (Success)
+    assert.equal(res.totalScore, 13);
+    assert.equal(res.outcome, 'success');
+    assert.equal(res.statModifier, 3); // 0 stat + 3 passive
+    assert.ok(res.consequenceSummary.includes('پاداش دفاع با سپر'));
+  });
+
+  it('GameEngine.resolveActionCheck automatically applies -3 penalty when dealing with scribes', () => {
+    const player: any = {
+      stats: { cunning: 10 },
+      resources: { hp: 30 },
+      abilities: ['ab_scribe_mistrust'],
+      inventory: [],
+      equipment: {},
+    };
+
+    const res = GameEngine.resolveActionCheck(
+      'تلاش برای فریب دادن کاتب دیوان جهت ثبت نکردن بارها',
+      player,
+      rpg,
+      { statId: 'cunning', forcedDiceRoll: 10, targetDC: 10 }
+    );
+
+    // Roll 10 + stat 0 - passivePenalty 3 = total 7 < 10 (Failure / Mixed)
+    assert.equal(res.totalScore, 7);
+    assert.equal(res.statModifier, -3);
+    assert.ok(res.consequenceSummary.includes('جریمهٔ بی‌اعتمادی'));
+  });
+});
+

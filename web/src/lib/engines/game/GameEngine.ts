@@ -18,6 +18,7 @@ import {
   clockIdForLocation,
 } from './threatClock';
 import { STAT_CANONICAL_ALIASES } from '@/lib/engines/world/ActionNormalizer';
+import { evaluatePassiveAbilities } from './passiveAbilities';
 
 export interface RevealCheckContext {
   trust?: number;
@@ -1079,6 +1080,13 @@ export class GameEngine {
       }
     }
 
+    // Evaluate passive abilities & feats (automated parsing of shield defense, social friction, etc.)
+    const passiveResult = evaluatePassiveAbilities(actionText, playerState, rpgSystem, {
+      effectiveStatId,
+      riskLevel: options.riskLevel,
+    });
+    const passiveBonus = passiveResult.totalModifier;
+
     // Equipment & Inventory Tool modifier (equipped gear + relevant tools like lockpick_set)
     let equipmentModifier = 0;
     if (effectiveStatId) {
@@ -1144,7 +1152,7 @@ export class GameEngine {
     }
 
     const envMod = (options.environmentalModifier || 0) + itemTacticalEnvMod;
-    const totalScore = roll + statModifier + skillBonus + equipmentModifier + envMod;
+    const totalScore = roll + statModifier + skillBonus + equipmentModifier + passiveBonus + envMod;
 
     // Default DC based on risk level if not explicitly provided
     const isLowBase = systemBaseValue < 8;
@@ -1259,10 +1267,18 @@ export class GameEngine {
       /* non-fatal: clock/displacement must never break the core roll */
     }
 
+    if (passiveResult.appliedPassives.length > 0) {
+      const isPersian = /[\u0600-\u06FF]/.test(actionText) || /[\u0600-\u06FF]/.test(consequenceSummary);
+      const tag = passiveResult.appliedPassives
+        .map((p) => (isPersian ? p.reasonFa : p.reason))
+        .join('; ');
+      consequenceSummary += ` [${tag}]`;
+    }
+
     return {
       actionDescription: actionText,
       statId: effectiveStatId,
-      statModifier: statModifier + skillBonus + equipmentModifier,
+      statModifier: statModifier + skillBonus + equipmentModifier + passiveBonus,
       diceRoll: roll,
       diceType,
       environmentalModifier: envMod,

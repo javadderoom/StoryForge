@@ -1,6 +1,7 @@
 import { PlayerState } from '@/lib/types/gameplay';
 import { GameItem, ItemRarity, WeaponGrip, RPGSystemSchema } from '@/lib/types/rpg';
 import { STAT_CANONICAL_ALIASES } from '@/lib/engines/world/ActionNormalizer';
+import { evaluatePassiveAbilities } from '@/lib/engines/game/passiveAbilities';
 
 /** D&D-style stat modifier: floor((stat - baseValue) / 2). Defaults to baseline 10 if not specified. */
 export function getStatModifier(statValue: number, baseValue: number = 10): number {
@@ -130,6 +131,8 @@ export interface DiceResolution {
   consequenceSummary: string;
   criticalSuccess?: boolean;
   criticalFailure?: boolean;
+  passiveModifier?: number;
+  breakdown?: string;
 }
 
 /** Deterministically resolve a check (client parity twin of backend GameEngine). */
@@ -166,8 +169,13 @@ export function resolveActionCheck(opts: {
   const statModifier = getStatModifier(baseStatVal, baseline);
   const equipmentModifier = playerState ? calculateEquipmentModifier(playerState, canonicalStatId) : 0;
   const tacticalEnvMod = playerState ? detectTacticalModifier(actionText, playerState) : 0;
+  const passiveResult = evaluatePassiveAbilities(actionText, playerState, rpgSystem as any, {
+    effectiveStatId,
+    riskLevel,
+  });
+  const passiveBonus = passiveResult.totalModifier;
 
-  const totalScore = roll + statModifier + equipmentModifier + tacticalEnvMod;
+  const totalScore = roll + statModifier + equipmentModifier + tacticalEnvMod + passiveBonus;
 
   const isLowBase = baseline < 8;
   const baseDC =
@@ -215,6 +223,15 @@ export function resolveActionCheck(opts: {
   const isCritFailure = outcome === 'critical_failure';
   const rolledSuccess = outcome === 'success' || outcome === 'critical_success' || outcome === 'mixed_success';
 
+  if (passiveResult.appliedPassives.length > 0) {
+    const tag = passiveResult.appliedPassives
+      .map((p) => (isPersian ? p.reasonFa : p.reason))
+      .join('; ');
+    consequenceSummary += ` [${tag}]`;
+  }
+
+  const breakdown = `d20(${roll}) + stat(${statModifier})${equipmentModifier ? ` + equip(${equipmentModifier})` : ''}${passiveBonus ? ` + passive(${passiveBonus >= 0 ? `+${passiveBonus}` : passiveBonus})` : ''}${tacticalEnvMod ? ` + tactical(${tacticalEnvMod})` : ''} = ${totalScore}`;
+
   return {
     success: rolledSuccess,
     outcome,
@@ -223,12 +240,14 @@ export function resolveActionCheck(opts: {
     statModifier,
     tacticalModifier: tacticalEnvMod,
     equipmentModifier,
+    passiveModifier: passiveBonus,
     total: totalScore,
     difficultyClass: baseDC,
     requiredStat: effectiveStatId,
     consequenceSummary,
     criticalSuccess: isCritSuccess,
     criticalFailure: isCritFailure,
+    breakdown,
   };
 }
 
