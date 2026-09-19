@@ -1460,8 +1460,17 @@ export class GameEngine {
       }
     }
 
+    // 10. Record triggered modular encounter
+    if (diff.triggeredEncounterId) {
+      if (!updated.completedEncounterIds) updated.completedEncounterIds = [];
+      if (!updated.completedEncounterIds.includes(diff.triggeredEncounterId)) {
+        updated.completedEncounterIds.push(diff.triggeredEncounterId);
+      }
+    }
+
     return updated;
   }
+
 
   /**
    * Attempts a point/resource-driven breakthrough to the next rank in a power school.

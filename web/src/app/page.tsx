@@ -24,7 +24,9 @@ import { DiceRollModal } from '@/components/DiceRollModal';
 import { ReaderSettingsModal } from '@/components/ReaderSettingsModal';
 import { StoryCatalogModal } from '@/components/StoryCatalogModal';
 import { CharacterCreationModal } from '@/components/play/CharacterCreationModal';
+import { LockEncounterModal } from '@/components/play/LockEncounterModal';
 import { GameLoadingScreen } from '@/components/play/GameLoadingScreen';
+
 import { Compendium } from '@/components/play/Compendium';
 import { AtmosphereCanvas } from '@/components/play/AtmosphereCanvas';
 import { NarrativeProse } from '@/components/play/NarrativeProse';
@@ -141,11 +143,13 @@ export default function Home() {
   }, [isDiceModalOpen]);
 
   // Auth & Billing
-  const { user, isAuthenticated, isLoading, updateCreditBalance } = useAuth();
+  const { user, isAuthenticated, isLoading, updateCreditBalance, token } = useAuth();
   // Guards double-tap double-spend: one turn (and one credit) per tap.
   const [actionInFlight, setActionInFlight] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isShopModalOpen, setIsShopModalOpen] = useState(false);
+  const [isLockEncounterOpen, setIsLockEncounterOpen] = useState(false);
+
 
   // Reader customization
   const [settings, setSettings] = useState<PersistedSettings>(() => {
@@ -933,7 +937,22 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Admin Encounter Lock Button */}
+              {user?.role === 'ADMIN' && currentBeat?.narrative && !loading && (
+                <div className="mb-4 flex items-center justify-end">
+                  <button
+                    onClick={() => setIsLockEncounterOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-300 transition-all hover:border-amber-500 hover:bg-amber-500/20 hover:shadow-lg hover:shadow-amber-500/10"
+                    title={isRtl ? 'قفل این صحنه به عنوان رویداد پویا در جهان داستان' : 'Lock this scene as a modular world encounter'}
+                  >
+                    <Zap className="h-3.5 w-3.5 text-amber-400" />
+                    <span>{isRtl ? 'قفل به عنوان رویداد پویا' : 'Lock as World Encounter'}</span>
+                  </button>
+                </div>
+              )}
+
               <div className="prose prose-invert max-w-none">
+
                 {loading ? (
                   <div className="flex animate-pulse flex-col items-center justify-center space-y-3 py-16 text-amber-400/80">
                     <Sparkles className="h-8 w-8 animate-spin" />
@@ -1201,7 +1220,23 @@ export default function Home() {
           setIsAuthModalOpen(true);
         }}
       />
+
+      {isLockEncounterOpen && (storyMeta?.id || selectedStory?.id) && (
+        <LockEncounterModal
+          isOpen={isLockEncounterOpen}
+          onClose={() => setIsLockEncounterOpen(false)}
+          storyId={storyMeta?.id || selectedStory?.id || ''}
+          currentNarrative={currentBeat?.narrative || ''}
+          currentLocationId={playerState?.currentLocationId || ''}
+          discoveredCreature={currentBeat?.discoveredCreature}
+          playerInventory={playerState?.inventory?.map((i: any) => ({ id: i.id, name: i.name })) || []}
+          activeQuestIds={playerState?.activeQuestIds || []}
+          isRtl={isRtl}
+          token={token}
+        />
+      )}
     </div>
+
   );
 }
 

@@ -1494,6 +1494,67 @@ export const StoryBeatSchema = z.object({
 });
 export type StoryBeat = z.infer<typeof StoryBeatSchema>;
 
+export const StoryEncounterTriggerTypeSchema = z.enum([
+  'on_enter',
+  'on_explore',
+  'threat_escalation',
+  'quest_milestone',
+  'event_chain',
+  'item_trigger',
+  'random_weighted',
+]);
+export type StoryEncounterTriggerType = z.infer<typeof StoryEncounterTriggerTypeSchema>;
+
+export const StoryEncounterSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  narrativeText: z.string().min(1),
+  creatureId: z.string().optional(),
+  npcId: z.string().optional(),
+  locationId: z.string().optional(),
+  locationTags: z.array(z.string()).optional().default([]),
+
+
+  // Recommended RPG resolution guidance
+  recommendedStat: z.string().optional(),
+  recommendedDC: z.number().optional(),
+
+  // Trigger Rules
+  triggerConditions: z.object({
+    triggerType: StoryEncounterTriggerTypeSchema.default('on_explore'),
+    weight: z.number().min(1).max(100).default(50),
+    repeatable: z.boolean().default(false),
+    minTensionClock: z.number().min(0).max(6).optional(),
+
+    // 1. Item Trigger Conditions
+    requiredItemIds: z.array(z.string()).default([]),
+    consumeItemOnTrigger: z.boolean().optional(),
+
+
+    // 2. Quest Conditions
+    requiredQuestId: z.string().optional(),
+    requiredQuestStatus: z.enum(['active', 'completed']).optional(),
+
+    // 3. Event Chaining Conditions
+    triggerAfterEventId: z.string().optional(),
+    requiredCompletedEventIds: z.array(z.string()).optional().default([]),
+    forbiddenEventIds: z.array(z.string()).optional().default([]),
+  }),
+
+
+  // Outbound Cascade Actions upon completion
+  onComplete: z
+    .object({
+      triggerNextEventId: z.string().optional(),
+      setFlags: z.array(z.string()).default([]),
+      rewardItemIds: z.array(z.string()).default([]),
+      advanceQuestId: z.string().optional(),
+    })
+    .optional(),
+});
+export type StoryEncounter = z.infer<typeof StoryEncounterSchema>;
+
+
 export interface StoryChapter {
   id: string;
   chapterNumber: number;

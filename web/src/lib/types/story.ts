@@ -1,6 +1,14 @@
 import { z } from 'zod';
-import { WorldBible, WorldBibleSchema, SagaManifest, SagaManifestSchema } from './world';
+import {
+  WorldBible,
+  WorldBibleSchema,
+  SagaManifest,
+  SagaManifestSchema,
+  StoryEncounter,
+  StoryEncounterSchema,
+} from './world';
 import { RPGSystemSchema, RPGSystemSchemaValidator } from './rpg';
+
 
 export type Genre =
   | 'dark_fantasy'
@@ -79,6 +87,7 @@ export interface StoryManifest {
     }>;
     chapterId?: string;
   }>;
+  encounters?: StoryEncounter[];
 }
 
 export const StoryManifestSchema = z.object({
@@ -103,4 +112,6 @@ export const StoryManifestSchema = z.object({
   storyScale: StoryScaleSchema.optional().default('urban'),
   storyNpcOverrides: z.record(z.string(), StoryNpcOverrideSchema).optional().default({}),
   initialStoryBeats: z.array(z.any()).default([]),
+  encounters: z.array(StoryEncounterSchema).default([]),
 });
+

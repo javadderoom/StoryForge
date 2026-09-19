@@ -29,6 +29,7 @@ import {
   WorldQuest,
   WorldTradeRoute,
   PowerSchool,
+  StoryEncounter,
 } from '@/lib/types';
 import { mergeFactionRelations, syncLegacyFactionLinks } from '@/lib/engines/world/factionRelations';
 import type { WorldActionChange } from '@/lib/engines/world/oracleActions';
@@ -472,6 +473,8 @@ interface StudioStoryContextType {
   deletePowerSchool: (id: string) => void;
   // Story Beats CRUD
   updateStoryBeats: (updater: (prev: StoryManifest['initialStoryBeats']) => StoryManifest['initialStoryBeats']) => void;
+  // Encounters CRUD
+  updateEncounters: (updater: (prev: StoryEncounter[]) => StoryEncounter[]) => void;
   // Plan 07: Saga / Multi-Chapter Campaign CRUD
   updateSaga: (updater: (prev?: SagaManifest) => SagaManifest) => void;
   // Global Actions
@@ -2525,6 +2528,20 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     [persistToStorage]
   );
 
+  // Encounters CRUD
+  const updateEncounters = useCallback(
+    (updater: (prev: StoryEncounter[]) => StoryEncounter[]) => {
+      setStory((prev) => {
+        const updatedEncounters = updater(prev.encounters || []);
+        const updated = { ...prev, encounters: updatedEncounters };
+        persistToStorage(updated);
+        return updated;
+      });
+    },
+    [persistToStorage]
+  );
+
+
   // Plan 07: Saga / Multi-Chapter Campaign CRUD
   const updateSaga = useCallback(
     (updater: (prev?: SagaManifest) => SagaManifest) => {
@@ -2708,6 +2725,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         editPowerSchool,
         deletePowerSchool,
         updateStoryBeats,
+        updateEncounters,
         updateSaga,
         resetToDefault,
         exportStoryJson,

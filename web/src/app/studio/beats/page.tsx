@@ -15,14 +15,23 @@ import {
   Target,
   Pencil,
   Check,
+  Zap,
+  Package,
+  Scroll,
+  Link as LinkIcon,
+  Shield,
+  MapPin,
+  Dices,
 } from 'lucide-react';
 import { notify } from '@/lib/notify';
 import {
   StoryChapter,
   StoryBeat,
   ArcStage,
-} from '@/lib/types/world';
+  StoryEncounter,
+} from '@/lib/types';
 import SceneAiCopilotModal, { CopilotMode } from '@/components/studio/SceneAiCopilotModal';
+import EncounterModal from '@/components/studio/EncounterModal';
 
 const SCOPE_TIER_META: Record<
   string,
@@ -38,11 +47,18 @@ const SCOPE_TIER_META: Record<
 const makeId = (prefix: string) => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
 export default function StoryBeatsStudioPage() {
-  const { story, isPersian, updateStoryBeats, updateSaga, updateStoryMeta } = useStudioStory();
+  const { story, isPersian, updateStoryBeats, updateEncounters, updateSaga, updateStoryMeta } = useStudioStory();
+
+  // View Switcher: Branching Tree vs Dynamic Encounters
+  const [studioViewMode, setStudioViewMode] = useState<'tree' | 'encounters'>('tree');
+  const [encounterFilter, setEncounterFilter] = useState<string>('all');
+  const [isEncounterModalOpen, setIsEncounterModalOpen] = useState(false);
+  const [editingEncounter, setEditingEncounter] = useState<StoryEncounter | null>(null);
 
   // Multi-Chapter Epic Saga state
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
+
 
   // Unified Scene AI Copilot state
   const [copilotOpen, setCopilotOpen] = useState(false);
@@ -302,78 +318,361 @@ export default function StoryBeatsStudioPage() {
     notify.success(isPersian ? 'صحنه جدید ایجاد شد' : 'New blank scene created');
   };
 
+  const handleSaveEncounter = (saved: StoryEncounter) => {
+    updateEncounters((prev) => {
+      const idx = prev.findIndex((e) => e.id === saved.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = saved;
+        return copy;
+      }
+      return [...prev, saved];
+    });
+  };
+
+  const handleDeleteEncounter = (id: string) => {
+    updateEncounters((prev) => prev.filter((e) => e.id !== id));
+    notify.info(isPersian ? 'رویداد حذف شد' : 'Encounter removed');
+  };
+
+  const filteredEncounters = (story.encounters || []).filter((enc) => {
+    if (encounterFilter === 'all') return true;
+    return enc.triggerConditions?.triggerType === encounterFilter;
+  });
+
   return (
     <div className="space-y-8 animate-fadeIn">
-      {/* Header Banner */}
-      <div className="relative z-40 bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-6 md:p-8 backdrop-blur-sm shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5 mb-1.5">
-            <GitBranch className="w-5 h-5 text-amber-400" />
-            <h2 className="text-xl md:text-2xl font-bold text-zinc-100">{t.heading}</h2>
-          </div>
-          <p className="text-sm text-zinc-400 max-w-3xl leading-relaxed">{t.subheading}</p>
-        </div>
-        <div className="flex items-center gap-2.5 self-start md:self-auto">
-          {/* Mobile group */}
-          <div className="flex md:hidden items-center gap-2">
-            <button
-              type="button"
-              onClick={handleAddBlankScene}
-              title={isPersian ? 'صحنه جدید دستی' : 'New Blank Scene'}
-              className="flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 w-9 h-9 rounded-xl font-bold transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setCopilotMode('choices');
-                setCopilotTargetBeat(currentBeats[0] || null);
-                setCopilotSelectedChoice(null);
-                setCopilotOpen(true);
-              }}
-              disabled={currentBeats.length === 0}
-              title={t.aiCopilotBtn}
-              className="flex items-center justify-center bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 w-9 h-9 rounded-xl font-bold transition-all shadow-lg shadow-amber-500/20 cursor-pointer disabled:opacity-50"
-            >
-              <Sparkles className="w-4 h-4" />
-            </button>
-            <span className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 px-2.5 py-2 rounded-xl font-mono flex items-center gap-1">
-              <Layers className="w-3.5 h-3.5 text-amber-400" />
-              {(activeChapter ? activeChapter.scenes.length : story.initialStoryBeats?.length) || 0}
-            </span>
+      {/* Top View Mode Switcher */}
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-zinc-900/80 border border-zinc-800 w-fit">
+        <button
+          type="button"
+          onClick={() => setStudioViewMode('tree')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            studioViewMode === 'tree'
+              ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-md shadow-amber-500/10'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+          }`}
+        >
+          <GitBranch className="w-4 h-4 text-amber-400" />
+          <span>{isPersian ? 'درخت روایی صحنه‌ها' : 'Branching Beats Tree'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStudioViewMode('encounters')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            studioViewMode === 'encounters'
+              ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-md shadow-amber-500/10'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+          }`}
+        >
+          <Zap className="w-4 h-4 text-amber-400" />
+          <span>{isPersian ? 'رویدادها و برخوردهای پویا' : 'Dynamic Encounters & Events'}</span>
+          <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-[10px] text-amber-300 font-mono font-bold">
+            {(story.encounters || []).length}
+          </span>
+        </button>
+      </div>
+
+      {studioViewMode === 'encounters' ? (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Encounters Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-zinc-800/80 bg-zinc-900/60 p-6 backdrop-blur-sm shadow-xl">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Zap className="h-5 w-5 text-amber-400" />
+                <h3 className="text-lg font-bold text-zinc-100">
+                  {isPersian ? 'کاتالوگ رویدادها و برخوردهای پویای جهان' : 'Modular World Encounters'}
+                </h3>
+              </div>
+              <p className="text-xs text-zinc-400 max-w-2xl leading-relaxed">
+                {isPersian
+                  ? 'برخوردهایی که آزاد از شاخه‌های خطی، بر اساس شروط آیتم در کوله‌پشتی، وضعیت ماموریت‌ها، یا زنجیره‌های علت و معلولی فعال می‌شوند.'
+                  : 'Independent encounters triggered by item possession, quest status, biome tags, or chained event cascades.'}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <select
+                value={encounterFilter}
+                onChange={(e) => setEncounterFilter(e.target.value)}
+                className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-200 focus:border-amber-500 focus:outline-none"
+              >
+                <option value="all">{isPersian ? 'همه راه‌اندازها' : 'All Triggers'}</option>
+                <option value="item_trigger">{isPersian ? 'پیش‌نیاز آیتم' : 'Item Required'}</option>
+                <option value="quest_milestone">{isPersian ? 'پیش‌نیاز ماموریت' : 'Quest Milestone'}</option>
+                <option value="event_chain">{isPersian ? 'زنجیره رویدادها' : 'Event Chain'}</option>
+                <option value="on_explore">{isPersian ? 'کاوش' : 'Exploration'}</option>
+                <option value="on_enter">{isPersian ? 'ورود به مکان' : 'Location Entry'}</option>
+                <option value="threat_escalation">{isPersian ? 'افزایش تنش' : 'Threat Escalation'}</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingEncounter(null);
+                  setIsEncounterModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-2 text-xs font-bold text-black shadow-lg shadow-amber-500/20 transition-all hover:brightness-110 cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>{isPersian ? 'افزودن رویداد' : 'Add Encounter'}</span>
+              </button>
+            </div>
           </div>
 
-          {/* Desktop group */}
-          <button
-            type="button"
-            onClick={handleAddBlankScene}
-            className="hidden md:flex items-center gap-1.5 text-xs bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 px-3.5 py-2 rounded-xl font-bold transition-all cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>{isPersian ? 'صحنه جدید دستی' : 'New Blank Scene'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setCopilotMode('choices');
-              setCopilotTargetBeat(currentBeats[0] || null);
-              setCopilotSelectedChoice(null);
-              setCopilotOpen(true);
-            }}
-            disabled={currentBeats.length === 0}
-            className="hidden md:flex items-center gap-1.5 text-xs bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-amber-500/20 cursor-pointer disabled:opacity-50"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{t.aiCopilotBtn}</span>
-          </button>
-          <span className="hidden md:flex text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 px-3.5 py-2 rounded-xl font-mono items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-amber-400" />
-            {(activeChapter ? activeChapter.scenes.length : story.initialStoryBeats?.length) || 0}{' '}
-            {isPersian ? 'صحنه' : 'Beats'}
-          </span>
+          {/* Encounters Grid */}
+          {filteredEncounters.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-zinc-800 bg-zinc-950/40 p-12 text-center">
+              <Zap className="mx-auto h-12 w-12 text-zinc-600" />
+              <h3 className="mt-3 text-base font-bold text-zinc-300">
+                {isPersian ? 'هیچ رویداد پویایی تعریف نشده است' : 'No Modular Encounters Found'}
+              </h3>
+              <p className="mt-1 text-xs text-zinc-500 max-w-md mx-auto">
+                {isPersian
+                  ? 'می‌توانید رویدادهای مستقل را با شروط آیتم، ماموریت یا زنجیره‌ای تعریف کنید یا در حین بازی، یک صحنه را به عنوان رویداد قفل نمایید.'
+                  : 'Define independent encounters with item prerequisites, quests, or event chains. You can also lock active scenes during gameplay.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingEncounter(null);
+                  setIsEncounterModalOpen(true);
+                }}
+                className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 px-4 py-2 text-xs font-bold text-amber-300 hover:bg-amber-500/20 cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>{isPersian ? 'ایجاد اولین رویداد' : 'Create First Encounter'}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredEncounters.map((enc) => (
+                <div
+                  key={enc.id}
+                  className="group relative flex flex-col justify-between rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 backdrop-blur-sm transition-all hover:border-amber-500/40 hover:bg-zinc-900/80"
+                >
+                  <div>
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
+                            <Zap className="h-3.5 w-3.5" />
+                          </span>
+                          <h4 className="text-sm font-bold text-zinc-100 group-hover:text-amber-200 transition-colors">
+                            {enc.title}
+                          </h4>
+                        </div>
+                        <span className="mt-1 block font-mono text-[10px] text-zinc-500">
+                          {enc.id}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
+                          enc.triggerConditions?.repeatable
+                            ? 'bg-sky-500/10 border-sky-500/30 text-sky-300'
+                            : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                        }`}>
+                          {enc.triggerConditions?.repeatable
+                            ? (isPersian ? 'تکرارپذیر' : 'Repeatable')
+                            : (isPersian ? 'یک‌بار مصرف' : 'One-Shot')}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Prose Snippet */}
+                    <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-zinc-400">
+                      {enc.narrativeText}
+                    </p>
+
+                    {/* Condition Badges */}
+                    <div className="mt-4 flex flex-wrap gap-1.5">
+                      {/* Trigger Type */}
+                      <span className="flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-800/60 px-2 py-0.5 text-[10px] text-zinc-300">
+                        <Sparkles className="h-3 w-3 text-amber-400" />
+                        <span>{enc.triggerConditions?.triggerType}</span>
+                      </span>
+
+                      {/* Item Requirement */}
+                      {enc.triggerConditions?.requiredItemIds && enc.triggerConditions.requiredItemIds.length > 0 && (
+                        <span className="flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-300">
+                          <Package className="h-3 w-3 text-emerald-400" />
+                          <span>
+                            {isPersian ? 'آیتم: ' : 'Item: '}
+                            {enc.triggerConditions.requiredItemIds.join(', ')}
+                            {enc.triggerConditions.consumeItemOnTrigger && (isPersian ? ' (مصرفی)' : ' (consumed)')}
+                          </span>
+                        </span>
+                      )}
+
+                      {/* Quest requirement */}
+                      {enc.triggerConditions?.requiredQuestId && (
+                        <span className="flex items-center gap-1 rounded-md border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] text-sky-300">
+                          <Scroll className="h-3 w-3 text-sky-400" />
+                          <span>
+                            {isPersian ? 'ماموریت: ' : 'Quest: '}
+                            {enc.triggerConditions.requiredQuestId} ({enc.triggerConditions.requiredQuestStatus})
+                          </span>
+                        </span>
+                      )}
+
+                      {/* Inbound Chain */}
+                      {enc.triggerConditions?.triggerAfterEventId && (
+                        <span className="flex items-center gap-1 rounded-md border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 text-[10px] text-purple-300">
+                          <LinkIcon className="h-3 w-3 text-purple-400" />
+                          <span>
+                            {isPersian ? 'پس از: ' : 'After: '}
+                            {enc.triggerConditions.triggerAfterEventId}
+                          </span>
+                        </span>
+                      )}
+
+                      {/* Outbound Next Chain */}
+                      {enc.onComplete?.triggerNextEventId && (
+                        <span className="flex items-center gap-1 rounded-md border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-[10px] text-indigo-300">
+                          <LinkIcon className="h-3 w-3 text-indigo-400" />
+                          <span>
+                            {isPersian ? 'سپس: ' : 'Next: '}
+                            {enc.onComplete.triggerNextEventId}
+                          </span>
+                        </span>
+                      )}
+
+                      {/* Scoped location */}
+                      {enc.locationId && (
+                        <span className="flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-800/60 px-2 py-0.5 text-[10px] text-zinc-300">
+                          <MapPin className="h-3 w-3 text-amber-400" />
+                          <span>{enc.locationId}</span>
+                        </span>
+                      )}
+
+                      {/* Location tags */}
+                      {enc.locationTags && enc.locationTags.length > 0 && (
+                        <span className="flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-800/60 px-2 py-0.5 text-[10px] text-zinc-400">
+                          <Shield className="h-3 w-3 text-zinc-500" />
+                          <span>{enc.locationTags.join(', ')}</span>
+                        </span>
+                      )}
+
+                      {/* Bound creature */}
+                      {enc.creatureId && (
+                        <span className="flex items-center gap-1 rounded-md border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] text-rose-300">
+                          <span>🐾 {enc.creatureId}</span>
+                        </span>
+                      )}
+
+                      {/* Recommended DC */}
+                      {enc.recommendedDC && (
+                        <span className="flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-300">
+                          <Dices className="h-3 w-3 text-amber-400" />
+                          <span>DC {enc.recommendedDC} ({enc.recommendedStat})</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card Actions */}
+                  <div className="mt-5 flex items-center justify-end gap-2 border-t border-zinc-800/80 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingEncounter(enc);
+                        setIsEncounterModalOpen(true);
+                      }}
+                      className="flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800/80 px-2.5 py-1 text-[11px] font-semibold text-zinc-200 hover:border-amber-500/50 hover:text-amber-300 transition-colors cursor-pointer"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      <span>{isPersian ? 'ویرایش' : 'Edit'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteEncounter(enc.id)}
+                      className="flex items-center gap-1 rounded-lg border border-rose-500/20 bg-rose-500/10 px-2.5 py-1 text-[11px] font-semibold text-rose-300 hover:bg-rose-500/20 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      <span>{isPersian ? 'حذف' : 'Delete'}</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Header Banner */}
+          <div className="relative z-40 bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-6 md:p-8 backdrop-blur-sm shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2.5 mb-1.5">
+                <GitBranch className="w-5 h-5 text-amber-400" />
+                <h2 className="text-xl md:text-2xl font-bold text-zinc-100">{t.heading}</h2>
+              </div>
+              <p className="text-sm text-zinc-400 max-w-3xl leading-relaxed">{t.subheading}</p>
+            </div>
+            <div className="flex items-center gap-2.5 self-start md:self-auto">
+              {/* Mobile group */}
+              <div className="flex md:hidden items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleAddBlankScene}
+                  title={isPersian ? 'صحنه جدید دستی' : 'New Blank Scene'}
+                  className="flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 w-9 h-9 rounded-xl font-bold transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCopilotMode('choices');
+                    setCopilotTargetBeat(currentBeats[0] || null);
+                    setCopilotSelectedChoice(null);
+                    setCopilotOpen(true);
+                  }}
+                  disabled={currentBeats.length === 0}
+                  title={t.aiCopilotBtn}
+                  className="flex items-center justify-center bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 w-9 h-9 rounded-xl font-bold transition-all shadow-lg shadow-amber-500/20 cursor-pointer disabled:opacity-50"
+                >
+                  <Sparkles className="w-4 h-4" />
+                </button>
+                <span className="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 px-2.5 py-2 rounded-xl font-mono flex items-center gap-1">
+                  <Layers className="w-3.5 h-3.5 text-amber-400" />
+                  {(activeChapter ? activeChapter.scenes.length : story.initialStoryBeats?.length) || 0}
+                </span>
+              </div>
+
+              {/* Desktop group */}
+              <button
+                type="button"
+                onClick={handleAddBlankScene}
+                className="hidden md:flex items-center gap-1.5 text-xs bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 px-3.5 py-2 rounded-xl font-bold transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{isPersian ? 'صحنه جدید دستی' : 'New Blank Scene'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCopilotMode('choices');
+                  setCopilotTargetBeat(currentBeats[0] || null);
+                  setCopilotSelectedChoice(null);
+                  setCopilotOpen(true);
+                }}
+                disabled={currentBeats.length === 0}
+                className="hidden md:flex items-center gap-1.5 text-xs bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-amber-500/20 cursor-pointer disabled:opacity-50"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{t.aiCopilotBtn}</span>
+              </button>
+              <span className="hidden md:flex text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 px-3.5 py-2 rounded-xl font-mono items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-amber-400" />
+                {(activeChapter ? activeChapter.scenes.length : story.initialStoryBeats?.length) || 0}{' '}
+                {isPersian ? 'صحنه' : 'Beats'}
+              </span>
+            </div>
+          </div>
+
 
       {/* Chapter Tabs (Campaign Flowchart Navigation) */}
       <div className="relative z-40 flex items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-2 backdrop-blur-sm">
@@ -680,6 +979,29 @@ export default function StoryBeatsStudioPage() {
           setCopilotOpen(true);
         }}
       />
+    </>
+  )}
+
+      {/* Encounter Authoring / Editing Modal */}
+      {isEncounterModalOpen && (
+        <EncounterModal
+          isOpen={isEncounterModalOpen}
+          onClose={() => {
+            setIsEncounterModalOpen(false);
+            setEditingEncounter(null);
+          }}
+          onSave={handleSaveEncounter}
+          encounter={editingEncounter}
+          existingEncounters={story.encounters || []}
+          locations={story.worldBible?.locations || []}
+          creatures={story.worldBible?.bestiary || []}
+          npcs={story.worldBible?.npcs || []}
+          quests={story.worldBible?.quests || []}
+          artifacts={story.worldBible?.artifacts || []}
+          isPersian={isPersian}
+        />
+      )}
+
 
       {/* Contextual AI Scene Copilot Modal */}
       {copilotOpen && (

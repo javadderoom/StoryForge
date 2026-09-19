@@ -86,6 +86,8 @@ export interface PlayerState {
   powerSchoolMastery?: Record<string, number>;
   /** Discovered creature / beast species IDs encountered during playthrough */
   discoveredCreatureIds?: string[];
+  /** Modular World Encounter IDs triggered and resolved during this playthrough */
+  completedEncounterIds?: string[];
 }
 
 export interface StateMutationDiff {
@@ -107,7 +109,10 @@ export interface StateMutationDiff {
   powerRankChanges?: Record<string, number>;
   /** Power mastery point updates (schoolId -> pointsDelta) */
   powerMasteryChanges?: Record<string, number>;
+  /** Modular World Encounter triggered in this turn */
+  triggeredEncounterId?: string;
 }
+
 
 export interface CheckResolution {
   actionDescription: string;
