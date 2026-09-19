@@ -169,14 +169,15 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
     - Mortal / Starting Tier (attributes under 10, mundane gear): The character is an ordinary mortal. Keep choices physically grounded, tactical, and plausible (using tools, stealth, environment, or social wits). Do NOT offer effortless superheroic brute force (e.g. shattering fortified barricades bare-bodied).
     - Heroic / Superhuman Tier (attributes 12+, 16+, 20+, enchanted relics, powerful spells, or mythic world scope): The character has grown beyond ordinary limits! Dynamically unlock larger-than-life, heroic, magical, or superhuman feats that match their high attributes and magical gear.
   * Appropriate DC Matching: Truly extreme or superhuman feats carry commensurate DCs (14-18) so that high attributes or legendary gear are what make them achievable and rewarding.
-- GROUNDING: Ground choices in equipped gear, environmental interactables, and discovered clues. NEVER reveal or base choices on hidden/undiscovered NPC secrets. Span distinct philosophies (tactical, aggressive, defensive, inquisitive).`
+- GROUNDING: Ground choices in equipped gear, environmental interactables, and discovered clues. NEVER reveal or base choices on hidden/undiscovered NPC secrets. Span distinct philosophies (tactical, aggressive, defensive, inquisitive).
+- STRICT GROUNDING IN SCENE PROSE (NO PHANTOM ENTITIES): Every choice MUST strictly react to the physical obstacles, characters, and events EXPLICITLY established in the scene's narrative prose. NEVER invent phantom entities, unmentioned bystanders, imaginary cargo, caravan inspections, or unstated subplots. All choices must be actions directly referenced or present in the text (e.g. if only a closed gate is described, choices must interact with that gate or visible sentries, NOT inspect unmentioned caravans or baggage).`
         : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای و طبیعی ارائه کن:
 - گام‌های اتمیک و تک‌مرحله‌ای (ATOMIC SINGLE-BEAT): هر انتخاب باید دقیقاً «یک اقدام فیزیکی یا گفتاری فوری» را در همین لحظه بیان کند. هرگز چند اقدام پیاپی را با «و» به هم متصل نکن (از فرمول «کار الف و سپس کار ب و کار ج» اکیداً پرهیز کن).
 - ممنوعیت درج نتیجه در متن انتخاب: متن انتخاب باید صرفاً کنشِ عینی شخصیت باشد، نه هدف یا نتیجهٔ از پیش‌تعیین‌شده (از عباراتی چون «برای اینکه...»، «به منظور فرار...»، «تا مسیر امن را پیدا کند» پرهیز کن). نتیجه و پیامد کار تنها پس از تاس و توسط راوی مشخص می‌شود.
 - بررسی انتخابی تاس (DICELESS در برابر بررسی ویژگی):
   * حداقل ۲ انتخاب (یا اکثریت گزینه‌ها) در هر نوبت حتماً باید دارای بررسی ویژگی و درجه سختی («requiredStatId» و «targetDC») باشند تا هیجان بازی و مکانیک‌های تاس زنده بماند.
   * موقعیت‌های پرتنش و مواجهه با دشمن (ممنوعیت کامل گزینه‌های بدون تاس در تنش بالا):
-    هنگامی که صحنه در شرایط تعارض مسلحانه، تنش بالا، ایست‌بازرسی خصمانه، نبرد یا تعقیب است (مانند کشیده شدن شمشیرها، فریادهای تهدیدآمیز گزمه‌ها، محاصره):
+    هنگامی که صحنه در شرایط تعارض مسلحانه، تنش بالا، محاصره یا نبرد و تعقیب است (مانند کشیده شدن شمشیرها، فریادهای تهدیدآمیز گزمه‌ها، مسدود شدن راه):
     تک‌تک گزینه‌ها دارای خطر هستند و اکیداً باید دارای بررسی ویژگی و درجه سختی («requiredStatId» و «targetDC») باشند.
     در شرایط درگیری و بن‌بست مسلحانه، قرار دادن هرگونه گزینهٔ بدون تاس (DICELESS) اکیداً ممنوع است!
     در چنین تنشی، حتی رفتارهای به ظاهر خونسردانه هم بی‌خطر نیستند: دست گذاشتن روی شمشیر در برابر گزمه یعنی ارعاب و ایستادگی روانی (تاس نیرو یا حضور ذهن)؛ سؤال پرسیدن از گزمه‌ای که شمشیر کشیده و تهدید به مرگ می‌کند یعنی اقناع و خواباندن غائله (تاس هوش، کاریزما یا حیله‌گری).
@@ -187,10 +188,11 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
     - سطح فانی و آغاز بازی (ویژگی‌های زیر ۱۰ و ابزارهای معمولی): شخصیت هنوز یک انسان عادی و آسیب‌پذیر است. گزینه‌ها باید واقع‌گرایانه، تاکتیکی و هوشمندانه باشند (استفاده از اهرم‌ها، مخفی‌کاری، ترفندها یا ضعف‌های محیطی). کارهای ابرقهرمانی بی‌دلیل (مانند خرد کردن موانع سنگین با شانهٔ خالی) را به عنوان گزینه عادی پیشنهاد نده.
     - سطح قهرمانی و فراانسانی (ویژگی‌های ۱۲، ۱۶، ۲۰ به بالا، ابزارها و سلاح‌های جادویی، طلسم‌های قوی، یا جهان‌های حماسی): با رشد و پیشرفت شخصیت، این محدودیت‌ها برداشته می‌شوند! با ارتقای ویژگی‌ها و دستیابی به یادگارهای کهن، اعمال حماسی، ماوراءطبیعی و فراانسانیِ متناسب با قدرت جدید قهرمان را در گزینه‌ها آزاد و پیشنهاد کن.
   * تناسب درجه سختی (DC): اعمال بسیار سنگین یا فراانسانی سختی متناسب (۱۴ تا ۱۸) دارند تا بازیکن با داشتن ویژگی‌های بالا و تجهیزات برتر طعم غلبه بر چالش‌های ناممکن اولیه را بچشد.
-- زمینه و تجهیزات: انتخاب‌ها را بر تجهیزات، عناصر محیطی و سرنخ‌ها استوار کن. هرگز اسرار کشف‌نشده را لو نده. فلسفه‌های متفاوت (تاکتیکی، تهاجمی، تدافعی، کنجکاوانه) را پوشش بده.`
+- زمینه و تجهیزات: انتخاب‌ها را بر تجهیزات، عناصر محیطی و سرنخ‌ها استوار کن. هرگز اسرار کشف‌نشده را لو نده. فلسفه‌های متفاوت (تاکتیکی، تهاجمی، تدافعی، کنجکاوانه) را پوشش بده.
+- انطباق مطلق با متن و صحنه (ممنوعیت توهم و فرضیات ناموجود): تک‌تک گزینه‌ها باید دقیقاً از دلِ موانع، اشخاص، محیط و رویدادهایی که در متنِ همین صحنه صریحاً به آن‌ها اشاره شده است برآیند. ابداع موجودیت‌های فرضی، افراد غایب، کاروان‌ها یا بارهای ذکرنشده، یا بازرسی بارهایی که اصلاً در متن نیامده‌اند اکیداً ممنوع است. تمام انتخاب‌ها باید مواردی باشند که در متن به آن‌ها اشاره شده است (مثلاً اگر در متن فقط از بسته بودن دروازه سخن رفته، گزینه‌ها باید منحصراً پیرامون خودِ دروازه، نگهبانان حاضر یا محیط پیرامونی باشند، نه بازرسی کالاهای خیالی).`
       : isEnglish
-      ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Keep choices strictly atomic without pre-baked outcomes. In tense standoffs or conflicts, all choices must have a stat check and DC.`
-      : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای تک‌مرحله‌ای (اتمیک) ارائه کن. در شرایط درگیری، بن‌بست مسلحانه یا تنش با دشمنان، تمام گزینه‌ها باید دارای بررسی ویژگی و درجه سختی باشند.`;
+      ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Keep choices strictly atomic without pre-baked outcomes, and strictly grounded in what has been explicitly mentioned in the scene prose without hallucinating unmentioned entities. In tense standoffs or conflicts, all choices must have a stat check and DC.`
+      : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای تک‌مرحله‌ای (اتمیک) ارائه کن که کاملاً بر عناصر و وقایعِ صریحاً ذکرشده در متن صحنه استوار باشند (بدون توهم یا ابداع موارد غایب). در شرایط درگیری، بن‌بست مسلحانه یا تنش با دشمنان، تمام گزینه‌ها باید دارای بررسی ویژگی و درجه سختی باشند.`;
 
     // Plan 13: contextual choice material shared by both language branches.
     const choiceMaterial = [
@@ -211,6 +213,7 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
 - Preserve present participants, their positions, and unresolved threats from recent prose. Do not silently remove opposition or treat a brief opening as a fully secured scene.
 - Track who can see and hear each action. When a pre-resolved consequence requires a revelation, stage its delivery plausibly and account for witnesses' reactions; do not invent privacy or let nearby adversaries ignore an audible confession.
 - Every choice must be possible at the end of this scene and grounded in facts the protagonist has actually learned. Do not invent profits, motives, ownership, accomplices, or available escape routes from a loosely related clue. Questions may investigate uncertainty, but must not present an unproven premise as fact.
+- STRICT FACTUAL GROUNDING IN SCENE PROSE: Every choice MUST strictly react to the physical obstacles, characters, and situation explicitly established in the scene text. Do NOT invent phantom entities, unmentioned bystanders, cargo inspections, baggage searches, or phantom subplots. Choices must only address what is actually mentioned in the prose.
 - Do not offer leverage that this scene has already spent, such as threatening to disclose information to someone who just heard it. Do not ask an NPC to remove an obstacle they do not control.
 - Before returning JSON, check narrative and choices together for action scope, remaining opposition, witness knowledge, and supported premises. Revise contradictions without changing the authoritative game outcome.`;
 
@@ -238,7 +241,7 @@ You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "Visceral, atmospheric next scene prose in English...",
   "choices": [
-    { "id": "choice_1", "text": "Ask the sentry about the recent patrol orders", "style": "inquisitive", "riskLevel": "low" },
+    { "id": "choice_1", "text": "Carefully inspect the masonry around the threshold for a hidden lever or latch", "style": "inquisitive", "riskLevel": "low" },
     { "id": "choice_2", "text": "Quietly draw the dagger and step behind the granite pillar", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
   ],
   "extractedMemories": [
@@ -268,7 +271,7 @@ You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "متن ادبی و فضاسازی صحنه بعدی...",
   "choices": [
-    { "id": "choice_1", "text": "پرسیدن نام نگهبان و مقصد کاروان", "style": "inquisitive", "riskLevel": "low" },
+    { "id": "choice_1", "text": "بررسی دقیق نقش‌ونگارهای روی سنگِ درگاه برای یافتن روزنه یا نشانه‌ای پنهان", "style": "inquisitive", "riskLevel": "low" },
     { "id": "choice_2", "text": "کشیدن بی‌صدای خنجر و پناه گرفتن پشت ستون سنگی", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
   ],
   "extractedMemories": [
@@ -423,7 +426,7 @@ You MUST respond with a valid JSON object matching this schema:
         parts.push(`[CONTEXTUAL CHOICE MATERIAL — weave into proposed choices]\n${choiceMaterial}`);
       }
 
-      parts.push(`[FINAL INSTRUCTION]\nWrite the next scene prose in English reflecting the pre-resolved check outcome and return 2 to 4 contextual choices in pure JSON.`);
+      parts.push(`[FINAL INSTRUCTION]\nWrite the next scene prose in English reflecting the pre-resolved check outcome and return 2 to 4 contextual choices strictly grounded in the scene prose in pure JSON.`);
     } else {
       // Persian Context
       if (context.worldLaws.length > 0) {
@@ -499,7 +502,7 @@ You MUST respond with a valid JSON object matching this schema:
         parts.push(`[مصالح انتخاب زمینه‌ای / CONTEXTUAL CHOICE MATERIAL]\n${choiceMaterial}`);
       }
 
-      parts.push(`[دستور نهایی]\nصحنه بعدی داستان را با نثر ادبی و تاثیر نتیجه تاس بنویس و ۲ تا ۴ انتخاب زمینه ای در قالب JSON برگردان.`);
+      parts.push(`[دستور نهایی]\nصحنه بعدی داستان را با نثر ادبی و تاثیر نتیجه تاس بنویس و ۲ تا ۴ انتخاب کاملاً منطبق بر متن صحنه (بدون ابداع موارد ذکرنشده) در قالب JSON برگردان.`);
     }
 
     return {

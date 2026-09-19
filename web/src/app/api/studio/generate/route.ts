@@ -471,15 +471,16 @@ IMPORTANT FOR PACIFICATION: In pacificationReagents, list the clean entity names
     } else if (type === 'epic_saga_synthesis') {
       schemaInstruction = `Schema: { "sagaTitle": string, "premise": string, "chapters": [{ "chapterNumber": number, "title": string, "scopeTier": "street"|"regional"|"continental"|"mythic", "narrativeGoal": string, "prerequisiteFlags": string[], "completionSummaryPrompt": string, "scenes": [{ "sceneId": string, "title": string, "settingLocationName": string, "primaryConflict": string, "presentedChoices": [{ "style": "defensive_diplomatic"|"tactical_agile"|"aggressive_daring", "textFa": string, "textEn": string, "statCheck": { "stat": string, "dc": number }, "leadToSceneId": string }] }] }] } (👑 Synthesize a FULL 5-CHAPTER EPIC SAGA adapted to the story's authored canvas: Ground early chapters in the opening setting and personal stakes, then escalate tension through faction dynamics, turning points, and climactic payoffs appropriate to the story canvas (whether localized, urban, regional, continental, or mythic). Each chapter contains 3 to 5 linked scenes; every scene features exactly 3 choice archetypes: defensive_diplomatic, tactical_agile, aggressive_daring. Choices may chain within a chapter via leadToSceneId using declared sceneIds. Use settingLocationName values that match existing world locations when possible. DCs must be realistic (10-20). Each chapter's completionSummaryPrompt is a one-sentence directive for how the AI should compress the chapter into an episodic milestone rollup.)`;
     } else if (type === 'scene') {
-      schemaInstruction = `Schema: { "sceneId": string, "locationId": string, "narrativeText": string, "choices": [{ "id": string, "text": string, "style": "defensive"|"agile"|"aggressive"|"diplomatic"|"inquisitive", "riskLevel": "low"|"medium"|"high", "targetDC": number, "requiredStatId": string, "leadToSceneId"?: string }] } (If a choice branches or connects to another scene, provide that target scene id in leadToSceneId)`;
+      schemaInstruction = `Schema: { "sceneId": string, "locationId": string, "narrativeText": string, "choices": [{ "id": string, "text": string, "style": "defensive"|"agile"|"aggressive"|"diplomatic"|"inquisitive", "riskLevel": "low"|"medium"|"high", "targetDC": number, "requiredStatId": string, "leadToSceneId"?: string }] } (STRICT SCENE GROUNDING: Choices must be strictly grounded in what is established in the narrativeText; do not invent phantom caravans, cargo inspections, or unmentioned subplots. If a choice branches or connects to another scene, provide that target scene id in leadToSceneId)`;
     } else if (type === 'chapter_scenes') {
       schemaInstruction = `Schema: { "scenes": [{ "sceneId": string, "title": string, "settingLocationName": string, "narrativeText": string, "primaryConflict": string, "presentedChoices": [{ "textFa": string, "textEn": string, "style"?: "diplomatic"|"tactical"|"aggressive"|"inquisitive"|"evasive"|"bold", "statCheck"?: { "stat": string, "dc": number }, "leadToSceneId"?: string }] }] } (👑 NARRATIVE-FIRST SCENE GENERATION: The author has hand-written this act's storyline. Dramatize EXACTLY the authored narrative — do NOT invent a different plot. Generate 3 to 5 key milestone scenes that dramatize the act's progression: opening dilemma → escalating crisis → pivotal turning point. Assign distinct sceneIds like "act1_s1", "act1_s2". Every scene MUST advance the authored goal and feature the named factions/NPCs from the WORLD BIBLE by their real names. Use settingLocationName values that match existing world locations.
 
 CRITICAL CHOICE DESIGN RULES:
 1. Pure Narrative Agency: Each scene must offer 2 to 4 contextual, narratively meaningful choices reflecting different character philosophies, tactical decisions, or ethical dilemmas. Focus strictly on story impact and narrative flavor.
-2. NO Difficulty Tiers: NEVER categorize choices as easy, medium, or hard. Strictly avoid artificial difficulty tiers or risk labels.
-3. RPG Stat Checks (Optional): Include a statCheck only when a choice genuinely tests a character skill (realistic DC 10-18); otherwise omit statCheck.
-4. NO False Convergence: NEVER make all choices in a scene point to the same subsequent scene. Act milestone scenes represent distinct dramatic turning points; choices must NOT be artificially chained with leadToSceneId unless the subsequent scene is specifically written as that exact choice's immediate continuation. If a choice is open-ended or branches dynamically, OMIT leadToSceneId so the reader's AI engine can resolve the branch.)`;
+2. STRICT SCENE GROUNDING: Choices in each scene MUST strictly react to the events and obstacles established in that scene's narrativeText. NEVER invent unmentioned third parties, unmentioned caravans, cargo inspections, or phantom subplots not present in the prose.
+3. NO Difficulty Tiers: NEVER categorize choices as easy, medium, or hard. Strictly avoid artificial difficulty tiers or risk labels.
+4. RPG Stat Checks (Optional): Include a statCheck only when a choice genuinely tests a character skill (realistic DC 10-18); otherwise omit statCheck.
+5. NO False Convergence: NEVER make all choices in a scene point to the same subsequent scene. Act milestone scenes represent distinct dramatic turning points; choices must NOT be artificially chained with leadToSceneId unless the subsequent scene is specifically written as that exact choice's immediate continuation. If a choice is open-ended or branches dynamically, OMIT leadToSceneId so the reader's AI engine can resolve the branch.)`;
     } else if (type === 'weave_story') {
       const anchors = Array.isArray(body.anchors) ? body.anchors : [];
       const scope = body.scope === 'whole_arc' ? 'whole_arc' : 'act';
@@ -504,16 +505,17 @@ CRITICAL CHOICE DESIGN RULES:
       schemaInstruction = `Schema: { "choices": [{ "id": string, "text": string, "style": "defensive"|"agile"|"aggressive"|"diplomatic"|"inquisitive", "statCheck"?: { "stat": string, "dc": number }, "narrativeConsequence": string }] } (Generate 2 to 4 diverse, evocative literary choices for this specific scene.
 CRITICAL RULES:
 1. PURE NARRATIVE AGENCY: Choices must offer meaningfully different tactical, moral, or philosophical directions.
-2. NO DIFFICULTY OR RISK TIERS: NEVER include difficulty badges (easy, medium, hard, safe) or DC text in the choice text.
-3. STAT CHECKS: Optional. Only use valid attribute keys from the provided RPG stats list. Realistic DC 10-18.
-4. NARRATIVE CONSEQUENCE: A short 1-sentence teaser/preview of the immediate dramatic risk or direction of choosing this action.)`;
+2. STRICT SCENE GROUNDING: Choices MUST strictly react to the characters, obstacles, and physical setting EXPLICITLY established in the scene's NARRATIVE PROSE. NEVER invent unmentioned third parties, unmentioned caravans, cargo inspections, baggage searches, or phantom subplots not described in the prose text. If the text only establishes a closed city gate, choices must focus on that gate and immediate surroundings—NOT inspecting luggage or guarding unmentioned caravans.
+3. NO DIFFICULTY OR RISK TIERS: NEVER include difficulty badges (easy, medium, hard, safe) or DC text in the choice text.
+4. STAT CHECKS: Optional. Only use valid attribute keys from the provided RPG stats list. Realistic DC 10-18.
+5. NARRATIVE CONSEQUENCE: A short 1-sentence teaser/preview of the immediate dramatic risk or direction of choosing this action.)`;
     } else if (type === 'scene_next') {
       schemaInstruction = `Schema: { "sceneId": string, "locationId": string, "narrativeText": string, "choices": [{ "id": string, "text": string, "style": "defensive"|"agile"|"aggressive"|"diplomatic"|"inquisitive", "statCheck"?: { "stat": string, "dc": number } }] } (👑 IMMEDIATE CONTINUATION SCENE GENERATION:
 Generate the direct sequel scene resolving the player's chosen action from the previous scene.
 CRITICAL RULES:
 1. DIRECT NARRATIVE SEQUEL: The narrativeText must immediately acknowledge and dramatize the outcome of the chosen action before establishing the new situation, sensory details, and immediate conflict.
 2. LOCATION RELEVANCE: Set locationId to the most appropriate location from the available world locations, or a cohesive new sub-location ID.
-3. FOLLOW-UP CHOICES: Include 2 to 4 contextual follow-up choices for the new scene with NO difficulty or risk labels.
+3. FOLLOW-UP CHOICES: Include 2 to 4 contextual follow-up choices for the new scene with NO difficulty or risk labels, strictly grounded in what has been dramatized in the new scene's narrativeText without inventing phantom unmentioned elements.
 4. PROSE QUALITY: Rich, atmospheric, evocative literary prose matching the dark fantasy tone and story language.)`;
     } else if (type === 'scene_bridge') {
       schemaInstruction = `Schema: { "bridgeBeats": [{ "sceneId": string, "locationId": string, "narrativeText": string, "stepNumber": number, "primaryTransitionChoice": { "text": string, "style": "defensive"|"agile"|"aggressive"|"diplomatic"|"inquisitive", "statCheck"?: { "stat": string, "dc": number }, "leadToSceneId": string }, "alternativeChoices": [{ "text": string, "style": "defensive"|"agile"|"aggressive"|"diplomatic"|"inquisitive", "statCheck"?: { "stat": string, "dc": number } }] }] } (👑 MULTI-BEAT NARRATIVE BRIDGE GENERATION:
@@ -522,7 +524,7 @@ CRITICAL RULES:
 1. ORGANIC PACING & ESCALATION: Do NOT teleport the story directly to the destination. Each intermediate beat must dramatize a distinct stage of transit, obstacle, discovery, or escalating confrontation.
 2. CHAINED EDGES: In each intermediate beat, primaryTransitionChoice.leadToSceneId must point to the NEXT intermediate beat's sceneId (e.g. beat 1 -> beat 2), and the final intermediate beat's primaryTransitionChoice.leadToSceneId must point to the TARGET SCENE ID.
 3. NATURAL WORLD INTEGRATION: Use available world locations and lore elements (hazards, travel routes, active factions) across the journey.
-4. NO DIFFICULTY / RISK TIERS: Strictly avoid artificial difficulty or risk labels in choice texts.)`;
+4. NO DIFFICULTY / RISK TIERS & STRICT GROUNDING: Strictly avoid artificial difficulty or risk labels in choice texts. All choices must be strictly grounded in the bridge beat's narrative prose without hallucinating unmentioned subplots.)`;
     }
 
 
@@ -574,7 +576,7 @@ MANDATORY: All choices, dialogue, obstacles, and narrative actions MUST remain s
       const existing = Array.isArray(sc?.existingChoices) && sc!.existingChoices.length > 0
         ? `Already existing choices on this scene (DO NOT duplicate):\n- ${sc!.existingChoices.map((c: any) => c.text || c).join('\n- ')}`
         : '';
-      userPromptText = `Generate 2 to 4 compelling literary choices for the following scene:\n\nSCENE ID: ${sc?.sceneId || 'active_scene'}\nLOCATION: ${sc?.locationName || sc?.locationId || 'Unknown'}\nNARRATIVE PROSE:\n${sc?.narrativeText || 'In the midst of crisis...'}\n\n${existing}\n\n${statList}${arcContextBlock}\n\nAUTHOR GUIDANCE: ${prompt || 'Provide diverse tactical and narrative approaches.'}\n\n${effectiveSchemaInstruction}`;
+      userPromptText = `Generate 2 to 4 compelling literary choices for the following scene:\n\nSCENE ID: ${sc?.sceneId || 'active_scene'}\nLOCATION: ${sc?.locationName || sc?.locationId || 'Unknown'}\nNARRATIVE PROSE:\n${sc?.narrativeText || 'In the midst of crisis...'}\n\n${existing}\n\n${statList}${arcContextBlock}\n\nAUTHOR GUIDANCE: ${prompt || 'Provide diverse tactical and narrative approaches.'}\n\nCRITICAL DIRECTIVE: Every choice MUST be directly anchored in the elements, characters, and obstacles explicitly mentioned in the NARRATIVE PROSE above. Do not invent unmentioned caravans, cargo inspections, or phantom entities.\n\n${effectiveSchemaInstruction}`;
     } else if (type === 'scene_next') {
       const sc = body.scene;
       const ch = body.choice;

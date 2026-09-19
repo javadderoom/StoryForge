@@ -138,7 +138,7 @@ WEAVER QUALITY CONTRACTS:
    - For narrative progression past the anchors, weave "expansion" beats that escalate the drama toward a climax.
 3. OPENER CONTRACT: The first beat (order 1) MUST establish protagonist grounding, sensory setting details, and an inciting incident hook.
 4. FIRST INTRODUCTIONS: Whenever an NPC or Faction is introduced for the first time, ground them with 1-2 sensory sentences and include their exact name in "introducedEntityNames".
-5. CHOICE DIVERSITY: Every beat MUST feature 3 maximally distinct choices (different approaches, risks, and narrative outcomes). Stat checks are optional (DCs 5 to 30) using only valid stats (${statList}).
+5. CHOICE DIVERSITY & STRICT PROSE GROUNDING: Every beat MUST feature 3 maximally distinct choices (different approaches, risks, and narrative outcomes) strictly grounded in what has been explicitly dramatized in that beat's narrativeText. NEVER hallucinate unmentioned entities, cargo inspections, or phantom caravans. Stat checks are optional (DCs 5 to 30) using only valid stats (${statList}).
 6. CONNECTED GRAPH: Every choice MUST provide a leadToRef linking either to an anchor ("anchor:<anchorId>") or a new scene ("new:<slug>"). No dead-ends except for the final climax scene. Avoid collisions with existing IDs: ${existingSceneIds.slice(0, 10).join(', ')}.
 
 ${schemaInstruction}
