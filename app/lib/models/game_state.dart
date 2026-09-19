@@ -178,6 +178,48 @@ class PlayerEquipment {
       };
 }
 
+class ProgressionAward {
+  final int xpGained;
+  final bool levelUpOccurred;
+  final int? newLevel;
+  final int? statPointsAwarded;
+  final int? abilityPicksAwarded;
+  final String? reasonEn;
+  final String? reasonFa;
+
+  const ProgressionAward({
+    required this.xpGained,
+    this.levelUpOccurred = false,
+    this.newLevel,
+    this.statPointsAwarded,
+    this.abilityPicksAwarded,
+    this.reasonEn,
+    this.reasonFa,
+  });
+
+  factory ProgressionAward.fromJson(Map<String, dynamic> json) {
+    return ProgressionAward(
+      xpGained: (json['xpGained'] as num?)?.toInt() ?? (json['amount'] as num?)?.toInt() ?? 0,
+      levelUpOccurred: json['levelUpOccurred'] == true || json['levelUp'] == true,
+      newLevel: (json['newLevel'] as num?)?.toInt(),
+      statPointsAwarded: (json['statPointsAwarded'] as num?)?.toInt(),
+      abilityPicksAwarded: (json['abilityPicksAwarded'] as num?)?.toInt(),
+      reasonEn: json['reasonEn']?.toString(),
+      reasonFa: json['reasonFa']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'xpGained': xpGained,
+        'levelUpOccurred': levelUpOccurred,
+        if (newLevel != null) 'newLevel': newLevel,
+        if (statPointsAwarded != null) 'statPointsAwarded': statPointsAwarded,
+        if (abilityPicksAwarded != null) 'abilityPicksAwarded': abilityPicksAwarded,
+        if (reasonEn != null) 'reasonEn': reasonEn,
+        if (reasonFa != null) 'reasonFa': reasonFa,
+      };
+}
+
 class CheckResolution {
   final String outcome;
   final int diceRoll;
@@ -186,6 +228,7 @@ class CheckResolution {
   final int difficultyClass;
   final String consequenceSummary;
   final String? statId;
+  final ProgressionAward? progression;
 
   CheckResolution({
     required this.outcome,
@@ -195,9 +238,11 @@ class CheckResolution {
     required this.difficultyClass,
     required this.consequenceSummary,
     this.statId,
+    this.progression,
   });
 
   factory CheckResolution.fromJson(Map<String, dynamic> json) {
+    final progJson = json['progression'] as Map<String, dynamic>?;
     return CheckResolution(
       outcome: json['outcome'] ?? 'success',
       diceRoll: json['diceRoll'] ?? 10,
@@ -206,6 +251,7 @@ class CheckResolution {
       difficultyClass: json['difficultyClass'] ?? 10,
       consequenceSummary: json['consequenceSummary'] ?? '',
       statId: json['statId'],
+      progression: progJson != null ? ProgressionAward.fromJson(progJson) : null,
     );
   }
 
@@ -366,6 +412,15 @@ class PlayerState {
   final List<TensionClock> activeTensionClocks;
   /// Multi-denomination coin purse, e.g. {gold: 2, silver: 15, copper: 30}.
   final Map<String, int> purse;
+  /// Unlocked/known ability IDs.
+  final List<String> abilities;
+  /// Progression & leveling fields
+  final int level;
+  final int currentXP;
+  final int nextLevelXP;
+  final int totalEarnedXP;
+  final int unspentStatPoints;
+  final int unspentAbilityPicks;
 
   PlayerState({
     this.characterName,
@@ -387,6 +442,13 @@ class PlayerState {
     this.completedQuestIds = const [],
     this.activeTensionClocks = const [],
     this.purse = const {},
+    this.abilities = const [],
+    this.level = 1,
+    this.currentXP = 0,
+    this.nextLevelXP = 100,
+    this.totalEarnedXP = 0,
+    this.unspentStatPoints = 0,
+    this.unspentAbilityPicks = 0,
   });
 
   int maxFor(String key, int fallback) => maxResources[key] ?? fallback;
@@ -433,6 +495,13 @@ class PlayerState {
     List<String>? completedQuestIds,
     List<TensionClock>? activeTensionClocks,
     Map<String, int>? purse,
+    List<String>? abilities,
+    int? level,
+    int? currentXP,
+    int? nextLevelXP,
+    int? totalEarnedXP,
+    int? unspentStatPoints,
+    int? unspentAbilityPicks,
   }) {
     return PlayerState(
       characterName: characterName ?? this.characterName,
@@ -454,6 +523,13 @@ class PlayerState {
       completedQuestIds: completedQuestIds ?? this.completedQuestIds,
       activeTensionClocks: activeTensionClocks ?? this.activeTensionClocks,
       purse: purse ?? this.purse,
+      abilities: abilities ?? this.abilities,
+      level: level ?? this.level,
+      currentXP: currentXP ?? this.currentXP,
+      nextLevelXP: nextLevelXP ?? this.nextLevelXP,
+      totalEarnedXP: totalEarnedXP ?? this.totalEarnedXP,
+      unspentStatPoints: unspentStatPoints ?? this.unspentStatPoints,
+      unspentAbilityPicks: unspentAbilityPicks ?? this.unspentAbilityPicks,
     );
   }
 
@@ -471,6 +547,7 @@ class PlayerState {
     final rawTraits = json['traits'] as List<dynamic>? ?? [];
     final rawPurse = json['purse'] as Map<String, dynamic>? ?? {};
     final rawClocks = json['activeTensionClocks'] as List<dynamic>? ?? [];
+    final rawAbilities = json['abilities'] as List<dynamic>? ?? [];
 
     return PlayerState(
       characterName: json['characterName'],
@@ -492,6 +569,13 @@ class PlayerState {
       completedQuestIds: rawCompQuests.map((e) => e.toString()).toList(),
       activeTensionClocks: rawClocks.map((e) => TensionClock.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
       purse: rawPurse.map((k, v) => MapEntry(k, (v as num).toInt())),
+      abilities: rawAbilities.map((e) => e.toString()).toList(),
+      level: (json['level'] as num?)?.toInt() ?? 1,
+      currentXP: (json['currentXP'] as num?)?.toInt() ?? 0,
+      nextLevelXP: (json['nextLevelXP'] as num?)?.toInt() ?? 100,
+      totalEarnedXP: (json['totalEarnedXP'] as num?)?.toInt() ?? 0,
+      unspentStatPoints: (json['unspentStatPoints'] as num?)?.toInt() ?? 0,
+      unspentAbilityPicks: (json['unspentAbilityPicks'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -515,5 +599,12 @@ class PlayerState {
         'completedQuestIds': completedQuestIds,
         'activeTensionClocks': activeTensionClocks.map((c) => c.toJson()).toList(),
         'purse': purse,
+        'abilities': abilities,
+        'level': level,
+        'currentXP': currentXP,
+        'nextLevelXP': nextLevelXP,
+        'totalEarnedXP': totalEarnedXP,
+        'unspentStatPoints': unspentStatPoints,
+        'unspentAbilityPicks': unspentAbilityPicks,
       };
 }

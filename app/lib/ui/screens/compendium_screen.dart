@@ -10,6 +10,7 @@ import '../../providers/game_session_provider.dart';
 import '../../providers/audio_provider.dart';
 import '../../services/audio_service.dart';
 import '../widgets/item_detail_sheet.dart';
+import '../widgets/level_up_dialog.dart';
 
 /// Full-Page RPG Character, Inventory, Quest & Realm Compendium Screen
 class CompendiumScreen extends ConsumerStatefulWidget {
@@ -388,7 +389,10 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
               ),
             ],
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
             children: [
               Container(
                 width: 64,
@@ -457,8 +461,79 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 24),
+
+          // Progression & Level-Up Section
+          const Divider(color: Color(0xFF2D251D), height: 28),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                    ),
+                    child: Text(
+                      isPersian ? 'سطح ${toPersianDigits(player.level)}' : 'Level ${player.level}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                    ),
+                  ),
+                  if (player.unspentStatPoints > 0 || player.unspentAbilityPicks > 0) ...[
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => LevelUpDialog.show(context, playerState: player, isPersian: isPersian),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.auto_awesome_rounded, color: Color(0xFFF59E0B), size: 14),
+                            const SizedBox(width: 4),
+                            Text(
+                              isPersian
+                                  ? '${toPersianDigits(player.unspentStatPoints)} امتیاز ارتقا'
+                                  : '${player.unspentStatPoints} unspent points',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFF59E0B)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Text(
+                  '${toPersianDigits(player.currentXP)} / ${toPersianDigits(player.nextLevelXP)} XP',
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF10B981), fontFamily: 'monospace'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: player.nextLevelXP > 0
+                  ? (player.currentXP / player.nextLevelXP).clamp(0.0, 1.0)
+                  : 0.0,
+              minHeight: 6,
+              backgroundColor: const Color(0xFF1E2235),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+            ),
+          ),
+        ],
+      ),
+    ),
+    const SizedBox(height: 24),
 
         // Vital Resources Gauges
         Text(

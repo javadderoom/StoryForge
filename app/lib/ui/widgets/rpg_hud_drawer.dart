@@ -12,6 +12,7 @@ import '../screens/compendium_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/shop_screen.dart';
 import 'item_detail_sheet.dart';
+import 'level_up_dialog.dart';
 
 class RpgHudDrawer extends ConsumerStatefulWidget {
   final PlayerState? playerState;
@@ -388,6 +389,107 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                     child: ListView(
                       physics: const BouncingScrollPhysics(),
                       children: [
+                        // 0. Level & XP Progression Card
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF13172B), Color(0xFF0F1B24)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                                        ),
+                                        child: Text(
+                                          widget.isPersian
+                                              ? 'سطح ${toPersianDigits(player.level)}'
+                                              : 'Lvl ${player.level}',
+                                          style: const TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF10B981),
+                                          ),
+                                        ),
+                                      ),
+                                      if (player.unspentStatPoints > 0 || player.unspentAbilityPicks > 0) ...[
+                                        const SizedBox(width: 8),
+                                        GestureDetector(
+                                          onTap: () => LevelUpDialog.show(context, playerState: player, isPersian: widget.isPersian),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                const Icon(Icons.auto_awesome_rounded, color: Color(0xFFF59E0B), size: 12),
+                                                const SizedBox(width: 3),
+                                                Text(
+                                                  widget.isPersian
+                                                      ? '${toPersianDigits(player.unspentStatPoints)} امتیاز'
+                                                      : '${player.unspentStatPoints} pts',
+                                                  style: const TextStyle(
+                                                    fontSize: 10.5,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Color(0xFFF59E0B),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  Directionality(
+                                    textDirection: TextDirection.ltr,
+                                    child: Text(
+                                      '${toPersianDigits(player.currentXP)} / ${toPersianDigits(player.nextLevelXP)} XP',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF10B981),
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(5),
+                                child: LinearProgressIndicator(
+                                  value: player.nextLevelXP > 0
+                                      ? (player.currentXP / player.nextLevelXP).clamp(0.0, 1.0)
+                                      : 0.0,
+                                  minHeight: 5,
+                                  backgroundColor: const Color(0xFF1E2235),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
                         // 1. Resources (HP, Stamina, Gold)
                         _buildSectionHeader(widget.isPersian ? 'حیات و ذخایر' : 'VITALS & RESOURCES'),
                         const SizedBox(height: 10),

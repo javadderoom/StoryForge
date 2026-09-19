@@ -27,7 +27,9 @@ class GameSessionState {
   final String? currentSceneImageUrl;
   final List<Map<String, dynamic>> rpgResources;
   final List<StoryStatSummary> rpgStats;
+  final List<AbilityModel> rpgAbilities;
   final int universalBaseValue;
+  final Map<String, dynamic>? progressionConfig;
   /// Coin denominations of the story currency system (id, nameFa, nameEn, symbol).
   final List<Map<String, dynamic>> currencyDenominations;
   /// Plan 13: display name of the hazard zone after a displacement turn.
@@ -36,6 +38,8 @@ class GameSessionState {
   final String? lastActionText;
   /// The newly discovered creature spotlight for the current turn beat (if any).
   final DiscoveredCreature? discoveredCreature;
+  /// XP and level progression awarded in the latest turn (for toasts and level-up dialogs).
+  final ProgressionAward? lastXpAward;
 
   GameSessionState({
     this.isLoading = false,
@@ -56,11 +60,14 @@ class GameSessionState {
     this.currentSceneImageUrl,
     this.rpgResources = const [],
     this.rpgStats = const [],
+    this.rpgAbilities = const [],
     this.universalBaseValue = 10,
+    this.progressionConfig,
     this.currencyDenominations = const [],
     this.lastDisplacement,
     this.lastActionText,
     this.discoveredCreature,
+    this.lastXpAward,
   });
 
   bool get isPersian {
@@ -89,16 +96,20 @@ class GameSessionState {
     String? currentSceneImageUrl,
     List<Map<String, dynamic>>? rpgResources,
     List<StoryStatSummary>? rpgStats,
+    List<AbilityModel>? rpgAbilities,
     int? universalBaseValue,
+    Map<String, dynamic>? progressionConfig,
     List<Map<String, dynamic>>? currencyDenominations,
     String? lastDisplacement,
     String? lastActionText,
     DiscoveredCreature? discoveredCreature,
+    ProgressionAward? lastXpAward,
     bool clearSceneImage = false,
     bool clearPendingTurn = false,
     bool clearDisplacement = false,
     bool clearLastAction = false,
     bool clearDiscoveredCreature = false,
+    bool clearLastXpAward = false,
   }) {
     return GameSessionState(
       isLoading: isLoading ?? this.isLoading,
@@ -118,7 +129,9 @@ class GameSessionState {
       storyCoverImageUrl: storyCoverImageUrl ?? this.storyCoverImageUrl,
       rpgResources: rpgResources ?? this.rpgResources,
       rpgStats: rpgStats ?? this.rpgStats,
+      rpgAbilities: rpgAbilities ?? this.rpgAbilities,
       universalBaseValue: universalBaseValue ?? this.universalBaseValue,
+      progressionConfig: progressionConfig ?? this.progressionConfig,
       currencyDenominations: currencyDenominations ?? this.currencyDenominations,
       currentSceneImageUrl: clearSceneImage
           ? null
@@ -128,6 +141,7 @@ class GameSessionState {
       discoveredCreature: clearDiscoveredCreature
           ? null
           : (discoveredCreature ?? this.discoveredCreature),
+      lastXpAward: clearLastXpAward ? null : (lastXpAward ?? this.lastXpAward),
     );
   }
 
@@ -160,6 +174,13 @@ class GameSessionState {
     return raw.whereType<Map>().map((e) => StoryStatSummary.fromJson(Map<String, dynamic>.from(e))).toList();
   }
 
+  /// Parses server RPG ability catalogue for unlock dialogs and Grimoire.
+  static List<AbilityModel> parseRpgAbilities(Map<String, dynamic>? storyData) {
+    final raw = storyData?['rpgSystem']?['abilities'] as List<dynamic>?;
+    if (raw == null) return const [];
+    return raw.whereType<Map>().map((e) => AbilityModel.fromJson(Map<String, dynamic>.from(e))).toList();
+  }
+
   /// Parses server RPG universal base value (zero-modifier baseline).
   static int parseUniversalBaseValue(Map<String, dynamic>? storyData) {
     final rpg = storyData?['rpgSystem'];
@@ -168,6 +189,15 @@ class GameSessionState {
       if (val is num) return val.toInt();
     }
     return 10;
+  }
+
+  /// Parses progression rules configuration (XP curve, level cap, cadence).
+  static Map<String, dynamic>? parseProgressionConfig(Map<String, dynamic>? storyData) {
+    final rpg = storyData?['rpgSystem'];
+    if (rpg is Map && rpg['progression'] is Map) {
+      return Map<String, dynamic>.from(rpg['progression'] as Map);
+    }
+    return null;
   }
 
   /// Parses the story currency system denominations (highest value first).
@@ -234,7 +264,9 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         lore: rawLore,
         rpgResources: GameSessionState.parseRpgResources(storyData),
         rpgStats: GameSessionState.parseRpgStats(storyData),
+        rpgAbilities: GameSessionState.parseRpgAbilities(storyData),
         universalBaseValue: GameSessionState.parseUniversalBaseValue(storyData),
+        progressionConfig: GameSessionState.parseProgressionConfig(storyData),
         currencyDenominations: GameSessionState.parseCurrencyDenominations(storyData),
         currentNarrative: currentBeat['narrative'] ?? '',
         choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
@@ -305,6 +337,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       if (result['success'] == true) {
         final resData = result['data']['resolution'];
         final resolution = resData != null ? CheckResolution.fromJson(resData) : null;
+        final rawProgression = result['data']['progression'] ?? resData?['progression'];
+        final xpAward = rawProgression != null ? ProgressionAward.fromJson(Map<String, dynamic>.from(rawProgression as Map)) : null;
 
         // Update remaining credits in authProvider if provided
         final remainingCredits = result['data']['remainingCredits'];
@@ -318,6 +352,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             pendingTurnData: result['data'],
             lastResolution: resolution,
             lastActionText: choice.text,
+            lastXpAward: xpAward,
             isCreditDepleted: false,
             lastDisplacement: GameSessionState.displacementName(result['data'], state.lore),
             clearDisplacement: GameSessionState.displacementName(result['data'], state.lore) == null,
@@ -345,6 +380,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             playerState: updatedPlayer,
             lastResolution: resolution,
             lastActionText: choice.text,
+            lastXpAward: xpAward,
             turnNumber: state.turnNumber + 1,
             isCreditDepleted: false,
             clearPendingTurn: true,
@@ -396,6 +432,9 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       ref.read(authProvider.notifier).updateCreditBalance(remainingCredits.toInt());
     }
 
+    final rawProgression = data['progression'] ?? (data['resolution'] as Map<String, dynamic>?)?['progression'];
+    final xpAward = rawProgression != null ? ProgressionAward.fromJson(Map<String, dynamic>.from(rawProgression as Map)) : null;
+
     state = state.copyWith(
       isLoading: false,
       currentNarrative: beatData['narrativeProse'] ?? '',
@@ -403,6 +442,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       clearSceneImage: sceneImg == null,
       choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
       playerState: updatedPlayer,
+      lastXpAward: xpAward,
       turnNumber: state.turnNumber + 1,
       isCreditDepleted: false,
       clearPendingTurn: true,
@@ -415,6 +455,36 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     // Audio feedback on turn progress
     ref.read(audioProvider.notifier).playSfx(SfxType.pageTurn);
     ref.read(audioProvider.notifier).updateLocationAmbient(updatedPlayer.currentLocationId);
+  }
+
+  /// Commits player level-up stat point allocations and chosen ability to the backend
+  Future<bool> commitLevelUp({
+    required Map<String, int> statAllocations,
+    String? chosenAbilityId,
+  }) async {
+    if (state.sessionId.isEmpty) return false;
+    try {
+      final res = await GameApiService.commitLevelUp(
+        sessionId: state.sessionId,
+        statAllocations: statAllocations,
+        chosenAbilityId: chosenAbilityId,
+      );
+
+      if (res['success'] == true && res['playerState'] != null) {
+        final updated = PlayerState.fromJson(Map<String, dynamic>.from(res['playerState'] as Map));
+        state = state.copyWith(playerState: updated);
+        ref.read(audioProvider.notifier).playSfx(SfxType.diceSuccess);
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Clears the active XP toast once displayed
+  void clearXpAward() {
+    state = state.copyWith(clearLastXpAward: true);
   }
 
   /// Equips an item into the appropriate equipment slot

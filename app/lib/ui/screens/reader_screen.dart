@@ -20,6 +20,8 @@ import '../widgets/realm_relic_badge.dart';
 import '../widgets/rpg_hud_drawer.dart';
 import '../widgets/reader_settings_sheet.dart';
 import '../widgets/story_cover_image.dart';
+import '../widgets/level_up_dialog.dart';
+import '../widgets/rpg_toast.dart';
 import '../../providers/auth_provider.dart';
 import 'story_catalog_screen.dart';
 import 'compendium_screen.dart';
@@ -207,6 +209,36 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       if (prev != null && next.turnNumber != prev.turnNumber) {
         _scrollToTop();
       }
+
+      // Check for XP gain and Level-Up celebration events
+      if (next.lastXpAward != null && next.lastXpAward != prev?.lastXpAward) {
+        final award = next.lastXpAward!;
+        if (award.xpGained > 0) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            RpgToast.show(
+              context,
+              title: award.levelUpOccurred
+                  ? (next.isPersian ? 'ارتقای تراز قهرمان!' : 'Level Up!')
+                  : '+${toPersianDigits(award.xpGained)} XP',
+              subtitle: award.levelUpOccurred
+                  ? (next.isPersian ? 'به تراز جدید رسیدید! برای تخصیص امتیازها ضربه بزنید.' : 'New level reached! Upgrades available.')
+                  : (next.isPersian ? (award.reasonFa ?? 'کسب تجربه در اقدام') : (award.reasonEn ?? 'Experience gained')),
+              type: award.levelUpOccurred ? RpgToastType.warning : RpgToastType.success,
+              isPersian: next.isPersian,
+              duration: Duration(milliseconds: award.levelUpOccurred ? 4500 : 3000),
+            );
+
+            if (award.levelUpOccurred && next.playerState != null) {
+              Future.delayed(const Duration(milliseconds: 700), () {
+                if (mounted && context.mounted) {
+                  LevelUpDialog.show(context, playerState: next.playerState!, isPersian: next.isPersian);
+                }
+              });
+            }
+          });
+        }
+      }
     });
     final isPersian = session.isPersian;
     final theme = _getActiveTheme(session.storyId);
@@ -330,6 +362,82 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                       ],
                     ),
                   ),
+                );
+              },
+            ),
+
+            // Player Level Pill & Level-Up Button
+            Consumer(
+              builder: (context, ref, child) {
+                final player = ref.watch(gameSessionProvider.select((s) => s.playerState));
+                if (player == null) return const SizedBox.shrink();
+                final unspent = player.unspentStatPoints;
+
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        if (unspent > 0) {
+                          LevelUpDialog.show(context, playerState: player, isPersian: isPersian);
+                        } else {
+                          _scaffoldKey.currentState?.openEndDrawer();
+                        }
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: unspent > 0
+                              ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
+                              : const Color(0xFF10B981).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: unspent > 0
+                                ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
+                                : const Color(0xFF10B981).withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              unspent > 0 ? Icons.auto_awesome_rounded : Icons.shield_rounded,
+                              color: unspent > 0 ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                              size: 13,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              isPersian ? 'سطح ${toPersianDigits(player.level)}' : 'Lvl ${player.level}',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                                color: unspent > 0 ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                              ),
+                            ),
+                            if (unspent > 0) ...[
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF59E0B),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  toPersianDigits(unspent),
+                                  style: const TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),

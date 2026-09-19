@@ -127,4 +127,31 @@ class GameApiService {
       // the server already holds the authoritative state from the last turn.
     }
   }
+
+  /// Commits stat allocations and optional ability selection on level up
+  static Future<Map<String, dynamic>> commitLevelUp({
+    required String sessionId,
+    required Map<String, int> statAllocations,
+    String? chosenAbilityId,
+  }) async {
+    final payload = <String, dynamic>{
+      'sessionId': sessionId,
+      'statAllocations': statAllocations,
+    };
+    if (chosenAbilityId != null) {
+      payload['chosenAbilityId'] = chosenAbilityId;
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/play/level-up'),
+      headers: defaultHeaders,
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      return json;
+    }
+    throw Exception('خطا در اعمال ارتقای سطح (${response.statusCode})');
+  }
 }

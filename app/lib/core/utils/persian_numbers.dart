@@ -5,6 +5,11 @@ class PersianNumbers {
   }
 }
 
+/// Top-level helper function to convert numbers/objects to Persian numerals
+String toPersianDigits(Object? val, {bool enable = true}) {
+  return val.toPersianDigits(enable: enable);
+}
+
 extension PersianNumberExtension on Object? {
   String toPersianDigits({bool enable = true}) {
     if (this == null) return '';
