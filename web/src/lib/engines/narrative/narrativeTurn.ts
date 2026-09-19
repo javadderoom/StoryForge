@@ -1,6 +1,6 @@
 import { PromptAssembler } from './PromptAssembler';
 import { validateProse, buildProseRepairInstruction, ProseFinding } from './ProseValidator';
-import { buildWorldContextBlocks, formatNpcCombatSummary } from './worldContext';
+import { buildWorldContextBlocks, formatNpcCombatSummary, formatEquippedItemsForContext } from './worldContext';
 import { MemoryEngine } from '@/lib/engines/memory/MemoryEngine';
 import { WorkingContextEnvelope, MemoryCategory, MemoryEntry } from '@/lib/types/memory';
 import { PlayerState, CheckResolution } from '@/lib/types/gameplay';
@@ -227,7 +227,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
     playerStatus: {
       stats: playerState.stats,
       resources: playerState.resources,
-      equippedItems: playerState.inventory.map((i) => i.name),
+      equippedItems: formatEquippedItemsForContext(playerState, story),
       characterName: playerState.characterName,
       archetypeName: playerState.archetypeName,
       abilities: playerState.abilities,

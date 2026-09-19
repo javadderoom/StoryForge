@@ -19,6 +19,87 @@ export function formatNpcCombatSummary(n: NPCDossier): string {
   return `${sc.combatTier} CR${sc.challengeRating}${basis} — ${parts.join(', ')} (honor these vitals and pools when narrating harm, fatigue, and ability costs)`;
 }
 
+/**
+ * Formats the protagonist's equipped gear and carrying inventory into rich,
+ * contextual lines that convey the item's slot, specific authored powers/purpose,
+ * and whether it is a permanent relic vs consumable, so the LLM doesn't misuse them.
+ */
+export function formatEquippedItemsForContext(
+  playerState: { inventory?: any[]; equipment?: Record<string, any> | any },
+  story?: any
+): string[] {
+  const isEnglish = story?.language === 'en';
+  const artifacts: any[] = story?.worldBible?.artifacts || [];
+  const inventory: any[] = playerState.inventory || [];
+  const equipment = playerState.equipment || {};
+
+  const slotLabelsFa: Record<string, string> = {
+    mainHand: 'سلاح دست اصلی',
+    offHand: 'دست دوم/سپر',
+    armor: 'زره و پوشش',
+    relic: 'یادگار/طلسم متصل',
+  };
+  const slotLabelsEn: Record<string, string> = {
+    mainHand: 'Main Hand Weapon',
+    offHand: 'Off Hand / Shield',
+    armor: 'Armor',
+    relic: 'Equipped Relic / Talisman',
+  };
+
+  const results: string[] = [];
+
+  // 1. Process equipped slots first with full detail
+  for (const [slotKey, itemRef] of Object.entries(equipment)) {
+    if (!itemRef) continue;
+    const invItem = inventory.find((i) =>
+      typeof i === 'string' ? i === itemRef : (i.id === itemRef || i.name === itemRef)
+    );
+    const art = artifacts.find((a) => a.id === itemRef || a.name === itemRef);
+    const name = (typeof invItem === 'object' && invItem?.name) || art?.name || (typeof invItem === 'string' ? invItem : itemRef);
+    const slotLabel = isEnglish ? (slotLabelsEn[slotKey] || slotKey) : (slotLabelsFa[slotKey] || slotKey);
+
+    const desc = art?.description || (typeof invItem === 'object' ? invItem?.description : '') || '';
+    const powers: string[] = art?.powers || [];
+    const isNonConsumable = typeof invItem === 'object' ? !invItem?.isConsumable : true;
+
+    const details: string[] = [slotLabel];
+    if (powers.length > 0) {
+      details.push(isEnglish ? `Powers: ${powers.join(', ')}` : `کارکرد/قدرت: ${powers.join('، ')}`);
+    } else if (desc) {
+      details.push(desc.slice(0, 75));
+    }
+    if (slotKey === 'relic' && isNonConsumable) {
+      details.push(isEnglish ? 'Permanent gear, non-consumable' : 'دائمی، غیرمصرفی');
+    }
+
+    results.push(`${name} [${details.join(' — ')}]`);
+  }
+
+  // 2. Process other unequipped carrying items in inventory
+  const equippedRefs = new Set(Object.values(equipment).filter(Boolean));
+  for (const item of inventory) {
+    const itemId = typeof item === 'string' ? item : item?.id;
+    const itemName = typeof item === 'string' ? item : (item?.name || item?.id || '');
+    if (!itemName) continue;
+    if (equippedRefs.has(itemId) || equippedRefs.has(itemName)) continue;
+
+    const art = artifacts.find((a) => a.id === itemId || a.name === itemName);
+    const typeLabel = (typeof item === 'object' && item?.type) || 'item';
+    const desc = art?.description || (typeof item === 'object' ? item?.description : '') || '';
+    const powers: string[] = art?.powers || [];
+    const details: string[] = [typeLabel];
+    if (powers.length > 0) {
+      details.push(isEnglish ? `Powers: ${powers.join(', ')}` : `کارکرد: ${powers.join('، ')}`);
+    } else if (desc) {
+      details.push(desc.slice(0, 50));
+    }
+    results.push(`${itemName} [${details.join(' — ')}]`);
+  }
+
+  return results.length > 0 ? results : inventory.map((i) => (typeof i === 'string' ? i : i.name));
+}
+
+
 export interface WorldContextBlocks {
   storyScale?: string;
   worldSummary?: string;

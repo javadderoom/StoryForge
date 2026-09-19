@@ -11,7 +11,7 @@ import { addToPurse } from '@/lib/engines/game/currencyEngine';
 import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
 import { isPlaceholderBeat } from '@/lib/engines/world/sceneResolution';
 import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
-import { buildWorldContextBlocks, formatNpcCombatSummary } from '@/lib/engines/narrative/worldContext';
+import { buildWorldContextBlocks, formatNpcCombatSummary, formatEquippedItemsForContext } from '@/lib/engines/narrative/worldContext';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import { WorkingContextEnvelope } from '@/lib/types/memory';
@@ -147,7 +147,7 @@ async function generateOpeningChoices(
       playerStatus: {
         stats: playerState.stats || {},
         resources: playerState.resources || {},
-        equippedItems: (playerState.inventory || []).map((i: any) => i.name),
+        equippedItems: formatEquippedItemsForContext(playerState, story),
         characterName: playerState.characterName,
         archetypeName: playerState.archetypeName,
         abilities: playerState.abilities,
