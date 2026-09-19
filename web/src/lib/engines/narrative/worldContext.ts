@@ -347,12 +347,14 @@ export function buildWorldContextBlocks(
   );
 
   const bestiary = cap(
-    (wb.bestiary ?? []).map(
-      (c) =>
-        `${c.name} (danger ${c.dangerLevel}, ${c.speciesCategory}${c.isDomesticated ? ', domesticated' : ''}) — habitat: ${
-          c.habitatLocationIds.join('/') || 'unknown'
-        } | weakness: ${c.weaknesses.join(', ') || 'unknown'}`
-    ),
+    (wb.bestiary ?? []).map((c) => {
+      const descSnippet = c.loreDescription
+        ? ` — Description: ${c.loreDescription.replace(/\s+/g, ' ').slice(0, 160)}...`
+        : '';
+      return `${c.name} (danger ${c.dangerLevel}, ${c.speciesCategory}${c.isDomesticated ? ', domesticated' : ''})${descSnippet} | habitat: ${
+        c.habitatLocationIds.join('/') || 'unknown'
+      } | weakness: ${c.weaknesses.join(', ') || 'unknown'}`;
+    }),
     caps.bestiary
   );
 

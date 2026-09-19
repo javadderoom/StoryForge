@@ -61,7 +61,12 @@ function worldContextBlock(context: WorkingContextEnvelope, isEnglish: boolean):
   if (context.npcs?.length) out.push(`[${labels.npcs}]\n${context.npcs.map((x) => `• ${x}`).join('\n')}`);
   if (context.timeline?.length) out.push(`[${labels.timeline}]\n${context.timeline.map((x) => `• ${x}`).join('\n')}`);
   if (context.artifacts?.length) out.push(`[${labels.artifacts}]\n${context.artifacts.map((x) => `• ${x}`).join('\n')}`);
-  if (context.bestiary?.length) out.push(`[${labels.bestiary}]\n${context.bestiary.map((x) => `• ${x}`).join('\n')}`);
+  if (context.bestiary?.length) {
+    const bestiaryDirective = isEnglish
+      ? ' — When wildlife, predators, or monstrosities appear, you MUST draw from these canonical creatures and their lore descriptions below instead of inventing ad-hoc generic beasts'
+      : ' — در صورت حضور جانوران، درندگان یا هیولاها، حتماً از این موجودات مانیفست و ویژگی‌های ظاهری آن‌ها استفاده کن نه ابداع موجودات فرضی و کلیشه‌ای';
+    out.push(`[${labels.bestiary}${bestiaryDirective}]\n${context.bestiary.map((x) => `• ${x}`).join('\n')}`);
+  }
   if (context.religions?.length) out.push(`[${labels.religions}]\n${context.religions.map((x) => `• ${x}`).join('\n')}`);
   if (context.dramaBonds?.length) out.push(`[${labels.bonds}]\n${context.dramaBonds.map((x) => `• ${x}`).join('\n')}`);
   if (context.ontologySummary) out.push(`[${labels.ontology}]\n${context.ontologySummary}`);
@@ -212,6 +217,9 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
 - Resolve only the player's stated action against its actual target. Success does not authorize unrelated victories, confessions, or extra player actions beyond the pre-resolved consequence.
 - TARGET FIDELITY & NO TELEPORTING NPCS: If the player acts toward generic guards, sentries, gates, or obstacles, do NOT substitute a named commander or unintroduced off-scene NPC as the immediate responder. Address only the actual recipient of the action.
 - PHYSICAL ENVIRONMENT CONTINUITY: Only depict physical elements, obstacles, and props that exist in the scene. Do NOT hallucinate unmentioned physical objects (e.g., piled cargo, baggage wagons, caravan inspections) out of nowhere unless explicitly introduced by story prose or player action.
+- SINGLE DRAMATIC FOCUS (NO THREAT STACKING): Maintain a single, cohesive source of dramatic conflict per turn. When a check fails or complications escalate, escalate ONE primary threat (e.g., either an encountered creature OR a patrolling sentry), rather than piling multiple uncoordinated antagonists into the same instant. Never depict an NPC completely oblivious to a giant predator coiling in front of them!
+- BESTIARY GROUNDING & VISCERAL TRAITS: When introducing wild beasts, predators, or monstrosities, you MUST draw from the [BESTIARY & CREATURES] section and depict their specific authored physical features, secretions, and behaviors, rather than inventing generic fantasy tropes.
+- COMPREHENSIVE CHOICE COVERAGE: The generated choices MUST directly address the active demands, ultimatums, or physical hazards presented at the end of the prose (e.g., if an adversary orders the protagonist to back away or face violence, choices must provide direct responses such as compliance, de-escalation, deception, cover, or counter-resistance).
 - Preserve present participants, their positions, and unresolved threats from recent prose. Do not silently remove opposition or treat a brief opening as a fully secured scene.
 - Track who can see and hear each action. When a pre-resolved consequence requires a revelation, stage its delivery plausibly and account for witnesses' reactions; do not invent privacy or let nearby adversaries ignore an audible confession.
 - Every choice must be possible at the end of this scene and grounded in facts the protagonist has actually learned. Do not invent profits, motives, ownership, accomplices, or available escape routes from a loosely related clue. Questions may investigate uncertainty, but must not present an unproven premise as fact.
@@ -232,6 +240,7 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 [CAUSE & EFFECT PRIORITY — IMMEDIATE ACTION RESPONSIVENESS]
 - The prose MUST open with or directly dramatize the protagonist performing the player's specific action and the immediate direct reaction of the world or target NPC.
 - TARGET FIDELITY: Depict the reaction of the EXACT entity targeted by the action (e.g. the closed gate, the wall, or the specific sentry). Do NOT invent or substitute an unintroduced commander or off-scene NPC as the face-to-face responder!
+- SINGLE DRAMATIC CONFLICT: Escalate one focused conflict or obstacle per turn. Do not spawn multiple uncoordinated crises simultaneously.
 - CONVERSATIONAL ACTIONS: If the player spoke, asked, greeted, questioned, or negotiated with someone, the scene MUST feature direct spoken dialogue ("...") from the protagonist and a personal, direct reply or confrontation from the targeted NPC. Never reduce the player's speech to silence or generic ambient crowd noise!
 - NO FLOATING CAMERA SYNDROME: Do NOT open with detached panoramic scenery (weather, distant campfires, tobacco smoke) that ignores what the protagonist just did or said. Action and immediate reaction come first!
 ${statsDirective}
@@ -263,6 +272,7 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 [اولویت علت و معلول — پاسخگویی مستقیم به اقدام بازیکن / CAUSE & EFFECT PRIORITY]
 - صحنه باید فوراً با نشان دادن خودِ کنش بازیکن و واکنش بلافاصلهٔ جهان یا شخصیت مقابل آغاز شود یا بر آن متمرکز باشد.
 - وفاداری به هدف اقدام (Target Fidelity): دقیقاً واکنش همان هدف، شخص یا مانعی که بازیکن مورد خطاب قرار داده یا بر آن اقدام کرده را نشان بده (مثلاً همان نگهبانان یا درِ بسته). هرگز یک فرمانده یا شخصیت غایب را که در صحنه نبوده ناگهان رو در روی بازیکن ظاهر نکن!
+- تمرکز بر یک بحران واحد (Single Dramatic Focus): در هر نوبت فقط یک منبع تنش یا خطر را تشدید کن. از رویارویی هم‌زمان بازیکن با دو خطر نامرتبط (مثلاً حملهٔ موجود وحشی همراه با اخطار نیزه‌دار بی‌خبر) اکیداً بپرهیز.
 - پیوستگی محیطی: از ابداع موانع یا وسایل فیزیکیِ ذکرنشده (مانند بارهای انباشته‌شده یا کاروان‌ها) خودداری کن، مگر اینکه در متن صحنه‌های قبلی صراحتاً آمده باشند.
 - اقدامات گفتاری و پرسش: اگر بازیکن سخنی گفت، سؤالی پرسید، سلام کرد یا با کسی وارد مذاکره شد، صحنه حتماً باید شامل دیالوگ مستقیم با علامت «...» باشد که به شکل شخصی و مستقیم به خودِ بازیکن پاسخ می‌دهد (یا با کلام و یا با تهدید/برخورد فیزیکی مشخص). هرگز دیالوگ بازیکن را بی‌پاسخ نگذار و آن را به فریادهای نامربوط در پس‌زمینه تبدیل نکن!
 - منع زاویه دید دوربین معلق: صحنه را با توصیفات کلی و منفعلانه از منظره و دود و آتش‌های دوردست شروع نکن که عمل مشخصِ بازیکن در آن نادیده گرفته شود. اقدام و واکنش در اولویت اول هستند!
