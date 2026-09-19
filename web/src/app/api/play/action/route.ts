@@ -174,6 +174,11 @@ export async function POST(req: NextRequest) {
     // 2. Deterministic Game Engine Check Resolution
     // Diceless choices branch without a roll (Plan 12)
     const isDiceless = targetDC === undefined && statId === undefined;
+    const isPersianStory =
+      /[\u0600-\u06FF]/.test(playerActionText) ||
+      /[\u0600-\u06FF]/.test(story.title || '') ||
+      /[\u0600-\u06FF]/.test(playerState.characterName || '') ||
+      /[\u0600-\u06FF]/.test(playerState.backgroundName || '');
     let resolution: CheckResolution;
 
     if (isDiceless) {
@@ -206,7 +211,9 @@ export async function POST(req: NextRequest) {
         totalScore: 20,
         difficultyClass: 0,
         outcome: 'success' as const,
-        consequenceSummary: 'Progresses along the authored story path.',
+        consequenceSummary: isPersianStory
+          ? 'پیشروی در مسیر داستان مطابق روایت نویسنده.'
+          : 'Progresses along the authored story path.',
         stateDiff,
         ...(progressionResult ? { progression: progressionResult } : {}),
       };
@@ -220,6 +227,7 @@ export async function POST(req: NextRequest) {
           riskLevel,
           targetDC,
           forcedDiceRoll: typeof forcedDiceRoll === 'number' ? forcedDiceRoll : undefined,
+          isPersian: isPersianStory,
           // Plan 13: world context for hazard displacement + threat clocks.
           worldBible: story.worldBible,
           currentLocationId: playerState.currentLocationId,
@@ -367,7 +375,9 @@ export async function POST(req: NextRequest) {
         ...(itemTriggerResult.diff.questUpdates ?? []),
       ];
       const titles = itemTriggerResult.activatedQuests.map((q) => `"${q.title}"`).join(', ');
-      resolution.consequenceSummary += ` [Quest Activated: ${titles}]`;
+      resolution.consequenceSummary += isPersianStory
+        ? ` [مأموریت فعال شد: ${titles}]`
+        : ` [Quest Activated: ${titles}]`;
     }
 
     const questEval = GameEngine.evaluateActiveQuests(

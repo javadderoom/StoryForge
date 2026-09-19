@@ -79,7 +79,51 @@ const CONSEQUENCE_FA: Record<string, string> = {
     'موفقیت نسبی: هدف حاصل شد، اما با پرداخت بها، جراحت جزئی یا جلب توجه.',
   'The attempt failed: unexpected obstacle arose or opportunity lost.':
     'تلاش ناموفق بود: مانعی غیرمنتظره پدیدار شد یا فرصت از دست رفت.',
+  'Progresses along the authored story path.':
+    'پیشروی در مسیر داستان مطابق روایت نویسنده.',
 };
+
+function defaultOutcomeSummary(outcome: string): string {
+  switch (outcome) {
+    case 'critical_success':
+      return 'پیروزی قاطع: دستیابی به هدف با مهارت و برتری استثنایی.';
+    case 'success':
+      return 'موفقیت آشکار: هدف دقیقاً مطابق انتظار محقق شد.';
+    case 'mixed_success':
+      return 'موفقیت نسبی: هدف حاصل شد، اما با پرداخت بها، جراحت جزئی یا جلب توجه.';
+    case 'critical_failure':
+      return 'فاجعه رخ داد: شکست کامل همراه با آسیب سنگین یا عواقب ناگوار.';
+    case 'failure':
+    default:
+      return 'تلاش ناموفق بود: مانعی غیرمنتظره پدیدار شد یا فرصت از دست رفت.';
+  }
+}
+
+function formatConsequenceSummary(summary: string, isPersian: boolean, outcome?: string): string {
+  if (!summary) return '';
+  if (!isPersian) return summary;
+
+  if (CONSEQUENCE_FA[summary]) {
+    return CONSEQUENCE_FA[summary];
+  }
+
+  // Check if summary has trailing bracketed tags like " [tag]" or " [+3 ...]"
+  const match = summary.match(/^(.*?)((\s*\[.*\])+)$/);
+  if (match) {
+    const base = match[1].trim();
+    const tags = match[2];
+    const translatedBase =
+      CONSEQUENCE_FA[base] ??
+      (/[\u0600-\u06FF]/.test(base) ? base : outcome ? defaultOutcomeSummary(outcome) : base);
+    return `${translatedBase}${tags}`;
+  }
+
+  if (!/[\u0600-\u06FF]/.test(summary) && outcome) {
+    return defaultOutcomeSummary(outcome);
+  }
+
+  return summary;
+}
 
 export function DiceRollModal({
   isOpen,
@@ -168,7 +212,7 @@ export function DiceRollModal({
                 {outcomeLabel(resolution.outcome, isPersian)}
               </div>
               <p className="mt-1 text-[11px] text-zinc-300">
-                {isPersian ? CONSEQUENCE_FA[resolution.consequenceSummary] ?? resolution.consequenceSummary : resolution.consequenceSummary}
+                {formatConsequenceSummary(resolution.consequenceSummary, isPersian, resolution.outcome)}
               </p>
             </div>
 

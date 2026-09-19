@@ -130,10 +130,32 @@ class _DiceRollDialogState extends State<DiceRollDialog> {
       'The attempt failed: unexpected obstacle arose or opportunity lost.':
           'تلاش ناموفق بود: مانعی غیرمنتظره پدیدار شد یا فرصت از دست رفت.',
     };
-    if (summaryMap.containsKey(widget.resolution.consequenceSummary)) {
-      return summaryMap[widget.resolution.consequenceSummary]!;
+    final summary = widget.resolution.consequenceSummary;
+    if (summaryMap.containsKey(summary)) {
+      return summaryMap[summary]!;
     }
-    switch (widget.resolution.outcome) {
+
+    // Check if summary has trailing bracketed tags like " [tag]" or " [+3 ...]"
+    final tagMatch = RegExp(r'^(.*?)((\s*\[.*\])+)$').firstMatch(summary);
+    if (tagMatch != null) {
+      final base = tagMatch.group(1)!.trim();
+      final tag = tagMatch.group(2)!;
+      final translatedBase = summaryMap[base] ??
+          (base.contains(RegExp(r'[\u0600-\u06FF]'))
+              ? base
+              : _defaultOutcomeSummary(widget.resolution.outcome));
+      return '$translatedBase$tag';
+    }
+
+    if (summary.contains(RegExp(r'[\u0600-\u06FF]'))) {
+      return summary;
+    }
+
+    return _defaultOutcomeSummary(widget.resolution.outcome);
+  }
+
+  String _defaultOutcomeSummary(String outcome) {
+    switch (outcome) {
       case 'critical_success':
         return 'پیروزی چشمگیر: دستیابی به هدف با برتری کامل.';
       case 'success':

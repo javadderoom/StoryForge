@@ -77,6 +77,7 @@ export interface RollOptions {
   riskLevel?: RiskLevel;
   environmentalModifier?: number;
   forcedDiceRoll?: number; // Useful for deterministic testing
+  isPersian?: boolean;
   /** Plan 13: world context for hazard displacement + threat clock ticking. */
   worldBible?: WorldBible;
   currentLocationId?: string;
@@ -1182,25 +1183,42 @@ export class GameEngine {
       stateDiff.resourceChanges = { ...initialResourceChanges };
     }
 
+    const isPersian =
+      options.isPersian ??
+      (/[\u0600-\u06FF]/.test(actionText) ||
+        /[\u0600-\u06FF]/.test(playerState.characterName || '') ||
+        /[\u0600-\u06FF]/.test(playerState.backgroundName || '') ||
+        (rpgSystem.stats && rpgSystem.stats.some((s) => /[\u0600-\u06FF]/.test(s.name))));
+
     if (isNatMin) {
       outcome = 'critical_failure';
-      consequenceSummary = 'Disaster strikes: complete failure with severe complications or damage.';
+      consequenceSummary = isPersian
+        ? 'فاجعه رخ داد: شکست کامل همراه با آسیب سنگین یا عواقب ناگوار.'
+        : 'Disaster strikes: complete failure with severe complications or damage.';
       stateDiff.resourceChanges = {
         ...(stateDiff.resourceChanges || {}),
         [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) - 15,
       };
     } else if (isNatMax) {
       outcome = 'critical_success';
-      consequenceSummary = 'Flawless execution: effortless success with bonus insight or tactical advantage.';
+      consequenceSummary = isPersian
+        ? 'اجرای بی‌نقص: موفقیت چشمگیر همراه با بینش تاکتیکی و برتری کامل.'
+        : 'Flawless execution: effortless success with bonus insight or tactical advantage.';
     } else if (totalScore >= baseDC + 5) {
       outcome = 'critical_success';
-      consequenceSummary = 'Decisive victory: achieved the objective with exceptional style and advantage.';
+      consequenceSummary = isPersian
+        ? 'پیروزی قاطع: دستیابی به هدف با مهارت و برتری استثنایی.'
+        : 'Decisive victory: achieved the objective with exceptional style and advantage.';
     } else if (totalScore >= baseDC) {
       outcome = 'success';
-      consequenceSummary = 'Clear success: objective accomplished as intended.';
+      consequenceSummary = isPersian
+        ? 'موفقیت آشکار: هدف دقیقاً مطابق انتظار محقق شد.'
+        : 'Clear success: objective accomplished as intended.';
     } else if (totalScore >= baseDC - 3) {
       outcome = 'mixed_success';
-      consequenceSummary = 'Mixed success: goal achieved, but with cost, minor injury, or alert raised.';
+      consequenceSummary = isPersian
+        ? 'موفقیت نسبی: هدف حاصل شد، اما با پرداخت بها، جراحت جزئی یا جلب توجه.'
+        : 'Mixed success: goal achieved, but with cost, minor injury, or alert raised.';
       const hpPenalty = options.riskLevel === 'low' ? 0 : -5;
       stateDiff.resourceChanges = {
         ...(stateDiff.resourceChanges || {}),
@@ -1211,7 +1229,9 @@ export class GameEngine {
       };
     } else {
       outcome = 'failure';
-      consequenceSummary = 'The attempt failed: unexpected obstacle arose or opportunity lost.';
+      consequenceSummary = isPersian
+        ? 'تلاش ناموفق بود: مانعی غیرمنتظره پدیدار شد یا فرصت از دست رفت.'
+        : 'The attempt failed: unexpected obstacle arose or opportunity lost.';
       stateDiff.resourceChanges = {
         ...(stateDiff.resourceChanges || {}),
         [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) - 10,
@@ -1249,7 +1269,9 @@ export class GameEngine {
         };
         stateDiff.clockUpdates = [{ id: activeClock.id, delta: newSegments - (activeClock.currentSegments || 0), isCrisis }];
         if (isCrisis) {
-          consequenceSummary += ` Danger peaks — ${activeClock.name} triggers: ${activeClock.crisisDescription || 'crisis erupts!'}`;
+          consequenceSummary += isPersian
+            ? ` اوج‌گیری خطر — ساعت "${activeClock.name}" فعال شد: ${activeClock.crisisDescription || 'بحران آغاز گردید!'}`
+            : ` Danger peaks — ${activeClock.name} triggers: ${activeClock.crisisDescription || 'crisis erupts!'}`;
         }
       }
 
@@ -1263,14 +1285,15 @@ export class GameEngine {
           ...(stateDiff.resourceChanges || {}),
           [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) - fallDamage,
         };
-        consequenceSummary += ` Catastrophic failure hurls the player into a hazard zone.`;
+        consequenceSummary += isPersian
+          ? ` سقوط یا جابجایی ناخواسته: قهرمان به منطقه‌ای پرخطر پرتاب شد.`
+          : ` Catastrophic failure hurls the player into a hazard zone.`;
       }
     } catch {
       /* non-fatal: clock/displacement must never break the core roll */
     }
 
     if (passiveResult.appliedPassives.length > 0) {
-      const isPersian = /[\u0600-\u06FF]/.test(actionText) || /[\u0600-\u06FF]/.test(consequenceSummary);
       const tag = passiveResult.appliedPassives
         .map((p) => (isPersian ? p.reasonFa : p.reason))
         .join('; ');
