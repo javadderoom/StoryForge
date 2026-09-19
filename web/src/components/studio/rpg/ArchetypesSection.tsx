@@ -301,12 +301,19 @@ export function ArchetypesSection({
                     <div className="flex flex-wrap gap-1.5 pt-1">
                       {Object.entries(arch.statBonuses).map(([statId, bonus]) => {
                         const stName = stats.find((s) => s.id === statId)?.name || statId;
+                        const num = Number(bonus);
+                        const isPositive = num > 0;
                         return (
                           <span
                             key={statId}
-                            className="text-[10px] bg-purple-500/10 text-purple-300 font-mono px-2 py-0.5 rounded-md border border-purple-500/20"
+                            dir="ltr"
+                            className={`text-[10px] font-mono px-2 py-0.5 rounded-md border ${
+                              isPositive
+                                ? 'bg-purple-500/10 text-purple-300 border-purple-500/20'
+                                : 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+                            }`}
                           >
-                            {stName}: +{String(bonus)}
+                            {stName}: {isPositive ? `+${num}` : num}
                           </span>
                         );
                       })}
@@ -467,30 +474,39 @@ export function ArchetypesSection({
               {/* Stat Bonuses for story attributes */}
               <div>
                 <label className="block text-xs font-bold text-purple-400 mb-2">
-                  ⚔️ {isPersian ? 'پاداش‌های ویژگی‌های اصلی (+)' : 'Stat Modifiers (+)'}
+                  ⚔️ {isPersian ? 'اصلاحگرهای ویژگی‌های اصلی (+ / -)' : 'Attribute Modifiers (+ / -)'}
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 rounded-2xl bg-zinc-950 border border-zinc-800">
-                  {stats.map((st) => (
-                    <div key={st.id} className="flex items-center justify-between gap-1 text-xs">
-                      <span className="text-zinc-300 truncate">{st.name}:</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={10}
-                        value={archetypeForm.statBonuses?.[st.id] ?? 0}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          setArchetypeForm((prev) => {
-                            const bonuses = { ...(prev.statBonuses || {}) };
-                            if (val > 0) bonuses[st.id] = val;
-                            else delete bonuses[st.id];
-                            return { ...prev, statBonuses: bonuses };
-                          });
-                        }}
-                        className="w-14 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-center font-mono text-purple-300"
-                      />
-                    </div>
-                  ))}
+                  {stats.map((st) => {
+                    const currentVal = archetypeForm.statBonuses?.[st.id] ?? 0;
+                    return (
+                      <div key={st.id} className="flex items-center justify-between gap-1 text-xs">
+                        <span className="text-zinc-300 truncate">{st.name}:</span>
+                        <input
+                          type="number"
+                          min={-10}
+                          max={10}
+                          value={currentVal}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setArchetypeForm((prev) => {
+                              const bonuses = { ...(prev.statBonuses || {}) };
+                              if (val !== 0) bonuses[st.id] = val;
+                              else delete bonuses[st.id];
+                              return { ...prev, statBonuses: bonuses };
+                            });
+                          }}
+                          className={`w-14 bg-zinc-900 border rounded-lg px-2 py-1 text-xs text-center font-mono transition-colors ${
+                            currentVal > 0
+                              ? 'border-purple-500/50 text-purple-300'
+                              : currentVal < 0
+                              ? 'border-rose-500/50 text-rose-300'
+                              : 'border-zinc-700 text-zinc-500'
+                          }`}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

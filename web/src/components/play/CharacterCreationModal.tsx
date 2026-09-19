@@ -55,7 +55,10 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
     const base = statItem?.baseValue ?? 10;
     const aBonus = arch?.statBonuses?.[statId] ?? 0;
     const bBonus = bg?.statBonuses?.[statId] ?? 0;
-    return base + aBonus + bBonus + (points[statId] ?? 0);
+    const rawTotal = base + aBonus + bBonus + (points[statId] ?? 0);
+    const min = statItem?.minValue ?? 1;
+    const max = statItem?.maxValue ?? 30;
+    return Math.max(min, Math.min(max, rawTotal));
   }
   function finalAllocated(): Record<string, number> {
     const r: Record<string, number> = {};
@@ -148,11 +151,23 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
                       </div>
                       <p className="mt-1 text-[12px] text-zinc-400">{a.description}</p>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {Object.entries(a.statBonuses ?? {}).map(([k, v]) => (
-                          <span key={k} className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
-                            +{v as number} {getStatName(k, isPersian, stats.find((s) => s.id === k))}
-                          </span>
-                        ))}
+                        {Object.entries(a.statBonuses ?? {}).map(([k, v]) => {
+                          const num = Number(v);
+                          const isPositive = num > 0;
+                          return (
+                            <span
+                              key={k}
+                              dir="ltr"
+                              className={`rounded-lg border px-2 py-0.5 text-[11px] font-bold ${
+                                isPositive
+                                  ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                                  : 'border-rose-500/40 bg-rose-500/15 text-rose-300'
+                              }`}
+                            >
+                              {isPositive ? `+${num}` : num} {getStatName(k, isPersian, stats.find((s) => s.id === k))}
+                            </span>
+                          );
+                        })}
                       </div>
                     </button>
                   );
@@ -184,6 +199,27 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
                         <span style={{ color: sel ? accent : '#444' }}>{sel ? '●' : '○'}</span>
                       </div>
                       <p className="mt-1 text-[12px] text-zinc-400">{b.description}</p>
+                      {b.statBonuses && Object.keys(b.statBonuses).length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {Object.entries(b.statBonuses).map(([k, v]) => {
+                            const num = Number(v);
+                            const isPositive = num > 0;
+                            return (
+                              <span
+                                key={k}
+                                dir="ltr"
+                                className={`rounded-lg border px-2 py-0.5 text-[11px] font-bold ${
+                                  isPositive
+                                    ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                                    : 'border-rose-500/40 bg-rose-500/15 text-rose-300'
+                                }`}
+                              >
+                                {isPositive ? `+${num}` : num} {getStatName(k, isPersian, stats.find((s) => s.id === k))}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                       {b.trait && (
                         <div className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-indigo-400/40 bg-indigo-500/15 px-2.5 py-1 text-[11px] font-bold text-indigo-300">
                           <span>✶</span> {isPersian ? 'ویژگی: ' : 'Trait: '}{b.trait}

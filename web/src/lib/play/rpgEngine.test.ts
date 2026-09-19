@@ -108,4 +108,33 @@ describe('resolveActionCheck with universalBaseValue', () => {
     // Magic 5 vs baseline 5 -> +0 modifier (despite magic.baseValue being 3)
     assert.equal(resMagic.statModifier, 0);
   });
+
+  it('correctly calculates negative modifiers when stats drop below base value from negative archetypes/backgrounds', async () => {
+    const { resolveActionCheck } = await import('./rpgEngine');
+    const rpgSystem: any = {
+      universalBaseValue: 10,
+      stats: [
+        { id: 'might', baseValue: 10 },
+        { id: 'magic', baseValue: 10, minValue: 1 },
+      ],
+    };
+    const playerState: any = {
+      // Warrior has 12 might (+1) but dump stat magic at 8 (-1) due to archetype/background negative modifiers
+      stats: { might: 12, magic: 8 },
+      inventory: [],
+      equipment: {},
+    };
+
+    const resMagic = resolveActionCheck({
+      actionText: 'Cast spell without arcane training',
+      playerState,
+      requiredStatId: 'magic',
+      forcedDiceRoll: 10,
+      rpgSystem,
+    });
+    // Magic 8 vs base 10 -> (8 - 10)/2 = -1 modifier
+    assert.equal(resMagic.statModifier, -1);
+    assert.equal(resMagic.total, 9); // 10 + (-1) = 9
+  });
 });
+

@@ -423,6 +423,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Clamp initial stats within configured min/max bounds (ensures negative modifiers do not violate minValue)
+    if (Array.isArray(story.rpgSystem?.stats)) {
+      for (const stat of story.rpgSystem.stats) {
+        const min = stat.minValue ?? 1;
+        const max = stat.maxValue ?? 30;
+        if (initialStats[stat.id] !== undefined) {
+          initialStats[stat.id] = Math.max(min, Math.min(max, initialStats[stat.id]));
+        }
+      }
+    }
+
     // Provision archetype equipment from the artifact vault: resolve slot refs
     // (artifact id, or legacy free-typed name) to real inventory GameItems so
     // equipment slots and their stat modifiers resolve in the play HUD.
