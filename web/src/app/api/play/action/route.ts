@@ -574,7 +574,11 @@ export async function POST(req: NextRequest) {
         .toLowerCase();
 
     // 1. Check direct model-provided encounteredCreatureId
-    if (aiResponse.encounteredCreatureId) {
+    if (
+      aiResponse.encounteredCreatureId &&
+      aiResponse.encounteredCreatureId !== 'none' &&
+      aiResponse.encounteredCreatureId !== 'null'
+    ) {
       const target = normalizeTextForMatching(aiResponse.encounteredCreatureId);
       const match = bestiary.find(
         (c) =>
@@ -589,25 +593,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Fallback to normalized text & species keyword matching across narrative and choices
-    if (!firstDiscoveredCreature) {
+    // 2. Strict Fallback: ONLY match if the exact, full creature name appears verbatim
+    // as a whole phrase in the narrative or choices. Never match isolated single words.
+    if (!firstDiscoveredCreature && !aiResponse.encounteredCreatureId) {
       const normalizedNarrative = normalizeTextForMatching(aiResponse.narrative);
       const normalizedChoices = (aiResponse.choices || []).map((c: any) => normalizeTextForMatching(c.text)).join(' ');
 
       for (const creature of bestiary) {
         if (!creature.name) continue;
         const normalizedName = normalizeTextForMatching(creature.name);
-        if (!normalizedName) continue;
+        if (normalizedName.length < 5) continue;
 
         const fullNameMatched =
           normalizedNarrative.includes(normalizedName) || normalizedChoices.includes(normalizedName);
 
-        const keywords = normalizedName.split(' ').filter((w) => w.length >= 4);
-        const keywordMatched =
-          keywords.length > 0 &&
-          keywords.some((kw) => normalizedNarrative.includes(kw) || normalizedChoices.includes(kw));
-
-        if (fullNameMatched || keywordMatched) {
+        if (fullNameMatched) {
           if (!discoveredIds.has(creature.id)) {
             discoveredIds.add(creature.id);
             firstDiscoveredCreature = creature;

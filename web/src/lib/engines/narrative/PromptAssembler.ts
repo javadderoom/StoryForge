@@ -266,7 +266,7 @@ ${continuityDirective}
 You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "Visceral, atmospheric next scene prose in English...",
-  "encounteredCreatureId": null, // If a beast/creature from [BESTIARY & CREATURES] is encountered or featured in this scene, put its ID (or name) here; otherwise null
+  "encounteredCreatureId": null, // If and ONLY IF an active predator, monster, or wild beast from [BESTIARY & CREATURES] directly engages or is encountered in this turn, provide its ID or exact name; otherwise strictly null (never set for ambient plants, background livestock, or setting descriptions)
   "choices": [
     { "id": "choice_1", "text": "Carefully inspect the masonry around the threshold for a hidden lever or latch", "style": "inquisitive", "riskLevel": "low" },
     { "id": "choice_2", "text": "Quietly draw the dagger and step behind the granite pillar", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
@@ -309,7 +309,7 @@ ${continuityDirective}
 You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "متن ادبی و فضاسازی صحنه بعدی...",
-  "encounteredCreatureId": null, // در صورت رویارویی با موجودی از بخش فهرست موجودات، شناسه یا نام آن را در اینجا قرار دهید؛ در غیر این صورت null
+  "encounteredCreatureId": null, // فقط و تنها در صورت نبرد یا رویارویی مستقیم با درنده، هیولا یا جانوری فعال در این صحنه، شناسه یا نام دقیق آن را از فهرست موجودات قرار دهید؛ در غیر این صورت حتماً null (هرگز برای گیاهان، دام‌های پس‌زمینه یا توصیفات محیطی مقداردهی نشود)
   "choices": [
     { "id": "choice_1", "text": "بررسی دقیق نقش‌ونگارهای روی سنگِ درگاه برای یافتن روزنه یا نشانه‌ای پنهان", "style": "inquisitive", "riskLevel": "low" },
     { "id": "choice_2", "text": "کشیدن بی‌صدای خنجر و پناه گرفتن پشت ستون سنگی", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
