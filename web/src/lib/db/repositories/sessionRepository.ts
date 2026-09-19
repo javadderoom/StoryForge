@@ -170,8 +170,8 @@ export class SessionRepository {
 
     if (!isDatabaseActive) {
       const existing = inMemorySessions.get(sessionId) || {};
-      const turns = existing.turns || [];
-      const mems = existing.memories || [];
+      const turns = (existing.turns || []).filter((t: any) => (t.turnNumber ?? 0) < beat.turnNumber);
+      const mems = (existing.memories || []).filter((m: any) => (m.turnNumber ?? 0) < beat.turnNumber);
       const newTurn = {
         sessionId,
         turnNumber: beat.turnNumber,

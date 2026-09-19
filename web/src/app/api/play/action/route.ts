@@ -448,12 +448,12 @@ export async function POST(req: NextRequest) {
         resolution,
         playerActionText,
         ledger: nextLedger,
-        sessionTurns: (session?.turns ?? []) as Array<{
+        sessionTurns: ((session?.turns ?? []) as Array<{
           turnNumber?: number;
           sceneId?: string;
           narrativeProse?: string;
-        }>,
-        sessionMemories: (session?.memories ?? []) as Array<{
+        }>).filter((t) => typeof t.turnNumber !== 'number' || t.turnNumber < turnNumber),
+        sessionMemories: ((session?.memories ?? []) as Array<{
           category: string;
           importance?: number;
           summary: string;
@@ -462,7 +462,7 @@ export async function POST(req: NextRequest) {
           sceneId?: string | null;
           entityIds?: string[];
           tags?: string[];
-        }>,
+        }>).filter((m) => typeof m.turnNumber !== 'number' || m.turnNumber < turnNumber),
         targetSceneId,
         activeChapter,
         displacedLocationId,
