@@ -9,6 +9,7 @@ class ArchetypeModel {
   final Map<String, int> statBonuses;
   final PlayerEquipment? startingEquipment;
   final List<GameItem> bonusItems;
+  final List<String> startingAbilities;
 
   const ArchetypeModel({
     required this.id,
@@ -19,11 +20,13 @@ class ArchetypeModel {
     this.statBonuses = const {},
     this.startingEquipment,
     this.bonusItems = const [],
+    this.startingAbilities = const [],
   });
 
   factory ArchetypeModel.fromJson(Map<String, dynamic> json) {
     final rawBonuses = json['statBonuses'] as Map<String, dynamic>? ?? {};
     final rawBonusItems = json['bonusItems'] as List<dynamic>? ?? [];
+    final rawAbilities = json['startingAbilities'];
 
     return ArchetypeModel(
       id: json['id'] ?? '',
@@ -36,6 +39,9 @@ class ArchetypeModel {
           ? PlayerEquipment.fromJson(json['startingEquipment'] as Map<String, dynamic>)
           : null,
       bonusItems: rawBonusItems.map((i) => GameItem.fromJson(i as Map<String, dynamic>)).toList(),
+      startingAbilities: rawAbilities is List
+          ? rawAbilities.map((e) => e.toString()).toList()
+          : const [],
     );
   }
 
@@ -48,6 +54,7 @@ class ArchetypeModel {
         'statBonuses': statBonuses,
         'startingEquipment': startingEquipment?.toJson(),
         'bonusItems': bonusItems.map((i) => i.toJson()).toList(),
+        'startingAbilities': startingAbilities,
       };
 }
 

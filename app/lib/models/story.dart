@@ -161,7 +161,8 @@ class StorySummary {
     final rawStats = json['stats'] as List<dynamic>? ?? [];
     final rawArch = json['archetypes'] as List<dynamic>? ?? [];
     final rawBg = json['backgrounds'] as List<dynamic>? ?? [];
-    final rawAbilities = json['abilities'] as List<dynamic>? ?? [];
+    // The play API nests abilities under rpgSystem; accept top-level too.
+    final rawAbilities = json['abilities'] as List<dynamic>? ?? json['rpgSystem']?['abilities'] as List<dynamic>? ?? [];
 
     return StorySummary(
       id: json['id'] ?? '',

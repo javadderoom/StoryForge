@@ -164,6 +164,61 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
     }
   }
 
+  /// Finds a story ability by id; null when unknown.
+  AbilityModel? _findAbility(String abilityId) {
+    for (final ab in widget.story.abilities) {
+      if (ab.id == abilityId) return ab;
+    }
+    return null;
+  }
+
+  /// One starter-ability row: name plus optional description.
+  Widget _buildStarterAbilityRow(String abilityId, bool isPersian) {
+    final ability = _findAbility(abilityId);
+    final name = (ability?.name.trim().isNotEmpty == true) ? ability!.name.trim() : abilityId;
+    final description = (ability?.description.trim().isNotEmpty == true) ? ability!.description.trim() : null;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(Icons.bolt_rounded, color: Color(0xFFF59E0B), size: 14),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name.toPersianDigits(enable: isPersian),
+                  style: GoogleFonts.vazirmatn(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                if (description != null)
+                  Text(
+                    description.toPersianDigits(enable: isPersian),
+                    style: GoogleFonts.vazirmatn(fontSize: 11, color: Colors.white60, height: 1.5),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Splits a trait string (comma / Persian-comma / newline separated,
+  /// mirroring the web NpcCard convention) into one item per line.
+  List<String> _splitTraitItems(String trait) {
+    return trait
+        .split(RegExp(r'[,،\n؛;]+'))
+        .map((s) => s.trim().replaceFirst(RegExp(r'^[•\-\*]\s*'), ''))
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }
+
   String _formatStatName(String key, bool isPersian) {
     for (final s in _getEffectiveStats()) {
       if (s.id.toLowerCase() == key.toLowerCase()) {
@@ -279,7 +334,7 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
                             child: _currentStep > i
                                 ? const Icon(Icons.check, size: 14, color: Colors.black)
                                 : Text(
-                                    '${i + 1}'.toPersianDigits(),
+                                    '${i + 1}'.toPersianDigits(enable: isPersian),
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
@@ -490,8 +545,8 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
                         textDirection: TextDirection.ltr,
                         child: Text(
                           b.value >= 0
-                              ? '+${b.value} ${_formatStatName(b.key, isPersian)}'
-                              : '${b.value} ${_formatStatName(b.key, isPersian)}',
+                              ? '+${b.value.toPersianDigits(enable: isPersian)} ${_formatStatName(b.key, isPersian)}'
+                              : '${b.value.toPersianDigits(enable: isPersian)} ${_formatStatName(b.key, isPersian)}',
                           style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
@@ -499,6 +554,20 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
                         ),
                       ),
                     ),
+                ],
+              ),
+            ],
+            if (arch.startingAbilities.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                isPersian ? 'توانایی‌های آغازین:' : 'Starting abilities:',
+                style: GoogleFonts.vazirmatn(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFFF59E0B)),
+              ),
+              const SizedBox(height: 6),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final abilityId in arch.startingAbilities) _buildStarterAbilityRow(abilityId, isPersian),
                 ],
               ),
             ],
@@ -610,28 +679,57 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
               bg.description,
               style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white70, height: 1.5),
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.auto_awesome_rounded, color: Color(0xFF818CF8), size: 14),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      '${isPersian ? 'ویژگی خاص: ' : 'Trait: '}${bg.trait}',
-                      style: GoogleFonts.vazirmatn(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFFC7D2FE)),
+            if (bg.trait.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.45)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.auto_awesome_rounded, color: Color(0xFF818CF8), size: 14),
+                        const SizedBox(width: 6),
+                        Text(
+                          isPersian ? 'ویژگی خاص' : 'Special trait',
+                          style: GoogleFonts.vazirmatn(
+                              fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF818CF8)),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    for (final item in _splitTraitItems(bg.trait))
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 7),
+                              child: Icon(Icons.circle, size: 6, color: Color(0xFF818CF8)),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                item.toPersianDigits(enable: isPersian),
+                                style: GoogleFonts.vazirmatn(
+                                    fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white, height: 1.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -741,7 +839,7 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    mod >= 0 ? '+$mod' : '$mod',
+                    mod >= 0 ? '+${mod.toPersianDigits(enable: isPersian)}' : mod.toPersianDigits(enable: isPersian),
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -751,7 +849,7 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '$total',
+                  total.toPersianDigits(enable: isPersian),
                   style: GoogleFonts.cinzel(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -886,7 +984,7 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
                         child: Directionality(
                           textDirection: TextDirection.ltr,
                           child: Text(
-                            '${_formatStatName(s.id, isPersian)}: ${_calculateTotalStat(s.id)}',
+                            '${_formatStatName(s.id, isPersian)}: ${_calculateTotalStat(s.id).toPersianDigits(enable: isPersian)}',
                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
                           ),
                         ),
