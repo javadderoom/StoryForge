@@ -368,7 +368,17 @@ You MUST respond with a valid JSON object matching this schema:
           .join('\n')
       : '';
 
-    const enProtagonistBlock = (statsLineEn || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || powerRanksLineEn || context.playerStatus?.itemInteractionsCatalog)
+    const playerTraits = context.playerStatus?.traits || [];
+    const traitsLineEn = playerTraits.length
+      ? playerTraits
+          .map((t) =>
+            t.effects.length > 0 ? `• ${t.name} — ${t.effects.join(' | ')}` : `• ${t.name}`
+          )
+          .join('\n')
+      : '';
+    const traitsLineFa = traitsLineEn;
+
+    const enProtagonistBlock = (statsLineEn || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || traitsLineEn || powerRanksLineEn || context.playerStatus?.itemInteractionsCatalog)
       ? [
           '[PROTAGONIST STATUS & CAPABILITIES]',
           context.playerStatus?.characterName
@@ -382,6 +392,9 @@ You MUST respond with a valid JSON object matching this schema:
               ? `• Known Abilities / Spells: ${context.playerStatus.abilities[0]}`
               : `• Known Abilities / Spells:\n  ${context.playerStatus.abilities.map((a) => `• ${a}`).join('\n  ')}`
             : '',
+          traitsLineEn
+            ? `• Background Traits (these ALREADY altered this turn's roll — depict them as real):\n  ${traitsLineEn}`
+            : '',
           powerRanksLineEn ? `\n[POWER SCHOOL RANKINGS & MASTERY]\n${powerRanksLineEn}` : '',
           context.playerStatus?.itemInteractionsCatalog ? `\n${context.playerStatus.itemInteractionsCatalog}` : '',
         ]
@@ -389,7 +402,7 @@ You MUST respond with a valid JSON object matching this schema:
           .join('\n')
       : '';
 
-    const faProtagonistBlock = (statsLineFa || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || powerRanksLineFa || context.playerStatus?.itemInteractionsCatalog)
+    const faProtagonistBlock = (statsLineFa || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || traitsLineFa || powerRanksLineFa || context.playerStatus?.itemInteractionsCatalog)
       ? [
           '[وضعیت و توانمندی‌های قهرمان داستان / PROTAGONIST STATUS]',
           context.playerStatus?.characterName
@@ -402,6 +415,9 @@ You MUST respond with a valid JSON object matching this schema:
             ? context.playerStatus.abilities.length === 1
               ? `• توانایی‌ها و جادوهای فعال: ${context.playerStatus.abilities[0]}`
               : `• توانایی‌ها و جادوهای فعال:\n  ${context.playerStatus.abilities.map((a) => `• ${a}`).join('\n  ')}`
+            : '',
+          traitsLineFa
+            ? `• ویژگی‌های پیشینه (همین‌ها بر تاس این نوبت اثر گذاشته‌اند — آن‌ها را واقعی و ملموس روایت کن):\n  ${traitsLineFa}`
             : '',
           powerRanksLineFa ? `\n[مکاتب قدرت و درجات تسلط / POWER SYSTEM RANKINGS]\n${powerRanksLineFa}` : '',
           context.playerStatus?.itemInteractionsCatalog ? `\n${context.playerStatus.itemInteractionsCatalog}` : '',

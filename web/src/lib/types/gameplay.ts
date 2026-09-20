@@ -54,6 +54,12 @@ export interface PlayerState {
   backgroundId?: string;
   backgroundName?: string;
   traits?: string[];
+  /**
+   * Structured trait ids possessed by the character (see `BackgroundTrait`).
+   * When absent, trait ids are derived from `backgroundId` at roll time, so
+   * pre-existing sessions pick up newly authored trait mechanics automatically.
+   */
+  traitIds?: string[];
   stats: Record<string, number>; // e.g. { might: 14, agility: 12 }
   resources: Record<string, number>; // Current vital values: { hp: 20, stamina: 15 }
   maxResources?: Record<string, number>; // Scaled vital pool maximums
@@ -78,6 +84,12 @@ export interface PlayerState {
   activeTensionClocks?: TensionClock[];
   /** Unlocked or learned ability IDs */
   abilities?: string[];
+  /**
+   * Cooldown bookkeeping: ability id -> turn number it was last invoked on.
+   * Storing the stamp (rather than a countdown) keeps this idempotent and safe
+   * for the turn-rewind flow.
+   */
+  abilityCooldowns?: Record<string, number>;
   /** Number of times the player has been defeated (HP → 0). Used by Hybrid Defeat system. */
   defeatCount?: number;
   /** Active power ranks in schools (schoolId -> rankNumber, e.g. { school_pyromancy: 2 }) */
@@ -114,6 +126,11 @@ export interface StateMutationDiff {
   purseChanges?: Record<string, number>; // e.g. { silver: -4, copper: +6 } (handles change breakdown)
   abilitiesAdded?: string[];
   abilitiesRemoved?: string[];
+  /**
+   * Ability id -> turn number it was invoked on. Merged into
+   * `PlayerState.abilityCooldowns` so cooldowns survive session persistence.
+   */
+  abilityCooldownSet?: Record<string, number>;
   itemsAdded?: GameItem[];
   itemsRemovedIds?: string[];
   locationChange?: string;
@@ -152,6 +169,22 @@ export interface CheckResolution {
   outcome: DiceOutcome;
   consequenceSummary: string;
   stateDiff: StateMutationDiff;
+  /** Active ability successfully invoked this turn (cost paid, cooldown started). */
+  abilityInvocation?: {
+    abilityId: string;
+    abilityName: string;
+    cost?: { targetResourceId: string; amount: number };
+    cooldownTurns: number;
+  };
+  /** Every structured ability/trait modifier that contributed to this roll. */
+  abilityContributions?: Array<{
+    source: 'passive' | 'active' | 'trait';
+    id: string;
+    name: string;
+    modifier: number;
+    reasonEn: string;
+    reasonFa: string;
+  }>;
   /** Plan 13: hazard fallback the check displaced the player into. */
   displacedLocationId?: string;
   clockUpdate?: {

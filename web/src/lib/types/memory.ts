@@ -52,6 +52,11 @@ export interface WorkingContextEnvelope {
     characterName?: string;
     archetypeName?: string;
     abilities?: string[];
+    /**
+     * Background traits with their authored mechanical effects, so the narrator
+     * can dramatise a trait that actually altered the roll (rather than inventing one).
+     */
+    traits?: Array<{ name: string; effects: string[] }>;
     itemInteractionsCatalog?: string;
   };
   /** Story RPG stat definitions (id, authored name, baseValue) for prompt guidance */

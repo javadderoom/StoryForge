@@ -3,6 +3,7 @@ import { formatTradeRouteLine } from '@/lib/engines/world/tradeRoutes';
 import { StoryNpcOverride, StoryScale } from '@/lib/types/story';
 import { GameEngine } from '@/lib/engines/game/GameEngine';
 import { buildEquippedItemProfiles, formatItemInteractionsForPrompt } from '../game/itemInteractions';
+import { describeRollModifier, getActivationCost, getActivationCooldown } from '../game/abilityEffects';
 
 /**
  * Compact combat summary for an NPC (`elite CR9 — HP 64/80, Rage 3/5`).
@@ -150,15 +151,89 @@ export function formatAbilitiesForContext(
           : `اثر: ${defined.effectSummary}`
         : '';
 
+    // The REAL, engine-resolved numbers. Without these the narrator guesses at
+    // what an ability does; with them it dramatises the exact modifier the d20
+    // already received.
+    const mechanicalLines: string[] = [];
+    const isActive =
+      defined.type === 'active_spell' || defined.type === 'active_technique';
+    const specs = isActive
+      ? (defined.activation?.effects ?? [])
+      : (defined.rollModifiers ?? []);
+    for (const spec of specs) {
+      mechanicalLines.push(describeRollModifier(spec, !isEnglish));
+    }
+    if (mechanicalLines.length > 0) {
+      const joined = mechanicalLines.join(' | ');
+      mechanicalLines.length = 0;
+      mechanicalLines.push(
+        isEnglish ? `Roll effect: ${joined}` : `اثر بر تاس: ${joined}`
+      );
+    }
+    if (isActive) {
+      const cost = getActivationCost(defined);
+      const cooldown = getActivationCooldown(defined);
+      if (cost) {
+        mechanicalLines.push(
+          isEnglish
+            ? `Cost: ${cost.amount} ${cost.targetResourceId}`
+            : `هزینه: ${cost.amount} ${cost.targetResourceId}`
+        );
+      }
+      if (cooldown > 0) {
+        mechanicalLines.push(
+          isEnglish ? `Cooldown: ${cooldown} turn(s)` : `بازیابی: ${cooldown} نوبت`
+        );
+      }
+      mechanicalLines.push(
+        isEnglish
+          ? 'Must be actively invoked by the player to take effect.'
+          : 'برای اثرگذاری باید آگاهانه توسط بازیکن اجرا شود.'
+      );
+    }
+
     const parts = [
       isEnglish ? `"${name}"` : `«${name}»`,
       typeLabel,
       desc,
       effect,
+      ...mechanicalLines,
     ].filter(Boolean);
 
     return parts.join(' — ');
   });
+}
+
+/**
+ * Renders the character's background traits together with their authored
+ * mechanical effects, resolved from the story's background definitions.
+ */
+export function formatTraitsForContext(
+  playerState: { traitIds?: string[]; backgroundId?: string; traits?: string[] },
+  story?: any
+): Array<{ name: string; effects: string[] }> {
+  const rpgSystem = story?.rpgSystem;
+  const backgroundId = playerState?.backgroundId;
+  const background = (rpgSystem?.backgrounds ?? []).find(
+    (b: any) => b?.id === backgroundId || b?.name === backgroundId
+  );
+
+  const explicitIds = (playerState?.traitIds ?? []).filter(Boolean);
+  const traits: any[] = background?.traits ?? [];
+  const resolved = explicitIds.length > 0
+    ? explicitIds
+        .map((id) => traits.find((t: any) => t?.id === id || t?.name === id))
+        .filter(Boolean)
+    : traits;
+
+  const isEnglish = story?.language === 'en';
+
+  return resolved.map((trait: any) => ({
+    name: trait?.name || trait?.id || '',
+    effects: ((trait?.rollModifiers ?? []) as any[]).map((spec) =>
+      describeRollModifier(spec, !isEnglish)
+    ),
+  }));
 }
 
 /**

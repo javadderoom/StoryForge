@@ -11,7 +11,7 @@ import { addToPurse } from '@/lib/engines/game/currencyEngine';
 import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
 import { isPlaceholderBeat } from '@/lib/engines/world/sceneResolution';
 import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
-import { buildWorldContextBlocks, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatItemInteractionsCatalogForContext } from '@/lib/engines/narrative/worldContext';
+import { buildWorldContextBlocks, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatTraitsForContext, formatItemInteractionsCatalogForContext } from '@/lib/engines/narrative/worldContext';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import { WorkingContextEnvelope } from '@/lib/types/memory';
@@ -151,6 +151,7 @@ async function generateOpeningChoices(
         characterName: playerState.characterName,
         archetypeName: playerState.archetypeName,
         abilities: formatAbilitiesForContext(playerState, story),
+        traits: formatTraitsForContext(playerState, story),
         itemInteractionsCatalog: formatItemInteractionsCatalogForContext(playerState, story),
       },
       statsConfig: story.rpgSystem?.stats,
@@ -527,6 +528,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 5. Structured background traits: persist their ids so the Game Engine can
+    // resolve real roll modifiers, and surface their names for display/prompting.
+    const initialTraitIds: string[] = [];
+    for (const trait of selectedBg?.traits ?? []) {
+      if (!trait?.id) continue;
+      if (!initialTraitIds.includes(trait.id)) initialTraitIds.push(trait.id);
+      if (trait.name && !traits.includes(trait.name)) traits.push(trait.name);
+    }
+
     const playerState: PlayerState = {
       characterName: characterSetup?.characterName || undefined,
       archetypeId: characterSetup?.archetypeId || undefined,
@@ -534,6 +544,7 @@ export async function POST(req: NextRequest) {
       backgroundId: characterSetup?.backgroundId || undefined,
       backgroundName,
       traits: traits.length > 0 ? traits : undefined,
+      traitIds: initialTraitIds.length > 0 ? initialTraitIds : undefined,
       stats: initialStats,
       resources: initialResources,
       maxResources,

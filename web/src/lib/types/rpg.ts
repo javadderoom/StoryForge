@@ -31,6 +31,65 @@ export interface AbilityResourceCost {
   amount: number; // e.g. 15
 }
 
+/**
+ * When two or more `triggerKeywords` are authored, decides whether every
+ * keyword must appear in the action text (`all`) or just one of them (`any`).
+ */
+export type RollMatchMode = 'any' | 'all';
+
+/**
+ * A structured, deterministic d20 roll modifier.
+ *
+ * This is the *mechanical* half of an ability / trait: the Game Engine reads it
+ * directly instead of parsing prose. Every condition is optional — an
+ * unconditioned spec applies to every check the owner rolls.
+ *
+ * Evaluation order (all authored conditions must hold):
+ *   statIds → actionStyles → riskLevels → requiresEquippedSlot →
+ *   requiresItemType → triggerKeywords
+ */
+export interface RollModifierSpec {
+  /** Flat bonus/penalty added to the d20 total. Negative = penalty. */
+  modifier: number;
+  /** Restrict to these stat ids (e.g. ["might", "agility"]). Empty = any stat. */
+  statIds?: string[];
+  /** Restrict to these action styles (ActionStyle values: defensive, agile, tactical…). Empty = any. */
+  actionStyles?: string[];
+  /** Restrict to these risk levels (low | medium | high). Empty = any. */
+  riskLevels?: string[];
+  /**
+   * Case-insensitive keywords (EN or FA) that must appear in the player's
+   * action text. Empty = the spec is not keyword-gated.
+   */
+  triggerKeywords?: string[];
+  /** `all` = every keyword required, `any` = one suffices. Defaults to `any`. */
+  matchMode?: RollMatchMode;
+  /** Requires the named equipment slot to be filled (mainHand/offHand/armor/relic). */
+  requiresEquippedSlot?: 'mainHand' | 'offHand' | 'armor' | 'relic';
+  /** Requires an equipped item of this type (weapon, armor, shield, tool, relic…). */
+  requiresItemType?: string;
+  /** Short label for the dice-breakdown UI (English). */
+  labelEn?: string;
+  /** Short label for the dice-breakdown UI (Persian). */
+  labelFa?: string;
+}
+
+/**
+ * Active-ability invocation payload. Present only on abilities of type
+ * `active_spell` / `active_technique`: the player must spend the turn invoking
+ * it, which pays the resource cost, starts the cooldown, and applies `effects`.
+ */
+export interface AbilityActivation {
+  /** Overrides `AbilityDefinition.cost` when present. */
+  cost?: AbilityResourceCost;
+  /** Roll modifiers applied to the check the invocation rides on. */
+  effects: RollModifierSpec[];
+  /** Overrides `AbilityDefinition.cooldownTurns` when present. */
+  cooldownTurns?: number;
+  /** When true the ability may be used outside of a check (pure narrative beat). */
+  allowOutOfCombat?: boolean;
+}
+
 export interface AbilityDefinition {
   id: string;
   name: string;
@@ -44,6 +103,15 @@ export interface AbilityDefinition {
   effectSummary?: string; // Mechanical/narrative summary
   allowedArchetypeIds?: string[]; // Empty/undefined = Universal (all archetypes)
   tags?: string[];
+  /**
+   * Structured passive effects. For `passive_*` abilities these are evaluated on
+   * every check and apply automatically whenever their conditions match.
+   * An ability carrying `rollModifiers` is no longer prose-parsed by the legacy
+   * heuristic path (see `engines/game/passiveAbilities.ts`).
+   */
+  rollModifiers?: RollModifierSpec[];
+  /** Structured active-effect payload for `active_*` abilities. */
+  activation?: AbilityActivation;
 }
 
 export interface SkillDefinition {
@@ -167,6 +235,24 @@ export interface ArchetypeDefinition {
   bonusItems?: GameItem[];
 }
 
+/**
+ * A single background/archetype trait with real mechanical teeth.
+ *
+ * `trait` (the legacy free-text field) is kept for display and for prompts that
+ * predate structured traits; `traits[]` is the authoritative mechanical list.
+ */
+export interface BackgroundTrait {
+  id: string;
+  /** Display name, e.g. "شناخت گذرگاه‌های مخفی دژ". */
+  name: string;
+  description?: string;
+  /**
+   * Always-on roll modifiers. Evaluated on every check the character makes,
+   * applying whenever the spec's conditions match.
+   */
+  rollModifiers?: RollModifierSpec[];
+}
+
 export interface BackgroundOriginDefinition {
   id: string;
   name: string;
@@ -178,6 +264,8 @@ export interface BackgroundOriginDefinition {
   startingPurse?: Record<string, number>; // e.g. { silver: 15, copper: 30 }
   startingAbilities?: string[]; // IDs of abilities/traits granted by origin
   bonusItems?: GameItem[];
+  /** Structured traits carrying real roll effects (preferred over `trait`). */
+  traits?: BackgroundTrait[];
 }
 
 export interface CharacterSetupPayload {
@@ -328,6 +416,26 @@ export const AbilityResourceCostSchema = z.object({
   amount: z.number(),
 });
 
+export const RollModifierSpecSchema = z.object({
+  modifier: z.number(),
+  statIds: z.array(z.string()).optional(),
+  actionStyles: z.array(z.string()).optional(),
+  riskLevels: z.array(z.string()).optional(),
+  triggerKeywords: z.array(z.string()).optional(),
+  matchMode: z.enum(['any', 'all']).optional(),
+  requiresEquippedSlot: z.enum(['mainHand', 'offHand', 'armor', 'relic']).optional(),
+  requiresItemType: z.string().optional(),
+  labelEn: z.string().optional(),
+  labelFa: z.string().optional(),
+});
+
+export const AbilityActivationSchema = z.object({
+  cost: AbilityResourceCostSchema.optional(),
+  effects: z.array(RollModifierSpecSchema).default([]),
+  cooldownTurns: z.number().int().optional(),
+  allowOutOfCombat: z.boolean().optional(),
+});
+
 export const AbilityDefinitionSchema = z.object({
   id: z.string(),
   name: z.string().min(2),
@@ -341,6 +449,15 @@ export const AbilityDefinitionSchema = z.object({
   effectSummary: z.string().optional(),
   allowedArchetypeIds: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
+  rollModifiers: z.array(RollModifierSpecSchema).optional(),
+  activation: AbilityActivationSchema.optional(),
+});
+
+export const BackgroundTraitSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  description: z.string().optional(),
+  rollModifiers: z.array(RollModifierSpecSchema).optional(),
 });
 
 export const ProgressionConfigSchema = z.object({

@@ -93,8 +93,9 @@ export function isShieldEquipped(playerState?: PlayerState): boolean {
 }
 
 /**
- * Evaluates all passive skills and feats possessed by the player against the current
- * action context, automatically parsing and applying relevant situational bonuses or penalties.
+ * Legacy compatibility: prose-only passives keep their old heuristic path.
+ * Structured specs (rollModifiers) are evaluated in `evaluateAbilityEffects`.
+ * This intentionally does NOT overlap — legacy only.
  */
 export function evaluatePassiveAbilities(
   actionText: string,
@@ -122,6 +123,11 @@ export function evaluatePassiveAbilities(
     const isPassive =
       ability.type === 'passive_skill' || ability.type === 'passive_feat';
     if (!isPassive) continue;
+
+    // Structured abilities are owned by `abilityEffects.evaluateAbilityEffects`,
+    // which reads authored `rollModifiers` instead of scraping prose. Skipping
+    // them here is what prevents the same bonus from being counted twice.
+    if ((ability.rollModifiers ?? []).length > 0) continue;
 
     const abilityName = ability.name || ability.id;
     const abilityText = `${ability.name} ${ability.description || ''} ${ability.effectSummary || ''}`.toLowerCase();

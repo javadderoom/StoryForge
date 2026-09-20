@@ -49,6 +49,13 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
   const remaining = TOTAL_FREE_POINTS - Object.values(points).reduce((a, b) => a + b, 0);
   const arch = archetypes.find((a) => a.id === archetypeId) ?? archetypes[0] ?? null;
   const bg = backgrounds.find((b) => b.id === backgroundId) ?? backgrounds[0] ?? null;
+  const abilitiesList = ((story?.rpgSystem?.abilities?.length
+    ? story.rpgSystem.abilities
+    : story?.abilities) ?? []) as any[];
+
+  function resolveAbility(abilityId: string): any | null {
+    return abilitiesList.find((ab) => ab?.id === abilityId) ?? null;
+  }
 
   function totalStat(statId: string): number {
     const statItem = stats.find((s) => s.id === statId);
@@ -80,7 +87,7 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
   const accent = theme.primaryAccent;
 
   return (
-    <div className="fixed inset-0 z-[55] flex items-stretch justify-center bg-black/80 p-0 backdrop-blur-md sm:p-4">
+    <div dir={isPersian ? 'rtl' : 'ltr'} className="fixed inset-0 z-[55] flex items-stretch justify-center bg-black/80 p-0 backdrop-blur-md sm:p-4">
       <div
         className="flex w-full max-w-lg flex-col overflow-hidden rounded-none bg-[#0F111D] sm:rounded-3xl"
         style={{ border: `1px solid ${theme.cardBorder}` }}
@@ -104,7 +111,7 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
             <button
               key={i}
               onClick={() => { audioService.playSfx('buttonClick'); setStep(i); }}
-              className="flex-1 text-left"
+              className={`flex-1 ${isPersian ? 'text-right' : 'text-left'}`}
             >
               <div className="mb-1.5 flex items-center gap-1.5">
                 <span
@@ -142,7 +149,7 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
                     <button
                       key={a.id}
                       onClick={() => { audioService.playSfx('buttonClick'); setArchetypeId(a.id); }}
-                      className="mb-3 w-full rounded-2xl border p-4 text-left transition-all"
+                      className={`mb-3 w-full rounded-2xl border p-4 transition-all ${isPersian ? 'text-right' : 'text-left'}`}
                       style={{ backgroundColor: sel ? '#1B1926' : '#111322', borderColor: sel ? accent : theme.cardBorder, boxShadow: sel ? `0 0 16px -4px ${accent}` : 'none' }}
                     >
                       <div className="flex items-center justify-between">
@@ -164,11 +171,35 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
                                   : 'border-rose-500/40 bg-rose-500/15 text-rose-300'
                               }`}
                             >
-                              {isPositive ? `+${num}` : num} {getStatName(k, isPersian, stats.find((s) => s.id === k))}
+                              {isPositive ? `+${toPersianDigits(num, isPersian)}` : toPersianDigits(num, isPersian)} {getStatName(k, isPersian, stats.find((s) => s.id === k))}
                             </span>
                           );
                         })}
                       </div>
+                      {(a.startingAbilities ?? []).length > 0 && (
+                        <div className={`mt-2 ${isPersian ? 'text-right' : 'text-left'}`} dir={isPersian ? 'rtl' : 'ltr'}>
+                          <div className="mb-1 text-[11px] font-bold" style={{ color: accent }}>
+                            {isPersian ? 'توانایی‌های آغازین:' : 'Starting abilities:'}
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            {(a.startingAbilities ?? []).map((abId: string) => {
+                              const ab = resolveAbility(abId);
+                              const name = ab?.name?.trim() || abId;
+                              return (
+                                <div key={abId} dir={isPersian ? 'rtl' : 'ltr'} className="flex items-start gap-1.5">
+                                  <span className="mt-0.5" style={{ color: accent }}>⚡</span>
+                                  <div>
+                                    <div className="text-[12px] font-bold text-white">{toPersianDigits(name, isPersian)}</div>
+                                    {ab?.description?.trim() && (
+                                      <div className="text-[11px] leading-relaxed text-zinc-400">{toPersianDigits(ab.description, isPersian)}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </button>
                   );
                 })
@@ -191,7 +222,7 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
                     <button
                       key={b.id}
                       onClick={() => { audioService.playSfx('buttonClick'); setBackgroundId(b.id); }}
-                      className="mb-3 w-full rounded-2xl border p-4 text-left"
+                      className={`mb-3 w-full rounded-2xl border p-4 ${isPersian ? 'text-right' : 'text-left'}`}
                       style={{ backgroundColor: sel ? '#1B1926' : '#111322', borderColor: sel ? accent : theme.cardBorder }}
                     >
                       <div className="flex items-center justify-between">
@@ -214,15 +245,29 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
                                     : 'border-rose-500/40 bg-rose-500/15 text-rose-300'
                                 }`}
                               >
-                                {isPositive ? `+${num}` : num} {getStatName(k, isPersian, stats.find((s) => s.id === k))}
+                                {isPositive ? `+${toPersianDigits(num, isPersian)}` : toPersianDigits(num, isPersian)} {getStatName(k, isPersian, stats.find((s) => s.id === k))}
                               </span>
                             );
                           })}
                         </div>
                       )}
                       {b.trait && (
-                        <div className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-indigo-400/40 bg-indigo-500/15 px-2.5 py-1 text-[11px] font-bold text-indigo-300">
-                          <span>✶</span> {isPersian ? 'ویژگی: ' : 'Trait: '}{b.trait}
+                        <div className="mt-2 rounded-xl border border-indigo-400/40 bg-indigo-500/15 p-2.5" dir={isPersian ? 'rtl' : 'ltr'}>
+                          <div className={`mb-1 text-[11px] font-bold text-indigo-300 ${isPersian ? 'text-right' : 'text-left'}`}>
+                            {isPersian ? 'ویژگی خاص:' : 'Trait:'}
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            {String(b.trait)
+                              .split(/[,،\n؛;]+/)
+                              .map((s) => s.trim().replace(/^[•\-\*]\s*/, ''))
+                              .filter(Boolean)
+                              .map((t, i) => (
+                                <div key={i} className={`flex items-start gap-1.5 text-[11px] font-medium text-indigo-200 ${isPersian ? 'text-right' : 'text-left'}`}>
+                                  <span className="mt-0.5 shrink-0">✶</span>
+                                  <span>{toPersianDigits(t, isPersian)}</span>
+                                </div>
+                              ))}
+                          </div>
                         </div>
                       )}
                     </button>
@@ -259,9 +304,9 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
                         </div>
                         <div className="flex items-center gap-2" dir="ltr">
                           <span className="rounded-lg px-2 py-0.5 text-[11px] font-bold" style={{ color: mod >= 0 ? '#10B981' : '#EF4444', backgroundColor: mod >= 0 ? '#10B98126' : '#EF444426' }}>
-                            {mod >= 0 ? `+${mod}` : mod}
+                            {mod >= 0 ? `+${toPersianDigits(mod, isPersian)}` : toPersianDigits(mod, isPersian)}
                           </span>
-                          <span className="font-bold" style={{ color: accent, fontFamily: 'ui-monospace, monospace' }}>{t}</span>
+                          <span className="font-bold" style={{ color: accent, fontFamily: 'ui-monospace, monospace' }}>{toPersianDigits(t, isPersian)}</span>
                           <button
                             disabled={alloc <= 0}
                             onClick={() => { audioService.playSfx('buttonClick'); setPoints((p) => ({ ...p, [s.id]: Math.max(0, (p[s.id] ?? 0) - 1) })); }}
@@ -306,7 +351,7 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
                   ) : (
                     stats.map((s) => (
                       <span key={s.id} className="rounded-lg bg-[#1E2235] px-2 py-1 text-[11px] font-bold text-white">
-                        {getStatName(s.id, isPersian, s)}: {totalStat(s.id)}
+                        {getStatName(s.id, isPersian, s)}: {toPersianDigits(totalStat(s.id), isPersian)}
                       </span>
                     ))
                   )}

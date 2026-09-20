@@ -5,5 +5,6 @@ export { InventorySection } from './InventorySection';
 export { ArchetypesSection } from './ArchetypesSection';
 export { BackgroundsSection } from './BackgroundsSection';
 export { AbilitiesSection } from './AbilitiesSection';
+export { RollModifierEditor } from './RollModifierEditor';
 export { ProgressionSection } from './ProgressionSection';
 export { RpgSynthesisModal } from './RpgSynthesisModal';

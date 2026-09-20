@@ -35,6 +35,8 @@ export async function POST(req: NextRequest) {
       playerState: incomingPlayerState,
       turnNumber = 2,
       forcedDiceRoll,
+      // Structured ability invocation (active spells / techniques).
+      abilityId: requestedAbilityId,
       // Plan 07/08
       currentChapterId: requestedChapterId,
       sceneId: requestedSceneId,
@@ -174,11 +176,41 @@ export async function POST(req: NextRequest) {
     // 2. Deterministic Game Engine Check Resolution
     // Diceless choices branch without a roll (Plan 12)
     const isDiceless = targetDC === undefined && statId === undefined;
+
     const isPersianStory =
       /[\u0600-\u06FF]/.test(playerActionText) ||
       /[\u0600-\u06FF]/.test(story.title || '') ||
       /[\u0600-\u06FF]/.test(playerState.characterName || '') ||
       /[\u0600-\u06FF]/.test(playerState.backgroundName || '');
+
+    // 2a. Active-ability invocation is validated BEFORE any dice are thrown or
+    // model tokens spent: an unaffordable or recharging ability must fail loudly
+    // rather than silently becoming a no-op.
+    const invokedAbilityId =
+      typeof requestedAbilityId === 'string' && requestedAbilityId.trim()
+        ? requestedAbilityId.trim()
+        : undefined;
+
+    if (invokedAbilityId) {
+      const abilityCheck = GameEngine.validateAbilityInvocation(
+        playerState,
+        story.rpgSystem,
+        invokedAbilityId,
+        turnNumber
+      );
+      if (!abilityCheck.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            rejectionReason: isPersianStory ? abilityCheck.reasonFa : abilityCheck.reasonEn,
+            isAbilityRejection: true,
+            abilityBlockCode: abilityCheck.code,
+          },
+          { headers: corsHeaders }
+        );
+      }
+    }
+
     let resolution: CheckResolution;
 
     if (isDiceless) {
@@ -232,6 +264,10 @@ export async function POST(req: NextRequest) {
           worldBible: story.worldBible,
           currentLocationId: playerState.currentLocationId,
           activeClocks: playerState.activeTensionClocks,
+          // Structured ability/trait mechanics.
+          actionStyle,
+          turnNumber,
+          invokedAbilityId,
         }
       );
     }

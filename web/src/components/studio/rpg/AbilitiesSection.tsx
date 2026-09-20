@@ -23,6 +23,8 @@ import {
   ArchetypeDefinition,
 } from '@/lib/types';
 import { notify } from '@/lib/notify';
+import { RollModifierEditor } from './RollModifierEditor';
+import { describeRollModifier } from '@/lib/engines/game/abilityEffects';
 
 interface AbilitiesSectionProps {
   abilities: AbilityDefinition[];
@@ -108,6 +110,13 @@ export function AbilitiesSection({
         cost: ability.cost ? { ...ability.cost } : undefined,
         allowedArchetypeIds: ability.allowedArchetypeIds ? [...ability.allowedArchetypeIds] : [],
         tags: ability.tags ? [...ability.tags] : [],
+        rollModifiers: ability.rollModifiers ? [...ability.rollModifiers] : [],
+        activation: ability.activation
+          ? {
+              ...ability.activation,
+              effects: ability.activation.effects ? [...ability.activation.effects] : [],
+            }
+          : undefined,
       });
     } else {
       setEditingAbilityId(null);
@@ -124,6 +133,8 @@ export function AbilitiesSection({
         effectSummary: '',
         allowedArchetypeIds: [],
         tags: [],
+        rollModifiers: [],
+        activation: { effects: [] },
       });
     }
     setModalOpen(true);
@@ -150,6 +161,27 @@ export function AbilitiesSection({
       allowedArchetypeIds:
         form.allowedArchetypeIds && form.allowedArchetypeIds.length > 0
           ? form.allowedArchetypeIds
+          : undefined,
+      rollModifiers:
+        form.type === 'passive_skill' || form.type === 'passive_feat'
+          ? form.rollModifiers && form.rollModifiers.length > 0
+            ? form.rollModifiers
+            : undefined
+          : undefined,
+      activation:
+        form.type === 'active_spell' || form.type === 'active_technique'
+          ? form.activation?.effects?.length || form.cost || form.cooldownTurns
+            ? {
+                cost:
+                  form.cost && form.cost.amount > 0 && form.cost.targetResourceId
+                    ? { targetResourceId: form.cost.targetResourceId, amount: Number(form.cost.amount) }
+                    : undefined,
+                cooldownTurns:
+                  form.cooldownTurns && form.cooldownTurns > 0 ? Number(form.cooldownTurns) : 0,
+                effects: form.activation?.effects || [],
+                allowOutOfCombat: form.activation?.allowOutOfCombat,
+              }
+            : undefined
           : undefined,
     };
 
@@ -386,6 +418,28 @@ export function AbilitiesSection({
                     <div className="p-2 rounded-xl bg-zinc-900/90 border border-zinc-800 text-[11px] text-zinc-300 flex items-start gap-1.5">
                       <Zap className="w-3 h-3 text-amber-400 shrink-0 mt-0.5" />
                       <span className="leading-snug">{ab.effectSummary}</span>
+                    </div>
+                  )}
+
+                  {/* Structured Mechanical Roll Modifiers */}
+                  {((ab.rollModifiers?.length ?? 0) > 0 ||
+                    (ab.activation?.effects?.length ?? 0) > 0) && (
+                    <div className="flex flex-wrap gap-1">
+                      {[...(ab.rollModifiers || []), ...(ab.activation?.effects || [])].map(
+                        (spec, sIdx) => (
+                          <span
+                            key={sIdx}
+                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-mono text-[10.5px] font-bold border ${
+                              spec.modifier >= 0
+                                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25'
+                                : 'bg-rose-500/10 text-rose-300 border-rose-500/25'
+                            }`}
+                          >
+                            <Sparkles className="w-2.5 h-2.5 shrink-0 text-amber-400" />
+                            <span>{describeRollModifier(spec, isPersian)}</span>
+                          </span>
+                        )
+                      )}
                     </div>
                   )}
                 </div>
@@ -631,6 +685,51 @@ export function AbilitiesSection({
                   </select>
                 </div>
               </div>
+
+              {/* Structured Roll Modifiers: Active Invocation or Passive specs */}
+              {form.type === 'active_spell' || form.type === 'active_technique' ? (
+                <RollModifierEditor
+                  specs={form.activation?.effects || []}
+                  onChange={(effects) =>
+                    setForm({
+                      ...form,
+                      activation: {
+                        ...(form.activation || {}),
+                        effects,
+                      },
+                    })
+                  }
+                  stats={stats}
+                  isPersian={isPersian}
+                  title={
+                    isPersian
+                      ? 'اثرات فعال بر تاس هنگام اجرا (Invocation Effects)'
+                      : 'Active Invocation Roll Effects'
+                  }
+                  subtitle={
+                    isPersian
+                      ? 'پاداش‌هایی که هنگام اجرای این توانایی بر تاس آزمون اعمال می‌شوند.'
+                      : 'Deterministic bonuses applied to the check when this active ability is invoked.'
+                  }
+                />
+              ) : (
+                <RollModifierEditor
+                  specs={form.rollModifiers || []}
+                  onChange={(rollModifiers) => setForm({ ...form, rollModifiers })}
+                  stats={stats}
+                  isPersian={isPersian}
+                  title={
+                    isPersian
+                      ? 'اثرات غیرفعال بر تاس (Passive Roll Modifiers)'
+                      : 'Passive Structured Roll Modifiers'
+                  }
+                  subtitle={
+                    isPersian
+                      ? 'پاداش یا جریمه‌های قطعی که هنگام برقراری شروط مستقیماً به تاس آزمون افزوده می‌شوند.'
+                      : 'Deterministic modifiers folded directly into d20 checks whenever conditions match.'
+                  }
+                />
+              )}
 
               {/* Class Gating (Archetype Restriction) */}
               <div className="space-y-2 p-4 rounded-2xl bg-zinc-950 border border-zinc-800">

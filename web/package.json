@@ -12,6 +12,7 @@
     "eval:record": "tsx scripts/evalNarrative.ts --live --record",
     "eval:simulate": "tsx scripts/evalSimulate.ts",
     "eval:story": "tsx scripts/evalStory.ts",
+    "migrate:abilities": "tsx scripts/backfillStructuredAbilities.ts",
     "test": "tsx scripts/testAll.ts"
   },
   "dependencies": {

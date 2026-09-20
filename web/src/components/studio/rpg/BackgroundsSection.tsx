@@ -2,9 +2,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { useState } from 'react';
-import { Scroll, Plus, Edit2, Trash2, X, Coins, Heart } from 'lucide-react';
+import { Scroll, Plus, Edit2, Trash2, X, Coins, Heart, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   BackgroundOriginDefinition,
+  BackgroundTrait,
   StatDefinition,
   ResourceDefinition,
   CurrencySystem,
@@ -13,6 +14,8 @@ import {
 import { DEFAULT_CURRENCY_PRESETS } from '@/lib/types/rpg';
 import { formatPurse } from '@/lib/engines/game/currencyEngine';
 import { notify } from '@/lib/notify';
+import { RollModifierEditor } from './RollModifierEditor';
+import { describeRollModifier } from '@/lib/engines/game/abilityEffects';
 
 interface BackgroundsSectionProps {
   backgrounds: BackgroundOriginDefinition[];
@@ -35,11 +38,13 @@ export function BackgroundsSection({
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingBackgroundId, setEditingBackgroundId] = useState<string | null>(null);
+  const [activeTraitIndex, setActiveTraitIndex] = useState<number | null>(null);
   const [backgroundForm, setBackgroundForm] = useState<BackgroundOriginDefinition>({
     id: '',
     name: '',
     description: '',
     trait: '',
+    traits: [],
     narrativePromptHook: '',
     statBonuses: {},
     resourceBonuses: {},
@@ -47,6 +52,7 @@ export function BackgroundsSection({
   });
 
   const openModal = (bg?: BackgroundOriginDefinition) => {
+    setActiveTraitIndex(null);
     if (bg) {
       setEditingBackgroundId(bg.id);
       setBackgroundForm({
@@ -54,6 +60,12 @@ export function BackgroundsSection({
         name: bg.name || '',
         description: bg.description || '',
         trait: bg.trait || '',
+        traits: bg.traits
+          ? bg.traits.map((t) => ({
+              ...t,
+              rollModifiers: t.rollModifiers ? [...t.rollModifiers] : [],
+            }))
+          : [],
         narrativePromptHook: bg.narrativePromptHook || '',
         statBonuses: { ...(bg.statBonuses || {}) },
         resourceBonuses: { ...(bg.resourceBonuses || {}) },
@@ -66,6 +78,7 @@ export function BackgroundsSection({
         name: '',
         description: '',
         trait: '',
+        traits: [],
         narrativePromptHook: '',
         statBonuses: {},
         resourceBonuses: {},
@@ -80,11 +93,39 @@ export function BackgroundsSection({
     const safeName = (backgroundForm.name || '').trim();
     if (!safeName) return;
 
+    // Sync structured traits and legacy trait prose string
+    let resolvedTraits: BackgroundTrait[] = (backgroundForm.traits || [])
+      .map((t, idx) => ({
+        id: t.id?.trim() || `trait_${idx}_${Date.now().toString(36)}`,
+        name: t.name?.trim() || '',
+        description: t.description?.trim() || undefined,
+        rollModifiers: t.rollModifiers && t.rollModifiers.length > 0 ? t.rollModifiers : undefined,
+      }))
+      .filter((t) => t.name.length > 0);
+
+    let traitProse = (backgroundForm.trait || '').trim();
+
+    // If traits were authored, make sure trait prose has their names
+    if (resolvedTraits.length > 0) {
+      traitProse = resolvedTraits.map((t) => t.name).join('\n');
+    } else if (traitProse) {
+      // If user only authored trait lines, convert them to basic traits so engine resolves them
+      resolvedTraits = traitProse
+        .split(/[,،\n؛;]+/)
+        .map((s) => s.trim().replace(/^[•\-\*]\s*/, ''))
+        .filter(Boolean)
+        .map((name, idx) => ({
+          id: `trait_${idx}_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 20) || Date.now().toString(36)}`,
+          name,
+        }));
+    }
+
     const payload: BackgroundOriginDefinition = {
       ...backgroundForm,
       name: safeName,
       description: (backgroundForm.description || '').trim(),
-      trait: (backgroundForm.trait || '').trim(),
+      trait: traitProse || '',
+      traits: resolvedTraits.length > 0 ? resolvedTraits : undefined,
       narrativePromptHook: (backgroundForm.narrativePromptHook || '').trim(),
       resourceBonuses:
         backgroundForm.resourceBonuses && Object.keys(backgroundForm.resourceBonuses).length > 0
@@ -180,11 +221,54 @@ export function BackgroundsSection({
                         <span>{bg.name}</span>
                         <span className="text-[10px] font-mono text-zinc-500">({bg.id})</span>
                       </strong>
-                      {bg.trait && (
-                        <span className="inline-block text-[10.5px] bg-emerald-500/15 text-emerald-300 font-medium px-2 py-0.5 rounded-full border border-emerald-500/25 mt-1">
-                          ✨ {bg.trait}
-                        </span>
-                      )}
+                      {(bg.traits && bg.traits.length > 0) ? (
+                        <div
+                          className="mt-1.5 flex flex-col gap-1.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-2.5"
+                          dir={isPersian ? 'rtl' : 'ltr'}
+                        >
+                          {bg.traits.map((t, i) => (
+                            <div key={i} className="flex flex-col gap-1">
+                              <div className="flex items-start gap-1.5 text-[11px] font-medium text-emerald-200">
+                                <span className="mt-0.5 shrink-0">✨</span>
+                                <span className="font-semibold">{t.name}</span>
+                              </div>
+                              {t.description && (
+                                <p className="text-[10.5px] text-emerald-300/80 mr-4 ml-4">
+                                  {t.description}
+                                </p>
+                              )}
+                              {t.rollModifiers && t.rollModifiers.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mr-4 ml-4">
+                                  {t.rollModifiers.map((spec, sIdx) => (
+                                    <span
+                                      key={sIdx}
+                                      className="inline-flex items-center gap-1 rounded bg-emerald-950/80 border border-emerald-500/40 px-1.5 py-0.5 font-mono text-[10px] text-emerald-300"
+                                    >
+                                      <span>{describeRollModifier(spec, isPersian)}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : bg.trait ? (
+                        <div
+                          className="mt-1.5 flex flex-col gap-1 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-2"
+                          dir={isPersian ? 'rtl' : 'ltr'}
+                        >
+                          {bg.trait
+                            .split(/[,،\n؛;]+/)
+                            .map((s) => s.trim().replace(/^[•\-\*]\s*/, ''))
+                            .filter(Boolean)
+                            .map((t, i) => (
+                              <span key={i} className="flex items-start gap-1.5 text-[11px] font-medium text-emerald-200">
+                                <span className="mt-0.5 shrink-0">✨</span>
+                                <span>{t}</span>
+                              </span>
+                            ))}
+                        </div>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                       <button
@@ -328,18 +412,157 @@ export function BackgroundsSection({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs text-zinc-400 mb-1">
-                  {isPersian ? 'ویژگی منحصربه‌فرد (Trait)' : 'Unique Trait'}
-                </label>
-                <input
-                  type="text"
-                  value={backgroundForm.trait}
-                  onChange={(e) => setBackgroundForm((prev) => ({ ...prev, trait: e.target.value }))}
-                  placeholder="e.g. شناخت گذرگاه‌های مخفی دژ"
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-500"
-                  required
-                />
+              {/* Structured Traits & Roll Modifiers */}
+              <div className="space-y-3 rounded-2xl border border-emerald-500/30 bg-zinc-950 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>{isPersian ? 'ویژگی‌های منحصربه‌فرد پیشینه (Background Traits)' : 'Background Traits & Effects'}</span>
+                    </label>
+                    <p className="text-[10.5px] text-zinc-400">
+                      {isPersian
+                        ? 'هر پیشینه می‌تواند دارای چند ویژگی خاص با پاداش‌های ساختاریافته بر تاس باشد.'
+                        : 'Discrete traits granting deterministic bonuses to actions.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newIdx = (backgroundForm.traits || []).length;
+                      const newTrait: BackgroundTrait = {
+                        id: `trait_${Date.now().toString(36)}`,
+                        name: '',
+                        description: '',
+                        rollModifiers: [],
+                      };
+                      setBackgroundForm((prev) => ({
+                        ...prev,
+                        traits: [...(prev.traits || []), newTrait],
+                      }));
+                      setActiveTraitIndex(newIdx);
+                    }}
+                    className="flex items-center gap-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20"
+                  >
+                    <Plus className="h-3 w-3" />
+                    <span>{isPersian ? 'افزودن ویژگی' : 'Add Trait'}</span>
+                  </button>
+                </div>
+
+                {/* Trait Cards */}
+                {(backgroundForm.traits || []).length > 0 ? (
+                  <div className="space-y-2">
+                    {(backgroundForm.traits || []).map((t, idx) => {
+                      const isExpanded = activeTraitIndex === idx;
+                      return (
+                        <div
+                          key={idx}
+                          className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 space-y-2.5"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                value={t.name}
+                                onChange={(e) => {
+                                  const name = e.target.value;
+                                  setBackgroundForm((prev) => {
+                                    const updated = [...(prev.traits || [])];
+                                    updated[idx] = { ...updated[idx], name };
+                                    return { ...prev, traits: updated };
+                                  });
+                                }}
+                                placeholder={isPersian ? 'نام ویژگی، مثلاً: شناخت گذرگاه‌های مخفی دژ' : 'Trait name, e.g. Secret Pass Lore'}
+                                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100 font-medium focus:border-emerald-500 focus:outline-none"
+                              />
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setActiveTraitIndex(isExpanded ? null : idx)}
+                                className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                              >
+                                <span>{isPersian ? 'اثرات بر تاس' : 'Roll Effects'}</span>
+                                <span className="font-mono text-emerald-400">
+                                  ({(t.rollModifiers || []).length})
+                                </span>
+                                {isExpanded ? (
+                                  <ChevronUp className="h-3 w-3" />
+                                ) : (
+                                  <ChevronDown className="h-3 w-3" />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setBackgroundForm((prev) => ({
+                                    ...prev,
+                                    traits: (prev.traits || []).filter((_, i) => i !== idx),
+                                  }));
+                                  if (activeTraitIndex === idx) setActiveTraitIndex(null);
+                                }}
+                                className="p-1.5 text-zinc-500 hover:text-rose-400 rounded-md"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Optional Trait Description */}
+                          <input
+                            type="text"
+                            value={t.description || ''}
+                            onChange={(e) => {
+                              const description = e.target.value;
+                              setBackgroundForm((prev) => {
+                                const updated = [...(prev.traits || [])];
+                                updated[idx] = { ...updated[idx], description };
+                                return { ...prev, traits: updated };
+                              });
+                            }}
+                            placeholder={isPersian ? 'توضیح کوتاه (اختیاری)...' : 'Short description (optional)...'}
+                            className="w-full bg-zinc-950/60 border border-zinc-800 rounded-lg px-2.5 py-1 text-[11px] text-zinc-300 focus:border-emerald-500 focus:outline-none"
+                          />
+
+                          {/* Expanded RollModifierEditor */}
+                          {isExpanded && (
+                            <div className="pt-2 border-t border-zinc-800/80">
+                              <RollModifierEditor
+                                specs={t.rollModifiers || []}
+                                onChange={(rollModifiers) => {
+                                  setBackgroundForm((prev) => {
+                                    const updated = [...(prev.traits || [])];
+                                    updated[idx] = { ...updated[idx], rollModifiers };
+                                    return { ...prev, traits: updated };
+                                  });
+                                }}
+                                stats={stats}
+                                isPersian={isPersian}
+                                title={isPersian ? `اثرات تاس «${t.name || 'ویژگی'}»` : `Roll Modifiers for "${t.name || 'Trait'}"`}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div>
+                    <textarea
+                      rows={3}
+                      value={backgroundForm.trait}
+                      onChange={(e) =>
+                        setBackgroundForm((prev) => ({ ...prev, trait: e.target.value }))
+                      }
+                      placeholder={
+                        isPersian
+                          ? 'هر ویژگی در یک خط جدا، مثل:\nشناخت گذرگاه‌های مخفی دژ\nزخم‌بندی در میدان نبرد'
+                          : 'One trait per line, e.g.:\nSecret pass lore\nBattlefield first aid'
+                      }
+                      className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>

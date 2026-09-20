@@ -19,6 +19,12 @@ import {
 } from './threatClock';
 import { STAT_CANONICAL_ALIASES } from '@/lib/engines/world/ActionNormalizer';
 import { evaluatePassiveAbilities } from './passiveAbilities';
+import {
+  evaluateAbilityEffects,
+  validateAbilityInvocation,
+  detectInvokedAbility,
+  isActiveAbility,
+} from './abilityEffects';
 import { calculateActionXp, applyXpGain } from './progressionEngine';
 import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
 
@@ -82,6 +88,12 @@ export interface RollOptions {
   worldBible?: WorldBible;
   currentLocationId?: string;
   activeClocks?: TensionClock[];
+  /** The action style the player chose (gates style-restricted ability specs). */
+  actionStyle?: string;
+  /** Current turn number — required for ability cooldown bookkeeping. */
+  turnNumber?: number;
+  /** Active ability explicitly invoked this turn (id or authored name). */
+  invokedAbilityId?: string;
 }
 
 export class GameEngine {
@@ -1077,11 +1089,32 @@ export class GameEngine {
         skillBonus = skill.bonusModifier;
       } else {
         const ability = rpgSystem.abilities?.find((a) => a.id === options.skillId);
-        if (ability) {
+        // Legacy fallback: an ability with no authored mechanics is worth its
+        // tier. An ability that declares structured effects is worth exactly
+        // what it declares — never tier * 2 on top of them.
+        if (ability && !GameEngine.hasStructuredMechanics(ability)) {
           skillBonus = (ability.tier || 1) * 2;
         }
       }
     }
+
+    // Structured ability / trait mechanics (active invocation, passive specs,
+    // background traits). Deterministic and authored — see `abilityEffects.ts`.
+    const invokedAbilityId =
+      options.invokedAbilityId ??
+      detectInvokedAbility(actionText, playerState, rpgSystem, options.turnNumber)?.id;
+
+    const abilityResult = evaluateAbilityEffects({
+      actionText,
+      playerState,
+      rpgSystem,
+      effectiveStatId,
+      actionStyle: options.actionStyle,
+      riskLevel: options.riskLevel,
+      turnNumber: options.turnNumber,
+      invokedAbilityId,
+    });
+    const abilityBonus = abilityResult.totalModifier;
 
     // Evaluate passive abilities & feats (automated parsing of shield defense, social friction, etc.)
     const passiveResult = evaluatePassiveAbilities(actionText, playerState, rpgSystem, {
@@ -1155,7 +1188,8 @@ export class GameEngine {
     }
 
     const envMod = (options.environmentalModifier || 0) + itemTacticalEnvMod;
-    const totalScore = roll + statModifier + skillBonus + equipmentModifier + passiveBonus + envMod;
+    const totalScore =
+      roll + statModifier + skillBonus + equipmentModifier + passiveBonus + abilityBonus + envMod;
 
     // Default DC based on risk level if not explicitly provided
     const isLowBase = systemBaseValue < 8;
@@ -1301,6 +1335,35 @@ export class GameEngine {
     }
 
     // ------------------------------------------------------------------
+    // Structured ability invocation: pay the cost, start the cooldown, and
+    // narrate the modifier breakdown. All deterministic — the narrator only
+    // gets to dramatise what already happened.
+    // ------------------------------------------------------------------
+    if (abilityResult.invocation) {
+      const { abilityId, abilityName, cost } = abilityResult.invocation;
+      if (cost && cost.amount > 0) {
+        stateDiff.resourceChanges = {
+          ...(stateDiff.resourceChanges || {}),
+          [cost.targetResourceId]:
+            (stateDiff.resourceChanges?.[cost.targetResourceId] || 0) - cost.amount,
+        };
+      }
+      if (typeof options.turnNumber === 'number') {
+        stateDiff.abilityCooldownSet = { [abilityId]: options.turnNumber };
+      }
+      consequenceSummary += isPersian
+        ? ` [اجرای «${abilityName}»]`
+        : ` [Invoked "${abilityName}"]`;
+    }
+
+    if (abilityResult.contributions.length > 0) {
+      const tag = abilityResult.contributions
+        .map((c) => (isPersian ? c.reasonFa : c.reasonEn))
+        .join('; ');
+      consequenceSummary += ` [${tag}]`;
+    }
+
+    // ------------------------------------------------------------------
     // Progression & Action XP Calculation
     // ------------------------------------------------------------------
     let progressionResult: CheckResolution['progression'] | undefined;
@@ -1333,7 +1396,7 @@ export class GameEngine {
     return {
       actionDescription: actionText,
       statId: effectiveStatId,
-      statModifier: statModifier + skillBonus + equipmentModifier + passiveBonus,
+      statModifier: statModifier + skillBonus + equipmentModifier + passiveBonus + abilityBonus,
       diceRoll: roll,
       diceType,
       environmentalModifier: envMod,
@@ -1342,10 +1405,42 @@ export class GameEngine {
       outcome,
       consequenceSummary,
       stateDiff,
+      ...(abilityResult.invocation ? { abilityInvocation: abilityResult.invocation } : {}),
+      ...(abilityResult.contributions.length > 0
+        ? { abilityContributions: abilityResult.contributions }
+        : {}),
       ...(displacedLocationId ? { displacedLocationId } : {}),
       ...(clockUpdate ? { clockUpdate } : {}),
       ...(progressionResult ? { progression: progressionResult } : {}),
     };
+  }
+
+  /**
+   * True when an ability declares authored mechanics (`rollModifiers` for a
+   * passive, `activation.effects` for an active). Such abilities are scored from
+   * their declaration alone and are never given a legacy `tier * 2` bonus.
+   */
+  public static hasStructuredMechanics(ability: {
+    rollModifiers?: unknown[];
+    activation?: { effects?: unknown[] };
+  }): boolean {
+    return (
+      (ability.rollModifiers?.length ?? 0) > 0 ||
+      (ability.activation?.effects?.length ?? 0) > 0
+    );
+  }
+
+  /**
+   * Public passthrough so the play route can reject an unaffordable or
+   * on-cooldown ability *before* rolling dice or spending model tokens.
+   */
+  public static validateAbilityInvocation(
+    playerState: PlayerState,
+    rpgSystem: RPGSystemSchema,
+    abilityId: string,
+    turnNumber?: number
+  ) {
+    return validateAbilityInvocation(playerState, rpgSystem, abilityId, turnNumber);
   }
 
   /**
@@ -1513,6 +1608,16 @@ export class GameEngine {
     if (diff.abilitiesRemoved && diff.abilitiesRemoved.length > 0) {
       if (updated.abilities) {
         updated.abilities = updated.abilities.filter((ab) => !diff.abilitiesRemoved!.includes(ab));
+      }
+    }
+
+    // 8b. Ability cooldown bookkeeping (ability id -> turn last invoked)
+    if (diff.abilityCooldownSet) {
+      if (!updated.abilityCooldowns) updated.abilityCooldowns = {};
+      for (const [abilityId, turn] of Object.entries(diff.abilityCooldownSet)) {
+        if (typeof turn === 'number' && Number.isFinite(turn)) {
+          updated.abilityCooldowns[abilityId] = turn;
+        }
       }
     }
 
