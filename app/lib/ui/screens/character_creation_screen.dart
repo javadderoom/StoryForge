@@ -479,15 +479,23 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                        color: (b.value >= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444))
+                            .withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                        border: Border.all(
+                            color: (b.value >= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444))
+                                .withValues(alpha: 0.3)),
                       ),
                       child: Directionality(
                         textDirection: TextDirection.ltr,
                         child: Text(
-                          '+${b.value} ${_formatStatName(b.key, isPersian)}',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                          b.value >= 0
+                              ? '+${b.value} ${_formatStatName(b.key, isPersian)}'
+                              : '${b.value} ${_formatStatName(b.key, isPersian)}',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: b.value >= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444)),
                         ),
                       ),
                     ),
