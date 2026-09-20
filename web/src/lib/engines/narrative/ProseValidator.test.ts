@@ -48,6 +48,38 @@ describe('ProseValidator — canon guardrails', () => {
     });
     assert.equal(r.ok, true);
   });
+
+  it('flags mixed_success narrated as cost-free triumph', () => {
+    const r = validateProse('You triumph effortlessly, flawless victory over all foes.', {
+      resolution: { outcome: 'mixed_success' } as never,
+    });
+    assert.equal(r.ok, false);
+    assert.ok(r.findings.some((f) => f.category === 'outcome_mismatch'));
+  });
+
+  it('flags Persian mixed_success with no visible cost', () => {
+    const r = validateProse('پیروزی کامل به دست آوردی و بدون هیچ آسیبی دشمن را شکست داد.', {
+      resolution: { outcome: 'mixed_success' } as never,
+    });
+    assert.equal(r.ok, false);
+    assert.ok(r.findings.some((f) => f.category === 'outcome_mismatch'));
+  });
+
+  it('passes mixed_success that shows both goal and cost', () => {
+    const r = validateProse(
+      'You seize the gate, but the blade opens a bleeding wound along your arm and the sentries raise the alarm.',
+      { resolution: { outcome: 'mixed_success' } as never }
+    );
+    assert.equal(r.ok, true);
+  });
+
+  it('passes Persian mixed_success with explicit physical price', () => {
+    const r = validateProse(
+      'دروازه را می‌گشایی، اما خنجر خراشی عمیق بر بازویت می‌نشاند و خون جاری می‌شود؛ نگهبانان با سوءظن به تو خیره می‌شوند.',
+      { resolution: { outcome: 'mixed_success' } as never }
+    );
+    assert.equal(r.ok, true);
+  });
 });
 
 describe('ProseValidator — Persian script integrity', () => {

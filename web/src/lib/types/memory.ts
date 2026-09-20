@@ -61,6 +61,8 @@ export interface WorkingContextEnvelope {
     actionText: string;
     outcome: string;
     consequence: string;
+    /** Deterministic mechanical cost line (e.g. "HP -5, stamina -10") — narrator MUST depict it. */
+    costLine?: string;
   };
   recentSceneSnippets: string[];
   languageDirective: 'en' | 'fa';

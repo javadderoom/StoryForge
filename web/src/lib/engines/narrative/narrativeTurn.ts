@@ -84,6 +84,52 @@ export interface SceneGenerationOutcome {
 }
 
 /**
+ * Renders the deterministic mechanical cost of this turn as a short,
+ * narrator-facing line (e.g. "HP -5, stamina -10, trust -15").
+ * The narrator MUST depict every listed cost in the prose — this is what
+ * keeps mixed_success from reading as a clean victory.
+ */
+export function formatOutcomeCost(resolution: CheckResolution, language: string): string | undefined {
+  const parts: string[] = [];
+  const isFa = language === 'fa';
+  const diff = resolution.stateDiff || ({} as CheckResolution['stateDiff']);
+
+  for (const [id, delta] of Object.entries(diff.resourceChanges || {})) {
+    if (typeof delta !== 'number' || delta === 0) continue;
+    const sign = delta > 0 ? '+' : '';
+    parts.push(isFa ? `${id} ${sign}${delta}` : `${id} ${sign}${delta}`);
+  }
+  for (const [id, delta] of Object.entries(diff.purseChanges || {})) {
+    if (typeof delta !== 'number' || delta === 0) continue;
+    const sign = delta > 0 ? '+' : '';
+    parts.push(isFa ? `سکه ${id} ${sign}${delta}` : `${id} ${sign}${delta}`);
+  }
+  for (const [npcId, rel] of Object.entries(diff.relationshipChanges || {})) {
+    if (!rel || typeof rel.trustDelta !== 'number' || rel.trustDelta === 0) continue;
+    const sign = rel.trustDelta > 0 ? '+' : '';
+    parts.push(isFa ? `اعتماد ${npcId} ${sign}${rel.trustDelta}` : `trust(${npcId}) ${sign}${rel.trustDelta}`);
+  }
+  if (diff.itemsRemovedIds?.length) {
+    parts.push(isFa ? `از دست رفتن: ${diff.itemsRemovedIds.length} آیتم` : `lost items: ${diff.itemsRemovedIds.length}`);
+  }
+  if (diff.itemsAdded?.length) {
+    parts.push(isFa ? `به دست آمدن: ${diff.itemsAdded.length} آیتم` : `gained items: ${diff.itemsAdded.length}`);
+  }
+  if (resolution.clockUpdate) {
+    parts.push(
+      isFa
+        ? `ساعت تهدید +${resolution.clockUpdate.newSegments}/${resolution.clockUpdate.maxSegments}`
+        : `threat clock ${resolution.clockUpdate.newSegments}/${resolution.clockUpdate.maxSegments}`
+    );
+  }
+  if (resolution.displacedLocationId || diff.displacedLocationId) {
+    parts.push(isFa ? 'جابجایی ناخواسته به منطقه پرخطر' : 'hurled into a hazard zone');
+  }
+  if (!parts.length) return undefined;
+  return isFa ? `هزینه قطعی این نوبت: ${parts.join('، ')}.` : `Certain cost this turn: ${parts.join(', ')}.`;
+}
+
+/**
  * Builds the `WorkingContextEnvelope` fed to `PromptAssembler`. Pure aside from
  * `MemoryEngine` retrieval, which is deterministic over its inputs.
  */
@@ -245,6 +291,13 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
       actionText: input.playerActionText,
       outcome: resolution.outcome,
       consequence: resolution.consequenceSummary,
+      costLine:
+        formatOutcomeCost(resolution, story.language === 'fa' ? 'fa' : 'en') ??
+        (resolution.outcome === 'mixed_success'
+          ? story.language === 'fa'
+            ? 'هزینه قطعی این نوبت: جراحت جزئی، خستگی و جلب توجه.'
+            : 'Certain cost this turn: minor injury, fatigue, and raised attention.'
+          : undefined),
     },
     recentSceneSnippets,
     languageDirective: story.language,

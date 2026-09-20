@@ -113,7 +113,6 @@ describe('PromptAssembler - expanded world context', () => {
     assert.ok(!userPrompt.includes('FACTIONS & POWER BLOCS'));
     assert.ok(!userPrompt.includes('WORLD SUMMARY'));
   });
-
   it('tags present and nearby_resident NPCs with appropriate directives (EN + FA)', () => {
     const dossiers = [
       {
@@ -180,5 +179,48 @@ describe('PromptAssembler - expanded world context', () => {
     );
     assert.ok(fa.userPrompt.includes(catalogFa));
     assert.ok(fa.systemPrompt.includes('به‌کارگیری فعال تجهیزات و یادگارها (ITEM FIDELITY)'));
+  });
+});
+
+describe('PromptAssembler - mixed_success cost directive', () => {
+  it('renders cost line and partial-victory directive (EN)', () => {
+    const { userPrompt } = PromptAssembler.buildNarrativePrompt(makeEnvelope({
+      resolvedGameOutcome: {
+        actionText: 'Force the gate',
+        outcome: 'mixed_success',
+        consequence: 'The gate gives way.',
+        costLine: 'Certain cost this turn: health -5, stamina -10.',
+      },
+    }));
+    assert.ok(userPrompt.includes('MIXED_SUCCESS'));
+    assert.ok(userPrompt.includes('Certain cost this turn: health -5, stamina -10.'));
+    assert.ok(userPrompt.includes('MIXED SUCCESS'));
+    assert.ok(userPrompt.includes('FORBIDDEN'));
+  });
+
+  it('renders cost line and directive in Persian (FA)', () => {
+    const { userPrompt } = PromptAssembler.buildNarrativePrompt(makeEnvelope({
+      languageDirective: 'fa',
+      resolvedGameOutcome: {
+        actionText: 'گشودن دروازه',
+        outcome: 'mixed_success',
+        consequence: 'دروازه گشوده می‌شود.',
+        costLine: 'هزینه قطعی این نوبت: health -5.',
+      },
+    }));
+    assert.ok(userPrompt.includes('MIXED_SUCCESS'));
+    assert.ok(userPrompt.includes('هزینه قطعی این نوبت'));
+    assert.ok(userPrompt.includes('موفقیت نسبی'));
+  });
+
+  it('omits the mixed directive for clean success', () => {
+    const { userPrompt } = PromptAssembler.buildNarrativePrompt(makeEnvelope({
+      resolvedGameOutcome: {
+        actionText: 'Push through the sentries',
+        outcome: 'success',
+        consequence: 'A narrow opening appears.',
+      },
+    }));
+    assert.ok(!userPrompt.includes('MIXED SUCCESS'));
   });
 });

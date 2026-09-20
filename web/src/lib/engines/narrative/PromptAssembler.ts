@@ -95,6 +95,18 @@ export class PromptAssembler {
   }
 
   /**
+   * Outcome-specific narrator directive. Mixed success is the critical case:
+   * the goal IS achieved, but a visible cost MUST be dramatized — otherwise
+   * the narrator defaults to a clean triumph and contradicts the engine.
+   */
+  private static outcomeDirective(outcome: string | undefined, isEnglish: boolean): string {
+    if ((outcome || '').toLowerCase() !== 'mixed_success') return '';
+    return isEnglish
+      ? `• OUTCOME DIRECTIVE (MIXED SUCCESS — partial victory WITH cost): The goal IS achieved, but NEVER cleanly. You MUST depict BOTH (a) the achieved objective AND (b) an explicit, physical cost from the Cost line below (wound, blood, pain, fatigue, breathlessness, torn gear, raised alarm, suspicion, or a lost opportunity). Pure triumph wording (flawless, effortless, unscathed) is FORBIDDEN here. If the Cost line lists HP/stamina/trust loss, show it in the body: pain, bleeding, exhaustion, or witnesses turning hostile.`
+      : `• دستور نتیجه (موفقیت نسبی — پیروزی ناقص همراه با بها): هدف محقق می‌شود، اما هرگز تمیز و بی‌هزینه نیست! باید همزمان هر دو را نشان بدهی: (الف) دستیابی به هدف و (ب) بهای عینی و جسمانی از خط «هزینه» زیر (زخم، خون، درد، خراش، خستگی، نفس‌تنگی، پاره شدن لباس/زره، جلب توجه، سوءظن، یا فرصت از دست رفته). به‌کار بردن لحن پیروزی کامل (بی‌نقص، آسان، بدون خراش، پیروزمندانه) در این حالت ممنوع است. اگر در خط هزینه از کاهش سلامت/استقامت/اعتماد یاد شده، حتماً آن را در متن نشان بده: درد، خونریزی، خستگی، یا واکنش خصمانه شاهدان.`;
+  }
+
+  /**
    * Builds the structured, high-density prompt envelope for Gemini 3.7.
    * Accurately adapts language and format based on the story manifest language.
    */
@@ -440,11 +452,14 @@ You MUST respond with a valid JSON object matching this schema:
       }
 
       if (context.resolvedGameOutcome) {
+        const mixedDirective = PromptAssembler.outcomeDirective(context.resolvedGameOutcome.outcome, true);
         parts.push(
           `[PRE-RESOLVED GAME ENGINE OUTCOME]\n` +
           `• Player Action: "${context.resolvedGameOutcome.actionText}"\n` +
           `• Check Result: ${context.resolvedGameOutcome.outcome.toUpperCase()}\n` +
           `• Consequence: ${context.resolvedGameOutcome.consequence}\n` +
+          (context.resolvedGameOutcome.costLine ? `• Cost (MANDATORY — depict in prose): ${context.resolvedGameOutcome.costLine}\n` : '') +
+          (mixedDirective ? `${mixedDirective}\n` : '') +
           `• DIRECTIVE: Immediately open with the protagonist performing this exact action and depict the direct, personal reaction of the target NPC or environment! Respond to the exact target addressed, not an off-scene commander. If speaking or asking a question, use direct dialogue.`
         );
       }
@@ -531,11 +546,14 @@ You MUST respond with a valid JSON object matching this schema:
       }
 
       if (context.resolvedGameOutcome) {
+        const mixedDirectiveFa = PromptAssembler.outcomeDirective(context.resolvedGameOutcome.outcome, false);
         parts.push(
           `[نتیجه محاسباتی موتور بازی / PRE-RESOLVED OUTCOME]\n` +
           `• عمل انجام شده توسط بازیکن: "${context.resolvedGameOutcome.actionText}"\n` +
           `• نتیجه تاس و بررسی: ${context.resolvedGameOutcome.outcome.toUpperCase()}\n` +
           `• پیامد: ${context.resolvedGameOutcome.consequence}\n` +
+          (context.resolvedGameOutcome.costLine ? `• هزینه (اجباری — حتماً در متن نشان بده): ${context.resolvedGameOutcome.costLine}\n` : '') +
+          (mixedDirectiveFa ? `${mixedDirectiveFa}\n` : '') +
           `• دستور مؤکد روایی: روایت را بلافاصله با انجام همین اقدام توسط قهرمان داستان آغاز کن و واکنش مستقیم، شخصی و عینیِ شخصیت یا مانع مورد اقدام (نه یک فرمانده غایب) را با دیالوگ مستقیم («...») نشان بده! از ابداع موانع فیزیکیِ ذکرنشده (مثل بارهای انباشته) بپرهیز و هرگز صحنه را با توصیفات منفعل پس‌زمینه که این اقدام در آن گم شود پر نکن.`
         );
       }

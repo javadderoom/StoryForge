@@ -14,8 +14,11 @@ export interface ProseValidationResult {
 
 const MEMORIAL_PATTERN = /in memory|slain|fallen|grave|once |late |memory of|یاد|مزار|کشته|فقید|مرحوم/i;
 
-const SUCCESS_WORDS = /triumph|victor|effortless|flawless|prevail|easily overcame|پیروزی|ظفر|موفق|آسان|بی‌نقص|شکست داد|مغلوب کرد|مغلوب ساخت/i;
+const SUCCESS_WORDS = /triumph|victor|effortless|flawless|prevail|easily overcame|unscathed|without a scratch|پیروزی|ظفر|موفق|آسان|بی‌نقص|بدون خراش|شکست داد|مغلوب کرد|مغلوب ساخت/i;
 const FAILURE_WORDS = /\b(fail|fumble|disaster|collapse|overwhelm|defeat)\b|شکست خورد|شکست سنگین|شکست قطعی|نافرجام|فاجعه|مغلوب شد/i;
+// Physical/narrative cost markers that a mixed_success MUST show (bilingual).
+// Deliberately excludes bleached conjunctions (اما/ولی/however) — the cost must be bodily or social.
+const COST_WORDS = /cost|price|wound|wounded|injury|injured|blood|bleeding|scar|bruise|pain|painful|ache|fatigue|exhausted|exhaustion|breathless|stamina|sweat|trembling|limp|stagger|alert|alarm|noticed|suspicion|suspicious|witness|commotion|narrowly|barely|close call|at a cost|بها|هزینه|قیمت|زخم|زخمی|جراحت|مجروح|خون|خونریزی|خراش|کبود|درد|دردناک|خستگی|خسته|فرسوده|نفس|عرق|لرز|لنگ|تلوتلو|جلب توجه|توجه|سوءظن|مشکوک|شاهد|سر و صدا|هیاهو|آژیر|به سختی|به دشواری/i;
 
 /** Shared Persian-script check for production validation and diagnostic reports. */
 export function unexpectedPersianScriptCharacters(text: string): string[] {
@@ -134,6 +137,22 @@ export function validateProse(
         severity: 'error',
         category: 'outcome_mismatch',
         detail: `Outcome is ${outcome} but prose reads disastrous.`,
+      });
+    }
+  } else if (outcome === 'mixed_success') {
+    // Partial victory MUST carry a visible cost. Pure triumph (or cost-free
+    // prose) contradicts the engine and triggers the repair loop.
+    if (!COST_WORDS.test(text)) {
+      findings.push({
+        severity: 'error',
+        category: 'outcome_mismatch',
+        detail: `Outcome is mixed_success but prose shows no cost (wound, fatigue, alarm, suspicion). Depict the goal achieved WITH an explicit physical or social price.`,
+      });
+    } else if (SUCCESS_WORDS.test(text) && /flawless|effortless|unscathed|without a scratch|بی‌نقص|بدون خراش/.test(text)) {
+      findings.push({
+        severity: 'error',
+        category: 'outcome_mismatch',
+        detail: `Outcome is mixed_success but prose claims a flawless, cost-free triumph. Remove the "untouched victory" framing and keep the cost visible.`,
       });
     }
   }
