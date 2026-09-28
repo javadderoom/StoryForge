@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateChat } from '@/lib/ai/geminiClient';
+import { requireStudioWrite } from '@/lib/auth/studioAuth';
 import {
   buildAdviserSystemPrompt,
   type PersonaId,
@@ -20,6 +21,9 @@ const PERSONA_IDS: PersonaId[] = [
 
 export async function POST(req: NextRequest) {
   try {
+    const guard = await requireStudioWrite(req);
+    if (!guard.ok) return guard.response;
+
     const body = await req.json();
     const messages: ChatMessage[] = Array.isArray(body.messages) ? body.messages : [];
     const worldContext: string = typeof body.worldContext === 'string' ? body.worldContext : '';

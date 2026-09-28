@@ -7,7 +7,7 @@ import { generateValidatedScene } from '@/lib/engines/narrative/narrativeTurn';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { PlayerState, ActionStyle, RiskLevel, TurnBeat, CheckResolution, StateMutationDiff } from '@/lib/types/gameplay';
 import { WorldStateLedger } from '@/lib/types/world';
-import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
+import { buildCorsHeaders, handleCorsPreflight } from '@/lib/cors';
 import { getAuthenticatedUser } from '@/lib/auth/getUser';
 import { getPrisma } from '@/lib/db/client';
 import { reconcilePlayerResources, resolveHealthKey } from '@/lib/engines/game/resourcePools';
@@ -17,8 +17,8 @@ import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
 
 const geminiAdapter = new GeminiAdapter();
 
-export async function OPTIONS() {
-  return handleCorsPreflight();
+export async function OPTIONS(req: NextRequest) {
+  return handleCorsPreflight(req);
 }
 
 export async function POST(req: NextRequest) {
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     if (!storyId) {
       return NextResponse.json(
         { success: false, error: 'storyId is required' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: buildCorsHeaders(req) }
       );
     }
 
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     if (!rawStory && !body?.draftManifest) {
       return NextResponse.json(
         { success: false, error: 'Story not found' },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: buildCorsHeaders(req) }
       );
     }
 
@@ -80,13 +80,33 @@ export async function POST(req: NextRequest) {
     if (!playerActionText || typeof playerActionText !== 'string') {
       return NextResponse.json(
         { success: false, error: 'playerActionText is required' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: buildCorsHeaders(req) }
       );
     }
 
+    // Resolve the caller BEFORE loading the session so ownership can be checked.
+    const auth = await getAuthenticatedUser(req);
+    const caller = auth ? { id: auth.user.id, role: auth.user.role } : null;
+
     // Load the session FIRST — it is the source of truth for both the
     // authoritative PlayerState and the Living World Ledger (Plan 08).
-    const session = sessionId ? await SessionRepository.getSession(sessionId) : null;
+    //
+    // Ownership-scoped: a supplied sessionId must belong to the caller. Without
+    // this, anyone holding a sessionId could read the victim's playerState via
+    // the response, inject turns into their narrative history and memory log,
+    // and overwrite their Living World Ledger. An unknown-or-unowned session is
+    // rejected outright rather than silently downgraded to a stateless call,
+    // which would still attempt to record a turn under that sessionId.
+    const session = sessionId
+      ? await SessionRepository.getSessionForUser(sessionId, caller)
+      : null;
+
+    if (sessionId && !session) {
+      return NextResponse.json(
+        { success: false, error: 'Session not found' },
+        { status: 404, headers: buildCorsHeaders(req) }
+      );
+    }
 
     // ------------------------------------------------------------------
     // Plan 08 Phase 2: SERVER-AUTHORITATIVE PlayerState.
@@ -99,7 +119,7 @@ export async function POST(req: NextRequest) {
     if (!playerState || !playerState.stats) {
       return NextResponse.json(
         { success: false, error: 'playerState is required when no sessionId is provided' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: buildCorsHeaders(req) }
       );
     }
 
@@ -110,8 +130,9 @@ export async function POST(req: NextRequest) {
       /* non-fatal */
     }
 
-    // Check Authentication & Credits
-    const auth = await getAuthenticatedUser(req);
+    // Credit metering. `if (auth && ...)` is intentional: guests play for free,
+    // authenticated players are metered. This is NOT an authorization gate —
+    // session ownership is enforced above via getSessionForUser.
     if (auth && auth.user.creditBalance <= 0) {
       return NextResponse.json(
         {
@@ -120,7 +141,7 @@ export async function POST(req: NextRequest) {
           error: 'اعتبار صحنه‌های شما به پایان رسیده است. برای ادامه داستان لطفاً از فروشگاه اعتبار خود را شارژ کنید.',
           remainingCredits: 0,
         },
-        { status: 402, headers: corsHeaders }
+        { status: 402, headers: buildCorsHeaders(req) }
       );
     }
 
@@ -169,7 +190,7 @@ export async function POST(req: NextRequest) {
           suggestedAction: validation.suggestedAction,
           isGuardrailViolation: true,
         },
-        { headers: corsHeaders }
+        { headers: buildCorsHeaders(req) }
       );
     }
 
@@ -206,7 +227,7 @@ export async function POST(req: NextRequest) {
             isAbilityRejection: true,
             abilityBlockCode: abilityCheck.code,
           },
-          { headers: corsHeaders }
+          { headers: buildCorsHeaders(req) }
         );
       }
     }
@@ -559,7 +580,7 @@ export async function POST(req: NextRequest) {
             'AI narration is unavailable right now (offline or API failure). The turn was NOT recorded to protect story consistency. Please retry.',
           isMock: true,
         },
-        { status: 503, headers: corsHeaders }
+        { status: 503, headers: buildCorsHeaders(req) }
       );
     }
 
@@ -575,7 +596,7 @@ export async function POST(req: NextRequest) {
           proseInvalid: true,
           proseFindings: sceneOutcome.proseFindings,
         },
-        { status: 503, headers: corsHeaders }
+        { status: 503, headers: buildCorsHeaders(req) }
       );
     }
 
@@ -749,14 +770,14 @@ export async function POST(req: NextRequest) {
           activeTensionClocks: updatedPlayerState.activeTensionClocks ?? [],
         },
       },
-      { headers: corsHeaders }
+      { headers: buildCorsHeaders(req) }
     );
   } catch (error) {
     console.error('Turn action processing error:', error);
     const message = error instanceof Error ? error.message : 'Failed to process turn';
     return NextResponse.json(
       { success: false, error: message },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: buildCorsHeaders(req) }
     );
   }
 }

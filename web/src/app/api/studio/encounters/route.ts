@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth/getUser';
+import { requireStudioWrite } from '@/lib/auth/studioAuth';
 import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { StoryEncounter, StoryEncounterSchema } from '@/lib/types';
 
@@ -8,6 +9,11 @@ export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
   try {
+    // Aligned with the rest of /api/studio/* — encounters are authored content
+    // and read back through getStoryById, which exposes the full manifest.
+    const guard = await requireStudioWrite(req);
+    if (!guard.ok) return guard.response;
+
     const { searchParams } = new URL(req.url);
     const storyId = searchParams.get('storyId');
     if (!storyId) {

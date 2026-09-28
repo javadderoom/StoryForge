@@ -4,7 +4,8 @@ import { runScenario } from '@/lib/evals/evalRunner';
 import { replaySceneModelCall, missingSceneModelCall } from '@/lib/evals/modelReplay';
 import { loadCassette, listCassetteModels } from '@/lib/evals/cassetteStore';
 import { defaultSceneModelCall } from '@/lib/engines/narrative/modelCall';
-import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
+import { buildCorsHeaders, handleCorsPreflight } from '@/lib/cors';
+import { requireStudioWrite } from '@/lib/auth/studioAuth';
 
 /**
  * Plan 14 — Tier 5: Studio Diagnostic Bench backend.
@@ -15,11 +16,11 @@ import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function OPTIONS() {
-  return handleCorsPreflight();
+export async function OPTIONS(req: NextRequest) {
+  return handleCorsPreflight(req);
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   return NextResponse.json(
     {
       success: true,
@@ -33,12 +34,17 @@ export async function GET() {
         cassetteModels: listCassetteModels(),
       },
     },
-    { headers: corsHeaders }
+    { headers: buildCorsHeaders(req) }
   );
 }
 
 export async function POST(req: NextRequest) {
   try {
+    // `live: true` (and `judge: true`) spend real model budget, so the whole
+    // bench is author-gated rather than just the live branches.
+    const guard = await requireStudioWrite(req);
+    if (!guard.ok) return guard.response;
+
     const body = await req.json();
     const { scenarioId, modelId = 'gemini-3.5-flash-lite', live = false, judge = false } = body ?? {};
 
@@ -46,7 +52,7 @@ export async function POST(req: NextRequest) {
     if (!scenario) {
       return NextResponse.json(
         { success: false, error: `Unknown scenario "${scenarioId}".` },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: buildCorsHeaders(req) }
       );
     }
 
@@ -75,10 +81,10 @@ export async function POST(req: NextRequest) {
           raw: result.raw ? { narrative: result.raw.narrative, choices: result.raw.choices } : null,
         },
       },
-      { headers: corsHeaders }
+      { headers: buildCorsHeaders(req) }
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Evaluation failed';
-    return NextResponse.json({ success: false, error: message }, { status: 500, headers: corsHeaders });
+    return NextResponse.json({ success: false, error: message }, { status: 500, headers: buildCorsHeaders(req) });
   }
 }

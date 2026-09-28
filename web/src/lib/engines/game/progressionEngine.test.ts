@@ -218,4 +218,120 @@ describe('Progression Engine — Hybrid XP, Level-Up & Stat Allocations', () => 
       assert.equal(res.updatedPlayerState.unspentAbilityPicks, 0);
     });
   });
+
+  // The pre-existing allocateLevelUpRewards cases above all use stats that are
+  // ALREADY present in playerState.stats, on a baseValue-10 fixture. They passed
+  // before these fixes and would have kept passing after them, so they prove
+  // nothing about the baseline or the validation. These cases do.
+  describe('allocateLevelUpRewards — untrusted payload validation', () => {
+    it('rejects negative offsets that would otherwise net out to a cheap spend', () => {
+      // The original bug: the budget summed a SIGNED total (100 + -99 = 1) while
+      // the apply loop only touched entries where b > 0 — so 1 point bought +100
+      // might. Unauthenticated via POST /api/play/level-up.
+      const player: PlayerState = {
+        ...basePlayer,
+        unspentStatPoints: 1,
+        stats: { might: 10, agility: 10, cunning: 10 },
+      };
+
+      const res = allocateLevelUpRewards(player, { might: 100, agility: -99 }, undefined, sampleRpg);
+
+      assert.equal(res.success, false, 'a 1-point budget must not grant +100 might');
+      // Nothing partially applied.
+      assert.equal(player.stats.might, 10);
+    });
+
+    it('rejects phantom stats that the story does not define', () => {
+      const player: PlayerState = { ...basePlayer, unspentStatPoints: 4 };
+      const res = allocateLevelUpRewards(player, { ghost_stat: 1 }, undefined, sampleRpg);
+      assert.equal(res.success, false);
+      assert.ok(res.error?.includes('ghost_stat'));
+    });
+
+    it('rejects fractional point spends rather than creating fractional stats', () => {
+      const player: PlayerState = {
+        ...basePlayer,
+        unspentStatPoints: 1,
+        stats: { might: 10 },
+      };
+      const res = allocateLevelUpRewards(player, { might: 0.5 }, undefined, sampleRpg);
+      assert.equal(res.success, false);
+      assert.equal(Number.isInteger(player.stats.might), true);
+    });
+
+    it('rejects an ability id the story does not define', () => {
+      const player: PlayerState = { ...basePlayer, unspentAbilityPicks: 1 };
+      const rpgWithAbilities = {
+        ...sampleRpg,
+        abilities: [{ id: 'ab_shield_wall', name: 'Shield Wall', description: '' }],
+      } as unknown as RPGSystemSchema;
+
+      const res = allocateLevelUpRewards(player, {}, 'ab_not_real', rpgWithAbilities);
+      assert.equal(res.success, false);
+      assert.ok(res.error?.includes('ab_not_real'));
+    });
+  });
+
+  describe('allocateLevelUpRewards — story-relative stat baseline', () => {
+    it('creates a missing stat at universalBaseValue, not a hardcoded 10', () => {
+      const player: PlayerState = { ...basePlayer, unspentStatPoints: 1, stats: {} };
+      const lowScaleRpg: RPGSystemSchema = {
+        ...sampleRpg,
+        universalBaseValue: 5,
+      } as RPGSystemSchema;
+
+      const res = allocateLevelUpRewards(player, { might: 1 }, undefined, lowScaleRpg);
+
+      assert.equal(res.success, true);
+      // 5 (baseline) + 1 (spent) — the old `|| 10` fallback produced 11.
+      assert.equal(res.updatedPlayerState.stats.might, 6);
+    });
+
+    it('creates a missing stat at its authored baseValue when there is no universalBaseValue', () => {
+      const player: PlayerState = { ...basePlayer, unspentStatPoints: 2, stats: {} };
+      const perStatRpg: RPGSystemSchema = {
+        ...sampleRpg,
+        stats: sampleRpg.stats.map((s) => (s.id === 'might' ? { ...s, baseValue: 3 } : s)),
+      } as RPGSystemSchema;
+
+      const res = allocateLevelUpRewards(player, { might: 2 }, undefined, perStatRpg);
+
+      assert.equal(res.success, true);
+      // 3 (per-stat baseline) + 2 (spent) — the old `|| 10` fallback produced 12.
+      assert.equal(res.updatedPlayerState.stats.might, 5);
+    });
+
+    it('prefers universalBaseValue over the per-stat baseValue when both are set', () => {
+      const player: PlayerState = { ...basePlayer, unspentStatPoints: 1, stats: {} };
+      const both: RPGSystemSchema = {
+        ...sampleRpg,
+        universalBaseValue: 7,
+        stats: sampleRpg.stats.map((s) => (s.id === 'might' ? { ...s, baseValue: 3 } : s)),
+      } as RPGSystemSchema;
+
+      const res = allocateLevelUpRewards(player, { might: 1 }, undefined, both);
+      assert.equal(res.success, true);
+      assert.equal(res.updatedPlayerState.stats.might, 8);
+    });
+
+    it('falls back to 10 only when no RPG system context is available at all', () => {
+      const player: PlayerState = { ...basePlayer, unspentStatPoints: 1, stats: {} };
+
+      // With no rpgSystem there is nothing to validate against or resolve a
+      // baseline from, so isDefinedStat passes through and resolveStatBase
+      // returns the classic 10. This is the only path that should still yield 10.
+      const res = allocateLevelUpRewards(player, { might: 1 });
+      assert.equal(res.success, true);
+      assert.equal(res.updatedPlayerState.stats.might, 11);
+    });
+
+    it('rejects allocation when the story defines no stats at all', () => {
+      const player: PlayerState = { ...basePlayer, unspentStatPoints: 1, stats: {} };
+      const noStats: RPGSystemSchema = { ...sampleRpg, stats: [] } as RPGSystemSchema;
+
+      const res = allocateLevelUpRewards(player, { might: 1 }, undefined, noStats);
+      assert.equal(res.success, false);
+      assert.ok(res.error?.includes('might'));
+    });
+  });
 });

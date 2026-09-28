@@ -14,6 +14,7 @@ An AI-powered interactive RPG novel platform where readers make high-stakes choi
  * 🏛️ **[Master Plan & Technical Spec](docs/MASTER_PLAN.md)**
  * 🛡️ **[Plan 08: Narrative Consistency Hardening](docs/plans/08_CONSISTENCY_HARDENING_PLAN.md)**
  * 🔍 **[Comprehensive System & Gameplay Audit](docs/SYSTEM_AND_GAMEPLAY_AUDIT.md)**
+ * 🚨 **[Technical Risk & Hardening Audit](docs/TECHNICAL_RISK_AND_HARDENING_AUDIT.md)**
 
 
 ---

@@ -83,36 +83,44 @@ export async function POST(req: Request) {
         },
       });
 
-      // Migrate guest session if provided
+      // Claim a guest session for the new account. The `userId: null` predicate
+      // is load-bearing: without it, a newly-registered attacker who learns a
+      // victim's sessionId could re-parent an already-owned playthrough to
+      // their own account. Guest rows are stored as NULL, not 'guest_user' —
+      // createSession always supplies the value explicitly, so the Prisma
+      // `@default("guest_user")` never fires.
+      let claimedGuestSession = false;
       if (guestSessionId && typeof guestSessionId === 'string') {
-        await tx.playthroughSession.updateMany({
-          where: { sessionId: guestSessionId },
+        const { count } = await tx.playthroughSession.updateMany({
+          where: { sessionId: guestSessionId, userId: null },
           data: { userId: u.id },
         });
+        claimedGuestSession = count > 0;
       }
 
-      return u;
+      return { user: u, claimedGuestSession };
     });
 
     const token = signJwt({
-      userId: newUser.id,
-      phoneNumber: newUser.phoneNumber,
-      role: newUser.role,
+      userId: newUser.user.id,
+      phoneNumber: newUser.user.phoneNumber,
+      role: newUser.user.role,
     });
 
     const userProfile = {
-      id: newUser.id,
-      phoneNumber: newUser.phoneNumber,
-      name: newUser.name,
-      role: newUser.role,
-      creditBalance: newUser.creditBalance,
-      phoneVerified: newUser.phoneVerified,
+      id: newUser.user.id,
+      phoneNumber: newUser.user.phoneNumber,
+      name: newUser.user.name,
+      role: newUser.user.role,
+      creditBalance: newUser.user.creditBalance,
+      phoneVerified: newUser.user.phoneVerified,
     };
 
     const response = NextResponse.json({
       success: true,
       token,
       user: userProfile,
+      claimedGuestSession: newUser.claimedGuestSession,
       message: 'Account created successfully with 15 bonus scene credits!',
     });
 

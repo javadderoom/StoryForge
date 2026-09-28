@@ -224,6 +224,15 @@ class CheckResolution {
   final String outcome;
   final int diceRoll;
   final int statModifier;
+
+  /// Environmental/tactical bonus (e.g. a smoke pellet granting +4).
+  ///
+  /// The server keeps this SEPARATE from [statModifier] but includes it in
+  /// [totalScore] (see GameEngine.ts: `environmentalModifier` is excluded from
+  /// statModifier but summed into the total). The overlay renders
+  /// `roll + modifier + environmental = total`, so without this field the
+  /// displayed equation silently fails to add up on those turns.
+  final int environmentalModifier;
   final int totalScore;
   final int difficultyClass;
   final String consequenceSummary;
@@ -234,6 +243,7 @@ class CheckResolution {
     required this.outcome,
     required this.diceRoll,
     this.statModifier = 0,
+    this.environmentalModifier = 0,
     required this.totalScore,
     required this.difficultyClass,
     required this.consequenceSummary,
@@ -247,6 +257,7 @@ class CheckResolution {
       outcome: json['outcome'] ?? 'success',
       diceRoll: json['diceRoll'] ?? 10,
       statModifier: json['statModifier'] ?? 0,
+      environmentalModifier: (json['environmentalModifier'] as num?)?.toInt() ?? 0,
       totalScore: json['totalScore'] ?? 10,
       difficultyClass: json['difficultyClass'] ?? 10,
       consequenceSummary: json['consequenceSummary'] ?? '',

@@ -1,15 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { StoryRepository } from '@/lib/db/repositories/storyRepository';
-import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
+import { buildCorsHeaders, handleCorsPreflight } from '@/lib/cors';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function OPTIONS() {
-  return handleCorsPreflight();
+export async function OPTIONS(req: NextRequest) {
+  return handleCorsPreflight(req);
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const stories = await StoryRepository.getAllStories(true);
     return NextResponse.json(
@@ -18,14 +18,14 @@ export async function GET() {
         data: stories,
       },
       {
-        headers: corsHeaders,
+        headers: buildCorsHeaders(req),
       }
     );
   } catch (error: any) {
     console.warn('API error fetching published stories from DB:', error);
     return NextResponse.json(
       { success: true, data: [] },
-      { headers: corsHeaders }
+      { headers: buildCorsHeaders(req) }
     );
   }
 }

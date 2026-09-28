@@ -5,7 +5,7 @@ import {
   RPGSystemSchema,
   AbilityDefinition,
 } from '@/lib/types/rpg';
-import { computeMaxResources } from './vitalScaling';
+import { computeMaxResources, resolveStatBase, isDefinedStat, isDefinedAbility } from './vitalScaling';
 
 export interface ActionXpContext {
   riskLevel?: RiskLevel;
@@ -244,8 +244,29 @@ export function applyXpGain(
 }
 
 /**
+ * Normalizes one untrusted allocation entry into a non-negative integer, or
+ * null if it is not a usable point spend.
+ *
+ * The budget check and the apply loop MUST agree on what "a point" means. The
+ * previous implementation summed a *signed* total but only applied entries
+ * where `b > 0`, so `{ might: 100, agility: -99 }` netted to 1 point, cleared
+ * the budget, granted +100 might and silently skipped agility.
+ */
+function normalizeAllocation(value: unknown): number | null {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  const truncated = Math.trunc(n);
+  return truncated > 0 ? truncated : null;
+}
+
+/**
  * Commits the player's choices during a Level-Up:
  * Allocates stat points, learns an optional chosen ability, and recomputes vital maximums.
+ *
+ * `statAllocations` and `chosenAbilityId` are attacker-controlled when this is
+ * reached over HTTP, so every entry is validated: only positive integers count
+ * toward the budget, only stats/abilities the RPG system actually defines are
+ * applied, and new stats are created at the system baseline (not a hardcoded 10).
  */
 export function allocateLevelUpRewards(
   playerState: PlayerState,
@@ -254,9 +275,37 @@ export function allocateLevelUpRewards(
   rpgSystem?: RPGSystemSchema
 ): { success: boolean; updatedPlayerState: PlayerState; error?: string } {
   const updated: PlayerState = JSON.parse(JSON.stringify(playerState));
-
-  const totalPointsRequested = Object.values(statAllocations).reduce((sum, v) => sum + (Number(v) || 0), 0);
   const availablePoints = updated.unspentStatPoints || 0;
+
+  // Validate every entry first, so a rejected payload cannot partially apply.
+  const requested: Array<{ statId: string; bonus: number }> = [];
+  const rejected: string[] = [];
+
+  for (const [statId, rawBonus] of Object.entries(statAllocations || {})) {
+    const bonus = normalizeAllocation(rawBonus);
+    if (bonus === null) {
+      // 0, negative, fractional-truncated-to-zero, NaN — none are spends.
+      if (Number(rawBonus) > 0 && !Number.isInteger(Number(rawBonus))) {
+        rejected.push(`${statId} (points must be whole numbers)`);
+      }
+      continue;
+    }
+    if (!isDefinedStat(statId, rpgSystem)) {
+      rejected.push(`${statId} (not a stat in this story's RPG system)`);
+      continue;
+    }
+    requested.push({ statId, bonus });
+  }
+
+  if (rejected.length > 0) {
+    return {
+      success: false,
+      updatedPlayerState: playerState,
+      error: `Invalid stat allocation: ${rejected.join(', ')}.`,
+    };
+  }
+
+  const totalPointsRequested = requested.reduce((sum, r) => sum + r.bonus, 0);
 
   if (totalPointsRequested > availablePoints) {
     return {
@@ -266,26 +315,24 @@ export function allocateLevelUpRewards(
     };
   }
 
-  if (totalPointsRequested < 0) {
-    return {
-      success: false,
-      updatedPlayerState: playerState,
-      error: 'Negative stat allocations are not permitted.',
-    };
-  }
-
-  // Apply stat increases
+  // Apply stat increases at the story's own baseline. A stat the character does
+  // not yet have is created at `resolveStatBase` (universalBaseValue ??
+  // stat.baseValue ?? 10) — the value at which getStatModifier returns 0.
   if (!updated.stats) updated.stats = {};
-  for (const [statId, bonus] of Object.entries(statAllocations)) {
-    const b = Number(bonus) || 0;
-    if (b > 0) {
-      updated.stats[statId] = (updated.stats[statId] || 10) + b;
-    }
+  for (const { statId, bonus } of requested) {
+    updated.stats[statId] = (updated.stats[statId] ?? resolveStatBase(statId, rpgSystem)) + bonus;
   }
   updated.unspentStatPoints = Math.max(0, availablePoints - totalPointsRequested);
 
   // Apply chosen ability if requested
   if (chosenAbilityId) {
+    if (!isDefinedAbility(chosenAbilityId, rpgSystem)) {
+      return {
+        success: false,
+        updatedPlayerState: playerState,
+        error: `Unknown ability "${chosenAbilityId}" for this story's RPG system.`,
+      };
+    }
     if (!updated.abilities) updated.abilities = [];
     if (!updated.abilities.includes(chosenAbilityId)) {
       updated.abilities.push(chosenAbilityId);

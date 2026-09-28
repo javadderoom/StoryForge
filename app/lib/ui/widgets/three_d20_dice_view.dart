@@ -76,6 +76,15 @@ class ThreeD20DiceViewState extends State<ThreeD20DiceView> {
     super.didUpdateWidget(oldWidget);
     if (widget.isRolling && (!oldWidget.isRolling || widget.resultNumber != oldWidget.resultNumber)) {
       _triggerRoll(widget.resultNumber);
+    } else if (!widget.isRolling && widget.resultNumber != oldWidget.resultNumber) {
+      // Re-snap the mesh if the target number changes while idle. Today the
+      // client roll is echoed verbatim by the server (forcedDiceRoll is
+      // authoritative), so this branch does not fire in practice — but without
+      // it a future divergence would leave the 3D face showing a stale number
+      // while the overlay text showed the correct one.
+      _controller?.runJavaScript(
+        'if (window.setTargetNumber) window.setTargetNumber(${widget.resultNumber});',
+      );
     }
   }
 

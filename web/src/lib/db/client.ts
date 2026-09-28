@@ -7,6 +7,22 @@ const globalForPrisma = globalThis as unknown as {
   pool: Pool | undefined;
 };
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+/**
+ * In production the database is mandatory. Without it `getPrisma()` returns null,
+ * `getAuthenticatedUser` fabricates a session from the JWT's *claimed* role
+ * (see lib/auth/getUser.ts), and every repository silently returns empty results
+ * — so a misconfigured deploy would serve a Studio that appears to work while
+ * persisting nothing, behind an auth path that fails open.
+ */
+if (isProduction && process.env.ENABLE_DB !== 'true') {
+  throw new Error(
+    'ENABLE_DB must be "true" in production. The database is mandatory; without it ' +
+      'authentication degrades to a fail-open path and repositories silently no-op.'
+  );
+}
+
 export function getPrisma(): PrismaClient | null {
   if (process.env.ENABLE_DB !== 'true') return null;
   if (!globalForPrisma.prisma) {

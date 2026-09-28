@@ -72,9 +72,19 @@ docker compose ps
    Create or verify `web/.env`:
    ```env
    NODE_ENV=development
+   ENABLE_DB=true
    DATABASE_URL="postgresql://postgres:postgrespassword@localhost:5432/storyforge?schema=public"
    GEMINI_API_KEY="your_gemini_api_key_here"
+   JWT_SECRET="<a long random string — e.g. `openssl rand -hex 32`>"
+   ALLOWED_ORIGINS="http://localhost:3000,http://127.0.0.1:3000"
    ```
+
+   > [!IMPORTANT]
+   > **`ENABLE_DB` gates the entire database**, not just connection pooling. When it is not exactly `"true"`, `getPrisma()` returns `null`, every repository silently returns empty results, and `getAuthenticatedUser` degrades to a **fail-open** path that trusts the role claimed inside the JWT. In production this is now a hard startup error rather than a silent downgrade. `docs/run.md` previously omitted it, so following these steps exactly used to produce an app that appeared to work while persisting nothing.
+   >
+   > **`JWT_SECRET` signs every auth token.** There is no committed fallback — a checked-in default would be a public key. In production a missing value is fatal; in development the app falls back to a random per-process secret, so you will be logged out on every server restart until you set one.
+   >
+   > **`ALLOWED_ORIGINS` is the CORS allowlist** (comma-separated). The API previously answered every request with `Access-Control-Allow-Origin: *` plus `Access-Control-Allow-Credentials: true` — an invalid combination that, if "fixed" by reflecting the request origin, would have made the auth cookie replayable from any website. CORS is now applied per-route in `src/lib/cors.ts` and only echoes an origin on this list. Add your Flutter **web** origin here if you run the client in a browser; Android, iOS and Windows builds are not browsers and need no entry. Unset, it falls back to the two localhost origins above rather than opening the API.
 
 4. **Initialize Database Schema with Prisma 7:**
    ```bash
@@ -84,7 +94,17 @@ docker compose ps
    > [!IMPORTANT]
    > **Prisma 7 Configuration Rule**: Connection URLs in Prisma 7 are managed via `prisma.config.ts` or environment variables at runtime. **Never** add `url = env(...)` inside `datasource db` in `schema.prisma`.
 
-5. **Start the Next.js Development Server:**
+5. **Create the first Admin account (required before using the Studio):**
+   The Studio authoring routes require the `AUTHOR` or `ADMIN` role, and `prisma/seed.ts` is intentionally a no-op — so a fresh database has no way to create the first admin. Every self-service signup receives `READER`. Bootstrap one explicitly:
+   ```bash
+   BOOTSTRAP_ADMIN_PHONE=09121234567 \
+   BOOTSTRAP_ADMIN_PASSWORD='choose-a-strong-password' \
+   BOOTSTRAP_ADMIN_NAME='Studio Owner' \
+   npm run bootstrap:admin
+   ```
+   The script is idempotent, refuses to change the role of an existing account unless you also set `BOOTSTRAP_ADMIN_FORCE=true`, and prints the account id on success. Sign in with this phone number and password at `/studio`.
+
+6. **Start the Next.js Development Server:**
    ```bash
    npm run dev
    ```

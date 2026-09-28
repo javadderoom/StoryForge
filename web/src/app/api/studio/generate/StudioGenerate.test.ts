@@ -31,11 +31,28 @@ import {
   ContradictionAuditReportSchema,
 } from '../../../../lib/engines/world/GenesisSchemas';
 import { z } from 'zod';
+import { signJwt } from '../../../../lib/auth/jwt';
+
+/**
+ * The route is AUTHOR/ADMIN gated (it spends unmetered LLM budget). These tests
+ * sign a real token in-process — `signJwt` uses the same module-level secret the
+ * route's `verifyJwt` reads, so no mocking is needed. With ENABLE_DB off,
+ * `getAuthenticatedUser` falls back to the token's claimed role, which is
+ * exactly what we want to exercise.
+ */
+const authorToken = signJwt({
+  userId: 'test-author',
+  phoneNumber: '+989121234567',
+  role: 'AUTHOR',
+});
 
 function createMockRequest(body: any): NextRequest {
   return new NextRequest('http://localhost:3000/api/studio/generate', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${authorToken}`,
+    },
     body: JSON.stringify(body),
   });
 }

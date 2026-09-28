@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import {
   normalizePhoneNumber,
   isValidIranianPhone,
@@ -64,6 +65,64 @@ describe('Auth Utilities & JWT', () => {
       const token = signJwt({ userId: 'u1', phoneNumber: '+98912', role: 'READER' });
       const tampered = token.slice(0, -4) + 'abcd';
       assert.equal(verifyJwt(tampered), null);
+    });
+  });
+
+  // The pre-existing suite only covered the happy path plus one tamper case.
+  // These are the cases an auth guard actually depends on: a route that treats
+  // a malformed or expired token as valid is an authentication bypass.
+  describe('Token Rejection', () => {
+    it('rejects an empty string', () => {
+      assert.equal(verifyJwt(''), null);
+    });
+
+    it('rejects a non-JWT string', () => {
+      assert.equal(verifyJwt('not-a-jwt'), null);
+    });
+
+    it('rejects a token with the wrong number of segments', () => {
+      assert.equal(verifyJwt('only.two'), null);
+      assert.equal(verifyJwt('a.b.c.d'), null);
+    });
+
+    it('rejects a token with a valid shape but garbage payload', () => {
+      const token = `${Buffer.from('{"alg":"HS256"}').toString('base64url')}.${Buffer.from(
+        '{"userId":"u1","role":"ADMIN"}'
+      ).toString('base64url')}.c2lnbmF0dXJl`;
+      assert.equal(verifyJwt(token), null);
+    });
+
+    it('rejects an expired token', () => {
+      // expiresIn -1 second puts exp in the past.
+      const token = signJwt({ userId: 'u1', phoneNumber: '+98912', role: 'ADMIN' }, -1);
+      assert.equal(verifyJwt(token), null, 'an expired ADMIN token must not authenticate');
+    });
+
+    it('rejects a token whose signature is from a different payload', () => {
+      // Take a valid token and swap in a different payload — the classic
+      // "none algorithm"/payload-substitution shape of attack.
+      const good = signJwt({ userId: 'u1', phoneNumber: '+98912', role: 'READER' });
+      const [header, , sig] = good.split('.');
+      const forgedPayload = Buffer.from(
+        JSON.stringify({ userId: 'u1', phoneNumber: '+98912', role: 'ADMIN' })
+      ).toString('base64url');
+      assert.equal(verifyJwt(`${header}.${forgedPayload}.${sig}`), null);
+    });
+
+    it('rejects a token signed by another key', () => {
+      // Simulates the pre-fix committed fallback being replaced: a token minted
+      // under the old hardcoded secret must not verify once JWT_SECRET is real.
+      const data = `${Buffer.from('{"alg":"HS256"}').toString('base64url')}.${Buffer.from(
+        JSON.stringify({ userId: 'u1', phoneNumber: '+98912', role: 'ADMIN', exp: 99999999999 })
+      ).toString('base64url')}`;
+      const sig = crypto
+        .createHmac('sha256', 'the-old-committed-fallback-secret')
+        .update(data)
+        .digest('base64')
+        .replace(/=/g, '')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_');
+      assert.equal(verifyJwt(`${data}.${sig}`), null);
     });
   });
 });

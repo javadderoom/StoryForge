@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { StoryRepository } from '@/lib/db/repositories/storyRepository';
+import { requireStudioWrite } from '@/lib/auth/studioAuth';
 
 export async function GET(req: NextRequest) {
   try {
+    const guard = await requireStudioWrite(req);
+    if (!guard.ok) return guard.response;
+
     const { searchParams } = new URL(req.url);
     // worldId preferred (shared world); storyId resolves to its world for compat.
     const storyId = searchParams.get('worldId') || searchParams.get('storyId');
@@ -81,6 +85,9 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const guard = await requireStudioWrite(req);
+    if (!guard.ok) return guard.response;
+
     const body = await req.json();
     const { resource, data } = body;
     // worldId preferred (shared world); storyId resolves to its world for compat.

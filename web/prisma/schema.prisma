@@ -37,6 +37,11 @@ model Story {
   published     Boolean  @default(false)
   manifest      Json     @default("{}")
   worldId       String?
+  /// Owner of this story (the AUTHOR/ADMIN account that created it).
+  /// Nullable: rows that predate ownership tracking have no owner and remain
+  /// editable by any ADMIN. `Story.author` is a separate, user-editable
+  /// display string and is NOT a foreign key.
+  authorId      String?
 
   world         World?   @relation(fields: [worldId], references: [id], onDelete: SetNull)
   // Legacy 1:1 links — kept for backwards compat during World 1:N transition.
@@ -45,7 +50,10 @@ model Story {
   rpgSystem     RpgSystem?  @relation("LegacyStoryRpgSystem")
   sessions      PlaythroughSession[]
 
+  owner         User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
   @@index([worldId])
+  @@index([authorId])
   @@map("stories")
 }
 
@@ -125,6 +133,9 @@ model User {
   sessions       PlaythroughSession[]
   creditLedgers  UserCreditLedger[]
   bazaarPurchases BazaarPurchase[]
+  /// Stories this user authored in the Studio. Nullable on Story, so legacy
+  /// rows with no owner are simply absent from this list.
+  authoredStories Story[]
 
   @@map("users")
 }

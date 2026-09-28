@@ -1,6 +1,40 @@
 import crypto from 'node:crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'storyforge-secret-jwt-key-2026-secure-token-void';
+/**
+ * The signing key for every JWT this app issues.
+ *
+ * There is deliberately NO committed fallback. A secret checked into the
+ * repository is a public secret: with the Studio routes now gated on
+ * AUTHOR/ADMIN, a forgeable token would be full role forgery.
+ *
+ * In production a missing JWT_SECRET is fatal. Outside production we fall back
+ * to a random ephemeral secret so the test suite (which never loads .env) can
+ * sign and verify in-process — at the cost of sessions not surviving a restart.
+ */
+function resolveJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (secret && secret.length > 0) return secret;
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'JWT_SECRET is required in production. Refusing to sign tokens with a ' +
+        'fallback key — a committed default would make every token forgeable.'
+    );
+  }
+
+  if (!warnedAboutEphemeralSecret) {
+    warnedAboutEphemeralSecret = true;
+    console.warn(
+      '[auth] JWT_SECRET is not set. Using a random ephemeral secret for this ' +
+        'process only — all issued tokens become invalid on restart. Set JWT_SECRET ' +
+        'in web/.env to get stable sessions.'
+    );
+  }
+  return crypto.randomBytes(32).toString('hex');
+}
+
+let warnedAboutEphemeralSecret = false;
+const JWT_SECRET = resolveJwtSecret();
 const JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
 export interface JwtUserPayload {
@@ -134,7 +168,11 @@ export function verifyJwt(token: string): JwtUserPayload | null {
       .replace(/\+/g, '-')
       .replace(/\//g, '_');
 
-    if (signature !== expectedSignature) {
+    // Constant-time comparison. `!==` leaks signature bytes through timing —
+    // note that verifyPassword below already uses timingSafeEqual.
+    const provided = Buffer.from(signature, 'utf8');
+    const expected = Buffer.from(expectedSignature, 'utf8');
+    if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
       return null;
     }
 

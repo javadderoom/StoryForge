@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { StoryManifest } from '@/lib/types';
 import { canPublish } from '@/lib/engines/world/publishGate';
+import { requireStudioWrite } from '@/lib/auth/studioAuth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function POST(req: NextRequest) {
   try {
+    const guard = await requireStudioWrite(req);
+    if (!guard.ok) return guard.response;
+
     const body = await req.json();
     const manifest: StoryManifest = body.storyManifest || body.manifest || body;
 
@@ -32,7 +36,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const saved = await StoryRepository.saveStory(manifest);
+    // Ownership: an AUTHOR may only save a story they own, or an unowned legacy
+    // row. ADMIN may save anything.
+    if (!(await StoryRepository.canModifyStory(manifest.id, guard.user))) {
+      return NextResponse.json(
+        { success: false, error: 'You do not have permission to modify this story.' },
+        { status: 403 }
+      );
+    }
+
+    const saved = await StoryRepository.saveStory(manifest, guard.user.id);
     return NextResponse.json({
       success: true,
       message: 'Story manifest updated successfully',
@@ -51,6 +64,11 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    // Gated: with no storyId this returns EVERY story including unpublished
+    // drafts, so the read surface leaks unreleased content too.
+    const guard = await requireStudioWrite(req);
+    if (!guard.ok) return guard.response;
+
     const { searchParams } = new URL(req.url);
     const storyId = searchParams.get('storyId');
 
@@ -78,6 +96,9 @@ export async function GET(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const guard = await requireStudioWrite(req);
+    if (!guard.ok) return guard.response;
+
     const { searchParams } = new URL(req.url);
     const storyId = searchParams.get('storyId');
 
@@ -85,6 +106,13 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'storyId is required' },
         { status: 400 }
+      );
+    }
+
+    if (!(await StoryRepository.canModifyStory(storyId, guard.user))) {
+      return NextResponse.json(
+        { success: false, error: 'You do not have permission to delete this story.' },
+        { status: 403 }
       );
     }
 

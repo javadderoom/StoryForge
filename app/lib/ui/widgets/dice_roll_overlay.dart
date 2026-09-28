@@ -6,7 +6,17 @@ import '../../models/story.dart';
 import 'three_d20_dice_view.dart';
 
 class DiceRollOverlay extends StatelessWidget {
+  /// Client-computed resolution. Used ONLY to pick the 3D die's target face.
   final CheckResolution? resolution;
+
+  /// Server-authoritative resolution. Every displayed number, label, colour and
+  /// sound derives from this. Null until the turn resolves.
+  final CheckResolution? serverResolution;
+
+  /// Dice have settled but the server has not answered yet — show a neutral
+  /// placeholder rather than the stale client numbers.
+  final bool awaitingReferee;
+
   final String actionText;
   final bool isVisible;
   final bool isRolling;
@@ -19,6 +29,8 @@ class DiceRollOverlay extends StatelessWidget {
   const DiceRollOverlay({
     super.key,
     required this.resolution,
+    required this.serverResolution,
+    required this.awaitingReferee,
     required this.actionText,
     required this.isVisible,
     required this.isRolling,
@@ -29,9 +41,13 @@ class DiceRollOverlay extends StatelessWidget {
     required this.onRollComplete,
   });
 
+  /// The single source of truth for anything the player reads.
+  CheckResolution? get _effective => serverResolution;
+
   Color _getOutcomeColor() {
-    if (resolution == null) return const Color(0xFFF59E0B);
-    switch (resolution!.outcome) {
+    final res = _effective;
+    if (res == null) return const Color(0xFFF59E0B);
+    switch (res.outcome) {
       case 'critical_success':
         return const Color(0xFF10B981);
       case 'success':
@@ -47,9 +63,10 @@ class DiceRollOverlay extends StatelessWidget {
   }
 
   String _getOutcomeLabel() {
-    if (resolution == null) return '';
+    final res = _effective;
+    if (res == null) return '';
     if (isPersian) {
-      switch (resolution!.outcome) {
+      switch (res.outcome) {
         case 'critical_success':
           return 'پیروزی چشمگیر';
         case 'success':
@@ -63,7 +80,7 @@ class DiceRollOverlay extends StatelessWidget {
           return 'شکست در بررسی';
       }
     } else {
-      switch (resolution!.outcome) {
+      switch (res.outcome) {
         case 'critical_success':
           return 'CRITICAL SUCCESS';
         case 'success':
@@ -80,9 +97,10 @@ class DiceRollOverlay extends StatelessWidget {
   }
 
   String _getConsequenceSummary() {
-    if (resolution == null) return '';
+    final res = _effective;
+    if (res == null) return '';
     if (!isPersian) {
-      return resolution!.consequenceSummary;
+      return res.consequenceSummary;
     }
     const summaryMap = {
       'Disaster strikes: complete failure with severe complications or damage.':
@@ -98,7 +116,7 @@ class DiceRollOverlay extends StatelessWidget {
       'The attempt failed: unexpected obstacle arose or opportunity lost.':
           'تلاش ناموفق بود: مانعی غیرمنتظره پدیدار شد یا فرصت از دست رفت.',
     };
-    final summary = resolution!.consequenceSummary;
+    final summary = res.consequenceSummary;
     if (summaryMap.containsKey(summary)) {
       return summaryMap[summary]!;
     }
@@ -111,7 +129,7 @@ class DiceRollOverlay extends StatelessWidget {
       final translatedBase = summaryMap[base] ??
           (base.contains(RegExp(r'[\u0600-\u06FF]'))
               ? base
-              : _defaultOutcomeSummary(resolution!.outcome));
+              : _defaultOutcomeSummary(res.outcome));
       return '$translatedBase$tag';
     }
 
@@ -119,7 +137,7 @@ class DiceRollOverlay extends StatelessWidget {
       return summary;
     }
 
-    return _defaultOutcomeSummary(resolution!.outcome);
+    return _defaultOutcomeSummary(res.outcome);
   }
 
   String _defaultOutcomeSummary(String outcome) {
@@ -206,7 +224,10 @@ class DiceRollOverlay extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
 
-                    // Persistent 3D D20 Dice View (WebGL stays alive across all turns)
+                    // Persistent 3D D20 Dice View (WebGL stays alive across all turns).
+                    // The face comes from the client roll, which is safe: the same
+                    // forcedDiceRoll is sent to the server and honoured there, so
+                    // diceRoll can never disagree.
                     ThreeD20DiceView(
                       key: diceKey,
                       resultNumber: resolution?.diceRoll ?? 10,
@@ -227,8 +248,40 @@ class DiceRollOverlay extends StatelessWidget {
                     ],
                     const SizedBox(height: 16),
 
+                    // Dice have settled but the authoritative resolution has not
+                    // landed. Show a neutral placeholder rather than the client
+                    // engine's numbers, which may contradict the real outcome.
+                    if (!isRolling && _effective == null) ...[
+                      SizedBox(
+                        height: 120,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFFF59E0B),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                isPersian ? 'در حال بررسی نتیجه...' : 'Adjudicating outcome...',
+                                style: GoogleFonts.vazirmatn(
+                                  fontSize: 12,
+                                  color: Colors.white54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+
                     // Equation Breakdown (Explicit LTR for accurate math and sign ordering)
-                    if (!isRolling && resolution != null) ...[
+                    if (!isRolling && _effective != null) ...[
                       Directionality(
                         textDirection: TextDirection.ltr,
                         child: Container(
@@ -243,27 +296,42 @@ class DiceRollOverlay extends StatelessWidget {
                             children: [
                               _buildStatBox(
                                 isPersian ? 'تاس' : 'Roll',
-                                resolution!.diceRoll.toPersianDigits(enable: isPersian),
+                                _effective!.diceRoll.toPersianDigits(enable: isPersian),
                               ),
                               const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
                               _buildStatBox(
-                                _formatStatLabel(resolution!.statId),
-                                (resolution!.statModifier >= 0
-                                        ? '+${resolution!.statModifier}'
-                                        : '${resolution!.statModifier}')
+                                _formatStatLabel(_effective!.statId),
+                                (_effective!.statModifier >= 0
+                                        ? '+${_effective!.statModifier}'
+                                        : '${_effective!.statModifier}')
                                     .toPersianDigits(enable: isPersian),
                                 color: const Color(0xFF60A5FA),
                               ),
+                              // The server keeps environmentalModifier OUT of
+                              // statModifier but INSIDE totalScore, so the term
+                              // must be shown or the equation will not add up on
+                              // turns where a tactical item applied.
+                              if (_effective!.environmentalModifier != 0) ...[
+                                const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+                                _buildStatBox(
+                                  isPersian ? 'محیط' : 'Env',
+                                  (_effective!.environmentalModifier >= 0
+                                          ? '+${_effective!.environmentalModifier}'
+                                          : '${_effective!.environmentalModifier}')
+                                      .toPersianDigits(enable: isPersian),
+                                  color: const Color(0xFFA78BFA),
+                                ),
+                              ],
                               const Text('=', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
                               _buildStatBox(
                                 isPersian ? 'مجموع' : 'Total',
-                                resolution!.totalScore.toPersianDigits(enable: isPersian),
+                                _effective!.totalScore.toPersianDigits(enable: isPersian),
                                 color: const Color(0xFFF59E0B),
                               ),
                               const Text('vs', style: TextStyle(color: Colors.white38, fontSize: 11)),
                               _buildStatBox(
                                 isPersian ? 'دشواری' : 'DC',
-                                resolution!.difficultyClass.toPersianDigits(enable: isPersian),
+                                _effective!.difficultyClass.toPersianDigits(enable: isPersian),
                               ),
                             ],
                           ),

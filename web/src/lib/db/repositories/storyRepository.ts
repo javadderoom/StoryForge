@@ -104,6 +104,10 @@ export class StoryRepository {
   /**
    * Creates a new empty world (lore + RPG shells). Used when starting a
    * fresh universe before any story exists.
+   *
+   * Worlds are shared and carry no owner — authorship is recorded on the Story
+   * (see `saveStory`), because a single world can back many stories by many
+   * different authors. So there is deliberately no identity parameter here.
    */
   static async createWorld(input: { name: string; summary?: string; themeNotes?: string }) {
     if (!isDatabaseActive) {
@@ -131,6 +135,11 @@ export class StoryRepository {
   /**
    * Deep-copies a world (lore + RPG) into a new world for explicit
    * divergence. Stories are NOT moved; pass storyIds to re-link them.
+   *
+   * The copy is a fresh, unowned world. Whoever next saves a story into it
+   * becomes that story's `authorId` via `saveStory` — attribution follows the
+   * story, not the world, so forking never transfers the source author's
+   * identity to the fork.
    */
   static async forkWorld(worldId: string, name: string) {
     if (!isDatabaseActive) return { isMock: true };
@@ -273,6 +282,39 @@ export class StoryRepository {
   }
 
   /**
+   * Ownership check for a Story.
+   *
+   * Rules:
+   *  - ADMIN may read/write anything.
+   *  - The owning AUTHOR may read/write their own story.
+   *  - A story with `authorId IS NULL` predates ownership tracking: readable and
+   *    writable by any AUTHOR, so no existing content becomes orphaned.
+   *  - Everyone else is denied.
+   *
+   * Pure and side-effect free apart from one indexed lookup, so it is safe to
+   * call before every mutating operation.
+   */
+  static async canModifyStory(
+    storyId: string,
+    user: { id: string; role: string }
+  ): Promise<boolean> {
+    if (!isDatabaseActive) return true; // mock mode — nothing is persisted anyway
+    if (user.role === 'ADMIN') return true;
+    try {
+      const story = await prisma.story.findUnique({
+        where: { id: storyId },
+        select: { authorId: true },
+      });
+      if (!story) return false;
+      return story.authorId === null || story.authorId === user.id;
+    } catch (e) {
+      console.warn(`Ownership check failed for story ${storyId}:`, e);
+      // Fail closed: a failed lookup must not become an authorization grant.
+      return false;
+    }
+  }
+
+  /**
    * Fetches the full StoryManifest by ID, composing story-specific fields
    * with the live shared-world lore + RPG. Returns null when not found.
    */
@@ -335,6 +377,18 @@ export class StoryRepository {
           backgrounds: (liveRpg.backgrounds as any) || [],
           abilities: (manifest.rpgSystem as any)?.abilities || (liveRpg as any).abilities || [],
           currencySystem: (manifest.rpgSystem as any)?.currencySystem || (liveRpg as any).currencySystem,
+          // CRITICAL: `universalBaseValue` has no column on RpgSystem (see
+          // schema.prisma) — it survives only inside Story.manifest.rpgSystem.
+          // Omitting it here makes the level-up path fall through to a hardcoded
+          // baseline of 10 and silently reintroduces the stat-inflation bug on
+          // any non-D&D-scale system. Mirrors the three-way fallback used by
+          // getAllStories.
+          universalBaseValue:
+            (liveRpg as any).universalBaseValue ??
+            (manifest.rpgSystem as any)?.universalBaseValue ??
+            10,
+          progression:
+            (manifest.rpgSystem as any)?.progression || (liveRpg as any).progression,
         } as any;
       }
 
@@ -525,8 +579,13 @@ export class StoryRepository {
    * Saves a full StoryManifest: story-specific fields go to `stories`,
    * shared lore + RPG go to the linked `worlds` row (visible to every
    * story on that world). Creates the world on the fly when missing.
+   *
+   * `authorId` is the authenticated AUTHOR/ADMIN performing the save. It is
+   * stamped on create, and on update it only fills a NULL owner — re-saving a
+   * story never transfers ownership, so an author cannot claim someone else's
+   * story by re-posting it.
    */
-  static async saveStory(input: StoryManifest) {
+  static async saveStory(input: StoryManifest, authorId?: string | null) {
     if (!isDatabaseActive) {
       return { id: input.id, title: input.title, isMock: true };
     }
@@ -593,6 +652,14 @@ export class StoryRepository {
         };
 
         // 3. Story shell (story-specific fields + manifest snapshot).
+        // Ownership is stamped on create. On update it only fills a NULL owner,
+        // so a re-save can never transfer an existing story to a different user.
+        const existingOwner = await tx.story.findUnique({
+          where: { id: manifest.id },
+          select: { authorId: true },
+        });
+        const resolvedAuthorId = existingOwner?.authorId ?? (authorId ?? null);
+
         const story = await tx.story.upsert({
           where: { id: manifest.id },
           update: {
@@ -605,6 +672,7 @@ export class StoryRepository {
             author: manifest.author,
             published: manifest.published ?? false,
             worldId,
+            authorId: resolvedAuthorId,
             manifest: manifest as any,
           },
           create: {
@@ -618,6 +686,7 @@ export class StoryRepository {
             author: manifest.author,
             published: manifest.published ?? false,
             worldId,
+            authorId: resolvedAuthorId,
             manifest: manifest as any,
           },
         });

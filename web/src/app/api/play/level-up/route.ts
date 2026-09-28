@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SessionRepository } from '@/lib/db/repositories/sessionRepository';
 import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { allocateLevelUpRewards } from '@/lib/engines/game/progressionEngine';
-import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
+import { buildCorsHeaders, handleCorsPreflight } from '@/lib/cors';
+import { getAuthenticatedUser } from '@/lib/auth/getUser';
 import { PlayerState } from '@/lib/types/gameplay';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function OPTIONS() {
-  return handleCorsPreflight();
+export async function OPTIONS(req: NextRequest) {
+  return handleCorsPreflight(req);
 }
 
 export async function POST(req: NextRequest) {
@@ -20,15 +21,21 @@ export async function POST(req: NextRequest) {
     if (!sessionId) {
       return NextResponse.json(
         { success: false, error: 'sessionId is required' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: buildCorsHeaders(req) }
       );
     }
 
-    const session = await SessionRepository.getSession(sessionId);
+    // Ownership-scoped lookup. Previously this route imported no auth at all,
+    // so anyone holding a sessionId could spend that session's stat points.
+    const auth = await getAuthenticatedUser(req);
+    const session = await SessionRepository.getSessionForUser(
+      sessionId,
+      auth ? { id: auth.user.id, role: auth.user.role } : null
+    );
     if (!session || !session.playerState) {
       return NextResponse.json(
         { success: false, error: 'Session not found' },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: buildCorsHeaders(req) }
       );
     }
 
@@ -45,7 +52,7 @@ export async function POST(req: NextRequest) {
     if (!result.success) {
       return NextResponse.json(
         { success: false, error: result.error || 'Failed to allocate level-up rewards' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: buildCorsHeaders(req) }
       );
     }
 
@@ -59,13 +66,13 @@ export async function POST(req: NextRequest) {
         },
         message: 'Level-up rewards allocated successfully',
       },
-      { headers: corsHeaders }
+      { headers: buildCorsHeaders(req) }
     );
   } catch (error: any) {
     console.error('Level-up reward allocation error:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Internal server error' },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: buildCorsHeaders(req) }
     );
   }
 }

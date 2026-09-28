@@ -2,11 +2,26 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { POST } from './route';
 import { NextRequest } from 'next/server';
+import { signJwt } from '../../../../lib/auth/jwt';
+
+/**
+ * The Oracle route is AUTHOR/ADMIN gated (it spends LLM budget). Sign a real
+ * token in-process — `signJwt` and the route's `verifyJwt` share the same
+ * module-level secret, so no mocking is needed.
+ */
+const authorToken = signJwt({
+  userId: 'test-author',
+  phoneNumber: '+989121234567',
+  role: 'AUTHOR',
+});
 
 function createMockRequest(body: any): NextRequest {
   return new NextRequest('http://localhost:3000/api/studio/chat', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${authorToken}`,
+    },
     body: JSON.stringify(body),
   });
 }
@@ -42,6 +57,19 @@ describe('StudioChat API - AI Oracle (Context-Aware)', () => {
     const req = createMockRequest({ worldContext: '', isPersian: false });
     const res = await POST(req);
     assert.equal(res.status, 400);
+  });
+
+  it('rejects anonymous callers with 403 before spending any model budget', async () => {
+    captured.length = 0;
+    const anon = new NextRequest('http://localhost:3000/api/studio/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: 'hello' }] }),
+    });
+    const res = await POST(anon);
+    assert.equal(res.status, 403);
+    // The guard must run before the handler body, so no fetch is ever issued.
+    assert.equal(captured.length, 0);
   });
 
   it('returns a grounded Oracle reply and injects the world context into the prompt', async () => {

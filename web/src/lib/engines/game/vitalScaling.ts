@@ -1,9 +1,57 @@
 import { RPGSystemSchema, ArchetypeDefinition, BackgroundOriginDefinition } from '@/lib/types/rpg';
+import { STAT_CANONICAL_ALIASES } from '@/lib/engines/world/ActionNormalizer';
 
 export interface VitalScalingOptions {
   archetype?: ArchetypeDefinition;
   background?: BackgroundOriginDefinition;
   equippedArtifacts?: Array<{ resourceModifiers?: Record<string, number> }>;
+}
+
+/**
+ * Resolves the zero-modifier baseline for a stat — the value at which
+ * `GameEngine.getStatModifier` returns 0.
+ *
+ * Precedence deliberately matches `GameEngine.resolveActionCheck`:
+ *   rpgSystem.universalBaseValue  ->  the stat's authored baseValue  ->  10
+ *
+ * This is NOT the same lookup as the `stat.baseValue` read inside
+ * `computeMaxResources`. That one wants the per-stat authored baseline because
+ * it measures a *deviation* to apply `bonusPerPointAboveBase` to. This one wants
+ * the system-wide baseline because it is the origin a brand-new stat is created
+ * at — getting this wrong inflates every allocated point on a low-scale system.
+ */
+export function resolveStatBase(
+  statId: string,
+  rpgSystem?: RPGSystemSchema
+): number {
+  if (!rpgSystem) return 10;
+  const raw = (statId || '').trim();
+  const canonical =
+    STAT_CANONICAL_ALIASES[raw.toLowerCase()] || STAT_CANONICAL_ALIASES[raw] || raw;
+  const def = (rpgSystem.stats || []).find(
+    (s) =>
+      s.id?.toLowerCase() === canonical.toLowerCase() ||
+      s.id?.toLowerCase() === raw.toLowerCase()
+  );
+  return rpgSystem.universalBaseValue ?? def?.baseValue ?? 10;
+}
+
+/**
+ * True when `statId` names a stat this RPG system actually defines.
+ * Used to reject phantom stats from untrusted allocation payloads.
+ */
+export function isDefinedStat(statId: string, rpgSystem?: RPGSystemSchema): boolean {
+  if (!rpgSystem) return true; // no system context — cannot reject
+  const raw = (statId || '').trim();
+  return (rpgSystem.stats || []).some((s) => s?.id === raw);
+}
+
+/** True when `abilityId` names an ability this RPG system actually defines. */
+export function isDefinedAbility(abilityId: string, rpgSystem?: RPGSystemSchema): boolean {
+  if (!rpgSystem) return true;
+  const abilities = (rpgSystem as unknown as { abilities?: Array<{ id?: string }> }).abilities;
+  if (!Array.isArray(abilities) || abilities.length === 0) return true;
+  return abilities.some((a) => a?.id === abilityId);
 }
 
 /**

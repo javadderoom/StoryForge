@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateStructuredJson } from '@/lib/ai/geminiClient';
+import { requireStudioWrite } from '@/lib/auth/studioAuth';
 import {
   GenesisWorldSchema,
   ContradictionAuditReportSchema,
@@ -107,6 +108,11 @@ interface GenerateRequest {
 
 export async function POST(req: NextRequest) {
   try {
+    // Unmetered LLM spend: 6 generateStructuredJson call sites, several inside
+    // audit-gated repair-retry loops, so one request can cost 2-3 model calls.
+    const guard = await requireStudioWrite(req);
+    if (!guard.ok) return guard.response;
+
     const body: GenerateRequest = await req.json();
     const {
       type,

@@ -57,13 +57,19 @@ export async function POST(req: Request) {
       );
     }
 
-    // Migrate guest session if provided
+    // Claim a guest session for this account. The `userId: null` predicate is
+    // load-bearing: without it, anyone who learns a victim's sessionId could
+    // re-parent an already-owned playthrough to their own account. Guest rows
+    // are stored as NULL (createSession always supplies the value explicitly,
+    // so the Prisma `@default("guest_user")` never fires).
+    let claimedGuestSession = false;
     if (guestSessionId && typeof guestSessionId === 'string') {
       try {
-        await prisma.playthroughSession.updateMany({
-          where: { sessionId: guestSessionId },
+        const { count } = await prisma.playthroughSession.updateMany({
+          where: { sessionId: guestSessionId, userId: null },
           data: { userId: user.id },
         });
+        claimedGuestSession = count > 0;
       } catch (err) {
         console.warn('Session migration warning on login:', err);
       }
@@ -88,6 +94,10 @@ export async function POST(req: Request) {
       success: true,
       token,
       user: userProfile,
+      // Lets the client tell the difference between "claimed your guest save"
+      // and "that session did not exist or was already owned" — previously a
+      // failed claim was a silent no-op indistinguishable from success.
+      claimedGuestSession,
     });
 
     // Set HTTP-only cookie for web clients

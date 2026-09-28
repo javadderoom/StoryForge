@@ -1,8 +1,9 @@
+import crypto from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { SessionRepository } from '@/lib/db/repositories/sessionRepository';
 import { PlaythroughSession, PlayerState, ChoiceOption } from '@/lib/types/gameplay';
-import { corsHeaders, handleCorsPreflight } from '@/lib/cors';
+import { buildCorsHeaders, handleCorsPreflight } from '@/lib/cors';
 import { getAuthenticatedUser } from '@/lib/auth/getUser';
 import { artifactToGameItem } from '@/lib/play/artifactItems';
 import { computeMaxResources } from '@/lib/engines/game/vitalScaling';
@@ -198,8 +199,8 @@ async function generateOpeningChoices(
   }
 }
 
-export async function OPTIONS() {
-  return handleCorsPreflight();
+export async function OPTIONS(req: NextRequest) {
+  return handleCorsPreflight(req);
 }
 
 export async function GET(req: NextRequest) {
@@ -208,15 +209,22 @@ export async function GET(req: NextRequest) {
     if (!sessionId) {
       return NextResponse.json(
         { success: false, error: 'sessionId is required' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: buildCorsHeaders(req) }
       );
     }
 
-    const session = await SessionRepository.getSession(sessionId);
+    // Ownership-scoped. This handler returns the full playerState (stats,
+    // inventory, NPC trust and knownSecrets) plus the story's unpublished
+    // rpgSystem, so a bare capability lookup was a data leak.
+    const auth = await getAuthenticatedUser(req);
+    const session = await SessionRepository.getSessionForUser(
+      sessionId,
+      auth ? { id: auth.user.id, role: auth.user.role } : null
+    );
     if (!session) {
       return NextResponse.json(
         { success: false, error: 'Session not found' },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: buildCorsHeaders(req) }
       );
     }
 
@@ -224,7 +232,7 @@ export async function GET(req: NextRequest) {
     if (!story) {
       return NextResponse.json(
         { success: false, error: 'Story not found' },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: buildCorsHeaders(req) }
       );
     }
 
@@ -288,13 +296,13 @@ export async function GET(req: NextRequest) {
           turnNumber: session.turnCount ?? 1,
         },
       },
-      { headers: corsHeaders }
+      { headers: buildCorsHeaders(req) }
     );
   } catch (error: any) {
     console.error('Session resume error:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to resume session' },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: buildCorsHeaders(req) }
     );
   }
 }
@@ -307,7 +315,24 @@ export async function PATCH(req: NextRequest) {
     if (!sessionId || !playerState) {
       return NextResponse.json(
         { success: false, error: 'sessionId and playerState are required' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: buildCorsHeaders(req) }
+      );
+    }
+
+    // This handler replaces the ENTIRE playerState blob, so it was the single
+    // most severe write in the app while unauthenticated: stats, inventory,
+    // unspentStatPoints, and relationships[].knownSecrets (which subverts the
+    // secret-leak validator) were all attacker-controlled. Verify ownership
+    // before writing.
+    const auth = await getAuthenticatedUser(req);
+    const session = await SessionRepository.getSessionForUser(
+      sessionId,
+      auth ? { id: auth.user.id, role: auth.user.role } : null
+    );
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: 'Session not found' },
+        { status: 404, headers: buildCorsHeaders(req) }
       );
     }
 
@@ -315,16 +340,16 @@ export async function PATCH(req: NextRequest) {
     if (!updated) {
       return NextResponse.json(
         { success: false, error: 'Failed to persist player state' },
-        { status: 500, headers: corsHeaders }
+        { status: 500, headers: buildCorsHeaders(req) }
       );
     }
 
-    return NextResponse.json({ success: true, data: { playerState: updated } }, { headers: corsHeaders });
+    return NextResponse.json({ success: true, data: { playerState: updated } }, { headers: buildCorsHeaders(req) });
   } catch (error: any) {
     console.error('Session patch error:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to patch session' },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: buildCorsHeaders(req) }
     );
   }
 }
@@ -336,14 +361,14 @@ export async function POST(req: NextRequest) {
     if (!storyId) {
       return NextResponse.json(
         { success: false, error: 'storyId is required' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: buildCorsHeaders(req) }
       );
     }
     const rawStory = await StoryRepository.getStoryById(storyId);
     if (!rawStory && !body?.draftManifest) {
       return NextResponse.json(
         { success: false, error: 'Story not found' },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: buildCorsHeaders(req) }
       );
     }
     const baseStory = rawStory || (body.draftManifest as any);
@@ -561,7 +586,10 @@ export async function POST(req: NextRequest) {
     };
 
     const auth = await getAuthenticatedUser(req);
-    const userId = auth?.user?.id || (body.userId && body.userId !== 'guest_user' ? body.userId : null);
+    // Identity comes from the verified token only. The previous
+    // `body.userId` fallback let any caller attribute a new session to an
+    // arbitrary existing user; no client ever sent it.
+    const userId = auth?.user?.id ?? null;
 
     // Plan: kick-start the AI when the authored opening beat ships no choices,
     // so the reader is never stranded on an empty decision panel. The generated
@@ -574,7 +602,10 @@ export async function POST(req: NextRequest) {
         : await generateOpeningChoices(story, initialBeat, playerState);
 
     const session: PlaythroughSession = {
-      sessionId: `sess_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      // A CSPRNG UUID (122 bits), not `Date.now()` + `Math.random()` (~31 bits
+      // from a non-cryptographic PRNG, enumerable in hours). The sessionId is the
+      // only thing protecting a guest playthrough, so it must be unguessable.
+      sessionId: crypto.randomUUID(),
       userId: userId as any,
       storyId: story.id,
       currentSceneId: initialBeat.sceneId,
@@ -633,14 +664,14 @@ export async function POST(req: NextRequest) {
         },
       },
       {
-        headers: corsHeaders,
+        headers: buildCorsHeaders(req),
       }
     );
   } catch (error: any) {
     console.error('Session creation error:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to initialize session' },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: buildCorsHeaders(req) }
     );
   }
 }

@@ -144,7 +144,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     // 1. Roll D20 on device for instant feedback
     final rolledD20 = Random().nextInt(20) + 1;
 
-    // 2. Deterministically resolve action check via RpgEngine (exact parity with backend GameEngine)
+    // 2. Resolve locally ONLY to pick the 3D die's target face and to give the
+    //    overlay something to show during the 1300ms roll. This engine is a
+    //    strict subset of the server GameEngine (no skills, passives, ability
+    //    effects, or state diff), so its outcome is NOT displayed — the server's
+    //    authoritative resolution is pushed in via
+    //    diceOverlayProvider.applyServerResolution once the turn resolves.
+    //    universalBaseValue must still be passed so the pre-settle modifier is
+    //    right on a non-D&D-scale story and there is no visible jump on swap.
     final resolution = session.playerState != null
         ? RpgEngine.resolveActionCheck(
             actionText: choice.text,
@@ -155,6 +162,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             forcedDiceRoll: rolledD20,
             isPersian: isPersian,
             statsConfig: session.rpgStats,
+            universalBaseValue: session.universalBaseValue,
           )
         : CheckResolution(
             outcome: (rolledD20 >= 12) ? 'success' : 'failure',

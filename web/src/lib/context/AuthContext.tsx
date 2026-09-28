@@ -35,17 +35,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = useCallback(async () => {
     try {
       const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-      if (!storedToken) {
-        setUser(null);
-        setToken(null);
-        setIsLoading(false);
-        return;
-      }
 
+      // Do NOT early-return when localStorage is empty. The server also accepts
+      // the httpOnly `token` cookie, which survives independently of
+      // localStorage (e.g. a different tab, or a login performed by another
+      // client on the same origin). Bailing out here would show a logged-out UI
+      // while the server still considered the request authenticated.
       const res = await fetch('/api/auth/me', {
-        headers: {
-          Authorization: `Bearer ${storedToken}`,
-        },
+        headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : undefined,
       });
 
       if (res.ok) {
@@ -117,6 +114,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    // The cookie is httpOnly, so `document.cookie` below cannot actually clear
+    // it — the server has to. Without this call the browser keeps presenting a
+    // valid token and every server-side auth guard still sees the user as
+    // signed in. Fire-and-forget: the local state is cleared regardless.
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
     setUser(null);

@@ -119,6 +119,51 @@ export class SessionRepository {
   }
 
   /**
+   * AUTHORIZED session lookup — the single chokepoint every route that touches a
+   * playthrough must go through.
+   *
+   * `getSession` above is a pure capability lookup: anyone holding a sessionId
+   * gets the row. That was exploitable because the old sessionId
+   * (`sess_<Date.now()>_<6 base36>`) carried only ~31 bits of non-cryptographic
+   * entropy — enumerable in hours. It is now a `crypto.randomUUID()`, so
+   * possession of the id is a genuine capability, but an authenticated player
+   * must additionally match the recorded owner so one account cannot drive
+   * another account's playthrough.
+   *
+   * Rules:
+   *  - Claimed owner  -> only that user id (or an ADMIN) may proceed.
+   *  - Guest (null)   -> only an anonymous caller holding the exact id. An
+   *                      authenticated user must NOT silently adopt a guest
+   *                      session; use the guestSessionId claim on login/register
+   *                      to transfer ownership explicitly.
+   *  - Unknown id    -> null, indistinguishable from "not yours".
+   *
+   * Returning null rather than throwing lets routes answer 404 without leaking
+   * whether the session exists.
+   */
+  static async getSessionForUser(
+    sessionId: string,
+    caller: { id: string; role: string } | null
+  ) {
+    const session = await this.getSession(sessionId);
+    if (!session) return null;
+
+    const owner = (session as { userId?: string | null }).userId ?? null;
+
+    if (!owner) {
+      // Guest session. Possession of the (now unguessable) id is the capability.
+      // An authenticated caller is refused so that ownership cannot be
+      // appropriated by simply logging in.
+      return caller === null ? session : null;
+    }
+
+    if (!caller) return null;
+    if (caller.id === owner) return session;
+    if (caller.role === 'ADMIN') return session;
+    return null;
+  }
+
+  /**
    * Commits a turn resolution, updates player state, and writes memory logs.
    * Plan 07: optionally tracks the active chapter, patches the Living World
    * State Ledger, and stores hierarchical memory fields per entry.
