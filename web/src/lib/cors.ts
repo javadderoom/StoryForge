@@ -18,11 +18,11 @@ import { NextResponse } from 'next/server';
 
 /**
  * Origins permitted to call the API. Configure per environment:
- *   ALLOWED_ORIGINS="https://story-forge-rouge.vercel.app,http://localhost:3000"
+ *   ALLOWED_ORIGINS="https://afsanehsaz.ir,https://www.afsanehsaz.ir,https://story-forge-rouge.vercel.app,http://localhost:3000"
  *
- * When unset we fall back to the local dev origins rather than `*`. This is
- * deliberately restrictive: a missing env var should break a deploy loudly
- * during testing, not silently open the API to the internet in production.
+ * When unset we fall back to the production and local dev origins rather than `*`. This is
+ * deliberately restrictive: a missing env var will allow production and dev origins,
+ * not silently open the API to the entire internet.
  */
 function getAllowedOrigins(): string[] {
   const configured = process.env.ALLOWED_ORIGINS;
@@ -32,7 +32,13 @@ function getAllowedOrigins(): string[] {
       .map((o) => o.trim().replace(/\/+$/, ''))
       .filter(Boolean);
   }
-  return ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  return [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://afsanehsaz.ir',
+    'https://www.afsanehsaz.ir',
+    'https://story-forge-rouge.vercel.app',
+  ];
 }
 
 /**

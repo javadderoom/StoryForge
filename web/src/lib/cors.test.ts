@@ -15,7 +15,7 @@ describe('CORS policy', () => {
   const ORIGINAL = process.env.ALLOWED_ORIGINS;
 
   beforeEach(() => {
-    process.env.ALLOWED_ORIGINS = 'https://story-forge-rouge.vercel.app,http://localhost:3000';
+    process.env.ALLOWED_ORIGINS = 'https://afsanehsaz.ir,https://story-forge-rouge.vercel.app,http://localhost:3000';
   });
 
   afterEach(() => {
@@ -25,6 +25,7 @@ describe('CORS policy', () => {
 
   describe('resolveCorsOrigin', () => {
     it('allows an explicitly allowlisted origin', () => {
+      assert.equal(resolveCorsOrigin('https://afsanehsaz.ir'), 'https://afsanehsaz.ir');
       assert.equal(resolveCorsOrigin('https://story-forge-rouge.vercel.app'), 'https://story-forge-rouge.vercel.app');
     });
 

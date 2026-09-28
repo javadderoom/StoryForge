@@ -6,7 +6,7 @@ import '../models/character_creation.dart';
 import 'auth_service.dart';
 
 class GameApiService {
-  static const String _defaultProdUrl = 'https://story-forge-rouge.vercel.app';
+  static const String _defaultProdUrl = 'https://afsanehsaz.ir';
 
   static String get baseUrl {
     const envUrl = String.fromEnvironment('API_BASE_URL', defaultValue: _defaultProdUrl);
