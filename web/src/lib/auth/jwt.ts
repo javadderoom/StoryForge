@@ -11,9 +11,16 @@ import crypto from 'node:crypto';
  * to a random ephemeral secret so the test suite (which never loads .env) can
  * sign and verify in-process — at the cost of sessions not surviving a restart.
  */
+let warnedAboutEphemeralSecret = false;
+let ephemeralSecret: string | null = null;
+
 function resolveJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
   if (secret && secret.length > 0) return secret;
+
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return 'build-phase-dummy-secret-not-used-for-signing';
+  }
 
   if (process.env.NODE_ENV === 'production') {
     throw new Error(
@@ -30,11 +37,16 @@ function resolveJwtSecret(): string {
         'in web/.env to get stable sessions.'
     );
   }
-  return crypto.randomBytes(32).toString('hex');
+  if (!ephemeralSecret) {
+    ephemeralSecret = crypto.randomBytes(32).toString('hex');
+  }
+  return ephemeralSecret;
 }
 
-let warnedAboutEphemeralSecret = false;
-const JWT_SECRET = resolveJwtSecret();
+export function getJwtSecret(): string {
+  return resolveJwtSecret();
+}
+
 const JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
 export interface JwtUserPayload {
@@ -139,7 +151,7 @@ export function signJwt(payload: Omit<JwtUserPayload, 'iat' | 'exp'>, expiresIn 
   const data = `${headerB64}.${payloadB64}`;
 
   const signature = crypto
-    .createHmac('sha256', JWT_SECRET)
+    .createHmac('sha256', getJwtSecret())
     .update(data)
     .digest('base64')
     .replace(/=/g, '')
@@ -161,7 +173,7 @@ export function verifyJwt(token: string): JwtUserPayload | null {
     const data = `${headerB64}.${payloadB64}`;
 
     const expectedSignature = crypto
-      .createHmac('sha256', JWT_SECRET)
+      .createHmac('sha256', getJwtSecret())
       .update(data)
       .digest('base64')
       .replace(/=/g, '')

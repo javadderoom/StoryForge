@@ -19,7 +19,12 @@ import type { NextConfig } from "next";
  * `no-store` per-response, and applying it here would also disable caching for
  * the immutable `/_next/static/*` build assets, which are content-hashed.
  */
-const nextConfig: NextConfig = {};
+const nextConfig = (phase: string): NextConfig => {
+  if (phase) {
+    process.env.NEXT_PHASE = phase;
+  }
+  return {};
+};
 
 export default nextConfig;
 
