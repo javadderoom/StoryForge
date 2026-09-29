@@ -93,6 +93,7 @@ export function NpcDossierModal({
         goals: (editingNpc.goals || []).flatMap((g) => splitCommaSeparated(g)),
         secrets: editingNpc.secrets || [],
         initialTrust: editingNpc.initialTrust ?? 0,
+        imageUrl: editingNpc.imageUrl || '',
       });
     } else {
       setNpcForm({
@@ -109,6 +110,7 @@ export function NpcDossierModal({
         goals: ['Protect the garrison'],
         secrets: [],
         initialTrust: 0,
+        imageUrl: '',
       });
     }
     setTraitInput('');
@@ -158,6 +160,7 @@ export function NpcDossierModal({
     onSave({
       ...npcForm,
       role: npcForm.role?.trim() || undefined,
+      imageUrl: npcForm.imageUrl?.trim() || undefined,
       personalityTraits: finalTraits,
       goals: finalGoals,
     });
@@ -259,6 +262,29 @@ export function NpcDossierModal({
                 }
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
               />
+            </div>
+          </div>
+
+          {/* Avatar Image URL */}
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">
+              {isPersian ? 'آدرس تصویر یا آواتار (URL):' : 'Avatar / Image URL:'}
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={npcForm.imageUrl || ''}
+                onChange={(e) => setNpcForm((prev) => ({ ...prev, imageUrl: e.target.value }))}
+                placeholder="https://..."
+                className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+              />
+              {npcForm.imageUrl && (
+                <img
+                  src={npcForm.imageUrl}
+                  alt="preview"
+                  className="h-9 w-9 rounded-lg object-cover border border-zinc-700 shrink-0"
+                />
+              )}
             </div>
           </div>
 

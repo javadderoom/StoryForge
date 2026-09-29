@@ -438,6 +438,7 @@ export interface NPCDossier {
   initialTrust: number; // e.g. 0 (-100 to 100)
   voiceGuide?: NpcVoiceGuide;
   statCalibration?: NpcStatCalibration;
+  imageUrl?: string;
   /** Power system affiliations (schoolId -> rank) */
   powerAffiliations?: Array<{
     schoolId: string;
@@ -523,6 +524,7 @@ export interface WorldCreature {
   resistances: string[];
   harvestableLoot: Array<{ itemId: string; name: string; dropRate: string }>;
   loreDescription: string;
+  imageUrl?: string;
   predatorPreyNiche?: string;
   nonCombatPacificationMethod?: string;
   alchemicalYields?: CreatureAlchemicalYield[];
@@ -550,6 +552,7 @@ export interface WorldDeity {
   divineBlessings: string[];
   affiliatedFactionIds: string[];
   holyLocationIds: string[];
+  imageUrl?: string;
   divineOmensForViolation?: string;
   sectarianSchisms?: SectarianSchism[];
 }
@@ -766,6 +769,7 @@ export const EnhancedCreatureSchema = z.object({
   nonCombatPacificationMethod: z.string(),
   alchemicalYields: z.array(CreatureAlchemicalYieldSchema).min(1).max(3),
   isDomesticated: z.boolean().optional(),
+  imageUrl: z.string().optional(),
   preySpecies: z.array(z.string()).optional(),
   predatorSpecies: z.array(z.string()).optional(),
   pacificationReagents: z.array(z.string()).optional(),
@@ -785,6 +789,7 @@ export const EnhancedReligionSchema = z.object({
   sacredTaboos: z.array(z.string()),
   divineOmensForViolation: z.string(),
   divineBlessing: z.string(),
+  imageUrl: z.string().optional(),
   sectarianSchisms: z.array(SectarianSchismSchema).default([]),
 });
 
@@ -799,6 +804,7 @@ export const WorldDeitySchema = z.object({
   divineBlessings: z.array(z.string()).default([]),
   affiliatedFactionIds: z.array(z.string()).default([]),
   holyLocationIds: z.array(z.string()).default([]),
+  imageUrl: z.string().optional(),
   divineOmensForViolation: z.string().optional(),
   sectarianSchisms: z.array(SectarianSchismSchema).optional(),
 });
@@ -820,6 +826,7 @@ export const WorldCreatureSchema = z.object({
     dropRate: z.string(),
   })).default([]),
   loreDescription: z.string().default(''),
+  imageUrl: z.string().optional(),
   predatorPreyNiche: z.string().optional(),
   nonCombatPacificationMethod: z.string().optional(),
   alchemicalYields: z.array(CreatureAlchemicalYieldSchema).optional(),
@@ -1110,6 +1117,7 @@ export const NPCDossierSchema = z.object({
   initialTrust: z.number().default(0),
   voiceGuide: NpcVoiceGuideSchema.optional(),
   statCalibration: NpcStatCalibrationSchema.optional(),
+  imageUrl: z.string().optional(),
   powerAffiliations: z.array(z.object({
     schoolId: z.string(),
     rank: z.number().int().min(1),

@@ -38,14 +38,16 @@ function buildPlayLore(story: any) {
       name: n.name,
       description: n.description || '',
       archetype: n.archetype || '',
+      imageUrl: n.imageUrl || n.avatarUrl || '',
     })),
     factions: [],
     factionRelations: [],
     bestiary: (wb.bestiary ?? []).map((c: any) => ({
       id: c.id,
       name: c.name,
-      description: c.description || '',
+      description: c.description || c.loreDescription || '',
       dangerLevel: c.dangerLevel || 1,
+      imageUrl: c.imageUrl || '',
     })),
     deities: [],
     artifacts: (wb.artifacts ?? []).map((a: any) => ({

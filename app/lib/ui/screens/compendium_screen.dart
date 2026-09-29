@@ -1252,15 +1252,34 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                   color: statusColor.withValues(alpha: 0.15),
                   border: Border.all(color: statusColor, width: 1.5),
                 ),
-                child: Center(
-                  child: Text(
-                    displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-                    style: GoogleFonts.cinzel(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: statusColor,
-                    ),
-                  ),
+                child: ClipOval(
+                  child: ((npcMeta?['imageUrl'] ?? npcMeta?['avatarUrl']) != null && (npcMeta!['imageUrl'] ?? npcMeta['avatarUrl']).toString().trim().isNotEmpty)
+                      ? Image.network(
+                          (npcMeta['imageUrl'] ?? npcMeta['avatarUrl']).toString(),
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Center(
+                            child: Text(
+                              displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                              style: GoogleFonts.cinzel(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: statusColor,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                            style: GoogleFonts.cinzel(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: statusColor,
+                            ),
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(width: 14),
@@ -1614,6 +1633,19 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (((beast['imageUrl'] ?? beast['image']) as String?)?.isNotEmpty == true) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        (beast['imageUrl'] ?? beast['image']).toString(),
+                        height: 120,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                   Row(
                     children: [
                       const Icon(Icons.pest_control_rounded, color: Color(0xFFEF4444), size: 20),

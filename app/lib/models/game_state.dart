@@ -348,6 +348,7 @@ class DiscoveredCreature {
   final List<String> resistances;
   final List<Map<String, dynamic>> harvestableLoot;
   final String loreDescription;
+  final String? imageUrl;
 
   const DiscoveredCreature({
     required this.id,
@@ -362,6 +363,7 @@ class DiscoveredCreature {
     this.resistances = const [],
     this.harvestableLoot = const [],
     this.loreDescription = '',
+    this.imageUrl,
   });
 
   factory DiscoveredCreature.fromJson(Map<String, dynamic> json) {
@@ -383,6 +385,7 @@ class DiscoveredCreature {
       resistances: rawResistances.map((e) => e.toString()).toList(),
       harvestableLoot: rawLoot.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
       loreDescription: (json['loreDescription'] ?? json['description'])?.toString() ?? '',
+      imageUrl: (json['imageUrl'] ?? json['image'])?.toString(),
     );
   }
 
@@ -399,6 +402,7 @@ class DiscoveredCreature {
         'resistances': resistances,
         'harvestableLoot': harvestableLoot,
         'loreDescription': loreDescription,
+        if (imageUrl != null) 'imageUrl': imageUrl,
       };
 }
 

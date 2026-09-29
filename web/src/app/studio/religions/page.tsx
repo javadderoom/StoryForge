@@ -57,6 +57,7 @@ export default function ReligionsStudioPage() {
   const [dBlessings, setDBlessings] = useState('');
   const [dFactions, setDFactions] = useState<string[]>([]);
   const [dLocations, setDLocations] = useState<string[]>([]);
+  const [dImageUrl, setDImageUrl] = useState('');
 
   // Plan 05 Form states
   const [dOmens, setDOmens] = useState('');
@@ -104,6 +105,7 @@ export default function ReligionsStudioPage() {
     setDBlessings('');
     setDFactions([]);
     setDLocations([]);
+    setDImageUrl('');
     setDOmens('');
     setDSchisms([]);
     setShowAddModal(true);
@@ -120,6 +122,7 @@ export default function ReligionsStudioPage() {
     setDBlessings(Array.isArray(d.divineBlessings) ? d.divineBlessings.join('\n') : (typeof d.divineBlessings === 'string' ? d.divineBlessings : ''));
     setDFactions(d.affiliatedFactionIds || []);
     setDLocations(d.holyLocationIds || []);
+    setDImageUrl(d.imageUrl || '');
     setDOmens(d.divineOmensForViolation || '');
     setDSchisms(d.sectarianSchisms || []);
     setShowAddModal(true);
@@ -159,6 +162,7 @@ export default function ReligionsStudioPage() {
     const safeSymbol = (dSymbol || '').trim();
     const safeDogma = (dDogma || '').trim();
     const safeOmens = (dOmens || '').trim();
+    const safeImageUrl = (dImageUrl || '').trim();
 
     const payload: WorldDeity = {
       id: editingDeityId || `deity_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
@@ -171,6 +175,7 @@ export default function ReligionsStudioPage() {
       divineBlessings: blessingsArr.length > 0 ? blessingsArr : [isPersian ? 'برکت و هدایت الهی' : 'Divine guidance'],
       affiliatedFactionIds: dFactions || [],
       holyLocationIds: dLocations || [],
+      imageUrl: safeImageUrl || undefined,
       divineOmensForViolation: safeOmens || undefined,
       sectarianSchisms: dSchisms && dSchisms.length > 0 ? dSchisms : undefined,
     };
@@ -386,6 +391,15 @@ export default function ReligionsStudioPage() {
                   </div>
 
                   <div>
+                    {d.imageUrl && (
+                      <div className="relative mb-3 h-36 w-full overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
+                        <img
+                          src={d.imageUrl}
+                          alt={d.name}
+                          className="h-full w-full object-cover object-center"
+                        />
+                      </div>
+                    )}
                     <h3 className="text-base font-bold text-zinc-100">{d.name}</h3>
                     {d.title && <p className="text-xs text-amber-400/90 font-medium mt-0.5">{d.title}</p>}
                     <p className="text-xs text-zinc-400 leading-relaxed mt-2">&ldquo;{d.coreDogma}&rdquo;</p>
@@ -690,6 +704,28 @@ export default function ReligionsStudioPage() {
                     placeholder={isPersian ? 'مثال: چشم طلایی با بال‌های گداخته' : 'e.g. Golden eye flanked by molten wings'}
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                   />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                  {isPersian ? 'آدرس تصویر (URL):' : 'Image URL:'}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={dImageUrl}
+                    onChange={(e) => setDImageUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                  />
+                  {dImageUrl && (
+                    <img
+                      src={dImageUrl}
+                      alt="preview"
+                      className="h-9 w-9 rounded-lg object-cover border border-zinc-700 shrink-0"
+                    />
+                  )}
                 </div>
               </div>
 

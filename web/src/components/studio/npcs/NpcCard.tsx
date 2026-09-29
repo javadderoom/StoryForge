@@ -123,15 +123,23 @@ export function NpcCard({
         {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
-            <div
-              className={`h-11 w-11 rounded-2xl flex items-center justify-center font-bold text-lg ${
-                npc.kind === 'template'
-                  ? 'bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 border border-cyan-500/40 text-cyan-300'
-                  : 'bg-gradient-to-br from-amber-500/20 to-rose-500/20 border border-amber-500/30 text-amber-300'
-              }`}
-            >
-              {npc.kind === 'template' ? <Users className="w-5 h-5" /> : (npc.name[0] || 'N')}
-            </div>
+            {npc.imageUrl ? (
+              <img
+                src={npc.imageUrl}
+                alt={npc.name}
+                className="h-11 w-11 rounded-2xl object-cover border border-zinc-700 shrink-0"
+              />
+            ) : (
+              <div
+                className={`h-11 w-11 rounded-2xl flex items-center justify-center font-bold text-lg shrink-0 ${
+                  npc.kind === 'template'
+                    ? 'bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 border border-cyan-500/40 text-cyan-300'
+                    : 'bg-gradient-to-br from-amber-500/20 to-rose-500/20 border border-amber-500/30 text-amber-300'
+                }`}
+              >
+                {npc.kind === 'template' ? <Users className="w-5 h-5" /> : (npc.name[0] || 'N')}
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-base font-bold text-zinc-100">{npc.name}</h3>

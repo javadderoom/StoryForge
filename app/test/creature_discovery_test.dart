@@ -5,7 +5,7 @@ import 'package:afsanehsaz/ui/widgets/creature_discovery_card.dart';
 
 void main() {
   group('Creature Discovery Model & State Tests', () {
-    test('DiscoveredCreature correctly parses JSON payload from engine', () {
+    test('DiscoveredCreature correctly parses JSON payload from engine including imageUrl', () {
       final json = {
         'id': 'creature_mtt46cnd_55nq',
         'name': 'افعی رسوبی',
@@ -13,6 +13,7 @@ void main() {
         'dangerLevel': 2,
         'rarity': 'common',
         'isDomesticated': false,
+        'imageUrl': 'https://example.com/creatures/viper.jpg',
         'habitatLocationIds': ['loc_mtr2c3uu_yocj'],
         'behavioralTactics': 'کمین در بستر لجن و گل‌های حاشیهٔ رود',
         'weaknesses': ['ضربه به جمجمه', 'سرمای ناگهانی'],
@@ -29,6 +30,7 @@ void main() {
       expect(creature.name, equals('افعی رسوبی'));
       expect(creature.speciesCategory, equals('beast'));
       expect(creature.dangerLevel, equals(2));
+      expect(creature.imageUrl, equals('https://example.com/creatures/viper.jpg'));
       expect(creature.weaknesses, contains('ضربه به جمجمه'));
       expect(creature.resistances, contains('زهر گل‌آلود'));
       expect(creature.harvestableLoot.length, equals(1));
@@ -37,6 +39,7 @@ void main() {
       final serialized = creature.toJson();
       expect(serialized['name'], equals('افعی رسوبی'));
       expect(serialized['dangerLevel'], equals(2));
+      expect(serialized['imageUrl'], equals('https://example.com/creatures/viper.jpg'));
     });
 
     test('PlayerState tracks discoveredCreatureIds across sessions', () {
@@ -72,7 +75,7 @@ void main() {
       resistances: ['سموم رودخانه‌ای'],
     );
 
-    testWidgets('renders creature card with name, category, and threat pips', (tester) async {
+    testWidgets('renders simplified creature card with name and description, omitting tactical data', (tester) async {
       bool dismissed = false;
 
       await tester.pumpWidget(
@@ -88,11 +91,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // Renders name and description
       expect(find.text('افعی رسوبی'), findsOneWidget);
-      expect(find.text('ثبت جدید در کتاب جانوران'), findsOneWidget);
-      expect(find.text('جانور وحشی'), findsOneWidget);
+      expect(find.text('رویارویی با موجود ناشناخته'), findsOneWidget);
       expect(find.text('ماری با فلس‌های آجری و حرکات غافلگیرکننده.'), findsOneWidget);
-      expect(find.text('کمین در گل‌ولای مرطوب رودخانه.'), findsOneWidget);
+
+      // Omits tactical data on first encounter
+      expect(find.text('جانور وحشی'), findsNothing);
+      expect(find.text('کمین در گل‌ولای مرطوب رودخانه.'), findsNothing);
+      expect(find.text('سپر کوبنده'), findsNothing);
+      expect(find.text('سموم رودخانه‌ای'), findsNothing);
 
       // Verify dismiss button triggers callback
       final dismissBtn = find.byIcon(Icons.close_rounded);
@@ -101,30 +109,21 @@ void main() {
       expect(dismissed, isTrue);
     });
 
-    testWidgets('toggles expand and collapse of creature details', (tester) async {
+    testWidgets('renders english header when isPersian is false', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
             body: CreatureDiscoveryCard(
               creature: testCreature,
-              isPersian: true,
+              isPersian: false,
             ),
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('ماری با فلس‌های آجری و حرکات غافلگیرکننده.'), findsOneWidget);
-
-      // Tap 'بستن' to collapse
-      final toggleBtn = find.text('بستن');
-      expect(toggleBtn, findsOneWidget);
-      await tester.tap(toggleBtn);
-      await tester.pumpAndSettle();
-
-      // Details should now be hidden
-      expect(find.text('ماری با فلس‌های آجری و حرکات غافلگیرکننده.'), findsNothing);
-      expect(find.text('جزئیات'), findsOneWidget);
+      expect(find.text('CREATURE ENCOUNTER'), findsOneWidget);
+      expect(find.text('افعی رسوبی'), findsOneWidget);
     });
   });
 }

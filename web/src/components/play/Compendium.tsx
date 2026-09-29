@@ -326,8 +326,18 @@ export function Compendium({
                 return (
                   <div key={id} className="rounded-2xl border p-4" style={{ backgroundColor: theme.cardBg, borderColor: theme.cardBorder }}>
                     <div className="flex items-center justify-between">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-sm font-bold text-zinc-200">{npcName(lore, id).charAt(0).toUpperCase()}</span>
-                      <div className="ml-2 flex-1">
+                      {npcObj?.imageUrl ? (
+                        <img
+                          src={npcObj.imageUrl}
+                          alt={npcName(lore, id)}
+                          className="h-10 w-10 rounded-full object-cover border border-zinc-700 shrink-0"
+                        />
+                      ) : (
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800 text-sm font-bold text-zinc-200 shrink-0">
+                          {npcName(lore, id).charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      <div className="ml-3 flex-1">
                         <div className="text-sm font-semibold text-zinc-100">{npcName(lore, id)}</div>
                         {(npcObj?.archetype || npcObj?.role) && (
                           <div className="text-[11px] text-amber-400/90">{npcObj.archetype || npcObj.role}</div>

@@ -190,6 +190,7 @@ export default function BestiaryStudioPage() {
   const [cResistances, setCResistances] = useState('');
   const [cLoot, setCLoot] = useState<Array<{ itemId: string; name: string; dropRate: string }>>([]);
   const [cDesc, setCDesc] = useState('');
+  const [cImageUrl, setCImageUrl] = useState('');
 
   // Mineral & Specialized properties
   const [cExtractionMethod, setCExtractionMethod] = useState('');
@@ -367,9 +368,11 @@ export default function BestiaryStudioPage() {
     extractionMethod?: string;
     craftingProperties?: string;
     domesticated?: boolean;
+    imageUrl?: string;
   }) => {
     setEditingCreatureId(null);
     setCName(prefill?.name || '');
+    setCImageUrl(prefill?.imageUrl || '');
     setCCategory(prefill?.category || 'beast');
     setCDanger(prefill?.danger || 3);
     setCRarity(prefill?.rarity || 'common');
@@ -401,6 +404,7 @@ export default function BestiaryStudioPage() {
     setCResistances(Array.isArray(c.resistances) ? c.resistances.join('\n') : (typeof c.resistances === 'string' ? c.resistances : ''));
     setCLoot(c.harvestableLoot || []);
     setCDesc(c.loreDescription || '');
+    setCImageUrl(c.imageUrl || '');
     setCNiche(c.predatorPreyNiche || '');
     setCPacification(c.nonCombatPacificationMethod || '');
     setCYields(c.alchemicalYields || []);
@@ -449,6 +453,7 @@ export default function BestiaryStudioPage() {
     const safeTactics = (cTactics || '').trim();
     const safeCrafting = (cCraftingProperties || '').trim();
     const safeDesc = (cDesc || '').trim();
+    const safeImageUrl = (cImageUrl || '').trim();
     const safeNiche = (cNiche || '').trim();
     const safePacification = (cPacification || '').trim();
 
@@ -467,6 +472,7 @@ export default function BestiaryStudioPage() {
       resistances: resistancesArr,
       harvestableLoot: cLoot || [],
       loreDescription: safeDesc,
+      imageUrl: safeImageUrl || undefined,
       predatorPreyNiche: isMineral ? undefined : (safeNiche || undefined),
       nonCombatPacificationMethod: isMineral ? undefined : (safePacification || undefined),
       alchemicalYields: cYields.length > 0 ? cYields : undefined,
@@ -1097,6 +1103,15 @@ export default function BestiaryStudioPage() {
                   </div>
 
                   <div>
+                    {c.imageUrl && (
+                      <div className="relative mb-3 h-36 w-full overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
+                        <img
+                          src={c.imageUrl}
+                          alt={c.name}
+                          className="h-full w-full object-cover object-center"
+                        />
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mb-1">
                       <h3 className="text-base font-bold text-zinc-100">{c.name}</h3>
                       {c.speciesCategory === 'mineral' ? (
@@ -1812,6 +1827,28 @@ export default function BestiaryStudioPage() {
                     </select>
                   </div>
                 )}
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
+                  {isPersian ? 'آدرس تصویر (URL):' : 'Image URL:'}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={cImageUrl}
+                    onChange={(e) => setCImageUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
+                  />
+                  {cImageUrl && (
+                    <img
+                      src={cImageUrl}
+                      alt="preview"
+                      className="h-9 w-9 rounded-lg object-cover border border-zinc-700 shrink-0"
+                    />
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
