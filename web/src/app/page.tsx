@@ -115,7 +115,7 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string>('');
   const [playerState, setPlayerState] = useState<any>(null);
   const [storyMeta, setStoryMeta] = useState<{ id: string; title: string; language: string; rpgSystem: any } | null>(null);
-  const [lore, setLore] = useState<{ laws: any[]; locations: { id: string; name: string }[]; npcs: { id: string; name: string }[] }>({ laws: [], locations: [], npcs: [] });
+  const [lore, setLore] = useState<{ locations: { id: string; name: string }[]; npcs: { id: string; name: string }[] }>({ locations: [], npcs: [] });
   const [currentBeat, setCurrentBeat] = useState<{ narrative: string; choices: any[]; discoveredCreature?: any } | null>(null);
   const [turnNumber, setTurnNumber] = useState<number>(1);
   const [freeTextAction, setFreeTextAction] = useState('');

@@ -22,7 +22,6 @@ interface CompendiumProps {
   playerState: PlayerState;
   storyMeta: any;
   lore: {
-    laws?: any[];
     locations: { id: string; name: string; [key: string]: any }[];
     npcs: { id: string; name: string; archetype?: string; role?: string; description?: string; [key: string]: any }[];
     [key: string]: any;
@@ -420,18 +419,9 @@ export function Compendium({
                       </div>
                     );
                   })}
-                </div>
-              </div>
-              <div>
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-rose-400/80">{isPersian ? 'قوانین تغییرناپذیر جهان' : 'IMMUTABLE WORLD LAWS'}</div>
-                <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-3 space-y-2">
-                  {(lore.laws ?? []).map((law: any, i: number) => (
-                    <div key={i}>
-                      <div className="text-[12px] font-bold text-rose-200">⚖ {law.rule}</div>
-                      <div className="text-[11px] text-zinc-400">{law.description}</div>
-                    </div>
-                  ))}
-                  {(lore.laws ?? []).length === 0 && <p className="text-[11px] text-zinc-500">{isPersian ? 'قانونی ثبت نشده.' : 'No laws recorded.'}</p>}
+                  {(playerState.discoveredLocationIds ?? []).length === 0 && (
+                    <p className="text-xs text-zinc-500">{isPersian ? 'هنوز مکانی کشف نشده است.' : 'No locations discovered yet.'}</p>
+                  )}
                 </div>
               </div>
             </div>
