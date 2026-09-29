@@ -9,7 +9,7 @@ interface ImageUploadFieldProps {
   onChange: (url: string) => void;
   label?: string;
   placeholder?: string;
-  folder?: 'bestiary' | 'npcs' | 'religions' | 'covers' | 'general';
+  folder?: 'bestiary' | 'npcs' | 'religions' | 'locations' | 'covers' | 'general';
   isPersian?: boolean;
   previewShape?: 'rectangle' | 'circle' | 'square';
   className?: string;

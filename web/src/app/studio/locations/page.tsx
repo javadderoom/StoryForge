@@ -38,6 +38,7 @@ import {
 } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import AiFillSection from '@/components/studio/AiFillSection';
+import { ImageUploadField } from '@/components/studio/ImageUploadField';
 
 const DANGER_MAP: Record<number, { labelEn: string; labelFa: string; badgeClass: string; borderClass: string }> = {
   1: {
@@ -100,6 +101,7 @@ export default function LocationsStudioPage() {
   const [locRegion, setLocRegion] = useState('');
   const [locParentLocationId, setLocParentLocationId] = useState('');
   const [locDesc, setLocDesc] = useState('');
+  const [locImageUrl, setLocImageUrl] = useState('');
   const [locAtmosphere, setLocAtmosphere] = useState('');
   const [locCategory, setLocCategory] = useState('dungeon');
   const [locDangerLevel, setLocDangerLevel] = useState<1 | 2 | 3 | 4 | 5>(3);
@@ -300,6 +302,7 @@ export default function LocationsStudioPage() {
     setLocRegion('');
     setLocParentLocationId('');
     setLocDesc('');
+    setLocImageUrl('');
     setLocAtmosphere('');
     setLocCategory('dungeon');
     setLocDangerLevel(3);
@@ -319,6 +322,7 @@ export default function LocationsStudioPage() {
     setLocRegion(loc.region || '');
     setLocParentLocationId(loc.parentLocationId || '');
     setLocDesc(loc.description || '');
+    setLocImageUrl(loc.imageUrl || '');
     setLocAtmosphere(loc.atmosphere || '');
     setLocCategory(loc.category || 'dungeon');
     setLocDangerLevel(loc.dangerLevel || 3);
@@ -365,6 +369,7 @@ export default function LocationsStudioPage() {
       description: (locDesc || '').trim(),
       atmosphere: (locAtmosphere || '').trim(),
       category: locCategory || 'dungeon',
+      imageUrl: (locImageUrl || '').trim() || undefined,
       dangerLevel: locDangerLevel || 3,
       connectedLocationIds: locConnectedIds || [],
       specialRules: specialRulesArray.length > 0 ? specialRulesArray : undefined,
@@ -394,6 +399,7 @@ export default function LocationsStudioPage() {
     if (!locRegion && data.region) setLocRegion(String(data.region || ''));
     if (data.dangerLevel) setLocDangerLevel(data.dangerLevel as typeof locDangerLevel);
     if (!locDesc && data.description) setLocDesc(String(data.description || ''));
+    if (!locImageUrl && data.imageUrl) setLocImageUrl(String(data.imageUrl || ''));
     if (!locAtmosphere && data.atmosphere) setLocAtmosphere(String(data.atmosphere || ''));
     if (!locSpecialRules && Array.isArray(data.specialRules) && (data.specialRules as string[]).length)
       setLocSpecialRules((data.specialRules as string[]).join('\n'));
@@ -859,6 +865,17 @@ export default function LocationsStudioPage() {
                     </div>
                   </div>
 
+                  {/* Location Image Banner (if available) */}
+                  {loc.imageUrl && (
+                    <div className="relative w-full h-32 rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950/80 mb-3 shadow-inner">
+                      <img
+                        src={loc.imageUrl}
+                        alt={loc.name}
+                        className="w-full h-full object-cover object-center"
+                      />
+                    </div>
+                  )}
+
                   {/* Title & Region / Breadcrumb (Clickable to toggle collapse) */}
                   <div
                     onClick={() => toggleCollapseLocation(loc.id)}
@@ -1320,6 +1337,14 @@ export default function LocationsStudioPage() {
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
                 />
               </div>
+
+              <ImageUploadField
+                value={locImageUrl}
+                onChange={setLocImageUrl}
+                label={isPersian ? 'تصویر مکان یا اقلیم:' : 'Location Image:'}
+                folder="locations"
+                isPersian={isPersian}
+              />
 
               <div>
                 <label className="text-xs font-bold text-zinc-300 block mb-1.5">

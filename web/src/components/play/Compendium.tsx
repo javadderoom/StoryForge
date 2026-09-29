@@ -398,14 +398,25 @@ export function Compendium({
             <div className="space-y-4">
               <div>
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{isPersian ? 'مکان‌های کشف‌شده' : 'DISCOVERED LOCATIONS'}</div>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {(playerState.discoveredLocationIds ?? []).map((lid: string) => {
                     const loc = lore.locations.find((l: any) => l.id === lid);
                     const current = lid === playerState.currentLocationId;
                     return (
-                      <div key={lid} className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-[12px]">
-                        <span className="text-zinc-200">{loc?.name ?? lid}</span>
-                        {current && <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">{isPersian ? 'موقعیت فعلی' : 'Current'}</span>}
+                      <div key={lid} className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/80 text-[12px] shadow-sm">
+                        {loc?.imageUrl && (
+                          <div className="relative h-24 w-full overflow-hidden bg-zinc-950">
+                            <img
+                              src={loc.imageUrl}
+                              alt={loc.name || lid}
+                              className="h-full w-full object-cover object-center"
+                            />
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between px-3 py-2">
+                          <span className="font-medium text-zinc-200">{loc?.name ?? lid}</span>
+                          {current && <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">{isPersian ? 'موقعیت فعلی' : 'Current'}</span>}
+                        </div>
                       </div>
                     );
                   })}

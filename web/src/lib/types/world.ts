@@ -186,6 +186,7 @@ export interface WorldLocation {
   hazardFallbackLocationId?: string;
   /** Plan 13: default threat clock spawned when entering this zone without an active clock. */
   threatClockDefault?: ThreatClockDefault;
+  imageUrl?: string;
 }
 
 /**
@@ -998,6 +999,7 @@ export const WorldLocationSchema = z.object({
   pointsOfInterest: z.array(LocationPointOfInterestSchema).optional(),
   hazardFallbackLocationId: z.string().min(1).optional(),
   threatClockDefault: ThreatClockDefaultSchema.optional(),
+  imageUrl: z.string().optional(),
 });
 
 

@@ -1530,6 +1530,19 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (((loc['imageUrl'] ?? loc['image']) as String?)?.isNotEmpty == true) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        (loc['imageUrl'] ?? loc['image']).toString(),
+                        height: 120,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                   Row(
                     children: [
                       const Icon(Icons.location_on_rounded, color: Color(0xFFF59E0B), size: 20),

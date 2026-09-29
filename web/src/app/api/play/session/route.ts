@@ -32,6 +32,7 @@ function buildPlayLore(story: any) {
       name: l.name,
       description: l.description || '',
       atmosphere: l.atmosphere || '',
+      imageUrl: l.imageUrl || '',
     })),
     npcs: (wb.npcs ?? []).map((n: any) => ({
       id: n.id,
