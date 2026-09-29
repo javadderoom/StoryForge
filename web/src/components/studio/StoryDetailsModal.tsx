@@ -5,6 +5,7 @@ import { X, Check, Plus, Tag, Image as ImageIcon } from 'lucide-react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { GENRE_LABELS, GENRE_PRESETS } from '@/lib/genrePresets';
 import { StoryScale } from '@/lib/types';
+import { ImageUploadField } from '@/components/studio/ImageUploadField';
 
 function StoryDetailsForm({
   onClose,
@@ -155,45 +156,14 @@ function StoryDetailsForm({
         </div>
 
         {/* Cover Image URL */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-              <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
-              {isPersian ? 'آدرس تصویر کاور داستان (URL):' : 'Cover Image URL:'}
-            </label>
-            {coverImageUrl && (
-              <button
-                type="button"
-                onClick={() => setCoverImageUrl('')}
-                className="text-[11px] text-rose-400 hover:text-rose-300"
-              >
-                {isPersian ? 'حذف تصویر' : 'Clear'}
-              </button>
-            )}
-          </div>
-          <input
-            type="url"
-            placeholder="https://images.unsplash.com/... or https://..."
-            value={coverImageUrl}
-            onChange={(e) => setCoverImageUrl(e.target.value)}
-            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 font-mono focus:outline-none focus:border-amber-500"
-          />
-          {coverImageUrl && (
-            <div className="mt-2.5 relative rounded-xl overflow-hidden border border-zinc-800 h-32 bg-zinc-950 flex items-center justify-center">
-              <img
-                src={coverImageUrl}
-                alt="Cover Preview"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.currentTarget as HTMLElement).style.display = 'none';
-                }}
-              />
-              <span className="absolute bottom-1.5 right-2 text-[10px] bg-black/75 backdrop-blur-sm text-zinc-300 px-2 py-0.5 rounded-md font-mono">
-                {isPersian ? 'پیش‌نمایش کاور' : 'Cover Preview'}
-              </span>
-            </div>
-          )}
-        </div>
+        <ImageUploadField
+          value={coverImageUrl}
+          onChange={setCoverImageUrl}
+          label={isPersian ? 'تصویر کاور داستان:' : 'Story Cover Image:'}
+          placeholder="https://... or upload file"
+          folder="covers"
+          isPersian={isPersian}
+        />
 
         <div className="grid grid-cols-2 gap-4">
           <div>

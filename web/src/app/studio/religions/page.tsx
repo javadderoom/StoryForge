@@ -28,6 +28,7 @@ import {
 import { WorldDeity, SectarianSchism, EnhancedReligionPayload } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import AiFillSection from '@/components/studio/AiFillSection';
+import { ImageUploadField } from '@/components/studio/ImageUploadField';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
 
 const DOMAIN_MAP: Record<string, { labelFa: string; labelEn: string; color: string; bgGlow: string }> = {
@@ -707,27 +708,13 @@ export default function ReligionsStudioPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                  {isPersian ? 'آدرس تصویر (URL):' : 'Image URL:'}
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    value={dImageUrl}
-                    onChange={(e) => setDImageUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
-                  />
-                  {dImageUrl && (
-                    <img
-                      src={dImageUrl}
-                      alt="preview"
-                      className="h-9 w-9 rounded-lg object-cover border border-zinc-700 shrink-0"
-                    />
-                  )}
-                </div>
-              </div>
+              <ImageUploadField
+                value={dImageUrl}
+                onChange={setDImageUrl}
+                label={isPersian ? 'تصویر یا تمثال ایزد:' : 'Deity Image / Icon:'}
+                folder="religions"
+                isPersian={isPersian}
+              />
 
               <div>
                 <label className="text-xs font-bold text-zinc-300 block mb-1.5">

@@ -30,6 +30,7 @@ import {
 import { WorldCreature, CreatureAlchemicalYield, EnhancedCreaturePayload } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import AiFillSection from '@/components/studio/AiFillSection';
+import { ImageUploadField } from '@/components/studio/ImageUploadField';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
 import {
   extractPacificationEntities,
@@ -1829,27 +1830,13 @@ export default function BestiaryStudioPage() {
                 )}
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1.5">
-                  {isPersian ? 'آدرس تصویر (URL):' : 'Image URL:'}
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    value={cImageUrl}
-                    onChange={(e) => setCImageUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-red-400"
-                  />
-                  {cImageUrl && (
-                    <img
-                      src={cImageUrl}
-                      alt="preview"
-                      className="h-9 w-9 rounded-lg object-cover border border-zinc-700 shrink-0"
-                    />
-                  )}
-                </div>
-              </div>
+              <ImageUploadField
+                value={cImageUrl}
+                onChange={setCImageUrl}
+                label={cCategory === 'flora' ? (isPersian ? 'تصویر گیاه یا قارچ بومی:' : 'Flora Image:') : (isPersian ? 'تصویر موجود یا هیولا:' : 'Creature Image:')}
+                folder="bestiary"
+                isPersian={isPersian}
+              />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
