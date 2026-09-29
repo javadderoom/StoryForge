@@ -191,8 +191,12 @@ export function applyXpGain(
         if (config.abilityUnlockCadence === 'every_level') {
           abilityPicksGained += 1;
           unspentAbilities += 1;
-        } else if (config.abilityUnlockCadence === 'every_two_levels') {
-          if (currentLevel % 2 === 0) {
+        } else if (
+          config.abilityUnlockCadence === 'every_n_levels' ||
+          config.abilityUnlockCadence === 'every_two_levels'
+        ) {
+          const interval = Math.max(1, config.abilityUnlockInterval ?? 2);
+          if (currentLevel % interval === 0) {
             abilityPicksGained += 1;
             unspentAbilities += 1;
           }

@@ -299,23 +299,124 @@ export function ProgressionSection({
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { id: 'every_two_levels', labelEn: 'Every 2 Levels (2, 4, 6)', labelFa: 'هر ۲ تراز یک‌بار (۲، ۴، ۶)' },
+                    { id: 'every_n_levels', labelEn: 'Every N Levels', labelFa: 'هر N تراز یک‌بار' },
                     { id: 'every_level', labelEn: 'Every Level (+1 each)', labelFa: 'در تمام ترازها (هر سطح)' },
-                  ].map((cad) => (
-                    <button
-                      key={cad.id}
-                      type="button"
-                      onClick={() => handleChange('abilityUnlockCadence', cad.id as any)}
-                      className={`p-2.5 rounded-2xl border text-center font-bold text-[11px] transition-all cursor-pointer ${
-                        config.abilityUnlockCadence === cad.id
-                          ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300'
-                          : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                      }`}
-                    >
-                      {isPersian ? cad.labelFa : cad.labelEn}
-                    </button>
-                  ))}
+                  ].map((cad) => {
+                    const isSelected =
+                      config.abilityUnlockCadence === cad.id ||
+                      (cad.id === 'every_n_levels' &&
+                        (config.abilityUnlockCadence === 'every_two_levels' || !config.abilityUnlockCadence));
+
+                    return (
+                      <button
+                        key={cad.id}
+                        type="button"
+                        onClick={() => handleChange('abilityUnlockCadence', cad.id as any)}
+                        className={`p-2.5 rounded-2xl border text-center font-bold text-[11px] transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300'
+                            : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                        }`}
+                      >
+                        {isPersian ? cad.labelFa : cad.labelEn}
+                      </button>
+                    );
+                  })}
                 </div>
+
+                {/* If every_n_levels (or legacy every_two_levels) is selected, show the N input, quick presets & dynamic preview */}
+                {(config.abilityUnlockCadence === 'every_n_levels' ||
+                  config.abilityUnlockCadence === 'every_two_levels' ||
+                  !config.abilityUnlockCadence) && (
+                  <div className="mt-3 p-3.5 rounded-2xl bg-zinc-950/60 border border-zinc-800 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-zinc-300 font-semibold">
+                        {isPersian ? 'فاصله ترازها (مقدار N):' : 'Level Interval (Value of N):'}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cur = config.abilityUnlockInterval ?? 2;
+                            if (cur > 1) handleChange('abilityUnlockInterval', cur - 1);
+                          }}
+                          className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 flex items-center justify-center font-bold text-sm cursor-pointer transition-colors"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          min={1}
+                          max={20}
+                          value={config.abilityUnlockInterval ?? 2}
+                          onChange={(e) => {
+                            const val = Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 2));
+                            handleChange('abilityUnlockInterval', val);
+                          }}
+                          className="w-14 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-center font-mono font-bold text-cyan-300 text-xs focus:outline-none focus:border-cyan-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cur = config.abilityUnlockInterval ?? 2;
+                            if (cur < 20) handleChange('abilityUnlockInterval', cur + 1);
+                          }}
+                          className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 flex items-center justify-center font-bold text-sm cursor-pointer transition-colors"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Presets */}
+                    <div className="flex items-center gap-1.5 pt-0.5">
+                      <span className="text-[10px] text-zinc-500 font-medium">
+                        {isPersian ? 'پیش‌فرض‌های سریع:' : 'Quick Presets:'}
+                      </span>
+                      {[2, 3, 4, 5].map((preset) => {
+                        const isPresetActive = (config.abilityUnlockInterval ?? 2) === preset;
+                        return (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => handleChange('abilityUnlockInterval', preset)}
+                            className={`px-2.5 py-0.5 rounded-lg text-[10.5px] font-mono font-bold border transition-colors cursor-pointer ${
+                              isPresetActive
+                                ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
+                                : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                            }`}
+                          >
+                            {isPersian ? `هر ${preset}` : `Every ${preset}`}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Milestone levels preview */}
+                    <div className="text-[10.5px] text-zinc-400 font-mono bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-2.5 py-1.5 flex items-center justify-between">
+                      <span className="text-zinc-500">
+                        {isPersian ? 'ترازهای دریافت توانایی:' : 'Ability Grant Levels:'}
+                      </span>
+                      <span className="text-cyan-300 font-bold">
+                        {(() => {
+                          const n = Math.max(1, config.abilityUnlockInterval ?? 2);
+                          const max = Math.min(20, config.maxLevel || 10);
+                          const levels: number[] = [];
+                          for (let lvl = n; lvl <= max; lvl += n) {
+                            levels.push(lvl);
+                          }
+                          return levels.length > 0
+                            ? isPersian
+                              ? `ترازهای ${levels.join('، ')}`
+                              : `Levels ${levels.join(', ')}`
+                            : isPersian
+                            ? 'هیچ'
+                            : 'None';
+                        })()}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Full Heal Surge Toggle */}

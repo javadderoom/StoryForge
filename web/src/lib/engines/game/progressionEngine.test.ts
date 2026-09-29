@@ -174,6 +174,30 @@ describe('Progression Engine — Hybrid XP, Level-Up & Stat Allocations', () => 
       assert.equal(res.newLevel, 2);
       assert.equal(res.updatedPlayerState.level, 2);
     });
+
+    it('unlocks abilities every N levels when abilityUnlockCadence is every_n_levels', () => {
+      const customCadenceConfig = {
+        ...DEFAULT_PROGRESSION_CONFIG,
+        abilityUnlockCadence: 'every_n_levels' as const,
+        abilityUnlockInterval: 3,
+      };
+
+      // Level 1 -> Level 2: 2 is not divisible by 3, so 0 ability picks
+      const resLvl2 = applyXpGain(basePlayer, 125, customCadenceConfig, sampleRpg);
+      assert.equal(resLvl2.newLevel, 2);
+      assert.equal(resLvl2.updatedPlayerState.unspentAbilityPicks, 0);
+
+      // Level 2 -> Level 3: 3 % 3 === 0, so 1 ability pick gained
+      const playerLvl2: PlayerState = {
+        ...resLvl2.updatedPlayerState,
+        level: 2,
+        currentXP: 0,
+        nextLevelXP: 150,
+      };
+      const resLvl3 = applyXpGain(playerLvl2, 160, customCadenceConfig, sampleRpg);
+      assert.equal(resLvl3.newLevel, 3);
+      assert.equal(resLvl3.updatedPlayerState.unspentAbilityPicks, 1);
+    });
   });
 
   describe('allocateLevelUpRewards', () => {

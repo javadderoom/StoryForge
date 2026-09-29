@@ -276,7 +276,7 @@ export interface CharacterSetupPayload {
 }
 
 export type ProgressionCurveType = 'standard' | 'linear' | 'fast' | 'custom';
-export type AbilityUnlockCadence = 'every_level' | 'every_two_levels' | 'milestones_only';
+export type AbilityUnlockCadence = 'every_level' | 'every_n_levels' | 'every_two_levels' | 'milestones_only';
 
 export interface ActionXpConfig {
   lowRisk: number;
@@ -301,6 +301,7 @@ export interface ProgressionConfig {
   customThresholds?: number[];
   statPointsPerLevel: number;
   abilityUnlockCadence: AbilityUnlockCadence;
+  abilityUnlockInterval?: number;
   actionXp: ActionXpConfig;
   milestoneXp: MilestoneXpConfig;
   healOnLevelUp: boolean;
@@ -311,7 +312,8 @@ export const DEFAULT_PROGRESSION_CONFIG: ProgressionConfig = {
   maxLevel: 10,
   curveType: 'standard',
   statPointsPerLevel: 1,
-  abilityUnlockCadence: 'every_two_levels',
+  abilityUnlockCadence: 'every_n_levels',
+  abilityUnlockInterval: 2,
   actionXp: {
     lowRisk: 10,
     mediumRisk: 25,
@@ -466,7 +468,8 @@ export const ProgressionConfigSchema = z.object({
   curveType: z.enum(['standard', 'linear', 'fast', 'custom']).default('standard'),
   customThresholds: z.array(z.number().int().nonnegative()).optional(),
   statPointsPerLevel: z.number().int().min(0).max(10).default(1),
-  abilityUnlockCadence: z.enum(['every_level', 'every_two_levels', 'milestones_only']).default('every_two_levels'),
+  abilityUnlockCadence: z.enum(['every_level', 'every_two_levels', 'every_n_levels', 'milestones_only']).default('every_n_levels'),
+  abilityUnlockInterval: z.number().int().min(1).max(20).default(2),
   actionXp: z
     .object({
       lowRisk: z.number().nonnegative().default(10),
