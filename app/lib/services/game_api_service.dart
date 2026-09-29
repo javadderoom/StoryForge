@@ -68,6 +68,24 @@ class GameApiService {
     throw Exception('خطا در شروع سرگذشت (${response.statusCode})');
   }
 
+  /// Fetches an existing playthrough session by ID
+  static Future<Map<String, dynamic>> fetchSession(String sessionId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/play/session?sessionId=$sessionId'),
+      headers: defaultHeaders,
+    );
+
+    if (response.statusCode == 200) {
+      try {
+        final json = jsonDecode(response.body);
+        return json['data'] ?? json;
+      } catch (e) {
+        throw Exception('پاسخ بازیابی نشست با ساختار نامعتبر دریافت شد.');
+      }
+    }
+    throw Exception('خطا در بارگذاری نشست (${response.statusCode})');
+  }
+
   /// Processes a player choice or free-text action
   static Future<Map<String, dynamic>> sendAction({
     required String storyId,

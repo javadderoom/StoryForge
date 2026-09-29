@@ -678,6 +678,30 @@ export async function POST(req: NextRequest) {
       updatedPlayerState.discoveredCreatureIds = Array.from(discoveredIds);
     }
 
+    // NPC Encounter / Relationship Discovery Tracking:
+    // If an NPC is engaged in the player action or mentioned in the narrative prose,
+    // ensure they are registered in the player's relationships so they appear in the Compendium.
+    const relMap = { ...(updatedPlayerState.relationships || {}) };
+    let relChanged = false;
+    for (const npc of story.worldBible?.npcs || []) {
+      if (relMap[npc.id]) continue;
+      const isMentioned = Boolean(
+        (npc.name && (aiResponse.narrative?.includes(npc.name) || playerActionText.includes(npc.name))) ||
+        (npc.title && (aiResponse.narrative?.includes(npc.title) || playerActionText.includes(npc.title)))
+      );
+      if (isMentioned) {
+        relMap[npc.id] = {
+          trust: npc.initialTrust ?? 0,
+          knownSecrets: [],
+          notes: [],
+        };
+        relChanged = true;
+      }
+    }
+    if (relChanged) {
+      updatedPlayerState.relationships = relMap;
+    }
+
     const newBeat: TurnBeat = {
       turnNumber,
       sceneId: beatSceneId,

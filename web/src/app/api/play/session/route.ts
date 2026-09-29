@@ -513,15 +513,6 @@ export async function POST(req: NextRequest) {
       initialResources[res.id] = maxResources[res.id] ?? res.max ?? 1;
     }
 
-    const initialRelationships: Record<string, any> = {};
-    for (const npc of story.worldBible.npcs) {
-      initialRelationships[npc.id] = {
-        trust: npc.initialTrust,
-        knownSecrets: [],
-        notes: [],
-      };
-    }
-
     const beats = story.initialStoryBeats || [];
     const designatedBeat = story.initialSceneId
       ? beats.find((b) => b.sceneId === story.initialSceneId && !isPlaceholderBeat(b))
@@ -533,12 +524,32 @@ export async function POST(req: NextRequest) {
       beats.find((b) => !isPlaceholderBeat(b)) ||
       beats[0] || {
         sceneId: story.initialSceneId || 'scene_start',
-        locationId: story.worldBible.locations[0]?.id || '',
+        locationId: story.worldBible?.locations?.[0]?.id || '',
         narrativeText: '',
         choices: [],
       };
 
     const initialBeat = openingBeat;
+
+    // Only include NPCs that are known to the player at campaign start
+    // (e.g. explicitly introduced in the opening beat prose, or starting companions)
+    const initialRelationships: Record<string, any> = {};
+    for (const npc of story.worldBible?.npcs || []) {
+      const isMentionedInProse = Boolean(
+        openingBeat.narrativeText && (
+          openingBeat.narrativeText.includes(npc.name) ||
+          (npc.title && openingBeat.narrativeText.includes(npc.title))
+        )
+      );
+      const isCompanion = (npc as any).status === 'companion';
+      if (isMentionedInProse || isCompanion) {
+        initialRelationships[npc.id] = {
+          trust: npc.initialTrust ?? 0,
+          knownSecrets: [],
+          notes: [],
+        };
+      }
+    }
 
     // 4. Starting abilities from Archetype & Background
     const initialAbilities: string[] = [];

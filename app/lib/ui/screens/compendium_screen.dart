@@ -1159,7 +1159,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
     final factions = (session.lore?['factions'] as List<dynamic>?) ?? [];
     final factionRelations = (session.lore?['factionRelations'] as List<dynamic>?) ?? [];
 
-    if (relationships.isEmpty && worldNpcs.isEmpty && factions.isEmpty) {
+    if (relationships.isEmpty && factions.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1185,85 +1185,13 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
       children: [
         if (relationships.isNotEmpty) ...[
           Text(
-            isPersian ? 'پیوندهای شکل‌گرفته با شخصیت‌ها' : 'FORMED RELATIONSHIPS',
+            isPersian ? 'شخصیت‌های شناخته‌شده و پیوندها' : 'KNOWN CHARACTERS & BONDS',
             style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF9CA3AF)),
           ),
           const SizedBox(height: 12),
           for (final entry in relationships.entries) ...[
-            _buildNpcCard(entry.key, entry.value, isPersian),
+            _buildNpcCard(entry.key, entry.value, worldNpcs, isPersian),
             const SizedBox(height: 12),
-          ],
-          const SizedBox(height: 20),
-        ],
-
-        if (worldNpcs.isNotEmpty) ...[
-          Text(
-            isPersian ? 'شخصیت‌های برجسته جهان' : 'NOTABLE REALM CHARACTERS',
-            style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF9CA3AF)),
-          ),
-          const SizedBox(height: 12),
-          for (final npc in worldNpcs) ...[
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF121422),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF272A3C)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.person_outline_rounded, color: Color(0xFFF59E0B), size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              npc['name'] ?? '',
-                              style: GoogleFonts.vazirmatn(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            if ((npc['archetype'] as String?)?.isNotEmpty == true)
-                              Text(
-                                npc['archetype'],
-                                style: GoogleFonts.vazirmatn(
-                                  fontSize: 11,
-                                  color: const Color(0xFFF59E0B),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  if ((npc['description'] as String?)?.isNotEmpty == true) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      npc['description'],
-                      style: GoogleFonts.vazirmatn(
-                        fontSize: 12,
-                        color: Colors.white70,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
           ],
           const SizedBox(height: 20),
         ],
@@ -1477,7 +1405,26 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
     );
   }
 
-  Widget _buildNpcCard(String npcId, NpcRelationship rel, bool isPersian) {
+  Widget _buildNpcCard(String npcId, NpcRelationship rel, List<dynamic> worldNpcs, bool isPersian) {
+    Map<String, dynamic>? npcMeta;
+    for (final raw in worldNpcs) {
+      if (raw is Map) {
+        final id = raw['id']?.toString() ?? '';
+        final name = raw['name']?.toString() ?? '';
+        if (id.toLowerCase() == npcId.toLowerCase() || name.toLowerCase() == npcId.toLowerCase()) {
+          npcMeta = Map<String, dynamic>.from(raw);
+          break;
+        }
+      }
+    }
+
+    final displayName = npcMeta?['name']?.toString().isNotEmpty == true
+        ? npcMeta!['name'].toString()
+        : _formatStatName(npcId, isPersian);
+    final archetype = npcMeta?['archetype']?.toString() ?? '';
+    final role = npcMeta?['role']?.toString() ?? '';
+    final description = npcMeta?['description']?.toString() ?? '';
+
     final trust = rel.trust;
     String statusLabel;
     Color statusColor;
@@ -1518,7 +1465,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                 ),
                 child: Center(
                   child: Text(
-                    npcId.isNotEmpty ? npcId[0].toUpperCase() : '?',
+                    displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
                     style: GoogleFonts.cinzel(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -1533,10 +1480,17 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _formatStatName(npcId, isPersian),
+                      displayName,
                       style: GoogleFonts.vazirmatn(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
-                    const SizedBox(height: 2),
+                    if (archetype.isNotEmpty || role.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        archetype.isNotEmpty ? archetype : role,
+                        style: GoogleFonts.vazirmatn(fontSize: 11, color: const Color(0xFFF59E0B)),
+                      ),
+                    ],
+                    const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
@@ -1562,6 +1516,17 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
               ),
             ],
           ),
+          if (description.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              description,
+              style: GoogleFonts.vazirmatn(
+                fontSize: 12,
+                color: Colors.white70,
+                height: 1.5,
+              ),
+            ),
+          ],
           if (rel.knownSecrets.isNotEmpty) ...[
             const SizedBox(height: 14),
             Text(

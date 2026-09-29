@@ -314,7 +314,24 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
           for (int i = 0; i < steps.length; i++) ...[
             Expanded(
               child: InkWell(
-                onTap: () => setState(() => _currentStep = i),
+                onTap: () {
+                  if (i > _currentStep && _currentStep == 2 && _getEffectiveStats().isNotEmpty && _remainingPoints > 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        duration: const Duration(seconds: 2),
+                        backgroundColor: const Color(0xFF1E2238),
+                        content: Text(
+                          isPersian
+                              ? 'لطفاً ابتدا تمام امتیازهای ویژگی را تخصیص دهید.'
+                              : 'Please allocate all attribute points before proceeding.',
+                          style: GoogleFonts.vazirmatn(),
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                  setState(() => _currentStep = i);
+                },
                 child: Column(
                   children: [
                     Row(
@@ -1007,6 +1024,8 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
   // BOTTOM NAVIGATION BAR
   // ===========================================================================
   Widget _buildBottomBar(RealmTheme theme, bool isPersian) {
+    final bool isStepBlocked = _currentStep == 2 && _getEffectiveStats().isNotEmpty && _remainingPoints > 0;
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: const BoxDecoration(
@@ -1032,7 +1051,7 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
           ],
           Expanded(
             child: ElevatedButton(
-              onPressed: _isEmbarking
+              onPressed: (_isEmbarking || isStepBlocked)
                   ? null
                   : () {
                       if (_currentStep < 3) {
@@ -1042,11 +1061,11 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
                       }
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF59E0B),
-                foregroundColor: Colors.black,
+                backgroundColor: isStepBlocked ? const Color(0xFF27272A) : const Color(0xFFF59E0B),
+                foregroundColor: isStepBlocked ? Colors.white38 : Colors.black,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 4,
+                elevation: isStepBlocked ? 0 : 4,
               ),
               child: _isEmbarking
                   ? const SizedBox(
@@ -1055,10 +1074,14 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                     )
                   : Text(
-                      _currentStep == 3
-                          ? (isPersian ? 'آغاز سرگذشت در قلمرو' : 'Embark on Chronicle')
-                          : (isPersian ? 'مرحله بعد' : 'Next Step'),
-                      style: GoogleFonts.vazirmatn(fontSize: 14, fontWeight: FontWeight.bold),
+                      isStepBlocked
+                          ? (isPersian
+                              ? 'امتیازهای باقی‌مانده را تخصیص دهید (${_remainingPoints.toPersianDigits(enable: isPersian)})'
+                              : 'Allocate all points ($_remainingPoints left)')
+                          : (_currentStep == 3
+                              ? (isPersian ? 'آغاز سرگذشت در قلمرو' : 'Embark on Chronicle')
+                              : (isPersian ? 'مرحله بعد' : 'Next Step')),
+                      style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold),
                     ),
             ),
           ),

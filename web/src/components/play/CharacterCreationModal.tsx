@@ -110,7 +110,11 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
           {STEPS(isPersian).map((label, i) => (
             <button
               key={i}
-              onClick={() => { audioService.playSfx('buttonClick'); setStep(i); }}
+              onClick={() => {
+                if (i > step && step === 2 && remaining > 0 && stats.length > 0) return;
+                audioService.playSfx('buttonClick');
+                setStep(i);
+              }}
               className={`flex-1 ${isPersian ? 'text-right' : 'text-left'}`}
             >
               <div className="mb-1.5 flex items-center gap-1.5">
@@ -280,7 +284,16 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
           {step === 2 && (
             <>
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-white">{isPersian ? '۳. تخصیص ویژگی‌ها' : '3. Allocate Attribute Points'}</h3>
+                <div>
+                  <h3 className="text-sm font-bold text-white">{isPersian ? '۳. تخصیص ویژگی‌ها' : '3. Allocate Attribute Points'}</h3>
+                  {remaining > 0 && (
+                    <p className="mt-0.5 text-[11px] font-medium text-amber-400">
+                      {isPersian
+                        ? `برای ادامه، تمام ${toPersianDigits(remaining)} امتیاز باقی‌مانده را تخصیص دهید.`
+                        : `Please allocate all ${remaining} remaining points to proceed.`}
+                    </p>
+                  )}
+                </div>
                 <span className="rounded-xl border px-3 py-1 text-[12px] font-bold" style={{ color: remaining > 0 ? accent : '#10B981', borderColor: remaining > 0 ? accent : '#10B981' }}>
                   {isPersian ? `باقی‌مانده: ${toPersianDigits(remaining)}` : `Pool: ${remaining}`}
                 </span>
@@ -374,18 +387,35 @@ export function CharacterCreationModal({ isOpen, story, isPersian = false, theme
           )}
 
           {step < 3 ? (
-            <button
-              onClick={() => {
-                audioService.playSfx('buttonClick');
-                if (step === 0 && !archetypeId && archetypes[0]?.id) setArchetypeId(archetypes[0].id);
-                if (step === 1 && !backgroundId && backgrounds[0]?.id) setBackgroundId(backgrounds[0].id);
-                setStep((s) => s + 1);
-              }}
-              className="flex-1 rounded-xl py-3 text-sm font-bold text-black transition-transform hover:scale-[1.01]"
-              style={{ backgroundColor: accent }}
-            >
-              {isPersian ? 'مرحله بعد' : 'Next Step'}
-            </button>
+            (() => {
+              const isStepBlocked = step === 2 && stats.length > 0 && remaining > 0;
+              return (
+                <button
+                  disabled={isStepBlocked}
+                  onClick={() => {
+                    if (isStepBlocked) return;
+                    audioService.playSfx('buttonClick');
+                    if (step === 0 && !archetypeId && archetypes[0]?.id) setArchetypeId(archetypes[0].id);
+                    if (step === 1 && !backgroundId && backgrounds[0]?.id) setBackgroundId(backgrounds[0].id);
+                    setStep((s) => s + 1);
+                  }}
+                  className={`flex-1 rounded-xl py-3 text-sm font-bold transition-all ${
+                    isStepBlocked
+                      ? 'cursor-not-allowed bg-zinc-800 text-zinc-500 opacity-60'
+                      : 'text-black hover:scale-[1.01]'
+                  }`}
+                  style={{ backgroundColor: isStepBlocked ? '#27272A' : accent }}
+                >
+                  {isStepBlocked
+                    ? isPersian
+                      ? `امتیازهای باقی‌مانده را تخصیص دهید (${toPersianDigits(remaining)})`
+                      : `Allocate all points (${remaining} left)`
+                    : isPersian
+                      ? 'مرحله بعد'
+                      : 'Next Step'}
+                </button>
+              );
+            })()
           ) : (
             <button
               onClick={() => embark()}

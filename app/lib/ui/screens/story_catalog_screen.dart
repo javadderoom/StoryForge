@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/story.dart';
 import '../../providers/game_session_provider.dart';
 import '../../services/game_api_service.dart';
@@ -19,6 +20,7 @@ class StoryCatalogScreen extends ConsumerStatefulWidget {
 
 class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
   List<StorySummary> _stories = [];
+  Set<String> _savedSessionStoryIds = {};
   bool _isLoading = true;
   String? _errorMessage;
   String? _startingStoryId;
@@ -38,9 +40,18 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
 
     try {
       final stories = await GameApiService.fetchStories();
+      final prefs = await SharedPreferences.getInstance();
+      final savedIds = <String>{};
+      for (final s in stories) {
+        final sessId = prefs.getString('story_session_${s.id}');
+        if (sessId != null && sessId.isNotEmpty) {
+          savedIds.add(s.id);
+        }
+      }
       if (mounted) {
         setState(() {
           _stories = stories;
+          _savedSessionStoryIds = savedIds;
           _isLoading = false;
         });
       }
@@ -306,11 +317,17 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
 
                       // Stories List
                       for (final story in _stories) ...[
-                        _buildStoryCard(
-                          story: story,
-                          isActive: hasActiveNarrative && story.id == activeStoryId,
-                          isPersian: isPersian,
-                        ),
+                        (() {
+                          final isInMemoryActive = hasActiveNarrative && story.id == activeStoryId;
+                          final hasSavedSession = _savedSessionStoryIds.contains(story.id);
+                          final isStoryActive = isInMemoryActive || hasSavedSession;
+                          return _buildStoryCard(
+                            story: story,
+                            isActive: isStoryActive,
+                            isInMemoryActive: isInMemoryActive,
+                            isPersian: isPersian,
+                          );
+                        })(),
                         const SizedBox(height: 20),
                       ],
                     ],
@@ -323,6 +340,7 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
   Widget _buildStoryCard({
     required StorySummary story,
     required bool isActive,
+    required bool isInMemoryActive,
     required bool isPersian,
   }) {
     final isStoryPersian = story.language == 'fa' ||
@@ -539,12 +557,27 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
                         ? null
                         : () async {
                             if (isActive) {
-                              if (Navigator.canPop(context)) {
-                                Navigator.of(context).pop();
+                              if (isInMemoryActive) {
+                                if (Navigator.canPop(context)) {
+                                  Navigator.of(context).pop();
+                                } else {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (context) => const ReaderScreen()),
+                                  );
+                                }
                               } else {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (context) => const ReaderScreen()),
-                                );
+                                setState(() => _startingStoryId = story.id);
+                                final ok = await ref.read(gameSessionProvider.notifier).resumeStory(story.id);
+                                if (mounted) {
+                                  setState(() => _startingStoryId = null);
+                                  if (ok) {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(builder: (context) => const ReaderScreen()),
+                                    );
+                                  } else {
+                                    CharacterCreationScreen.open(context, story: story);
+                                  }
+                                }
                               }
                             } else {
                               CharacterCreationScreen.open(context, story: story);
@@ -575,7 +608,7 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
                           )
                         : Text(
                             isActive
-                                ? (isPersian ? 'ادامه خوانش همین داستان' : 'Continue Current Adventure')
+                                ? (isPersian ? 'ادامه ماجراجویی' : 'Continue Adventure')
                                 : (isPersian ? 'آغاز این ماجراجویی' : 'Start This Adventure'),
                             style: GoogleFonts.vazirmatn(
                               fontSize: 13,

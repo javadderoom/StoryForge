@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/game_state.dart';
 import '../models/choice_option.dart';
 import '../models/character_creation.dart';
@@ -279,6 +280,15 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
 
       // Trigger location ambient audio
       ref.read(audioProvider.notifier).updateLocationAmbient(playerState.currentLocationId);
+
+      // Persist active session mapping
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('active_story_id', storyId);
+        if (resolvedSessionId.isNotEmpty) {
+          await prefs.setString('story_session_$storyId', resolvedSessionId);
+        }
+      } catch (_) {}
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -455,6 +465,88 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     // Audio feedback on turn progress
     ref.read(audioProvider.notifier).playSfx(SfxType.pageTurn);
     ref.read(audioProvider.notifier).updateLocationAmbient(updatedPlayer.currentLocationId);
+
+    // Update active session persistence
+    try {
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString('active_story_id', state.storyId);
+        if (state.sessionId.isNotEmpty) {
+          prefs.setString('story_session_${state.storyId}', state.sessionId);
+        }
+      });
+    } catch (_) {}
+  }
+
+  /// Resumes an existing playthrough session for the given storyId
+  Future<bool> resumeStory(String storyId) async {
+    // If state already has this story active in memory with narrative, it is ready
+    if (state.storyId == storyId && state.currentNarrative.isNotEmpty && !state.isLoading) {
+      return true;
+    }
+
+    state = state.copyWith(isLoading: true, storyId: storyId);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedSessionId = prefs.getString('story_session_$storyId') ?? (state.storyId == storyId ? state.sessionId : '');
+      if (savedSessionId.isEmpty) {
+        state = state.copyWith(isLoading: false);
+        return false;
+      }
+
+      final data = await GameApiService.fetchSession(savedSessionId);
+      final sessionData = data['session'] ?? data;
+      final resolvedSessionId = (data['sessionId'] as String?) ??
+          (sessionData?['sessionId'] as String?) ??
+          savedSessionId;
+      final playerState = PlayerState.fromJson(sessionData['playerState'] ?? data['playerState']);
+      final currentBeat = data['currentBeat'] ?? {};
+      final rawChoices = currentBeat['choices'] as List<dynamic>? ?? [];
+      final storyData = data['story'] as Map<String, dynamic>?;
+      final extractedLang = (storyData?['language'] as String?) ?? 'fa';
+      final resolvedTitle = storyData?['title'] ?? (extractedLang == 'fa' ? 'افسانه بدون عنوان' : 'Untitled Story');
+      final rawLore = data['lore'] as Map<String, dynamic>?;
+      final coverImg = storyData?['coverImageUrl'] as String?;
+      final sceneImg = currentBeat['imageUrl'] as String?;
+      final startDiscoveredJson = currentBeat['discoveredCreature'] as Map<String, dynamic>?;
+      final startDiscovered = startDiscoveredJson != null ? DiscoveredCreature.fromJson(startDiscoveredJson) : null;
+      final turnNum = (data['turnNumber'] as num?)?.toInt() ?? (sessionData?['turnCount'] as num?)?.toInt() ?? 1;
+
+      state = state.copyWith(
+        isLoading: false,
+        storyId: storyId,
+        sessionId: resolvedSessionId,
+        storyTitle: resolvedTitle as String,
+        storyCoverImageUrl: coverImg,
+        currentSceneImageUrl: sceneImg,
+        language: extractedLang,
+        lore: rawLore,
+        rpgResources: GameSessionState.parseRpgResources(storyData),
+        rpgStats: GameSessionState.parseRpgStats(storyData),
+        rpgAbilities: GameSessionState.parseRpgAbilities(storyData),
+        universalBaseValue: GameSessionState.parseUniversalBaseValue(storyData),
+        progressionConfig: GameSessionState.parseProgressionConfig(storyData),
+        currencyDenominations: GameSessionState.parseCurrencyDenominations(storyData),
+        currentNarrative: currentBeat['narrative'] ?? '',
+        choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
+        playerState: playerState,
+        turnNumber: turnNum,
+        clearPendingTurn: true,
+        discoveredCreature: startDiscovered,
+        clearDiscoveredCreature: startDiscovered == null,
+      );
+
+      await prefs.setString('active_story_id', storyId);
+      await prefs.setString('story_session_$storyId', resolvedSessionId);
+
+      ref.read(audioProvider.notifier).updateLocationAmbient(playerState.currentLocationId);
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.toString(),
+      );
+      return false;
+    }
   }
 
   /// Commits player level-up stat point allocations and chosen ability to the backend

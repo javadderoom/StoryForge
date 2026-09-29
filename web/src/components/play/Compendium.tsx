@@ -317,17 +317,24 @@ export function Compendium({
               )}
               {Object.entries(playerState.relationships ?? {}).map(([id, rel]: any) => {
                 const t = rel.trust ?? 0;
+                const npcObj = lore.npcs?.find((n: any) => n.id === id);
                 return (
                   <div key={id} className="rounded-2xl border p-4" style={{ backgroundColor: theme.cardBg, borderColor: theme.cardBorder }}>
                     <div className="flex items-center justify-between">
                       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-sm font-bold text-zinc-200">{npcName(lore, id).charAt(0).toUpperCase()}</span>
                       <div className="ml-2 flex-1">
                         <div className="text-sm font-semibold text-zinc-100">{npcName(lore, id)}</div>
+                        {(npcObj?.archetype || npcObj?.role) && (
+                          <div className="text-[11px] text-amber-400/90">{npcObj.archetype || npcObj.role}</div>
+                        )}
                       </div>
                       <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ color: trustColor(t), backgroundColor: `${trustColor(t)}26` }}>
                         {trustTier(t, isPersian)}
                       </span>
                     </div>
+                    {npcObj?.description && (
+                      <p className="mt-2 text-[11px] leading-relaxed text-zinc-400">{npcObj.description}</p>
+                    )}
                     {rel.knownSecrets?.length > 0 && (
                       <ul className="mt-2 space-y-1">
                         {rel.knownSecrets.map((sec: string, i: number) => (
