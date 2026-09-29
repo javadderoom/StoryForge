@@ -21,7 +21,12 @@ interface CompendiumProps {
   onClose: () => void;
   playerState: PlayerState;
   storyMeta: any;
-  lore: { laws: any[]; locations: { id: string; name: string }[]; npcs: { id: string; name: string }[] };
+  lore: {
+    laws?: any[];
+    locations: { id: string; name: string; [key: string]: any }[];
+    npcs: { id: string; name: string; archetype?: string; role?: string; description?: string; [key: string]: any }[];
+    [key: string]: any;
+  };
   theme: RealmTheme;
   isPersian?: boolean;
   onInventoryChange: (newState: PlayerState, toast?: { kind: 'success' | 'warning' | 'info'; text: string }) => void;

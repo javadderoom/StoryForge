@@ -39,35 +39,15 @@ function buildPlayLore(story: any) {
       description: n.description || '',
       archetype: n.archetype || '',
     })),
-    factions: (wb.factions ?? []).map((f: any) => ({
-      id: f.id,
-      name: f.name,
-      description: f.description || '',
-      alignment: f.alignment || '',
-      alliedFactionIds: f.alliedFactionIds || [],
-      rivalFactionIds: f.rivalFactionIds || [],
-    })),
-    factionRelations: (wb.factionRelations ?? [])
-      .filter((r: any) => r.isPublic !== false)
-      .map((r: any) => ({
-        id: r.id,
-        sourceFactionId: r.sourceFactionId,
-        targetFactionId: r.targetFactionId,
-        value: r.value,
-        note: r.note || '',
-      })),
+    factions: [],
+    factionRelations: [],
     bestiary: (wb.bestiary ?? []).map((c: any) => ({
       id: c.id,
       name: c.name,
       description: c.description || '',
       dangerLevel: c.dangerLevel || 1,
     })),
-    deities: (wb.religions ?? []).map((d: any) => ({
-      id: d.id,
-      name: d.name,
-      description: d.description || '',
-      domain: d.domain || '',
-    })),
+    deities: [],
     artifacts: (wb.artifacts ?? []).map((a: any) => ({
       id: a.id,
       name: a.name,
