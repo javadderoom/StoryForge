@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { segmentProse } from './dialogueSegments';
+import { segmentProse, splitParagraphs } from './dialogueSegments';
 
 describe('segmentProse: narrative vs dialogue', () => {
   it('splits Persian guillemet dialogue from narration', () => {
@@ -38,5 +38,17 @@ describe('segmentProse: narrative vs dialogue', () => {
     const segs = segmentProse('شبی تاریک و طوفانی بود.');
     assert.equal(segs.length, 1);
     assert.equal(segs[0].type, 'narrative');
+  });
+
+  it('preserves paragraph breaks across empty lines in narrative', () => {
+    const text = 'بند اول روایت.\n\nبند دوم روایت.';
+    const segs = segmentProse(text);
+    assert.equal(segs.length, 1);
+    assert.equal(segs[0].type, 'narrative');
+    assert.equal(segs[0].text, 'بند اول روایت.\n\nبند دوم روایت.');
+    const paragraphs = splitParagraphs(segs[0].text);
+    assert.equal(paragraphs.length, 2);
+    assert.equal(paragraphs[0], 'بند اول روایت.');
+    assert.equal(paragraphs[1], 'بند دوم روایت.');
   });
 });

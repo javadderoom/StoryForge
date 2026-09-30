@@ -15,25 +15,46 @@ const OPENERS = new Map<string, string>(QUOTE_PAIRS);
 const DASH_LINE = /^\s*(—|–|-)\s+/;
 
 /**
+ * Splits text into distinct paragraph units (بندها) separated by newlines.
+ * Trims extra whitespace and drops empty paragraphs.
+ */
+export function splitParagraphs(text: string): string[] {
+  if (!text) return [];
+  return text
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+}
+
+/**
  * Splits scene prose into narrative vs dialogue segments.
- * Dialogue = text inside quotation marks («», "", "", “”) or dash-led lines.
+ * Dialogue = text inside quotation marks («», "", “”) or dash-led lines.
  * An unterminated opening quote styles the trailing text as dialogue.
- * Adjacent same-type segments are merged.
+ * Adjacent same-type segments are merged, preserving paragraph separation (\n\n)
+ * when blank lines exist between them.
  */
 export function segmentProse(input: string): ProseSegment[] {
   const out: ProseSegment[] = [];
+  let pendingParagraphBreak = false;
+
   const push = (type: ProseSegment['type'], text: string) => {
-    if (!text || !text.trim()) return;
+    const trimmed = text.trim();
+    if (!trimmed) return;
     const last = out[out.length - 1];
     if (last && last.type === type) {
-      last.text += '\n' + text;
+      last.text += (pendingParagraphBreak ? '\n\n' : '\n') + trimmed;
     } else {
-      out.push({ type, text });
+      out.push({ type, text: trimmed });
     }
+    pendingParagraphBreak = false;
   };
 
   const lines = (input || '').split('\n');
   for (const line of lines) {
+    if (!line.trim()) {
+      pendingParagraphBreak = true;
+      continue;
+    }
     if (DASH_LINE.test(line)) {
       push('dialogue', line.replace(DASH_LINE, '').trim());
       continue;

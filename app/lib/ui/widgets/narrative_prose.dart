@@ -3,7 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/utils/dialogue_segments.dart';
 
 /// Renders scene prose with narration and direct speech clearly separated:
-/// narration keeps the classic reader style, dialogue gets an accent
+/// narration is organized paragraph by paragraph (بند به بند) with distinct
+/// paragraph margins separate from line height, while dialogue gets an accent
 /// side-bar, tinted backdrop, and an italic voice.
 class NarrativeProse extends StatelessWidget {
   final String text;
@@ -21,18 +22,19 @@ class NarrativeProse extends StatelessWidget {
     this.accentColor = const Color(0xFFF59E0B),
   });
 
-  TextStyle _narrativeStyle() {
+  TextStyle _narrativeStyle({bool isLead = false}) {
     return isPersian
         ? GoogleFonts.vazirmatn(
             fontSize: fontSize,
             height: lineHeight,
-            color: const Color(0xFFE4E4E7),
-            fontWeight: FontWeight.w400,
+            color: isLead ? const Color(0xFFF4F4F5) : const Color(0xFFE4E4E7),
+            fontWeight: isLead ? FontWeight.w500 : FontWeight.w400,
           )
         : GoogleFonts.merriweather(
             fontSize: fontSize + 1,
             height: lineHeight,
-            color: const Color(0xFFE4E4E7),
+            color: isLead ? const Color(0xFFF4F4F5) : const Color(0xFFE4E4E7),
+            fontWeight: isLead ? FontWeight.w500 : FontWeight.w400,
             letterSpacing: 0.2,
           );
   }
@@ -48,14 +50,16 @@ class NarrativeProse extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final segments = segmentProse(text);
+    var globalParagraphIndex = 0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final seg in segments)
           if (seg.type == ProseSegmentType.dialogue)
             Container(
-              margin: const EdgeInsets.only(bottom: 14),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              margin: const EdgeInsets.only(bottom: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: accentColor.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
@@ -69,15 +73,26 @@ class NarrativeProse extends StatelessWidget {
                 ),
               ),
               child: Text(
-                '${isPersian ? '❝ ' : '"'}${seg.text}',
+                '${isPersian ? '« ' : '"'}${seg.text}${isPersian ? ' »' : '"'}',
                 style: _dialogueStyle(),
               ),
             )
           else
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: Text(seg.text, style: _narrativeStyle()),
-            ),
+            for (final paragraph in splitParagraphs(seg.text))
+              Builder(
+                builder: (context) {
+                  final isLead = globalParagraphIndex == 0;
+                  globalParagraphIndex++;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 18),
+                    child: Text(
+                      paragraph,
+                      style: _narrativeStyle(isLead: isLead),
+                      textAlign: isPersian ? TextAlign.justify : TextAlign.start,
+                    ),
+                  );
+                },
+              ),
       ],
     );
   }

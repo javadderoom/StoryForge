@@ -18,18 +18,36 @@ const _closers = <String, String>{
 
 final _dashLine = RegExp(r'^\s*(—|–|-)\s+');
 
+/// Splits text into distinct paragraph units (بندها) separated by newlines.
+List<String> splitParagraphs(String text) {
+  if (text.isEmpty) return const [];
+  return text
+      .split(RegExp(r'\n+'))
+      .map((p) => p.trim())
+      .where((p) => p.isNotEmpty)
+      .toList();
+}
+
 List<ProseSegment> segmentProse(String input) {
   final out = <ProseSegment>[];
+  var pendingParagraphBreak = false;
+
   void push(ProseSegmentType type, String text) {
-    if (text.trim().isEmpty) return;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
     if (out.isNotEmpty && out.last.type == type) {
-      out.last.text += '\n$text';
+      out.last.text += (pendingParagraphBreak ? '\n\n' : '\n') + trimmed;
     } else {
-      out.add(ProseSegment(type, text));
+      out.add(ProseSegment(type, trimmed));
     }
+    pendingParagraphBreak = false;
   }
 
   for (final line in input.split('\n')) {
+    if (line.trim().isEmpty) {
+      pendingParagraphBreak = true;
+      continue;
+    }
     final dash = _dashLine.firstMatch(line);
     if (dash != null) {
       push(ProseSegmentType.dialogue, line.substring(dash.end).trim());
