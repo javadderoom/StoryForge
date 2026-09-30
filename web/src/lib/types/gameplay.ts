@@ -161,6 +161,8 @@ export interface CheckResolution {
   actionDescription: string;
   statId?: string;
   statModifier: number;
+  equipmentModifier?: number;
+  passiveModifier?: number;
   diceRoll: number;
   diceType: string;
   environmentalModifier: number;

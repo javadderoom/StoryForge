@@ -166,8 +166,9 @@ export function resolveActionCheck(opts: {
     playerState?.stats?.[canonicalStatId] ??
     playerState?.stats?.[effectiveStatId] ??
     baseline;
-  const statModifier = getStatModifier(baseStatVal, baseline);
   const equipmentModifier = playerState ? calculateEquipmentModifier(playerState, canonicalStatId) : 0;
+  const effectiveStatVal = baseStatVal + equipmentModifier;
+  const statModifier = getStatModifier(effectiveStatVal, baseline);
   const tacticalEnvMod = playerState ? detectTacticalModifier(actionText, playerState) : 0;
   const passiveResult = evaluatePassiveAbilities(actionText, playerState, rpgSystem as any, {
     effectiveStatId,
@@ -175,7 +176,7 @@ export function resolveActionCheck(opts: {
   });
   const passiveBonus = passiveResult.totalModifier;
 
-  const totalScore = roll + statModifier + equipmentModifier + tacticalEnvMod + passiveBonus;
+  const totalScore = roll + statModifier + tacticalEnvMod + passiveBonus;
 
   const isLowBase = baseline < 8;
   const baseDC =
@@ -230,7 +231,7 @@ export function resolveActionCheck(opts: {
     consequenceSummary += ` [${tag}]`;
   }
 
-  const breakdown = `d20(${roll}) + stat(${statModifier})${equipmentModifier ? ` + equip(${equipmentModifier})` : ''}${passiveBonus ? ` + passive(${passiveBonus >= 0 ? `+${passiveBonus}` : passiveBonus})` : ''}${tacticalEnvMod ? ` + tactical(${tacticalEnvMod})` : ''} = ${totalScore}`;
+  const breakdown = `d20(${roll}) + stat(${statModifier})${passiveBonus ? ` + passive(${passiveBonus >= 0 ? `+${passiveBonus}` : passiveBonus})` : ''}${tacticalEnvMod ? ` + tactical(${tacticalEnvMod})` : ''} = ${totalScore}`;
 
   return {
     success: rolledSuccess,
@@ -239,7 +240,7 @@ export function resolveActionCheck(opts: {
     d20: roll,
     statModifier,
     tacticalModifier: tacticalEnvMod,
-    equipmentModifier,
+    equipmentModifier: 0,
     passiveModifier: passiveBonus,
     total: totalScore,
     difficultyClass: baseDC,
@@ -265,6 +266,7 @@ export function serverToCheckResolution(serverRes: any): DiceResolution {
       statModifier: 0,
       tacticalModifier: 0,
       equipmentModifier: 0,
+      passiveModifier: 0,
       total: 10,
       difficultyClass: 10,
       requiredStat: '',
@@ -283,8 +285,9 @@ export function serverToCheckResolution(serverRes: any): DiceResolution {
     resultNumber: roll,
     d20: roll,
     statModifier: serverRes.statModifier ?? 0,
-    tacticalModifier: serverRes.tacticalModifier ?? 0,
+    tacticalModifier: serverRes.tacticalModifier ?? serverRes.environmentalModifier ?? 0,
     equipmentModifier: serverRes.equipmentModifier ?? 0,
+    passiveModifier: serverRes.passiveModifier ?? 0,
     total,
     difficultyClass: dc,
     requiredStat: serverRes.statId ?? serverRes.requiredStat ?? '',

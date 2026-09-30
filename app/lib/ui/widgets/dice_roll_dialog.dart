@@ -315,6 +315,36 @@ class _DiceRollDialogState extends State<DiceRollDialog> {
                               ? '+${widget.resolution.statModifier}'
                               : '${widget.resolution.statModifier}',
                         ),
+                        if (widget.resolution.equipmentModifier != 0) ...[
+                          const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+                          _buildStatBox(
+                            widget.isPersian ? 'تجهیزات' : 'Gear',
+                            widget.resolution.equipmentModifier >= 0
+                                ? '+${widget.resolution.equipmentModifier}'
+                                : '${widget.resolution.equipmentModifier}',
+                            color: const Color(0xFF34D399),
+                          ),
+                        ],
+                        if (widget.resolution.passiveModifier != 0) ...[
+                          const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+                          _buildStatBox(
+                            widget.isPersian ? 'ویژگی' : 'Trait',
+                            widget.resolution.passiveModifier >= 0
+                                ? '+${widget.resolution.passiveModifier}'
+                                : '${widget.resolution.passiveModifier}',
+                            color: const Color(0xFFA78BFA),
+                          ),
+                        ],
+                        if (widget.resolution.environmentalModifier != 0) ...[
+                          const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+                          _buildStatBox(
+                            widget.isPersian ? 'محیط' : 'Env',
+                            widget.resolution.environmentalModifier >= 0
+                                ? '+${widget.resolution.environmentalModifier}'
+                                : '${widget.resolution.environmentalModifier}',
+                            color: const Color(0xFFF472B6),
+                          ),
+                        ],
                         const Text('=', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
                         _buildStatBox(
                           widget.isPersian ? 'مجموع' : 'Total',

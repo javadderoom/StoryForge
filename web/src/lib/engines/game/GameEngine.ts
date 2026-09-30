@@ -1116,12 +1116,40 @@ export class GameEngine {
     );
     const systemBaseValue = rpgSystem.universalBaseValue ?? targetStat?.baseValue ?? 10;
 
-    // Calculate stat bonus
-    let statModifier = 0;
-    const currentStatVal = playerState.stats[canonicalStatId] ?? playerState.stats[effectiveStatId];
-    if (currentStatVal !== undefined) {
-      statModifier = this.getStatModifier(currentStatVal, systemBaseValue);
+    // Equipment & Inventory Tool modifier (equipped gear + relevant tools like lockpick_set)
+    let equipmentModifier = 0;
+    if (effectiveStatId) {
+      const equippedIds = playerState.equipment
+        ? [
+            playerState.equipment.mainHand,
+            playerState.equipment.offHand,
+            playerState.equipment.armor,
+            playerState.equipment.relic,
+          ].filter(Boolean)
+        : [];
+
+      for (const item of playerState.inventory) {
+        // Apply if item is actively equipped OR is a relevant tool (like lockpick_set for cunning)
+        const isEquipped = equippedIds.includes(item.id);
+        const isRelevantTool = item.type === 'quest_item';
+
+        if ((isEquipped || isRelevantTool) && item.statModifiers) {
+          const modVal =
+            item.statModifiers[effectiveStatId] ??
+            item.statModifiers[canonicalStatId] ??
+            item.statModifiers[rawStatId];
+          if (typeof modVal === 'number') {
+            equipmentModifier += modVal;
+          }
+        }
+      }
     }
+
+    // Calculate effective stat value (base stat + equipment stat bonuses)
+    const currentStatVal = playerState.stats[canonicalStatId] ?? playerState.stats[effectiveStatId];
+    const baseStatVal = currentStatVal !== undefined ? currentStatVal : systemBaseValue;
+    const effectiveStatVal = baseStatVal + equipmentModifier;
+    const statModifier = this.getStatModifier(effectiveStatVal, systemBaseValue);
 
     // Calculate skill / ability bonus
     let skillBonus = 0;
@@ -1164,29 +1192,7 @@ export class GameEngine {
       riskLevel: options.riskLevel,
     });
     const passiveBonus = passiveResult.totalModifier;
-
-    // Equipment & Inventory Tool modifier (equipped gear + relevant tools like lockpick_set)
-    let equipmentModifier = 0;
-    if (effectiveStatId) {
-      const equippedIds = playerState.equipment
-        ? [
-            playerState.equipment.mainHand,
-            playerState.equipment.offHand,
-            playerState.equipment.armor,
-            playerState.equipment.relic,
-          ].filter(Boolean)
-        : [];
-
-      for (const item of playerState.inventory) {
-        // Apply if item is actively equipped OR is a relevant tool (like lockpick_set for cunning)
-        const isEquipped = equippedIds.includes(item.id);
-        const isRelevantTool = item.type === 'quest_item';
-
-        if ((isEquipped || isRelevantTool) && item.statModifiers && item.statModifiers[effectiveStatId]) {
-          equipmentModifier += item.statModifiers[effectiveStatId];
-        }
-      }
-    }
+    const passiveModifier = skillBonus + passiveBonus + abilityBonus;
 
     // Check for tactical consumable or potion triggers in actionText
     let itemTacticalEnvMod = 0;
@@ -1230,8 +1236,7 @@ export class GameEngine {
     }
 
     const envMod = (options.environmentalModifier || 0) + itemTacticalEnvMod;
-    const totalScore =
-      roll + statModifier + skillBonus + equipmentModifier + passiveBonus + abilityBonus + envMod;
+    const totalScore = roll + statModifier + passiveModifier + envMod;
 
     // Default DC based on risk level if not explicitly provided
     const isLowBase = systemBaseValue < 8;
@@ -1440,7 +1445,9 @@ export class GameEngine {
     return {
       actionDescription: actionText,
       statId: effectiveStatId,
-      statModifier: statModifier + skillBonus + equipmentModifier + passiveBonus + abilityBonus,
+      statModifier,
+      equipmentModifier: 0,
+      passiveModifier,
       diceRoll: roll,
       diceType,
       environmentalModifier: envMod,

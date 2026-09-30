@@ -219,6 +219,36 @@ export function DiceRollModal({
                 value={`${resolution.statModifier >= 0 ? '+' : ''}${toPersianDigits(resolution.statModifier, isPersian)}`}
                 color="#60A5FA"
               />
+              {!!resolution.equipmentModifier && (
+                <>
+                  <span className="font-bold text-zinc-500">+</span>
+                  <StatBox
+                    label={isPersian ? 'تجهیزات' : 'Gear'}
+                    value={`${resolution.equipmentModifier >= 0 ? '+' : ''}${toPersianDigits(resolution.equipmentModifier, isPersian)}`}
+                    color="#34D399"
+                  />
+                </>
+              )}
+              {!!resolution.passiveModifier && (
+                <>
+                  <span className="font-bold text-zinc-500">+</span>
+                  <StatBox
+                    label={isPersian ? 'ویژگی' : 'Trait'}
+                    value={`${resolution.passiveModifier >= 0 ? '+' : ''}${toPersianDigits(resolution.passiveModifier, isPersian)}`}
+                    color="#A78BFA"
+                  />
+                </>
+              )}
+              {!!resolution.tacticalModifier && (
+                <>
+                  <span className="font-bold text-zinc-500">+</span>
+                  <StatBox
+                    label={isPersian ? 'محیط' : 'Env'}
+                    value={`${resolution.tacticalModifier >= 0 ? '+' : ''}${toPersianDigits(resolution.tacticalModifier, isPersian)}`}
+                    color="#F472B6"
+                  />
+                </>
+              )}
               <span className="font-bold text-zinc-500">=</span>
               <StatBox label={isPersian ? 'مجموع' : 'Total'} value={toPersianDigits(resolution.total, isPersian)} color="#F59E0B" />
               <span className="text-[11px] text-zinc-500">vs</span>

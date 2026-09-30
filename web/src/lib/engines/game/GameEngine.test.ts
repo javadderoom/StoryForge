@@ -1092,7 +1092,8 @@ describe('GameEngine - Automated Passive Ability Parsing & Defense Resolution', 
     // Roll 10 + stat 0 + passiveBonus 3 = total 13 >= 12 (Success)
     assert.equal(res.totalScore, 13);
     assert.equal(res.outcome, 'success');
-    assert.equal(res.statModifier, 3); // 0 stat + 3 passive
+    assert.equal(res.statModifier, 0); // 0 stat
+    assert.equal(res.passiveModifier, 3); // 3 passive
     assert.ok(res.consequenceSummary.includes('پاداش دفاع با سپر'));
   });
 
@@ -1114,7 +1115,8 @@ describe('GameEngine - Automated Passive Ability Parsing & Defense Resolution', 
 
     // Roll 10 + stat 0 - passivePenalty 3 = total 7 < 10 (Failure / Mixed)
     assert.equal(res.totalScore, 7);
-    assert.equal(res.statModifier, -3);
+    assert.equal(res.statModifier, 0);
+    assert.equal(res.passiveModifier, -3);
     assert.ok(res.consequenceSummary.includes('جریمهٔ بی‌اعتمادی'));
   });
 });

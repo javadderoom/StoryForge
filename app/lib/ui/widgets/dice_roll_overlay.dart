@@ -341,6 +341,28 @@ class DiceRollOverlay extends StatelessWidget {
                                     .toPersianDigits(enable: isPersian),
                                 color: const Color(0xFF60A5FA),
                               ),
+                              if (_effective!.equipmentModifier != 0) ...[
+                                const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+                                _buildStatBox(
+                                  isPersian ? 'تجهیزات' : 'Gear',
+                                  (_effective!.equipmentModifier >= 0
+                                          ? '+${_effective!.equipmentModifier}'
+                                          : '${_effective!.equipmentModifier}')
+                                      .toPersianDigits(enable: isPersian),
+                                  color: const Color(0xFF34D399),
+                                ),
+                              ],
+                              if (_effective!.passiveModifier != 0) ...[
+                                const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+                                _buildStatBox(
+                                  isPersian ? 'ویژگی' : 'Trait',
+                                  (_effective!.passiveModifier >= 0
+                                          ? '+${_effective!.passiveModifier}'
+                                          : '${_effective!.passiveModifier}')
+                                      .toPersianDigits(enable: isPersian),
+                                  color: const Color(0xFFA78BFA),
+                                ),
+                              ],
                               // The server keeps environmentalModifier OUT of
                               // statModifier but INSIDE totalScore, so the term
                               // must be shown or the equation will not add up on
@@ -353,7 +375,7 @@ class DiceRollOverlay extends StatelessWidget {
                                           ? '+${_effective!.environmentalModifier}'
                                           : '${_effective!.environmentalModifier}')
                                       .toPersianDigits(enable: isPersian),
-                                  color: const Color(0xFFA78BFA),
+                                  color: const Color(0xFFF472B6),
                                 ),
                               ],
                               const Text('=', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),

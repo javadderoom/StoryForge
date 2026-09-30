@@ -227,6 +227,8 @@ class CheckResolution {
   final String outcome;
   final int diceRoll;
   final int statModifier;
+  final int equipmentModifier;
+  final int passiveModifier;
 
   /// Environmental/tactical bonus (e.g. a smoke pellet granting +4).
   ///
@@ -246,6 +248,8 @@ class CheckResolution {
     required this.outcome,
     required this.diceRoll,
     this.statModifier = 0,
+    this.equipmentModifier = 0,
+    this.passiveModifier = 0,
     this.environmentalModifier = 0,
     required this.totalScore,
     required this.difficultyClass,
@@ -260,6 +264,8 @@ class CheckResolution {
       outcome: json['outcome'] ?? 'success',
       diceRoll: json['diceRoll'] ?? 10,
       statModifier: json['statModifier'] ?? 0,
+      equipmentModifier: (json['equipmentModifier'] as num?)?.toInt() ?? 0,
+      passiveModifier: (json['passiveModifier'] as num?)?.toInt() ?? 0,
       environmentalModifier: (json['environmentalModifier'] as num?)?.toInt() ?? 0,
       totalScore: json['totalScore'] ?? 10,
       difficultyClass: json['difficultyClass'] ?? 10,

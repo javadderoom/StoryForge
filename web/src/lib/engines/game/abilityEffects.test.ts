@@ -337,8 +337,8 @@ test('GameEngine folds ability and trait bonuses into d20 total', () => {
   // d20 10 + statMod 0 + ability 3 + trait 2 = 15 >= DC 12.
   assert.equal(res.totalScore, 15);
   assert.equal(res.outcome, 'success');
-  assert.equal(res.abilityContributions?.length, 2);
-  assert.equal(res.statModifier, 5);
+  assert.equal(res.statModifier, 0);
+  assert.equal(res.passiveModifier, 5);
 });
 
 

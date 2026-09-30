@@ -113,7 +113,7 @@ describe('Abilities & Spells System — Types, Validation & DC Resolution', () =
       { skillId: 'spell_fireball', targetDC: 15 }
     );
 
-    // statModifier in CheckResolution contains statModifier + skillBonus + equipmentModifier
-    assert.equal(result.statModifier, 6); // statModifier (0) + skillBonus (tier 3 * 2 = 6)
+    assert.equal(result.statModifier, 0);
+    assert.equal(result.passiveModifier, 6); // skillBonus (tier 3 * 2 = 6)
   });
 });

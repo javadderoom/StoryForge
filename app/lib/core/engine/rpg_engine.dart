@@ -131,16 +131,15 @@ class RpgEngine {
       }
     }
     final baseStatVal = playerState.stats[effectiveStatId] ?? baseline;
-    final statModifier = getStatModifier(baseStatVal, baseline);
-
-    // 3. Calculate equipment and tool bonus
     final equipmentModifier = calculateEquipmentModifier(playerState, effectiveStatId);
+    final effectiveStatVal = baseStatVal + equipmentModifier;
+    final statModifier = getStatModifier(effectiveStatVal, baseline);
 
     // 4. Calculate tactical & environmental modifier
     final tacticalEnvMod = detectTacticalModifier(actionText, playerState);
 
     // 5. Total calculation
-    final totalScore = roll + statModifier + equipmentModifier + tacticalEnvMod;
+    final totalScore = roll + statModifier + tacticalEnvMod;
 
     // 6. Base DC (calibrated for low-base attribute systems)
     final isLowBase = baseline < 8;
@@ -188,7 +187,10 @@ class RpgEngine {
     return CheckResolution(
       outcome: outcome,
       diceRoll: roll,
-      statModifier: statModifier + equipmentModifier + tacticalEnvMod,
+      statModifier: statModifier,
+      equipmentModifier: 0,
+      passiveModifier: 0,
+      environmentalModifier: tacticalEnvMod,
       totalScore: totalScore,
       difficultyClass: baseDC,
       consequenceSummary: consequenceSummary,
