@@ -503,7 +503,8 @@ export class GameEngine {
     outcome: DiceOutcome,
     npc: NPCDossier,
     knownSecretIds: string[] = [],
-    actionText = ''
+    actionText = '',
+    isPersian = false
   ): PressureOutcome {
     const known = new Set(knownSecretIds);
     const unrevealed = (npc.secrets ?? []).filter(
@@ -514,16 +515,26 @@ export class GameEngine {
         s.description.length >= 12
     );
     const breakingPoint = npc.voiceGuide?.psychologicalBreakingPoint?.trim();
-    const bpNote = breakingPoint ? ` Breaking point: ${breakingPoint}.` : '';
+    const bpNote = breakingPoint
+      ? isPersian
+        ? ` نقطه شکست: ${breakingPoint}.`
+        : ` Breaking point: ${breakingPoint}.`
+      : '';
     const severe = SEVERE_PRESSURE_KEYWORDS.test(actionText.toLowerCase());
-    const severeNote = severe ? ' They will never forgive this.' : '';
+    const severeNote = severe
+      ? isPersian
+        ? ' هرگز این رفتار را فراموش نخواهد کرد.'
+        : ' They will never forgive this.'
+      : '';
     // Extra -10 when a severe threat lands or blows up; -5 for threatened-but-held.
     const sev = (landed: boolean) => (severe ? (landed ? -10 : -5) : 0);
 
     if (unrevealed.length === 0) {
       return {
         trustDelta: -10,
-        note: `${npc.name} has nothing left to squeeze out, but resents the pressure all the same. (Trust -10)`,
+        note: isPersian
+          ? `${npc.name} رازی برای افشا ندارد، اما با این وجود از اعمال فشار شما دلخور شد (اعتماد ۱۰-).`
+          : `${npc.name} has nothing left to squeeze out, but resents the pressure all the same. (Trust -10)`,
       };
     }
 
@@ -543,7 +554,9 @@ export class GameEngine {
       const hint = ways.length > 0 ? ` (requires: ${ways.join(' / ')})` : '';
       return {
         trustDelta: -15,
-        note: `${npc.name} will not break under threats — this truth is buried deeper than fear${hint}. (Trust -15)`,
+        note: isPersian
+          ? `${npc.name} در برابر تهدید تسلیم نمی‌شود — این حقیقت عمیق‌تر از ترس پنهان است (اعتماد ۱۵-).`
+          : `${npc.name} will not break under threats — this truth is buried deeper than fear${hint}. (Trust -15)`,
       };
     }
     crackable.sort((a, b) => a.requiredTrustLevel - b.requiredTrustLevel);
@@ -557,7 +570,9 @@ export class GameEngine {
           revealedSecretId: s.id,
           revealedSecretDescription: s.description,
           trustDelta: delta,
-          note: `${npc.name} breaks utterly under pressure and reveals: "${s.description}" (Trust ${delta}).${bpNote}${severeNote}`,
+          note: isPersian
+            ? `${npc.name} کاملاً در برابر فشار فروپاشید و فاش کرد: «${s.description}» (اعتماد ${delta}).${bpNote}${severeNote}`
+            : `${npc.name} breaks utterly under pressure and reveals: "${s.description}" (Trust ${delta}).${bpNote}${severeNote}`,
         };
       }
       case 'success': {
@@ -566,7 +581,9 @@ export class GameEngine {
           const delta = -15 + sev(false);
           return {
             trustDelta: delta,
-            note: `${npc.name} bends but does not break — their deepest secrets hold (threshold ${UNBREAKABLE_TRUST_THRESHOLD}+ only cracks on critical success). (Trust ${delta})`,
+            note: isPersian
+              ? `${npc.name} تحت فشار قرار گرفت اما تسلیم نشد — عمیق‌ترین رازهایش پنهان ماندند (اعتماد ${delta}).`
+              : `${npc.name} bends but does not break — their deepest secrets hold (threshold ${UNBREAKABLE_TRUST_THRESHOLD}+ only cracks on critical success). (Trust ${delta})`,
           };
         }
         const delta = -30 + sev(true);
@@ -574,21 +591,27 @@ export class GameEngine {
           revealedSecretId: s.id,
           revealedSecretDescription: s.description,
           trustDelta: delta,
-          note: `${npc.name} cracks under pressure and reveals: "${s.description}" They will resent this bitterly. (Trust ${delta}).${bpNote}${severeNote}`,
+          note: isPersian
+            ? `${npc.name} تسلیم فشار شد و فاش کرد: «${s.description}» (اعتماد ${delta}).${bpNote}${severeNote}`
+            : `${npc.name} cracks under pressure and reveals: "${s.description}" They will resent this bitterly. (Trust ${delta}).${bpNote}${severeNote}`,
         };
       }
       case 'mixed_success': {
         const delta = -15 + sev(false);
         return {
           trustDelta: delta,
-          note: `${npc.name} clams up under pressure — nothing revealed, and they trust you less for trying. (Trust ${delta})`,
+          note: isPersian
+            ? `${npc.name} در برابر فشار سکوت کرد — رازی فاش نشد و اعتماد کاهش یافت (اعتماد ${delta}).`
+            : `${npc.name} clams up under pressure — nothing revealed, and they trust you less for trying. (Trust ${delta})`,
         };
       }
       case 'failure': {
         const delta = -15 + sev(false);
         return {
           trustDelta: delta,
-          note: `The pressure fails: ${npc.name} holds firm and resents the attempt. (Trust ${delta})`,
+          note: isPersian
+            ? `تلاش برای ارعاب ناموفق بود: ${npc.name} سرسختانه مقاومت کرد (اعتماد ${delta}).`
+            : `The pressure fails: ${npc.name} holds firm and resents the attempt. (Trust ${delta})`,
         };
       }
       case 'critical_failure':
@@ -596,7 +619,9 @@ export class GameEngine {
         const delta = -30 + sev(true);
         return {
           trustDelta: delta,
-          note: `Disastrous pressure: ${npc.name} shuts down completely and will remember this. (Trust ${delta})${severeNote}`,
+          note: isPersian
+            ? `نتیجه فاجعه‌بار: ${npc.name} کاملاً در برابر شما جبهه گرفت (اعتماد ${delta}).${severeNote}`
+            : `Disastrous pressure: ${npc.name} shuts down completely and will remember this. (Trust ${delta})${severeNote}`,
         };
       }
     }
@@ -652,10 +677,27 @@ export class GameEngine {
    */
   public static applySocialOutcome(
     outcome: DiceOutcome,
-    actionStyle: string
+    actionStyle: string,
+    isPersian = false
   ): { trustDelta: number; note: string } {
     // Diplomatic actions get a small bonus to trust awards
     const styleBonus = actionStyle === 'diplomatic' ? 2 : 0;
+
+    if (isPersian) {
+      switch (outcome) {
+        case 'critical_success':
+          return { trustDelta: 15 + styleBonus, note: 'رفتار اجتماعی درخشان — اعتمادی عمیق شکل گرفت.' };
+        case 'success':
+          return { trustDelta: 8 + styleBonus, note: 'گفت‌وگوی گرم و صمیمانه باعث افزایش اعتماد شد.' };
+        case 'mixed_success':
+          return { trustDelta: 4 + styleBonus, note: 'حسن نیت شما با وجود برخی کاستی‌ها پذیرفته شد.' };
+        case 'failure':
+          return { trustDelta: 2, note: 'تلاش شما دیده شد، گرچه دستاورد ملموسی نداشت.' };
+        case 'critical_failure':
+        default:
+          return { trustDelta: -3, note: 'لغزش در گفتار یا رفتار — بازخورد منفی ایجاد کرد.' };
+      }
+    }
 
     switch (outcome) {
       case 'critical_success':
@@ -1384,12 +1426,14 @@ export class GameEngine {
       const advance = applyXpGain(playerState, xpAward.amount, progConfig, rpgSystem);
       progressionResult = {
         xpAwarded: xpAward.amount,
+        xpGained: xpAward.amount,
         reasonEn: xpAward.reasonEn,
         reasonFa: xpAward.reasonFa,
         levelUpOccurred: advance.levelUpOccurred,
         previousLevel: advance.previousLevel,
         newLevel: advance.newLevel,
         unspentStatPoints: advance.updatedPlayerState.unspentStatPoints || 0,
+        unspentAbilityPicks: advance.updatedPlayerState.unspentAbilityPicks || 0,
       };
     }
 

@@ -99,16 +99,37 @@ function defaultOutcomeSummary(outcome: string): string {
   }
 }
 
+const ENGLISH_PHRASE_TRANSLATIONS: [RegExp, string][] = [
+  [/A brilliant social gesture — deep trust earned\./gi, 'رفتار اجتماعی درخشان — اعتمادی عمیق شکل گرفت.'],
+  [/A warm social exchange builds trust\./gi, 'گفت‌وگوی گرم و صمیمانه باعث افزایش اعتماد شد.'],
+  [/The gesture is appreciated, if clumsy\./gi, 'حسن نیت شما با وجود برخی کاستی‌ها پذیرفته شد.'],
+  [/The effort is noticed, even if it fell flat\./gi, 'تلاش شما دیده شد، گرچه دستاورد ملموسی نداشت.'],
+  [/A social blunder — the gesture backfires\./gi, 'لغزش در گفتار یا رفتار — بازخورد منفی ایجاد کرد.'],
+  [/has nothing left to squeeze out, but resents the pressure all the same\. \(Trust -10\)/gi, 'رازی برای افشا ندارد، اما از اعمال فشار دلخور شد (اعتماد ۱۰-).'],
+  [/will not break under threats — this truth is buried deeper than fear.*?\./gi, 'در برابر تهدید تسلیم نمی‌شود — این حقیقت عمیق‌تر از ترس پنهان است.'],
+  [/breaks utterly under pressure and reveals:/gi, 'کاملاً در برابر فشار فروپاشید و فاش کرد:'],
+  [/bends but does not break — their deepest secrets hold.*?\./gi, 'تحت فشار قرار گرفت اما تسلیم نشد — عمیق‌ترین رازهایش پنهان ماندند.'],
+  [/cracks under pressure and reveals:/gi, 'تسلیم فشار شد و فاش کرد:'],
+  [/clams up under pressure — nothing revealed, and they trust you less for trying\./gi, 'در برابر فشار سکوت کرد — رازی فاش نشد و اعتماد کاهش یافت.'],
+  [/The pressure fails:.*?holds firm and resents the attempt\./gi, 'تلاش برای ارعاب ناموفق بود و سرسختانه مقاومت کرد.'],
+  [/Disastrous pressure:.*?shuts down completely and will remember this\./gi, 'نتیجه فاجعه‌بار: کاملاً در برابر شما جبهه گرفت.'],
+];
+
 function formatConsequenceSummary(summary: string, isPersian: boolean, outcome?: string): string {
   if (!summary) return '';
   if (!isPersian) return summary;
 
-  if (CONSEQUENCE_FA[summary]) {
-    return CONSEQUENCE_FA[summary];
+  let localized = summary;
+  for (const [pattern, repl] of ENGLISH_PHRASE_TRANSLATIONS) {
+    localized = localized.replace(pattern, repl);
+  }
+
+  if (CONSEQUENCE_FA[localized]) {
+    return CONSEQUENCE_FA[localized];
   }
 
   // Check if summary has trailing bracketed tags like " [tag]" or " [+3 ...]"
-  const match = summary.match(/^(.*?)((\s*\[.*\])+)$/);
+  const match = localized.match(/^(.*?)((\s*\[.*\])+)$/);
   if (match) {
     const base = match[1].trim();
     const tags = match[2];
@@ -118,11 +139,11 @@ function formatConsequenceSummary(summary: string, isPersian: boolean, outcome?:
     return `${translatedBase}${tags}`;
   }
 
-  if (!/[\u0600-\u06FF]/.test(summary) && outcome) {
+  if (!/[\u0600-\u06FF]/.test(localized) && outcome) {
     return defaultOutcomeSummary(outcome);
   }
 
-  return summary;
+  return localized;
 }
 
 export function DiceRollModal({

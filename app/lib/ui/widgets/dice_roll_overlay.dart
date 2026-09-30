@@ -96,6 +96,35 @@ class DiceRollOverlay extends StatelessWidget {
     }
   }
 
+  static final _phraseTranslations = <RegExp, String>{
+    RegExp(r'A brilliant social gesture — deep trust earned\.', caseSensitive: false):
+        'رفتار اجتماعی درخشان — اعتمادی عمیق شکل گرفت.',
+    RegExp(r'A warm social exchange builds trust\.', caseSensitive: false):
+        'گفت‌وگوی گرم و صمیمانه باعث افزایش اعتماد شد.',
+    RegExp(r'The gesture is appreciated, if clumsy\.', caseSensitive: false):
+        'حسن نیت شما با وجود برخی کاستی‌ها پذیرفته شد.',
+    RegExp(r'The effort is noticed, even if it fell flat\.', caseSensitive: false):
+        'تلاش شما دیده شد، گرچه دستاورد ملموسی نداشت.',
+    RegExp(r'A social blunder — the gesture backfires\.', caseSensitive: false):
+        'لغزش در گفتار یا رفتار — بازخورد منفی ایجاد کرد.',
+    RegExp(r'has nothing left to squeeze out, but resents the pressure all the same\. \(Trust -10\)', caseSensitive: false):
+        'رازی برای افشا ندارد، اما از اعمال فشار دلخور شد (اعتماد ۱۰-).',
+    RegExp(r'will not break under threats — this truth is buried deeper than fear.*?\.', caseSensitive: false):
+        'در برابر تهدید تسلیم نمی‌شود — این حقیقت عمیق‌تر از ترس پنهان است.',
+    RegExp(r'breaks utterly under pressure and reveals:', caseSensitive: false):
+        'کاملاً در برابر فشار فروپاشید و فاش کرد:',
+    RegExp(r'bends but does not break — their deepest secrets hold.*?\.', caseSensitive: false):
+        'تحت فشار قرار گرفت اما تسلیم نشد — عمیق‌ترین رازهایش پنهان ماندند.',
+    RegExp(r'cracks under pressure and reveals:', caseSensitive: false):
+        'تسلیم فشار شد و فاش کرد:',
+    RegExp(r'clams up under pressure — nothing revealed, and they trust you less for trying\.', caseSensitive: false):
+        'در برابر فشار سکوت کرد — رازی فاش نشد و اعتماد کاهش یافت.',
+    RegExp(r'The pressure fails:.*?holds firm and resents the attempt\.', caseSensitive: false):
+        'تلاش برای ارعاب ناموفق بود و سرسختانه مقاومت کرد.',
+    RegExp(r'Disastrous pressure:.*?shuts down completely and will remember this\.', caseSensitive: false):
+        'نتیجه فاجعه‌بار: کاملاً در برابر شما جبهه گرفت.',
+  };
+
   String _getConsequenceSummary() {
     final res = _effective;
     if (res == null) return '';
@@ -115,8 +144,13 @@ class DiceRollOverlay extends StatelessWidget {
           'موفقیت نسبی: هدف حاصل شد، اما با پرداخت بها، جراحت جزئی یا جلب توجه.',
       'The attempt failed: unexpected obstacle arose or opportunity lost.':
           'تلاش ناموفق بود: مانعی غیرمنتظره پدیدار شد یا فرصت از دست رفت.',
+      'Progresses along the authored story path.':
+          'پیشروی در مسیر داستان مطابق روایت نویسنده.',
     };
-    final summary = res.consequenceSummary;
+    var summary = res.consequenceSummary;
+    for (final entry in _phraseTranslations.entries) {
+      summary = summary.replaceAll(entry.key, entry.value);
+    }
     if (summaryMap.containsKey(summary)) {
       return summaryMap[summary]!;
     }

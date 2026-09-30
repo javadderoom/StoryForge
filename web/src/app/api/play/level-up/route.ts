@@ -16,7 +16,7 @@ export async function OPTIONS(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { sessionId, statAllocations = {}, chosenAbilityId } = body;
+    const { sessionId, statAllocations = {}, chosenAbilityId, draftManifest, playerState: clientPlayerState } = body;
 
     if (!sessionId) {
       return NextResponse.json(
@@ -39,8 +39,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const story = await StoryRepository.getStoryById(session.storyId);
-    const playerState = session.playerState as PlayerState;
+    let story = await StoryRepository.getStoryById(session.storyId);
+    if (!story && draftManifest) {
+      story = draftManifest;
+    }
+
+    const sessionPlayer = session.playerState as PlayerState;
+    const unspentPoints = Math.max(
+      sessionPlayer.unspentStatPoints ?? 0,
+      clientPlayerState?.unspentStatPoints ?? 0
+    );
+    const unspentAbilities = Math.max(
+      sessionPlayer.unspentAbilityPicks ?? 0,
+      clientPlayerState?.unspentAbilityPicks ?? 0
+    );
+    const playerState: PlayerState = {
+      ...sessionPlayer,
+      unspentStatPoints: unspentPoints,
+      unspentAbilityPicks: unspentAbilities,
+    };
 
     const result = allocateLevelUpRewards(
       playerState,
@@ -64,6 +81,7 @@ export async function POST(req: NextRequest) {
         data: {
           updatedPlayerState: result.updatedPlayerState,
         },
+        playerState: result.updatedPlayerState,
         message: 'Level-up rewards allocated successfully',
       },
       { headers: buildCorsHeaders(req) }

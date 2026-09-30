@@ -245,12 +245,14 @@ export async function POST(req: NextRequest) {
         const advance = applyXpGain(playerState, xpAward.amount, progConfig, story.rpgSystem);
         progressionResult = {
           xpAwarded: xpAward.amount,
+          xpGained: xpAward.amount,
           reasonEn: xpAward.reasonEn,
           reasonFa: xpAward.reasonFa,
           levelUpOccurred: advance.levelUpOccurred,
           previousLevel: advance.previousLevel,
           newLevel: advance.newLevel,
           unspentStatPoints: advance.updatedPlayerState.unspentStatPoints || 0,
+          unspentAbilityPicks: advance.updatedPlayerState.unspentAbilityPicks || 0,
         };
       }
 
@@ -306,7 +308,8 @@ export async function POST(req: NextRequest) {
         resolution.outcome,
         pressureTarget,
         knownIds,
-        playerActionText
+        playerActionText,
+        isPersianStory
       );
       const changes = resolution.stateDiff.relationshipChanges ?? {};
       const existing = changes[pressureTarget.id] ?? { trustDelta: 0 };
@@ -333,7 +336,7 @@ export async function POST(req: NextRequest) {
       );
       if (socialTarget) {
         activeNpcTarget = socialTarget;
-        const social = GameEngine.applySocialOutcome(resolution.outcome, actionStyle);
+        const social = GameEngine.applySocialOutcome(resolution.outcome, actionStyle, isPersianStory);
         const changes = resolution.stateDiff.relationshipChanges ?? {};
         const existing = changes[socialTarget.id] ?? { trustDelta: 0 };
         changes[socialTarget.id] = {
@@ -373,7 +376,9 @@ export async function POST(req: NextRequest) {
         trustDelta: priorTrustDelta,
         newSecret: grant.newSecretId,
       };
-      resolution.consequenceSummary += ` ${npc?.name || npcId} reveals a truth through ${grant.revealMethod}: "${grant.newSecretDescription}"`;
+      resolution.consequenceSummary += isPersianStory
+        ? ` ${npc?.name || npcId} رازی را آشکار کرد: «${grant.newSecretDescription}»`
+        : ` ${npc?.name || npcId} reveals a truth through ${grant.revealMethod}: "${grant.newSecretDescription}"`;
     }
     resolution.stateDiff.relationshipChanges = relationshipChanges;
 

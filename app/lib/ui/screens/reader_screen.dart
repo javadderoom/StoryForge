@@ -221,7 +221,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       // Check for XP gain and Level-Up celebration events
       if (next.lastXpAward != null && next.lastXpAward != prev?.lastXpAward) {
         final award = next.lastXpAward!;
-        if (award.xpGained > 0) {
+        if (award.xpGained > 0 || award.levelUpOccurred) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             RpgToast.show(

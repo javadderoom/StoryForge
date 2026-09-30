@@ -151,6 +151,7 @@ class GameApiService {
     required String sessionId,
     required Map<String, int> statAllocations,
     String? chosenAbilityId,
+    PlayerState? playerState,
   }) async {
     final payload = <String, dynamic>{
       'sessionId': sessionId,
@@ -158,6 +159,9 @@ class GameApiService {
     };
     if (chosenAbilityId != null) {
       payload['chosenAbilityId'] = chosenAbilityId;
+    }
+    if (playerState != null) {
+      payload['playerState'] = playerState.toJson();
     }
 
     final response = await http.post(

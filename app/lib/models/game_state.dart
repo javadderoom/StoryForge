@@ -199,7 +199,10 @@ class ProgressionAward {
 
   factory ProgressionAward.fromJson(Map<String, dynamic> json) {
     return ProgressionAward(
-      xpGained: (json['xpGained'] as num?)?.toInt() ?? (json['amount'] as num?)?.toInt() ?? 0,
+      xpGained: (json['xpAwarded'] as num?)?.toInt() ??
+          (json['xpGained'] as num?)?.toInt() ??
+          (json['amount'] as num?)?.toInt() ??
+          0,
       levelUpOccurred: json['levelUpOccurred'] == true || json['levelUp'] == true,
       newLevel: (json['newLevel'] as num?)?.toInt(),
       statPointsAwarded: (json['statPointsAwarded'] as num?)?.toInt(),

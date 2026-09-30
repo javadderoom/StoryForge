@@ -560,10 +560,12 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         sessionId: state.sessionId,
         statAllocations: statAllocations,
         chosenAbilityId: chosenAbilityId,
+        playerState: state.playerState,
       );
 
-      if (res['success'] == true && res['playerState'] != null) {
-        final updated = PlayerState.fromJson(Map<String, dynamic>.from(res['playerState'] as Map));
+      final rawPlayerState = res['playerState'] ?? res['data']?['updatedPlayerState'];
+      if (res['success'] == true && rawPlayerState != null) {
+        final updated = PlayerState.fromJson(Map<String, dynamic>.from(rawPlayerState as Map));
         state = state.copyWith(playerState: updated);
         ref.read(audioProvider.notifier).playSfx(SfxType.diceSuccess);
         return true;

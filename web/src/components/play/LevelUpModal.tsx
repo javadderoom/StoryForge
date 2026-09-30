@@ -32,6 +32,13 @@ export function LevelUpModal({
   const [chosenAbilityId, setChosenAbilityId] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      setAllocations({});
+      setChosenAbilityId(undefined);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const unspentStats = playerState.unspentStatPoints ?? 0;
@@ -90,32 +97,37 @@ export function LevelUpModal({
 
     try {
       setIsSubmitting(true);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('storyforge_auth_token') : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch('/api/play/level-up', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           sessionId,
           statAllocations: allocations,
           chosenAbilityId,
+          playerState,
         }),
       });
 
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || `Server responded with ${res.status}`);
+        throw new Error(json.error || `Server responded with ${res.status}`);
       }
 
-      const json = await res.json();
-      if (json.success && json.playerState) {
+      const updated = json.data?.updatedPlayerState || json.playerState;
+      if (json.success && updated) {
         notify.success(
           isPersian
             ? `ارتقای سطح و ویژگی‌ها با موفقیت اعمال شد!`
             : `Level-up upgrades committed successfully!`
         );
-        onLevelUpCompleted(json.playerState);
+        onLevelUpCompleted(updated);
         onClose();
       } else {
-        throw new Error('Invalid response structure');
+        throw new Error(json.error || 'Failed to commit level-up rewards');
       }
     } catch (err: any) {
       notify.error(err.message || 'Failed to commit level-up');

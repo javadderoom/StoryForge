@@ -459,6 +459,18 @@ export default function Home() {
         setTurnNumber(nextTurn);
         showDisplacementBanner(json.data, lore.locations);
         syncBalance(json);
+
+        // Progression XP & Level-Up triggers (Diceless actions)
+        const prog = json.data.progression || json.data.resolution?.progression;
+        const xp = prog?.xpAwarded ?? prog?.xpGained ?? 0;
+        if (xp > 0 || prog?.levelUpOccurred) {
+          setXpToast({ amount: xp, levelUp: !!prog?.levelUpOccurred });
+          setTimeout(() => setXpToast(null), 4500);
+          if (prog?.levelUpOccurred) {
+            audioService.playSfx('diceSuccess');
+            setTimeout(() => setIsLevelUpModalOpen(true), 800);
+          }
+        }
       } catch (e: any) {
         setErrorMessage(e?.message || 'Network error');
       } finally {
@@ -554,10 +566,11 @@ export default function Home() {
 
         // Progression XP & Level-Up triggers
         const prog = json.data.progression || json.data.resolution?.progression;
-        if (prog?.xpGained && prog.xpGained > 0) {
-          setXpToast({ amount: prog.xpGained, levelUp: !!prog.levelUpOccurred });
+        const xp = prog?.xpAwarded ?? prog?.xpGained ?? 0;
+        if (xp > 0 || prog?.levelUpOccurred) {
+          setXpToast({ amount: xp, levelUp: !!prog?.levelUpOccurred });
           setTimeout(() => setXpToast(null), 4500);
-          if (prog.levelUpOccurred) {
+          if (prog?.levelUpOccurred) {
             audioService.playSfx('diceSuccess');
             setTimeout(() => setIsLevelUpModalOpen(true), 800);
           }
@@ -609,10 +622,11 @@ export default function Home() {
 
     // Progression XP & Level-Up triggers from pending turn
     const prog = pendingTurn.progression || pendingTurn.resolution?.progression;
-    if (prog?.xpGained && prog.xpGained > 0) {
-      setXpToast({ amount: prog.xpGained, levelUp: !!prog.levelUpOccurred });
+    const xp = prog?.xpAwarded ?? prog?.xpGained ?? 0;
+    if (xp > 0 || prog?.levelUpOccurred) {
+      setXpToast({ amount: xp, levelUp: !!prog?.levelUpOccurred });
       setTimeout(() => setXpToast(null), 4500);
-      if (prog.levelUpOccurred) {
+      if (prog?.levelUpOccurred) {
         audioService.playSfx('diceSuccess');
         setTimeout(() => setIsLevelUpModalOpen(true), 800);
       }

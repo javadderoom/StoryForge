@@ -196,12 +196,14 @@ export interface CheckResolution {
   /** Progression XP and level up metadata for client celebrations */
   progression?: {
     xpAwarded: number;
+    xpGained?: number;
     reasonEn?: string;
     reasonFa?: string;
     levelUpOccurred: boolean;
     previousLevel: number;
     newLevel: number;
     unspentStatPoints: number;
+    unspentAbilityPicks?: number;
   };
 }
 
