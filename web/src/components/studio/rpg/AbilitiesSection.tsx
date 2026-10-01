@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
   Plus,
@@ -22,6 +22,7 @@ import {
   ResourceDefinition,
   ArchetypeDefinition,
 } from '@/lib/types';
+import { ActionCategory } from '@/lib/types/actionCategory';
 import { notify } from '@/lib/notify';
 import { RollModifierEditor } from './RollModifierEditor';
 import { describeRollModifier } from '@/lib/engines/game/abilityEffects';
@@ -32,6 +33,7 @@ interface AbilitiesSectionProps {
   stats: StatDefinition[];
   resources: ResourceDefinition[];
   archetypes: ArchetypeDefinition[];
+  categories?: ActionCategory[];
   isPersian: boolean;
   updateRpgSystem: (updater: (prev: any) => any) => void;
 }
@@ -87,6 +89,7 @@ export function AbilitiesSection({
   stats = [],
   resources = [],
   archetypes = [],
+  categories = [],
   isPersian,
   updateRpgSystem,
 }: AbilitiesSectionProps) {
@@ -95,6 +98,30 @@ export function AbilitiesSection({
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterArchetype, setFilterArchetype] = useState<string>('all');
+  const [fetchedCategories, setFetchedCategories] = useState<ActionCategory[]>([]);
+
+  useEffect(() => {
+    if (categories.length > 0) return;
+    let cancelled = false;
+    async function loadCategories() {
+      try {
+        const res = await fetch('/api/studio/action-categories');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data?.categories)) {
+          setFetchedCategories(data.categories);
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
+    loadCategories();
+    return () => {
+      cancelled = true;
+    };
+  }, [categories]);
+
+  const allCategories = categories.length > 0 ? categories : fetchedCategories;
 
   const [form, setForm] = useState<AbilityDefinition>({
     id: '',
@@ -106,7 +133,6 @@ export function AbilitiesSection({
     linkedStatId: '',
     cost: undefined,
     cooldownTurns: 0,
-    effectSummary: '',
     allowedArchetypeIds: [],
     tags: [],
   });
@@ -448,6 +474,7 @@ export function AbilitiesSection({
                               spec={spec}
                               isPersian={isPersian}
                               stats={stats}
+                              categories={allCategories}
                             />
                           </div>
                         )

@@ -62,6 +62,16 @@ const CANONICAL_CATEGORIES: Record<string, { fa: string; en: string; icon: strin
   stealth_crawl: { fa: 'خزیدن بی‌صدا', en: 'Stealth Crawl', icon: '👣' },
   persuasion_diplomacy: { fa: 'متقاعدسازی و چانه‌زنی', en: 'Diplomacy & Bargain', icon: '📜' },
   potion_brewing: { fa: 'داروسازی و کیمیاگری', en: 'Alchemy', icon: '⚗️' },
+  wilderness_caravan_handling: { fa: 'تیمار و هدایت ستور بارکش', en: 'Caravan Animal Handling', icon: '🐪' },
+  wilderness_celestial_navigation: { fa: 'جهت‌یابی با ستارگان دشت', en: 'Celestial Navigation', icon: '🧭' },
+  social_bureaucratic_official: { fa: 'تعامل با کاتبان و مأموران اداری', en: 'Bureaucratic & Official Dealing', icon: '📜' },
+  survival_desert_heat_thirst: { fa: 'تاب‌آوری در برابر گرما و عطش', en: 'Desert Heat & Thirst Survival', icon: '☀️' },
+  melee_heavy_strike: { fa: 'فرود ضربهٔ سنگین و خردکننده', en: 'Heavy Melee Cleave', icon: '🪓' },
+  melee_precision_thrust: { fa: 'ضربهٔ دقیق و نفوذی', en: 'Precision Thrust', icon: '🗡️' },
+  shield_bash_counter: { fa: 'ضدحمله و کوبیدن سپر', en: 'Shield Bash Counter', icon: '🛡️' },
+  social_commercial_haggling: { fa: 'چانه‌زنی تجاری و معامله', en: 'Commercial Bargaining', icon: '🪙' },
+  social_intimidation_menace: { fa: 'ارعاب و تهدید کلامی', en: 'Intimidation & Menace', icon: '💢' },
+  social_deception_bluff: { fa: 'فریب و بلوف‌زنی', en: 'Deception & Bluff', icon: '🎭' },
 };
 
 export function getConditionBadges(
