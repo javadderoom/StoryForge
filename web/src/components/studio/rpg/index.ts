@@ -9,3 +9,4 @@ export { RollModifierEditor } from './RollModifierEditor';
 export { ProgressionSection } from './ProgressionSection';
 export { RpgSynthesisModal } from './RpgSynthesisModal';
 export { ActionCategoriesSection } from './ActionCategoriesSection';
+export { RollModifierBadges, getRollModifierCleanLabel, getConditionBadges } from './RollModifierBadges';

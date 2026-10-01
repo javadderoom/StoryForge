@@ -25,6 +25,7 @@ import {
 import { notify } from '@/lib/notify';
 import { RollModifierEditor } from './RollModifierEditor';
 import { describeRollModifier } from '@/lib/engines/game/abilityEffects';
+import { RollModifierBadges, getRollModifierCleanLabel } from './RollModifierBadges';
 
 interface AbilitiesSectionProps {
   abilities: AbilityDefinition[];
@@ -159,7 +160,7 @@ export function AbilitiesSection({
       ...form,
       name: form.name.trim(),
       description: form.description.trim(),
-      effectSummary: form.effectSummary?.trim() || undefined,
+      effectSummary: undefined,
       linkedStatId: form.linkedStatId || undefined,
       cost:
         form.cost && form.cost.amount > 0 && form.cost.targetResourceId
@@ -171,10 +172,8 @@ export function AbilitiesSection({
           ? form.allowedArchetypeIds
           : undefined,
       rollModifiers:
-        form.type === 'passive_skill' || form.type === 'passive_feat'
-          ? form.rollModifiers && form.rollModifiers.length > 0
-            ? form.rollModifiers
-            : undefined
+        form.rollModifiers && form.rollModifiers.length > 0
+          ? form.rollModifiers
           : undefined,
       activation:
         form.type === 'active_spell' || form.type === 'active_technique'
@@ -421,31 +420,36 @@ export function AbilitiesSection({
                     </p>
                   )}
 
-                  {/* Mechanical Effect Summary */}
-                  {ab.effectSummary && (
-                    <div className="p-2 rounded-xl bg-zinc-900/90 border border-zinc-800 text-[11px] text-zinc-300 flex items-start gap-1.5">
-                      <Zap className="w-3 h-3 text-amber-400 shrink-0 mt-0.5" />
-                      <span className="leading-snug">{ab.effectSummary}</span>
-                    </div>
-                  )}
-
                   {/* Structured Mechanical Roll Modifiers */}
                   {((ab.rollModifiers?.length ?? 0) > 0 ||
                     (ab.activation?.effects?.length ?? 0) > 0) && (
-                    <div className="flex flex-wrap gap-1">
+                    <div className="space-y-1.5 pt-0.5">
                       {[...(ab.rollModifiers || []), ...(ab.activation?.effects || [])].map(
                         (spec, sIdx) => (
-                          <span
+                          <div
                             key={sIdx}
-                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-mono text-[10.5px] font-bold border ${
-                              spec.modifier >= 0
-                                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25'
-                                : 'bg-rose-500/10 text-rose-300 border-rose-500/25'
-                            }`}
+                            className="p-2 rounded-xl bg-zinc-900/60 border border-zinc-800/80 space-y-1 text-xs"
                           >
-                            <Sparkles className="w-2.5 h-2.5 shrink-0 text-amber-400" />
-                            <span>{describeRollModifier(spec, isPersian)}</span>
-                          </span>
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`shrink-0 rounded px-1.5 py-0.2 font-mono text-[10.5px] font-bold ${
+                                  spec.modifier >= 0
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                    : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                }`}
+                              >
+                                {spec.modifier >= 0 ? `+${spec.modifier}` : spec.modifier}
+                              </span>
+                              <span className="font-semibold text-zinc-200 text-[11px] truncate">
+                                {getRollModifierCleanLabel(spec, isPersian, false) || (isPersian ? 'اثر بر تاس' : 'Roll modifier')}
+                              </span>
+                            </div>
+                            <RollModifierBadges
+                              spec={spec}
+                              isPersian={isPersian}
+                              stats={stats}
+                            />
+                          </div>
                         )
                       )}
                     </div>
@@ -595,24 +599,6 @@ export function AbilitiesSection({
                 />
               </div>
 
-              {/* Effect Summary */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>{isPersian ? 'خلاصه اثر مکانیکی' : 'Mechanical Effect Summary'}</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.effectSummary || ''}
-                  onChange={(e) => setForm({ ...form, effectSummary: e.target.value })}
-                  placeholder={
-                    isPersian
-                      ? 'مانند: ۲۵ آسیب آتش به یک منطقه یا +۲ پاداش در مخفی‌کاری'
-                      : 'e.g. 25 Fire damage in an area, or +2 bonus to stealth checks'
-                  }
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
-                />
-              </div>
 
               {/* Cost & Cooldown & Linked Stat */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 rounded-2xl bg-zinc-950 border border-zinc-800">

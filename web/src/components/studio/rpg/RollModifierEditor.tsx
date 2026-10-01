@@ -6,6 +6,7 @@ import { RollModifierSpec, StatDefinition } from '@/lib/types/rpg';
 import { ActionStyle, RiskLevel } from '@/lib/types/gameplay';
 import { ActionCategory } from '@/lib/types/actionCategory';
 import { describeRollModifier } from '@/lib/engines/game/abilityEffects';
+import { RollModifierBadges, getRollModifierCleanLabel } from './RollModifierBadges';
 
 interface RollModifierEditorProps {
   specs: RollModifierSpec[];
@@ -217,24 +218,34 @@ export function RollModifierEditor({
             return (
               <div
                 key={idx}
-                className={`flex items-center justify-between rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${
+                className={`flex items-start justify-between gap-2 rounded-xl border p-2.5 text-xs transition-colors ${
                   isEditing
                     ? 'border-amber-500/50 bg-amber-500/10 text-amber-200'
                     : 'border-zinc-800 bg-zinc-950/60 text-zinc-300 hover:border-zinc-700'
                 }`}
                 dir={isPersian ? 'rtl' : 'ltr'}
               >
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <span
-                    className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] font-bold ${
-                      spec.modifier >= 0
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                    }`}
-                  >
-                    {spec.modifier >= 0 ? `+${spec.modifier}` : spec.modifier}
-                  </span>
-                  <span className="truncate text-[11px] font-medium text-zinc-300">{cleanDesc}</span>
+                <div className="flex flex-col gap-1 overflow-hidden min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] font-bold ${
+                        spec.modifier >= 0
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                          : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                      }`}
+                    >
+                      {spec.modifier >= 0 ? `+${spec.modifier}` : spec.modifier}
+                    </span>
+                    <span className="truncate text-xs font-semibold text-zinc-200">
+                      {getRollModifierCleanLabel(spec, isPersian, false) || (isPersian ? 'اثر بدون عنوان' : 'Untitled modifier')}
+                    </span>
+                  </div>
+                  <RollModifierBadges
+                    spec={spec}
+                    isPersian={isPersian}
+                    categories={availableCategories}
+                    stats={stats}
+                  />
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <button
@@ -581,11 +592,19 @@ export function RollModifierEditor({
           </div>
 
           {/* Live Preview Pill */}
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/80 p-2 text-[11px] text-zinc-400">
-            <span className="text-zinc-500">{isPersian ? 'پیش‌نمایش اثر: ' : 'Preview: '}</span>
-            <span className="font-mono text-amber-300">
-              {describeRollModifier(currentSpec, isPersian) || (isPersian ? 'بدون اثر' : 'No modifier')}
-            </span>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-2.5 text-xs text-zinc-300 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-zinc-500">{isPersian ? 'پیش‌نمایش اثر:' : 'Preview:'}</span>
+              <span className="font-bold text-amber-400 font-mono">
+                {getRollModifierCleanLabel(currentSpec, isPersian, true)}
+              </span>
+            </div>
+            <RollModifierBadges
+              spec={currentSpec}
+              isPersian={isPersian}
+              categories={availableCategories}
+              stats={stats}
+            />
           </div>
         </div>
       )}
