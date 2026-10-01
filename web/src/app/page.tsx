@@ -16,6 +16,11 @@ import {
   Library,
   Zap,
   User as UserIcon,
+  LogOut,
+  ChevronDown,
+  CheckCircle2,
+  Mail,
+  Phone,
 } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -146,12 +151,26 @@ export default function Home() {
   }, [isDiceModalOpen]);
 
   // Auth & Billing
-  const { user, isAuthenticated, isLoading, updateCreditBalance, token } = useAuth();
+  const { user, isAuthenticated, isLoading, updateCreditBalance, token, logout } = useAuth();
   // Guards double-tap double-spend: one turn (and one credit) per tap.
   const [actionInFlight, setActionInFlight] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isShopModalOpen, setIsShopModalOpen] = useState(false);
   const [isLockEncounterOpen, setIsLockEncounterOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close user dropdown menu when clicking outside
+  useEffect(() => {
+    if (!isUserMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isUserMenuOpen]);
 
 
   // Reader customization
@@ -865,16 +884,121 @@ export default function Home() {
             </Link>
           )}
 
-          {/* User Profile / Login */}
-          <button
-            onClick={() => setIsAuthModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-700/60 bg-zinc-800/80 px-2.5 py-1.5 text-xs text-zinc-300 transition-all hover:bg-zinc-700"
-          >
-            <UserIcon className="h-3.5 w-3.5 text-amber-400" />
-            <span className="hidden sm:inline">
-              {isAuthenticated ? (user?.name || user?.phoneNumber) : (isRtl ? 'ورود' : 'Login')}
-            </span>
-          </button>
+          {/* User Profile / Login Dropdown */}
+          <div className="relative" ref={userMenuRef}>
+            <button
+              onClick={() => {
+                if (isAuthenticated) {
+                  setIsUserMenuOpen((prev) => !prev);
+                } else {
+                  setIsAuthModalOpen(true);
+                }
+              }}
+              className="flex items-center gap-1.5 rounded-lg border border-zinc-700/60 bg-zinc-800/80 px-2.5 py-1.5 text-xs text-zinc-300 transition-all hover:bg-zinc-700 cursor-pointer"
+            >
+              <UserIcon className="h-3.5 w-3.5 text-amber-400" />
+              <span className="hidden sm:inline">
+                {isAuthenticated
+                  ? (user?.name || user?.email || user?.phoneNumber || (isRtl ? 'حساب کاربری' : 'Account'))
+                  : (isRtl ? 'ورود' : 'Login')}
+              </span>
+              {isAuthenticated && (
+                <ChevronDown className={`h-3 w-3 text-zinc-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+              )}
+            </button>
+
+            {/* Dropdown Menu */}
+            {isAuthenticated && isUserMenuOpen && (
+              <div
+                dir={isRtl ? 'rtl' : 'ltr'}
+                className="absolute left-0 mt-2 w-64 rounded-2xl border border-zinc-800 bg-[#0f111d] p-3 shadow-2xl z-50 text-right backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
+              >
+                {/* User info card */}
+                <div className="pb-3 border-b border-zinc-800/80 mb-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-sm text-white truncate">
+                      {user?.name || (isRtl ? 'ماجراجو' : 'Adventurer')}
+                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                      user?.role === 'ADMIN'
+                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                        : user?.role === 'AUTHOR'
+                        ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                        : 'bg-amber-500/15 text-amber-400 border border-amber-500/25'
+                    }`}>
+                      {user?.role === 'ADMIN' ? 'مدیر' : user?.role === 'AUTHOR' ? 'نویسنده' : 'خواننده'}
+                    </span>
+                  </div>
+
+                  {user?.email && (
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 mt-1">
+                      <Mail className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                      <span className="truncate" dir="ltr">{user.email}</span>
+                      {user.emailVerified && (
+                        <span title="ایمیل تأیید شده" className="shrink-0">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {user?.phoneNumber && (
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 mt-1">
+                      <Phone className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                      <span dir="ltr">{user.phoneNumber}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Credits status */}
+                <div className="flex items-center justify-between p-2 rounded-xl bg-[#181b2c] border border-zinc-800/80 mb-2">
+                  <div className="flex items-center gap-1.5 text-xs text-zinc-300 font-medium">
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    <span>موجودی صحنه:</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-amber-400">
+                      {toPersianDigits(user?.creditBalance ?? 0)}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        setIsShopModalOpen(true);
+                      }}
+                      className="text-[11px] px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 font-bold transition-colors cursor-pointer"
+                    >
+                      شارژ
+                    </button>
+                  </div>
+                </div>
+
+                {/* Studio link if author/admin */}
+                {(user?.role === 'ADMIN' || user?.role === 'AUTHOR') && (
+                  <Link
+                    href="/studio"
+                    onClick={() => setIsUserMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-purple-300 hover:bg-purple-500/15 rounded-xl transition-colors mb-1"
+                  >
+                    <Shield className="w-4 h-4 text-purple-400" />
+                    <span>ورود به استودیو نویسندگی</span>
+                  </Link>
+                )}
+
+                {/* Logout Button */}
+                <button
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    logout();
+                    notify.info('از حساب کاربری خود خارج شدید.');
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>خروج از حساب کاربری</span>
+                </button>
+              </div>
+            )}
+          </div>
 
           <button
             onClick={() => audioService.toggleSfxMute()}
