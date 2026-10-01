@@ -4,8 +4,12 @@ import {
   renderWelcomeVerificationEmail,
 } from './templates/welcomeVerificationEmail';
 import {
+  renderPasswordResetEmail,
+} from './templates/passwordResetEmail';
+import {
   generateVerificationToken,
   getVerificationTokenExpiry,
+  getPasswordResetTokenExpiry,
   getDefaultFromEmail,
   getAppBaseUrl,
 } from './client';
@@ -49,7 +53,33 @@ describe('Resend Email Integration - Afsanehsaz Welcome & Verification', () => {
     });
   });
 
-  describe('Verification Token & Expiry Utilities', () => {
+  describe('renderPasswordResetEmail', () => {
+    test('renders reset email with link and 1-hour expiration notice', () => {
+      const { subject, html, text } = renderPasswordResetEmail({
+        name: 'آبتین',
+        resetUrl: 'https://afsanehsaz.ir/auth/reset-password?token=reset_token_xyz',
+      });
+
+      assert.match(subject, /بازنشانی گذرواژه/);
+      assert.ok(html.includes('آبتین'));
+      assert.ok(text.includes('آبتین'));
+      assert.ok(html.includes('https://afsanehsaz.ir/auth/reset-password?token=reset_token_xyz'));
+      assert.ok(text.includes('https://afsanehsaz.ir/auth/reset-password?token=reset_token_xyz'));
+      assert.ok(html.includes('۱ ساعت'));
+      assert.ok(text.includes('۱ ساعت'));
+    });
+
+    test('falls back gracefully to generic adventurer name in reset email', () => {
+      const { html, text } = renderPasswordResetEmail({
+        resetUrl: 'https://afsanehsaz.ir/auth/reset-password?token=reset_token_xyz',
+      });
+
+      assert.ok(html.includes('ماجراجوی گرامی'));
+      assert.ok(text.includes('ماجراجوی گرامی'));
+    });
+  });
+
+  describe('Verification & Reset Token Utilities', () => {
     test('generates secure 64-character hex tokens', () => {
       const token1 = generateVerificationToken();
       const token2 = generateVerificationToken();
@@ -60,12 +90,22 @@ describe('Resend Email Integration - Afsanehsaz Welcome & Verification', () => {
       assert.notEqual(token1, token2, 'Each token must be uniquely generated');
     });
 
-    test('calculates expiration 24 hours into the future', () => {
+    test('calculates verification expiration 24 hours into the future', () => {
       const before = Date.now();
       const expiry = getVerificationTokenExpiry(24);
       const after = Date.now();
 
       const expectedMs = 24 * 60 * 60 * 1000;
+      assert.ok(expiry.getTime() >= before + expectedMs);
+      assert.ok(expiry.getTime() <= after + expectedMs);
+    });
+
+    test('calculates password reset expiration 1 hour into the future', () => {
+      const before = Date.now();
+      const expiry = getPasswordResetTokenExpiry(1);
+      const after = Date.now();
+
+      const expectedMs = 60 * 60 * 1000;
       assert.ok(expiry.getTime() >= before + expectedMs);
       assert.ok(expiry.getTime() <= after + expectedMs);
     });
@@ -76,7 +116,6 @@ describe('Resend Email Integration - Afsanehsaz Welcome & Verification', () => {
     });
 
     test('resolves app base URL fallback and request origin', () => {
-      // Mock request
       const req = new Request('http://localhost:3000/api/auth/register', {
         headers: { host: 'localhost:3000' },
       });

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/db/client';
 import {
   normalizePhoneNumber,
-  isValidIranianPhone,
   verifyPassword,
   signJwt,
 } from '@/lib/auth/jwt';
@@ -10,41 +9,43 @@ import {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { phoneNumber, password, guestSessionId } = body;
+    const { identifier, phoneNumber, email, password, guestSessionId } = body;
+    const loginInput = (identifier || email || phoneNumber || '').trim();
 
-    if (!phoneNumber || !password) {
+    if (!loginInput || !password) {
       return NextResponse.json(
-        { success: false, error: 'Phone number and password are required.' },
+        { success: false, error: 'وارد کردن نشانی ایمیل یا شماره موبایل و رمز عبور الزامی است.' },
         { status: 400 }
       );
     }
 
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    if (!isValidIranianPhone(normalizedPhone)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid phone number format. Please enter a valid Iranian mobile number (e.g. 09121234567).',
-        },
-        { status: 400 }
-      );
+    const isEmail = loginInput.includes('@');
+    let normalizedPhone: string | null = null;
+    let normalizedEmail: string | null = null;
+
+    if (isEmail) {
+      normalizedEmail = loginInput.toLowerCase();
+    } else {
+      normalizedPhone = normalizePhoneNumber(loginInput);
     }
 
     const prisma = getPrisma();
     if (!prisma) {
       return NextResponse.json(
-        { success: false, error: 'Database service is currently unavailable.' },
+        { success: false, error: 'سرویس پایگاه داده در دسترس نیست.' },
         { status: 503 }
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { phoneNumber: normalizedPhone },
+    const user = await prisma.user.findFirst({
+      where: isEmail
+        ? { email: normalizedEmail }
+        : { phoneNumber: normalizedPhone },
     });
 
     if (!user) {
       return NextResponse.json(
-        { success: false, error: 'No account found with this phone number.' },
+        { success: false, error: 'حساب کاربری با این مشخصات یافت نشد.' },
         { status: 401 }
       );
     }
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
     const isMatch = verifyPassword(password, user.passwordHash);
     if (!isMatch) {
       return NextResponse.json(
-        { success: false, error: 'Incorrect password.' },
+        { success: false, error: 'رمز عبور وارد شده نادرست است.' },
         { status: 401 }
       );
     }
@@ -78,6 +79,7 @@ export async function POST(req: Request) {
     const token = signJwt({
       userId: user.id,
       phoneNumber: user.phoneNumber,
+      email: user.email,
       role: user.role,
     });
 
@@ -112,10 +114,11 @@ export async function POST(req: Request) {
     });
 
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'خطای داخلی سرور در هنگام ورود.';
     console.error('Login error:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Internal server error during login.' },
+      { success: false, error: message },
       { status: 500 }
     );
   }

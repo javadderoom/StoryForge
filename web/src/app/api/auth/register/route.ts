@@ -18,26 +18,39 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { phoneNumber, password, name, email, guestSessionId } = body;
 
-    if (!phoneNumber || !password) {
+    const hasPhone = typeof phoneNumber === 'string' && phoneNumber.trim().length > 0;
+    const hasEmail = typeof email === 'string' && email.trim().length > 0;
+
+    if (!hasPhone && !hasEmail) {
       return NextResponse.json(
-        { success: false, error: 'شماره موبایل و رمز عبور الزامی هستند.' },
+        { success: false, error: 'وارد کردن نشانی ایمیل یا شماره موبایل الزامی است.' },
         { status: 400 }
       );
     }
 
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    if (!isValidIranianPhone(normalizedPhone)) {
+    if (typeof password !== 'string' || password.length < 6) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'فرمت شماره موبایل نامعتبر است. لطفاً یک شماره موبایل معتبر (مانند ۰۹۱۲۱۲۳۴۵۶۷) وارد کنید.',
-        },
+        { success: false, error: 'رمز عبور باید حداقل ۶ کاراکتر باشد.' },
         { status: 400 }
       );
+    }
+
+    let normalizedPhone: string | null = null;
+    if (hasPhone) {
+      normalizedPhone = normalizePhoneNumber(phoneNumber);
+      if (!isValidIranianPhone(normalizedPhone)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'فرمت شماره موبایل نامعتبر است. لطفاً یک شماره موبایل معتبر (مانند ۰۹۱۲۱۲۳۴۵۶۷) وارد کنید.',
+          },
+          { status: 400 }
+        );
+      }
     }
 
     let normalizedEmail: string | null = null;
-    if (email && typeof email === 'string' && email.trim().length > 0) {
+    if (hasEmail) {
       normalizedEmail = email.trim().toLowerCase();
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(normalizedEmail)) {
@@ -46,13 +59,6 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
-    }
-
-    if (typeof password !== 'string' || password.length < 6) {
-      return NextResponse.json(
-        { success: false, error: 'رمز عبور باید حداقل ۶ کاراکتر باشد.' },
-        { status: 400 }
-      );
     }
 
     const prisma = getPrisma();
@@ -64,15 +70,17 @@ export async function POST(req: Request) {
     }
 
     // Check if phone already exists
-    const existingPhone = await prisma.user.findUnique({
-      where: { phoneNumber: normalizedPhone },
-    });
+    if (normalizedPhone) {
+      const existingPhone = await prisma.user.findUnique({
+        where: { phoneNumber: normalizedPhone },
+      });
 
-    if (existingPhone) {
-      return NextResponse.json(
-        { success: false, error: 'حسابی با این شماره موبایل از قبل وجود دارد.' },
-        { status: 409 }
-      );
+      if (existingPhone) {
+        return NextResponse.json(
+          { success: false, error: 'حسابی با این شماره موبایل از قبل وجود دارد.' },
+          { status: 409 }
+        );
+      }
     }
 
     // Check if email already exists
@@ -161,6 +169,7 @@ export async function POST(req: Request) {
     const token = signJwt({
       userId: newUser.user.id,
       phoneNumber: newUser.user.phoneNumber,
+      email: newUser.user.email,
       role: newUser.user.role,
     });
 

@@ -3,7 +3,7 @@ import { verifyJwt, JwtUserPayload } from './jwt';
 
 export interface AuthenticatedUser {
   id: string;
-  phoneNumber: string;
+  phoneNumber?: string | null;
   name: string | null;
   email?: string | null;
   role: string;
@@ -54,9 +54,9 @@ export async function getAuthenticatedUser(
     return {
       user: {
         id: payload.userId,
-        phoneNumber: payload.phoneNumber,
+        phoneNumber: payload.phoneNumber || null,
         name: null,
-        email: null,
+        email: payload.email || null,
         role: payload.role || 'READER',
         creditBalance: 15,
         phoneVerified: false,

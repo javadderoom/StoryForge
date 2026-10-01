@@ -51,7 +51,8 @@ const JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
 export interface JwtUserPayload {
   userId: string;
-  phoneNumber: string;
+  phoneNumber?: string | null;
+  email?: string | null;
   role: string;
   iat?: number;
   exp?: number;

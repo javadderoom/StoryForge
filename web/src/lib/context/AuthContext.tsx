@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 
 export interface UserProfile {
   id: string;
-  phoneNumber: string;
+  phoneNumber?: string | null;
   email?: string | null;
   emailVerified?: boolean;
   name: string | null;
@@ -13,15 +13,22 @@ export interface UserProfile {
   phoneVerified: boolean;
 }
 
+export interface RegisterOptions {
+  email?: string;
+  phoneNumber?: string;
+  password?: string;
+  name?: string;
+}
+
 interface AuthContextType {
   user: UserProfile | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (phoneNumber: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (identifier: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (
-    phoneNumber: string,
-    password: string,
+    identifierOrOptions: string | RegisterOptions,
+    password?: string,
     name?: string,
     email?: string
   ) => Promise<{ success: boolean; error?: string; emailSent?: boolean; message?: string }>;
@@ -78,12 +85,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshProfile();
   }, [refreshProfile]);
 
-  const login = async (phoneNumber: string, password: string) => {
+  const login = async (identifier: string, password: string) => {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, password }),
+        body: JSON.stringify({ identifier, phoneNumber: identifier, password }),
       });
 
       const json = await res.json();
@@ -94,22 +101,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true };
       }
       return { success: false, error: json.error || 'ورود ناموفق بود.' };
-    } catch (e: any) {
-      return { success: false, error: e.message || 'خطا در برقراری ارتباط.' };
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'خطا در برقراری ارتباط.';
+      return { success: false, error: msg };
     }
   };
 
   const register = async (
-    phoneNumber: string,
-    password: string,
+    identifierOrOptions: string | RegisterOptions,
+    password?: string,
     name?: string,
     email?: string
   ) => {
     try {
+      let payload: { email?: string; phoneNumber?: string; password?: string; name?: string };
+      if (typeof identifierOrOptions === 'object') {
+        payload = identifierOrOptions;
+      } else {
+        payload = {
+          phoneNumber: identifierOrOptions,
+          password,
+          name,
+          email,
+        };
+      }
+
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, password, name, email }),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
@@ -124,8 +144,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
       return { success: false, error: json.error || 'ثبت‌نام ناموفق بود.' };
-    } catch (e: any) {
-      return { success: false, error: e.message || 'خطا در برقراری ارتباط.' };
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'خطا در برقراری ارتباط.';
+      return { success: false, error: msg };
     }
   };
 

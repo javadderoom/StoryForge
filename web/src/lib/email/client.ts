@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import crypto from 'node:crypto';
 import { renderWelcomeVerificationEmail } from './templates/welcomeVerificationEmail';
+import { renderPasswordResetEmail } from './templates/passwordResetEmail';
 
 let resendInstance: Resend | null = null;
 
@@ -112,6 +113,73 @@ export async function sendWelcomeVerificationEmail({
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('[email] Unexpected error sending email via Resend:', error);
+    return {
+      success: false,
+      error: message || 'Failed to dispatch email.',
+    };
+  }
+}
+
+/**
+ * Calculates password reset expiration date (default: 1 hour from now).
+ */
+export function getPasswordResetTokenExpiry(hours = 1): Date {
+  return new Date(Date.now() + hours * 60 * 60 * 1000);
+}
+
+export interface SendPasswordResetEmailParams {
+  to: string;
+  name?: string | null;
+  resetUrl: string;
+}
+
+/**
+ * Dispatches the branded Afsanehsaz password reset email via Resend.
+ */
+export async function sendPasswordResetEmail({
+  to,
+  name,
+  resetUrl,
+}: SendPasswordResetEmailParams): Promise<SendEmailResult> {
+  const resend = getResendClient();
+  if (!resend) {
+    console.warn('[email] RESEND_API_KEY is not configured. Password reset email skipped for:', to);
+    return {
+      success: false,
+      error: 'Email service is not configured (RESEND_API_KEY missing).',
+    };
+  }
+
+  const { subject, html, text } = renderPasswordResetEmail({
+    name,
+    resetUrl,
+  });
+
+  try {
+    const from = getDefaultFromEmail();
+    const result = await resend.emails.send({
+      from,
+      to,
+      subject,
+      html,
+      text,
+    });
+
+    if (result.error) {
+      console.error('[email] Resend API error on password reset:', result.error);
+      return {
+        success: false,
+        error: result.error.message || 'Failed to send password reset email.',
+      };
+    }
+
+    return {
+      success: true,
+      messageId: result.data?.id,
+    };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[email] Unexpected error sending password reset email via Resend:', error);
     return {
       success: false,
       error: message || 'Failed to dispatch email.',
