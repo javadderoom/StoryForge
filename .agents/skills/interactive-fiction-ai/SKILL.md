@@ -37,5 +37,5 @@ If invalid, return an immersion-preserving refusal or guidance without breaking 
 
 ## 4. Structured Output Format
 Always instruct the AI to generate structured outputs containing:
-1. `narrative`: 200–350 words of rich literary prose (atmospheric, Show-Don't-Tell).
+1. `narrative`: 300–480 words of rich literary prose across 3–4 distinct paragraphs (atmospheric, Show-Don't-Tell).
 2. `choices`: Exactly 3 contextual choices classified by risk (Low, Medium, High) and style (Defensive, Agile, Aggressive, etc.).
