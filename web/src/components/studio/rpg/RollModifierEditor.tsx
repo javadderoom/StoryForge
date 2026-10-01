@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Plus, Trash2, Edit2, Check, X, Shield, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Trash2, Edit2, Check, X, Shield, Sparkles, Tag } from 'lucide-react';
 import { RollModifierSpec, StatDefinition } from '@/lib/types/rpg';
 import { ActionStyle, RiskLevel } from '@/lib/types/gameplay';
+import { ActionCategory } from '@/lib/types/actionCategory';
 import { describeRollModifier } from '@/lib/engines/game/abilityEffects';
 
 interface RollModifierEditorProps {
@@ -47,11 +48,13 @@ export function RollModifierEditor({
   subtitle,
 }: RollModifierEditorProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [availableCategories, setAvailableCategories] = useState<ActionCategory[]>([]);
   const [currentSpec, setCurrentSpec] = useState<RollModifierSpec>({
     modifier: 2,
     statIds: [],
     actionStyles: [],
     riskLevels: [],
+    requiredCategories: [],
     triggerKeywords: [],
     matchMode: 'any',
     labelEn: '',
@@ -59,12 +62,24 @@ export function RollModifierEditor({
   });
   const [keywordInput, setKeywordInput] = useState('');
 
+  useEffect(() => {
+    fetch('/api/studio/action-categories')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.data)) {
+          setAvailableCategories(data.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const startNewSpec = () => {
     setCurrentSpec({
       modifier: 2,
       statIds: [],
       actionStyles: [],
       riskLevels: [],
+      requiredCategories: [],
       triggerKeywords: [],
       matchMode: 'any',
       labelEn: '',
@@ -75,7 +90,10 @@ export function RollModifierEditor({
   };
 
   const startEditSpec = (index: number) => {
-    setCurrentSpec({ ...specs[index] });
+    setCurrentSpec({
+      ...specs[index],
+      requiredCategories: specs[index].requiredCategories || [],
+    });
     setKeywordInput('');
     setEditingIndex(index);
   };
@@ -91,8 +109,9 @@ export function RollModifierEditor({
       statIds: currentSpec.statIds?.length ? currentSpec.statIds : undefined,
       actionStyles: currentSpec.actionStyles?.length ? currentSpec.actionStyles : undefined,
       riskLevels: currentSpec.riskLevels?.length ? currentSpec.riskLevels : undefined,
+      requiredCategories: currentSpec.requiredCategories?.length ? currentSpec.requiredCategories : undefined,
       triggerKeywords: currentSpec.triggerKeywords?.length ? currentSpec.triggerKeywords : undefined,
-      matchMode: currentSpec.triggerKeywords?.length ? currentSpec.matchMode || 'any' : undefined,
+      matchMode: (currentSpec.triggerKeywords?.length || currentSpec.requiredCategories?.length) ? currentSpec.matchMode || 'any' : undefined,
       requiresEquippedSlot: currentSpec.requiresEquippedSlot || undefined,
       requiresItemType: currentSpec.requiresItemType?.trim() || undefined,
       labelEn: currentSpec.labelEn?.trim() || undefined,
@@ -445,6 +464,52 @@ export function RollModifierEditor({
                 className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-zinc-100 focus:border-amber-500 focus:outline-none"
               />
             </div>
+          </div>
+
+          {/* Action Categories Gate (from Database) */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10.5px] font-medium text-amber-300 flex items-center gap-1.5">
+                <Tag className="w-3 h-3 text-amber-400" />
+                <span>
+                  {isPersian
+                    ? 'دسته‌بندی‌ها و محرک‌های عملیاتی (پایگاه داده):'
+                    : 'Required Action Categories (Database):'}
+                </span>
+              </label>
+            </div>
+            {availableCategories.length === 0 ? (
+              <p className="text-[10px] text-zinc-500">
+                {isPersian ? 'در حال بارگذاری دسته‌بندی‌ها از پایگاه داده...' : 'Loading categories from database...'}
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1.5 bg-zinc-950/70 rounded-xl border border-zinc-800/80">
+                {availableCategories.map((cat) => {
+                  const active = (currentSpec.requiredCategories || []).includes(cat.code);
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        const current = currentSpec.requiredCategories || [];
+                        const next = active
+                          ? current.filter((c) => c !== cat.code)
+                          : [...current, cat.code];
+                        setCurrentSpec({ ...currentSpec, requiredCategories: next });
+                      }}
+                      className={`rounded-lg px-2 py-1 text-[10.5px] font-medium border transition-all cursor-pointer ${
+                        active
+                          ? 'border-amber-500 bg-amber-500/20 text-amber-200 shadow-sm shadow-amber-500/10'
+                          : 'border-zinc-800 bg-zinc-900/80 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                      }`}
+                    >
+                      <span>{isPersian ? cat.nameFa : cat.nameEn}</span>
+                      <span className="font-mono text-[9px] opacity-60 ml-1">({cat.code})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Trigger Keywords */}

@@ -19,6 +19,7 @@ model World {
   worldBible         WorldBible?
   rpgSystem          RpgSystem?
   stories            Story[]
+  actionCategories   ActionCategory[]
 
   @@map("worlds")
 }
@@ -250,4 +251,24 @@ model MemoryLog {
 
   @@index([sessionId, importance])
   @@map("memory_logs")
+}
+
+model ActionCategory {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  nameFa      String
+  nameEn      String
+  domain      String
+  description String?
+  tags        String[] @default([])
+  isSystem    Boolean  @default(false)
+  worldId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  world       World?   @relation(fields: [worldId], references: [id], onDelete: Cascade)
+
+  @@index([domain])
+  @@index([worldId])
+  @@map("action_categories")
 }

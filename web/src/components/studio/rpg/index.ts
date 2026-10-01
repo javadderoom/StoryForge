@@ -8,3 +8,4 @@ export { AbilitiesSection } from './AbilitiesSection';
 export { RollModifierEditor } from './RollModifierEditor';
 export { ProgressionSection } from './ProgressionSection';
 export { RpgSynthesisModal } from './RpgSynthesisModal';
+export { ActionCategoriesSection } from './ActionCategoriesSection';

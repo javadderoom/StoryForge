@@ -15,6 +15,7 @@ import {
   Dices,
   BookOpen,
   TrendingUp,
+  Tag,
 } from 'lucide-react';
 import {
   RpgRulesSettingsCard,
@@ -26,9 +27,10 @@ import {
   AbilitiesSection,
   ProgressionSection,
   RpgSynthesisModal,
+  ActionCategoriesSection,
 } from '@/components/studio/rpg';
 
-type RpgSubTab = 'core' | 'abilities' | 'genesis' | 'progression';
+type RpgSubTab = 'core' | 'abilities' | 'genesis' | 'categories' | 'progression';
 
 export default function RpgMechanicsPage() {
   const { story, isPersian, updateRpgSystem } = useStudioStory();
@@ -214,6 +216,18 @@ export default function RpgMechanicsPage() {
           </button>
 
           <button
+            onClick={() => setActiveTab('categories')}
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'categories'
+                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-lg shadow-amber-500/5'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+            }`}
+          >
+            <Tag className="w-4 h-4" />
+            <span>{isPersian ? '۴. بانک محرک‌ها و دسته‌بندی‌ها' : '4. Action Categories & Triggers'}</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('progression')}
             className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'progression'
@@ -222,7 +236,7 @@ export default function RpgMechanicsPage() {
             }`}
           >
             <TrendingUp className="w-4 h-4" />
-            <span>{isPersian ? '۴. پیشرفت، تراز و تجربه' : '4. Progression & Leveling'}</span>
+            <span>{isPersian ? '۵. پیشرفت، تراز و تجربه' : '5. Progression & Leveling'}</span>
             <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-zinc-800/80 text-zinc-300">
               {story.rpgSystem.progression?.enabled !== false ? 'Active' : 'Off'}
             </span>
@@ -307,7 +321,17 @@ export default function RpgMechanicsPage() {
         </div>
       )}
 
-      {/* Tab 4: Progression & Leveling (XP, Stats, Level-Up) */}
+      {/* Tab 4: Action Categories & Triggers */}
+      {activeTab === 'categories' && (
+        <div className="space-y-6 animate-fadeIn">
+          <ActionCategoriesSection
+            isPersian={isPersian}
+            worldId={story.worldId || undefined}
+          />
+        </div>
+      )}
+
+      {/* Tab 5: Progression & Leveling (XP, Stats, Level-Up) */}
       {activeTab === 'progression' && (
         <div className="space-y-6 animate-fadeIn">
           <ProgressionSection

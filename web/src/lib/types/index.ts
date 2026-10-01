@@ -3,3 +3,4 @@ export * from './rpg';
 export * from './gameplay';
 export * from './memory';
 export * from './story';
+export * from './actionCategory';

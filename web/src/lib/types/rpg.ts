@@ -68,6 +68,11 @@ export interface RollModifierSpec {
   requiresEquippedSlot?: 'mainHand' | 'offHand' | 'armor' | 'relic';
   /** Requires an equipped item of this type (weapon, armor, shield, tool, relic…). */
   requiresItemType?: string;
+  /**
+   * Action category codes (from the database action_categories table) required
+   * for this modifier to trigger (e.g. ["incoming_light_projectile"]).
+   */
+  requiredCategories?: string[];
   /** Short label for the dice-breakdown UI (English). */
   labelEn?: string;
   /** Short label for the dice-breakdown UI (Persian). */
@@ -427,6 +432,7 @@ export const RollModifierSpecSchema = z.object({
   matchMode: z.enum(['any', 'all']).optional(),
   requiresEquippedSlot: z.enum(['mainHand', 'offHand', 'armor', 'relic']).optional(),
   requiresItemType: z.string().optional(),
+  requiredCategories: z.array(z.string()).optional(),
   labelEn: z.string().optional(),
   labelFa: z.string().optional(),
 });

@@ -41,6 +41,8 @@ export interface RollOptions {
   turnNumber?: number;
   /** Active ability explicitly invoked this turn (id or authored name). */
   invokedAbilityId?: string;
+  /** Active action or threat categories for this check (e.g. ['incoming_light_projectile']). */
+  actionCategories?: string[];
 }
 
 /**
@@ -310,6 +312,7 @@ export function resolveActionCheck(
     riskLevel: options.riskLevel,
     turnNumber: options.turnNumber,
     invokedAbilityId,
+    actionCategories: options.actionCategories,
   });
   const abilityBonus = abilityResult.totalModifier;
 
@@ -317,6 +320,7 @@ export function resolveActionCheck(
   const passiveResult = evaluatePassiveAbilities(actionText, playerState, rpgSystem, {
     effectiveStatId,
     riskLevel: options.riskLevel,
+    actionCategories: options.actionCategories,
   });
   const passiveBonus = passiveResult.totalModifier;
   const passiveModifier = skillBonus + passiveBonus + abilityBonus;

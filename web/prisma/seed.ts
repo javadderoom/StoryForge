@@ -1,14 +1,16 @@
 import 'dotenv/config';
 import { prisma } from '../src/lib/db/client';
 
+import { seedActionCategories } from './seedActionCategories';
+
 /**
- * StoryForge no longer ships with built-in ("canonical") sample stories.
- * Authors create their own stories; the player-facing Library only lists
- * stories explicitly marked `published`. This seed script is intentionally
- * a no-op so a fresh database starts empty.
+ * StoryForge database seed.
+ * Seeds core Action Categories for deterministic RPG mechanics.
  */
 async function main() {
-  console.log('🌱 StoryForge database seed: no built-in stories to seed (starts empty).');
+  console.log('🌱 StoryForge database seed starting...');
+  await seedActionCategories();
+  console.log('🌱 StoryForge database seed finished.');
 }
 
 main()

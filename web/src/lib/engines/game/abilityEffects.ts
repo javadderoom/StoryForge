@@ -71,6 +71,8 @@ export interface AbilityEffectContext {
   turnNumber?: number;
   /** Ability explicitly invoked by the client this turn. */
   invokedAbilityId?: string;
+  /** Structured action/threat categories active for this check or chosen action. */
+  actionCategories?: string[];
 }
 
 export interface AbilityEffectResult {
@@ -118,6 +120,7 @@ export function describeRollModifier(spec: RollModifierSpec, isFa = false): stri
   if (spec.riskLevels?.length) gates.push(`risk: ${spec.riskLevels.join('/')}`);
   if (spec.requiresEquippedSlot) gates.push(`slot: ${spec.requiresEquippedSlot}`);
   if (spec.requiresItemType) gates.push(`item: ${spec.requiresItemType}`);
+  if (spec.requiredCategories?.length) gates.push(`cat: ${spec.requiredCategories.join('/')}`);
   if (spec.triggerKeywords?.length) {
     const joiner = spec.matchMode === 'all' ? ' AND ' : ' OR ';
     gates.push(`"${spec.triggerKeywords.join(joiner)}"`);
@@ -139,6 +142,8 @@ export interface RollSpecMatchContext {
   playerState?: PlayerState;
   /** True when the action text names the owning ability/trait directly. */
   ownerMentioned?: boolean;
+  /** Active action categories for this roll/turn. */
+  actionCategories?: string[];
 }
 
 /**
@@ -179,7 +184,20 @@ export function matchesRollSpec(spec: RollModifierSpec, ctx: RollSpecMatchContex
     if (!possessed.some((item) => String(item?.type ?? '').toLowerCase() === want)) return false;
   }
 
-  // 6. Keyword gate — a direct mention of the owner always satisfies it.
+  // 6. Action Category gate (structured deterministic condition matching)
+  if (spec.requiredCategories?.length) {
+    const wantCategories = toLowerList(spec.requiredCategories);
+    const presentCategories = toLowerList(ctx.actionCategories);
+    if (!ctx.ownerMentioned) {
+      const requireAll = spec.matchMode === 'all';
+      const satisfied = requireAll
+        ? wantCategories.every((cat) => presentCategories.includes(cat))
+        : wantCategories.some((cat) => presentCategories.includes(cat));
+      if (!satisfied) return false;
+    }
+  }
+
+  // 7. Keyword gate — a direct mention of the owner always satisfies it.
   const keywords = toLowerList(spec.triggerKeywords);
   if (keywords.length > 0 && !ctx.ownerMentioned) {
     const requireAll = spec.matchMode === 'all';

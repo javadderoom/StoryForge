@@ -101,7 +101,12 @@ export function evaluatePassiveAbilities(
   actionText: string,
   playerState?: PlayerState,
   rpgSystem?: RPGSystemSchema | { abilities?: AbilityDefinition[] },
-  options?: { effectiveStatId?: string; riskLevel?: string; story?: any }
+  options?: {
+    effectiveStatId?: string;
+    riskLevel?: string;
+    story?: any;
+    actionCategories?: string[];
+  }
 ): PassiveEvaluationResult {
   const result: PassiveEvaluationResult = {
     totalModifier: 0,
@@ -112,6 +117,7 @@ export function evaluatePassiveAbilities(
   const hasShield = isShieldEquipped(playerState);
   const playerAbilities = playerState?.abilities || [];
   const allAbilities: AbilityDefinition[] = (rpgSystem as any)?.abilities || [];
+  const activeCategories = (options?.actionCategories || []).map((c) => c.toLowerCase());
 
   for (const playerAbilityId of playerAbilities) {
     const ability = allAbilities.find(
@@ -158,15 +164,68 @@ export function evaluatePassiveAbilities(
       if (!hasShield) {
         continue;
       }
-      // Action must be defensive, blocking, or facing ranged/melee attacks
-      const isDefensiveAction =
-        mentionsAbilityDirectly ||
-        /(?:سپر|دفاع|مهار|پناه|دفع|جاخالی|سنگر|بلوک|پوشش|تیر|پرتابه|کمان|سنگ‌انداز|shield|defend|defense|block|parry|dodge|cover|arrow|projectile|ranged)/i.test(
-          text
-        );
 
-      if (isDefensiveAction) {
-        applies = true;
+      const isProjectileSpecific =
+        /پرتابه|تیر|سنگ‌انداز|دوربرد|projectile|arrow|sling|ranged/.test(abilityText);
+
+      // 1. Structured action category matching (preferred & deterministic)
+      if (activeCategories.length > 0) {
+        if (isProjectileSpecific) {
+          applies =
+            activeCategories.includes('incoming_light_projectile') ||
+            activeCategories.includes('incoming_heavy_projectile') ||
+            activeCategories.includes('cover_interception');
+        } else {
+          applies = activeCategories.some((cat) =>
+            [
+              'incoming_light_projectile',
+              'incoming_heavy_projectile',
+              'incoming_melee_slash_blunt',
+              'incoming_predator_natural',
+              'shield_bash_counter',
+              'cover_interception',
+            ].includes(cat)
+          );
+        }
+      }
+
+      // 2. Legacy heuristic text fallback if no structured categories provided
+      if (!applies) {
+        const isIdleStance =
+          /(?:حالت دفاعی|موضع دفاعی|آمادگی برای دفاع|موضع احتیاطی|صرفا آمادگی|defensive stance|ready stance|cautious stance)/i.test(
+            text
+          );
+
+        // An idle stance with no active incoming attack should NEVER trigger reactive attack defense
+        if (!isIdleStance) {
+          if (isProjectileSpecific) {
+            // Must actively face or block projectiles
+            const hasProjectileThreat =
+              /(?:تیر|پرتابه|کمان|سنگ‌انداز|پیکان|فلاخن|arrow|projectile|sling|bolt|missile)/i.test(
+                text
+              );
+            const isIntercepting =
+              /(?:سپر|مهار|پناه|دفع|سنگر|بلوک|پوشش|shield|defend|defense|block|parry|dodge|cover)/i.test(
+                text
+              );
+            if (mentionsAbilityDirectly || (hasProjectileThreat && isIntercepting)) {
+              applies = true;
+            }
+          } else {
+            // General shield defense against incoming attacks
+            const isDefendingAgainstAttack =
+              mentionsAbilityDirectly ||
+              /(?:مهار ضربه|دفع حمله|کوبیدن سپر|دفاع در برابر|سپر را بالا|block attack|parry strike|intercept strike)/i.test(
+                text
+              );
+            if (isDefendingAgainstAttack) {
+              applies = true;
+            }
+          }
+        }
+      }
+
+      if (applies) {
         const absVal = Math.abs(mod);
         reasonEn = `+${absVal} Shield Defense Bonus against incoming attacks`;
         reasonFa = `+${absVal} پاداش دفاع با سپر در برابر پرتابه‌ها و حملات`;
@@ -281,11 +340,40 @@ export function evaluatePassiveAbilities(
         profile.slot === 'off_hand' ||
         /سپر|shield|buckler/i.test(`${profile.name} ${profile.slot}`);
 
-      if (
-        isShieldProfile &&
-        result.appliedPassives.some((p) => /سپر|shield/i.test(`${p.name} ${p.reason} ${p.reasonFa}`))
-      ) {
-        continue;
+      if (isShieldProfile) {
+        if (
+          result.appliedPassives.some((p) =>
+            /سپر|shield/i.test(`${p.name} ${p.reason} ${p.reasonFa}`)
+          )
+        ) {
+          continue;
+        }
+
+        // If structured action categories are present, require a defensive threat category
+        if (activeCategories.length > 0) {
+          const isDefendingThreat = activeCategories.some((cat) =>
+            [
+              'incoming_light_projectile',
+              'incoming_heavy_projectile',
+              'incoming_melee_slash_blunt',
+              'incoming_predator_natural',
+              'shield_bash_counter',
+              'cover_interception',
+            ].includes(cat)
+          );
+          if (!isDefendingThreat) {
+            continue;
+          }
+        } else {
+          // If no categories, an idle stance without incoming attack does NOT trigger reactive shield defense
+          const isIdleStance =
+            /(?:حالت دفاعی|موضع دفاعی|آمادگی برای دفاع|موضع احتیاطی|صرفا آمادگی|defensive stance|ready stance|cautious stance)/i.test(
+              text
+            );
+          if (isIdleStance) {
+            continue;
+          }
+        }
       }
 
       result.totalModifier += value;

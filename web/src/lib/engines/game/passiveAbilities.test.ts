@@ -303,6 +303,96 @@ describe('Passive Abilities Engine — Automated Parsing & Resolution', () => {
       assert.equal(res.appliedPassives[0].modifier, 3);
       assert.ok(res.appliedPassives[0].reasonFa.includes('کویر') || res.appliedPassives[0].reasonFa.includes('عطش'));
     });
+
+    it('does NOT award shield projectile bonus on an idle preparatory stance', () => {
+      const playerWithShield = makePlayerState({
+        abilities: ['ab_shield_wall'],
+        inventory: [
+          {
+            id: 'sh_wood',
+            name: 'سپر چوبی بارانداز',
+            type: 'shield',
+            quantity: 1,
+            description: 'Sturdy wooden shield',
+          },
+        ],
+        equipment: {
+          offHand: 'sh_wood',
+        },
+      });
+
+      // Pure defensive stance with no incoming attack
+      const res = evaluatePassiveAbilities(
+        'آمادگی برای دفاع و گرفتن موضع دفاعی از روی احتیاط',
+        playerWithShield,
+        rpgSystem
+      );
+
+      assert.equal(res.totalModifier, 0);
+      assert.equal(res.appliedPassives.length, 0);
+    });
+
+    it('awards shield projectile bonus when structured incoming_light_projectile category is active', () => {
+      const playerWithShield = makePlayerState({
+        abilities: ['ab_shield_wall'],
+        inventory: [
+          {
+            id: 'sh_wood',
+            name: 'سپر چوبی بارانداز',
+            type: 'shield',
+            quantity: 1,
+            description: 'Sturdy wooden shield',
+          },
+        ],
+        equipment: {
+          offHand: 'sh_wood',
+        },
+      });
+
+      const res = evaluatePassiveAbilities(
+        'پناه گرفتن در برابر حمله',
+        playerWithShield,
+        rpgSystem,
+        {
+          actionCategories: ['incoming_light_projectile'],
+        }
+      );
+
+      assert.equal(res.totalModifier, 3);
+      assert.equal(res.appliedPassives.length, 1);
+      assert.equal(res.appliedPassives[0].id, 'ab_shield_wall');
+    });
+
+    it('does NOT award shield projectile bonus when structured defensive_stance_idle category is active', () => {
+      const playerWithShield = makePlayerState({
+        abilities: ['ab_shield_wall'],
+        inventory: [
+          {
+            id: 'sh_wood',
+            name: 'سپر چوبی بارانداز',
+            type: 'shield',
+            quantity: 1,
+            description: 'Sturdy wooden shield',
+          },
+        ],
+        equipment: {
+          offHand: 'sh_wood',
+        },
+      });
+
+      const res = evaluatePassiveAbilities(
+        'دفاع و احتیاط',
+        playerWithShield,
+        rpgSystem,
+        {
+          actionCategories: ['defensive_stance_idle'],
+        }
+      );
+
+      assert.equal(res.totalModifier, 0);
+      assert.equal(res.appliedPassives.length, 0);
+    });
   });
 });
+
 

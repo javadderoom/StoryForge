@@ -341,6 +341,73 @@ test('GameEngine folds ability and trait bonuses into d20 total', () => {
   assert.equal(res.passiveModifier, 5);
 });
 
+test('requiredCategories gates passive roll modifier to matching structured category', () => {
+  const wharfWall: AbilityDefinition = {
+    id: 'ab_wharf_wall',
+    name: 'دیوار بارانداز',
+    description: 'دفاع با سپر در برابر پرتابه‌های سبک',
+    type: 'passive_skill',
+    rollModifiers: [
+      {
+        modifier: 3,
+        requiresEquippedSlot: 'offHand',
+        requiresItemType: 'shield',
+        requiredCategories: ['incoming_light_projectile'],
+        labelEn: 'Wharf Wall Shield Projectile Defense',
+        labelFa: 'پاداش دفاع با سپر در برابر پرتابه‌ها',
+      },
+    ],
+  };
+
+  const sys = rpgSystem({ abilities: [wharfWall] });
+  const psWithShield = playerState({
+    abilities: ['ab_wharf_wall'],
+    inventory: [
+      {
+        id: 'item_shield',
+        name: 'سپر چوبی',
+        description: 'سپر چوبی بارانداز',
+        type: 'shield',
+        quantity: 1,
+      },
+    ],
+    equipment: {
+      offHand: 'item_shield',
+    },
+  });
+
+  // 1. When incoming_light_projectile category is active -> modifier applies (+3)
+  const matchingRes = evaluateAbilityEffects({
+    actionText: 'I raise my shield',
+    playerState: psWithShield,
+    rpgSystem: sys,
+    actionCategories: ['incoming_light_projectile'],
+  });
+  assert.equal(matchingRes.totalModifier, 3);
+  assert.equal(matchingRes.contributions.length, 1);
+  assert.equal(matchingRes.contributions[0]?.name, 'دیوار بارانداز');
+
+  // 2. When an idle stance category is active -> modifier does NOT apply (0)
+  const idleRes = evaluateAbilityEffects({
+    actionText: 'I raise my shield in a defensive stance',
+    playerState: psWithShield,
+    rpgSystem: sys,
+    actionCategories: ['defensive_stance_idle'],
+  });
+  assert.equal(idleRes.totalModifier, 0);
+  assert.equal(idleRes.contributions.length, 0);
+
+  // 3. When a melee slash category is active -> modifier does NOT apply (0)
+  const meleeRes = evaluateAbilityEffects({
+    actionText: 'I parry the sword',
+    playerState: psWithShield,
+    rpgSystem: sys,
+    actionCategories: ['incoming_melee_slash_blunt'],
+  });
+  assert.equal(meleeRes.totalModifier, 0);
+});
+
+
 
 
 
