@@ -84,6 +84,8 @@ export async function POST(req: Request) {
     const userProfile = {
       id: user.id,
       phoneNumber: user.phoneNumber,
+      email: user.email,
+      emailVerified: user.emailVerified,
       name: user.name,
       role: user.role,
       creditBalance: user.creditBalance,

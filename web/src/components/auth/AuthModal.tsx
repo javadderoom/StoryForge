@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/lib/context/AuthContext';
-import { Shield, Sparkles, X, Phone, Lock, User, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { Shield, Sparkles, X, Phone, Lock, User, Mail, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { notify } from '@/lib/notify';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
@@ -44,9 +46,14 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
         setError('رمز عبور باید حداقل ۶ کاراکتر باشد.');
         return;
       }
-      const result = await register(phone, password, name);
+      const result = await register(phone, password, name, email);
       setLoading(false);
       if (result.success) {
+        if (result.emailSent) {
+          notify.success('حساب شما ایجاد شد! پیوند تأیید به ایمیل شما ارسال شد.');
+        } else {
+          notify.success('حساب کاربری شما با موفقیت ایجاد گردید.');
+        }
         onSuccess?.();
         onClose();
       } else {
@@ -167,21 +174,40 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
           </div>
 
           {tab === 'register' && (
-            <div>
-              <label className="block text-xs text-slate-400 mb-1.5 font-medium">
-                نام ماجراجو (اختیاری)
-              </label>
-              <div className="relative">
-                <User className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500" />
-                <input
-                  type="text"
-                  placeholder="مثال: آریا"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-[#181B2C] border border-[#272A3C] rounded-xl py-2.5 pr-10 pl-4 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
-                />
+            <>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1.5 font-medium">
+                  نشانی ایمیل (اختیاری — جهت تأیید و بازیابی حساب)
+                </label>
+                <div className="relative">
+                  <Mail className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500" />
+                  <input
+                    type="email"
+                    dir="ltr"
+                    placeholder="name@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-[#181B2C] border border-[#272A3C] rounded-xl py-2.5 pr-10 pl-4 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 transition-colors text-right"
+                  />
+                </div>
               </div>
-            </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1.5 font-medium">
+                  نام ماجراجو (اختیاری)
+                </label>
+                <div className="relative">
+                  <User className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500" />
+                  <input
+                    type="text"
+                    placeholder="مثال: آریا"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-[#181B2C] border border-[#272A3C] rounded-xl py-2.5 pr-10 pl-4 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
+                  />
+                </div>
+              </div>
+            </>
           )}
 
           <button

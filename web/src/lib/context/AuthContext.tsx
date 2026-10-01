@@ -5,6 +5,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 export interface UserProfile {
   id: string;
   phoneNumber: string;
+  email?: string | null;
+  emailVerified?: boolean;
   name: string | null;
   role: string;
   creditBalance: number;
@@ -17,7 +19,12 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (phoneNumber: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (phoneNumber: string, password: string, name?: string) => Promise<{ success: boolean; error?: string }>;
+  register: (
+    phoneNumber: string,
+    password: string,
+    name?: string,
+    email?: string
+  ) => Promise<{ success: boolean; error?: string; emailSent?: boolean; message?: string }>;
   logout: () => void;
   refreshProfile: () => Promise<void>;
   updateCreditBalance: (newBalance: number) => void;
@@ -92,12 +99,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (phoneNumber: string, password: string, name?: string) => {
+  const register = async (
+    phoneNumber: string,
+    password: string,
+    name?: string,
+    email?: string
+  ) => {
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, password, name }),
+        body: JSON.stringify({ phoneNumber, password, name, email }),
       });
 
       const json = await res.json();
@@ -105,7 +117,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(TOKEN_STORAGE_KEY, json.token);
         setToken(json.token);
         setUser(json.user);
-        return { success: true };
+        return {
+          success: true,
+          emailSent: json.emailSent,
+          message: json.message,
+        };
       }
       return { success: false, error: json.error || 'ثبت‌نام ناموفق بود.' };
     } catch (e: any) {

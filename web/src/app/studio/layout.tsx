@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { StudioStoryProvider, useStudioStory } from '@/lib/context/StudioStoryContext';
-import { Toaster } from '@/lib/notify';
 import { StoryDetailsModal } from '@/components/studio/StoryDetailsModal';
 import { PublishGateNotice } from '@/components/studio/PublishGateNotice';
 import StudioOracleDrawer from '@/components/studio/StudioOracleDrawer';
@@ -328,8 +327,6 @@ function StudioShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#090a0f] text-zinc-100 flex flex-col md:flex-row antialiased selection:bg-amber-500/30 selection:text-amber-200">
-      <Toaster />
-
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-72 bg-[#0c0d14] border-r border-zinc-800/80 p-5 shrink-0 sticky top-0 h-screen overflow-y-auto z-40">
         {/* Header Branding */}

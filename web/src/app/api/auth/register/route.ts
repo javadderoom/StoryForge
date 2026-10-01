@@ -6,15 +6,21 @@ import {
   hashPassword,
   signJwt,
 } from '@/lib/auth/jwt';
+import {
+  generateVerificationToken,
+  getVerificationTokenExpiry,
+  getAppBaseUrl,
+  sendWelcomeVerificationEmail,
+} from '@/lib/email/client';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { phoneNumber, password, name, guestSessionId } = body;
+    const { phoneNumber, password, name, email, guestSessionId } = body;
 
     if (!phoneNumber || !password) {
       return NextResponse.json(
-        { success: false, error: 'Phone number and password are required.' },
+        { success: false, error: 'شماره موبایل و رمز عبور الزامی هستند.' },
         { status: 400 }
       );
     }
@@ -24,15 +30,27 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Invalid phone number format. Please enter a valid Iranian mobile number (e.g. 09121234567).',
+          error: 'فرمت شماره موبایل نامعتبر است. لطفاً یک شماره موبایل معتبر (مانند ۰۹۱۲۱۲۳۴۵۶۷) وارد کنید.',
         },
         { status: 400 }
       );
     }
 
+    let normalizedEmail: string | null = null;
+    if (email && typeof email === 'string' && email.trim().length > 0) {
+      normalizedEmail = email.trim().toLowerCase();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(normalizedEmail)) {
+        return NextResponse.json(
+          { success: false, error: 'فرمت نشانی ایمیل وارد شده معتبر نمی‌باشد.' },
+          { status: 400 }
+        );
+      }
+    }
+
     if (typeof password !== 'string' || password.length < 6) {
       return NextResponse.json(
-        { success: false, error: 'Password must be at least 6 characters long.' },
+        { success: false, error: 'رمز عبور باید حداقل ۶ کاراکتر باشد.' },
         { status: 400 }
       );
     }
@@ -40,25 +58,42 @@ export async function POST(req: Request) {
     const prisma = getPrisma();
     if (!prisma) {
       return NextResponse.json(
-        { success: false, error: 'Database service is currently unavailable.' },
+        { success: false, error: 'سرویس پایگاه داده در حال حاضر در دسترس نیست.' },
         { status: 503 }
       );
     }
 
-    // Check if user already exists
-    const existing = await prisma.user.findUnique({
+    // Check if phone already exists
+    const existingPhone = await prisma.user.findUnique({
       where: { phoneNumber: normalizedPhone },
     });
 
-    if (existing) {
+    if (existingPhone) {
       return NextResponse.json(
-        { success: false, error: 'An account with this phone number already exists.' },
+        { success: false, error: 'حسابی با این شماره موبایل از قبل وجود دارد.' },
         { status: 409 }
       );
     }
 
+    // Check if email already exists
+    if (normalizedEmail) {
+      const existingEmail = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+
+      if (existingEmail) {
+        return NextResponse.json(
+          { success: false, error: 'یک حساب کاربری با این نشانی ایمیل از قبل در سامانه ثبت شده است.' },
+          { status: 409 }
+        );
+      }
+    }
+
     const passwordHash = hashPassword(password);
     const initialCredits = 15; // Welcome bonus for new adventurers
+
+    const verificationToken = normalizedEmail ? generateVerificationToken() : null;
+    const tokenExpiry = normalizedEmail ? getVerificationTokenExpiry(24) : null;
 
     // Create user and welcome bonus ledger in transaction
     const newUser = await prisma.$transaction(async (tx) => {
@@ -67,6 +102,10 @@ export async function POST(req: Request) {
           phoneNumber: normalizedPhone,
           passwordHash,
           name: typeof name === 'string' && name.trim().length > 0 ? name.trim() : null,
+          email: normalizedEmail,
+          emailVerified: false,
+          emailVerificationToken: verificationToken,
+          emailVerificationTokenExpiresAt: tokenExpiry,
           role: 'READER',
           creditBalance: initialCredits,
           phoneVerified: false,
@@ -101,6 +140,24 @@ export async function POST(req: Request) {
       return { user: u, claimedGuestSession };
     });
 
+    let emailSent = false;
+    let emailError: string | undefined;
+
+    if (normalizedEmail && verificationToken) {
+      const baseUrl = getAppBaseUrl(req);
+      const verificationUrl = `${baseUrl}/auth/verify-email?token=${verificationToken}`;
+      const sendResult = await sendWelcomeVerificationEmail({
+        to: normalizedEmail,
+        name: newUser.user.name,
+        verificationUrl,
+      });
+      emailSent = sendResult.success;
+      if (!sendResult.success) {
+        emailError = sendResult.error;
+        console.warn('[register] Verification email sending error:', sendResult.error);
+      }
+    }
+
     const token = signJwt({
       userId: newUser.user.id,
       phoneNumber: newUser.user.phoneNumber,
@@ -110,6 +167,8 @@ export async function POST(req: Request) {
     const userProfile = {
       id: newUser.user.id,
       phoneNumber: newUser.user.phoneNumber,
+      email: newUser.user.email,
+      emailVerified: newUser.user.emailVerified,
       name: newUser.user.name,
       role: newUser.user.role,
       creditBalance: newUser.user.creditBalance,
@@ -121,7 +180,11 @@ export async function POST(req: Request) {
       token,
       user: userProfile,
       claimedGuestSession: newUser.claimedGuestSession,
-      message: 'Account created successfully with 15 bonus scene credits!',
+      emailSent,
+      emailError: emailError ? 'ایمیل تأیید ارسال نشد؛ می‌توانید بعداً مجدداً درخواست نمایید.' : undefined,
+      message: emailSent
+        ? 'حساب کاربری با موفقیت ساخته شد و ایمیل تأیید ارسال گردید.'
+        : 'حساب کاربری با موفقیت ساخته شد و ۱۵ صحنه رایگان دریافت کردید!',
     });
 
     // Set HTTP-only cookie for web clients
@@ -134,10 +197,11 @@ export async function POST(req: Request) {
     });
 
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error during registration.';
     console.error('Registration error:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Internal server error during registration.' },
+      { success: false, error: message },
       { status: 500 }
     );
   }

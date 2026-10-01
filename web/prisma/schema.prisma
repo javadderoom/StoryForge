@@ -127,9 +127,13 @@ model User {
   name           String?
   role           UserRole             @default(READER)
   creditBalance  Int                  @default(15)
-  phoneVerified  Boolean              @default(false)
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
+  phoneVerified                   Boolean              @default(false)
+  email                           String?              @unique
+  emailVerified                   Boolean              @default(false)
+  emailVerificationToken          String?              @unique
+  emailVerificationTokenExpiresAt DateTime?
+  createdAt                       DateTime             @default(now())
+  updatedAt                       DateTime             @updatedAt
 
   sessions       PlaythroughSession[]
   creditLedgers  UserCreditLedger[]

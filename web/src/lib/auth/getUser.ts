@@ -5,9 +5,11 @@ export interface AuthenticatedUser {
   id: string;
   phoneNumber: string;
   name: string | null;
+  email?: string | null;
   role: string;
   creditBalance: number;
   phoneVerified: boolean;
+  emailVerified?: boolean;
 }
 
 /**
@@ -54,9 +56,11 @@ export async function getAuthenticatedUser(
         id: payload.userId,
         phoneNumber: payload.phoneNumber,
         name: null,
+        email: null,
         role: payload.role || 'READER',
         creditBalance: 15,
         phoneVerified: false,
+        emailVerified: false,
       },
       payload,
     };
@@ -69,9 +73,11 @@ export async function getAuthenticatedUser(
         id: true,
         phoneNumber: true,
         name: true,
+        email: true,
         role: true,
         creditBalance: true,
         phoneVerified: true,
+        emailVerified: true,
       },
     });
 

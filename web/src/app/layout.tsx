@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Agentation } from 'agentation';
 import { AuthProvider } from '@/lib/context/AuthContext';
+import { Toaster } from '@/lib/notify';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -18,6 +19,7 @@ export default function RootLayout({
       <body className="min-h-full bg-[#090a0f] text-zinc-100 flex flex-col">
         <AuthProvider>
           {children}
+          <Toaster />
           {process.env.NODE_ENV === 'development' && <Agentation />}
         </AuthProvider>
       </body>
