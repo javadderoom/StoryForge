@@ -213,6 +213,7 @@ export function RollModifierEditor({
           {specs.map((spec, idx) => {
             const isEditing = editingIndex === idx;
             const desc = describeRollModifier(spec, isPersian);
+            const cleanDesc = desc.replace(/^[+-]?\s*\d+\s*/, '').trim() || desc;
             return (
               <div
                 key={idx}
@@ -233,7 +234,7 @@ export function RollModifierEditor({
                   >
                     {spec.modifier >= 0 ? `+${spec.modifier}` : spec.modifier}
                   </span>
-                  <span className="truncate text-[11px] font-medium text-zinc-300">{desc}</span>
+                  <span className="truncate text-[11px] font-medium text-zinc-300">{cleanDesc}</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <button

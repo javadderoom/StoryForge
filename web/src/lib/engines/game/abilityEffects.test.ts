@@ -407,6 +407,73 @@ test('requiredCategories gates passive roll modifier to matching structured cate
   assert.equal(meleeRes.totalModifier, 0);
 });
 
+test('describeRollModifier strips accidental leading modifier numbers to prevent "+1 +1" stutter', () => {
+  const lineFa = describeRollModifier(
+    { modifier: 1, labelFa: '+1 پاداش دفاع دیوار بارانداز در برابر پرتابه‌ها' },
+    true
+  );
+  assert.equal(lineFa, '+1 پاداش دفاع دیوار بارانداز در برابر پرتابه‌ها');
+
+  const lineEn = describeRollModifier(
+    { modifier: 1, labelEn: '+1 Wharf Wall Shield Projectile Defense' },
+    false
+  );
+  assert.equal(lineEn, '+1 Wharf Wall Shield Projectile Defense');
+});
+
+test('evaluateAbilityEffects formats single clean sign and evaluates passive roll modifiers on spells', () => {
+  const sys: { abilities: AbilityDefinition[] } = {
+    abilities: [
+      {
+        id: 'spell_mage_armor',
+        name: 'Mage Armor',
+        description: 'Passive ward protecting the mage',
+        type: 'passive_spell',
+        rollModifiers: [
+          {
+            modifier: 2,
+            labelEn: '+2 Arcane Warding',
+            labelFa: '+2 هالهٔ محافظتی ماورایی',
+          },
+        ],
+      },
+      {
+        id: 'spell_flame_attunement',
+        name: 'Flame Attunement',
+        description: 'Active spell that also provides a passive fire affinity aura',
+        type: 'active_spell',
+        activation: {
+          effects: [{ modifier: 4, labelEn: 'Fireball Blast' }],
+        },
+        rollModifiers: [
+          {
+            modifier: 1,
+            labelEn: '+1 Fire Affinity Aura',
+            labelFa: '+1 هالهٔ کشش آتش',
+          },
+        ],
+      },
+    ],
+  };
+
+  const ps = playerState({ abilities: ['spell_mage_armor', 'spell_flame_attunement'] });
+
+  // Passive check: both passive_spell and active_spell rollModifiers should apply passively
+  const result = evaluateAbilityEffects({
+    actionText: 'I walk through the doorway',
+    playerState: ps,
+    rpgSystem: sys,
+  });
+
+  assert.equal(result.totalModifier, 3);
+  assert.equal(result.contributions.length, 2);
+  assert.equal(result.contributions[0]?.reasonEn, '+2 Arcane Warding');
+  assert.equal(result.contributions[0]?.reasonFa, '+2 هالهٔ محافظتی ماورایی');
+  assert.equal(result.contributions[1]?.reasonEn, '+1 Fire Affinity Aura');
+  assert.equal(result.contributions[1]?.reasonFa, '+1 هالهٔ کشش آتش');
+});
+
+
 
 
 

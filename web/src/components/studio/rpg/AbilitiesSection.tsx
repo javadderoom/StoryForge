@@ -55,6 +55,14 @@ const ABILITY_TYPE_CONFIG: Record<
     border: 'border-amber-500/30',
     icon: '⚔️',
   },
+  passive_spell: {
+    labelEn: 'Passive Spell / Ward',
+    labelFa: 'طلسم غیرفعال / هاله',
+    color: 'text-indigo-300',
+    bg: 'bg-indigo-500/10',
+    border: 'border-indigo-500/30',
+    icon: '🔮',
+  },
   passive_skill: {
     labelEn: 'Passive Skill',
     labelFa: 'مهارت غیرفعال',
@@ -556,6 +564,9 @@ export function AbilitiesSection({
                     <option value="active_technique">
                       {isPersian ? '⚔️ تکنیک مبارزه (Technique)' : '⚔️ Combat Technique'}
                     </option>
+                    <option value="passive_spell">
+                      {isPersian ? '🔮 طلسم غیرفعال / هاله (Passive Spell)' : '🔮 Passive Spell / Ward'}
+                    </option>
                     <option value="passive_skill">
                       {isPersian ? '🛡️ مهارت غیرفعال (Skill)' : '🛡️ Passive Skill'}
                     </option>
@@ -686,8 +697,8 @@ export function AbilitiesSection({
                 </div>
               </div>
 
-              {/* Structured Roll Modifiers: Active Invocation or Passive specs */}
-              {form.type === 'active_spell' || form.type === 'active_technique' ? (
+              {/* Structured Roll Modifiers: Active Invocation Effects (for active spells & techniques) */}
+              {(form.type === 'active_spell' || form.type === 'active_technique') && (
                 <RollModifierEditor
                   specs={form.activation?.effects || []}
                   onChange={(effects) =>
@@ -703,33 +714,42 @@ export function AbilitiesSection({
                   isPersian={isPersian}
                   title={
                     isPersian
-                      ? 'اثرات فعال بر تاس هنگام اجرا (Invocation Effects)'
+                      ? 'اثرات فعال بر تاس هنگام اجرا (Active Invocation Effects)'
                       : 'Active Invocation Roll Effects'
                   }
                   subtitle={
                     isPersian
-                      ? 'پاداش‌هایی که هنگام اجرای این توانایی بر تاس آزمون اعمال می‌شوند.'
+                      ? 'پاداش‌هایی که هنگام اجرای این توانایی در نوبت جاری بر تاس آزمون اعمال می‌شوند.'
                       : 'Deterministic bonuses applied to the check when this active ability is invoked.'
                   }
                 />
-              ) : (
-                <RollModifierEditor
-                  specs={form.rollModifiers || []}
-                  onChange={(rollModifiers) => setForm({ ...form, rollModifiers })}
-                  stats={stats}
-                  isPersian={isPersian}
-                  title={
-                    isPersian
-                      ? 'اثرات غیرفعال بر تاس (Passive Roll Modifiers)'
-                      : 'Passive Structured Roll Modifiers'
-                  }
-                  subtitle={
-                    isPersian
-                      ? 'پاداش یا جریمه‌های قطعی که هنگام برقراری شروط مستقیماً به تاس آزمون افزوده می‌شوند.'
-                      : 'Deterministic modifiers folded directly into d20 checks whenever conditions match.'
-                  }
-                />
               )}
+
+              {/* Structured Roll Modifiers: Passive specs (for passive skills, passive spells, or passive auras on active abilities) */}
+              <RollModifierEditor
+                specs={form.rollModifiers || []}
+                onChange={(rollModifiers) => setForm({ ...form, rollModifiers })}
+                stats={stats}
+                isPersian={isPersian}
+                title={
+                  form.type === 'active_spell' || form.type === 'active_technique'
+                    ? isPersian
+                      ? 'اثرات غیرفعال پیوسته / هاله (Passive Roll Modifiers & Aura)'
+                      : 'Passive Roll Modifiers & Continuous Aura'
+                    : isPersian
+                    ? 'اثرات غیرفعال بر تاس (Passive Roll Modifiers)'
+                    : 'Passive Structured Roll Modifiers'
+                }
+                subtitle={
+                  form.type === 'active_spell' || form.type === 'active_technique'
+                    ? isPersian
+                      ? 'پاداش یا ویژگی‌های دائمی/پیوسته که داشتن این طلسم یا مهارت به شخصیت می‌دهد (حتی بدون نیاز به مصرف نوبت برای اجرا).'
+                      : 'Passive bonuses or aura always granted while this spell or ability is learned/active.'
+                    : isPersian
+                    ? 'پاداش یا جریمه‌های قطعی که هنگام برقراری شروط مستقیماً به تاس آزمون افزوده می‌شوند.'
+                    : 'Deterministic modifiers folded directly into d20 checks whenever conditions match.'
+                }
+              />
 
               {/* Class Gating (Archetype Restriction) */}
               <div className="space-y-2 p-4 rounded-2xl bg-zinc-950 border border-zinc-800">

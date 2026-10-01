@@ -24,7 +24,12 @@ export interface ResourceDefinition {
   color?: string; // UI accent color (e.g. #ef4444 for HP, #3b82f6 for Mana)
 }
 
-export type AbilityType = 'active_spell' | 'active_technique' | 'passive_skill' | 'passive_feat';
+export type AbilityType =
+  | 'active_spell'
+  | 'active_technique'
+  | 'passive_spell'
+  | 'passive_skill'
+  | 'passive_feat';
 
 export interface AbilityResourceCost {
   targetResourceId: string; // e.g. "mana", "stamina", "hp"
@@ -448,7 +453,7 @@ export const AbilityDefinitionSchema = z.object({
   id: z.string(),
   name: z.string().min(2),
   description: z.string(),
-  type: z.enum(['active_spell', 'active_technique', 'passive_skill', 'passive_feat']),
+  type: z.enum(['active_spell', 'active_technique', 'passive_spell', 'passive_skill', 'passive_feat']),
   icon: z.string().optional(),
   tier: z.number().int().optional(),
   linkedStatId: z.string().optional(),

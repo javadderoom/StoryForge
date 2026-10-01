@@ -125,7 +125,9 @@ export function describeRollModifier(spec: RollModifierSpec, isFa = false): stri
     const joiner = spec.matchMode === 'all' ? ' AND ' : ' OR ';
     gates.push(`"${spec.triggerKeywords.join(joiner)}"`);
   }
-  const label = ((isFa ? spec.labelFa : spec.labelEn) || '').trim();
+  let label = ((isFa ? spec.labelFa : spec.labelEn) || '').trim();
+  // Strip any accidental leading modifier prefix (like "+1", "-2", "+ 1") from label to prevent "+1 +1" stutter
+  label = label.replace(/^[+-]?\s*\d+\s*/, '').trim();
   const head = label ? `${sign}${spec.modifier} ${label}` : `${sign}${spec.modifier}`;
   return gates.length > 0 ? `${head} (${gates.join(', ')})` : head;
 }
@@ -425,14 +427,17 @@ export function evaluateAbilityEffects(ctx: AbilityEffectContext): AbilityEffect
     ownerName: string
   ) => {
     result.totalModifier += spec.modifier;
-    const fallback = `${spec.modifier >= 0 ? '+' : ''}${spec.modifier} ${ownerName}`;
+    const sign = spec.modifier >= 0 ? '+' : '';
+    const fallback = `${sign}${spec.modifier} ${ownerName}`;
+    const cleanLabelEn = (spec.labelEn || '').trim().replace(/^[+-]?\s*\d+\s*/, '').trim();
+    const cleanLabelFa = (spec.labelFa || '').trim().replace(/^[+-]?\s*\d+\s*/, '').trim();
     result.contributions.push({
       source,
       id: ownerId,
       name: ownerName,
       modifier: spec.modifier,
-      reasonEn: spec.labelEn?.trim() || fallback,
-      reasonFa: spec.labelFa?.trim() || fallback,
+      reasonEn: cleanLabelEn ? `${sign}${spec.modifier} ${cleanLabelEn}` : fallback,
+      reasonFa: cleanLabelFa ? `${sign}${spec.modifier} ${cleanLabelFa}` : fallback,
     });
   };
 
@@ -471,10 +476,10 @@ export function evaluateAbilityEffects(ctx: AbilityEffectContext): AbilityEffect
     }
   }
 
-  // --- Learned passive abilities ------------------------------------------
+  // --- Learned passive roll modifiers (passive abilities & passive spell effects) ---
   for (const ownedId of playerState?.abilities ?? []) {
     const ability = abilities.find((a) => a.id === ownedId || a.name === ownedId);
-    if (!ability || isActiveAbility(ability)) continue;
+    if (!ability) continue;
 
     const specs = ability.rollModifiers ?? [];
     if (specs.length === 0) continue;
