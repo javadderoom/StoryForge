@@ -15,6 +15,7 @@ class ShopScreen extends ConsumerStatefulWidget {
   static Future<void> open(BuildContext context) {
     return showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const ShopScreen(),
@@ -34,7 +35,11 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
   void initState() {
     super.initState();
     _loadPackages();
-    BazaarBillingService().init();
+    _initBilling();
+  }
+
+  Future<void> _initBilling() async {
+    await BazaarBillingService().init();
   }
 
   @override
@@ -66,13 +71,14 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     setState(() => _purchasingPackageId = pack.id);
     AudioService().playSfx(SfxType.buttonClick);
 
-    // Cafe Bazaar In-App Purchase Flow (Native via Poolakey with simulation fallback)
-    final result = await BazaarBillingService().purchaseProduct(
-      sku: pack.sku,
-      packageId: pack.id,
-    );
+    try {
+      // Cafe Bazaar In-App Purchase Flow (Native via Poolakey with fallback)
+      final result = await BazaarBillingService().purchaseProduct(
+        sku: pack.sku,
+        packageId: pack.id,
+      );
 
-    if (mounted) {
+      if (!mounted) return;
       setState(() => _purchasingPackageId = null);
 
       if (result.success) {
@@ -94,8 +100,23 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 4),
             content: Text(
               result.error ?? 'خطا در انجام تراکنش کافه‌بازار.',
+              style: GoogleFonts.vazirmatn(),
+            ),
+          ),
+        );
+      }
+    } catch (err) {
+      if (mounted) {
+        setState(() => _purchasingPackageId = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 4),
+            content: Text(
+              'خطا در پرداخت: $err',
               style: GoogleFonts.vazirmatn(),
             ),
           ),
@@ -216,135 +237,169 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                   ? const Center(
                       child: CircularProgressIndicator(color: Color(0xFFF59E0B)),
                     )
-                  : ListView.separated(
-                      itemCount: _packages.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 14),
-                      itemBuilder: (context, index) {
-                        final pack = _packages[index];
-                        final isPurchasing = _purchasingPackageId == pack.id;
-                        final hasBadge = pack.badge != null && pack.badge!.isNotEmpty;
-
-                        return Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF13172B),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: hasBadge ? const Color(0xFFF59E0B) : const Color(0xFF232845),
-                              width: hasBadge ? 1.5 : 1.0,
-                            ),
-                          ),
+                  : _packages.isEmpty
+                      ? Center(
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
+                              const Icon(Icons.cloud_off_rounded, color: Color(0xFF71717A), size: 42),
+                              const SizedBox(height: 12),
+                              Text(
+                                'خطا در دریافت لیست بسته‌های فروشگاه',
+                                style: GoogleFonts.vazirmatn(color: const Color(0xFFCBD5E1), fontSize: 13.5),
+                              ),
+                              const SizedBox(height: 14),
+                              ElevatedButton.icon(
+                                onPressed: _loadPackages,
+                                icon: const Icon(Icons.refresh_rounded, size: 16),
+                                label: Text('تلاش مجدد', style: GoogleFonts.vazirmatn(fontWeight: FontWeight.bold)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF232845),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: _packages.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 14),
+                          itemBuilder: (context, index) {
+                            final pack = _packages[index];
+                            final isPurchasing = _purchasingPackageId == pack.id;
+                            final hasBadge = pack.badge != null && pack.badge!.isNotEmpty;
+
+                            return Material(
+                              color: const Color(0xFF13172B),
+                              borderRadius: BorderRadius.circular(20),
+                              child: InkWell(
+                                onTap: isPurchasing ? null : () => _handlePurchase(pack),
+                                borderRadius: BorderRadius.circular(20),
+                                splashColor: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                highlightColor: const Color(0xFFF59E0B).withValues(alpha: 0.08),
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: hasBadge ? const Color(0xFFF59E0B) : const Color(0xFF232845),
+                                      width: hasBadge ? 1.5 : 1.0,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: const Icon(Icons.auto_stories, color: Color(0xFFF59E0B), size: 20),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(8),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: const Icon(Icons.auto_stories, color: Color(0xFFF59E0B), size: 20),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    pack.title,
+                                                    style: GoogleFonts.vazirmatn(
+                                                      fontSize: 15,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '${PersianNumbers.toPersian(pack.credits)} صحنه روایت تعاملی هوش مصنوعی',
+                                                    style: GoogleFonts.vazirmatn(
+                                                      fontSize: 12,
+                                                      color: const Color(0xFF94A3B8),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                          if (hasBadge)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF59E0B),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                pack.badge!,
+                                                style: GoogleFonts.vazirmatn(
+                                                  fontSize: 10.5,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: const Color(0xFF0F111D),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
-                                      const SizedBox(width: 10),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        pack.description,
+                                        style: GoogleFonts.vazirmatn(fontSize: 12.5, color: const Color(0xFFCBD5E1)),
+                                      ),
+                                      const SizedBox(height: 14),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
-                                            pack.title,
+                                            '${_formatNumber(pack.priceToman)} تومان',
                                             style: GoogleFonts.vazirmatn(
-                                              fontSize: 15,
+                                              fontSize: 16,
                                               fontWeight: FontWeight.bold,
-                                              color: Colors.white,
+                                              color: const Color(0xFFFBBF24),
                                             ),
                                           ),
-                                          Text(
-                                            '${PersianNumbers.toPersian(pack.credits)} صحنه روایت تعاملی هوش مصنوعی',
-                                            style: GoogleFonts.vazirmatn(
-                                              fontSize: 12,
-                                              color: const Color(0xFF94A3B8),
+                                          ElevatedButton(
+                                            onPressed: isPurchasing ? null : () => _handlePurchase(pack),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: const Color(0xFFF59E0B),
+                                              foregroundColor: const Color(0xFF0F111D),
+                                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                              elevation: 0,
                                             ),
+                                            child: isPurchasing
+                                                ? const SizedBox(
+                                                    width: 16,
+                                                    height: 16,
+                                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F111D)),
+                                                  )
+                                                : Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      const Icon(Icons.shopping_cart_checkout_rounded, size: 16),
+                                                      const SizedBox(width: 6),
+                                                      Text(
+                                                        'خرید بسته',
+                                                        style: GoogleFonts.vazirmatn(
+                                                          fontSize: 13,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                           ),
                                         ],
                                       ),
                                     ],
                                   ),
-                                  if (hasBadge)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF59E0B),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        pack.badge!,
-                                        style: GoogleFonts.vazirmatn(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.bold,
-                                          color: const Color(0xFF0F111D),
-                                        ),
-                                      ),
-                                    ),
-                                ],
+                                ),
                               ),
-                              const SizedBox(height: 12),
-                              Text(
-                                pack.description,
-                                style: GoogleFonts.vazirmatn(fontSize: 12.5, color: const Color(0xFFCBD5E1)),
-                              ),
-                              const SizedBox(height: 14),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    '${_formatNumber(pack.priceToman)} تومان',
-                                    style: GoogleFonts.vazirmatn(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: const Color(0xFFFBBF24),
-                                    ),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: isPurchasing ? null : () => _handlePurchase(pack),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFF59E0B),
-                                      foregroundColor: const Color(0xFF0F111D),
-                                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      elevation: 0,
-                                    ),
-                                    child: isPurchasing
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F111D)),
-                                          )
-                                        : Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(Icons.shopping_cart_checkout_rounded, size: 16),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                'خرید با کافه‌بازار',
-                                                style: GoogleFonts.vazirmatn(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+                            );
+                          },
+                        ),
             ),
           ],
         ),

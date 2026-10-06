@@ -9,7 +9,7 @@ class BillingService {
   static Future<List<CreditPackage>> fetchPackages() async {
     try {
       final url = Uri.parse('${GameApiService.baseUrl}/api/billing/packages');
-      final response = await http.get(url);
+      final response = await http.get(url).timeout(const Duration(seconds: 6));
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
@@ -85,7 +85,7 @@ class BillingService {
           'purchaseToken': purchaseToken,
           'packageId': packageId,
         }),
-      );
+      ).timeout(const Duration(seconds: 12));
 
       final json = jsonDecode(response.body);
       if (response.statusCode == 200 && json['success'] == true) {

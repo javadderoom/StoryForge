@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_poolakey/flutter_poolakey.dart';
@@ -32,42 +33,81 @@ class BazaarBillingService {
 
   bool _isInitialized = false;
   bool _isConnected = false;
+  Completer<bool>? _connectCompleter;
   String? _rsaKey;
 
   bool get isSupportedPlatform => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
   bool get isConnected => _isConnected;
+  bool get isInitialized => _isInitialized;
 
   /// Initializes connection to Cafe Bazaar In-App Billing on Android
-  Future<bool> init({String? rsaKey}) async {
+  Future<bool> init({String? rsaKey, Duration timeout = const Duration(seconds: 5)}) async {
     _rsaKey = rsaKey ?? defaultRsaKey;
+
     if (!isSupportedPlatform) {
-      debugPrint('[BazaarBillingService] Platform not Android. Operating in simulation mode.');
+      debugPrint('[BazaarBillingService] Platform is not Android. Running in simulation mode.');
       _isInitialized = true;
+      _isConnected = true;
       return true;
     }
 
+    if (_isConnected) {
+      debugPrint('[BazaarBillingService] Already connected to Cafe Bazaar billing.');
+      return true;
+    }
+
+    if (_connectCompleter != null && !_connectCompleter!.isCompleted) {
+      debugPrint('[BazaarBillingService] Connection already in progress, awaiting existing completer...');
+      return _connectCompleter!.future;
+    }
+
+    _connectCompleter = Completer<bool>();
+
     try {
+      debugPrint('[BazaarBillingService] Initializing FlutterPoolakey.connect...');
       await FlutterPoolakey.connect(
         _rsaKey,
         onSucceed: () {
           debugPrint('[BazaarBillingService] Connected to Cafe Bazaar billing successfully.');
           _isConnected = true;
+          _isInitialized = true;
+          if (_connectCompleter != null && !_connectCompleter!.isCompleted) {
+            _connectCompleter!.complete(true);
+          }
         },
         onFailed: () {
           debugPrint('[BazaarBillingService] Failed to connect to Cafe Bazaar billing.');
           _isConnected = false;
+          _isInitialized = true;
+          if (_connectCompleter != null && !_connectCompleter!.isCompleted) {
+            _connectCompleter!.complete(false);
+          }
         },
         onDisconnected: () {
           debugPrint('[BazaarBillingService] Disconnected from Cafe Bazaar.');
           _isConnected = false;
         },
       );
+
+      // Wait for onSucceed or onFailed callback to trigger
+      final success = await _connectCompleter!.future.timeout(
+        timeout,
+        onTimeout: () {
+          debugPrint('[BazaarBillingService] Connection callback timed out after ${timeout.inSeconds}s. Connected=$_isConnected');
+          _isInitialized = true;
+          return _isConnected;
+        },
+      );
+
       _isInitialized = true;
-      return true;
+      return success;
     } catch (e) {
-      debugPrint('[BazaarBillingService] Poolakey init error: $e');
+      debugPrint('[BazaarBillingService] Poolakey init exception: $e');
       _isConnected = false;
       _isInitialized = true;
+      if (_connectCompleter != null && !_connectCompleter!.isCompleted) {
+        _connectCompleter!.complete(false);
+      }
       return false;
     }
   }
@@ -77,15 +117,18 @@ class BazaarBillingService {
     required String sku,
     required String packageId,
   }) async {
-    if (!_isInitialized) {
+    if (isSupportedPlatform && !_isConnected) {
+      debugPrint('[BazaarBillingService] Not currently connected. Attempting connect before purchase...');
       await init(rsaKey: _rsaKey);
     }
 
     // 1. Native Android In-App Purchase Flow (Real Device with Cafe Bazaar)
     if (isSupportedPlatform && _isConnected) {
       try {
+        debugPrint('[BazaarBillingService] Initiating native purchase for SKU: $sku');
         final purchaseInfo = await FlutterPoolakey.purchase(sku);
         final purchaseToken = purchaseInfo.purchaseToken;
+        debugPrint('[BazaarBillingService] Native purchase succeeded! Token: $purchaseToken');
 
         // Verify token with backend
         final verification = await BillingService.verifyBazaarPurchase(
@@ -116,12 +159,27 @@ class BazaarBillingService {
           );
         }
       } catch (e) {
-        debugPrint('[BazaarBillingService] Native purchase error: $e');
+        debugPrint('[BazaarBillingService] Native purchase exception: $e');
+        final errText = e.toString().toLowerCase();
+        if (errText.contains('cancel') || errText.contains('purchase_cancelled')) {
+          return const BazaarPurchaseResult(
+            success: false,
+            error: 'عملیات خرید از کافه‌بازار توسط کاربر لغو گردید.',
+          );
+        }
         return BazaarPurchaseResult(
           success: false,
-          error: 'عملیات خرید از کافه‌بازار لغو شد یا با خطا مواجه گردید.',
+          error: 'خطا در ارتباط با درگاه پرداخت کافه‌بازار ($e). لطفاً برنامه کافه‌بازار را به‌روزرسانی کنید.',
         );
       }
+    }
+
+    // On Android, if connection to Cafe Bazaar failed, inform the user clearly
+    if (isSupportedPlatform && !_isConnected) {
+      return const BazaarPurchaseResult(
+        success: false,
+        error: 'امکان اتصال به سرویس پرداخت کافه‌بازار وجود ندارد. لطفاً مطمئن شوید برنامه کافه‌بازار نصب و به‌روز است.',
+      );
     }
 
     // 2. Fallback Simulation (Development, Emulators without Bazaar, or Desktop/Web)
@@ -157,6 +215,8 @@ class BazaarBillingService {
       try {
         await FlutterPoolakey.disconnect();
         _isConnected = false;
+        _isInitialized = false;
+        _connectCompleter = null;
       } catch (_) {}
     }
   }

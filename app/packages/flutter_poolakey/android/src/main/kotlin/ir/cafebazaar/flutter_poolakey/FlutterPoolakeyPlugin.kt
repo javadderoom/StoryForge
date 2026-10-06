@@ -114,31 +114,42 @@ class FlutterPoolakeyPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     }
 
     private fun connect(inAppBillingKey: String?, result: Result) {
-        val securityCheck = if (inAppBillingKey != null) {
-            SecurityCheck.Enable(rsaPublicKey = inAppBillingKey)
-        } else {
-            SecurityCheck.Disable
-        }
-        val paymentConfiguration = PaymentConfiguration(localSecurityCheck = securityCheck)
+        try {
+            val securityCheck = if (inAppBillingKey != null) {
+                SecurityCheck.Enable(rsaPublicKey = inAppBillingKey)
+            } else {
+                SecurityCheck.Disable
+            }
+            val paymentConfiguration = PaymentConfiguration(localSecurityCheck = securityCheck)
 
-        payment = Payment(context = requireActivity, config = paymentConfiguration)
+            payment = Payment(context = requireActivity, config = paymentConfiguration)
 
-        paymentConnection = payment.connect {
-            connectionSucceed {
-                channel.invokeMethod("connectionSucceed", null)
+            paymentConnection = payment.connect {
+                connectionSucceed {
+                    channel.invokeMethod("connectionSucceed", null)
+                }
+                connectionFailed {
+                    channel.invokeMethod("connectionFailed", it.toString(), null)
+                }
+                disconnected {
+                    channel.invokeMethod("disconnected", null)
+                }
             }
-            connectionFailed {
-                channel.invokeMethod("connectionFailed", it.toString(), null)
-            }
-            disconnected {
-                channel.invokeMethod("disconnected", null)
-            }
+            result.success(null)
+        } catch (e: Exception) {
+            result.error("CONNECT_EXCEPTION", e.message, null)
         }
     }
 
     private fun disconnect(result: Result) {
-        paymentConnection.disconnect()
-        result.success(null)
+        try {
+            if (::paymentConnection.isInitialized) {
+                paymentConnection.disconnect()
+            }
+            result.success(null)
+        } catch (e: Exception) {
+            result.error("DISCONNECT_EXCEPTION", e.message, null)
+        }
     }
 
     fun startActivity(
@@ -151,7 +162,7 @@ class FlutterPoolakeyPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         dynamicPriceToken: String
         ?
     ) {
-        if (paymentConnection.getState() != ConnectionState.Connected) {
+        if (!::paymentConnection.isInitialized || paymentConnection.getState() != ConnectionState.Connected) {
             result.error("PURCHASE_FAILED", "In order to purchasing, connect to Poolakey!", null)
             return
         }
