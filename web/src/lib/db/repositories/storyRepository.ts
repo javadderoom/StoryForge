@@ -13,6 +13,8 @@ import {
   NPCDramaBond,
   WorldOntology,
   FactionRelation,
+  WorldTradeRoute,
+  WorldMapData,
 } from '@/lib/types/world';
 
 const isDatabaseActive = process.env.ENABLE_DB === 'true';
@@ -28,6 +30,7 @@ export interface WorldListItem {
 
 function toWorldBible(wb: any): WorldBible | null {
   if (!wb) return null;
+  const ontology = (wb.ontology as unknown as WorldOntology) || undefined;
   return {
     worldId: wb.worldId || wb.id,
     worldName: wb.worldName,
@@ -43,8 +46,10 @@ function toWorldBible(wb: any): WorldBible | null {
     religions: (wb.religions as unknown as WorldDeity[]) || [],
     dramaBonds: (wb.dramaBonds as unknown as NPCDramaBond[]) || [],
     factionRelations: (wb.factionRelations as unknown as FactionRelation[]) || [],
-    ontology: (wb.ontology as unknown as WorldOntology) || undefined,
+    ontology,
     customRelations: [],
+    tradeRoutes: (wb.tradeRoutes as unknown as WorldTradeRoute[]) || (wb.ontology?.tradeRoutes as unknown as WorldTradeRoute[]) || [],
+    mapData: (wb.mapData as unknown as WorldMapData) || ontology?.mapData || undefined,
   };
 }
 

@@ -43,6 +43,7 @@ import {
   ListChecks,
   Route,
   FlaskConical,
+  Compass,
 } from 'lucide-react';
 
 function StudioShell({ children }: { children: React.ReactNode }) {
@@ -95,6 +96,13 @@ function StudioShell({ children }: { children: React.ReactNode }) {
       shortLabel: isPersian ? 'تجارت' : 'Trade',
       icon: Route,
       count: story.worldBible.tradeRoutes?.length || 0,
+    },
+    {
+      href: '/cartographer',
+      label: isPersian ? 'نقشه‌نگار تعاملی جهان' : 'World Cartographer',
+      shortLabel: isPersian ? 'نقشه‌نگار' : 'Atlas',
+      icon: Compass,
+      isSpecial: true,
     },
     {
       href: '/studio/lore-graph',

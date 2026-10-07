@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import {
   Route,
@@ -15,6 +16,7 @@ import {
   ArrowRight,
   Skull,
   Sparkles,
+  Compass,
 } from 'lucide-react';
 import {
   WorldTradeRoute,
@@ -256,13 +258,23 @@ export default function TradeStudioPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold transition-all shadow-lg shadow-amber-500/20 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          {isPersian ? 'شاهراه جدید' : 'New Route'}
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/cartographer"
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold transition-all shadow-lg shadow-amber-950/20"
+            title={isPersian ? 'ترسیم مسیرها روی نقشه جهان' : 'Draw routes on Interactive World Map'}
+          >
+            <Compass className="w-4 h-4 text-amber-400" />
+            <span>{isPersian ? 'نقشه‌نگار تعاملی' : 'World Cartographer'}</span>
+          </Link>
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold transition-all shadow-lg shadow-amber-500/20 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            {isPersian ? 'شاهراه جدید' : 'New Route'}
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

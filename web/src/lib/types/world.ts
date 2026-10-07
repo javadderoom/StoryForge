@@ -187,6 +187,10 @@ export interface WorldLocation {
   /** Plan 13: default threat clock spawned when entering this zone without an active clock. */
   threatClockDefault?: ThreatClockDefault;
   imageUrl?: string;
+  /** Cartographer: coordinates on world map (normalized or pixel canvas coordinates) */
+  coordinates?: { x: number; y: number };
+  mapIcon?: string;
+  elevation?: number;
 }
 
 /**
@@ -446,6 +450,8 @@ export interface NPCDossier {
     rank: number;
     title?: string;
   }>;
+  /** Cartographer: coordinates on world map */
+  mapCoordinates?: { x: number; y: number };
 }
 
 export interface ArtifactVaultLore {
@@ -631,6 +637,115 @@ export interface WorldOntology {
   lawCategories: CustomLawCategory[];
   npcRoles: CustomNPCRole[];
   domains: CustomDomain[];
+  mapData?: WorldMapData;
+}
+
+// ----------------------------------------------------
+// Cartographer & Interactive World Map Specification
+// ----------------------------------------------------
+
+export type MapTerrainType =
+  | 'continent'
+  | 'island'
+  | 'ocean'
+  | 'sea'
+  | 'lake'
+  | 'river'
+  | 'mountain_range'
+  | 'peak'
+  | 'volcano'
+  | 'valley'
+  | 'canyon'
+  | 'chasm'
+  | 'forest'
+  | 'desert'
+  | 'tundra'
+  | 'swamp'
+  | 'wasteland'
+  | 'plains'
+  | 'oasis'
+  | 'arcane_anomaly';
+
+export interface MapPoint {
+  x: number;
+  y: number;
+}
+
+export interface MapTerrainFeature {
+  id: string;
+  name: string;
+  type: MapTerrainType;
+  color?: string;
+  x?: number;
+  y?: number;
+  radius?: number;
+  elevation?: number; // e.g. -500 to +4500 meters
+  points?: MapPoint[]; // polyline for rivers / ridges / valleys
+  width?: number;
+  polygon?: MapPoint[]; // polygon boundary for landmasses, biomes, water bodies
+  description?: string;
+  climateZone?: 'polar' | 'temperate' | 'arid' | 'tropical' | 'mystical';
+}
+
+export type MapEntityPlacementType =
+  | 'location'
+  | 'npc'
+  | 'bestiary'
+  | 'artifact'
+  | 'deity'
+  | 'timeline'
+  | 'faction_outpost';
+
+export interface MapEntityPlacement {
+  id: string;
+  entityId: string;
+  entityType: MapEntityPlacementType;
+  x: number;
+  y: number;
+  customLabel?: string;
+  customIcon?: string;
+  notes?: string;
+}
+
+export type MapStyleTheme =
+  | 'parchment'      // Antique hand-drawn cartography
+  | 'topographic'    // Hypsometric elevation contour map
+  | 'dark_fantasy'   // Bioluminescent nocturnal sorcery
+  | 'satellite'      // Orbital high-altitude planetary scan
+  | 'mystic_astral'; // Constellation celestial realm
+
+export interface WorldMapSettings {
+  width: number;
+  height: number;
+  theme: MapStyleTheme;
+  gridType: 'none' | 'square' | 'hex';
+  gridSize: number;
+  showGridCoordinates: boolean;
+  visibleLayers: {
+    terrain: boolean;
+    water: boolean;
+    mountains: boolean;
+    valleys: boolean;
+    biomes: boolean;
+    settlements: boolean;
+    caravanRoutes: boolean;
+    npcs: boolean;
+    bestiary: boolean;
+    relics: boolean;
+    deities: boolean;
+    timeline: boolean;
+    factionBorders: boolean;
+    labels: boolean;
+    grid: boolean;
+  };
+}
+
+export interface WorldMapData {
+  version: number;
+  settings: WorldMapSettings;
+  terrainFeatures: MapTerrainFeature[];
+  placements: MapEntityPlacement[];
+  notes?: string;
 }
 
 export interface PowerRankAdvancementCost {
@@ -693,6 +808,8 @@ export interface WorldBible {
   tradeRoutes?: WorldTradeRoute[];
   /** Power systems: distinct traditions of power with custom rankings and breakthroughs. */
   powerSchools?: PowerSchool[];
+  /** Cartographer: graphical map layers, terrain features, physical planetary geography, pins */
+  mapData?: WorldMapData;
 }
 
 // ----------------------------------------------------
@@ -1000,6 +1117,9 @@ export const WorldLocationSchema = z.object({
   hazardFallbackLocationId: z.string().min(1).optional(),
   threatClockDefault: ThreatClockDefaultSchema.optional(),
   imageUrl: z.string().optional(),
+  coordinates: z.object({ x: z.number(), y: z.number() }).optional(),
+  mapIcon: z.string().optional(),
+  elevation: z.number().optional(),
 });
 
 
@@ -1125,6 +1245,7 @@ export const NPCDossierSchema = z.object({
     rank: z.number().int().min(1),
     title: z.string().optional(),
   })).optional().default([]),
+  mapCoordinates: z.object({ x: z.number(), y: z.number() }).optional(),
 });
 
 // ----------------------------------------------------
@@ -1293,6 +1414,7 @@ export const WorldTradeRouteSchema = z.object({
   disruptionReason: z.string().optional(),
   smugglingRiskDC: z.number().min(8).max(25).optional(),
   secretLore: z.string().optional(),
+  waypoints: z.array(z.object({ x: z.number(), y: z.number() })).optional().default([]),
 });
 
 export interface WorldTradeRoute {
@@ -1311,6 +1433,8 @@ export interface WorldTradeRoute {
   disruptionReason?: string;
   smugglingRiskDC?: number;
   secretLore?: string;
+  /** Cartographer: visual intermediate road/caravan waypoints on canvas */
+  waypoints?: Array<{ x: number; y: number }>;
 }
 
 export const PowerRankAdvancementCostSchema = z.object({
@@ -1346,6 +1470,56 @@ export const PowerSchoolSchema = z.object({
   ranks: z.array(PowerRankSchema).default([]),
 });
 
+export const MapPointSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+});
+
+export const MapTerrainFeatureSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  type: z.string(),
+  color: z.string().optional(),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  radius: z.number().optional(),
+  elevation: z.number().optional(),
+  points: z.array(MapPointSchema).optional(),
+  width: z.number().optional(),
+  polygon: z.array(MapPointSchema).optional(),
+  description: z.string().optional(),
+  climateZone: z.enum(['polar', 'temperate', 'arid', 'tropical', 'mystical']).optional(),
+});
+
+export const MapEntityPlacementSchema = z.object({
+  id: z.string().min(1),
+  entityId: z.string().min(1),
+  entityType: z.enum(['location', 'npc', 'bestiary', 'artifact', 'deity', 'timeline', 'faction_outpost']),
+  x: z.number(),
+  y: z.number(),
+  customLabel: z.string().optional(),
+  customIcon: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export const WorldMapSettingsSchema = z.object({
+  width: z.number().default(2400),
+  height: z.number().default(1600),
+  theme: z.enum(['parchment', 'topographic', 'dark_fantasy', 'satellite', 'mystic_astral']).default('parchment'),
+  gridType: z.enum(['none', 'square', 'hex']).default('none'),
+  gridSize: z.number().default(40),
+  showGridCoordinates: z.boolean().default(false),
+  visibleLayers: z.record(z.boolean()).default({}),
+});
+
+export const WorldMapDataSchema = z.object({
+  version: z.number().default(1),
+  settings: WorldMapSettingsSchema,
+  terrainFeatures: z.array(MapTerrainFeatureSchema).default([]),
+  placements: z.array(MapEntityPlacementSchema).default([]),
+  notes: z.string().optional(),
+});
+
 export const WorldBibleSchema = z.object({
   worldId: z.string(),
   worldName: z.string().min(2),
@@ -1368,6 +1542,7 @@ export const WorldBibleSchema = z.object({
   quests: z.array(WorldQuestSchema).default([]),
   tradeRoutes: z.array(WorldTradeRouteSchema).default([]),
   powerSchools: z.array(PowerSchoolSchema).default([]),
+  mapData: WorldMapDataSchema.optional(),
 });
 
 export const PopulateLocationSchema = z.object({
