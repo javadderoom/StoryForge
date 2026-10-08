@@ -75,6 +75,7 @@ model WorldBible {
   religions   Json     @default("[]")
   dramaBonds  Json     @default("[]")
   factionRelations Json @default("[]")
+  tradeRoutes Json     @default("[]")
   ontology    Json     @default("{}")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

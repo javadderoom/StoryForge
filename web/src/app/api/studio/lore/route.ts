@@ -71,6 +71,10 @@ export async function GET(req: NextRequest) {
         const data = await StoryRepository.getOntology(storyId);
         return NextResponse.json({ success: true, resource, data });
       }
+      case 'tradeRoutes': {
+        const data = await StoryRepository.getTradeRoutes(storyId);
+        return NextResponse.json({ success: true, resource, data });
+      }
       default:
         return NextResponse.json(
           { success: false, error: `Unsupported resource type: ${resource}` },
@@ -111,6 +115,7 @@ export async function PATCH(req: NextRequest) {
       'religions',
       'dramaBonds',
       'ontology',
+      'tradeRoutes',
     ];
 
     if (!validCollections.includes(resource)) {
