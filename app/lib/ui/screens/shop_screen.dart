@@ -34,7 +34,26 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
   void initState() {
     super.initState();
     _loadPackages();
-    BazaarBillingService().init();
+    _initBillingAndCheckPending();
+  }
+
+  Future<void> _initBillingAndCheckPending() async {
+    await BazaarBillingService().init();
+    final recovered = await BazaarBillingService().syncPendingPurchases();
+    if (recovered.isNotEmpty && mounted) {
+      await ref.read(authProvider.notifier).refreshProfile();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF10B981),
+            content: Text(
+              'خریدهای قبلی شما با موفقیت بازیابی و صحنه‌ها به حسابتان افزوده شدند.',
+              style: GoogleFonts.vazirmatn(),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -70,6 +89,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     final result = await BazaarBillingService().purchaseProduct(
       sku: pack.sku,
       packageId: pack.id,
+      packCredits: pack.credits,
     );
 
     if (mounted) {
@@ -79,6 +99,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         AudioService().playSfx(SfxType.diceSuccess);
         final newBalance = result.newBalance ?? (authState.user?.creditBalance ?? 0) + pack.credits;
         ref.read(authProvider.notifier).updateCreditBalance(newBalance);
+        ref.read(authProvider.notifier).refreshProfile();
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
