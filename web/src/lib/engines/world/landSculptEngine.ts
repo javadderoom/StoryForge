@@ -74,19 +74,38 @@ export function makeRng(seed: number): () => number {
 }
 
 // Module-level noise cache for zero allocation overhead during 60 FPS painting
+export const MAX_NOISE_CACHE_SIZE = 64;
 const noiseCache = new Map<number, NoiseFunction2D>();
 const defaultNoise: NoiseFunction2D = createNoise2D();
 
 /**
+ * Returns current size of noiseCache (for testing & diagnostics).
+ */
+export function getNoiseCacheSize(): number {
+  return noiseCache.size;
+}
+
+/**
  * Retrieves a cached NoiseFunction2D instance for the given seed.
+ * Implements LRU eviction capped at MAX_NOISE_CACHE_SIZE (64).
  */
 export function getNoiseFunction(seed?: number): NoiseFunction2D {
   if (seed === undefined) return defaultNoise;
   let noise = noiseCache.get(seed);
-  if (!noise) {
-    noise = createNoise2D(makeRng(seed));
+  if (noise) {
+    // Refresh for LRU ordering
+    noiseCache.delete(seed);
     noiseCache.set(seed, noise);
+    return noise;
   }
+  if (noiseCache.size >= MAX_NOISE_CACHE_SIZE) {
+    const oldestKey = noiseCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      noiseCache.delete(oldestKey);
+    }
+  }
+  noise = createNoise2D(makeRng(seed));
+  noiseCache.set(seed, noise);
   return noise;
 }
 
@@ -185,9 +204,45 @@ export function doAABBIntersect(b1: BoundingBox, b2: BoundingBox): boolean {
   return !(b2.minX > b1.maxX || b2.maxX < b1.minX || b2.minY > b1.maxY || b2.maxY < b1.minY);
 }
 
+/**
+ * Calculates centroid of a polygon ring by vertex averaging.
+ */
+export function getPolygonCentroid(points: MapPoint[]): MapPoint {
+  if (points.length === 0) return { x: 0, y: 0 };
+  let sumX = 0;
+  let sumY = 0;
+  for (let i = 0; i < points.length; i++) {
+    sumX += points[i].x;
+    sumY += points[i].y;
+  }
+  return { x: sumX / points.length, y: sumY / points.length };
+}
+
+/**
+ * Tests whether a 2D point is inside a polygon ring using ray casting.
+ */
+export function isPointInPolygon(point: MapPoint, polygon: MapPoint[]): boolean {
+  let inside = false;
+  const n = polygon.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = polygon[i].x;
+    const yi = polygon[i].y;
+    const xj = polygon[j].x;
+    const yj = polygon[j].y;
+
+    const intersect =
+      yi > point.y !== yj > point.y &&
+      point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
 // ============================================================================
 // 2. STROKE INTERPOLATION & ORGANIC STAMP GENERATION
 // ============================================================================
+
+export const MAX_INTERPOLATION_STEPS = 2000;
 
 /**
  * Interpolates discrete mouse pointer movements into dense sub-step coordinates.
@@ -210,6 +265,21 @@ export function interpolateStrokePoints(
       ? optionsOrIncludeStart
       : optionsOrIncludeStart?.includeStart ?? true;
 
+  // Guard against non-finite (NaN, Infinity) coordinates
+  if (
+    !p0 ||
+    !p1 ||
+    !Number.isFinite(p0.x) ||
+    !Number.isFinite(p0.y) ||
+    !Number.isFinite(p1.x) ||
+    !Number.isFinite(p1.y)
+  ) {
+    if (!includeStart) return [];
+    const safeX = Number.isFinite(p0?.x) ? Math.round(p0.x) : 0;
+    const safeY = Number.isFinite(p0?.y) ? Math.round(p0.y) : 0;
+    return [{ x: safeX, y: safeY }];
+  }
+
   const dx = p1.x - p0.x;
   const dy = p1.y - p0.y;
   const dist = Math.hypot(dx, dy);
@@ -217,12 +287,16 @@ export function interpolateStrokePoints(
   const roundedP0: MapPoint = { x: Math.round(p0.x), y: Math.round(p0.y) };
   const roundedP1: MapPoint = { x: Math.round(p1.x), y: Math.round(p1.y) };
 
-  if (dist === 0) {
+  if (dist === 0 || !Number.isFinite(dist)) {
     return includeStart ? [roundedP0] : [];
   }
 
-  const effectiveStep = Math.max(1, stepSize || 10);
-  const steps = Math.max(1, Math.ceil(dist / effectiveStep));
+  const effectiveStep = Math.max(1, Number.isFinite(stepSize) && stepSize > 0 ? stepSize : 10);
+  const rawSteps = Math.ceil(dist / effectiveStep);
+  const steps = Math.min(
+    MAX_INTERPOLATION_STEPS,
+    Math.max(1, Number.isFinite(rawSteps) ? rawSteps : 1)
+  );
   const points: MapPoint[] = [];
 
   const startIdx = includeStart ? 0 : 1;
@@ -681,18 +755,19 @@ export function applySculptOperation(
   const minArea = options?.minArea ?? MIN_FEATURE_AREA;
   const minHoleArea = options?.minHoleArea ?? MIN_HOLE_AREA;
 
-  // 1. Separate landmasses from non-land features (mountains, rivers, biomes, etc.)
+  // 1. Separate landmasses, existing lakes, and other non-land features
   const landFeatures = existingFeatures.filter(
     (f) =>
       (f.type === 'continent' || f.type === 'island') &&
       f.polygon &&
       f.polygon.length >= 3
   );
-  const nonLandFeatures = existingFeatures.filter(
+  const existingLakeFeatures = existingFeatures.filter((f) => f.type === 'lake');
+  const otherNonLandFeatures = existingFeatures.filter(
     (f) =>
       f.type !== 'continent' &&
       f.type !== 'island' &&
-      f.type !== 'lake' // Existing caldera lakes will be refreshed if inside carved areas
+      f.type !== 'lake'
   );
 
   // 2. Normalize stroke input to array of stroke polygons
@@ -753,6 +828,21 @@ export function applySculptOperation(
     return existingFeatures;
   }
 
+  // Compute stroke MultiPolygon for clipping operations
+  let strokeMultiPoly: GeoMultiPolygon;
+  if (strokeGeoPolys.length === 1) {
+    strokeMultiPoly = [strokeGeoPolys[0]];
+  } else {
+    try {
+      strokeMultiPoly = polygonClipping.union(
+        strokeGeoPolys[0],
+        ...strokeGeoPolys.slice(1)
+      ) as GeoMultiPolygon;
+    } catch {
+      strokeMultiPoly = [strokeGeoPolys[0]];
+    }
+  }
+
   // 5. Convert existing land features to GeoMultiPolygon
   const existingMultiPoly = featuresToGeoMultiPolygon(landFeatures);
 
@@ -761,18 +851,7 @@ export function applySculptOperation(
 
   if (mode === 'paint') {
     if (existingMultiPoly.length === 0) {
-      if (strokeGeoPolys.length === 1) {
-        resultMultiPoly = [strokeGeoPolys[0]];
-      } else {
-        try {
-          resultMultiPoly = polygonClipping.union(
-            strokeGeoPolys[0],
-            ...strokeGeoPolys.slice(1)
-          ) as GeoMultiPolygon;
-        } catch {
-          resultMultiPoly = strokeGeoPolys;
-        }
-      }
+      resultMultiPoly = strokeMultiPoly;
     } else {
       try {
         resultMultiPoly = polygonClipping.union(
@@ -785,20 +864,6 @@ export function applySculptOperation(
     }
   } else {
     // Mode === 'carve': difference(existing, stroke)
-    let strokeMultiPoly: GeoMultiPolygon;
-    if (strokeGeoPolys.length === 1) {
-      strokeMultiPoly = [strokeGeoPolys[0]];
-    } else {
-      try {
-        strokeMultiPoly = polygonClipping.union(
-          strokeGeoPolys[0],
-          ...strokeGeoPolys.slice(1)
-        ) as GeoMultiPolygon;
-      } catch {
-        strokeMultiPoly = [strokeGeoPolys[0]];
-      }
-    }
-
     try {
       resultMultiPoly = polygonClipping.difference(
         existingMultiPoly,
@@ -811,8 +876,13 @@ export function applySculptOperation(
 
   // 7. Sanitize, Filter Slivers, and Reconstruct Land Features & Inland Lakes
   if (resultMultiPoly.length === 0) {
-    // All land eroded away -> clean open ocean
-    return nonLandFeatures;
+    // All land eroded away -> clean open ocean; preserve standalone lakes not covered by carve
+    const strokeAllPoints = simplifiedStrokes.flat();
+    const strokeAABB = getBoundingBox(strokeAllPoints);
+    const survivingLakes = existingLakeFeatures.filter(
+      (l) => !l.polygon || !doAABBIntersect(getBoundingBox(l.polygon), strokeAABB)
+    );
+    return [...survivingLakes, ...otherNonLandFeatures];
   }
 
   // Map each output polygon back to the most overlapping parent land feature
@@ -829,7 +899,7 @@ export function applySculptOperation(
   }
 
   const processedPieces: ProcessedPiece[] = [];
-  const createdLakes: MapTerrainFeature[] = [];
+  const holeList: { hole: MapPoint[]; pieceIndex: number }[] = [];
 
   for (let i = 0; i < resultMultiPoly.length; i++) {
     const geoPoly = resultMultiPoly[i];
@@ -861,28 +931,38 @@ export function applySculptOperation(
           tolerance > 0 ? simplifyPolygonRing(holePoints, tolerance) : holePoints;
         if (simplifiedHole.length >= 3 && calculatePolygonArea(simplifiedHole) >= minHoleArea) {
           validHoles.push(simplifiedHole);
-
-          // Generate companion lake feature for inspection, styling & echo rings
-          createdLakes.push({
-            id: `terr_lake_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-            name: 'Inland Caldera Lake',
-            type: 'lake',
-            polygon: simplifiedHole,
-            color: '#4f728c',
-            description: 'An inland water body carved into the landmass',
-            climateZone: 'temperate',
-          });
+          holeList.push({ hole: simplifiedHole, pieceIndex: processedPieces.length });
         }
       }
     }
 
     // Find overlapping parent
     const pieceBbox = getBoundingBox(simplifiedOuter);
+    const pieceCentroid = getPolygonCentroid(simplifiedOuter);
     let bestParent: MapTerrainFeature | null = null;
     let maxOverlapArea = 0;
 
     for (const lb of landBBoxes) {
       if (doAABBIntersect(pieceBbox, lb.bbox)) {
+        // Topological check: if this piece falls inside one of lb.feature's holes,
+        // it cannot belong to lb.feature (e.g. an island inside a continent's interior lake)
+        let insideHole = false;
+        if (lb.feature.holes && lb.feature.holes.length > 0) {
+          for (const hole of lb.feature.holes) {
+            if (
+              simplifiedOuter.length > 0 &&
+              isPointInPolygon(simplifiedOuter[0], hole) &&
+              (simplifiedOuter.length < 2 || isPointInPolygon(simplifiedOuter[1], hole))
+            ) {
+              insideHole = true;
+              break;
+            }
+          }
+        }
+        if (insideHole) {
+          continue;
+        }
+
         const ixMin = Math.max(pieceBbox.minX, lb.bbox.minX);
         const ixMax = Math.min(pieceBbox.maxX, lb.bbox.maxX);
         const iyMin = Math.max(pieceBbox.minY, lb.bbox.minY);
@@ -901,6 +981,117 @@ export function applySculptOperation(
       parent: bestParent,
       area,
     });
+  }
+
+  // Match holes to existing lake features by centroid/proximity, preserving IDs and metadata
+  const matchedLakeIds = new Set<string>();
+  const finalLakes: MapTerrainFeature[] = [];
+
+  for (const { hole } of holeList) {
+    const holeCentroid = getPolygonCentroid(hole);
+    const holeBbox = getBoundingBox(hole);
+
+    let bestLakeMatch: MapTerrainFeature | null = null;
+    let bestScore = -1;
+
+    for (const lake of existingLakeFeatures) {
+      if (matchedLakeIds.has(lake.id) || !lake.polygon || lake.polygon.length < 3) continue;
+
+      const lakeBbox = getBoundingBox(lake.polygon);
+      const lakeCentroid = getPolygonCentroid(lake.polygon);
+
+      let score = 0;
+      if (doAABBIntersect(holeBbox, lakeBbox)) {
+        const ixMin = Math.max(holeBbox.minX, lakeBbox.minX);
+        const ixMax = Math.min(holeBbox.maxX, lakeBbox.maxX);
+        const iyMin = Math.max(holeBbox.minY, lakeBbox.minY);
+        const iyMax = Math.min(holeBbox.maxY, lakeBbox.maxY);
+        const overlapArea = (ixMax - ixMin) * (iyMax - iyMin);
+        const distSq = getSqDist(holeCentroid, lakeCentroid);
+        score = overlapArea / (1 + Math.sqrt(distSq));
+      } else {
+        const distSq = getSqDist(holeCentroid, lakeCentroid);
+        const maxDim = Math.max(
+          holeBbox.maxX - holeBbox.minX,
+          holeBbox.maxY - holeBbox.minY,
+          lakeBbox.maxX - lakeBbox.minX,
+          lakeBbox.maxY - lakeBbox.minY
+        );
+        if (distSq < maxDim * maxDim) {
+          score = 1 / (1 + Math.sqrt(distSq));
+        }
+      }
+
+      if (score > bestScore && score > 0) {
+        bestScore = score;
+        bestLakeMatch = lake;
+      }
+    }
+
+    if (bestLakeMatch) {
+      matchedLakeIds.add(bestLakeMatch.id);
+      finalLakes.push({
+        ...bestLakeMatch,
+        polygon: hole,
+      });
+    } else {
+      // Create companion lake feature for newly carved hole
+      finalLakes.push({
+        id: `terr_lake_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+        name: 'Inland Caldera Lake',
+        type: 'lake',
+        polygon: hole,
+        color: '#4f728c',
+        description: 'An inland water body carved into the landmass',
+        climateZone: 'temperate',
+      });
+    }
+  }
+
+  // Preserve standalone lakes that were not matched to holes
+  const strokeAllPoints = simplifiedStrokes.flat();
+  const strokeAABB = getBoundingBox(strokeAllPoints);
+
+  for (const lake of existingLakeFeatures) {
+    if (matchedLakeIds.has(lake.id)) continue;
+    if (!lake.polygon || lake.polygon.length < 3) {
+      finalLakes.push(lake);
+      continue;
+    }
+
+    const lakeBbox = getBoundingBox(lake.polygon);
+
+    if (mode === 'carve') {
+      // Standalone lakes in carve mode are water and persist
+      finalLakes.push(lake);
+    } else {
+      // Mode === 'paint': check if paint stroke covers or trims the lake
+      if (!doAABBIntersect(strokeAABB, lakeBbox)) {
+        // Not touching paint stroke: preserve completely
+        finalLakes.push(lake);
+      } else {
+        try {
+          const lakeGeo = featureToGeoPolygon(lake);
+          if (lakeGeo) {
+            const diff = polygonClipping.difference(
+              [lakeGeo],
+              strokeMultiPoly
+            ) as GeoMultiPolygon;
+            if (diff && diff.length > 0) {
+              const outerPoints = geoRingToMapPoints(diff[0][0]);
+              if (outerPoints.length >= 3 && calculatePolygonArea(outerPoints) >= minHoleArea) {
+                finalLakes.push({
+                  ...lake,
+                  polygon: outerPoints,
+                });
+              }
+            }
+          }
+        } catch {
+          finalLakes.push(lake);
+        }
+      }
+    }
   }
 
   // Count and map processed pieces back to parent features preserving input order
@@ -933,7 +1124,7 @@ export function applySculptOperation(
     // Primary piece retains parent position and identity
     const primaryPiece = pieces[0];
     const primaryType = isSplit
-      ? 'island'
+      ? (primaryPiece.area >= CONTINENT_AREA_THRESHOLD ? 'continent' : 'island')
       : parent.type === 'continent'
       ? 'continent'
       : 'island';
@@ -1001,6 +1192,6 @@ export function applySculptOperation(
     ...newLandFeatures,
   ];
 
-  // Combine updated land features, newly created lakes, and surviving non-land features
-  return [...finalLand, ...createdLakes, ...nonLandFeatures];
+  // Combine updated land features, lakes (preserved & new), and surviving non-land features
+  return [...finalLand, ...finalLakes, ...otherNonLandFeatures];
 }

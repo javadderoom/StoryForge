@@ -3,6 +3,7 @@
 import React from 'react';
 import {
   MousePointer,
+  Paintbrush,
   Globe,
   Mountain,
   Waves,
@@ -65,6 +66,13 @@ export const CartographerToolbar: React.FC<CartographerToolbarProps> = ({
     {
       categoryTitle: { en: 'Planetary Elements', fa: 'عناصر فیزیکی سیاره' },
       tools: [
+        {
+          id: 'land_brush',
+          name: { en: 'Land Brush', fa: 'قلم قلم‌زنی خشکی' },
+          tooltip: { en: 'Paint continents & carve waters directly on ocean', fa: 'قلم‌زنی قاره‌ها و تراشیدن آب با موس' },
+          icon: Paintbrush,
+          accentClass: 'hover:text-emerald-400',
+        },
         {
           id: 'terrain_continent',
           name: { en: 'Continent / Island', fa: 'قاره و جزیره' },

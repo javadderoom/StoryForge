@@ -29,6 +29,7 @@ import { WorldMapSettings, MapStyleTheme } from '@/lib/types';
 
 export type CartographerTool =
   | 'select'
+  | 'land_brush'
   | 'terrain_continent'
   | 'terrain_mountain'
   | 'terrain_river'

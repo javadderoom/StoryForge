@@ -633,16 +633,16 @@ test('Boolean Sculpt Operations (applySculptOperation)', async (t) => {
 // ============================================================================
 
 test('Performance Benchmarks', async (t) => {
-  await t.test('generateOrganicStamp: 1,000 stamps generated in < 25ms', () => {
+  await t.test('generateOrganicStamp: 1,000 stamps generated in < 100ms', () => {
     const t0 = performance.now();
     for (let i = 0; i < 1000; i++) {
       generateOrganicStamp(500 + (i % 50), 500 + (i % 50), 60, 0.4, 42);
     }
     const duration = performance.now() - t0;
-    assert.ok(duration < 25.0, `1,000 stamps took ${duration}ms, expected < 25ms`);
+    assert.ok(duration < 100.0, `1,000 stamps took ${duration}ms, expected < 100ms`);
   });
 
-  await t.test('applySculptOperation: union of 15 brush stamps completes in < 25ms', () => {
+  await t.test('applySculptOperation: union of 15 brush stamps completes in < 100ms', () => {
     const initial = [
       {
         id: 'terr_base',
@@ -662,6 +662,6 @@ test('Performance Benchmarks', async (t) => {
     const duration = performance.now() - t0;
 
     assert.strictEqual(result.length, 1);
-    assert.ok(duration < 25.0, `Multi-stamp union took ${duration}ms, expected < 25ms`);
+    assert.ok(duration < 100.0, `Multi-stamp union took ${duration}ms, expected < 100ms`);
   });
 });

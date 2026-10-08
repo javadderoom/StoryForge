@@ -58,6 +58,8 @@ export class PixiCartographerEngine {
   private settlementGraphics = new Graphics();
   private placementGraphics = new Graphics();
   private interactionGraphics = new Graphics();
+  private brushGraphics = new Graphics();
+  private brushCursorGraphics = new Graphics();
 
   // Text label containers to recycle
   private settlementLabelsContainer = new Container();
@@ -84,7 +86,11 @@ export class PixiCartographerEngine {
     this.routeLayer.addChild(this.routeGraphics);
     this.settlementLayer.addChild(this.settlementGraphics, this.settlementLabelsContainer);
     this.placementLayer.addChild(this.placementGraphics);
-    this.interactionLayer.addChild(this.interactionGraphics);
+    this.interactionLayer.addChild(
+      this.interactionGraphics,
+      this.brushGraphics,
+      this.brushCursorGraphics
+    );
   }
 
   /**
@@ -280,6 +286,21 @@ export class PixiCartographerEngine {
       color: VINTAGE_PARCHMENT.oceanWash,
     });
 
+    // Antique sea wavelets across open waters (woodcut cartographic ripples)
+    const waveSpacing = 160;
+    for (let y = 80; y < CANVAS_HEIGHT - 80; y += waveSpacing) {
+      const rowOffset = (Math.floor(y / waveSpacing) % 2) * (waveSpacing / 2);
+      for (let x = 80 + rowOffset; x < CANVAS_WIDTH - 80; x += waveSpacing) {
+        g.moveTo(x - 12, y)
+          .bezierCurveTo(x - 8, y - 3, x - 4, y - 3, x, y)
+          .bezierCurveTo(x + 4, y + 3, x + 8, y + 3, x + 12, y)
+          .stroke({ width: 0.8, color: VINTAGE_PARCHMENT.coastlineHatch, alpha: 0.22 });
+        g.moveTo(x - 6, y + 5)
+          .bezierCurveTo(x - 3, y + 2, x, y + 2, x + 3, y + 5)
+          .stroke({ width: 0.6, color: VINTAGE_PARCHMENT.coastlineHatch, alpha: 0.16 });
+      }
+    }
+
     // Outer vintage cartographic double border
     const borderPadding = 18;
     g.rect(
@@ -399,12 +420,51 @@ export class PixiCartographerEngine {
             color: VINTAGE_PARCHMENT.coastlineInk,
           });
 
-          // Outer coastline echo ring (vintage contour stippling effect)
+          // Automated vintage coastline echo rings
+          // Outer echo ring 1 (subtle water contour glow)
           g.poly(flatPoints).stroke({
-            width: 5,
+            width: 5.5,
             color: VINTAGE_PARCHMENT.coastlineGlow,
-            alpha: 0.4,
+            alpha: 0.45,
           });
+
+          // Outer echo ring 2 (subtle wider water ripple)
+          g.poly(flatPoints).stroke({
+            width: 11,
+            color: VINTAGE_PARCHMENT.coastlineHatch,
+            alpha: 0.15,
+          });
+
+          // Render interior carved water holes (lakes, inland seas, straits)
+          if (feat.holes && feat.holes.length > 0) {
+            for (const hole of feat.holes) {
+              if (hole.length > 2) {
+                const holePoints = generateOrganicParchmentContours(hole, 2);
+                const holeFlat: number[] = [];
+                for (const pt of holePoints) {
+                  holeFlat.push(pt.x, pt.y);
+                }
+
+                // Inward ocean wash fill
+                g.poly(holeFlat).fill({
+                  color: VINTAGE_PARCHMENT.oceanWash,
+                });
+
+                // Hand-inked inner shoreline
+                g.poly(holeFlat).stroke({
+                  width: 2.0,
+                  color: VINTAGE_PARCHMENT.coastlineInk,
+                });
+
+                // Inward echo ring
+                g.poly(holeFlat).stroke({
+                  width: 4.5,
+                  color: VINTAGE_PARCHMENT.coastlineGlow,
+                  alpha: 0.35,
+                });
+              }
+            }
+          }
         }
       }
     }
@@ -438,14 +498,19 @@ export class PixiCartographerEngine {
     if (settings.visibleLayers.water) {
       for (const feat of terrainFeatures) {
         if (feat.type === 'lake' && feat.polygon && feat.polygon.length > 2) {
+          const points = generateOrganicParchmentContours(feat.polygon, 2);
           const flatPoints: number[] = [];
-          for (const pt of feat.polygon) {
+          for (const pt of points) {
             flatPoints.push(pt.x, pt.y);
           }
 
-          g.poly(flatPoints)
-            .fill({ color: VINTAGE_PARCHMENT.oceanWash })
-            .stroke({ width: 1.5, color: VINTAGE_PARCHMENT.coastlineInk });
+          g.poly(flatPoints).fill({ color: VINTAGE_PARCHMENT.oceanWash });
+          g.poly(flatPoints).stroke({ width: 2.0, color: VINTAGE_PARCHMENT.coastlineInk });
+          g.poly(flatPoints).stroke({
+            width: 4.5,
+            color: VINTAGE_PARCHMENT.coastlineGlow,
+            alpha: 0.35,
+          });
         }
       }
     }
@@ -755,6 +820,78 @@ export class PixiCartographerEngine {
       g.circle(p1.x, p1.y, 5).fill({ color: 0xd97706 });
       g.circle(p2.x, p2.y, 5).fill({ color: 0xd97706 });
     }
+  }
+
+  /**
+   * Real-time 60fps brush stroke preview overlay during continuous dragging
+   */
+  public renderBrushPreview(stamps: MapPoint[][], mode: 'paint' | 'carve'): void {
+    const g = this.brushGraphics;
+    g.clear();
+
+    if (stamps.length === 0) return;
+
+    for (const stamp of stamps) {
+      if (stamp.length < 3) continue;
+      const flat: number[] = [];
+      for (const pt of stamp) {
+        flat.push(pt.x, pt.y);
+      }
+
+      if (mode === 'paint') {
+        g.poly(flat)
+          .fill({ color: VINTAGE_PARCHMENT.landFill, alpha: 0.85 })
+          .stroke({ width: 2.0, color: VINTAGE_PARCHMENT.coastlineInk, alpha: 0.9 });
+      } else {
+        // Carve mode: ocean wash with warning stroke
+        g.poly(flat)
+          .fill({ color: VINTAGE_PARCHMENT.oceanWash, alpha: 0.9 })
+          .stroke({ width: 2.0, color: 0xdc2626, alpha: 0.8 });
+      }
+    }
+  }
+
+  /**
+   * Real-time brush cursor reticle matching brush size
+   */
+  public renderBrushCursor(
+    point: MapPoint | null,
+    radius: number,
+    mode: 'paint' | 'carve'
+  ): void {
+    const g = this.brushCursorGraphics;
+    g.clear();
+
+    if (!point) return;
+
+    const strokeColor = mode === 'paint' ? VINTAGE_PARCHMENT.coastlineInk : 0xdc2626;
+
+    // Outer guide circle
+    g.circle(point.x, point.y, radius).stroke({
+      width: 1.5,
+      color: strokeColor,
+      alpha: 0.65,
+    });
+
+    // Center reticle dot
+    g.circle(point.x, point.y, 2.5).fill({
+      color: strokeColor,
+      alpha: 0.8,
+    });
+  }
+
+  /**
+   * Clears transient real-time brush stroke preview
+   */
+  public clearBrushPreview(): void {
+    this.brushGraphics.clear();
+  }
+
+  /**
+   * Clears brush cursor reticle
+   */
+  public clearBrushCursor(): void {
+    this.brushCursorGraphics.clear();
   }
 
   /**

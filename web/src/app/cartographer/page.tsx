@@ -162,6 +162,16 @@ export default function CartographerPage() {
     notify.info(isPersian ? 'عارضه طبیعی حذف شد' : 'Terrain feature deleted');
   };
 
+  const handleReplaceTerrain = useCallback((features: MapTerrainFeature[]) => {
+    updateMapData((prev) => {
+      const current = prev || mapData;
+      return {
+        ...current,
+        terrainFeatures: features,
+      };
+    });
+  }, [mapData, updateMapData]);
+
   // Location Handlers
   const handleAddLocation = (loc: WorldLocation) => {
     addLocation(loc);
@@ -327,6 +337,7 @@ export default function CartographerPage() {
           onAddTradeRoute={handleAddTradeRoute}
           onUpdateTerrain={handleUpdateTerrain}
           onAddTerrain={handleAddTerrain}
+          onReplaceTerrain={handleReplaceTerrain}
           onAddLocation={handleAddLocation}
           onAddPlacement={handleAddPlacement}
           isPersian={isPersian}

@@ -39,6 +39,9 @@ scratch/
 # --- Knowledge graph cache (generated, local only) ---
 graphify-out/
 
+# --- Teamwork / Subagent scratch directories ---
+.agents/teamwork/
+
 # --- Flutter & Dart (app/) ---
 .dart_tool/
 .packages

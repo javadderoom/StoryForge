@@ -24,7 +24,21 @@ import {
   CANVAS_HEIGHT,
 } from '@/lib/engines/world/pixi/pixiMath';
 import { VINTAGE_PARCHMENT } from '@/lib/engines/world/pixi/vintageTheme';
-import { Compass, Sparkles, Navigation } from 'lucide-react';
+import {
+  interpolateStrokePoints,
+  generateOrganicStamp,
+  applySculptOperation,
+} from '@/lib/engines/world/landSculptEngine';
+import { notify } from '@/lib/notify';
+import {
+  Compass,
+  Sparkles,
+  Navigation,
+  Paintbrush,
+  Eraser,
+  Waves,
+  Trash2,
+} from 'lucide-react';
 
 interface PixiCartographerCanvasProps {
   worldBible: WorldBible;
@@ -37,6 +51,7 @@ interface PixiCartographerCanvasProps {
   onAddTradeRoute: (route: WorldTradeRoute) => void;
   onUpdateTerrain: (id: string, updated: Partial<MapTerrainFeature>) => void;
   onAddTerrain: (feature: MapTerrainFeature) => void;
+  onReplaceTerrain?: (features: MapTerrainFeature[]) => void;
   onAddLocation: (location: WorldLocation) => void;
   onAddPlacement: (placement: MapEntityPlacement) => void;
   isPersian: boolean;
@@ -57,6 +72,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   onAddTradeRoute,
   onUpdateTerrain,
   onAddTerrain,
+  onReplaceTerrain,
   onAddLocation,
   onAddPlacement,
   isPersian,
@@ -82,6 +98,16 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   const [draggedNode, setDraggedNode] = useState<DraggedNodeData | null>(null);
   const [transientPos, setTransientPos] = useState<MapPoint | null>(null);
 
+  // Land Sculpt Brush controls
+  const [sculptMode, setSculptMode] = useState<'paint' | 'carve'>('paint');
+  const [brushSize, setBrushSize] = useState<number>(65);
+  const [brushRoughness, setBrushRoughness] = useState<number>(0.35);
+
+  const isSculptingRef = useRef(false);
+  const accumulatedStampsRef = useRef<MapPoint[][]>([]);
+  const lastStrokePointRef = useRef<MapPoint | null>(null);
+  const strokeSeedRef = useRef<number>(42);
+
   const draggedNodeRef = useRef<DraggedNodeData | null>(null);
   const transientPosRef = useRef<MapPoint | null>(null);
   const tradeRoutesRef = useRef(worldBible.tradeRoutes || []);
@@ -97,6 +123,13 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   useEffect(() => {
     tradeRoutesRef.current = worldBible.tradeRoutes || [];
   }, [worldBible.tradeRoutes]);
+
+  useEffect(() => {
+    if (activeTool !== 'land_brush' && engineRef.current) {
+      engineRef.current.clearBrushCursor();
+      engineRef.current.clearBrushPreview();
+    }
+  }, [activeTool]);
 
   // Initialize Pixi Engine on mount
   useEffect(() => {
@@ -217,6 +250,25 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       setIsPanning(true);
       setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
       return;
+    }
+
+    // Land Sculpt Brush continuous drag
+    if (activeTool === 'land_brush') {
+      if (e.button === 0 && !e.altKey) {
+        isSculptingRef.current = true;
+        strokeSeedRef.current = Math.floor(Math.random() * 10000);
+        const stamp = generateOrganicStamp(
+          worldPoint.x,
+          worldPoint.y,
+          brushSize,
+          brushRoughness,
+          strokeSeedRef.current
+        );
+        accumulatedStampsRef.current = [stamp];
+        lastStrokePointRef.current = worldPoint;
+        engineRef.current?.renderBrushPreview(accumulatedStampsRef.current, sculptMode);
+        return;
+      }
     }
 
     // Ruler measurement tool
@@ -359,6 +411,42 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     const worldPoint = clientToWorld(e.clientX, e.clientY);
     setHoveredCoord(worldPoint);
 
+    // Land Sculpt Brush cursor and continuous stroke accumulation
+    if (activeTool === 'land_brush' && engineRef.current) {
+      engineRef.current.renderBrushCursor(worldPoint, brushSize, sculptMode);
+
+      if (isSculptingRef.current && lastStrokePointRef.current) {
+        const dist = Math.hypot(
+          worldPoint.x - lastStrokePointRef.current.x,
+          worldPoint.y - lastStrokePointRef.current.y
+        );
+        const stepSize = Math.max(10, brushSize * 0.35);
+        if (dist >= stepSize) {
+          const subPoints = interpolateStrokePoints(
+            lastStrokePointRef.current,
+            worldPoint,
+            stepSize,
+            false
+          );
+          for (const pt of subPoints) {
+            strokeSeedRef.current = (strokeSeedRef.current + 1) % 10000;
+            accumulatedStampsRef.current.push(
+              generateOrganicStamp(
+                pt.x,
+                pt.y,
+                brushSize,
+                brushRoughness,
+                strokeSeedRef.current
+              )
+            );
+          }
+          lastStrokePointRef.current = worldPoint;
+          engineRef.current.renderBrushPreview(accumulatedStampsRef.current, sculptMode);
+        }
+        return;
+      }
+    }
+
     if (isPanning) {
       setPan({
         x: e.clientX - dragStart.x,
@@ -376,6 +464,31 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
   // Commit drag on mouse release
   const commitDragEnd = useCallback(() => {
+    // Finalize Land Sculpt stroke
+    if (isSculptingRef.current) {
+      isSculptingRef.current = false;
+      lastStrokePointRef.current = null;
+      engineRef.current?.clearBrushPreview();
+
+      const stamps = [...accumulatedStampsRef.current];
+      accumulatedStampsRef.current = [];
+
+      if (stamps.length > 0 && onReplaceTerrain) {
+        const currentTerrain = worldBible.mapData?.terrainFeatures || [];
+        const updated = applySculptOperation(
+          currentTerrain,
+          stamps,
+          sculptMode,
+          {
+            simplifyTolerance: 1.5,
+            minArea: 15,
+            minHoleArea: 25,
+          }
+        );
+        onReplaceTerrain(updated);
+      }
+    }
+
     const active = draggedNodeRef.current;
     const finalPos = transientPosRef.current;
 
@@ -400,12 +513,20 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     setTransientPos(null);
     draggedNodeRef.current = null;
     transientPosRef.current = null;
-  }, [onUpdateLocation, onUpdateTradeRoute]);
+  }, [
+    onUpdateLocation,
+    onUpdateTradeRoute,
+    onReplaceTerrain,
+    worldBible.mapData?.terrainFeatures,
+    sculptMode,
+  ]);
+
+  const handleMouseLeave = () => {
+    engineRef.current?.clearBrushCursor();
+  };
 
   // Window mouseup listener for off-canvas releases
   useEffect(() => {
-    if (!draggedNode && !isPanning) return;
-
     const onGlobalMouseUp = () => {
       commitDragEnd();
     };
@@ -414,7 +535,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     return () => {
       window.removeEventListener('mouseup', onGlobalMouseUp);
     };
-  }, [draggedNode, isPanning, commitDragEnd]);
+  }, [commitDragEnd]);
 
   // Double click to finish drafting terrain feature
   const handleDoubleClick = () => {
@@ -495,12 +616,110 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={commitDragEnd}
+      onMouseLeave={handleMouseLeave}
       onDoubleClick={handleDoubleClick}
       className="relative w-full h-full overflow-hidden select-none cursor-crosshair"
       style={{ backgroundColor: VINTAGE_PARCHMENT.bgParchmentHex }}
     >
       {/* PixiJS WebGL Canvas */}
       <canvas ref={canvasRef} className="w-full h-full block" />
+
+      {/* Land Sculpt Brush Floating HUD */}
+      {activeTool === 'land_brush' && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 rounded-2xl bg-zinc-950/90 backdrop-blur-md border border-amber-800/50 shadow-2xl text-xs select-none">
+          {/* Mode Toggle */}
+          <div className="flex items-center gap-1 bg-zinc-900/90 p-1 rounded-xl border border-zinc-800">
+            <button
+              type="button"
+              onClick={() => setSculptMode('paint')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
+                sculptMode === 'paint'
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/40 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Paintbrush className="w-3.5 h-3.5" />
+              <span>{isPersian ? 'افزودن خشکی' : 'Paint Land'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSculptMode('carve')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
+                sculptMode === 'carve'
+                  ? 'bg-cyan-600 text-white shadow-md shadow-cyan-900/40 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Eraser className="w-3.5 h-3.5" />
+              <span>{isPersian ? 'تراشیدن آب / دریا' : 'Carve Water'}</span>
+            </button>
+          </div>
+
+          {/* Brush Size Slider */}
+          <div className="flex items-center gap-2 px-2">
+            <span className="text-[11px] text-zinc-400 font-medium">
+              {isPersian ? 'اندازه قلم:' : 'Size:'}
+            </span>
+            <input
+              type="range"
+              min={20}
+              max={180}
+              step={5}
+              value={brushSize}
+              onChange={(e) => setBrushSize(Number(e.target.value))}
+              className="w-24 accent-amber-500 cursor-pointer"
+            />
+            <span className="text-[11px] font-mono text-amber-400 w-10 text-right" dir="ltr">
+              {brushSize}px
+            </span>
+          </div>
+
+          <div className="h-4 w-px bg-zinc-800" />
+
+          {/* Roughness Slider */}
+          <div className="flex items-center gap-2 px-2">
+            <span className="text-[11px] text-zinc-400 font-medium">
+              {isPersian ? 'زبری ساحل:' : 'Roughness:'}
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={0.8}
+              step={0.05}
+              value={brushRoughness}
+              onChange={(e) => setBrushRoughness(Number(e.target.value))}
+              className="w-20 accent-amber-500 cursor-pointer"
+            />
+            <span className="text-[11px] font-mono text-amber-400 w-9 text-right" dir="ltr">
+              {Math.round(brushRoughness * 100)}%
+            </span>
+          </div>
+
+          <div className="h-4 w-px bg-zinc-800" />
+
+          {/* Reset to Ocean Button */}
+          <button
+            type="button"
+            onClick={async () => {
+              const confirmed = await notify.confirm({
+                title: isPersian ? 'بازنشانی به اقیانوس' : 'Reset to Ocean',
+                message: isPersian
+                  ? 'آیا از پاک کردن تمامی خشکی‌ها و بازنشانی نقشه به اقیانوس بی‌کران اطمینان دارید؟'
+                  : 'Clear all landmasses and reset canvas to open ocean water?',
+              });
+              if (confirmed && onReplaceTerrain) {
+                onReplaceTerrain([]);
+                notify.info(isPersian ? 'نقشه به آب زلال بازنشانی شد' : 'Map reset to open ocean');
+              }
+            }}
+            title={isPersian ? 'پاکسازی کامل خشکی‌ها' : 'Clear land to ocean'}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-zinc-400 hover:text-rose-400 hover:bg-rose-950/40 border border-transparent hover:border-rose-900/50 transition-all"
+          >
+            <Waves className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-[11px]">{isPersian ? 'پاکسازی به دریا' : 'Reset Sea'}</span>
+          </button>
+        </div>
+      )}
 
       {/* Floating Viewport Status Badge */}
       <div className="absolute top-4 left-4 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-900/80 backdrop-blur-md border border-amber-800/40 text-stone-200 text-xs shadow-lg">
