@@ -79,29 +79,50 @@ export const CartographerCanvas: React.FC<CartographerCanvasProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
+  const locations = worldBible.locations || [];
+  const tradeRoutes = worldBible.tradeRoutes || [];
+  const terrainFeatures = worldBible.mapData?.terrainFeatures || [];
+  const placements = worldBible.mapData?.placements || [];
+  const npcs = worldBible.npcs || [];
+
   const [isPanning, setIsPanning] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hoveredCoord, setHoveredCoord] = useState<MapPoint | null>(null);
 
   // In-progress drafting state for creation tools
   const [draftPoints, setDraftPoints] = useState<MapPoint[]>([]);
-  const [draggedNode, setDraggedNode] = useState<{
+
+  interface DraggedNodeState {
     type: 'location' | 'waypoint';
     id: string;
     routeId?: string;
     index?: number;
-  } | null>(null);
+    startPoint: MapPoint;
+  }
+
+  const [draggedNode, setDraggedNode] = useState<DraggedNodeState | null>(null);
+  const [transientPos, setTransientPos] = useState<MapPoint | null>(null);
+
+  const draggedNodeRef = useRef<DraggedNodeState | null>(null);
+  const transientPosRef = useRef<MapPoint | null>(null);
+  const tradeRoutesRef = useRef(tradeRoutes);
+
+  useEffect(() => {
+    draggedNodeRef.current = draggedNode;
+  }, [draggedNode]);
+
+  useEffect(() => {
+    transientPosRef.current = transientPos;
+  }, [transientPos]);
+
+  useEffect(() => {
+    tradeRoutesRef.current = tradeRoutes;
+  }, [tradeRoutes]);
 
   // Ruler measurement state
   const [rulerPoints, setRulerPoints] = useState<MapPoint[]>([]);
 
   const palette = THEME_PALETTES[settings.theme] || THEME_PALETTES.parchment;
-
-  const locations = worldBible.locations || [];
-  const tradeRoutes = worldBible.tradeRoutes || [];
-  const terrainFeatures = worldBible.mapData?.terrainFeatures || [];
-  const placements = worldBible.mapData?.placements || [];
-  const npcs = worldBible.npcs || [];
 
   // Convert screen client coordinates to World SVG coordinates
   const clientToWorldCoords = useCallback(
@@ -250,26 +271,54 @@ export const CartographerCanvas: React.FC<CartographerCanvasProps> = ({
       return;
     }
 
-    // Dragging a location pin or route waypoint
+    // Dragging a location pin or route waypoint: update local visual state ONLY (no network / context dispatch per pixel)
     if (draggedNode) {
-      if (draggedNode.type === 'location') {
-        onUpdateLocation(draggedNode.id, { coordinates: worldPoint });
-      } else if (draggedNode.type === 'waypoint' && draggedNode.routeId && draggedNode.index !== undefined) {
-        const route = tradeRoutes.find((r) => r.id === draggedNode.routeId);
-        if (route && route.waypoints) {
-          const updatedWaypoints = [...route.waypoints];
-          updatedWaypoints[draggedNode.index] = worldPoint;
-          onUpdateTradeRoute(route.id, { waypoints: updatedWaypoints });
-        }
-      }
+      setTransientPos(worldPoint);
+      transientPosRef.current = worldPoint;
     }
   };
 
-  // Mouse up
-  const handleMouseUp = () => {
+  // Commit transient drag position once when mouse is released
+  const commitDragEnd = useCallback(() => {
+    const active = draggedNodeRef.current;
+    const finalPos = transientPosRef.current;
+
+    if (active && finalPos) {
+      const hasMoved = active.startPoint.x !== finalPos.x || active.startPoint.y !== finalPos.y;
+      if (hasMoved) {
+        if (active.type === 'location') {
+          onUpdateLocation(active.id, { coordinates: finalPos });
+        } else if (active.type === 'waypoint' && active.routeId && active.index !== undefined) {
+          const route = tradeRoutesRef.current.find((r) => r.id === active.routeId);
+          if (route && route.waypoints) {
+            const updatedWaypoints = [...route.waypoints];
+            updatedWaypoints[active.index] = finalPos;
+            onUpdateTradeRoute(route.id, { waypoints: updatedWaypoints });
+          }
+        }
+      }
+    }
+
     setIsPanning(false);
     setDraggedNode(null);
-  };
+    setTransientPos(null);
+    draggedNodeRef.current = null;
+    transientPosRef.current = null;
+  }, [onUpdateLocation, onUpdateTradeRoute]);
+
+  // Global mouseup listener to commit drag even if mouse is released outside canvas
+  useEffect(() => {
+    if (!draggedNode && !isPanning) return;
+
+    const onGlobalMouseUp = () => {
+      commitDragEnd();
+    };
+
+    window.addEventListener('mouseup', onGlobalMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', onGlobalMouseUp);
+    };
+  }, [draggedNode, isPanning, commitDragEnd]);
 
   // Double click to finish drafting terrain feature
   const handleDoubleClick = () => {
@@ -337,7 +386,7 @@ export const CartographerCanvas: React.FC<CartographerCanvasProps> = ({
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
+      onMouseUp={commitDragEnd}
       onDoubleClick={handleDoubleClick}
       className="relative w-full h-full overflow-hidden select-none cursor-crosshair bg-zinc-950"
       style={{ backgroundColor: palette.bg }}
@@ -695,10 +744,32 @@ export const CartographerCanvas: React.FC<CartographerCanvasProps> = ({
                 const destLoc = locations.find((l) => l.id === route.destinationLocationId);
                 if (!originLoc?.coordinates || !destLoc?.coordinates) return null;
 
+                const originCoords =
+                  draggedNode?.type === 'location' && draggedNode.id === originLoc.id && transientPos
+                    ? transientPos
+                    : originLoc.coordinates;
+
+                const destCoords =
+                  draggedNode?.type === 'location' && draggedNode.id === destLoc.id && transientPos
+                    ? transientPos
+                    : destLoc.coordinates;
+
+                const waypoints = (route.waypoints || []).map((wp, wpIdx) => {
+                  if (
+                    draggedNode?.type === 'waypoint' &&
+                    draggedNode.routeId === route.id &&
+                    draggedNode.index === wpIdx &&
+                    transientPos
+                  ) {
+                    return transientPos;
+                  }
+                  return wp;
+                });
+
                 const fullPathPoints: MapPoint[] = [
-                  originLoc.coordinates,
-                  ...(route.waypoints || []),
-                  destLoc.coordinates,
+                  originCoords,
+                  ...waypoints,
+                  destCoords,
                 ];
                 const d = pointsToSmoothSvgPath(fullPathPoints);
 
@@ -747,7 +818,7 @@ export const CartographerCanvas: React.FC<CartographerCanvasProps> = ({
 
                     {/* Draggable intermediate waypoints */}
                     {isSelected &&
-                      route.waypoints?.map((wp, wpIdx) => (
+                      waypoints.map((wp, wpIdx) => (
                         <circle
                           key={`wp_${wpIdx}`}
                           cx={wp.x}
@@ -759,12 +830,17 @@ export const CartographerCanvas: React.FC<CartographerCanvasProps> = ({
                           className="cursor-move hover:scale-125 transition-transform"
                           onMouseDown={(e) => {
                             e.stopPropagation();
-                            setDraggedNode({
+                            const nodeState: DraggedNodeState = {
                               type: 'waypoint',
                               id: `wp_${wpIdx}`,
                               routeId: route.id,
                               index: wpIdx,
-                            });
+                              startPoint: wp,
+                            };
+                            setDraggedNode(nodeState);
+                            draggedNodeRef.current = nodeState;
+                            setTransientPos(wp);
+                            transientPosRef.current = wp;
                           }}
                         />
                       ))}
@@ -785,7 +861,9 @@ export const CartographerCanvas: React.FC<CartographerCanvasProps> = ({
               {locations
                 .filter((loc) => loc.coordinates && loc.coordinates.x > 0)
                 .map((loc) => {
-                  const { x, y } = loc.coordinates!;
+                  const isDragged = draggedNode?.type === 'location' && draggedNode.id === loc.id;
+                  const currentCoords = isDragged && transientPos ? transientPos : loc.coordinates!;
+                  const { x, y } = currentCoords;
                   const isSelected = selectedItem?.type === 'location' && selectedItem.data.id === loc.id;
                   const isCapital = loc.category === 'capital';
                   const isDungeon = loc.category === 'dungeon';
@@ -804,7 +882,15 @@ export const CartographerCanvas: React.FC<CartographerCanvasProps> = ({
                       onMouseDown={(e) => {
                         if (activeTool === 'select') {
                           e.stopPropagation();
-                          setDraggedNode({ type: 'location', id: loc.id });
+                          const nodeState: DraggedNodeState = {
+                            type: 'location',
+                            id: loc.id,
+                            startPoint: loc.coordinates!,
+                          };
+                          setDraggedNode(nodeState);
+                          draggedNodeRef.current = nodeState;
+                          setTransientPos(loc.coordinates!);
+                          transientPosRef.current = loc.coordinates!;
                         }
                       }}
                     >

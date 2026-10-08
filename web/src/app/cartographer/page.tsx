@@ -169,6 +169,11 @@ export default function CartographerPage() {
 
   const handleUpdateLocation = (id: string, updated: Partial<WorldLocation>) => {
     editLocation(id, updated);
+    setSelectedItem((prev) =>
+      prev?.type === 'location' && prev.data.id === id
+        ? { type: 'location', data: { ...prev.data, ...updated } }
+        : prev
+    );
   };
 
   const handleDeleteLocation = (id: string) => {
@@ -185,6 +190,11 @@ export default function CartographerPage() {
 
   const handleUpdateTradeRoute = (id: string, updated: Partial<WorldTradeRoute>) => {
     editTradeRoute(id, updated);
+    setSelectedItem((prev) =>
+      prev?.type === 'trade_route' && prev.data.id === id
+        ? { type: 'trade_route', data: { ...prev.data, ...updated } }
+        : prev
+    );
   };
 
   const handleDeleteTradeRoute = (id: string) => {
