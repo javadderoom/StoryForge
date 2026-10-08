@@ -27,6 +27,11 @@ import {
 } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import { getMarketGoodsForLocation, MarketProvenance } from '@/lib/engines/world/tradeRoutes';
+import {
+  SearchableCombobox,
+  MultiSearchableCombobox,
+  ComboboxOption,
+} from '@/components/studio/SearchableCombobox';
 
 const STATUSES: TradeRouteStatus[] = ['active', 'raided', 'blockaded', 'seasonal', 'secret'];
 
@@ -115,6 +120,51 @@ export default function TradeStudioPage() {
   const [fDisruption, setFDisruption] = useState('');
   const [fSmugglingDC, setFSmugglingDC] = useState('');
   const [fSecretLore, setFSecretLore] = useState('');
+
+  // Combobox options with rich metadata
+  const locationOptions: ComboboxOption[] = useMemo(() => {
+    return locations.map((l) => ({
+      id: l.id,
+      name: l.name,
+      subtext: l.description,
+      badge: l.region || (l.dangerLevel ? `${isPersian ? 'خطر' : 'Danger'} ${l.dangerLevel}` : undefined),
+      badgeColor: l.dangerLevel && l.dangerLevel >= 4 ? 'bg-rose-500/10 text-rose-300 border border-rose-500/30' : undefined,
+      icon: MapPin,
+    }));
+  }, [locations, isPersian]);
+
+  const factionOptions: ComboboxOption[] = useMemo(() => {
+    return factions.map((f) => ({
+      id: f.id,
+      name: f.name,
+      subtext: f.description || f.publicGoals,
+      badge: f.alignment || undefined,
+      badgeColor: 'bg-purple-500/10 text-purple-300 border border-purple-500/30',
+      icon: ShieldAlert,
+    }));
+  }, [factions]);
+
+  const waypointOptions: ComboboxOption[] = useMemo(() => {
+    return locations
+      .filter((l) => l.id !== fOriginId && l.id !== fDestinationId)
+      .map((l) => ({
+        id: l.id,
+        name: l.name,
+        subtext: l.description,
+        badge: l.region || undefined,
+        icon: MapPin,
+      }));
+  }, [locations, fOriginId, fDestinationId]);
+
+  const commodityOptions: ComboboxOption[] = useMemo(() => {
+    return commodityCandidates.map((cand) => ({
+      id: cand.id,
+      name: cand.name,
+      badge: cand.source,
+      badgeColor: 'bg-amber-500/10 text-amber-300 border border-amber-500/30',
+      icon: Package,
+    }));
+  }, [commodityCandidates]);
 
   const filtered = routes.filter((r) => {
     if (filterStatus !== 'all' && (r.status ?? 'active') !== filterStatus) return false;
@@ -463,18 +513,18 @@ export default function TradeStudioPage() {
             ? 'یک شهر را انتخاب کنید تا ببینید چه کالاهایی بومی، وارداتی، کمیاب یا قطع شده‌اند.'
             : 'Pick a settlement to see which goods are native, imported, scarce or cut off.'}
         </p>
-        <select
-          value={previewLocationId}
-          onChange={(e) => setPreviewLocationId(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700/80 text-xs text-zinc-200 cursor-pointer max-w-xs"
-        >
-          <option value="">{isPersian ? 'انتخاب مکان…' : 'Select a location…'}</option>
-          {locations.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </select>
+        <div className="max-w-xs">
+          <SearchableCombobox
+            value={previewLocationId}
+            onChange={setPreviewLocationId}
+            options={locationOptions}
+            placeholder={isPersian ? 'انتخاب مکان…' : 'Select a location…'}
+            searchPlaceholder={isPersian ? 'جستجوی نام شهر یا پایگاه…' : 'Search settlement or outpost…'}
+            emptyMessage={isPersian ? 'مکانی یافت نشد' : 'No locations found'}
+            isPersian={isPersian}
+            icon={MapPin}
+          />
+        </div>
         {previewLocationId && (
           <div className="flex flex-wrap gap-1.5">
             {previewGoods.length === 0 ? (
@@ -547,101 +597,101 @@ export default function TradeStudioPage() {
                 />
               </div>
               <div>
-                <label className={labelCls}>{isPersian ? 'مبدأ' : 'Origin'}</label>
-                <select value={fOriginId} onChange={(e) => setFOriginId(e.target.value)} className={inputCls}>
-                  <option value="">—</option>
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
+                <label className={labelCls}>
+                  {isPersian ? 'مبدأ' : 'Origin'} <span className="text-amber-400">*</span>
+                </label>
+                <SearchableCombobox
+                  value={fOriginId}
+                  onChange={setFOriginId}
+                  options={locationOptions}
+                  placeholder={isPersian ? 'انتخاب مکان مبدأ…' : 'Select origin location…'}
+                  searchPlaceholder={isPersian ? 'جستجوی نام یا اقلیم مبدأ…' : 'Search origin name or region…'}
+                  emptyMessage={isPersian ? 'مکانی یافت نشد' : 'No locations found'}
+                  isPersian={isPersian}
+                  icon={MapPin}
+                />
               </div>
+
               <div>
-                <label className={labelCls}>{isPersian ? 'مقصد' : 'Destination'}</label>
-                <select
+                <label className={labelCls}>
+                  {isPersian ? 'مقصد' : 'Destination'} <span className="text-amber-400">*</span>
+                </label>
+                <SearchableCombobox
                   value={fDestinationId}
-                  onChange={(e) => setFDestinationId(e.target.value)}
-                  className={inputCls}
-                >
-                  <option value="">—</option>
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFDestinationId}
+                  options={locationOptions}
+                  placeholder={isPersian ? 'انتخاب مکان مقصد…' : 'Select destination location…'}
+                  searchPlaceholder={isPersian ? 'جستجوی نام یا اقلیم مقصد…' : 'Search destination name or region…'}
+                  emptyMessage={isPersian ? 'مکانی یافت نشد' : 'No locations found'}
+                  isPersian={isPersian}
+                  icon={MapPin}
+                />
               </div>
+
               <div className="md:col-span-2">
                 <label className={labelCls}>
-                  {isPersian ? 'ایستگاه‌های میانی (چند انتخابی)' : 'Intermediate waypoints'}
+                  {isPersian ? 'ایستگاه‌های میانی (جستجو و انتخاب چندگانه با پیشنهاد خودکار)' : 'Intermediate waypoints'}
                 </label>
-                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2 rounded-xl bg-zinc-950/60 border border-zinc-800/80">
-                  {locations
-                    .filter((l) => l.id !== fOriginId && l.id !== fDestinationId)
-                    .map((l) => {
-                      const on = fWaypointIds.includes(l.id);
-                      return (
-                        <button
-                          key={l.id}
-                          type="button"
-                          onClick={() =>
-                            setFWaypointIds((p) =>
-                              on ? p.filter((x) => x !== l.id) : [...p, l.id]
-                            )
-                          }
-                          className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
-                            on
-                              ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                              : 'bg-zinc-900 text-zinc-500 border-zinc-800 hover:text-zinc-300'
-                          }`}
-                        >
-                          {l.name}
-                        </button>
-                      );
-                    })}
-                </div>
+                <MultiSearchableCombobox
+                  values={fWaypointIds}
+                  onChange={setFWaypointIds}
+                  options={waypointOptions}
+                  placeholder={
+                    isPersian
+                      ? 'چند حرف برای جستجو و افزودن ایستگاه میانی تایپ کنید…'
+                      : 'Type a few letters to search & add waypoints…'
+                  }
+                  searchPlaceholder={
+                    isPersian
+                      ? 'جستجوی ایستگاه‌های بین راه…'
+                      : 'Search intermediate waystations…'
+                  }
+                  emptyMessage={isPersian ? 'مکان دیگری برای افزودن یافت نشد' : 'No more waypoints found'}
+                  isPersian={isPersian}
+                  icon={MapPin}
+                />
               </div>
+
               <div>
                 <label className={labelCls}>{isPersian ? 'سازمان کنترل‌کننده' : 'Controlling faction'}</label>
-                <select
+                <SearchableCombobox
                   value={fControllingId}
-                  onChange={(e) => setFControllingId(e.target.value)}
-                  className={inputCls}
-                >
-                  <option value="">—</option>
-                  {factions.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFControllingId}
+                  options={factionOptions}
+                  placeholder={isPersian ? 'انتخاب فکشن/سازمان…' : 'Select controlling faction…'}
+                  searchPlaceholder={isPersian ? 'جستجو در فکشن‌ها…' : 'Search factions…'}
+                  emptyMessage={isPersian ? 'فکشنی یافت نشد' : 'No factions found'}
+                  isPersian={isPersian}
+                  icon={ShieldAlert}
+                />
               </div>
+
               <div>
                 <label className={labelCls}>{isPersian ? 'نیروی گشتی/محافظ' : 'Patrolling faction'}</label>
-                <select
+                <SearchableCombobox
                   value={fPatrollingId}
-                  onChange={(e) => setFPatrollingId(e.target.value)}
-                  className={inputCls}
-                >
-                  <option value="">—</option>
-                  {factions.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFPatrollingId}
+                  options={factionOptions}
+                  placeholder={isPersian ? 'انتخاب نیروی گشتی…' : 'Select patrolling faction…'}
+                  searchPlaceholder={isPersian ? 'جستجو در نیروهای گشتی…' : 'Search patrolling forces…'}
+                  emptyMessage={isPersian ? 'فکشنی یافت نشد' : 'No factions found'}
+                  isPersian={isPersian}
+                  icon={ShieldAlert}
+                />
               </div>
+
               <div>
-                <label className={labelCls}>{isPersian ? 'faction غارتگر رقیب' : 'Rival raiding faction'}</label>
-                <select value={fRivalId} onChange={(e) => setFRivalId(e.target.value)} className={inputCls}>
-                  <option value="">—</option>
-                  {factions.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-                </select>
+                <label className={labelCls}>{isPersian ? 'فکشن غارتگر رقیب' : 'Rival raiding faction'}</label>
+                <SearchableCombobox
+                  value={fRivalId}
+                  onChange={setFRivalId}
+                  options={factionOptions}
+                  placeholder={isPersian ? 'انتخاب فکشن غارتگر…' : 'Select raiding faction…'}
+                  searchPlaceholder={isPersian ? 'جستجو در راهزنان و رقبا…' : 'Search raiders and rivals…'}
+                  emptyMessage={isPersian ? 'فکشنی یافت نشد' : 'No factions found'}
+                  isPersian={isPersian}
+                  icon={Skull}
+                />
               </div>
               <div>
                 <label className={labelCls}>{isPersian ? 'سطح خطر' : 'Danger level'}</label>
@@ -738,27 +788,25 @@ export default function TradeStudioPage() {
                     </button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <select
+                    <SearchableCombobox
                       value={c.entityId}
-                      onChange={(e) => {
-                        const cand = commodityCandidates.find((x) => x.id === e.target.value);
+                      onChange={(id) => {
+                        const cand = commodityCandidates.find((x) => x.id === id);
                         setFCommodities((p) =>
                           p.map((x, i) =>
                             i === idx
-                              ? { ...x, entityId: e.target.value, name: cand ? cand.name : x.name }
+                              ? { ...x, entityId: id, name: cand ? cand.name : x.name }
                               : x
                           )
                         );
                       }}
-                      className={inputCls}
-                    >
-                      <option value="">{isPersian ? 'کالای استخراجی/عتیقه…' : 'Extraction good / relic…'}</option>
-                      {commodityCandidates.map((cand) => (
-                        <option key={cand.id} value={cand.id}>
-                          {cand.name} ({cand.source})
-                        </option>
-                      ))}
-                    </select>
+                      options={commodityOptions}
+                      placeholder={isPersian ? 'کالای استخراجی/عتیقه…' : 'Extraction good / relic…'}
+                      searchPlaceholder={isPersian ? 'جستجو در کالاها…' : 'Search goods…'}
+                      emptyMessage={isPersian ? 'کالایی یافت نشد' : 'No goods found'}
+                      isPersian={isPersian}
+                      icon={Package}
+                    />
                     <select
                       value={c.flowDirection}
                       onChange={(e) =>
