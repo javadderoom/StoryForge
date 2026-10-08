@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { StatDefinition, ResourceDefinition } from '@/lib/types';
 import { ThemeRpgSystemPayload } from '@/lib/types/world';
@@ -35,6 +35,32 @@ type RpgSubTab = 'core' | 'abilities' | 'genesis' | 'categories' | 'progression'
 export default function RpgMechanicsPage() {
   const { story, isPersian, updateRpgSystem } = useStudioStory();
   const [activeTab, setActiveTab] = useState<RpgSubTab>('core');
+  const subTabsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = subTabsRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0) return;
+      const maxScroll = el.scrollWidth - el.clientWidth;
+      if (maxScroll <= 1) return;
+
+      const current = Math.abs(el.scrollLeft);
+      const isAtStart = current <= 2;
+      const isAtEnd = current >= maxScroll - 2;
+
+      if ((e.deltaY < 0 && isAtStart) || (e.deltaY > 0 && isAtEnd)) {
+        return;
+      }
+
+      e.preventDefault();
+      el.scrollBy({ left: e.deltaY, behavior: 'auto' });
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   // Plan 06: Theme-to-RPG System Synthesizer State
   const [isSynthesizingRpg, setIsSynthesizingRpg] = useState(false);
@@ -169,16 +195,20 @@ export default function RpgMechanicsPage() {
         </div>
 
         {/* Interactive Sub-Tabs Bar */}
-        <div className="flex border-b border-zinc-800 gap-2 overflow-x-auto pb-1">
+        <div
+          ref={subTabsRef}
+          className="flex border-b border-zinc-800 gap-2 overflow-x-auto pb-1 scrollbar-thin"
+          style={{ scrollbarWidth: 'thin' }}
+        >
           <button
             onClick={() => setActiveTab('core')}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'core'
                 ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-lg shadow-amber-500/5'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
             }`}
           >
-            <Shield className="w-4 h-4" />
+            <Shield className="w-4 h-4 shrink-0" />
             <span>{isPersian ? '۱. مکانیک‌های پایه و قوانین' : '1. Core Mechanics & Rules'}</span>
             <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-zinc-800/80 text-zinc-300">
               {statsCount + resourcesCount}
@@ -187,13 +217,13 @@ export default function RpgMechanicsPage() {
 
           <button
             onClick={() => setActiveTab('abilities')}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'abilities'
                 ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-lg shadow-cyan-500/5'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
             }`}
           >
-            <Zap className="w-4 h-4" />
+            <Zap className="w-4 h-4 shrink-0" />
             <span>{isPersian ? '۲. توانایی‌ها، طلسم‌ها و فنون' : '2. Abilities, Spells & Techniques'}</span>
             <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-zinc-800/80 text-zinc-300">
               {abilitiesCount}
@@ -202,13 +232,13 @@ export default function RpgMechanicsPage() {
 
           <button
             onClick={() => setActiveTab('genesis')}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'genesis'
                 ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-lg shadow-purple-500/5'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
             }`}
           >
-            <Users className="w-4 h-4" />
+            <Users className="w-4 h-4 shrink-0" />
             <span>{isPersian ? '۳. کهن‌الگوها و پیشینه‌ها' : '3. Archetypes & Backgrounds'}</span>
             <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-zinc-800/80 text-zinc-300">
               {archetypesCount + backgroundsCount}
@@ -217,25 +247,25 @@ export default function RpgMechanicsPage() {
 
           <button
             onClick={() => setActiveTab('categories')}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'categories'
                 ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-lg shadow-amber-500/5'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
             }`}
           >
-            <Tag className="w-4 h-4" />
+            <Tag className="w-4 h-4 shrink-0" />
             <span>{isPersian ? '۴. بانک محرک‌ها و دسته‌بندی‌ها' : '4. Action Categories & Triggers'}</span>
           </button>
 
           <button
             onClick={() => setActiveTab('progression')}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'progression'
                 ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-lg shadow-emerald-500/5'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
             }`}
           >
-            <TrendingUp className="w-4 h-4" />
+            <TrendingUp className="w-4 h-4 shrink-0" />
             <span>{isPersian ? '۵. پیشرفت، تراز و تجربه' : '5. Progression & Leveling'}</span>
             <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-zinc-800/80 text-zinc-300">
               {story.rpgSystem.progression?.enabled !== false ? 'Active' : 'Off'}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Tag,
   Plus,
@@ -21,6 +21,8 @@ import {
   Flame,
   Wrench,
   Sparkles,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { ActionCategory, ActionCategoryDomain } from '@/lib/types/actionCategory';
 import { notify } from '@/lib/notify';
@@ -57,6 +59,106 @@ export function ActionCategoriesSection({
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDomain, setSelectedDomain] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Horizontal scroll & drag state for domain tabs
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+  const hasMovedRef = useRef(false);
+
+  const checkScrollability = useCallback(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    if (maxScroll <= 1) {
+      setCanScrollLeft(false);
+      setCanScrollRight(false);
+      return;
+    }
+    const current = Math.abs(el.scrollLeft);
+    setCanScrollLeft(current > 2);
+    setCanScrollRight(current < maxScroll - 2);
+  }, []);
+
+  useEffect(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+
+    checkScrollability();
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0) return;
+      const maxScroll = el.scrollWidth - el.clientWidth;
+      if (maxScroll <= 1) return;
+
+      const current = Math.abs(el.scrollLeft);
+      const isAtStart = current <= 2;
+      const isAtEnd = current >= maxScroll - 2;
+
+      // Allow natural vertical page scroll if already at the boundary in that direction
+      if ((e.deltaY < 0 && isAtStart) || (e.deltaY > 0 && isAtEnd)) {
+        return;
+      }
+
+      e.preventDefault();
+      el.scrollBy({ left: e.deltaY, behavior: 'auto' });
+      checkScrollability();
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+
+    const resizeObserver = new ResizeObserver(() => {
+      checkScrollability();
+    });
+    resizeObserver.observe(el);
+
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      resizeObserver.disconnect();
+    };
+  }, [checkScrollability]);
+
+  const handleScrollLeft = () => {
+    if (!tabsRef.current) return;
+    tabsRef.current.scrollBy({ left: -260, behavior: 'smooth' });
+    setTimeout(checkScrollability, 300);
+  };
+
+  const handleScrollRight = () => {
+    if (!tabsRef.current) return;
+    tabsRef.current.scrollBy({ left: 260, behavior: 'smooth' });
+    setTimeout(checkScrollability, 300);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!tabsRef.current) return;
+    isDraggingRef.current = true;
+    startXRef.current = e.pageX - tabsRef.current.offsetLeft;
+    scrollLeftRef.current = tabsRef.current.scrollLeft;
+    hasMovedRef.current = false;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current || !tabsRef.current) return;
+    const x = e.pageX - tabsRef.current.offsetLeft;
+    const walk = (x - startXRef.current) * 1.5;
+    if (Math.abs(walk) > 4) {
+      hasMovedRef.current = true;
+    }
+    tabsRef.current.scrollLeft = scrollLeftRef.current - walk;
+    checkScrollability();
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+  };
+
+  const handleMouseLeave = () => {
+    isDraggingRef.current = false;
+  };
 
   // Modal / Form state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -260,32 +362,76 @@ export function ActionCategoriesSection({
         </div>
 
         {/* Domain Filter Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-zinc-800/60 scrollbar-none">
-          {DOMAINS.map((dom) => {
-            const Icon = dom.icon;
-            const isSelected = selectedDomain === dom.id;
-            const count =
-              dom.id === 'all'
-                ? categories.length
-                : categories.filter((c) => c.domain === dom.id).length;
-            return (
-              <button
-                key={dom.id}
-                onClick={() => setSelectedDomain(dom.id)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
-                  isSelected
-                    ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{isPersian ? dom.labelFa : dom.labelEn}</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-zinc-800/80 text-zinc-300">
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+        <div className="relative group/tabs border-b border-zinc-800/60 pb-2">
+          {/* Scroll Left Button */}
+          {canScrollLeft && (
+            <button
+              type="button"
+              onClick={handleScrollLeft}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-1.5 rounded-full bg-zinc-900/95 border border-zinc-700/80 text-zinc-300 hover:text-white hover:bg-zinc-800 shadow-xl backdrop-blur-md transition-all cursor-pointer"
+              title={isPersian ? 'حرکت به چپ' : 'Scroll left'}
+              aria-label="Scroll left"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          <div
+            ref={tabsRef}
+            onScroll={checkScrollability}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
+            className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin select-none cursor-grab active:cursor-grabbing px-1"
+            style={{ scrollbarWidth: 'thin' }}
+          >
+            {DOMAINS.map((dom) => {
+              const Icon = dom.icon;
+              const isSelected = selectedDomain === dom.id;
+              const count =
+                dom.id === 'all'
+                  ? categories.length
+                  : categories.filter((c) => c.domain === dom.id).length;
+              return (
+                <button
+                  key={dom.id}
+                  onClick={(e) => {
+                    if (hasMovedRef.current) {
+                      e.preventDefault();
+                      return;
+                    }
+                    setSelectedDomain(dom.id);
+                    e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                  }}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all whitespace-nowrap cursor-pointer shrink-0 ${
+                    isSelected
+                      ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span>{isPersian ? dom.labelFa : dom.labelEn}</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-zinc-800/80 text-zinc-300">
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Scroll Right Button */}
+          {canScrollRight && (
+            <button
+              type="button"
+              onClick={handleScrollRight}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-1.5 rounded-full bg-zinc-900/95 border border-zinc-700/80 text-zinc-300 hover:text-white hover:bg-zinc-800 shadow-xl backdrop-blur-md transition-all cursor-pointer"
+              title={isPersian ? 'حرکت به راست' : 'Scroll right'}
+              aria-label="Scroll right"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Search Bar */}
@@ -410,7 +556,7 @@ export function ActionCategoriesSection({
       {/* Create / Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-lg shadow-2xl space-y-5">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-lg shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto scrollbar-thin">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <h3 className="text-sm font-bold text-zinc-100 flex items-center gap-2">
                 <Tag className="w-4 h-4 text-amber-400" />
