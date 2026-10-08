@@ -683,6 +683,7 @@ export interface MapTerrainFeature {
   points?: MapPoint[]; // polyline for rivers / ridges / valleys
   width?: number;
   polygon?: MapPoint[]; // polygon boundary for landmasses, biomes, water bodies
+  holes?: MapPoint[][]; // polygon hole loops for inland lakes, inland seas, or carved water cutouts
   description?: string;
   climateZone?: 'polar' | 'temperate' | 'arid' | 'tropical' | 'mystical';
 }
@@ -1487,6 +1488,7 @@ export const MapTerrainFeatureSchema = z.object({
   points: z.array(MapPointSchema).optional(),
   width: z.number().optional(),
   polygon: z.array(MapPointSchema).optional(),
+  holes: z.array(z.array(MapPointSchema)).optional(),
   description: z.string().optional(),
   climateZone: z.enum(['polar', 'temperate', 'arid', 'tropical', 'mystical']).optional(),
 });

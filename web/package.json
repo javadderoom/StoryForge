@@ -26,6 +26,7 @@
     "next": "^16.3.5",
     "pg": "^8.23.0",
     "pixi.js": "^8.22.0",
+    "polygon-clipping": "^0.15.7",
     "rbush": "^4.0.1",
     "react": "19.2.8",
     "react-3d-dice": "^0.1.0",
