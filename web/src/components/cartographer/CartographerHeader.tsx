@@ -68,6 +68,8 @@ interface CartographerHeaderProps {
   isPersian: boolean;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  rendererEngine?: 'webgl' | 'svg';
+  onToggleRendererEngine?: () => void;
 }
 
 const THEME_OPTIONS: Array<{ id: MapStyleTheme; en: string; fa: string; icon: string }> = [
@@ -103,6 +105,8 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
   isPersian,
   isFullscreen,
   onToggleFullscreen,
+  rendererEngine = 'webgl',
+  onToggleRendererEngine,
 }) => {
   return (
     <header className="h-16 bg-zinc-950/90 border-b border-zinc-800/80 backdrop-blur-md px-4 flex items-center justify-between gap-3 select-none z-30 shrink-0">
@@ -217,6 +221,24 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
           <Globe className="w-3.5 h-3.5" />
           <span>{isPersian ? 'موجودیت‌های جهان' : 'World Palette'}</span>
         </button>
+
+        {/* WebGL Engine Switcher */}
+        {onToggleRendererEngine && (
+          <button
+            onClick={onToggleRendererEngine}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium transition-colors border ${
+              rendererEngine === 'webgl'
+                ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-950/20'
+                : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+            }`}
+            title={isPersian ? 'تغییر موتور رندر به WebGL یا SVG' : 'Toggle between WebGL (PixiJS) and SVG renderer'}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span className="font-mono text-[11px]">
+              {rendererEngine === 'webgl' ? '⚡ WebGL' : '📐 SVG'}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Right: AI Oracle, Zoom HUD, Save & Fullscreen */}
