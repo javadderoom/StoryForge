@@ -19,7 +19,6 @@ import {
 } from '@/lib/engines/world/cartographerEngine';
 import { CartographerHeader, CartographerTool } from '@/components/cartographer/CartographerHeader';
 import { CartographerToolbar } from '@/components/cartographer/CartographerToolbar';
-import { CartographerCanvas } from '@/components/cartographer/CartographerCanvas';
 import { PixiCartographerCanvas } from '@/components/cartographer/PixiCartographerCanvas';
 import { CartographerLayerPanel } from '@/components/cartographer/CartographerLayerPanel';
 import { CartographerEntityPalette } from '@/components/cartographer/CartographerEntityPalette';
@@ -59,7 +58,6 @@ export default function CartographerPage() {
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isAiOracleOpen, setIsAiOracleOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [rendererEngine, setRendererEngine] = useState<'webgl' | 'svg'>('webgl');
 
   // Viewport Transform State
   const [zoom, setZoom] = useState(0.85);
@@ -313,54 +311,30 @@ export default function CartographerPage() {
         isPersian={isPersian}
         isFullscreen={isFullscreen}
         onToggleFullscreen={handleToggleFullscreen}
-        rendererEngine={rendererEngine}
-        onToggleRendererEngine={() => setRendererEngine((curr) => (curr === 'webgl' ? 'svg' : 'webgl'))}
       />
 
       {/* Main Canvas Workstation Area */}
       <main className="flex-1 relative overflow-hidden">
-        {/* The Core Interactive Canvas: WebGL (PixiJS) vs SVG */}
-        {rendererEngine === 'webgl' ? (
-          <PixiCartographerCanvas
-            worldBible={story.worldBible}
-            settings={mapSettings}
-            activeTool={activeTool}
-            selectedItem={selectedItem}
-            onSelectItem={setSelectedItem}
-            onUpdateLocation={handleUpdateLocation}
-            onUpdateTradeRoute={handleUpdateTradeRoute}
-            onAddTradeRoute={handleAddTradeRoute}
-            onUpdateTerrain={handleUpdateTerrain}
-            onAddTerrain={handleAddTerrain}
-            onAddLocation={handleAddLocation}
-            onAddPlacement={handleAddPlacement}
-            isPersian={isPersian}
-            zoom={zoom}
-            setZoom={setZoom}
-            pan={pan}
-            setPan={setPan}
-          />
-        ) : (
-          <CartographerCanvas
-            worldBible={story.worldBible}
-            settings={mapSettings}
-            activeTool={activeTool}
-            selectedItem={selectedItem}
-            onSelectItem={setSelectedItem}
-            onUpdateLocation={handleUpdateLocation}
-            onUpdateTradeRoute={handleUpdateTradeRoute}
-            onAddTradeRoute={handleAddTradeRoute}
-            onUpdateTerrain={handleUpdateTerrain}
-            onAddTerrain={handleAddTerrain}
-            onAddLocation={handleAddLocation}
-            onAddPlacement={handleAddPlacement}
-            isPersian={isPersian}
-            zoom={zoom}
-            setZoom={setZoom}
-            pan={pan}
-            setPan={setPan}
-          />
-        )}
+        {/* Hardware-Accelerated PixiJS WebGL Canvas */}
+        <PixiCartographerCanvas
+          worldBible={story.worldBible}
+          settings={mapSettings}
+          activeTool={activeTool}
+          selectedItem={selectedItem}
+          onSelectItem={setSelectedItem}
+          onUpdateLocation={handleUpdateLocation}
+          onUpdateTradeRoute={handleUpdateTradeRoute}
+          onAddTradeRoute={handleAddTradeRoute}
+          onUpdateTerrain={handleUpdateTerrain}
+          onAddTerrain={handleAddTerrain}
+          onAddLocation={handleAddLocation}
+          onAddPlacement={handleAddPlacement}
+          isPersian={isPersian}
+          zoom={zoom}
+          setZoom={setZoom}
+          pan={pan}
+          setPan={setPan}
+        />
 
         {/* Floating Tool Palette (Left) */}
         <CartographerToolbar
