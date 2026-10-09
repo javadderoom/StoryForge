@@ -186,3 +186,14 @@ export async function sendPasswordResetEmail({
     };
   }
 }
+
+export default {
+  getResendClient,
+  getDefaultFromEmail,
+  getAppBaseUrl,
+  generateVerificationToken,
+  getVerificationTokenExpiry,
+  sendWelcomeVerificationEmail,
+  getPasswordResetTokenExpiry,
+  sendPasswordResetEmail,
+};

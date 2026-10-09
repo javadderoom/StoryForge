@@ -14,6 +14,7 @@
     "eval:story": "tsx scripts/evalStory.ts",
     "migrate:abilities": "tsx scripts/backfillStructuredAbilities.ts",
     "bootstrap:admin": "tsx scripts/bootstrapAdmin.ts",
+    "test:email": "tsx scripts/testEmail.ts",
     "test": "tsx scripts/testAll.ts"
   },
   "dependencies": {
