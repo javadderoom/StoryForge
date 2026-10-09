@@ -14,12 +14,16 @@ import {
   ShieldAlert,
   Eye,
   ArrowRight,
+  ArrowLeft,
+  ArrowLeftRight,
   Skull,
   Sparkles,
   Compass,
   PawPrint,
   Gem,
   Leaf,
+  UserCheck,
+  Users,
 } from 'lucide-react';
 import {
   WorldTradeRoute,
@@ -85,6 +89,7 @@ export default function TradeStudioPage() {
   const factions = story.worldBible.factions || [];
   const bestiary = story.worldBible.bestiary || [];
   const artifacts = story.worldBible.artifacts || [];
+  const npcs = story.worldBible.npcs || [];
 
   // Commodity candidates:
   // - Minerals & flora from the bestiary (raw extraction goods)
@@ -171,6 +176,8 @@ export default function TradeStudioPage() {
   const [fControllingId, setFControllingId] = useState('');
   const [fPatrollingId, setFPatrollingId] = useState('');
   const [fRivalId, setFRivalId] = useState('');
+  const [fCaravanMasterId, setFCaravanMasterId] = useState('');
+  const [fTravelingNpcIds, setFTravelingNpcIds] = useState<string[]>([]);
   const [fDanger, setFDanger] = useState('2');
   const [fStatus, setFStatus] = useState<TradeRouteStatus>('active');
   const [fDisruption, setFDisruption] = useState('');
@@ -211,6 +218,17 @@ export default function TradeStudioPage() {
         icon: MapPin,
       }));
   }, [locations, fOriginId, fDestinationId]);
+
+  const npcOptions: ComboboxOption[] = useMemo(() => {
+    return npcs.map((n) => ({
+      id: n.id,
+      name: n.name,
+      subtext: n.title || n.role,
+      badge: n.currentLocationId ? locName(n.currentLocationId) : undefined,
+      badgeColor: 'bg-zinc-800 text-zinc-300 border border-zinc-700',
+      icon: UserCheck,
+    }));
+  }, [npcs, locations]);
 
   const commodityOptions: ComboboxOption[] = useMemo(() => {
     return commodityCandidates.map((cand) => {
@@ -258,6 +276,7 @@ export default function TradeStudioPage() {
 
   const locName = (id?: string) => locations.find((l) => l.id === id)?.name || id || '—';
   const factionName = (id?: string) => factions.find((f) => f.id === id)?.name || id || '—';
+  const npcName = (id?: string) => npcs.find((n) => n.id === id)?.name || id || '—';
 
   const resetForm = () => {
     setEditingId(null);
@@ -270,6 +289,8 @@ export default function TradeStudioPage() {
     setFControllingId('');
     setFPatrollingId('');
     setFRivalId('');
+    setFCaravanMasterId('');
+    setFTravelingNpcIds([]);
     setFDanger('2');
     setFStatus('active');
     setFDisruption('');
@@ -300,6 +321,8 @@ export default function TradeStudioPage() {
     setFControllingId(r.controllingFactionId || '');
     setFPatrollingId(r.patrollingFactionId || '');
     setFRivalId(r.rivalRaidingFactionId || '');
+    setFCaravanMasterId(r.caravanMasterNpcId || '');
+    setFTravelingNpcIds([...(r.travelingNpcIds || [])]);
     setFDanger(String(r.dangerLevel ?? 2));
     setFStatus((r.status as TradeRouteStatus) || 'active');
     setFDisruption(r.disruptionReason || '');
@@ -337,6 +360,8 @@ export default function TradeStudioPage() {
       ...(fControllingId ? { controllingFactionId: fControllingId } : {}),
       ...(fPatrollingId ? { patrollingFactionId: fPatrollingId } : {}),
       ...(fRivalId ? { rivalRaidingFactionId: fRivalId } : {}),
+      ...(fCaravanMasterId.trim() ? { caravanMasterNpcId: fCaravanMasterId.trim() } : {}),
+      travelingNpcIds: fTravelingNpcIds,
       dangerLevel: (Math.min(5, Math.max(1, parseInt(fDanger || '2', 10) || 2)) as 1 | 2 | 3 | 4 | 5),
       status: fStatus,
       ...(fDisruption.trim() ? { disruptionReason: fDisruption.trim() } : {}),
@@ -490,19 +515,58 @@ export default function TradeStudioPage() {
                 </div>
 
                 {/* Path: Origin -> waypoints -> Destination */}
-                <div className="flex items-center gap-1.5 flex-wrap text-[11px] bg-zinc-950/60 border border-zinc-800/80 rounded-xl px-3 py-2">
-                  <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
-                  <span className="text-zinc-200 font-semibold">{locName(r.originLocationId)}</span>
-                  {(r.intermediateLocationIds || []).map((w, i) => (
-                    <React.Fragment key={`${w}-${i}`}>
-                      <ArrowRight className="w-3 h-3 text-zinc-600 shrink-0" />
-                      <span className="text-zinc-400">{locName(w)}</span>
-                    </React.Fragment>
-                  ))}
-                  <ArrowRight className="w-3 h-3 text-zinc-600 shrink-0" />
-                  <MapPin className="w-3 h-3 text-rose-400 shrink-0" />
-                  <span className="text-zinc-200 font-semibold">{locName(r.destinationLocationId)}</span>
-                </div>
+                {(() => {
+                  const isBilateral = (r.commodities || []).some((c) => c.flowDirection === 'bilateral');
+                  const ArrowIcon = isBilateral ? ArrowLeftRight : (isPersian ? ArrowLeft : ArrowRight);
+
+                  return (
+                    <div className="flex items-center gap-1.5 flex-wrap text-[11px] bg-zinc-950/60 border border-zinc-800/80 rounded-xl px-3 py-2">
+                      <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
+                      <span className="text-zinc-200 font-semibold">{locName(r.originLocationId)}</span>
+                      {(r.intermediateLocationIds || []).map((w, i) => (
+                        <React.Fragment key={`${w}-${i}`}>
+                          <ArrowIcon
+                            className={`w-3 h-3 shrink-0 ${isBilateral ? 'text-amber-400' : 'text-zinc-600'}`}
+                          />
+                          <span className="text-zinc-400">{locName(w)}</span>
+                        </React.Fragment>
+                      ))}
+                      <ArrowIcon
+                        className={`w-3 h-3 shrink-0 ${isBilateral ? 'text-amber-400' : 'text-zinc-600'}`}
+                      />
+                      <MapPin className="w-3 h-3 text-rose-400 shrink-0" />
+                      <span className="text-zinc-200 font-semibold">{locName(r.destinationLocationId)}</span>
+                    </div>
+                  );
+                })()}
+
+                {/* Caravan Master & Traveling NPCs */}
+                {(r.caravanMasterNpcId || (r.travelingNpcIds && r.travelingNpcIds.length > 0)) && (
+                  <div className="flex items-center gap-2 flex-wrap text-[11px] bg-zinc-950/40 border border-zinc-800/60 rounded-xl px-3 py-2">
+                    {r.caravanMasterNpcId && (
+                      <span className="flex items-center gap-1.5 text-amber-300 font-bold bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
+                        <UserCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span>
+                          {isPersian ? 'کاروان‌سالار:' : 'Master:'} {npcName(r.caravanMasterNpcId)}
+                        </span>
+                      </span>
+                    )}
+                    {r.travelingNpcIds && r.travelingNpcIds.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap text-zinc-400">
+                        <Users className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                        <span className="text-zinc-500">{isPersian ? 'همراهان:' : 'Retinue:'}</span>
+                        {r.travelingNpcIds.map((id) => (
+                          <span
+                            key={id}
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800/80 text-zinc-300 border border-zinc-700/50"
+                          >
+                            {npcName(id)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Commodities & Animals */}
                 {(r.commodities || []).length > 0 && (
@@ -865,6 +929,53 @@ export default function TradeStudioPage() {
               </div>
             </div>
 
+            {/* Caravan Master & Retinue Section */}
+            <div className="rounded-2xl border border-zinc-800 p-4 space-y-3 bg-zinc-950/40">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-amber-400" />
+                <h4 className="text-xs font-black text-zinc-200">
+                  {isPersian ? 'کاروان‌سالار و همراهان مسافر' : 'Caravan Master & Traveling Retinue'}
+                </h4>
+              </div>
+              <p className="text-[11px] text-zinc-500">
+                {isPersian
+                  ? 'کاروان‌سالار رهبر و هدایت‌کننده کاروان است؛ مسافران و محافظان ثبت‌شده در طول مسیر و ایستگاه‌ها در صحنه‌ها ظاهر می‌شوند.'
+                  : 'The Caravan Master leads the expedition, and traveling NPCs journey along the route to be encountered at waypoints.'}
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>
+                    {isPersian ? 'کاروان‌سالار (رهبر کاروان)' : 'Caravan Master (Leader)'}
+                  </label>
+                  <SearchableCombobox
+                    value={fCaravanMasterId}
+                    onChange={setFCaravanMasterId}
+                    options={npcOptions}
+                    placeholder={isPersian ? 'انتخاب کاروان‌سالار…' : 'Select Caravan Master…'}
+                    searchPlaceholder={isPersian ? 'جستجو در شخصیت‌ها…' : 'Search NPCs…'}
+                    emptyMessage={isPersian ? 'شخصیتی یافت نشد' : 'No NPCs found'}
+                    isPersian={isPersian}
+                    icon={UserCheck}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    {isPersian ? 'مسافران و همراهان کاروان' : 'Traveling NPCs / Retinue'}
+                  </label>
+                  <MultiSearchableCombobox
+                    values={fTravelingNpcIds}
+                    onChange={setFTravelingNpcIds}
+                    options={npcOptions.filter((opt) => opt.id !== fCaravanMasterId)}
+                    placeholder={isPersian ? 'افزودن شخصیت همراه…' : 'Add traveling NPC…'}
+                    searchPlaceholder={isPersian ? 'جستجو و افزودن همراه…' : 'Search and add NPC…'}
+                    emptyMessage={isPersian ? 'شخصیت دیگری یافت نشد' : 'No other NPCs found'}
+                    isPersian={isPersian}
+                    icon={Users}
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Commodities & Animals editor */}
             <div className="rounded-2xl border border-zinc-800 p-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -915,6 +1026,7 @@ export default function TradeStudioPage() {
                       emptyMessage={isPersian ? 'موردی یافت نشد' : 'No match found'}
                       isPersian={isPersian}
                       icon={Package}
+                      placement="top"
                     />
                     <select
                       value={c.flowDirection}

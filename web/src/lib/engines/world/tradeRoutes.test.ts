@@ -225,6 +225,26 @@ describe('Plan 10 — narrative context & route helpers', () => {
     assert.match(line, /Shortage/i);
   });
 
+  it('formatTradeRouteLine includes caravan master and traveling retinue', () => {
+    const routeWithCaravan: WorldTradeRoute = {
+      ...baseRoute,
+      caravanMasterNpcId: 'npc_master_tariq',
+      travelingNpcIds: ['npc_guard_zara', 'npc_merchant_farid'],
+    };
+    const wb = makeWb({
+      locations: LOCS,
+      npcs: [
+        { id: 'npc_master_tariq', name: 'Master Tariq', title: 'Caravan Captain', currentLocationId: 'loc_mines' } as any,
+        { id: 'npc_guard_zara', name: 'Zara', title: 'Caravan Guard', currentLocationId: 'loc_mines' } as any,
+        { id: 'npc_merchant_farid', name: 'Farid', title: 'Spice Merchant', currentLocationId: 'loc_mines' } as any,
+      ],
+      tradeRoutes: [routeWithCaravan],
+    });
+    const line = formatTradeRouteLine(routeWithCaravan, wb);
+    assert.match(line, /Caravan Master Master Tariq/);
+    assert.match(line, /traveling retinue: Zara, Farid/);
+  });
+
   it('getRoutesForLocation matches origin, destination and waypoints', () => {
     const wb = makeWb({ tradeRoutes: [baseRoute] });
     assert.equal(getRoutesForLocation('loc_mines', wb).length, 1);

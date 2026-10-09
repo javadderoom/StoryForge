@@ -21,6 +21,11 @@ function factionName(wb: WorldBible, id?: string): string {
   return (wb.factions ?? []).find((f) => f.id === id)?.name || id;
 }
 
+function npcName(wb: WorldBible, id?: string): string {
+  if (!id) return '—';
+  return (wb.npcs ?? []).find((n) => n.id === id)?.name || id;
+}
+
 /**
  * Plan 10 — Automatic Market Availability Resolution.
  * A commodity is native at its extraction habitat; otherwise it flows in via
@@ -105,6 +110,10 @@ export function formatTradeRouteLine(route: WorldTradeRoute, wb: WorldBible): st
     .join(', ');
   const controller = route.controllingFactionId ? `, controlled by ${factionName(wb, route.controllingFactionId)}` : '';
   const raider = route.rivalRaidingFactionId ? `, raided by ${factionName(wb, route.rivalRaidingFactionId)}` : '';
+  const master = route.caravanMasterNpcId ? `, led by Caravan Master ${npcName(wb, route.caravanMasterNpcId)}` : '';
+  const travelers = (route.travelingNpcIds ?? []).length
+    ? `, traveling retinue: ${(route.travelingNpcIds ?? []).map((id) => npcName(wb, id)).join(', ')}`
+    : '';
   const disruption = route.disruptionReason ? ` — ${route.disruptionReason}` : '';
   const impact =
     route.status === 'blockaded'
@@ -112,7 +121,7 @@ export function formatTradeRouteLine(route: WorldTradeRoute, wb: WorldBible): st
       : route.status === 'raided'
         ? ` Scarce at ${dest}; escorts in demand.`
         : '';
-  return `"${route.name}" (Danger ${route.dangerLevel ?? 2}, ${String(route.status ?? 'active').toUpperCase()}${controller}${raider}): ${path} | Transports: ${goods || 'no listed commodities'}${disruption}.${impact}`;
+  return `"${route.name}" (Danger ${route.dangerLevel ?? 2}, ${String(route.status ?? 'active').toUpperCase()}${controller}${raider}${master}${travelers}): ${path} | Transports: ${goods || 'no listed commodities'}${disruption}.${impact}`;
 }
 
 /** Routes touching a location (origin, destination, or waypoint). */
