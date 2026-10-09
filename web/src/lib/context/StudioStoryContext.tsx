@@ -30,6 +30,7 @@ import {
   WorldTradeRoute,
   PowerSchool,
   StoryEncounter,
+  WorldMapData,
 } from '@/lib/types';
 import { mergeFactionRelations, syncLegacyFactionLinks } from '@/lib/engines/world/factionRelations';
 import type { WorldActionChange } from '@/lib/engines/world/oracleActions';
@@ -471,6 +472,8 @@ interface StudioStoryContextType {
   addPowerSchool: (school: PowerSchool) => void;
   editPowerSchool: (id: string, updated: Partial<PowerSchool>) => void;
   deletePowerSchool: (id: string) => void;
+  // Cartographer Map Data CRUD
+  updateMapData: (updater: (prev: WorldMapData | undefined) => WorldMapData) => void;
   // Story Beats CRUD
   updateStoryBeats: (updater: (prev: StoryManifest['initialStoryBeats']) => StoryManifest['initialStoryBeats']) => void;
   // Encounters CRUD
@@ -2507,6 +2510,25 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     [isPersian, updateWorldBible]
   );
 
+  // Cartographer Map Data CRUD
+  const updateMapData = useCallback(
+    (updater: (prev: WorldMapData | undefined) => WorldMapData) => {
+      updateWorldBible((prev) => {
+        const currentMap = prev.mapData || prev.ontology?.mapData;
+        const nextMap = updater(currentMap);
+        return {
+          ...prev,
+          mapData: nextMap,
+          ontology: {
+            ...(prev.ontology || getDefaultOntology(isPersian)),
+            mapData: nextMap,
+          },
+        };
+      });
+    },
+    [isPersian, updateWorldBible]
+  );
+
   // Story Beats CRUD
   const updateStoryBeats = useCallback(
     (updater: (prev: StoryManifest['initialStoryBeats']) => StoryManifest['initialStoryBeats']) => {
@@ -2724,6 +2746,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         addPowerSchool,
         editPowerSchool,
         deletePowerSchool,
+        updateMapData,
         updateStoryBeats,
         updateEncounters,
         updateSaga,

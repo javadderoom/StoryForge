@@ -40,6 +40,8 @@
 - **Commit at Completion**: Whenever code changes, feature implementations, bug fixes, or requested modifications are completed at the end of a turn/conversation, ALWAYS stage all relevant changes (`git add`) and write a clear, concise conventional commit message (`git commit -m "..."`).
 - **NEVER automatically run `git push`**: Do NOT automatically push commits to the remote repository. Always remind/inform the user that changes have been committed locally and tell them to push when ready.
 
-
-
+## Story Entity Selectors & Comboboxes Rule
+- **Use `SearchableCombobox` / `MultiSearchableCombobox` for Story Entity Pickers**: Whenever selecting, linking, or assigning story entities (such as locations, destinations, waypoints, NPCs, factions, items, bestiary creatures, timeline events, or quests) in StoryForge Studio or creator interfaces, **NEVER** use plain native HTML `<select>` dropdowns.
+- Always use `SearchableCombobox` (for single selection) or `MultiSearchableCombobox` (for multi-selection) from `@/components/studio/SearchableCombobox`.
+- These ensure consistent UX with live suggestion search, real-time typing filters, keyboard navigation (`ArrowUp`/`ArrowDown`/`Enter`/`Escape`), metadata badges, and clean chip management.
 

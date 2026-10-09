@@ -15,6 +15,7 @@ describe('StoryRepository — Selective Queries & Partial Updates', () => {
     assert.equal(typeof StoryRepository.getLaws, 'function');
     assert.equal(typeof StoryRepository.getDramaBonds, 'function');
     assert.equal(typeof StoryRepository.getOntology, 'function');
+    assert.equal(typeof StoryRepository.getTradeRoutes, 'function');
   });
 
   it('exposes partial atomic updater method updateLoreCollection', () => {
@@ -49,7 +50,13 @@ describe('StoryRepository — Selective Queries & Partial Updates', () => {
     const dramaBonds = await StoryRepository.getDramaBonds('story_mock_123');
     assert.ok(Array.isArray(dramaBonds));
 
+    const tradeRoutes = await StoryRepository.getTradeRoutes('story_mock_123');
+    assert.ok(Array.isArray(tradeRoutes));
+
     const result = await StoryRepository.updateLoreCollection('story_mock_123', 'bestiary', []);
     assert.equal(result.success, true);
+
+    const tradeResult = await StoryRepository.updateLoreCollection('story_mock_123', 'tradeRoutes', []);
+    assert.equal(tradeResult.success, true);
   });
 });

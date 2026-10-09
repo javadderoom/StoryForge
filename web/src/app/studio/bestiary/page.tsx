@@ -9,6 +9,7 @@ import {
   Edit2,
   Shield,
   MapPin,
+  Search,
   Flame,
   Zap,
   Crosshair,
@@ -186,6 +187,7 @@ export default function BestiaryStudioPage() {
   const [cRarity, setCRarity] = useState<'common' | 'uncommon' | 'rare' | 'legendary'>('common');
   const [cDomesticated, setCDomesticated] = useState<boolean>(false);
   const [cHabitats, setCHabitats] = useState<string[]>([]);
+  const [habitatSearch, setHabitatSearch] = useState('');
   const [cTactics, setCTactics] = useState('');
   const [cWeaknesses, setCWeaknesses] = useState('');
   const [cResistances, setCResistances] = useState('');
@@ -379,6 +381,7 @@ export default function BestiaryStudioPage() {
     setCRarity(prefill?.rarity || 'common');
     setCDomesticated(prefill?.domesticated || false);
     setCHabitats(prefill?.habitatIds || []);
+    setHabitatSearch('');
     setCTactics('');
     setCWeaknesses('');
     setCResistances('');
@@ -400,6 +403,7 @@ export default function BestiaryStudioPage() {
     setCRarity(c.rarity || 'common');
     setCDomesticated(!!c.isDomesticated);
     setCHabitats(c.habitatLocationIds || []);
+    setHabitatSearch('');
     setCTactics(c.behavioralTactics || '');
     setCWeaknesses(Array.isArray(c.weaknesses) ? c.weaknesses.join('\n') : (typeof c.weaknesses === 'string' ? c.weaknesses : ''));
     setCResistances(Array.isArray(c.resistances) ? c.resistances.join('\n') : (typeof c.resistances === 'string' ? c.resistances : ''));
@@ -1905,46 +1909,114 @@ export default function BestiaryStudioPage() {
                 </button>
               )}
 
-              {/* Habitats Multi-Location Interactive Picker */}              <div>
-                <label className="text-xs font-bold text-zinc-300 block mb-1.5 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
+              {/* Habitats Multi-Location Interactive Picker */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-red-400" />
                     {cCategory === 'mineral'
                       ? (isPersian ? 'مکان‌ها و رگه‌های کشف‌شده (چندانتخابی):' : 'Locations & Deposit Veins (Multi-select):')
                       : (isPersian ? 'زیستگاه‌ها و مکان‌های زیست (چندانتخابی):' : 'Habitats & Distribution (Multi-select):')}
-                  </span>
-                  <span className="text-[10px] text-zinc-500 font-mono">
-                    {cHabitats.length} {isPersian ? 'مکان انتخاب‌شده' : 'selected'}
-                  </span>
-                </label>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {cHabitats.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setCHabitats([])}
+                        className="text-[10px] text-zinc-400 hover:text-red-400 transition-colors cursor-pointer"
+                      >
+                        {isPersian ? 'پاک کردن همه' : 'Clear all'}
+                      </button>
+                    )}
+                    <span className="text-[10px] text-zinc-500 font-mono">
+                      {cHabitats.length} {isPersian ? 'مکان انتخاب‌شده' : 'selected'}
+                    </span>
+                  </div>
+                </div>
+
                 {locations.length === 0 ? (
                   <p className="text-[11px] text-zinc-500 italic p-2.5 rounded-xl bg-zinc-950 border border-zinc-800">
                     {isPersian ? 'هنوز مکانی در جهان ثبت نشده است.' : 'No locations registered in world bible yet.'}
                   </p>
                 ) : (
-                  <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2.5 rounded-xl bg-zinc-950 border border-zinc-800">
-                    {locations.map((loc) => {
-                      const isSelected = cHabitats.includes(loc.id);
-                      return (
+                  <div className="space-y-2">
+                    {/* Live Search Input Box */}
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-zinc-500 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={habitatSearch}
+                        onChange={(e) => setHabitatSearch(e.target.value)}
+                        placeholder={isPersian ? 'جستجو در نام یا اقلیم مکان‌ها...' : 'Search locations by name or region...'}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-8 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-red-400/70"
+                      />
+                      {habitatSearch && (
                         <button
                           type="button"
-                          key={loc.id}
-                          onClick={() => {
-                            setCHabitats((prev) =>
-                              isSelected ? prev.filter((id) => id !== loc.id) : [...prev, loc.id]
-                            );
-                          }}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1 cursor-pointer ${
-                            isSelected
-                              ? 'bg-red-500/20 border border-red-500/50 text-red-300'
-                              : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                          }`}
+                          onClick={() => setHabitatSearch('')}
+                          className="absolute right-2.5 top-2 text-zinc-500 hover:text-zinc-300 cursor-pointer p-0.5"
+                          title={isPersian ? 'پاک کردن جستجو' : 'Clear search'}
                         >
-                          <MapPin className="w-3 h-3" />
-                          <span>{loc.name}</span>
+                          <X className="w-3.5 h-3.5" />
                         </button>
-                      );
-                    })}
+                      )}
+                    </div>
+
+                    {/* Filtered Locations Tag Cloud */}
+                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2.5 rounded-xl bg-zinc-950 border border-zinc-800">
+                      {(() => {
+                        const q = habitatSearch.trim().toLowerCase();
+                        const filtered = locations
+                          .filter((loc) => {
+                            if (!q) return true;
+                            return (
+                              loc.name.toLowerCase().includes(q) ||
+                              (loc.region && loc.region.toLowerCase().includes(q))
+                            );
+                          })
+                          .sort((a, b) => {
+                            const aSelected = cHabitats.includes(a.id) ? 1 : 0;
+                            const bSelected = cHabitats.includes(b.id) ? 1 : 0;
+                            if (aSelected !== bSelected) return bSelected - aSelected;
+                            return a.name.localeCompare(b.name);
+                          });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <p className="w-full text-center text-xs text-zinc-500 py-3">
+                              {isPersian ? 'مکانی مطابق با جستجو پیدا نشد.' : 'No matching locations found.'}
+                            </p>
+                          );
+                        }
+
+                        return filtered.map((loc) => {
+                          const isSelected = cHabitats.includes(loc.id);
+                          return (
+                            <button
+                              type="button"
+                              key={loc.id}
+                              onClick={() => {
+                                setCHabitats((prev) =>
+                                  isSelected ? prev.filter((id) => id !== loc.id) : [...prev, loc.id]
+                                );
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer select-none ${
+                                isSelected
+                                  ? 'bg-red-500/20 border border-red-500/50 text-red-300 font-semibold shadow-sm'
+                                  : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                              }`}
+                            >
+                              <MapPin className="w-3 h-3 shrink-0" />
+                              <span>{loc.name}</span>
+                              {loc.region && (
+                                <span className="text-[10px] text-zinc-500 font-normal">({loc.region})</span>
+                              )}
+                              {isSelected && <Check className="w-3 h-3 text-red-400 shrink-0" />}
+                            </button>
+                          );
+                        });
+                      })()}
+                    </div>
                   </div>
                 )}
               </div>

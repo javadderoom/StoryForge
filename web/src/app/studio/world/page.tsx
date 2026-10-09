@@ -26,6 +26,7 @@ import {
   RotateCcw,
   Wand2,
   MapPin,
+  Search,
   Swords,
   Handshake,
   Flame,
@@ -179,6 +180,7 @@ export default function WorldBiblePage() {
     alliedFactionIds: [],
     relations: {},
   });
+  const [territorySearch, setTerritorySearch] = useState('');
 
   // AI World Synthesis Modal (Gemini 3.7 Flash)
   const [aiWorldModalOpen, setAiWorldModalOpen] = useState(false);
@@ -419,6 +421,7 @@ export default function WorldBiblePage() {
         relations: initialRelations,
       });
     }
+    setTerritorySearch('');
     setFactionModalOpen(true);
   };
 
@@ -1337,15 +1340,31 @@ export default function WorldBiblePage() {
 
                 return (
                   <div className="space-y-2 pt-2 border-t border-zinc-800/80">
-                    <label className="block text-xs font-semibold text-zinc-300 flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
                         <MapPin className="w-3.5 h-3.5 text-amber-400" />
                         {isPersian ? 'قلمروها و پایگاه‌های تحت کنترل' : 'Controlled Territories & Strongholds'}
-                      </span>
-                      <span className="text-[11px] font-mono text-zinc-500">
-                        {validTerritories.length} {isPersian ? 'انتخاب شده' : 'selected'}
-                      </span>
-                    </label>
+                      </label>
+                      <div className="flex items-center gap-2">
+                        {validTerritories.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFactionForm((prev) => ({
+                                ...prev,
+                                territoryIds: [],
+                              }))
+                            }
+                            className="text-[10px] text-zinc-400 hover:text-amber-400 transition-colors cursor-pointer"
+                          >
+                            {isPersian ? 'پاک کردن همه' : 'Clear all'}
+                          </button>
+                        )}
+                        <span className="text-[11px] font-mono text-zinc-500">
+                          {validTerritories.length} {isPersian ? 'انتخاب شده' : 'selected'}
+                        </span>
+                      </div>
+                    </div>
 
                     {orphanTerritories.length > 0 && (
                       <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2 text-xs text-amber-300">
@@ -1374,26 +1393,80 @@ export default function WorldBiblePage() {
                         {isPersian ? 'هنوز مکانی در جهان ثبت نشده است.' : 'No locations registered in the World Bible yet.'}
                       </p>
                     ) : (
-                      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1 bg-zinc-950/60 rounded-xl border border-zinc-800">
-                        {story.worldBible.locations.map((loc) => {
-                          const isSelected = factionForm.territoryIds.includes(loc.id);
-                          return (
+                      <div className="space-y-2">
+                        {/* Live Search Input Box */}
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-zinc-500 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={territorySearch}
+                            onChange={(e) => setTerritorySearch(e.target.value)}
+                            placeholder={isPersian ? 'جستجو در نام یا اقلیم مکان‌ها...' : 'Search locations by name or region...'}
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-8 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-amber-400/70"
+                          />
+                          {territorySearch && (
                             <button
-                              key={loc.id}
                               type="button"
-                              onClick={() => toggleTerritory(loc.id)}
-                              className={`text-xs px-3 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
-                                isSelected
-                                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 font-semibold'
-                                  : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500'
-                              }`}
+                              onClick={() => setTerritorySearch('')}
+                              className="absolute right-2.5 top-2 text-zinc-500 hover:text-zinc-300 cursor-pointer p-0.5"
+                              title={isPersian ? 'پاک کردن جستجو' : 'Clear search'}
                             >
-                              <MapPin className="w-3 h-3" />
-                              <span>{loc.name}</span>
-                              {isSelected && <Check className="w-3 h-3 text-amber-400" />}
+                              <X className="w-3.5 h-3.5" />
                             </button>
-                          );
-                        })}
+                          )}
+                        </div>
+
+                        {/* Filtered Locations Tag Cloud */}
+                        <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1.5 bg-zinc-950/60 rounded-xl border border-zinc-800">
+                          {(() => {
+                            const q = territorySearch.trim().toLowerCase();
+                            const filtered = story.worldBible.locations
+                              .filter((loc) => {
+                                if (!q) return true;
+                                return (
+                                  loc.name.toLowerCase().includes(q) ||
+                                  (loc.region && loc.region.toLowerCase().includes(q))
+                                );
+                              })
+                              .sort((a, b) => {
+                                const aSelected = factionForm.territoryIds.includes(a.id) ? 1 : 0;
+                                const bSelected = factionForm.territoryIds.includes(b.id) ? 1 : 0;
+                                if (aSelected !== bSelected) return bSelected - aSelected;
+                                return a.name.localeCompare(b.name);
+                              });
+
+                            if (filtered.length === 0) {
+                              return (
+                                <p className="w-full text-center text-xs text-zinc-500 py-3">
+                                  {isPersian ? 'مکانی مطابق با جستجو پیدا نشد.' : 'No matching locations found.'}
+                                </p>
+                              );
+                            }
+
+                            return filtered.map((loc) => {
+                              const isSelected = factionForm.territoryIds.includes(loc.id);
+                              return (
+                                <button
+                                  key={loc.id}
+                                  type="button"
+                                  onClick={() => toggleTerritory(loc.id)}
+                                  className={`text-xs px-3 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer select-none ${
+                                    isSelected
+                                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 font-semibold shadow-sm'
+                                      : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500 hover:text-zinc-200'
+                                  }`}
+                                >
+                                  <MapPin className="w-3 h-3 shrink-0" />
+                                  <span>{loc.name}</span>
+                                  {loc.region && (
+                                    <span className="text-[10px] text-zinc-500 font-normal">({loc.region})</span>
+                                  )}
+                                  {isSelected && <Check className="w-3 h-3 text-amber-400 shrink-0" />}
+                                </button>
+                              );
+                            });
+                          })()}
+                        </div>
                       </div>
                     )}
                   </div>

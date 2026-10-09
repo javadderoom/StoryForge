@@ -4,6 +4,7 @@ setlocal
 set JAVABIN=C:\Program Files\Android\Android Studio\jbr\bin\java.exe
 set BUNDLE_DIR=%~dp0build\app\outputs\bundle\release
 set JAR=%BUNDLE_DIR%\bundlesigner-0.1.13.jar
+if not exist "%JAR%" set JAR=%~dp0bundlesigner-0.1.13.jar
 set AAB=%BUNDLE_DIR%\app-release.aab
 set KEYSTORE=%~dp0android\app\upload-keystore.jks
 
@@ -14,6 +15,7 @@ if not exist "%AAB%" (
 
 if not exist "%JAR%" (
     echo [ERROR] %JAR% not found.
+    echo Please place bundlesigner-0.1.13.jar in "%~dp0" or "%BUNDLE_DIR%".
     exit /b 1
 )
 

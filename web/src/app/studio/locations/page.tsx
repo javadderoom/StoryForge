@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useStudioStory, normalizeOntology } from '@/lib/context/StudioStoryContext';
 import {
   Sparkles,
@@ -617,6 +618,14 @@ export default function LocationsStudioPage() {
               </span>
             </button>
           )}
+          <Link
+            href="/cartographer"
+            className="px-3.5 py-2 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold shadow-lg shadow-amber-950/20 flex items-center gap-1.5 transition-all"
+            title={isPersian ? 'ورود به نقشه گرافیکی تعاملی جهان' : 'Open Interactive World Cartographer'}
+          >
+            <Compass className="w-4 h-4 text-amber-400" />
+            <span>{isPersian ? 'نقشه‌نگار تعاملی' : 'World Cartographer'}</span>
+          </Link>
           <button
             onClick={handleOpenAddModal}
             className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-zinc-950 text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition-all"
@@ -1427,8 +1436,8 @@ export default function LocationsStudioPage() {
                         </div>
                       )}
 
-                      {/* Filter Search Input (shown when candidate locations > 4) */}
-                      {candidateLocations.length > 4 && (
+                      {/* Filter Search Input (shown when candidate locations > 1) */}
+                      {candidateLocations.length > 1 && (
                         <div className="relative">
                           <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-zinc-500 pointer-events-none" />
                           <input
@@ -1436,8 +1445,18 @@ export default function LocationsStudioPage() {
                             value={connectedSearch}
                             onChange={(e) => setConnectedSearch(e.target.value)}
                             placeholder={isPersian ? 'جستجو در مکان‌ها برای ایجاد پیوند...' : 'Search locations to link...'}
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-amber-400/70"
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-8 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-amber-400/70"
                           />
+                          {connectedSearch && (
+                            <button
+                              type="button"
+                              onClick={() => setConnectedSearch('')}
+                              className="absolute right-2.5 top-2 text-zinc-500 hover:text-zinc-300 cursor-pointer p-0.5"
+                              title={isPersian ? 'پاک کردن جستجو' : 'Clear search'}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       )}
 

@@ -13,6 +13,11 @@ import {
   NPCDramaBond,
   WorldOntology,
   FactionRelation,
+  WorldTradeRoute,
+  WorldMapData,
+  PowerSchool,
+  WorldQuest,
+  CustomLoreRelation,
 } from '@/lib/types/world';
 
 const isDatabaseActive = process.env.ENABLE_DB === 'true';
@@ -28,11 +33,14 @@ export interface WorldListItem {
 
 function toWorldBible(wb: any): WorldBible | null {
   if (!wb) return null;
+  const ontology = (wb.ontology as unknown as WorldOntology) || undefined;
+  const ontologyAny = (wb.ontology as Record<string, any>) || undefined;
   return {
     worldId: wb.worldId || wb.id,
     worldName: wb.worldName,
     summary: wb.summary,
     themeNotes: wb.themeNotes,
+    aiSystemPrompt: wb.aiSystemPrompt || ontologyAny?.aiSystemPrompt || undefined,
     laws: (wb.laws as unknown as WorldLaw[]) || [],
     factions: (wb.factions as unknown as Faction[]) || [],
     locations: (wb.locations as unknown as WorldLocation[]) || [],
@@ -43,8 +51,25 @@ function toWorldBible(wb: any): WorldBible | null {
     religions: (wb.religions as unknown as WorldDeity[]) || [],
     dramaBonds: (wb.dramaBonds as unknown as NPCDramaBond[]) || [],
     factionRelations: (wb.factionRelations as unknown as FactionRelation[]) || [],
-    ontology: (wb.ontology as unknown as WorldOntology) || undefined,
-    customRelations: [],
+    ontology,
+    customRelations:
+      (wb.customRelations as unknown as CustomLoreRelation[]) ||
+      (ontologyAny?.customRelations as unknown as CustomLoreRelation[]) ||
+      [],
+    tradeRoutes:
+      (wb.tradeRoutes as unknown as WorldTradeRoute[]) ||
+      (ontologyAny?.tradeRoutes as unknown as WorldTradeRoute[]) ||
+      [],
+    powerSchools:
+      (wb.powerSchools as unknown as PowerSchool[]) ||
+      (ontologyAny?.powerSchools as unknown as PowerSchool[]) ||
+      [],
+    quests:
+      (wb.quests as unknown as WorldQuest[]) ||
+      (ontologyAny?.quests as unknown as WorldQuest[]) ||
+      [],
+    mapData: (wb.mapData as unknown as WorldMapData) || ontologyAny?.mapData || undefined,
+    oracleDirectives: wb.oracleDirectives || ontologyAny?.oracleDirectives || undefined,
   };
 }
 
@@ -175,6 +200,7 @@ export class StoryRepository {
         religions: wb.religions as any,
         dramaBonds: wb.dramaBonds as any,
         factionRelations: wb.factionRelations as any,
+        tradeRoutes: (wb.tradeRoutes || []) as any,
         ontology: wb.ontology as any,
       },
     });
@@ -351,8 +377,24 @@ export class StoryRepository {
           aiSystemPrompt: liveBible.aiSystemPrompt || embedded?.aiSystemPrompt,
           worldBibleVersion:
             story.world?.worldBibleVersion || liveBible.worldBibleVersion || embedded?.worldBibleVersion || 1,
-          customRelations: liveBible.customRelations || embedded?.customRelations || [],
-          oracleDirectives: embedded?.oracleDirectives,
+          customRelations:
+            (liveBible.customRelations && liveBible.customRelations.length > 0)
+              ? liveBible.customRelations
+              : (embedded?.customRelations || []),
+          tradeRoutes:
+            (liveBible.tradeRoutes && liveBible.tradeRoutes.length > 0)
+              ? liveBible.tradeRoutes
+              : (embedded?.tradeRoutes || []),
+          powerSchools:
+            (liveBible.powerSchools && liveBible.powerSchools.length > 0)
+              ? liveBible.powerSchools
+              : (embedded?.powerSchools || []),
+          quests:
+            (liveBible.quests && liveBible.quests.length > 0)
+              ? liveBible.quests
+              : (embedded?.quests || []),
+          mapData: liveBible.mapData || embedded?.mapData || undefined,
+          oracleDirectives: liveBible.oracleDirectives || embedded?.oracleDirectives || undefined,
         } as any;
       }
       if (!manifest.worldBible.ontology) {
@@ -491,6 +533,13 @@ export class StoryRepository {
     return (await this.getLoreColumn(storyId, 'factionRelations')) as FactionRelation[];
   }
 
+  /**
+   * Selectively fetches only the Trade Routes collection for a story.
+   */
+  static async getTradeRoutes(storyId: string): Promise<WorldTradeRoute[]> {
+    return (await this.getLoreColumn(storyId, 'tradeRoutes')) as WorldTradeRoute[];
+  }
+
   private static async getLoreColumn(storyId: string, column: string): Promise<unknown> {
     if (!isDatabaseActive) return column === 'ontology' ? null : [];
     try {
@@ -529,7 +578,8 @@ export class StoryRepository {
       | 'religions'
       | 'dramaBonds'
       | 'ontology'
-      | 'factionRelations',
+      | 'factionRelations'
+      | 'tradeRoutes',
     data: any
   ) {
     if (!isDatabaseActive) {
@@ -693,6 +743,33 @@ export class StoryRepository {
 
         // 4. Shared world lore (one row per world — every linked story reads this).
         const existingWb = await tx.worldBible.findUnique({ where: { worldId } });
+        const existingOntology = (existingWb?.ontology as Record<string, any>) || {};
+        const ontologyPayload = {
+          ...existingOntology,
+          ...(manifest.worldBible.ontology || {}),
+          tradeRoutes:
+            manifest.worldBible.tradeRoutes ??
+            (existingWb as any)?.tradeRoutes ??
+            existingOntology.tradeRoutes ??
+            [],
+          mapData:
+            manifest.worldBible.mapData ??
+            (existingWb as any)?.mapData ??
+            existingOntology.mapData,
+          powerSchools:
+            manifest.worldBible.powerSchools ??
+            existingOntology.powerSchools ??
+            [],
+          quests: manifest.worldBible.quests ?? existingOntology.quests ?? [],
+          customRelations:
+            manifest.worldBible.customRelations ??
+            existingOntology.customRelations ??
+            [],
+          aiSystemPrompt:
+            manifest.worldBible.aiSystemPrompt ?? existingOntology.aiSystemPrompt,
+          oracleDirectives:
+            manifest.worldBible.oracleDirectives ?? existingOntology.oracleDirectives,
+        };
         const wbData = {
           worldName: manifest.worldBible.worldName,
           summary: manifest.worldBible.summary,
@@ -707,7 +784,8 @@ export class StoryRepository {
           religions: (manifest.worldBible.religions || []) as any,
           dramaBonds: (manifest.worldBible.dramaBonds || []) as any,
           factionRelations: (manifest.worldBible.factionRelations || []) as any,
-          ontology: (manifest.worldBible.ontology || {}) as any,
+          tradeRoutes: (manifest.worldBible.tradeRoutes ?? (existingWb as any)?.tradeRoutes ?? []) as any,
+          ontology: ontologyPayload as any,
         };
         if (existingWb) {
           await tx.worldBible.update({ where: { worldId }, data: wbData });
