@@ -91,6 +91,10 @@ export default function TradeStudioPage() {
   const artifacts = story.worldBible.artifacts || [];
   const npcs = story.worldBible.npcs || [];
 
+  const locName = (id?: string) => locations.find((l) => l.id === id)?.name || id || '—';
+  const factionName = (id?: string) => factions.find((f) => f.id === id)?.name || id || '—';
+  const npcName = (id?: string) => npcs.find((n) => n.id === id)?.name || id || '—';
+
   // Commodity candidates:
   // - Minerals & flora from the bestiary (raw extraction goods)
   // - All beasts & animals (livestock, mounts, exotic war beasts, falcons, pack beasts)
@@ -273,10 +277,6 @@ export default function TradeStudioPage() {
     }
     return true;
   });
-
-  const locName = (id?: string) => locations.find((l) => l.id === id)?.name || id || '—';
-  const factionName = (id?: string) => factions.find((f) => f.id === id)?.name || id || '—';
-  const npcName = (id?: string) => npcs.find((n) => n.id === id)?.name || id || '—';
 
   const resetForm = () => {
     setEditingId(null);
