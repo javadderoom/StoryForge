@@ -1436,8 +1436,8 @@ export default function LocationsStudioPage() {
                         </div>
                       )}
 
-                      {/* Filter Search Input (shown when candidate locations > 4) */}
-                      {candidateLocations.length > 4 && (
+                      {/* Filter Search Input (shown when candidate locations > 1) */}
+                      {candidateLocations.length > 1 && (
                         <div className="relative">
                           <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-zinc-500 pointer-events-none" />
                           <input
@@ -1445,8 +1445,18 @@ export default function LocationsStudioPage() {
                             value={connectedSearch}
                             onChange={(e) => setConnectedSearch(e.target.value)}
                             placeholder={isPersian ? 'جستجو در مکان‌ها برای ایجاد پیوند...' : 'Search locations to link...'}
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-amber-400/70"
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-8 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-amber-400/70"
                           />
+                          {connectedSearch && (
+                            <button
+                              type="button"
+                              onClick={() => setConnectedSearch('')}
+                              className="absolute right-2.5 top-2 text-zinc-500 hover:text-zinc-300 cursor-pointer p-0.5"
+                              title={isPersian ? 'پاک کردن جستجو' : 'Clear search'}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       )}
 
