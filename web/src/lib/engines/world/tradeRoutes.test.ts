@@ -4,6 +4,7 @@ import {
   getMarketGoodsForLocation,
   getRouteAvailability,
   getRoutesForLocation,
+  getActiveNpcsForLocation,
   formatTradeRouteLine,
 } from './tradeRoutes';
 import { WorldTradeRouteSchema, WorldBibleSchema } from '@/lib/types/world';
@@ -251,5 +252,33 @@ describe('Plan 10 — narrative context & route helpers', () => {
     assert.equal(getRoutesForLocation('loc_capital', wb).length, 1);
     assert.equal(getRoutesForLocation('loc_pass', wb).length, 1);
     assert.equal(getRoutesForLocation('loc_nowhere', wb).length, 0);
+  });
+
+  it('getActiveNpcsForLocation resolves caravan master and retinue even if their home location is elsewhere', () => {
+    const routeWithCaravan: WorldTradeRoute = {
+      ...baseRoute,
+      caravanMasterNpcId: 'npc_master_tariq',
+      travelingNpcIds: ['npc_guard_zara'],
+    };
+    const wb = makeWb({
+      locations: LOCS,
+      npcs: [
+        { id: 'npc_clerk', name: 'Clerk Simon', currentLocationId: 'loc_capital' } as any,
+        { id: 'npc_master_tariq', name: 'Master Tariq', currentLocationId: 'loc_mines' } as any,
+        { id: 'npc_guard_zara', name: 'Zara', currentLocationId: 'loc_mines' } as any,
+      ],
+      tradeRoutes: [routeWithCaravan],
+    });
+
+    const resCapital = getActiveNpcsForLocation('loc_capital', wb, 'en');
+    assert.equal(resCapital.activeNpcs.length, 3);
+    assert.deepEqual(resCapital.activeNpcIds.sort(), ['npc_clerk', 'npc_guard_zara', 'npc_master_tariq'].sort());
+    assert.equal(resCapital.caravanAffiliationByNpcId.get('npc_master_tariq'), 'Caravan Master of "The Frost-Peak Highway"');
+    assert.equal(resCapital.caravanAffiliationByNpcId.get('npc_guard_zara'), 'Traveling with Caravan "The Frost-Peak Highway"');
+
+    // Persian labels test
+    const resFa = getActiveNpcsForLocation('loc_capital', wb, 'fa');
+    assert.equal(resFa.caravanAffiliationByNpcId.get('npc_master_tariq'), 'کاروان‌سالار کاروان «The Frost-Peak Highway»');
+    assert.equal(resFa.caravanAffiliationByNpcId.get('npc_guard_zara'), 'همراه کاروان «The Frost-Peak Highway»');
   });
 });

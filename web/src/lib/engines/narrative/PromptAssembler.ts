@@ -36,6 +36,7 @@ function worldContextBlock(context: WorkingContextEnvelope, isEnglish: boolean):
         ontology: 'WORLD ONTOLOGY',
         locations: 'KNOWN LOCATIONS',
         npcs: 'KNOWN NPCS',
+        tradeRoutes: 'COMMERCIAL ARTERIES & ACTIVE TRADE ROUTES',
       }
     : {
         summary: 'خلاصه جهان / WORLD SUMMARY',
@@ -50,6 +51,7 @@ function worldContextBlock(context: WorkingContextEnvelope, isEnglish: boolean):
         ontology: 'ساختار جهان / ONTOLOGY',
         locations: 'مکان‌های شناخته‌شده / LOCATIONS',
         npcs: 'شخصیت‌های شناخته‌شده / NPCS',
+        tradeRoutes: 'شاهراه‌ها و کاروان‌های تجاری فعال / ACTIVE TRADE ROUTES & CARAVANS',
       };
 
   const out: string[] = [];
@@ -69,6 +71,12 @@ function worldContextBlock(context: WorkingContextEnvelope, isEnglish: boolean):
   }
   if (context.religions?.length) out.push(`[${labels.religions}]\n${context.religions.map((x) => `• ${x}`).join('\n')}`);
   if (context.dramaBonds?.length) out.push(`[${labels.bonds}]\n${context.dramaBonds.map((x) => `• ${x}`).join('\n')}`);
+  if (context.tradeRoutes?.length) {
+    const tradeDirective = isEnglish
+      ? ' — Commercial arteries and caravan trails connecting settlements, transporting goods, and guarded by caravan masters and retinues'
+      : ' — شریان‌های تجاری و مسیرهای کاروان که سکونتگاه‌ها را به هم پیوند می‌دهند، کالاها را حمل می‌کنند و توسط کاروان‌سالاران و محافظان همراهی می‌شوند';
+    out.push(`[${labels.tradeRoutes}${tradeDirective}]\n${context.tradeRoutes.map((x) => `• ${x}`).join('\n')}`);
+  }
   if (context.ontologySummary) out.push(`[${labels.ontology}]\n${context.ontologySummary}`);
   return out;
 }
@@ -462,15 +470,19 @@ You MUST respond with a valid JSON object matching this schema:
       if (context.activeNpcDossiers.length > 0) {
         const npcs = context.activeNpcDossiers
           .map((npc) => {
+            const caravanTag = npc.caravanAffiliation
+              ? ` [WITH ACTIVE CARAVAN: ${npc.caravanAffiliation}]`
+              : '';
             const statusTag = npc.presenceStatus === 'nearby_resident'
               ? ' [STATIONED AT LOCATION — NOT currently in this immediate scene]'
               : (npc.presenceStatus === 'present' ? ' [PRESENT IN SCENE]' : '');
-            return `• ${npc.name}${statusTag} (Trust: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - Speech: ${npc.speechStyle}${npc.vitalsLine ? ` - Vitals: ${npc.vitalsLine}` : ''}${npc.powerAffiliationLine ? ` - Power: [${npc.powerAffiliationLine}]` : ''}`;
+            return `• ${npc.name}${caravanTag}${statusTag} (Trust: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - Speech: ${npc.speechStyle}${npc.vitalsLine ? ` - Vitals: ${npc.vitalsLine}` : ''}${npc.powerAffiliationLine ? ` - Power: [${npc.powerAffiliationLine}]` : ''}`;
           })
           .join('\n');
         parts.push(
           `[PRESENT NPCS]\n${npcs}\n` +
-          `• DIRECTIVE ON NPC PRESENCE & SPATIAL CONTINUITY: NPCs marked as [STATIONED AT LOCATION — NOT currently in this immediate scene] are stationed somewhere in this broad location/garrison, but are NOT currently in front of the protagonist. DO NOT place the protagonist face-to-face with them unless an action or event explicitly summons or seeks them out. Furthermore, if the protagonist stepped away to a secluded micro-location (e.g. riverbank reeds, shadows, alleys), the scene remains strictly secluded; NPCs left at camp or the gate remain at their post and are completely oblivious to muffled, low-profile struggles within the reeds. Maintain realistic physical space!`
+          `• DIRECTIVE ON NPC PRESENCE & SPATIAL CONTINUITY: NPCs marked as [STATIONED AT LOCATION — NOT currently in this immediate scene] are stationed somewhere in this broad location/garrison, but are NOT currently in front of the protagonist. DO NOT place the protagonist face-to-face with them unless an action or event explicitly summons or seeks them out. Furthermore, if the protagonist stepped away to a secluded micro-location (e.g. riverbank reeds, shadows, alleys), the scene remains strictly secluded; NPCs left at camp or the gate remain at their post and are completely oblivious to muffled, low-profile struggles within the reeds. Maintain realistic physical space!\n` +
+          `• CARAVAN & TRAVELING ENTITY PRESENCE: NPCs marked with [WITH ACTIVE CARAVAN: ...] travel with the trade routes touching this location. Even if their permanent residence or home city in the World Bible is registered in another settlement, they are physically present here at the local caravanserai, baggage train, way-station, or market gates alongside their pack beasts, wagons, and wares. They are valid conversational partners, potential employers for escort contracts, and witnesses.`
         );
       }
 
@@ -556,15 +568,19 @@ You MUST respond with a valid JSON object matching this schema:
       if (context.activeNpcDossiers.length > 0) {
         const npcs = context.activeNpcDossiers
           .map((npc) => {
+            const caravanTag = npc.caravanAffiliation
+              ? ` [همراه کاروان تجاری: ${npc.caravanAffiliation}]`
+              : '';
             const statusTag = npc.presenceStatus === 'nearby_resident'
               ? ' [مستقر در این پایگاه/مکان — هنوز در صحنه حاضر نیست]'
               : (npc.presenceStatus === 'present' ? ' [حاضر در صحنه]' : '');
-            return `• ${npc.name}${statusTag} (میزان اعتماد: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - لحن صحبت: ${npc.speechStyle}${npc.vitalsLine ? ` - علائم حیاتی: ${npc.vitalsLine}` : ''}${npc.powerAffiliationLine ? ` - قدرت: [${npc.powerAffiliationLine}]` : ''}`;
+            return `• ${npc.name}${caravanTag}${statusTag} (میزان اعتماد: ${npc.trust > 0 ? '+' : ''}${npc.trust}) - لحن صحبت: ${npc.speechStyle}${npc.vitalsLine ? ` - علائم حیاتی: ${npc.vitalsLine}` : ''}${npc.powerAffiliationLine ? ` - قدرت: [${npc.powerAffiliationLine}]` : ''}`;
           })
           .join('\n');
         parts.push(
           `[شخصیت‌های حاضر / PRESENT NPCS]\n${npcs}\n` +
-          `• دستور حضور شخصیت‌ها و پیوستگی مکانی: شخصیت‌هایی که برچسب «مستقر در این پایگاه/مکان — هنوز در صحنه حاضر نیست» دارند، در این مکان کلی حضور یا اقامت دارند اما هنوز در این صحنهٔ مشخص رو در روی بازیکن نیستند. هرگز آنها را بدون مقدمه، بدون صدا زدن یا بدون تغییر تدریجی صحنه ناگهان رو در روی قهرمان قرار نده! اگر قهرمان به حاشیهٔ رودخانه یا میان نی‌ها رفته، صحنه در خلوت و انزوای کامل است؛ افراد مستقر کنار آتش یا بارانداز از حوادث بی‌صدا یا درگیری‌های محدود در دل نی‌زار کاملاً بی‌خبرند و در جای خود باقی می‌مانند.`
+          `• دستور حضور شخصیت‌ها و پیوستگی مکانی: شخصیت‌هایی که برچسب «مستقر در این پایگاه/مکان — هنوز در صحنه حاضر نیست» دارند، در این مکان کلی حضور یا اقامت دارند اما هنوز در این صحنهٔ مشخص رو در روی بازیکن نیستند. هرگز آنها را بدون مقدمه، بدون صدا زدن یا بدون تغییر تدریجی صحنه ناگهان رو در روی قهرمان قرار نده! اگر قهرمان به حاشیهٔ رودخانه یا میان نی‌ها رفته، صحنه در خلوت و انزوای کامل است؛ افراد مستقر کنار آتش یا بارانداز از حوادث بی‌صدا یا درگیری‌های محدود در دل نی‌زار کاملاً بی‌خبرند و در جای خود باقی می‌مانند.\n` +
+          `• دستور حضور کاروان‌ها و شخصیت‌های مسافر: شخصیت‌هایی که برچسب [همراه کاروان تجاری: ...] دارند، همراه با کاروان‌های تجاری که به این مکان می‌رسند در این محل حضور دارند. حتی اگر شهر یا اقامتگاه دائمی آنها در شناسنامه جهان در شهر دیگری ثبت شده باشد، به واسطهٔ حضور کاروان، آنها هم‌اکنون به صورت ملموس در کاروانسرا، بارانداز، کنار شترها و ارابه‌ها یا دروازهٔ بازار این مکان حضور دارند و شخصیت‌هایی واقعی برای گفت‌وگو، دادوستد، گرفتن مأموریت محافظت از کاروان یا پرس‌وجو هستند.`
         );
       }
 

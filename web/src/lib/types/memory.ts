@@ -39,6 +39,8 @@ export interface WorkingContextEnvelope {
     powerAffiliationLine?: string;
     /** Presence state: 'present' if actively mentioned in recent scene prose, 'nearby_resident' if residing at location but not yet in immediate scene */
     presenceStatus?: 'present' | 'nearby_resident';
+    /** Caravan role or affiliation (e.g. "Caravan Master of The Silk Trail") if traveling with a trade route touching the location */
+    caravanAffiliation?: string;
   }>;
   relevantMemories: Array<{
     category: MemoryCategory;
@@ -86,6 +88,7 @@ export interface WorkingContextEnvelope {
   ontologySummary?: string;
   locations?: string[];
   npcs?: string[];
+  tradeRoutes?: string[];
   // Plan 13: Director & Scribe runtime (threat clocks, displacement, contextual choices)
   activeClocks?: string[];
   displacementDirective?: string;

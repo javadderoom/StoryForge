@@ -1,6 +1,7 @@
 import { PromptAssembler } from './PromptAssembler';
 import { validateProse, buildProseRepairInstruction, ProseFinding } from './ProseValidator';
 import { buildWorldContextBlocks, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatTraitsForContext, formatItemInteractionsCatalogForContext } from './worldContext';
+import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
 import { MemoryEngine } from '@/lib/engines/memory/MemoryEngine';
 import { WorkingContextEnvelope, MemoryCategory, MemoryEntry } from '@/lib/types/memory';
 import { PlayerState, CheckResolution } from '@/lib/types/gameplay';
@@ -148,10 +149,12 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
       description: 'Dark fortress',
     };
 
-  const activeNPCs = story.worldBible.npcs.filter(
-    (npc: any) => npc.currentLocationId === currentLocationId
-  );
-  const activeNpcIds = activeNPCs.map((n: any) => n.id);
+  const { activeNpcs: activeNPCs, activeNpcIds, caravanAffiliationByNpcId } =
+    getActiveNpcsForLocation(
+      currentLocationId,
+      story.worldBible,
+      story.language === 'fa' ? 'fa' : 'en'
+    );
 
   const world = activeChapter
     ? buildWorldContextBlocks(story, {
@@ -273,6 +276,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
         vitalsLine: formatNpcCombatSummary(npc) || undefined,
         powerAffiliationLine,
         presenceStatus: isInImmediateScene ? ('present' as const) : ('nearby_resident' as const),
+        caravanAffiliation: caravanAffiliationByNpcId.get(npc.id),
       };
     }),
     relevantMemories,
@@ -315,6 +319,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
     ontologySummary: world.ontologySummary,
     locations: world.locations,
     npcs: world.npcs,
+    tradeRoutes: world.tradeRoutes,
     // Plan 08 saga grounding
     activeChapterTitle: activeChapter
       ? `${activeChapter.chapterNumber}. ${activeChapter.title}`

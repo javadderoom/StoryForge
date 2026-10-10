@@ -362,6 +362,79 @@ describe('Plan 08 - World Lore Guardrails (Check 3)', () => {
     );
     assert.equal(reachable.isValid, true);
   });
+
+  it('allows travel between locations connected by an active trade route', () => {
+    const world: WorldBible = {
+      worldName: 'Trade World',
+      summary: '',
+      themeNotes: '',
+      laws: [],
+      factions: [],
+      locations: [
+        {
+          id: 'loc_oasis',
+          name: 'The Whispering Oasis',
+          description: '',
+          region: '',
+          dangerLevel: 1,
+          connectedLocationIds: [],
+          atmosphere: '',
+        },
+        {
+          id: 'loc_citadel',
+          name: 'Sunstone Citadel',
+          description: '',
+          region: '',
+          dangerLevel: 1,
+          connectedLocationIds: [],
+          atmosphere: '',
+        },
+      ],
+      tradeRoutes: [
+        {
+          id: 'route_caravan_1',
+          name: 'Golden Spice Trail',
+          originLocationId: 'loc_oasis',
+          destinationLocationId: 'loc_citadel',
+          status: 'active',
+          commodities: [],
+        },
+      ],
+      timeline: [],
+      npcs: [],
+    };
+
+    const playerAtOasis: PlayerState = {
+      ...basePlayer,
+      currentLocationId: 'loc_oasis',
+    };
+
+    const travelActive = ActionValidator.validateAction(
+      'I travel to Sunstone Citadel with the caravan',
+      playerAtOasis,
+      world,
+      rpgSystem
+    );
+    assert.equal(travelActive.isValid, true);
+
+    const blockadedWorld: WorldBible = {
+      ...world,
+      tradeRoutes: [
+        {
+          ...world.tradeRoutes![0],
+          status: 'blockaded',
+        },
+      ],
+    };
+    const travelBlockaded = ActionValidator.validateAction(
+      'I travel to Sunstone Citadel',
+      playerAtOasis,
+      blockadedWorld,
+      rpgSystem
+    );
+    assert.equal(travelBlockaded.isValid, false);
+    assert.ok(travelBlockaded.rejectionReason?.includes('not directly reachable'));
+  });
 });
 
 describe('ActionValidator - sanitizeChoices (pre-presentation filter)', () => {
