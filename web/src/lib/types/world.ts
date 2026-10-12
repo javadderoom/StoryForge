@@ -1410,6 +1410,8 @@ export const WorldTradeRouteSchema = z.object({
   controllingFactionId: z.string().optional(),
   patrollingFactionId: z.string().optional(),
   rivalRaidingFactionId: z.string().optional(),
+  caravanMasterNpcId: z.string().optional(),
+  travelingNpcIds: z.array(z.string()).optional().default([]),
   dangerLevel: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).optional().default(2),
   status: TradeRouteStatusSchema.optional().default('active'),
   disruptionReason: z.string().optional(),
@@ -1429,6 +1431,8 @@ export interface WorldTradeRoute {
   controllingFactionId?: string;
   patrollingFactionId?: string;
   rivalRaidingFactionId?: string;
+  caravanMasterNpcId?: string;
+  travelingNpcIds?: string[];
   dangerLevel?: 1 | 2 | 3 | 4 | 5;
   status?: TradeRouteStatus;
   disruptionReason?: string;

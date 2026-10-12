@@ -214,7 +214,12 @@ export class ActionValidator {
         ((current.connectedLocationIds || []).includes(loc.id) ||
           (loc.connectedLocationIds || []).includes(current.id) ||
           current.parentLocationId === loc.id ||
-          loc.parentLocationId === current.id);
+          loc.parentLocationId === current.id ||
+          (worldBible.tradeRoutes ?? []).some((r) => {
+            if (r.status === 'blockaded') return false;
+            const stops = [r.originLocationId, ...(r.intermediateLocationIds ?? []), r.destinationLocationId];
+            return stops.includes(current.id) && stops.includes(loc.id);
+          }));
       if (!connected) {
         return `"${loc.name}" is not directly reachable from ${
           current?.name ?? 'your current position'

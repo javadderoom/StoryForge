@@ -14,6 +14,11 @@ class PaymentActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        if (!isReady()) {
+            finish()
+            return
+        }
+
         val callback: PurchaseCallback.() -> Unit = {
             purchaseSucceed {
                 result.success(it.toMap())
@@ -67,6 +72,10 @@ class PaymentActivity : ComponentActivity() {
         private lateinit var result: MethodChannel.Result
         private var payload: String? = null
         private var dynamicPriceToken: String? = null
+
+        fun isReady(): Boolean {
+            return ::command.isInitialized && ::payment.isInitialized && ::result.isInitialized
+        }
 
         @JvmStatic
         fun start(

@@ -13,6 +13,7 @@ import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMig
 import { isPlaceholderBeat } from '@/lib/engines/world/sceneResolution';
 import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
 import { buildWorldContextBlocks, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatTraitsForContext, formatItemInteractionsCatalogForContext } from '@/lib/engines/narrative/worldContext';
+import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import { WorkingContextEnvelope } from '@/lib/types/memory';
@@ -95,8 +96,12 @@ async function generateOpeningChoices(
         name: 'Citadel',
         description: '',
       };
-    const activeNPCs = (wb.npcs ?? []).filter((n: any) => n.currentLocationId === locationId);
-    const activeNpcIds = activeNPCs.map((n: any) => n.id);
+    const { activeNpcs: activeNPCs, activeNpcIds, caravanAffiliationByNpcId } =
+      getActiveNpcsForLocation(
+        locationId,
+        wb,
+        story.language === 'en' ? 'en' : 'fa'
+      );
     const world = buildWorldContextBlocks(story, {
       scopeTier: 'regional',
       locationIds: [locationId],
@@ -117,6 +122,7 @@ async function generateOpeningChoices(
           speechStyle: n.speechStyle || 'neutral',
           vitalsLine: formatNpcCombatSummary(n) || undefined,
           presenceStatus: isMentionedInProse ? ('present' as const) : ('nearby_resident' as const),
+          caravanAffiliation: caravanAffiliationByNpcId.get(n.id),
         };
       }
     );
@@ -155,6 +161,7 @@ async function generateOpeningChoices(
       ontologySummary: world.ontologySummary,
       locations: world.locations,
       npcs: world.npcs,
+      tradeRoutes: world.tradeRoutes,
       activeChapterTitle: activeChapter
         ? `${activeChapter.chapterNumber}. ${activeChapter.title}`
         : undefined,

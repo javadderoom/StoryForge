@@ -24,6 +24,7 @@ interface SearchableComboboxProps {
   clearable?: boolean;
   icon?: React.ElementType;
   className?: string;
+  placement?: 'auto' | 'top' | 'bottom';
 }
 
 /**
@@ -42,14 +43,39 @@ export function SearchableCombobox({
   clearable = true,
   icon: DefaultIcon,
   className = '',
+  placement = 'auto',
 }: SearchableComboboxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [dropdownPlacement, setDropdownPlacement] = useState<'top' | 'bottom'>('bottom');
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  // Compute placement (top vs bottom) based on prop or viewport space
+  useEffect(() => {
+    if (!isOpen) return;
+    if (placement === 'top') {
+      setDropdownPlacement('top');
+      return;
+    }
+    if (placement === 'bottom') {
+      setDropdownPlacement('bottom');
+      return;
+    }
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      if (spaceBelow < 260 && spaceAbove > spaceBelow) {
+        setDropdownPlacement('top');
+      } else {
+        setDropdownPlacement('bottom');
+      }
+    }
+  }, [isOpen, placement]);
 
   // Selected item object
   const selectedOption = useMemo(() => {
@@ -207,7 +233,11 @@ export function SearchableCombobox({
 
       {/* Dropdown Suggestions Popover */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 z-40 bg-zinc-900/98 backdrop-blur-md border border-zinc-700/90 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden animate-fadeIn">
+        <div
+          className={`absolute left-0 right-0 z-50 bg-zinc-900/98 backdrop-blur-md border border-zinc-700/90 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden animate-fadeIn ${
+            dropdownPlacement === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+          }`}
+        >
           {/* Search Input Box */}
           <div className="p-2 border-b border-zinc-800/80 bg-zinc-950/50">
             <div className="relative flex items-center">
@@ -332,6 +362,7 @@ interface MultiSearchableComboboxProps {
   disabled?: boolean;
   icon?: React.ElementType;
   className?: string;
+  placement?: 'auto' | 'top' | 'bottom';
 }
 
 /**
@@ -349,14 +380,38 @@ export function MultiSearchableCombobox({
   disabled = false,
   icon: DefaultIcon,
   className = '',
+  placement = 'auto',
 }: MultiSearchableComboboxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [dropdownPlacement, setDropdownPlacement] = useState<'top' | 'bottom'>('bottom');
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (placement === 'top') {
+      setDropdownPlacement('top');
+      return;
+    }
+    if (placement === 'bottom') {
+      setDropdownPlacement('bottom');
+      return;
+    }
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      if (spaceBelow < 260 && spaceAbove > spaceBelow) {
+        setDropdownPlacement('top');
+      } else {
+        setDropdownPlacement('bottom');
+      }
+    }
+  }, [isOpen, placement]);
 
   // Selected options list
   const selectedOptions = useMemo(() => {
@@ -535,7 +590,11 @@ export function MultiSearchableCombobox({
 
       {/* Dropdown Suggestions Popover */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 z-40 bg-zinc-900/98 backdrop-blur-md border border-zinc-700/90 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden animate-fadeIn">
+        <div
+          className={`absolute left-0 right-0 z-50 bg-zinc-900/98 backdrop-blur-md border border-zinc-700/90 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden animate-fadeIn ${
+            dropdownPlacement === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+          }`}
+        >
           {/* Search Input Box */}
           <div className="p-2 border-b border-zinc-800/80 bg-zinc-950/50">
             <div className="relative flex items-center">

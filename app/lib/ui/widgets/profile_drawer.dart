@@ -258,6 +258,7 @@ class _ProfileDrawerState extends ConsumerState<ProfileDrawer> {
                         color: Colors.transparent,
                         child: InkWell(
                           onTap: () {
+                            Navigator.of(context).pop();
                             AudioService().playSfx(SfxType.buttonClick);
                             ShopScreen.open(context);
                           },
@@ -454,6 +455,7 @@ class _ProfileDrawerState extends ConsumerState<ProfileDrawer> {
                       title: 'فروشگاه و خرید صحنه',
                       subtitle: 'تهیه بسته‌های صحنه برای ادامه ماجراجویی',
                       onTap: () {
+                        Navigator.of(context).pop();
                         AudioService().playSfx(SfxType.buttonClick);
                         ShopScreen.open(context);
                       },

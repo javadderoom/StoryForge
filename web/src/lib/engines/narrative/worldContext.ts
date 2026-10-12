@@ -388,6 +388,16 @@ export function pruneWorldBibleToScope(
     if (n.applicableLocationIds && n.applicableLocationIds.some((locId) => activeLocSet.has(locId))) {
       return true;
     }
+    // Caravan travelers: NPCs traveling along active trade routes touching the scene's locations
+    const isCaravanTraveler = (wb.tradeRoutes ?? []).some((r) => {
+      const touchesLoc =
+        activeLocSet.has(r.originLocationId) ||
+        activeLocSet.has(r.destinationLocationId) ||
+        (r.intermediateLocationIds ?? []).some((id) => activeLocSet.has(id));
+      if (!touchesLoc) return false;
+      return r.caravanMasterNpcId === n.id || (r.travelingNpcIds ?? []).includes(n.id);
+    });
+    if (isCaravanTraveler) return true;
     return false;
   });
   const keptNpcIds = new Set(keepNpcs.map((n) => n.id));

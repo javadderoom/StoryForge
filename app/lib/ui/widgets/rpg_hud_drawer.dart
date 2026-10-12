@@ -355,6 +355,7 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                               ],
                               TextButton(
                                 onPressed: () {
+                                  Navigator.of(context).pop();
                                   AudioService().playSfx(SfxType.buttonClick);
                                   ShopScreen.open(context);
                                 },

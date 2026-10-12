@@ -148,6 +148,59 @@ describe('PromptAssembler - expanded world context', () => {
     assert.ok(fa.systemPrompt.includes('پیوستگی محیطی'));
   });
 
+  it('renders active trade routes and caravan presence directives (EN + FA)', () => {
+    const dossiers = [
+      {
+        name: 'Master Tariq',
+        trust: 10,
+        knownSecrets: [],
+        speechStyle: 'Cautious merchant',
+        presenceStatus: 'nearby_resident' as const,
+        caravanAffiliation: 'Caravan Master of "The Silk Road"',
+      },
+      {
+        name: 'Zara',
+        trust: 5,
+        knownSecrets: [],
+        speechStyle: 'Alert escort',
+        presenceStatus: 'present' as const,
+        caravanAffiliation: 'Traveling with Caravan "The Silk Road"',
+      },
+    ];
+
+    const en = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        tradeRoutes: ['"The Silk Road" (Danger 2, ACTIVE, led by Caravan Master Tariq): Susa -> Rayy | Transports: Silk, Iron.'],
+        activeNpcDossiers: dossiers,
+      })
+    );
+    assert.ok(en.userPrompt.includes('COMMERCIAL ARTERIES & ACTIVE TRADE ROUTES'));
+    assert.ok(en.userPrompt.includes('"The Silk Road"'));
+    assert.ok(en.userPrompt.includes('Master Tariq [WITH ACTIVE CARAVAN: Caravan Master of "The Silk Road"] [STATIONED AT LOCATION'));
+    assert.ok(en.userPrompt.includes('Zara [WITH ACTIVE CARAVAN: Traveling with Caravan "The Silk Road"] [PRESENT IN SCENE]'));
+    assert.ok(en.userPrompt.includes('CARAVAN & TRAVELING ENTITY PRESENCE'));
+
+    const fa = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'fa',
+        tradeRoutes: ['«شاهراه ابریشم» (خطر ۲، فعال، به رهبری کاروان‌سالار طارق): شوش -> ری | حامل: ابریشم، آهن.'],
+        activeNpcDossiers: [
+          {
+            name: 'طارق',
+            trust: 10,
+            knownSecrets: [],
+            speechStyle: 'محتاط',
+            presenceStatus: 'nearby_resident' as const,
+            caravanAffiliation: 'کاروان‌سالار کاروان «شاهراه ابریشم»',
+          },
+        ],
+      })
+    );
+    assert.ok(fa.userPrompt.includes('شاهراه‌ها و کاروان‌های تجاری فعال'));
+    assert.ok(fa.userPrompt.includes('طارق [همراه کاروان تجاری: کاروان‌سالار کاروان «شاهراه ابریشم»] [مستقر در این پایگاه/مکان'));
+    assert.ok(fa.userPrompt.includes('دستور حضور کاروان‌ها و شخصیت‌های مسافر'));
+  });
+
   it('renders equipped item interactions catalogue and item fidelity directives in prompts (EN + FA)', () => {
     const catalogEn = '[EQUIPPED GEAR & ARTIFACT INTERACTION CATALOGUE]\n• Wooden Buckler: Kinetic physical protection';
     const catalogFa = '[کاتالوگ تعاملات و کارکرد تجهیزات همراه / EQUIPPED GEAR & ARTIFACT INTERACTION CATALOGUE]\n• سپر چوبی: پدافند فیزیکی فعال';

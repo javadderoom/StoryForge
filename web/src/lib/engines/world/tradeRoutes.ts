@@ -1,4 +1,4 @@
-import type { WorldBible, WorldTradeRoute } from '@/lib/types/world';
+import type { WorldBible, WorldTradeRoute, WorldNpc } from '@/lib/types/world';
 
 export type MarketProvenance = 'native' | 'imported' | 'scarce' | 'shortage';
 
@@ -19,6 +19,11 @@ function locName(wb: WorldBible, id?: string): string {
 function factionName(wb: WorldBible, id?: string): string {
   if (!id) return '—';
   return (wb.factions ?? []).find((f) => f.id === id)?.name || id;
+}
+
+function npcName(wb: WorldBible, id?: string): string {
+  if (!id) return '—';
+  return (wb.npcs ?? []).find((n) => n.id === id)?.name || id;
 }
 
 /**
@@ -105,6 +110,10 @@ export function formatTradeRouteLine(route: WorldTradeRoute, wb: WorldBible): st
     .join(', ');
   const controller = route.controllingFactionId ? `, controlled by ${factionName(wb, route.controllingFactionId)}` : '';
   const raider = route.rivalRaidingFactionId ? `, raided by ${factionName(wb, route.rivalRaidingFactionId)}` : '';
+  const master = route.caravanMasterNpcId ? `, led by Caravan Master ${npcName(wb, route.caravanMasterNpcId)}` : '';
+  const travelers = (route.travelingNpcIds ?? []).length
+    ? `, traveling retinue: ${(route.travelingNpcIds ?? []).map((id) => npcName(wb, id)).join(', ')}`
+    : '';
   const disruption = route.disruptionReason ? ` — ${route.disruptionReason}` : '';
   const impact =
     route.status === 'blockaded'
@@ -112,7 +121,7 @@ export function formatTradeRouteLine(route: WorldTradeRoute, wb: WorldBible): st
       : route.status === 'raided'
         ? ` Scarce at ${dest}; escorts in demand.`
         : '';
-  return `"${route.name}" (Danger ${route.dangerLevel ?? 2}, ${String(route.status ?? 'active').toUpperCase()}${controller}${raider}): ${path} | Transports: ${goods || 'no listed commodities'}${disruption}.${impact}`;
+  return `"${route.name}" (Danger ${route.dangerLevel ?? 2}, ${String(route.status ?? 'active').toUpperCase()}${controller}${raider}${master}${travelers}): ${path} | Transports: ${goods || 'no listed commodities'}${disruption}.${impact}`;
 }
 
 /** Routes touching a location (origin, destination, or waypoint). */
@@ -123,4 +132,64 @@ export function getRoutesForLocation(locationId: string, wb: WorldBible): WorldT
       r.destinationLocationId === locationId ||
       (r.intermediateLocationIds ?? []).includes(locationId)
   );
+}
+
+/**
+ * Resolves all NPCs who are physically present at a location.
+ * This includes:
+ * 1. Resident NPCs whose static currentLocationId matches locationId.
+ * 2. Caravan Masters and traveling retinue members whose active trade routes touch locationId.
+ * Returns both the merged list of WorldNpc entities, their IDs, and a Map of caravan affiliations.
+ */
+export function getActiveNpcsForLocation(
+  locationId: string,
+  wb: WorldBible,
+  language: 'en' | 'fa' = 'en'
+): {
+  activeNpcs: WorldNpc[];
+  activeNpcIds: string[];
+  caravanAffiliationByNpcId: Map<string, string>;
+} {
+  const residentNPCs = (wb.npcs ?? []).filter((n) => n.currentLocationId === locationId);
+  const touchingRoutes = getRoutesForLocation(locationId, wb);
+  const caravanAffiliationByNpcId = new Map<string, string>();
+  const activeNpcMap = new Map<string, WorldNpc>();
+
+  residentNPCs.forEach((n) => activeNpcMap.set(n.id, n));
+
+  for (const route of touchingRoutes) {
+    if (route.caravanMasterNpcId) {
+      const masterNpc = (wb.npcs ?? []).find((n) => n.id === route.caravanMasterNpcId);
+      if (masterNpc) {
+        activeNpcMap.set(masterNpc.id, masterNpc);
+        if (!caravanAffiliationByNpcId.has(masterNpc.id)) {
+          caravanAffiliationByNpcId.set(
+            masterNpc.id,
+            language === 'fa'
+              ? `کاروان‌سالار کاروان «${route.name}»`
+              : `Caravan Master of "${route.name}"`
+          );
+        }
+      }
+    }
+    for (const travelerId of route.travelingNpcIds ?? []) {
+      const travelerNpc = (wb.npcs ?? []).find((n) => n.id === travelerId);
+      if (travelerNpc) {
+        activeNpcMap.set(travelerNpc.id, travelerNpc);
+        if (!caravanAffiliationByNpcId.has(travelerNpc.id)) {
+          caravanAffiliationByNpcId.set(
+            travelerNpc.id,
+            language === 'fa'
+              ? `همراه کاروان «${route.name}»`
+              : `Traveling with Caravan "${route.name}"`
+          );
+        }
+      }
+    }
+  }
+
+  const activeNpcs = Array.from(activeNpcMap.values());
+  const activeNpcIds = activeNpcs.map((n) => n.id);
+
+  return { activeNpcs, activeNpcIds, caravanAffiliationByNpcId };
 }

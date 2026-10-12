@@ -4,6 +4,7 @@ import {
   getMarketGoodsForLocation,
   getRouteAvailability,
   getRoutesForLocation,
+  getActiveNpcsForLocation,
   formatTradeRouteLine,
 } from './tradeRoutes';
 import { WorldTradeRouteSchema, WorldBibleSchema } from '@/lib/types/world';
@@ -225,11 +226,59 @@ describe('Plan 10 — narrative context & route helpers', () => {
     assert.match(line, /Shortage/i);
   });
 
+  it('formatTradeRouteLine includes caravan master and traveling retinue', () => {
+    const routeWithCaravan: WorldTradeRoute = {
+      ...baseRoute,
+      caravanMasterNpcId: 'npc_master_tariq',
+      travelingNpcIds: ['npc_guard_zara', 'npc_merchant_farid'],
+    };
+    const wb = makeWb({
+      locations: LOCS,
+      npcs: [
+        { id: 'npc_master_tariq', name: 'Master Tariq', title: 'Caravan Captain', currentLocationId: 'loc_mines' } as any,
+        { id: 'npc_guard_zara', name: 'Zara', title: 'Caravan Guard', currentLocationId: 'loc_mines' } as any,
+        { id: 'npc_merchant_farid', name: 'Farid', title: 'Spice Merchant', currentLocationId: 'loc_mines' } as any,
+      ],
+      tradeRoutes: [routeWithCaravan],
+    });
+    const line = formatTradeRouteLine(routeWithCaravan, wb);
+    assert.match(line, /Caravan Master Master Tariq/);
+    assert.match(line, /traveling retinue: Zara, Farid/);
+  });
+
   it('getRoutesForLocation matches origin, destination and waypoints', () => {
     const wb = makeWb({ tradeRoutes: [baseRoute] });
     assert.equal(getRoutesForLocation('loc_mines', wb).length, 1);
     assert.equal(getRoutesForLocation('loc_capital', wb).length, 1);
     assert.equal(getRoutesForLocation('loc_pass', wb).length, 1);
     assert.equal(getRoutesForLocation('loc_nowhere', wb).length, 0);
+  });
+
+  it('getActiveNpcsForLocation resolves caravan master and retinue even if their home location is elsewhere', () => {
+    const routeWithCaravan: WorldTradeRoute = {
+      ...baseRoute,
+      caravanMasterNpcId: 'npc_master_tariq',
+      travelingNpcIds: ['npc_guard_zara'],
+    };
+    const wb = makeWb({
+      locations: LOCS,
+      npcs: [
+        { id: 'npc_clerk', name: 'Clerk Simon', currentLocationId: 'loc_capital' } as any,
+        { id: 'npc_master_tariq', name: 'Master Tariq', currentLocationId: 'loc_mines' } as any,
+        { id: 'npc_guard_zara', name: 'Zara', currentLocationId: 'loc_mines' } as any,
+      ],
+      tradeRoutes: [routeWithCaravan],
+    });
+
+    const resCapital = getActiveNpcsForLocation('loc_capital', wb, 'en');
+    assert.equal(resCapital.activeNpcs.length, 3);
+    assert.deepEqual(resCapital.activeNpcIds.sort(), ['npc_clerk', 'npc_guard_zara', 'npc_master_tariq'].sort());
+    assert.equal(resCapital.caravanAffiliationByNpcId.get('npc_master_tariq'), 'Caravan Master of "The Frost-Peak Highway"');
+    assert.equal(resCapital.caravanAffiliationByNpcId.get('npc_guard_zara'), 'Traveling with Caravan "The Frost-Peak Highway"');
+
+    // Persian labels test
+    const resFa = getActiveNpcsForLocation('loc_capital', wb, 'fa');
+    assert.equal(resFa.caravanAffiliationByNpcId.get('npc_master_tariq'), 'کاروان‌سالار کاروان «The Frost-Peak Highway»');
+    assert.equal(resFa.caravanAffiliationByNpcId.get('npc_guard_zara'), 'همراه کاروان «The Frost-Peak Highway»');
   });
 });

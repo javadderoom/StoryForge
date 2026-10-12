@@ -14,9 +14,16 @@ import {
   ShieldAlert,
   Eye,
   ArrowRight,
+  ArrowLeft,
+  ArrowLeftRight,
   Skull,
   Sparkles,
   Compass,
+  PawPrint,
+  Gem,
+  Leaf,
+  UserCheck,
+  Users,
 } from 'lucide-react';
 import {
   WorldTradeRoute,
@@ -82,20 +89,78 @@ export default function TradeStudioPage() {
   const factions = story.worldBible.factions || [];
   const bestiary = story.worldBible.bestiary || [];
   const artifacts = story.worldBible.artifacts || [];
+  const npcs = story.worldBible.npcs || [];
 
-  // Commodity candidates: minerals & flora from the bestiary (extraction goods),
-  // plus mythic relics for high-value smuggled wares.
+  const locName = (id?: string) => locations.find((l) => l.id === id)?.name || id || '—';
+  const factionName = (id?: string) => factions.find((f) => f.id === id)?.name || id || '—';
+  const npcName = (id?: string) => npcs.find((n) => n.id === id)?.name || id || '—';
+
+  // Commodity candidates:
+  // - Minerals & flora from the bestiary (raw extraction goods)
+  // - All beasts & animals (livestock, mounts, exotic war beasts, falcons, pack beasts)
+  // - Rare monstrosities & draconic creatures (exotic traded specimens)
+  // - Artifacts & relics for high-value trade or smuggled wares.
   const commodityCandidates = useMemo(() => {
-    const list: Array<{ id: string; name: string; source: string }> = bestiary
-      .filter((c) => c.speciesCategory === 'mineral' || c.speciesCategory === 'flora')
-      .map((c) => ({
-        id: c.id,
-        name: c.name,
-        source: c.speciesCategory === 'mineral' ? (isPersian ? 'معدن' : 'mineral') : (isPersian ? 'گیاه' : 'flora'),
-      }));
-    for (const a of artifacts) {
-      list.push({ id: a.id, name: a.name, source: isPersian ? 'عتیقه' : 'relic' });
+    const list: Array<{
+      id: string;
+      name: string;
+      source: string;
+      type: 'mineral' | 'flora' | 'beast' | 'creature' | 'relic';
+      isDomesticated?: boolean;
+      subtext?: string;
+    }> = [];
+
+    for (const c of bestiary) {
+      if (c.speciesCategory === 'mineral') {
+        list.push({
+          id: c.id,
+          name: c.name,
+          source: isPersian ? 'معدن' : 'mineral',
+          type: 'mineral',
+          subtext: c.loreDescription || c.craftingProperties,
+        });
+      } else if (c.speciesCategory === 'flora') {
+        list.push({
+          id: c.id,
+          name: c.name,
+          source: isPersian ? 'گیاه' : 'flora',
+          type: 'flora',
+          subtext: c.loreDescription || c.craftingProperties,
+        });
+      } else if (c.speciesCategory === 'beast') {
+        list.push({
+          id: c.id,
+          name: c.name,
+          source: isPersian
+            ? (c.isDomesticated ? 'دام / حیوان اهلی' : 'حیوان')
+            : (c.isDomesticated ? 'domesticated beast' : 'beast'),
+          type: 'beast',
+          isDomesticated: c.isDomesticated,
+          subtext: c.loreDescription || (c.dangerLevel ? `${isPersian ? 'سطح خطر' : 'Danger'}: ${c.dangerLevel}` : undefined),
+        });
+      } else if (c.speciesCategory === 'monstrosity' || c.speciesCategory === 'draconic') {
+        list.push({
+          id: c.id,
+          name: c.name,
+          source: isPersian
+            ? (c.speciesCategory === 'draconic' ? 'اژدها' : 'موجود کمیاب')
+            : (c.speciesCategory === 'draconic' ? 'draconic' : 'monstrosity'),
+          type: 'creature',
+          subtext: c.loreDescription,
+        });
+      }
     }
+
+    for (const a of artifacts) {
+      list.push({
+        id: a.id,
+        name: a.name,
+        source: isPersian ? 'عتیقه' : 'relic',
+        type: 'relic',
+        subtext: a.description,
+      });
+    }
+
     return list;
   }, [bestiary, artifacts, isPersian]);
 
@@ -115,6 +180,8 @@ export default function TradeStudioPage() {
   const [fControllingId, setFControllingId] = useState('');
   const [fPatrollingId, setFPatrollingId] = useState('');
   const [fRivalId, setFRivalId] = useState('');
+  const [fCaravanMasterId, setFCaravanMasterId] = useState('');
+  const [fTravelingNpcIds, setFTravelingNpcIds] = useState<string[]>([]);
   const [fDanger, setFDanger] = useState('2');
   const [fStatus, setFStatus] = useState<TradeRouteStatus>('active');
   const [fDisruption, setFDisruption] = useState('');
@@ -156,14 +223,50 @@ export default function TradeStudioPage() {
       }));
   }, [locations, fOriginId, fDestinationId]);
 
-  const commodityOptions: ComboboxOption[] = useMemo(() => {
-    return commodityCandidates.map((cand) => ({
-      id: cand.id,
-      name: cand.name,
-      badge: cand.source,
-      badgeColor: 'bg-amber-500/10 text-amber-300 border border-amber-500/30',
-      icon: Package,
+  const npcOptions: ComboboxOption[] = useMemo(() => {
+    return npcs.map((n) => ({
+      id: n.id,
+      name: n.name,
+      subtext: n.title || n.role,
+      badge: n.currentLocationId ? locName(n.currentLocationId) : undefined,
+      badgeColor: 'bg-zinc-800 text-zinc-300 border border-zinc-700',
+      icon: UserCheck,
     }));
+  }, [npcs, locations]);
+
+  const commodityOptions: ComboboxOption[] = useMemo(() => {
+    return commodityCandidates.map((cand) => {
+      let icon = Package;
+      let badgeColor = 'bg-amber-500/10 text-amber-300 border border-amber-500/30';
+
+      if (cand.type === 'beast') {
+        icon = PawPrint;
+        badgeColor = cand.isDomesticated
+          ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
+          : 'bg-teal-500/10 text-teal-300 border border-teal-500/30';
+      } else if (cand.type === 'creature') {
+        icon = PawPrint;
+        badgeColor = 'bg-rose-500/10 text-rose-300 border border-rose-500/30';
+      } else if (cand.type === 'mineral') {
+        icon = Gem;
+        badgeColor = 'bg-amber-500/10 text-amber-300 border border-amber-500/30';
+      } else if (cand.type === 'flora') {
+        icon = Leaf;
+        badgeColor = 'bg-lime-500/10 text-lime-300 border border-lime-500/30';
+      } else if (cand.type === 'relic') {
+        icon = Sparkles;
+        badgeColor = 'bg-purple-500/10 text-purple-300 border border-purple-500/30';
+      }
+
+      return {
+        id: cand.id,
+        name: cand.name,
+        subtext: cand.subtext,
+        badge: cand.source,
+        badgeColor,
+        icon,
+      };
+    });
   }, [commodityCandidates]);
 
   const filtered = routes.filter((r) => {
@@ -174,9 +277,6 @@ export default function TradeStudioPage() {
     }
     return true;
   });
-
-  const locName = (id?: string) => locations.find((l) => l.id === id)?.name || id || '—';
-  const factionName = (id?: string) => factions.find((f) => f.id === id)?.name || id || '—';
 
   const resetForm = () => {
     setEditingId(null);
@@ -189,6 +289,8 @@ export default function TradeStudioPage() {
     setFControllingId('');
     setFPatrollingId('');
     setFRivalId('');
+    setFCaravanMasterId('');
+    setFTravelingNpcIds([]);
     setFDanger('2');
     setFStatus('active');
     setFDisruption('');
@@ -219,6 +321,8 @@ export default function TradeStudioPage() {
     setFControllingId(r.controllingFactionId || '');
     setFPatrollingId(r.patrollingFactionId || '');
     setFRivalId(r.rivalRaidingFactionId || '');
+    setFCaravanMasterId(r.caravanMasterNpcId || '');
+    setFTravelingNpcIds([...(r.travelingNpcIds || [])]);
     setFDanger(String(r.dangerLevel ?? 2));
     setFStatus((r.status as TradeRouteStatus) || 'active');
     setFDisruption(r.disruptionReason || '');
@@ -256,6 +360,8 @@ export default function TradeStudioPage() {
       ...(fControllingId ? { controllingFactionId: fControllingId } : {}),
       ...(fPatrollingId ? { patrollingFactionId: fPatrollingId } : {}),
       ...(fRivalId ? { rivalRaidingFactionId: fRivalId } : {}),
+      ...(fCaravanMasterId.trim() ? { caravanMasterNpcId: fCaravanMasterId.trim() } : {}),
+      travelingNpcIds: fTravelingNpcIds,
       dangerLevel: (Math.min(5, Math.max(1, parseInt(fDanger || '2', 10) || 2)) as 1 | 2 | 3 | 4 | 5),
       status: fStatus,
       ...(fDisruption.trim() ? { disruptionReason: fDisruption.trim() } : {}),
@@ -409,36 +515,103 @@ export default function TradeStudioPage() {
                 </div>
 
                 {/* Path: Origin -> waypoints -> Destination */}
-                <div className="flex items-center gap-1.5 flex-wrap text-[11px] bg-zinc-950/60 border border-zinc-800/80 rounded-xl px-3 py-2">
-                  <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
-                  <span className="text-zinc-200 font-semibold">{locName(r.originLocationId)}</span>
-                  {(r.intermediateLocationIds || []).map((w, i) => (
-                    <React.Fragment key={`${w}-${i}`}>
-                      <ArrowRight className="w-3 h-3 text-zinc-600 shrink-0" />
-                      <span className="text-zinc-400">{locName(w)}</span>
-                    </React.Fragment>
-                  ))}
-                  <ArrowRight className="w-3 h-3 text-zinc-600 shrink-0" />
-                  <MapPin className="w-3 h-3 text-rose-400 shrink-0" />
-                  <span className="text-zinc-200 font-semibold">{locName(r.destinationLocationId)}</span>
-                </div>
+                {(() => {
+                  const isBilateral = (r.commodities || []).some((c) => c.flowDirection === 'bilateral');
+                  const ArrowIcon = isBilateral ? ArrowLeftRight : (isPersian ? ArrowLeft : ArrowRight);
 
-                {/* Commodities */}
-                {(r.commodities || []).length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {(r.commodities || []).map((c, i) => (
-                      <span
-                        key={`${c.entityId}-${i}`}
-                        className="text-[10px] px-2 py-1 rounded-lg bg-amber-500/10 text-amber-200 border border-amber-500/20 flex items-center gap-1"
-                        title={c.significance || ''}
-                      >
-                        <Package className="w-3 h-3" />
-                        {c.name}
-                        <span className="text-amber-400/70">
-                          ({isPersian ? FLOW_LABEL[c.flowDirection || 'forward'].fa : FLOW_LABEL[c.flowDirection || 'forward'].en})
+                  return (
+                    <div className="flex items-center gap-1.5 flex-wrap text-[11px] bg-zinc-950/60 border border-zinc-800/80 rounded-xl px-3 py-2">
+                      <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
+                      <span className="text-zinc-200 font-semibold">{locName(r.originLocationId)}</span>
+                      {(r.intermediateLocationIds || []).map((w, i) => (
+                        <React.Fragment key={`${w}-${i}`}>
+                          <ArrowIcon
+                            className={`w-3 h-3 shrink-0 ${isBilateral ? 'text-amber-400' : 'text-zinc-600'}`}
+                          />
+                          <span className="text-zinc-400">{locName(w)}</span>
+                        </React.Fragment>
+                      ))}
+                      <ArrowIcon
+                        className={`w-3 h-3 shrink-0 ${isBilateral ? 'text-amber-400' : 'text-zinc-600'}`}
+                      />
+                      <MapPin className="w-3 h-3 text-rose-400 shrink-0" />
+                      <span className="text-zinc-200 font-semibold">{locName(r.destinationLocationId)}</span>
+                    </div>
+                  );
+                })()}
+
+                {/* Caravan Master & Traveling NPCs */}
+                {(r.caravanMasterNpcId || (r.travelingNpcIds && r.travelingNpcIds.length > 0)) && (
+                  <div className="flex items-center gap-2 flex-wrap text-[11px] bg-zinc-950/40 border border-zinc-800/60 rounded-xl px-3 py-2">
+                    {r.caravanMasterNpcId && (
+                      <span className="flex items-center gap-1.5 text-amber-300 font-bold bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
+                        <UserCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span>
+                          {isPersian ? 'کاروان‌سالار:' : 'Master:'} {npcName(r.caravanMasterNpcId)}
                         </span>
                       </span>
-                    ))}
+                    )}
+                    {r.travelingNpcIds && r.travelingNpcIds.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap text-zinc-400">
+                        <Users className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                        <span className="text-zinc-500">{isPersian ? 'همراهان:' : 'Retinue:'}</span>
+                        {r.travelingNpcIds.map((id) => (
+                          <span
+                            key={id}
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800/80 text-zinc-300 border border-zinc-700/50"
+                          >
+                            {npcName(id)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Commodities & Animals */}
+                {(r.commodities || []).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(r.commodities || []).map((c, i) => {
+                      const matchedBeast = bestiary.find((b) => b.id === c.entityId);
+                      const isBeast = matchedBeast && (matchedBeast.speciesCategory === 'beast' || matchedBeast.speciesCategory === 'monstrosity');
+                      const isFlora = matchedBeast?.speciesCategory === 'flora';
+                      const isMineral = matchedBeast?.speciesCategory === 'mineral';
+                      const isRelic = artifacts.some((a) => a.id === c.entityId);
+
+                      const IconComp = isBeast
+                        ? PawPrint
+                        : isFlora
+                        ? Leaf
+                        : isMineral
+                        ? Gem
+                        : isRelic
+                        ? Sparkles
+                        : Package;
+
+                      const badgeCls = isBeast
+                        ? 'bg-emerald-500/10 text-emerald-200 border-emerald-500/20'
+                        : isFlora
+                        ? 'bg-lime-500/10 text-lime-200 border-lime-500/20'
+                        : isMineral
+                        ? 'bg-amber-500/10 text-amber-200 border-amber-500/20'
+                        : isRelic
+                        ? 'bg-purple-500/10 text-purple-200 border-purple-500/20'
+                        : 'bg-zinc-800 text-zinc-200 border-zinc-700/60';
+
+                      return (
+                        <span
+                          key={`${c.entityId}-${i}`}
+                          className={`text-[10px] px-2 py-1 rounded-lg border flex items-center gap-1 ${badgeCls}`}
+                          title={c.significance || ''}
+                        >
+                          <IconComp className="w-3 h-3 shrink-0" />
+                          {c.name}
+                          <span className="opacity-70">
+                            ({isPersian ? FLOW_LABEL[c.flowDirection || 'forward'].fa : FLOW_LABEL[c.flowDirection || 'forward'].en})
+                          </span>
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -756,17 +929,64 @@ export default function TradeStudioPage() {
               </div>
             </div>
 
-            {/* Commodities editor */}
+            {/* Caravan Master & Retinue Section */}
+            <div className="rounded-2xl border border-zinc-800 p-4 space-y-3 bg-zinc-950/40">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-amber-400" />
+                <h4 className="text-xs font-black text-zinc-200">
+                  {isPersian ? 'کاروان‌سالار و همراهان مسافر' : 'Caravan Master & Traveling Retinue'}
+                </h4>
+              </div>
+              <p className="text-[11px] text-zinc-500">
+                {isPersian
+                  ? 'کاروان‌سالار رهبر و هدایت‌کننده کاروان است؛ مسافران و محافظان ثبت‌شده در طول مسیر و ایستگاه‌ها در صحنه‌ها ظاهر می‌شوند.'
+                  : 'The Caravan Master leads the expedition, and traveling NPCs journey along the route to be encountered at waypoints.'}
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>
+                    {isPersian ? 'کاروان‌سالار (رهبر کاروان)' : 'Caravan Master (Leader)'}
+                  </label>
+                  <SearchableCombobox
+                    value={fCaravanMasterId}
+                    onChange={setFCaravanMasterId}
+                    options={npcOptions}
+                    placeholder={isPersian ? 'انتخاب کاروان‌سالار…' : 'Select Caravan Master…'}
+                    searchPlaceholder={isPersian ? 'جستجو در شخصیت‌ها…' : 'Search NPCs…'}
+                    emptyMessage={isPersian ? 'شخصیتی یافت نشد' : 'No NPCs found'}
+                    isPersian={isPersian}
+                    icon={UserCheck}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    {isPersian ? 'مسافران و همراهان کاروان' : 'Traveling NPCs / Retinue'}
+                  </label>
+                  <MultiSearchableCombobox
+                    values={fTravelingNpcIds}
+                    onChange={setFTravelingNpcIds}
+                    options={npcOptions.filter((opt) => opt.id !== fCaravanMasterId)}
+                    placeholder={isPersian ? 'افزودن شخصیت همراه…' : 'Add traveling NPC…'}
+                    searchPlaceholder={isPersian ? 'جستجو و افزودن همراه…' : 'Search and add NPC…'}
+                    emptyMessage={isPersian ? 'شخصیت دیگری یافت نشد' : 'No other NPCs found'}
+                    isPersian={isPersian}
+                    icon={Users}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Commodities & Animals editor */}
             <div className="rounded-2xl border border-zinc-800 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-black text-zinc-300">
-                  {isPersian ? 'کالاها' : 'Commodities'}
+                  {isPersian ? 'کالاها و حیوانات کاروان' : 'Caravan Goods & Animals'}
                 </span>
                 <button
                   onClick={() => setFCommodities((p) => [...p, { ...EMPTY_COMMODITY }])}
                   className="flex items-center gap-1 text-[11px] font-bold text-amber-400 hover:text-amber-300 cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5" /> {isPersian ? 'افزودن کالا' : 'Add commodity'}
+                  <Plus className="w-3.5 h-3.5" /> {isPersian ? 'افزودن کالا یا حیوان' : 'Add commodity / animal'}
                 </button>
               </div>
               {fCommodities.map((c, idx) => (
@@ -778,7 +998,7 @@ export default function TradeStudioPage() {
                         setFCommodities((p) => p.map((x, i) => (i === idx ? { ...x, name: e.target.value } : x)))
                       }
                       className={inputCls}
-                      placeholder={isPersian ? 'نام کالا…' : 'Commodity name…'}
+                      placeholder={isPersian ? 'نام کالا یا حیوان…' : 'Commodity / animal name…'}
                     />
                     <button
                       onClick={() => setFCommodities((p) => p.filter((_, i) => i !== idx))}
@@ -801,11 +1021,12 @@ export default function TradeStudioPage() {
                         );
                       }}
                       options={commodityOptions}
-                      placeholder={isPersian ? 'کالای استخراجی/عتیقه…' : 'Extraction good / relic…'}
-                      searchPlaceholder={isPersian ? 'جستجو در کالاها…' : 'Search goods…'}
-                      emptyMessage={isPersian ? 'کالایی یافت نشد' : 'No goods found'}
+                      placeholder={isPersian ? 'انتخاب کالا، حیوان یا عتیقه…' : 'Select good, animal, or relic…'}
+                      searchPlaceholder={isPersian ? 'جستجو در کالاها و حیوانات…' : 'Search goods & animals…'}
+                      emptyMessage={isPersian ? 'موردی یافت نشد' : 'No match found'}
                       isPersian={isPersian}
                       icon={Package}
+                      placement="top"
                     />
                     <select
                       value={c.flowDirection}
