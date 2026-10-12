@@ -95,19 +95,38 @@ function ResetPasswordContent() {
         <p className="text-xs text-slate-300 leading-relaxed mb-6">
           هم‌اکنون می‌توانید با گذرواژه جدید خود وارد حساب کاربری افسانه‌ساز شوید.
         </p>
-        <Link
-          href="/"
-          className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2"
-        >
-          <span>ورود به بازی و ماجراجویی</span>
-          <ArrowRight className="w-4 h-4 rotate-180" />
-        </Link>
+        <div className="space-y-3">
+          <a
+            href="afsanehsaz://open"
+            className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2"
+          >
+            <span>بازگشت به اپلیکیشن افسانه‌ساز</span>
+            <ArrowRight className="w-4 h-4 rotate-180" />
+          </a>
+          <Link
+            href="/"
+            className="w-full py-2.5 bg-[#181B2C] hover:bg-[#272A3C] border border-[#272A3C] text-slate-200 font-medium text-xs rounded-xl transition-all flex items-center justify-center gap-2"
+          >
+            <span>ورود در نسخه وب</span>
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Quick App Link banner for mobile users */}
+      <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl flex items-center justify-between gap-3 text-xs">
+        <span className="text-amber-200/90 font-medium">اپلیکیشن افسانه‌ساز را نصب دارید؟</span>
+        <a
+          href={`afsanehsaz://reset-password?token=${token}`}
+          className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg transition-colors whitespace-nowrap text-xs shadow-sm"
+        >
+          باز کردن در اپ
+        </a>
+      </div>
+
       {error && (
         <div className="p-3 bg-rose-500/15 border border-rose-500/40 rounded-xl text-rose-300 text-xs">
           {error}

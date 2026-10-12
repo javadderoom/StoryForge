@@ -3,8 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/dice_overlay_provider.dart';
 import 'providers/game_session_provider.dart';
+import 'services/deep_link_service.dart';
 import 'ui/screens/splash_screen.dart';
 import 'ui/widgets/dice_roll_overlay.dart';
+import 'ui/widgets/reset_password_dialog.dart';
+
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
   runApp(
@@ -14,19 +18,64 @@ void main() {
   );
 }
 
-class AfsanehSazApp extends ConsumerWidget {
+class AfsanehSazApp extends ConsumerStatefulWidget {
   const AfsanehSazApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AfsanehSazApp> createState() => _AfsanehSazAppState();
+}
+
+class _AfsanehSazAppState extends ConsumerState<AfsanehSazApp> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initDeepLinks();
+    });
+  }
+
+  void _initDeepLinks() {
+    DeepLinkService.init(
+      onUriReceived: (uri) {
+        _handleIncomingUri(uri);
+      },
+    );
+  }
+
+  void _handleIncomingUri(Uri uri) {
+    debugPrint('[DeepLink] Incoming URI received: $uri');
+    final isResetPassword = uri.path.contains('reset-password') || uri.host == 'reset-password';
+    final token = uri.queryParameters['token'];
+
+    if (isResetPassword && token != null && token.isNotEmpty) {
+      _showResetPasswordDialog(token);
+    }
+  }
+
+  void _showResetPasswordDialog(String token) {
+    void present() {
+      final ctx = rootNavigatorKey.currentContext;
+      if (ctx != null) {
+        ResetPasswordDialog.show(ctx, token: token);
+      }
+    }
+
+    final immediateCtx = rootNavigatorKey.currentContext;
+    if (immediateCtx != null) {
+      present();
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        present();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final diceState = ref.watch(diceOverlayProvider);
 
     // Feed the dice overlay the SERVER's authoritative resolution as soon as
-    // the turn resolves. The client-side RpgEngine is a strict subset of the
-    // server GameEngine (no skills, passives, ability effects, or state diff),
-    // so it can display an outcome the server never committed. The animation
-    // still starts immediately from the client roll — only what the player
-    // READS waits for the referee.
+    // the turn resolves.
     ref.listen<GameSessionState>(gameSessionProvider, (prev, next) {
       final resolution = next.lastResolution;
       if (resolution == null) return;
@@ -35,6 +84,7 @@ class AfsanehSazApp extends ConsumerWidget {
     });
 
     return MaterialApp(
+      navigatorKey: rootNavigatorKey,
       title: 'افسانه‌ساز',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkVoid,
@@ -49,9 +99,7 @@ class AfsanehSazApp extends ConsumerWidget {
               DiceRollOverlay(
                 isVisible: diceState.isVisible,
                 isRolling: diceState.isRolling,
-                // Drives only the 3D die's target face.
                 resolution: diceState.resolution,
-                // Drives every displayed number, label, colour and sound.
                 serverResolution: diceState.serverResolution,
                 awaitingReferee: diceState.awaitingReferee,
                 actionText: diceState.actionText,

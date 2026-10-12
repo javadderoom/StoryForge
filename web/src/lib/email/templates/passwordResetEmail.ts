@@ -65,7 +65,7 @@ https://afsanehsaz.ir`;
                 <tr>
                   <td align="center" style="text-align: center;">
                     <a href="${resetUrl}" target="_blank" style="display: inline-block; background-color: #f59e0b; color: #0b0d17 !important; font-size: 15px; font-weight: 700; text-decoration: none; padding: 14px 36px; border-radius: 10px; box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3);">
-                      بازنشانی گذرواژه حساب
+                      بازنشانی گذرواژه در اپلیکیشن / وب
                     </a>
                   </td>
                 </tr>
