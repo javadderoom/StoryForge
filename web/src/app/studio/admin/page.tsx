@@ -408,12 +408,12 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div dir="rtl" className="max-w-7xl mx-auto p-6 space-y-6">
+    <div dir="rtl" className="max-w-7xl mx-auto p-3 sm:p-6 space-y-6 w-full min-w-0 overflow-x-hidden">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5 min-w-0">
         <div>
-          <h1 className="text-2xl font-black text-amber-500 flex items-center gap-2.5">
-            <ShieldCheck className="w-7 h-7" />
+          <h1 className="text-xl sm:text-2xl font-black text-amber-500 flex items-center gap-2.5">
+            <ShieldCheck className="w-6 h-6 sm:w-7 sm:h-7 shrink-0" />
             مرکز مدیریت و مالی افسانه‌ساز
           </h1>
           <p className="text-xs text-slate-400 mt-1">
@@ -421,11 +421,11 @@ export default function AdminDashboardPage() {
           </p>
         </div>
 
-        {/* Tab Controls */}
-        <div className="flex items-center gap-1.5 p-1 bg-[#181B2C] border border-[#272A3C] rounded-xl">
+        {/* Tab Controls (Scrollable on mobile) */}
+        <div className="w-full md:w-auto overflow-x-auto scrollbar-none flex items-center gap-1.5 p-1 bg-[#181B2C] border border-[#272A3C] rounded-xl -mx-1 sm:mx-0 px-1 sm:px-1">
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
+            className={`shrink-0 whitespace-nowrap px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
               activeTab === 'users' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -434,7 +434,7 @@ export default function AdminDashboardPage() {
           </button>
           <button
             onClick={() => setActiveTab('transactions')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
+            className={`shrink-0 whitespace-nowrap px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
               activeTab === 'transactions' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -443,7 +443,7 @@ export default function AdminDashboardPage() {
           </button>
           <button
             onClick={() => setActiveTab('packages')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
+            className={`shrink-0 whitespace-nowrap px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
               activeTab === 'packages' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -452,7 +452,7 @@ export default function AdminDashboardPage() {
           </button>
           <button
             onClick={() => setActiveTab('discountCodes')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
+            className={`shrink-0 whitespace-nowrap px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
               activeTab === 'discountCodes' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -504,8 +504,8 @@ export default function AdminDashboardPage() {
       {/* --- TAB 1: USERS MANAGEMENT --- */}
       {activeTab === 'users' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="relative flex-1 w-full max-w-md">
               <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input
                 type="text"
@@ -518,7 +518,7 @@ export default function AdminDashboardPage() {
             </div>
             <button
               onClick={() => fetchUsers(userSearch)}
-              className="px-4 py-2.5 bg-[#181B2C] hover:bg-[#232845] border border-[#272A3C] text-slate-200 rounded-xl text-xs font-bold transition-all"
+              className="w-full sm:w-auto px-4 py-2.5 bg-[#181B2C] hover:bg-[#232845] border border-[#272A3C] text-slate-200 rounded-xl text-xs font-bold transition-all text-center"
             >
               تازه‌سازی
             </button>
@@ -814,7 +814,7 @@ export default function AdminDashboardPage() {
       {/* --- TAB 4: DISCOUNT CODES --- */}
       {activeTab === 'discountCodes' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-bold text-amber-400 flex items-center gap-2">
                 <Tag className="w-4 h-4" />
@@ -826,14 +826,97 @@ export default function AdminDashboardPage() {
             </div>
             <button
               onClick={() => setShowCreateCodeModal(true)}
-              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-amber-500/20"
+              className="w-full sm:w-auto justify-center px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-amber-500/20"
             >
               <Plus className="w-4 h-4" />
               <span>ساخت کد تخفیف جدید</span>
             </button>
           </div>
 
-          <div className="bg-[#13172B] border border-[#272A3C] rounded-2xl overflow-hidden">
+          {/* Mobile Cards (Visible on screens < md) */}
+          <div className="md:hidden space-y-3">
+            {loadingCodes ? (
+              <div className="p-8 text-center text-slate-500 bg-[#13172B] border border-[#272A3C] rounded-2xl">
+                در حال بارگذاری کدهای تخفیف...
+              </div>
+            ) : discountCodes.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 bg-[#13172B] border border-[#272A3C] rounded-2xl">
+                هیچ کد تخفیفی ایجاد نشده است. برای شروع، روی «ساخت کد تخفیف جدید» کلیک کنید.
+              </div>
+            ) : (
+              discountCodes.map((c) => {
+                const isExpired = c.expiresAt ? new Date(c.expiresAt) < new Date() : false;
+                const isCapacityFull = typeof c.maxUses === 'number' && c.currentUses >= c.maxUses;
+                return (
+                  <div key={c.id} className="p-4 bg-[#13172B] border border-[#272A3C] rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-sm font-black text-amber-400 bg-amber-500/10 px-3 py-1 rounded-lg border border-amber-500/30 tracking-wider">
+                        {c.code}
+                      </span>
+                      <button
+                        onClick={() => handleToggleDiscountCode(c.id, c.isActive)}
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${
+                          !c.isActive
+                            ? 'bg-slate-800 text-slate-400 border-slate-700'
+                            : isExpired || isCapacityFull
+                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                            : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                        }`}
+                      >
+                        {!c.isActive
+                          ? 'غیرفعال'
+                          : isExpired
+                          ? 'منقضی شده'
+                          : isCapacityFull
+                          ? 'تکمیل ظرفیت'
+                          : 'فعال'}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400">نوع پاداش:</span>
+                        <span className="font-bold text-emerald-400">
+                          {c.discountPercent ? `${toPersianDigits(c.discountPercent)}٪ تخفیف` : ''}
+                          {c.discountPercent && c.creditBonus ? ' + ' : ''}
+                          {c.creditBonus ? `${toPersianDigits(c.creditBonus)} صحنه هدیه` : ''}
+                          {!c.discountPercent && !c.creditBonus ? '—' : ''}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400">دفعات استفاده:</span>
+                        <span className="font-bold text-white">
+                          {toPersianDigits(c.currentUses)} / {c.maxUses != null ? toPersianDigits(c.maxUses) : 'نامحدود'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {c.description && (
+                      <p className="text-xs text-slate-400 border-t border-[#1e233d] pt-2">
+                        {c.description}
+                      </p>
+                    )}
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-[#1e233d] pt-2">
+                      <span>
+                        {c.expiresAt ? `اعتبار تا ${new Date(c.expiresAt).toLocaleDateString('fa-IR')}` : 'بدون انقضا'}
+                      </span>
+                      <button
+                        onClick={() => handleDeleteDiscountCode(c.id, c.code)}
+                        className="text-red-400 p-1 hover:bg-red-500/10 rounded-lg flex items-center gap-1 text-xs"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>حذف</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop Table (Hidden on screens < md) */}
+          <div className="hidden md:block bg-[#13172B] border border-[#272A3C] rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs text-slate-300">
                 <thead className="bg-[#181B2C] text-slate-400 font-bold border-b border-[#272A3C]">
@@ -1182,14 +1265,14 @@ export default function AdminDashboardPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <form
             onSubmit={handleCreateDiscountCode}
-            className="w-full max-w-lg bg-[#0F111D] border border-[#272A3C] rounded-2xl p-6 text-slate-200 space-y-4 max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-lg bg-[#0F111D] border border-[#272A3C] rounded-2xl p-4 sm:p-6 text-slate-200 space-y-4 max-h-[90vh] overflow-y-auto"
           >
             <h3 className="text-base font-bold text-amber-500 mb-2 flex items-center gap-2">
               <Tag className="w-5 h-5" />
               ساخت کد تخفیف / هدیه جدید
             </h3>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-slate-400 mb-1">کد اختصاصی (انگلیسی)*</label>
                 <input
