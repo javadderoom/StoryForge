@@ -203,4 +203,107 @@ class AuthService {
     }
     return null;
   }
+
+  /// Request password reset email
+  static Future<Map<String, dynamic>> forgotPassword(String email) async {
+    try {
+      final url = Uri.parse('${GameApiService.baseUrl}/api/auth/forgot-password');
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email.trim().toLowerCase()}),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      final json = jsonDecode(response.body);
+      if (json is Map<String, dynamic>) {
+        return json;
+      }
+      return {'success': false, 'error': 'خطا در برقراری ارتباط با سرور.'};
+    } catch (e) {
+      return {'success': false, 'error': 'خطا در ارتباط با سرور: $e'};
+    }
+  }
+
+  /// Reset password using received token
+  static Future<Map<String, dynamic>> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    try {
+      final url = Uri.parse('${GameApiService.baseUrl}/api/auth/reset-password');
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'token': token.trim(),
+              'newPassword': newPassword,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      final json = jsonDecode(response.body);
+      if (json is Map<String, dynamic>) {
+        return json;
+      }
+      return {'success': false, 'error': 'خطا در ثبت گذرواژه جدید.'};
+    } catch (e) {
+      return {'success': false, 'error': 'خطا در ارتباط با سرور: $e'};
+    }
+  }
+
+  /// Authenticate using Cafe Bazaar account
+  static Future<Map<String, dynamic>> loginWithBazaar({
+    required String bazaarAccountId,
+    String? phoneNumber,
+    String? name,
+    String? guestSessionId,
+  }) async {
+    try {
+      final url = Uri.parse('${GameApiService.baseUrl}/api/auth/bazaar-login');
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'bazaarAccountId': bazaarAccountId,
+              if (phoneNumber != null && phoneNumber.isNotEmpty) 'phoneNumber': phoneNumber,
+              if (name != null && name.isNotEmpty) 'name': name,
+              if (guestSessionId != null && guestSessionId.isNotEmpty) 'guestSessionId': guestSessionId,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      Map<String, dynamic>? json;
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          json = decoded;
+        }
+      } catch (_) {}
+
+      if (response.statusCode == 200 && json != null && json['success'] == true) {
+        final token = json['token'] as String;
+        final user = UserProfile.fromJson(json['user']);
+        await saveSession(token: token, user: user);
+        return {'success': true, 'token': token, 'user': user, 'message': json['message']};
+      }
+
+      return {
+        'success': false,
+        'error': json?['error'] ??
+            (response.statusCode != 200
+                ? 'خطا در ارتباط با سرور (${response.statusCode})'
+                : 'ورود با کافه‌بازار با خطا مواجه شد.'),
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'خطا در برقراری ارتباط با سرور: $e',
+      };
+    }
+  }
 }
+

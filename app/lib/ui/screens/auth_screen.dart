@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/audio_service.dart';
+import '../../services/auth_service.dart';
 import '../widgets/app_toast.dart';
 import 'story_catalog_screen.dart';
 
@@ -41,6 +42,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   final TextEditingController _regNameCtrl = TextEditingController();
 
   bool _isPasswordVisible = false;
+  bool _isBazaarLoading = false;
 
   @override
   void initState() {
@@ -139,6 +141,39 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         );
       }
     }
+  }
+
+  void _handleBazaarLogin() async {
+    setState(() => _isBazaarLoading = true);
+    AudioService().playSfx(SfxType.buttonClick);
+    final success = await ref.read(authProvider.notifier).loginWithBazaar();
+    if (mounted) setState(() => _isBazaarLoading = false);
+
+    if (success && mounted) {
+      widget.onAuthSuccess?.call();
+      AppToast.welcome(
+        context,
+        'با حساب کافه‌بازار با موفقیت وارد شدید!',
+        title: 'ورود موفق',
+      );
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const StoryCatalogScreen()),
+          (route) => false,
+        );
+      }
+    }
+  }
+
+  void _openForgotPasswordSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const _ForgotPasswordSheet(),
+    );
   }
 
   @override
@@ -365,7 +400,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
         // Tab Views
         SizedBox(
-          height: 260,
+          height: 275,
           child: TabBarView(
             controller: _tabController,
             children: [
@@ -374,7 +409,64 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             ],
           ),
         ),
+        const SizedBox(height: 14),
+
+        // Divider
+        Row(
+          children: [
+            const Expanded(child: Divider(color: Color(0xFF272A3C))),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Text(
+                'یا',
+                style: GoogleFonts.vazirmatn(color: const Color(0xFF71717A), fontSize: 12),
+              ),
+            ),
+            const Expanded(child: Divider(color: Color(0xFF272A3C))),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Cafe Bazaar 1-Tap Login Button
+        _buildBazaarButton(_isBazaarLoading || authState.isLoading),
       ],
+    );
+  }
+
+  Widget _buildBazaarButton(bool isLoading) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: OutlinedButton(
+        onPressed: isLoading ? null : _handleBazaarLogin,
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Color(0xFF10B981), width: 1.2),
+          backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.08),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          elevation: 0,
+        ),
+        child: isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10B981)),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.shopping_bag_outlined, color: Color(0xFF10B981), size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'ورود سریع با حساب کافه‌بازار',
+                    style: GoogleFonts.vazirmatn(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF10B981),
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 
@@ -383,16 +475,36 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       children: [
         _buildTextField(
           controller: _loginPhoneCtrl,
-          hint: 'شماره موبایل (مثال: ۰۹۱۲۱۲۳۴۵۶۷)',
-          icon: Icons.phone_iphone_rounded,
-          keyboardType: TextInputType.phone,
+          hint: 'شماره موبایل یا ایمیل',
+          icon: Icons.person_outline_rounded,
+          keyboardType: TextInputType.emailAddress,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         _buildTextField(
           controller: _loginPassCtrl,
           hint: 'رمز عبور',
           icon: Icons.lock_outline_rounded,
           isPassword: true,
+        ),
+        const SizedBox(height: 4),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => _openForgotPasswordSheet(context),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              'فراموشی رمز عبور؟',
+              style: GoogleFonts.vazirmatn(
+                fontSize: 12.5,
+                color: const Color(0xFFF59E0B),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ),
         const Spacer(),
         _buildActionButton(
@@ -510,3 +622,356 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     );
   }
 }
+
+class _ForgotPasswordSheet extends StatefulWidget {
+  const _ForgotPasswordSheet();
+
+  @override
+  State<_ForgotPasswordSheet> createState() => _ForgotPasswordSheetState();
+}
+
+class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  final TextEditingController _emailCtrl = TextEditingController();
+  final TextEditingController _tokenCtrl = TextEditingController();
+  final TextEditingController _newPassCtrl = TextEditingController();
+
+  bool _isEmailLoading = false;
+  bool _isResetLoading = false;
+  bool _isPasswordVisible = false;
+  String? _infoMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _emailCtrl.dispose();
+    _tokenCtrl.dispose();
+    _newPassCtrl.dispose();
+    super.dispose();
+  }
+
+  void _handleSendEmail() async {
+    final email = _emailCtrl.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      AppToast.error(context, 'لطفاً یک نشانی ایمیل معتبر وارد کنید.');
+      return;
+    }
+
+    setState(() {
+      _isEmailLoading = true;
+      _infoMessage = null;
+    });
+
+    try {
+      final res = await AuthService.forgotPassword(email);
+      if (mounted) {
+        setState(() => _isEmailLoading = false);
+        if (res['success'] == true) {
+          setState(() {
+            _infoMessage = 'پیوند بازنشانی به ایمیل شما ارسال گردید. اگر کد بازنشانی دریافت کرده‌اید، آن را در مرحله ۲ وارد کنید.';
+          });
+          AppToast.success(
+            context,
+            'ایمیل بازنشانی ارسال شد. لطفاً صندوق ورودی ایمیل خود را بررسی کنید.',
+            title: 'ارسال موفق',
+          );
+          _tabController.animateTo(1);
+        } else {
+          AppToast.error(context, res['error'] ?? 'خطا در ارسال ایمیل.');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isEmailLoading = false);
+        AppToast.error(context, 'خطا در برقراری ارتباط: $e');
+      }
+    }
+  }
+
+  void _handleResetPassword() async {
+    final token = _tokenCtrl.text.trim();
+    final newPass = _newPassCtrl.text.trim();
+
+    if (token.isEmpty) {
+      AppToast.error(context, 'لطفاً کد یا توکن دریافت شده را وارد کنید.');
+      return;
+    }
+
+    if (newPass.length < 6) {
+      AppToast.error(context, 'رمز عبور جدید باید حداقل ۶ کاراکتر باشد.');
+      return;
+    }
+
+    setState(() => _isResetLoading = true);
+
+    try {
+      final res = await AuthService.resetPassword(
+        token: token,
+        newPassword: newPass,
+      );
+      if (mounted) {
+        setState(() => _isResetLoading = false);
+        if (res['success'] == true) {
+          Navigator.of(context).pop();
+          AppToast.success(
+            context,
+            'گذرواژه با موفقیت تغییر کرد. اکنون با رمز جدید وارد شوید.',
+            title: 'تغییر موفق رمز',
+          );
+        } else {
+          AppToast.error(context, res['error'] ?? 'خطا در بازنشانی رمز عبور.');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isResetLoading = false);
+        AppToast.error(context, 'خطا در برقراری ارتباط: $e');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Container(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          top: 16,
+          left: 20,
+          right: 20,
+        ),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F111D),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(top: BorderSide(color: Color(0xFF272A3C), width: 1.5)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.lock_reset_rounded, color: Color(0xFFF59E0B), size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    'بازیابی و بازنشانی گذرواژه',
+                    style: GoogleFonts.vazirmatn(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFFF59E0B),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Tab Bar for Step 1 vs Step 2
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF181B2C),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  dividerColor: Colors.transparent,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicator: BoxDecoration(
+                    color: const Color(0xFFF59E0B),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  labelColor: const Color(0xFF0F111D),
+                  unselectedLabelColor: const Color(0xFFA1A1AA),
+                  labelStyle: GoogleFonts.vazirmatn(fontWeight: FontWeight.bold, fontSize: 13),
+                  tabs: const [
+                    Tab(text: '۱. ارسال کد به ایمیل'),
+                    Tab(text: '۲. ثبت گذرواژه جدید'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              if (_infoMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_outline, color: Color(0xFF10B981), size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _infoMessage!,
+                          style: GoogleFonts.vazirmatn(color: const Color(0xFF10B981), fontSize: 12.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              SizedBox(
+                height: 230,
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // Step 1: Send reset email
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'نشانی ایمیل حساب کاربری خود را وارد کنید تا پیوند و کد بازنشانی برایتان ارسال شود.',
+                          style: GoogleFonts.vazirmatn(color: const Color(0xFFA1A1AA), fontSize: 12.5),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildField(
+                          controller: _emailCtrl,
+                          hint: 'example@email.com',
+                          icon: Icons.alternate_email_rounded,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        const Spacer(),
+                        SizedBox(
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: _isEmailLoading ? null : _handleSendEmail,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF59E0B),
+                              foregroundColor: const Color(0xFF0F111D),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            child: _isEmailLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F111D)),
+                                  )
+                                : Text(
+                                    'ارسال ایمیل بازنشانی',
+                                    style: GoogleFonts.vazirmatn(fontSize: 14, fontWeight: FontWeight.bold),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Step 2: Enter token & new password
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'کد یا توکن دریافت شده از ایمیل و گذرواژه جدید دلخواه را وارد کنید.',
+                          style: GoogleFonts.vazirmatn(color: const Color(0xFFA1A1AA), fontSize: 12.5),
+                        ),
+                        const SizedBox(height: 10),
+                        _buildField(
+                          controller: _tokenCtrl,
+                          hint: 'کد یا توکن بازنشانی (ارسال‌شده به ایمیل)',
+                          icon: Icons.vpn_key_outlined,
+                        ),
+                        const SizedBox(height: 10),
+                        _buildField(
+                          controller: _newPassCtrl,
+                          hint: 'گذرواژه جدید (حداقل ۶ کاراکتر)',
+                          icon: Icons.lock_outline_rounded,
+                          isPassword: true,
+                        ),
+                        const Spacer(),
+                        SizedBox(
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: _isResetLoading ? null : _handleResetPassword,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF59E0B),
+                              foregroundColor: const Color(0xFF0F111D),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            child: _isResetLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F111D)),
+                                  )
+                                : Text(
+                                    'ذخیره و تغییر گذرواژه',
+                                    style: GoogleFonts.vazirmatn(fontSize: 14, fontWeight: FontWeight.bold),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool isPassword = false,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF181B2C),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF272A3C)),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword && !_isPasswordVisible,
+        keyboardType: keyboardType,
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.left,
+        style: GoogleFonts.vazirmatn(color: Colors.white, fontSize: 13.5),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintTextDirection: TextDirection.rtl,
+          hintStyle: GoogleFonts.vazirmatn(color: const Color(0xFF71717A), fontSize: 12.5),
+          prefixIcon: Icon(icon, color: const Color(0xFFF59E0B), size: 19),
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                    color: const Color(0xFF71717A),
+                    size: 18,
+                  ),
+                  onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+      ),
+    );
+  }
+}
+

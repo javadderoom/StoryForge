@@ -96,7 +96,7 @@ export function WebShopModal({ isOpen, onClose, onRequireAuth }: WebShopModalPro
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       <div
         dir="rtl"
-        className="relative w-full max-w-2xl bg-[#0F111D] border border-[#272A3C] rounded-3xl p-6 shadow-2xl text-slate-200 overflow-hidden"
+        className="relative w-full max-w-2xl bg-[#0F111D] border border-[#272A3C] rounded-3xl p-6 shadow-2xl text-slate-200 max-h-[92vh] overflow-y-auto"
       >
         {/* Close Button */}
         <button

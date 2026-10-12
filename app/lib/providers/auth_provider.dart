@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/bazaar_auth_service.dart';
 
 class AuthState {
   final bool isAuthenticated;
@@ -181,6 +182,46 @@ class AuthNotifier extends Notifier<AuthState> {
         state = state.copyWith(
           isLoading: false,
           errorMessage: result['error'] ?? 'ثبت‌نام ناموفق بود.',
+        );
+        return false;
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'خطا در ارتباط با سرور: $e',
+      );
+      return false;
+    }
+  }
+
+  Future<bool> loginWithBazaar({
+    String? phoneNumber,
+    String? name,
+    String? guestSessionId,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final result = await BazaarAuthService.signInWithBazaar(
+        phoneNumber: phoneNumber,
+        name: name,
+        guestSessionId: guestSessionId,
+      );
+
+      if (result['success'] == true) {
+        final user = result['user'] as UserProfile;
+        final token = result['token'] as String;
+        state = state.copyWith(
+          isLoading: false,
+          isAuthenticated: true,
+          user: user,
+          token: token,
+          clearError: true,
+        );
+        return true;
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: result['error'] ?? 'ورود با کافه‌بازار ناموفق بود.',
         );
         return false;
       }

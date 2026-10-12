@@ -1,0 +1,20 @@
+{
+  "name": "افسانه‌ساز — داستان‌های تعاملی و نقش‌آفرینی",
+  "short_name": "افسانه‌ساز",
+  "description": "موتور رمان تعاملی، نقش‌آفرینی و شبیه‌ساز روایت با هوش مصنوعی",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090a0f",
+  "theme_color": "#090a0f",
+  "orientation": "portrait",
+  "dir": "rtl",
+  "lang": "fa",
+  "icons": [
+    {
+      "src": "/images/app_icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

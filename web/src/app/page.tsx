@@ -21,6 +21,9 @@ import {
   CheckCircle2,
   Mail,
   Phone,
+  Menu,
+  X,
+  Heart,
 } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -158,6 +161,7 @@ export default function Home() {
   const [isShopModalOpen, setIsShopModalOpen] = useState(false);
   const [isLockEncounterOpen, setIsLockEncounterOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Close user dropdown menu when clicking outside
@@ -813,10 +817,10 @@ export default function Home() {
           </div>
           <div>
             <h1 className="flex items-center gap-2 text-sm font-bold tracking-tight text-zinc-100">
-              <span>{storyMeta?.title || selectedStory?.title || (isRtl ? 'بدون داستان' : 'No Story Selected')}</span>
+              <span className="max-w-[140px] sm:max-w-[220px] md:max-w-none truncate">{storyMeta?.title || selectedStory?.title || (isRtl ? 'بدون داستان' : 'No Story Selected')}</span>
               <button
                 onClick={() => setIsCatalogOpen(true)}
-                className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-400 transition-all hover:bg-amber-500/20"
+                className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-400 transition-all hover:bg-amber-500/20 shrink-0"
               >
                 <BookOpen className="h-2.5 w-2.5" />
                 <span>{isRtl ? 'کتابخانه' : 'Library'}</span>
@@ -828,7 +832,51 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Mobile Header Controls */}
+        <div className="flex md:hidden items-center gap-2">
+          {lastOutcome && (
+            <button
+              onClick={() => {
+                setDiceResolution(lastOutcome);
+                setDiceRolling(false);
+                setIsDiceModalOpen(true);
+              }}
+              className="flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs text-amber-400 transition-all hover:bg-amber-500/20"
+              title={isRtl ? 'مشاهده پرتاب تاس' : 'View Dice Roll'}
+            >
+              <Dices className="h-3.5 w-3.5" />
+              <span className="font-mono font-bold text-[11px]">{toPersianDigits(lastOutcome.d20)}</span>
+            </button>
+          )}
+
+          {/* Credit Balance Pill */}
+          <button
+            onClick={() => setIsShopModalOpen(true)}
+            className="flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/15 px-2 py-1 text-xs font-bold text-amber-400 transition-all hover:bg-amber-500/25 cursor-pointer"
+            title={isRtl ? 'شارژ و مشاهده بسته‌های اعتباری' : 'Credit Balance & Shop'}
+          >
+            <Zap className="h-3.5 w-3.5 text-amber-500" />
+            <span className="text-[11px]">{toPersianDigits(user?.creditBalance ?? 0)}</span>
+          </button>
+
+          {/* Mobile Hamburger Drawer Button */}
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="relative flex items-center justify-center h-8 w-8 rounded-lg border border-zinc-700/60 bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700 transition-all cursor-pointer"
+            aria-label="منوی ماجراجو"
+          >
+            <Menu className="h-4 w-4 text-amber-400" />
+            {(playerState?.unspentStatPoints ?? 0) > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Desktop Header Controls */}
+        <div className="hidden md:flex items-center gap-2">
           {lastOutcome && (
             <button
               onClick={() => {
@@ -1213,8 +1261,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* HUD */}
-          <div className="space-y-6 md:col-span-4">
+          {/* HUD (Desktop only - mobile uses drawer & floating HUD) */}
+          <div className="hidden md:block space-y-6 md:col-span-4">
             <div style={{ backgroundColor: themeObj.cardBg, borderColor: themeObj.cardBorder }} className="rounded-3xl border p-6 shadow-xl">
               <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider" style={{ color: themeObj.mutedText }}>
@@ -1317,6 +1365,310 @@ export default function Home() {
               >
                 <Library className="h-3.5 w-3.5" />
                 {isRtl ? 'باز کردن کدکس و کوله' : 'Open Codex & Inventory'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Mobile Mini-HUD Pill */}
+      {playerState && !isMobileMenuOpen && (
+        <div className="md:hidden fixed bottom-3 left-3 right-3 z-30 pointer-events-none flex justify-center">
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="pointer-events-auto flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl bg-[#0F111D]/95 border border-amber-500/35 backdrop-blur-lg shadow-2xl shadow-black/90 text-xs w-full max-w-md transition-transform active:scale-95 cursor-pointer"
+          >
+            {/* Primary Health / Vitals Pill */}
+            <div className="flex items-center gap-2">
+              <Heart className="h-4 w-4 text-rose-500 animate-pulse shrink-0" />
+              <span className="font-bold text-slate-200">
+                {toPersianDigits(playerState.resources?.hp ?? playerState.resources?.health ?? 100)} / {toPersianDigits(playerState.maxResources?.hp ?? playerState.maxResources?.health ?? 100)}
+              </span>
+            </div>
+
+            {/* Level & Sheet Trigger */}
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-400 font-bold text-[10px] border border-emerald-500/30">
+                {isRtl ? `سطح ${toPersianDigits(playerState.level ?? 1)}` : `Lvl ${playerState.level ?? 1}`}
+              </span>
+              {(playerState.unspentStatPoints ?? 0) > 0 && (
+                <span className="px-1.5 py-0.5 rounded-lg bg-amber-500/25 text-amber-300 font-bold text-[9px] border border-amber-500/40 animate-pulse">
+                  ✨ {toPersianDigits(playerState.unspentStatPoints)}
+                </span>
+              )}
+              <span className="text-[11px] text-amber-400 font-bold flex items-center gap-1">
+                <Shield className="h-3.5 w-3.5" />
+                <span>{isRtl ? 'مشخصات و کوله' : 'Character & Gear'}</span>
+              </span>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* Mobile RPG HUD & Profile Drawer */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden" dir={isRtl ? 'rtl' : 'ltr'}>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+
+          {/* Slide-over panel */}
+          <div
+            className={`fixed inset-y-0 ${
+              isRtl ? 'right-0 border-l' : 'left-0 border-r'
+            } w-[88%] max-w-sm bg-[#0B0D17] border-zinc-800/80 z-50 p-5 overflow-y-auto shadow-2xl flex flex-col justify-between animate-in ${
+              isRtl ? 'slide-in-from-right' : 'slide-in-from-left'
+            } duration-200`}
+          >
+            <div className="space-y-4">
+              {/* Drawer Header & Close Button */}
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-tr from-amber-500 to-rose-600 font-bold text-white text-xs shadow-md shadow-amber-500/20">
+                    ⚡
+                  </div>
+                  <span className="font-bold text-sm text-zinc-100">
+                    {isRtl ? 'میز کار ماجراجو' : 'Adventurer HUD'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                  aria-label="بستن منو"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Adventurer Profile Card */}
+              <div className="p-3.5 rounded-2xl bg-[#121526] border border-zinc-800/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0 pr-1">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-sm shrink-0">
+                      <UserIcon className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-bold text-xs text-white truncate">
+                        {user?.name || (isRtl ? 'ماجراجو' : 'Adventurer')}
+                      </span>
+                      <span className="text-[10px] text-zinc-400 truncate" dir="ltr">
+                        {user?.phoneNumber || user?.email || ''}
+                      </span>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
+                    user?.role === 'ADMIN'
+                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                      : user?.role === 'AUTHOR'
+                      ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                      : 'bg-amber-500/15 text-amber-400 border border-amber-500/25'
+                  }`}>
+                    {user?.role === 'ADMIN' ? 'مدیر' : user?.role === 'AUTHOR' ? 'نویسنده' : 'خواننده'}
+                  </span>
+                </div>
+
+                {/* Credit balance in drawer */}
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#181B2C] border border-zinc-800/80">
+                  <div className="flex items-center gap-1.5 text-xs text-zinc-300 font-medium">
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    <span>موجودی صحنه‌ها:</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-amber-400">
+                      {toPersianDigits(user?.creditBalance ?? 0)}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        setIsShopModalOpen(true);
+                      }}
+                      className="text-[10px] px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 font-bold transition-transform active:scale-95 cursor-pointer"
+                    >
+                      شارژ
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Story Switcher */}
+              <div className="p-3 rounded-2xl bg-[#121526]/80 border border-zinc-800/80 flex items-center justify-between">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-[10px] text-zinc-400">داستان فعلی:</span>
+                  <span className="text-xs font-bold text-zinc-200 truncate">
+                    {storyMeta?.title || selectedStory?.title || (isRtl ? 'داستانی انتخاب نشده' : 'No Story')}
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setIsCatalogOpen(true);
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-bold hover:bg-amber-500/20 shrink-0 cursor-pointer"
+                >
+                  <BookOpen className="h-3 w-3" />
+                  <span>کتابخانه</span>
+                </button>
+              </div>
+
+              {/* Character RPG Status (Level, Vitals, Attributes) */}
+              {playerState && (
+                <div className="p-3.5 rounded-2xl bg-[#121526] border border-zinc-800/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{isRtl ? 'وضعیت شخصیت' : 'Character Status'}</span>
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-bold text-[11px] border border-emerald-500/30 font-mono">
+                        {isRtl ? `سطح ${toPersianDigits(playerState.level ?? 1)}` : `Lvl ${playerState.level ?? 1}`}
+                      </span>
+                      {(playerState.unspentStatPoints ?? 0) > 0 && (
+                        <button
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            setIsLevelUpModalOpen(true);
+                          }}
+                          className="px-2 py-0.5 rounded-md bg-amber-500/25 hover:bg-amber-500/40 text-amber-300 font-bold text-[10px] animate-pulse border border-amber-500/40 flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>✨</span>
+                          <span>{toPersianDigits(playerState.unspentStatPoints)}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Vitals Bars */}
+                  <div className="space-y-2">
+                    {(storyMeta?.rpgSystem?.resources ?? []).map((res: any) => {
+                      const maxVal = playerState?.maxResources?.[res.id] ?? res.max ?? 1;
+                      const curVal = Math.min(playerState?.resources?.[res.id] ?? res.current ?? 0, maxVal);
+                      const pct = Math.max(0, Math.min(100, (curVal / maxVal) * 100));
+                      const danger = res.id === 'hp' && pct < 30;
+                      return (
+                        <div key={res.id} className="space-y-1">
+                          <div className="flex justify-between text-[11px] font-semibold">
+                            <span style={{ color: themeObj.bodyText }}>{res.name}</span>
+                            <span style={{ color: danger ? '#fb7185' : res.color || themeObj.primaryAccent }}>
+                              {toPersianDigits(curVal)} / {toPersianDigits(maxVal)}
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{ width: `${pct}%`, backgroundColor: danger ? '#fb7185' : res.color || themeObj.primaryAccent }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Attributes Grid */}
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-zinc-800/80">
+                    {(storyMeta?.rpgSystem?.stats ?? []).slice(0, 4).map((stat: any) => {
+                      const baseDef = stat.baseValue ?? 10;
+                      const base = playerState?.stats?.[stat.id] ?? baseDef;
+                      const eff = playerState ? getEffectiveStatValue(playerState, stat.id, baseDef) : base;
+                      const statTitle = stat.name?.trim() || formatStatName(stat.id, isRtl, storyMeta?.rpgSystem?.stats);
+                      return (
+                        <div
+                          key={stat.id}
+                          className="flex items-center justify-between p-2 rounded-xl bg-[#181B2C] border border-zinc-800/80 text-[11px]"
+                        >
+                          <span className="text-zinc-300 font-medium truncate pr-1">{statTitle}</span>
+                          <span className="font-mono font-bold text-amber-400 shrink-0">{toPersianDigits(eff)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Open Codex & Inventory Button */}
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      setIsCompendiumOpen(true);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold hover:bg-amber-500/20 transition-colors cursor-pointer"
+                  >
+                    <Library className="h-3.5 w-3.5" />
+                    <span>{isRtl ? 'کدکس، کوله‌پشتی و مهارت‌ها' : 'Codex & Inventory'}</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Quick Action Navigation */}
+              <div className="space-y-1 pt-1">
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setIsSettingsOpen(true);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-800/80 rounded-xl transition-colors cursor-pointer"
+                >
+                  <Palette className="h-4 w-4 text-amber-400" />
+                  <span>{isRtl ? 'تنظیمات پوسته و قلم' : 'Theme & Typography'}</span>
+                </button>
+
+                {/* Audio controls */}
+                <div className="flex items-center justify-between px-3 py-2 text-xs text-zinc-300 rounded-xl bg-zinc-900/50 border border-zinc-800/60">
+                  <span className="text-xs text-zinc-400">صدا و موسیقی:</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => audioService.toggleSfxMute()}
+                      className="p-1.5 rounded-lg border border-zinc-700/60 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                      title={isRtl ? 'صدای افکت' : 'SFX'}
+                    >
+                      {sfxMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                    </button>
+                    <button
+                      onClick={() => audioService.toggleAmbientMute()}
+                      className="p-1.5 rounded-lg border border-zinc-700/60 bg-zinc-800 text-zinc-300 hover:bg-zinc-700 cursor-pointer"
+                      title={isRtl ? 'موسیقی محیط' : 'Ambient'}
+                    >
+                      {ambientMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    restartAdventure();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-800/80 rounded-xl transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="h-4 w-4 text-zinc-400" />
+                  <span>{isRtl ? 'شروع مجدد ماجراجویی' : 'Restart Adventure'}</span>
+                </button>
+
+                {/* Studio link if author/admin */}
+                {(user?.role === 'ADMIN' || user?.role === 'AUTHOR') && (
+                  <Link
+                    href="/studio"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-purple-300 hover:bg-purple-500/15 rounded-xl transition-colors"
+                  >
+                    <Shield className="h-4 w-4 text-purple-400" />
+                    <span>ورود به استودیو نویسندگی</span>
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            {/* Logout Button */}
+            <div className="pt-3 border-t border-zinc-800/80 mt-4">
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  logout();
+                  notify.info('از حساب کاربری خود خارج شدید.');
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors cursor-pointer"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>خروج از حساب کاربری</span>
               </button>
             </div>
           </div>
