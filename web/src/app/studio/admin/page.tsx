@@ -368,6 +368,35 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Handle Delete Purchase Record
+  const handleDeletePurchase = async (purchaseId: string, sku: string, tokenVal: string) => {
+    if (!token) return;
+    const confirmed = await notify.confirm({
+      title: 'حذف رکورد خرید',
+      message: `آیا از حذف کامل رکورد خرید «${sku}» اطمینان دارید؟ این عمل برای حذف تراکنش‌های تستی است و قابل بازگشت نیست.`,
+      confirmText: 'حذف',
+      cancelText: 'انصراف',
+      isDestructive: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/admin/transactions/purchases/${purchaseId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        notify.success('رکورد خرید با موفقیت حذف گردید.');
+        fetchTransactions();
+      } else {
+        notify.error(data.error || 'خطا در حذف رکورد خرید.');
+      }
+    } catch {
+      notify.error('خطا در برقراری ارتباط با سرور.');
+    }
+  };
+
   // Handle Package Save
   const handleSavePackage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -634,7 +663,69 @@ export default function AdminDashboardPage() {
               <CheckCircle2 className="w-4 h-4" />
               آخرین خریدهای کافه‌بازار
             </h3>
-            <div className="overflow-x-auto">
+
+            {/* Mobile Cards (Visible on screens < md) */}
+            <div className="md:hidden space-y-3">
+              {purchases.length === 0 ? (
+                <div className="p-6 text-center text-slate-500 bg-[#181B2C] rounded-xl border border-[#272A3C]">
+                  تراکنشی ثبت نشده است.
+                </div>
+              ) : (
+                purchases.map((p) => (
+                  <div key={p.id} className="p-4 bg-[#181B2C] border border-[#272A3C] rounded-xl space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-white text-xs">{p.sku}</span>
+                      <span className="px-2 py-0.5 bg-emerald-500/15 text-emerald-400 rounded text-[10px] font-bold">
+                        {p.status}
+                      </span>
+                    </div>
+
+                    <div className="text-xs space-y-1 pt-1 border-t border-[#272A3C]/60">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-slate-400">کاربر:</span>
+                        <span className="text-amber-400 font-mono text-[11px]" dir="ltr">
+                          {p.user?.phoneNumber || p.user?.email || 'کاربر ناشناس'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-slate-400">مبلغ پرداختی:</span>
+                        <span className="font-bold text-emerald-400 text-xs">
+                          {toPersianDigits((p.amountPaidRial / 10).toLocaleString('en-US'))} تومان
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-slate-400">اعتبار اهدا شده:</span>
+                        <span className="font-bold text-amber-300 text-xs">+{toPersianDigits(p.creditsAwarded)}</span>
+                      </div>
+                      {p.rawResponse?.orderId && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] text-slate-400">کد سفارش بازار:</span>
+                          <span className="text-slate-300 font-mono text-[11px]" dir="ltr">
+                            {p.rawResponse.orderId}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-[#272A3C]/60 flex items-center justify-between">
+                      <span className="text-[10px] text-slate-500">
+                        {new Date(p.createdAt).toLocaleDateString('fa-IR')}
+                      </span>
+                      <button
+                        onClick={() => handleDeletePurchase(p.id, p.sku, p.token)}
+                        className="text-red-400 hover:text-red-300 p-1.5 hover:bg-red-500/10 rounded-lg flex items-center gap-1.5 text-xs font-bold transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>حذف رکورد (تست)</span>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop Table (Hidden on screens < md) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-right text-xs text-slate-300">
                 <thead className="bg-[#181B2C] text-slate-400 font-bold border-b border-[#272A3C]">
                   <tr>
@@ -646,12 +737,13 @@ export default function AdminDashboardPage() {
                     <th className="p-3">شناسه توکن بازار</th>
                     <th className="p-3">وضعیت</th>
                     <th className="p-3">تاریخ</th>
+                    <th className="p-3 text-center">عملیات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#1e233d]">
                   {purchases.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="p-6 text-center text-slate-500">
+                      <td colSpan={9} className="p-6 text-center text-slate-500">
                         تراکنشی ثبت نشده است.
                       </td>
                     </tr>
@@ -679,6 +771,15 @@ export default function AdminDashboardPage() {
                         </td>
                         <td className="p-3 text-slate-500">
                           {new Date(p.createdAt).toLocaleDateString('fa-IR')}
+                        </td>
+                        <td className="p-3 text-center">
+                          <button
+                            onClick={() => handleDeletePurchase(p.id, p.sku, p.token)}
+                            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors inline-flex items-center gap-1"
+                            title="حذف رکورد خرید (تست)"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </td>
                       </tr>
                     ))
