@@ -8,6 +8,7 @@ import '../../core/utils/persian_numbers.dart';
 import '../../models/character_creation.dart';
 import '../../models/story.dart';
 import '../../providers/game_session_provider.dart';
+import '../widgets/app_toast.dart';
 import 'reader_screen.dart';
 
 class CharacterCreationScreen extends ConsumerStatefulWidget {
@@ -142,8 +143,9 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
     } catch (e) {
       if (mounted) {
         setState(() => _isEmbarking = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطا در ورود به سرگذشت: $e')),
+        AppToast.error(
+          context,
+          'خطا در ورود به سرگذشت: $e',
         );
       }
     }
@@ -316,17 +318,13 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
               child: InkWell(
                 onTap: () {
                   if (i > _currentStep && _currentStep == 2 && _getEffectiveStats().isNotEmpty && _remainingPoints > 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        duration: const Duration(seconds: 2),
-                        backgroundColor: const Color(0xFF1E2238),
-                        content: Text(
-                          isPersian
-                              ? 'لطفاً ابتدا تمام امتیازهای ویژگی را تخصیص دهید.'
-                              : 'Please allocate all attribute points before proceeding.',
-                          style: GoogleFonts.vazirmatn(),
-                        ),
-                      ),
+                    AppToast.error(
+                      context,
+                      isPersian
+                          ? 'لطفاً ابتدا تمام امتیازهای ویژگی را تخصیص دهید.'
+                          : 'Please allocate all attribute points before proceeding.',
+                      title: 'تخصیص امتیازها',
+                      duration: const Duration(seconds: 2),
                     );
                     return;
                   }

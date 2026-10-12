@@ -103,6 +103,8 @@ class BazaarBillingService {
             sku: sku,
             purchaseToken: purchaseToken,
             packageId: packageId,
+            orderId: purchaseInfo.orderId,
+            purchaseTime: purchaseInfo.purchaseTime,
           );
         } catch (verifyError) {
           debugPrint('[BazaarBillingService] Backend verification error: $verifyError');
@@ -127,11 +129,19 @@ class BazaarBillingService {
         );
       } catch (e) {
         debugPrint('[BazaarBillingService] Native purchase error: $e');
-        return BazaarPurchaseResult(
+        return const BazaarPurchaseResult(
           success: false,
           error: 'عملیات خرید از کافه‌بازار لغو شد یا با خطا مواجه گردید.',
         );
       }
+    }
+
+    // If on real Android device and Cafe Bazaar is disconnected/unavailable, do not simulate fake purchases!
+    if (isSupportedPlatform && !_isConnected) {
+      return const BazaarPurchaseResult(
+        success: false,
+        error: 'ارتباط با برنامه کافه‌بازار برقرار نشد. لطفاً از نصب و اجرای کافه‌بازار اطمینان حاصل نمایید.',
+      );
     }
 
     // 2. Fallback Simulation (Development, Emulators without Bazaar, or Desktop/Web)
@@ -183,6 +193,8 @@ class BazaarBillingService {
               sku: item.productId,
               purchaseToken: item.purchaseToken,
               packageId: item.productId,
+              orderId: item.orderId,
+              purchaseTime: item.purchaseTime,
             );
 
             recovered.add({

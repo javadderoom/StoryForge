@@ -25,6 +25,7 @@ export async function GET(req: Request) {
           user: {
             select: {
               phoneNumber: true,
+              email: true,
               name: true,
             },
           },
@@ -37,6 +38,7 @@ export async function GET(req: Request) {
           user: {
             select: {
               phoneNumber: true,
+              email: true,
               name: true,
             },
           },

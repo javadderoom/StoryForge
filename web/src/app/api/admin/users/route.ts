@@ -25,6 +25,7 @@ export async function GET(req: Request) {
           OR: [
             { phoneNumber: { contains: search, mode: 'insensitive' as const } },
             { name: { contains: search, mode: 'insensitive' as const } },
+            { email: { contains: search, mode: 'insensitive' as const } },
           ],
         }
       : {};
@@ -35,6 +36,8 @@ export async function GET(req: Request) {
       select: {
         id: true,
         phoneNumber: true,
+        email: true,
+        emailVerified: true,
         name: true,
         role: true,
         creditBalance: true,

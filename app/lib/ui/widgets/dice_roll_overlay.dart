@@ -238,22 +238,24 @@ class DiceRollOverlay extends StatelessWidget {
                     Text(
                       isPersian ? 'پرتاب تاس و بررسی مهارت' : 'D20 SKILL CHECK',
                       style: GoogleFonts.vazirmatn(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
                         color: const Color(0xFFF59E0B),
                         letterSpacing: 1.2,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(
                       '"$actionText"',
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.vazirmatn(
-                        fontSize: 12,
-                        color: Colors.white70,
+                        fontSize: 14,
+                        height: 1.4,
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -270,11 +272,11 @@ class DiceRollOverlay extends StatelessWidget {
                       size: 160,
                     ),
                     if (isRolling) ...[
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       Text(
                         isPersian ? 'تاس در حال چرخش...' : 'Rolling D20...',
                         style: GoogleFonts.vazirmatn(
-                          fontSize: 12,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: const Color(0xFFF59E0B),
                         ),
@@ -293,19 +295,19 @@ class DiceRollOverlay extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const SizedBox(
-                                width: 22,
-                                height: 22,
+                                width: 24,
+                                height: 24,
                                 child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                                  strokeWidth: 2.5,
                                   color: Color(0xFFF59E0B),
                                 ),
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 14),
                               Text(
                                 isPersian ? 'در حال بررسی نتیجه...' : 'Adjudicating outcome...',
                                 style: GoogleFonts.vazirmatn(
-                                  fontSize: 12,
-                                  color: Colors.white54,
+                                  fontSize: 13,
+                                  color: Colors.white70,
                                 ),
                               ),
                             ],
@@ -319,11 +321,11 @@ class DiceRollOverlay extends StatelessWidget {
                       Directionality(
                         textDirection: TextDirection.ltr,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           decoration: BoxDecoration(
                             color: const Color(0xFF181926),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFF27272A)),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: const Color(0xFF2E3147)),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -332,7 +334,7 @@ class DiceRollOverlay extends StatelessWidget {
                                 isPersian ? 'تاس' : 'Roll',
                                 _effective!.diceRoll.toPersianDigits(enable: isPersian),
                               ),
-                              const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+                              const Text('+', style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.bold)),
                               _buildStatBox(
                                 _formatStatLabel(_effective!.statId),
                                 (_effective!.statModifier >= 0
@@ -342,7 +344,7 @@ class DiceRollOverlay extends StatelessWidget {
                                 color: const Color(0xFF60A5FA),
                               ),
                               if (_effective!.equipmentModifier != 0) ...[
-                                const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+                                const Text('+', style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.bold)),
                                 _buildStatBox(
                                   isPersian ? 'تجهیزات' : 'Gear',
                                   (_effective!.equipmentModifier >= 0
@@ -353,7 +355,7 @@ class DiceRollOverlay extends StatelessWidget {
                                 ),
                               ],
                               if (_effective!.passiveModifier != 0) ...[
-                                const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+                                const Text('+', style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.bold)),
                                 _buildStatBox(
                                   isPersian ? 'ویژگی' : 'Trait',
                                   (_effective!.passiveModifier >= 0
@@ -363,12 +365,8 @@ class DiceRollOverlay extends StatelessWidget {
                                   color: const Color(0xFFA78BFA),
                                 ),
                               ],
-                              // The server keeps environmentalModifier OUT of
-                              // statModifier but INSIDE totalScore, so the term
-                              // must be shown or the equation will not add up on
-                              // turns where a tactical item applied.
                               if (_effective!.environmentalModifier != 0) ...[
-                                const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+                                const Text('+', style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.bold)),
                                 _buildStatBox(
                                   isPersian ? 'محیط' : 'Env',
                                   (_effective!.environmentalModifier >= 0
@@ -378,13 +376,13 @@ class DiceRollOverlay extends StatelessWidget {
                                   color: const Color(0xFFF472B6),
                                 ),
                               ],
-                              const Text('=', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+                              const Text('=', style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.bold)),
                               _buildStatBox(
                                 isPersian ? 'مجموع' : 'Total',
                                 _effective!.totalScore.toPersianDigits(enable: isPersian),
                                 color: const Color(0xFFF59E0B),
                               ),
-                              const Text('vs', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                              const Text('vs', style: TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),
                               _buildStatBox(
                                 isPersian ? 'دشواری' : 'DC',
                                 _effective!.difficultyClass.toPersianDigits(enable: isPersian),
@@ -393,32 +391,38 @@ class DiceRollOverlay extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
 
                       // Outcome Badge
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                         decoration: BoxDecoration(
-                          color: outcomeColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: outcomeColor.withValues(alpha: 0.5)),
+                          color: outcomeColor.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: outcomeColor.withValues(alpha: 0.6), width: 1.5),
                         ),
                         child: Column(
                           children: [
                             Text(
                               _getOutcomeLabel(),
                               style: GoogleFonts.vazirmatn(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w900,
                                 color: outcomeColor,
+                                letterSpacing: 0.5,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 6),
                             Text(
                               _getConsequenceSummary(),
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.vazirmatn(fontSize: 11, color: Colors.white70),
+                              style: GoogleFonts.vazirmatn(
+                                fontSize: 13.5,
+                                height: 1.5,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white.withValues(alpha: 0.9),
+                              ),
                             ),
                           ],
                         ),
@@ -428,20 +432,20 @@ class DiceRollOverlay extends StatelessWidget {
                       // Continue Button
                       SizedBox(
                         width: double.infinity,
-                        height: 44,
+                        height: 48,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFF59E0B),
                             foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             elevation: 4,
                           ),
                           onPressed: onContinue,
                           child: Text(
                             isPersian ? 'ادامه ماجراجویی' : 'Continue Narrative',
                             style: GoogleFonts.vazirmatn(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
@@ -517,13 +521,25 @@ class DiceRollOverlay extends StatelessWidget {
   Widget _buildStatBox(String label, String value, {Color color = Colors.white}) {
     return Column(
       children: [
-        Text(label, style: GoogleFonts.vazirmatn(fontSize: 10, color: Colors.white38)),
-        const SizedBox(height: 2),
+        Text(
+          label,
+          style: GoogleFonts.vazirmatn(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.white70,
+          ),
+        ),
+        const SizedBox(height: 3),
         Directionality(
           textDirection: TextDirection.ltr,
           child: Text(
             value,
-            style: GoogleFonts.cinzel(fontSize: 15, fontWeight: FontWeight.bold, color: color),
+            style: GoogleFonts.cinzel(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: color,
+              letterSpacing: 0.5,
+            ),
           ),
         ),
       ],

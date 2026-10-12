@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { sku, purchaseToken, packageId } = body;
+    const { sku, purchaseToken, packageId, orderId, purchaseTime } = body;
 
     if (!sku || !purchaseToken) {
       return NextResponse.json(
@@ -161,7 +161,11 @@ export async function POST(req: Request) {
           status: 'COMPLETED',
           amountPaidRial: pack.priceRial,
           creditsAwarded: pack.credits,
-          rawResponse: verification.rawResponse ?? {},
+          rawResponse: {
+            ...(verification.rawResponse ?? {}),
+            ...(orderId ? { orderId } : {}),
+            ...(purchaseTime ? { purchaseTime } : {}),
+          },
         },
       });
 
@@ -175,6 +179,7 @@ export async function POST(req: Request) {
             sku: pack.sku,
             packageTitle: pack.title,
             purchaseToken,
+            ...(orderId ? { orderId } : {}),
           },
         },
       });

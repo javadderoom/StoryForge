@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/audio_service.dart';
 import '../../services/bazaar_billing_service.dart';
 import '../../services/billing_service.dart';
+import '../widgets/app_toast.dart';
 import 'auth_screen.dart';
 
 class ShopScreen extends ConsumerStatefulWidget {
@@ -43,14 +44,10 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     if (recovered.isNotEmpty && mounted) {
       await ref.read(authProvider.notifier).refreshProfile();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFF10B981),
-            content: Text(
-              'خریدهای قبلی شما با موفقیت بازیابی و صحنه‌ها به حسابتان افزوده شدند.',
-              style: GoogleFonts.vazirmatn(),
-            ),
-          ),
+        AppToast.info(
+          context,
+          'خریدهای قبلی شما با موفقیت بازیابی و صحنه‌ها به حسابتان افزوده شدند.',
+          title: 'بازیابی خریدها',
         );
       }
     }
@@ -101,25 +98,17 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         ref.read(authProvider.notifier).updateCreditBalance(newBalance);
         ref.read(authProvider.notifier).refreshProfile();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFF10B981),
-            content: Text(
-              result.message ?? 'خرید با موفقیت انجام شد! ${pack.credits} صحنه به حسابتان اضافه شد.',
-              style: GoogleFonts.vazirmatn(),
-            ),
-          ),
+        AppToast.success(
+          context,
+          result.message ?? 'خرید با موفقیت انجام شد! ${pack.credits} صحنه به حسابتان اضافه شد.',
+          title: 'خرید موفق از کافه‌بازار',
         );
       } else {
         AudioService().playSfx(SfxType.diceFail);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.redAccent,
-            content: Text(
-              result.error ?? 'خطا در انجام تراکنش کافه‌بازار.',
-              style: GoogleFonts.vazirmatn(),
-            ),
-          ),
+        AppToast.error(
+          context,
+          result.error ?? 'عملیات خرید از کافه‌بازار لغو شد یا با خطا مواجه گردید.',
+          title: 'تراکنش ناموفق',
         );
       }
     }
@@ -130,6 +119,134 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]},',
         ));
+  }
+
+  void _openRedeemCodeDialog() {
+    final authState = ref.read(authProvider);
+    if (!authState.isAuthenticated) {
+      AudioService().playSfx(SfxType.buttonClick);
+      AuthScreen.open(context);
+      return;
+    }
+
+    final codeCtrl = TextEditingController();
+    bool isRedeeming = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            backgroundColor: const Color(0xFF13172B),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: const BorderSide(color: Color(0xFF272A3C)),
+            ),
+            title: Row(
+              children: [
+                const Icon(Icons.confirmation_number_outlined, color: Color(0xFFF59E0B), size: 22),
+                const SizedBox(width: 8),
+                Text(
+                  'ثبت کد تخفیف یا هدیه',
+                  style: GoogleFonts.vazirmatn(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'کد تخفیف یا بن هدیه خود را وارد نمایید:',
+                  style: GoogleFonts.vazirmatn(fontSize: 12.5, color: const Color(0xFFA1A1AA)),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF181B2C),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF272A3C)),
+                  ),
+                  child: TextField(
+                    controller: codeCtrl,
+                    textDirection: TextDirection.ltr,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.vazirmatn(
+                      color: const Color(0xFFF59E0B),
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'کد تخفیف (مثال: NOWRUZ)',
+                      hintStyle: GoogleFonts.vazirmatn(color: const Color(0xFF71717A), fontSize: 13, letterSpacing: 0),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogCtx).pop(),
+                child: Text('انصراف', style: GoogleFonts.vazirmatn(color: Colors.white60)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: const Color(0xFF0F111D),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: isRedeeming
+                    ? null
+                    : () async {
+                        final code = codeCtrl.text.trim();
+                        if (code.isEmpty) return;
+                        setDialogState(() => isRedeeming = true);
+                        final res = await BillingService.redeemDiscountCode(code);
+                        setDialogState(() => isRedeeming = false);
+                        if (res['success'] == true) {
+                          if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+                          if (mounted) {
+                            AudioService().playSfx(SfxType.diceSuccess);
+                            if (res['newBalance'] != null) {
+                              ref.read(authProvider.notifier).updateCreditBalance(res['newBalance'] as int);
+                              ref.read(authProvider.notifier).refreshProfile();
+                            }
+                            AppToast.success(
+                              context,
+                              res['message'] ?? 'کد تخفیف با موفقیت اعمال شد.',
+                              title: 'کد هدیه فعال شد',
+                            );
+                          }
+                        } else {
+                          if (mounted) {
+                            AppToast.error(
+                              context,
+                              res['error'] ?? 'کد نامعتبر یا منقضی شده است.',
+                              title: 'خطا در ثبت کد',
+                            );
+                          }
+                        }
+                      },
+                child: isRedeeming
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F111D)),
+                      )
+                    : Text(
+                        'اعمال کد',
+                        style: GoogleFonts.vazirmatn(fontWeight: FontWeight.bold),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -229,7 +346,40 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
+
+            // Redeem Code Button
+            InkWell(
+              onTap: _openRedeemCodeDialog,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.confirmation_number_outlined, color: Color(0xFFF59E0B), size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'کد تخفیف یا هدیه دارید؟ برای ثبت اینجا کلیک کنید',
+                        style: GoogleFonts.vazirmatn(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFFFBBF24),
+                        ),
+                      ),
+                    ),
+                    const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFFF59E0B), size: 14),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
 
             // Packages List
             Expanded(

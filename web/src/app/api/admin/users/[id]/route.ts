@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth/getUser';
 import { getPrisma } from '@/lib/db/client';
+import { hashPassword } from '@/lib/auth/jwt';
 
 export async function PATCH(
   req: Request,
@@ -17,7 +18,7 @@ export async function PATCH(
 
     const { id: targetUserId } = await params;
     const body = await req.json();
-    const { role, creditAdjustment, reason } = body;
+    const { role, creditAdjustment, reason, newPassword, name, emailVerified, phoneVerified } = body;
 
     const prisma = getPrisma();
     if (!prisma) {
@@ -32,10 +33,33 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
+    if (newPassword && typeof newPassword === 'string' && newPassword.trim().length < 6) {
+      return NextResponse.json(
+        { success: false, error: 'رمز عبور جدید باید حداقل ۶ کاراکتر باشد.' },
+        { status: 400 }
+      );
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
       const dataToUpdate: any = {};
       if (role && ['READER', 'AUTHOR', 'ADMIN'].includes(role)) {
         dataToUpdate.role = role;
+      }
+
+      if (newPassword && typeof newPassword === 'string' && newPassword.trim().length >= 6) {
+        dataToUpdate.passwordHash = hashPassword(newPassword.trim());
+      }
+
+      if (typeof name === 'string') {
+        dataToUpdate.name = name.trim() || null;
+      }
+
+      if (typeof emailVerified === 'boolean') {
+        dataToUpdate.emailVerified = emailVerified;
+      }
+
+      if (typeof phoneVerified === 'boolean') {
+        dataToUpdate.phoneVerified = phoneVerified;
       }
 
       if (typeof creditAdjustment === 'number' && creditAdjustment !== 0) {
@@ -55,7 +79,7 @@ export async function PATCH(
             balanceAfter: u.creditBalance,
             reason: reason || 'ADMIN_MANUAL_ADJUSTMENT',
             metadata: {
-              adjustedBy: auth.user.phoneNumber,
+              adjustedBy: auth.user.phoneNumber || auth.user.email,
               timestamp: new Date().toISOString(),
             },
           },
@@ -71,9 +95,12 @@ export async function PATCH(
         user: {
           id: updated.id,
           phoneNumber: updated.phoneNumber,
+          email: updated.email,
+          emailVerified: updated.emailVerified,
           name: updated.name,
           role: updated.role,
           creditBalance: updated.creditBalance,
+          phoneVerified: updated.phoneVerified,
         },
       },
       message: 'کاربر با موفقیت به‌روزرسانی شد.',

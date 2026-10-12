@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/audio_service.dart';
+import '../widgets/app_toast.dart';
 import 'story_catalog_screen.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
@@ -63,8 +64,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     final pass = _loginPassCtrl.text.trim();
 
     if (phone.isEmpty || pass.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لطفاً شماره موبایل و رمز عبور را وارد کنید.')),
+      AppToast.error(
+        context,
+        'لطفاً شماره موبایل و رمز عبور را وارد کنید.',
       );
       return;
     }
@@ -77,11 +79,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
     if (success && mounted) {
       widget.onAuthSuccess?.call();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Color(0xFF10B981),
-          content: Text('با موفقیت وارد شدید. خوش آمدید!'),
-        ),
+      AppToast.welcome(
+        context,
+        'با موفقیت وارد شدید. خوش آمدید!',
+        title: 'ورود موفق',
       );
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop(true);
@@ -100,15 +101,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     final name = _regNameCtrl.text.trim();
 
     if (phone.isEmpty || pass.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لطفاً شماره موبایل و رمز عبور را وارد کنید.')),
+      AppToast.error(
+        context,
+        'لطفاً شماره موبایل و رمز عبور را وارد کنید.',
       );
       return;
     }
 
     if (pass.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('رمز عبور باید حداقل ۶ کاراکتر باشد.')),
+      AppToast.error(
+        context,
+        'رمز عبور باید حداقل ۶ کاراکتر باشد.',
       );
       return;
     }
@@ -122,11 +125,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
     if (success && mounted) {
       widget.onAuthSuccess?.call();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Color(0xFF10B981),
-          content: Text('حساب کاربری ایجاد شد! ۱۵ صحنه رایگان به شما اهدا گردید.'),
-        ),
+      AppToast.welcome(
+        context,
+        'حساب کاربری ایجاد شد! ۱۵ صحنه رایگان به شما اهدا گردید.',
+        title: 'ثبت‌نام موفق',
       );
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop(true);
@@ -423,6 +425,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           controller: _regNameCtrl,
           hint: 'نام ماجراجو (اختیاری)',
           icon: Icons.badge_outlined,
+          isRtl: true,
         ),
         const Spacer(),
         _buildActionButton(
@@ -439,6 +442,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     required String hint,
     required IconData icon,
     bool isPassword = false,
+    bool isRtl = false,
     TextInputType keyboardType = TextInputType.text,
   }) {
     return Container(
@@ -451,9 +455,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         controller: controller,
         obscureText: isPassword && !_isPasswordVisible,
         keyboardType: keyboardType,
+        textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+        textAlign: isRtl ? TextAlign.right : TextAlign.left,
         style: GoogleFonts.vazirmatn(color: Colors.white, fontSize: 14),
         decoration: InputDecoration(
           hintText: hint,
+          hintTextDirection: TextDirection.rtl,
           hintStyle: GoogleFonts.vazirmatn(color: const Color(0xFF71717A), fontSize: 13),
           prefixIcon: Icon(icon, color: const Color(0xFFF59E0B), size: 20),
           suffixIcon: isPassword

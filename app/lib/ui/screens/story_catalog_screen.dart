@@ -8,6 +8,7 @@ import '../../providers/game_session_provider.dart';
 import '../../services/game_api_service.dart';
 import '../widgets/story_cover_image.dart';
 import '../widgets/profile_drawer.dart';
+import '../widgets/app_toast.dart';
 import 'reader_screen.dart';
 import 'character_creation_screen.dart';
 
@@ -105,17 +106,12 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
         if (_lastBackPressTime == null ||
             now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
           _lastBackPressTime = now;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              duration: const Duration(seconds: 2),
-              backgroundColor: const Color(0xFF1E2238),
-              content: Text(
-                isPersian
-                    ? 'برای خروج از برنامه، دوباره دکمه بازگشت را بزنید.'
-                    : 'Press back again to exit.',
-                style: GoogleFonts.vazirmatn(),
-              ),
-            ),
+          AppToast.info(
+            context,
+            isPersian
+                ? 'برای خروج از برنامه، دوباره دکمه بازگشت را بزنید.'
+                : 'Press back again to exit.',
+            duration: const Duration(seconds: 2),
           );
         } else {
           SystemNavigator.pop();

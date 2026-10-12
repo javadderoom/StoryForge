@@ -244,22 +244,24 @@ class _DiceRollDialogState extends State<DiceRollDialog> {
                 Text(
                   widget.isPersian ? 'پرتاب تاس و بررسی مهارت' : 'D20 SKILL CHECK',
                   style: GoogleFonts.vazirmatn(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
                     color: const Color(0xFFF59E0B),
                     letterSpacing: 1.2,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text(
                   '"${widget.actionText}"',
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.vazirmatn(
-                    fontSize: 12,
-                    color: Colors.white70,
+                    fontSize: 14,
+                    height: 1.4,
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -277,7 +279,7 @@ class _DiceRollDialogState extends State<DiceRollDialog> {
                   },
                   size: 160,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
 
                 Text(
                   _isRolling
@@ -288,7 +290,7 @@ class _DiceRollDialogState extends State<DiceRollDialog> {
                               ? '💀 CRITICAL FAILURE (1) 💀'
                               : (widget.isPersian ? 'تاس طبیعی: ${widget.resolution.diceRoll}' : 'Natural: ${widget.resolution.diceRoll}')),
                   style: GoogleFonts.vazirmatn(
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: _isRolling ? const Color(0xFFF59E0B) : outcomeColor,
                   ),
@@ -297,91 +299,100 @@ class _DiceRollDialogState extends State<DiceRollDialog> {
 
                 // Equation Breakdown
                 if (!_isRolling) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF181926),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFF27272A)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildStatBox(widget.isPersian ? 'تاس' : 'Roll', '${widget.resolution.diceRoll}'),
-                        const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
-                        _buildStatBox(
-                          widget.isPersian ? 'اصلاحگر' : 'Mod',
-                          widget.resolution.statModifier >= 0
-                              ? '+${widget.resolution.statModifier}'
-                              : '${widget.resolution.statModifier}',
-                        ),
-                        if (widget.resolution.equipmentModifier != 0) ...[
-                          const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+                  Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF181926),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFF2E3147)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildStatBox(widget.isPersian ? 'تاس' : 'Roll', '${widget.resolution.diceRoll}'),
+                          const Text('+', style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.bold)),
                           _buildStatBox(
-                            widget.isPersian ? 'تجهیزات' : 'Gear',
-                            widget.resolution.equipmentModifier >= 0
-                                ? '+${widget.resolution.equipmentModifier}'
-                                : '${widget.resolution.equipmentModifier}',
-                            color: const Color(0xFF34D399),
+                            widget.isPersian ? 'اصلاحگر' : 'Mod',
+                            widget.resolution.statModifier >= 0
+                                ? '+${widget.resolution.statModifier}'
+                                : '${widget.resolution.statModifier}',
                           ),
-                        ],
-                        if (widget.resolution.passiveModifier != 0) ...[
-                          const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+                          if (widget.resolution.equipmentModifier != 0) ...[
+                            const Text('+', style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.bold)),
+                            _buildStatBox(
+                              widget.isPersian ? 'تجهیزات' : 'Gear',
+                              widget.resolution.equipmentModifier >= 0
+                                  ? '+${widget.resolution.equipmentModifier}'
+                                  : '${widget.resolution.equipmentModifier}',
+                              color: const Color(0xFF34D399),
+                            ),
+                          ],
+                          if (widget.resolution.passiveModifier != 0) ...[
+                            const Text('+', style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.bold)),
+                            _buildStatBox(
+                              widget.isPersian ? 'ویژگی' : 'Trait',
+                              widget.resolution.passiveModifier >= 0
+                                  ? '+${widget.resolution.passiveModifier}'
+                                  : '${widget.resolution.passiveModifier}',
+                              color: const Color(0xFFA78BFA),
+                            ),
+                          ],
+                          if (widget.resolution.environmentalModifier != 0) ...[
+                            const Text('+', style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.bold)),
+                            _buildStatBox(
+                              widget.isPersian ? 'محیط' : 'Env',
+                              widget.resolution.environmentalModifier >= 0
+                                  ? '+${widget.resolution.environmentalModifier}'
+                                  : '${widget.resolution.environmentalModifier}',
+                              color: const Color(0xFFF472B6),
+                            ),
+                          ],
+                          const Text('=', style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.bold)),
                           _buildStatBox(
-                            widget.isPersian ? 'ویژگی' : 'Trait',
-                            widget.resolution.passiveModifier >= 0
-                                ? '+${widget.resolution.passiveModifier}'
-                                : '${widget.resolution.passiveModifier}',
-                            color: const Color(0xFFA78BFA),
+                            widget.isPersian ? 'مجموع' : 'Total',
+                            '${widget.resolution.totalScore}',
+                            color: const Color(0xFFF59E0B),
                           ),
+                          const Text('vs', style: TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),
+                          _buildStatBox(widget.isPersian ? 'دشواری' : 'DC', '${widget.resolution.difficultyClass}'),
                         ],
-                        if (widget.resolution.environmentalModifier != 0) ...[
-                          const Text('+', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
-                          _buildStatBox(
-                            widget.isPersian ? 'محیط' : 'Env',
-                            widget.resolution.environmentalModifier >= 0
-                                ? '+${widget.resolution.environmentalModifier}'
-                                : '${widget.resolution.environmentalModifier}',
-                            color: const Color(0xFFF472B6),
-                          ),
-                        ],
-                        const Text('=', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
-                        _buildStatBox(
-                          widget.isPersian ? 'مجموع' : 'Total',
-                          '${widget.resolution.totalScore}',
-                          color: const Color(0xFFF59E0B),
-                        ),
-                        const Text('vs', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                        _buildStatBox(widget.isPersian ? 'دشواری' : 'DC', '${widget.resolution.difficultyClass}'),
-                      ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
 
                   // Outcome Badge
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                     decoration: BoxDecoration(
-                      color: outcomeColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: outcomeColor.withValues(alpha: 0.5)),
+                      color: outcomeColor.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: outcomeColor.withValues(alpha: 0.6), width: 1.5),
                     ),
                     child: Column(
                       children: [
                         Text(
                           _getOutcomeLabel(),
                           style: GoogleFonts.vazirmatn(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
                             color: outcomeColor,
+                            letterSpacing: 0.5,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
                           _getConsequenceSummary(),
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.vazirmatn(fontSize: 11, color: Colors.white70),
+                          style: GoogleFonts.vazirmatn(
+                            fontSize: 13.5,
+                            height: 1.5,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withValues(alpha: 0.9),
+                          ),
                         ),
                       ],
                     ),
@@ -391,20 +402,20 @@ class _DiceRollDialogState extends State<DiceRollDialog> {
                   // Dismiss Button
                   SizedBox(
                     width: double.infinity,
-                    height: 44,
+                    height: 48,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFF59E0B),
                         foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 4,
                       ),
                       onPressed: () => Navigator.of(context).pop(),
                       child: Text(
                         widget.isPersian ? 'ادامه ماجراجویی' : 'Continue Narrative',
                         style: GoogleFonts.vazirmatn(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
@@ -421,11 +432,26 @@ class _DiceRollDialogState extends State<DiceRollDialog> {
   Widget _buildStatBox(String label, String value, {Color color = Colors.white}) {
     return Column(
       children: [
-        Text(label, style: GoogleFonts.vazirmatn(fontSize: 10, color: Colors.white38)),
-        const SizedBox(height: 2),
         Text(
-          value,
-          style: GoogleFonts.cinzel(fontSize: 15, fontWeight: FontWeight.bold, color: color),
+          label,
+          style: GoogleFonts.vazirmatn(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.white70,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Text(
+            value,
+            style: GoogleFonts.cinzel(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: color,
+              letterSpacing: 0.5,
+            ),
+          ),
         ),
       ],
     );

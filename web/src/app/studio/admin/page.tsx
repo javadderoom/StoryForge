@@ -18,13 +18,25 @@ import {
   Save,
   RotateCcw,
   Sparkles,
+  Tag,
+  KeyRound,
+  Mail,
+  Phone,
+  Trash2,
+  Gift,
+  Percent,
+  Calendar,
+  Check,
+  X,
 } from 'lucide-react';
 import { notify } from '@/lib/notify';
 import { toPersianDigits } from '@/lib/play/persianNumbers';
 
 interface AdminUser {
   id: string;
-  phoneNumber: string;
+  phoneNumber: string | null;
+  email: string | null;
+  emailVerified: boolean;
   name: string | null;
   role: string;
   creditBalance: number;
@@ -33,6 +45,23 @@ interface AdminUser {
   _count: {
     sessions: number;
     bazaarPurchases: number;
+  };
+}
+
+interface AdminDiscountCode {
+  id: string;
+  code: string;
+  description?: string | null;
+  discountPercent?: number | null;
+  creditBonus?: number | null;
+  maxUses?: number | null;
+  currentUses: number;
+  startsAt: string;
+  expiresAt?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  _count: {
+    redemptions: number;
   };
 }
 
@@ -61,7 +90,7 @@ interface TransactionStats {
 
 export default function AdminDashboardPage() {
   const { user, token, isAuthenticated } = useAuth();
-  const [activeTab, setActiveTab] = useState<'users' | 'transactions' | 'packages'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'transactions' | 'packages' | 'discountCodes'>('users');
 
   // Stats
   const [stats, setStats] = useState<TransactionStats | null>(null);
@@ -72,6 +101,8 @@ export default function AdminDashboardPage() {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<AdminUser | null>(null);
   const [editRole, setEditRole] = useState('READER');
+  const [editName, setEditName] = useState('');
+  const [editNewPassword, setEditNewPassword] = useState('');
   const [creditAdjustment, setCreditAdjustment] = useState<number>(0);
   const [adjustmentReason, setAdjustmentReason] = useState('ADMIN_ADJUSTMENT');
   const [savingUser, setSavingUser] = useState(false);
@@ -87,12 +118,27 @@ export default function AdminDashboardPage() {
   const [editingPackage, setEditingPackage] = useState<Partial<AdminPackage> | null>(null);
   const [savingPackage, setSavingPackage] = useState(false);
 
+  // Discount Codes State
+  const [discountCodes, setDiscountCodes] = useState<AdminDiscountCode[]>([]);
+  const [loadingCodes, setLoadingCodes] = useState(false);
+  const [showCreateCodeModal, setShowCreateCodeModal] = useState(false);
+  const [creatingCode, setCreatingCode] = useState(false);
+  const [newCodeData, setNewCodeData] = useState({
+    code: '',
+    description: '',
+    discountPercent: '',
+    creditBonus: '',
+    maxUses: '',
+    expiresAt: '',
+    isActive: true,
+  });
+
   // 1. Fetch Users
-  const fetchUsers = async () => {
+  const fetchUsers = async (query = userSearch) => {
     if (!token) return;
     setLoadingUsers(true);
     try {
-      const res = await fetch(`/api/admin/users?q=${encodeURIComponent(userSearch)}`, {
+      const res = await fetch(`/api/admin/users?q=${encodeURIComponent(query)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -143,44 +189,182 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // 4. Fetch Discount Codes
+  const fetchDiscountCodes = async () => {
+    if (!token) return;
+    setLoadingCodes(true);
+    try {
+      const res = await fetch('/api/admin/discount-codes', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDiscountCodes(data.data.codes);
+      }
+    } catch {
+      notify.error('خطا در دریافت کدهای تخفیف.');
+    } finally {
+      setLoadingCodes(false);
+    }
+  };
+
   useEffect(() => {
     if (token) {
       fetchUsers();
       fetchTransactions();
       fetchPackages();
+      fetchDiscountCodes();
     }
   }, [token]);
+
+  // Debounce user search
+  useEffect(() => {
+    if (!token) return;
+    const timer = setTimeout(() => {
+      fetchUsers(userSearch);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [userSearch, token]);
 
   // Handle User Update
   const handleSaveUser = async () => {
     if (!selectedUserForEdit || !token) return;
     setSavingUser(true);
     try {
+      const body: any = {
+        role: editRole,
+        creditAdjustment: Number(creditAdjustment),
+        reason: adjustmentReason,
+      };
+
+      if (editNewPassword.trim()) {
+        if (editNewPassword.trim().length < 6) {
+          notify.error('رمز عبور جدید باید حداقل ۶ کاراکتر باشد.');
+          setSavingUser(false);
+          return;
+        }
+        body.newPassword = editNewPassword.trim();
+      }
+
+      if (editName !== (selectedUserForEdit.name || '')) {
+        body.name = editName;
+      }
+
       const res = await fetch(`/api/admin/users/${selectedUserForEdit.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          role: editRole,
-          creditAdjustment: Number(creditAdjustment),
-          reason: adjustmentReason,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (res.ok && data.success) {
         notify.success('کاربر با موفقیت به‌روزرسانی شد.');
         setSelectedUserForEdit(null);
+        setEditNewPassword('');
         setCreditAdjustment(0);
         fetchUsers();
       } else {
         notify.error(data.error || 'خطا در ویرایش کاربر.');
       }
     } catch {
-      notify.error('خطا در ذخیره‌سازی.');
+      notify.error('خطا در ذخیره‌سازی اطلاعات کاربر.');
     } finally {
       setSavingUser(false);
+    }
+  };
+
+  // Handle Create Discount Code
+  const handleCreateDiscountCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !newCodeData.code.trim()) return;
+    setCreatingCode(true);
+    try {
+      const res = await fetch('/api/admin/discount-codes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          code: newCodeData.code.trim(),
+          description: newCodeData.description.trim() || undefined,
+          discountPercent: newCodeData.discountPercent ? Number(newCodeData.discountPercent) : undefined,
+          creditBonus: newCodeData.creditBonus ? Number(newCodeData.creditBonus) : undefined,
+          maxUses: newCodeData.maxUses ? Number(newCodeData.maxUses) : undefined,
+          expiresAt: newCodeData.expiresAt ? new Date(newCodeData.expiresAt).toISOString() : undefined,
+          isActive: newCodeData.isActive,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        notify.success('کد تخفیف با موفقیت ایجاد شد.');
+        setShowCreateCodeModal(false);
+        setNewCodeData({
+          code: '',
+          description: '',
+          discountPercent: '',
+          creditBonus: '',
+          maxUses: '',
+          expiresAt: '',
+          isActive: true,
+        });
+        fetchDiscountCodes();
+      } else {
+        notify.error(data.error || 'خطا در ایجاد کد تخفیف.');
+      }
+    } catch {
+      notify.error('خطا در برقراری ارتباط با سرور.');
+    } finally {
+      setCreatingCode(false);
+    }
+  };
+
+  // Handle Toggle Discount Code Status
+  const handleToggleDiscountCode = async (codeId: string, currentStatus: boolean) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/admin/discount-codes/${codeId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isActive: !currentStatus }),
+      });
+      if (res.ok) {
+        notify.success('وضعیت کد تخفیف با موفقیت تغییر کرد.');
+        fetchDiscountCodes();
+      }
+    } catch {
+      notify.error('خطا در تغییر وضعیت کد تخفیف.');
+    }
+  };
+
+  // Handle Delete Discount Code
+  const handleDeleteDiscountCode = async (codeId: string, codeName: string) => {
+    if (!token) return;
+    const confirmed = await notify.confirm({
+      title: 'حذف کد تخفیف',
+      message: `آیا از حذف کامل کد تخفیف «${codeName}» اطمینان دارید؟`,
+      confirmText: 'حذف',
+      cancelText: 'انصراف',
+      isDestructive: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/admin/discount-codes/${codeId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        notify.success('کد تخفیف با موفقیت حذف گردید.');
+        fetchDiscountCodes();
+      }
+    } catch {
+      notify.error('خطا در حذف کد تخفیف.');
     }
   };
 
@@ -266,6 +450,15 @@ export default function AdminDashboardPage() {
             <Package className="w-4 h-4" />
             <span>بسته‌ها و قیمت‌گذاری</span>
           </button>
+          <button
+            onClick={() => setActiveTab('discountCodes')}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
+              activeTab === 'discountCodes' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Tag className="w-4 h-4" />
+            <span>کدهای تخفیف و هدیه</span>
+          </button>
         </div>
       </div>
 
@@ -316,15 +509,15 @@ export default function AdminDashboardPage() {
               <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input
                 type="text"
-                placeholder="جستجو با شماره موبایل یا نام..."
+                placeholder="جستجو با شماره موبایل، ایمیل یا نام ماجراجو..."
                 value={userSearch}
                 onChange={(e) => setUserSearch(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && fetchUsers()}
+                onKeyDown={(e) => e.key === 'Enter' && fetchUsers(userSearch)}
                 className="w-full bg-[#13172B] border border-[#272A3C] rounded-xl py-2.5 pr-10 pl-4 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500"
               />
             </div>
             <button
-              onClick={fetchUsers}
+              onClick={() => fetchUsers(userSearch)}
               className="px-4 py-2.5 bg-[#181B2C] hover:bg-[#232845] border border-[#272A3C] text-slate-200 rounded-xl text-xs font-bold transition-all"
             >
               تازه‌سازی
@@ -336,7 +529,7 @@ export default function AdminDashboardPage() {
               <table className="w-full text-right text-xs text-slate-300">
                 <thead className="bg-[#181B2C] text-slate-400 font-bold border-b border-[#272A3C]">
                   <tr>
-                    <th className="p-3.5">شماره موبایل</th>
+                    <th className="p-3.5">مشخصات کاربر (موبایل / ایمیل)</th>
                     <th className="p-3.5">نام ماجراجو</th>
                     <th className="p-3.5">نقش</th>
                     <th className="p-3.5">موجودی صحنه</th>
@@ -362,8 +555,28 @@ export default function AdminDashboardPage() {
                   ) : (
                     users.map((u) => (
                       <tr key={u.id} className="hover:bg-[#181B2C]/50 transition-colors">
-                        <td className="p-3.5 font-mono text-amber-400 font-medium" dir="ltr">
-                          {u.phoneNumber}
+                        <td className="p-3.5">
+                          <div className="flex flex-col gap-1 items-start">
+                            {u.phoneNumber ? (
+                              <div className="flex items-center gap-1.5 font-mono text-amber-400 font-medium text-xs" dir="ltr">
+                                <Phone className="w-3 h-3 text-slate-500" />
+                                <span>{u.phoneNumber}</span>
+                                {u.phoneVerified && (
+                                  <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/20">تأیید</span>
+                                )}
+                              </div>
+                            ) : null}
+                            {u.email ? (
+                              <div className="flex items-center gap-1.5 font-mono text-slate-300 text-[11px]" dir="ltr">
+                                <Mail className="w-3 h-3 text-slate-500" />
+                                <span>{u.email}</span>
+                                {u.emailVerified && (
+                                  <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/20">تأیید</span>
+                                )}
+                              </div>
+                            ) : null}
+                            {!u.phoneNumber && !u.email && <span className="text-slate-500">—</span>}
+                          </div>
                         </td>
                         <td className="p-3.5 text-white font-medium">{u.name || '—'}</td>
                         <td className="p-3.5">
@@ -392,6 +605,8 @@ export default function AdminDashboardPage() {
                             onClick={() => {
                               setSelectedUserForEdit(u);
                               setEditRole(u.role);
+                              setEditName(u.name || '');
+                              setEditNewPassword('');
                               setCreditAdjustment(0);
                             }}
                             className="px-3 py-1 bg-amber-500/15 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/30 rounded-lg text-xs font-bold transition-all flex items-center gap-1 mx-auto"
@@ -425,6 +640,7 @@ export default function AdminDashboardPage() {
                   <tr>
                     <th className="p-3">کاربر</th>
                     <th className="p-3">بسته (SKU)</th>
+                    <th className="p-3">کد سفارش بازار (Order ID)</th>
                     <th className="p-3">مبلغ پرداختی</th>
                     <th className="p-3">اعتبار اهدا شده</th>
                     <th className="p-3">شناسه توکن بازار</th>
@@ -435,17 +651,20 @@ export default function AdminDashboardPage() {
                 <tbody className="divide-y divide-[#1e233d]">
                   {purchases.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="p-6 text-center text-slate-500">
+                      <td colSpan={8} className="p-6 text-center text-slate-500">
                         تراکنشی ثبت نشده است.
                       </td>
                     </tr>
                   ) : (
                     purchases.map((p) => (
                       <tr key={p.id}>
-                        <td className="p-3 text-amber-400 font-mono" dir="ltr">
-                          {p.user?.phoneNumber}
+                        <td className="p-3 text-amber-400 font-mono text-xs" dir="ltr">
+                          {p.user?.phoneNumber || p.user?.email || 'کاربر ناشناس'}
                         </td>
                         <td className="p-3 text-white">{p.sku}</td>
+                        <td className="p-3 text-slate-300 font-mono text-[11px]" dir="ltr">
+                          {p.rawResponse?.orderId || '—'}
+                        </td>
                         <td className="p-3 font-bold text-emerald-400">
                           {toPersianDigits((p.amountPaidRial / 10).toLocaleString('en-US'))} تومان
                         </td>
@@ -496,8 +715,8 @@ export default function AdminDashboardPage() {
                   ) : (
                     ledgers.map((l) => (
                       <tr key={l.id}>
-                        <td className="p-3 text-slate-300 font-mono" dir="ltr">
-                          {l.user?.phoneNumber}
+                        <td className="p-3 text-slate-300 font-mono text-xs" dir="ltr">
+                          {l.user?.phoneNumber || l.user?.email || 'کاربر ناشناس'}
                         </td>
                         <td
                           className={`p-3 font-bold ${
@@ -592,16 +811,202 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
+      {/* --- TAB 4: DISCOUNT CODES --- */}
+      {activeTab === 'discountCodes' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-bold text-amber-400 flex items-center gap-2">
+                <Tag className="w-4 h-4" />
+                کدهای تخفیف و بن‌های هدیه
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                ایجاد و مدیریت کدهای تخفیف درصدی، صحنه‌های رایگان هدیه، سقف استفاده و تاریخ انقضا
+              </p>
+            </div>
+            <button
+              onClick={() => setShowCreateCodeModal(true)}
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-amber-500/20"
+            >
+              <Plus className="w-4 h-4" />
+              <span>ساخت کد تخفیف جدید</span>
+            </button>
+          </div>
+
+          <div className="bg-[#13172B] border border-[#272A3C] rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-right text-xs text-slate-300">
+                <thead className="bg-[#181B2C] text-slate-400 font-bold border-b border-[#272A3C]">
+                  <tr>
+                    <th className="p-3.5">کد تخفیف</th>
+                    <th className="p-3.5">نوع و ارزش پاداش</th>
+                    <th className="p-3.5">توضیحات</th>
+                    <th className="p-3.5">میزان استفاده</th>
+                    <th className="p-3.5">بازه زمانی اعتبار</th>
+                    <th className="p-3.5">وضعیت</th>
+                    <th className="p-3.5 text-center">عملیات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#1e233d]">
+                  {loadingCodes ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-slate-500">
+                        در حال بارگذاری کدهای تخفیف...
+                      </td>
+                    </tr>
+                  ) : discountCodes.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-slate-500">
+                        هیچ کد تخفیفی ایجاد نشده است. برای شروع، روی «ساخت کد تخفیف جدید» کلیک کنید.
+                      </td>
+                    </tr>
+                  ) : (
+                    discountCodes.map((c) => {
+                      const isExpired = c.expiresAt ? new Date(c.expiresAt) < new Date() : false;
+                      const isCapacityFull = typeof c.maxUses === 'number' && c.currentUses >= c.maxUses;
+                      return (
+                        <tr key={c.id} className="hover:bg-[#181B2C]/50 transition-colors">
+                          <td className="p-3.5">
+                            <span className="font-mono text-xs font-black text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/30 tracking-wider">
+                              {c.code}
+                            </span>
+                          </td>
+                          <td className="p-3.5">
+                            <div className="flex flex-col gap-1">
+                              {c.discountPercent ? (
+                                <span className="text-emerald-400 font-bold flex items-center gap-1">
+                                  <Percent className="w-3.5 h-3.5" />
+                                  {toPersianDigits(c.discountPercent)}٪ تخفیف خرید
+                                </span>
+                              ) : null}
+                              {c.creditBonus && c.creditBonus > 0 ? (
+                                <span className="text-amber-300 font-bold flex items-center gap-1">
+                                  <Gift className="w-3.5 h-3.5" />
+                                  {toPersianDigits(c.creditBonus)} صحنه هدیه رایگان
+                                </span>
+                              ) : null}
+                              {!c.discountPercent && (!c.creditBonus || c.creditBonus <= 0) && (
+                                <span className="text-slate-500">—</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-3.5 text-slate-400">{c.description || '—'}</td>
+                          <td className="p-3.5">
+                            <span className="font-bold text-white">
+                              {toPersianDigits(c.currentUses)}
+                            </span>
+                            <span className="text-slate-500">
+                              {' '}
+                              / {c.maxUses != null ? toPersianDigits(c.maxUses) : 'نامحدود'}
+                            </span>
+                          </td>
+                          <td className="p-3.5 text-slate-400 text-[11px]">
+                            {c.expiresAt ? (
+                              <span className={isExpired ? 'text-red-400' : 'text-slate-300'}>
+                                تا {new Date(c.expiresAt).toLocaleDateString('fa-IR')}
+                              </span>
+                            ) : (
+                              <span className="text-emerald-400">نامحدود (بدون انقضا)</span>
+                            )}
+                          </td>
+                          <td className="p-3.5">
+                            <button
+                              onClick={() => handleToggleDiscountCode(c.id, c.isActive)}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${
+                                !c.isActive
+                                  ? 'bg-slate-800 text-slate-400 border-slate-700'
+                                  : isExpired || isCapacityFull
+                                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                  : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                              }`}
+                            >
+                              {!c.isActive
+                                ? 'غیرفعال'
+                                : isExpired
+                                ? 'منقضی شده'
+                                : isCapacityFull
+                                ? 'تکمیل ظرفیت'
+                                : 'فعال'}
+                            </button>
+                          </td>
+                          <td className="p-3.5 text-center">
+                            <button
+                              onClick={() => handleDeleteDiscountCode(c.id, c.code)}
+                              className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                              title="حذف کد تخفیف"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit User Modal */}
       {selectedUserForEdit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="w-full max-w-md bg-[#0F111D] border border-[#272A3C] rounded-2xl p-6 text-slate-200">
-            <h3 className="text-base font-bold text-amber-500 mb-4 flex items-center gap-2">
+            <h3 className="text-base font-bold text-amber-500 mb-3 flex items-center gap-2">
               <Users className="w-5 h-5" />
-              مدیریت کاربر: {selectedUserForEdit.phoneNumber}
+              مدیریت کاربر: {selectedUserForEdit.name || selectedUserForEdit.phoneNumber || selectedUserForEdit.email}
             </h3>
 
+            {/* User Info Bar */}
+            <div className="p-3 bg-[#13172B] border border-[#272A3C] rounded-xl text-xs space-y-1.5 mb-4">
+              <div className="flex items-center justify-between text-slate-400">
+                <span className="flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 text-amber-400" />
+                  شماره موبایل:
+                </span>
+                <span className="font-mono text-white font-medium" dir="ltr">
+                  {selectedUserForEdit.phoneNumber || 'ثبت نشده'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-slate-400">
+                <span className="flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-blue-400" />
+                  پست الکترونیک:
+                </span>
+                <span className="font-mono text-white font-medium text-[11px]" dir="ltr">
+                  {selectedUserForEdit.email || 'ثبت نشده'}
+                </span>
+              </div>
+            </div>
+
             <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1.5">نام ماجراجو</label>
+                <input
+                  type="text"
+                  placeholder="نام یا عنوان کاربر"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full bg-[#181B2C] border border-[#272A3C] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1.5 flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                  <span>تغییر یا بازنشانی رمز عبور کاربر (اختیاری)</span>
+                </label>
+                <input
+                  type="password"
+                  placeholder="در صورت تمایل به تغییر، رمز جدید (حداقل ۶ کاراکتر) را بنویسید"
+                  value={editNewPassword}
+                  onChange={(e) => setEditNewPassword(e.target.value)}
+                  dir="ltr"
+                  className="w-full bg-[#181B2C] border border-[#272A3C] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                />
+              </div>
+
               <div>
                 <label className="block text-xs text-slate-400 mb-1.5">نقش دسترسی</label>
                 <select
@@ -629,7 +1034,7 @@ export default function AdminDashboardPage() {
               </div>
 
               <div>
-                <label className="block text-xs text-slate-400 mb-1.5">علت تغییر</label>
+                <label className="block text-xs text-slate-400 mb-1.5">علت تغییر اعتبار</label>
                 <input
                   type="text"
                   value={adjustmentReason}
@@ -763,6 +1168,123 @@ export default function AdminDashboardPage() {
               <button
                 type="button"
                 onClick={() => setEditingPackage(null)}
+                className="px-4 py-2.5 bg-[#181B2C] text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-all"
+              >
+                انصراف
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Create Discount Code Modal */}
+      {showCreateCodeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <form
+            onSubmit={handleCreateDiscountCode}
+            className="w-full max-w-lg bg-[#0F111D] border border-[#272A3C] rounded-2xl p-6 text-slate-200 space-y-4 max-h-[90vh] overflow-y-auto"
+          >
+            <h3 className="text-base font-bold text-amber-500 mb-2 flex items-center gap-2">
+              <Tag className="w-5 h-5" />
+              ساخت کد تخفیف / هدیه جدید
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">کد اختصاصی (انگلیسی)*</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="مثال: NOWRUZ1405"
+                  dir="ltr"
+                  value={newCodeData.code}
+                  onChange={(e) => setNewCodeData({ ...newCodeData, code: e.target.value.toUpperCase() })}
+                  className="w-full bg-[#181B2C] border border-[#272A3C] rounded-xl p-2.5 text-xs text-white uppercase tracking-wider font-mono focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">توضیحات یا مناسبت</label>
+                <input
+                  type="text"
+                  placeholder="مثال: جشنواره بهاره"
+                  value={newCodeData.description}
+                  onChange={(e) => setNewCodeData({ ...newCodeData, description: e.target.value })}
+                  className="w-full bg-[#181B2C] border border-[#272A3C] rounded-xl p-2.5 text-xs text-white focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">درصد تخفیف خرید (٪)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="اختیاری (مثال: 25)"
+                  value={newCodeData.discountPercent}
+                  onChange={(e) => setNewCodeData({ ...newCodeData, discountPercent: e.target.value })}
+                  className="w-full bg-[#181B2C] border border-[#272A3C] rounded-xl p-2.5 text-xs text-white focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">صحنه هدیه رایگان (اعتبار)</label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="اختیاری (مثال: 30)"
+                  value={newCodeData.creditBonus}
+                  onChange={(e) => setNewCodeData({ ...newCodeData, creditBonus: e.target.value })}
+                  className="w-full bg-[#181B2C] border border-[#272A3C] rounded-xl p-2.5 text-xs text-white focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">سقف تعداد دفعات استفاده</label>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="خالی = نامحدود (مثال: 50)"
+                  value={newCodeData.maxUses}
+                  onChange={(e) => setNewCodeData({ ...newCodeData, maxUses: e.target.value })}
+                  className="w-full bg-[#181B2C] border border-[#272A3C] rounded-xl p-2.5 text-xs text-white focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">تاریخ انقضا</label>
+                <input
+                  type="date"
+                  value={newCodeData.expiresAt}
+                  onChange={(e) => setNewCodeData({ ...newCodeData, expiresAt: e.target.value })}
+                  className="w-full bg-[#181B2C] border border-[#272A3C] rounded-xl p-2.5 text-xs text-white focus:border-amber-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newCodeData.isActive}
+                  onChange={(e) => setNewCodeData({ ...newCodeData, isActive: e.target.checked })}
+                  className="rounded border-[#272A3C] text-amber-500"
+                />
+                <span>کد تخفیف از هم‌اکنون فعال باشد</span>
+              </label>
+            </div>
+
+            <div className="flex items-center gap-2 pt-3">
+              <button
+                type="submit"
+                disabled={creatingCode}
+                className="flex-1 py-2.5 bg-amber-500 text-slate-950 font-bold rounded-xl text-xs hover:bg-amber-400 transition-all flex items-center justify-center gap-1.5"
+              >
+                {creatingCode ? 'در حال ثبت...' : 'ایجاد کد تخفیف'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCreateCodeModal(false)}
                 className="px-4 py-2.5 bg-[#181B2C] text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-all"
               >
                 انصراف

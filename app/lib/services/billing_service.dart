@@ -63,6 +63,8 @@ class BillingService {
     required String sku,
     required String purchaseToken,
     required String packageId,
+    String? orderId,
+    int? purchaseTime,
   }) async {
     final token = AuthService.cachedToken;
     if (token == null) {
@@ -84,6 +86,8 @@ class BillingService {
           'sku': sku,
           'purchaseToken': purchaseToken,
           'packageId': packageId,
+          'orderId': ?orderId,
+          'purchaseTime': ?purchaseTime,
         }),
       );
 
@@ -105,6 +109,49 @@ class BillingService {
       return {
         'success': false,
         'error': 'خطا در ارتباط با سرور جهت تأیید خرید: $e',
+      };
+    }
+  }
+
+  /// Redeems a gift or discount promo code
+  static Future<Map<String, dynamic>> redeemDiscountCode(String code) async {
+    final token = AuthService.cachedToken;
+    if (token == null) {
+      return {
+        'success': false,
+        'error': 'برای ثبت کد تخفیف لطفاً ابتدا وارد حساب کاربری خود شوید.',
+      };
+    }
+
+    try {
+      final url = Uri.parse('${GameApiService.baseUrl}/api/billing/redeem-code');
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'code': code}),
+      );
+
+      final json = jsonDecode(response.body);
+      if (response.statusCode == 200 && json['success'] == true) {
+        return {
+          'success': true,
+          'data': json['data'],
+          'newBalance': json['data']?['newBalance'],
+          'message': json['data']?['message'] ?? 'کد تخفیف با موفقیت اعمال شد.',
+        };
+      }
+
+      return {
+        'success': false,
+        'error': json['error'] ?? 'کد نامعتبر یا منقضی شده است.',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'خطا در ارتباط با سرور: $e',
       };
     }
   }
