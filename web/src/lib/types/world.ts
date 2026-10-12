@@ -454,6 +454,8 @@ export interface NPCDossier {
   mapCoordinates?: { x: number; y: number };
 }
 
+export type WorldNpc = NPCDossier;
+
 export interface ArtifactVaultLore {
   creator: string;
   currentVaultLocation: string;

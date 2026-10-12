@@ -365,6 +365,7 @@ describe('Plan 08 - World Lore Guardrails (Check 3)', () => {
 
   it('allows travel between locations connected by an active trade route', () => {
     const world: WorldBible = {
+      worldId: 'world_trade',
       worldName: 'Trade World',
       summary: '',
       themeNotes: '',

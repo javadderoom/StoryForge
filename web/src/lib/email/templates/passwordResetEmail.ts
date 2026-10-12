@@ -86,7 +86,7 @@ https://afsanehsaz.ir`;
               </table>
 
               <p dir="rtl" align="right" style="margin-top: 24px; margin-bottom: 0; font-size: 12px; line-height: 1.7; color: #94a3b8; direction: rtl; text-align: right;">
-                ⏳ توجه: این پیوند به دلایل امنیتی فقط تا <span dir="ltr" style="unicode-bidi: embed;">1</span> ساعت آینده معتبر خواهد بود. اگر شما چنین درخواستی ثبت نکرده‌اید، نیازی به اقدامی نیست و گذرواژه شما تغییری نکرده است.
+                ⏳ توجه: این پیوند به دلایل امنیتی فقط تا ۱ ساعت آینده معتبر خواهد بود. اگر شما چنین درخواستی ثبت نکرده‌اید، نیازی به اقدامی نیست و گذرواژه شما تغییری نکرده است.
               </p>
             </td>
           </tr>

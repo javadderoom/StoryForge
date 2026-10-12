@@ -63,7 +63,7 @@ https://afsanehsaz.ir`;
                 <tr>
                   <td dir="rtl" align="right" style="background-color: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px; padding: 14px 18px; direction: rtl; text-align: right;">
                     <p dir="rtl" align="right" style="margin: 0; color: #fbbf24; font-size: 13px; font-weight: 600; line-height: 1.7; direction: rtl; text-align: right;">
-                      ✨ هدیه ورود: <span dir="ltr" style="unicode-bidi: embed; font-weight: 700;">15</span> صحنه داستانی رایگان در کیف پول حساب شما شارژ شد تا بدون درنگ وارد ماجراجویی شوید.
+                      ✨ هدیه ورود: ۱۵ صحنه داستانی رایگان در کیف پول حساب شما شارژ شد تا بدون درنگ وارد ماجراجویی شوید.
                     </p>
                   </td>
                 </tr>
