@@ -15,7 +15,8 @@
     "migrate:abilities": "tsx scripts/backfillStructuredAbilities.ts",
     "bootstrap:admin": "tsx scripts/bootstrapAdmin.ts",
     "test:email": "tsx scripts/testEmail.ts",
-    "test": "tsx scripts/testAll.ts"
+    "test": "tsx scripts/testAll.ts",
+    "deploy:bazaar": "tsx scripts/deploy-bazaar.ts"
   },
   "dependencies": {
     "@google/genai": "^2.17.1",
