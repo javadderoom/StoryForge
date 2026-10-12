@@ -4,19 +4,55 @@ import { getPrisma } from '@/lib/db/client';
 import { DEFAULT_CREDIT_PACKAGES } from '@/lib/billing/packages';
 
 const BAZAAR_PACKAGE_NAME = process.env.BAZAAR_PACKAGE_NAME || 'com.afsanehsaz.app';
+const BAZAAR_PISHKHAN_SECRET =
+  process.env.CAFEBAZAAR_PISHKHAN_API_SECRET ||
+  process.env['CAFEBAZAAR-PISHKHAN-API-SECRET'];
 const BAZAAR_CLIENT_ID = process.env.BAZAAR_CLIENT_ID;
 const BAZAAR_CLIENT_SECRET = process.env.BAZAAR_CLIENT_SECRET;
 const BAZAAR_REFRESH_TOKEN = process.env.BAZAAR_REFRESH_TOKEN;
 
 /**
- * Validates purchase token with Cafe Bazaar Open API and auto-consumes consumable credit packs
+ * Validates purchase token with Cafe Bazaar Pishkhan API or Open API
  */
 async function verifyWithBazaarApi(
   sku: string,
   purchaseToken: string
 ): Promise<{ isValid: boolean; rawResponse?: any; error?: string }> {
+  // 1. Priority 1: Modern Cafe Bazaar Pishkhan API (Direct server-to-server secret header)
+  if (BAZAAR_PISHKHAN_SECRET && BAZAAR_PISHKHAN_SECRET.trim().length > 0) {
+    try {
+      const pishkhanUrl = `https://pardakht.cafebazaar.ir/devapi/v2/api/applications/${BAZAAR_PACKAGE_NAME}/inapp/${sku}/purchases/${purchaseToken}`;
+      const pishkhanRes = await fetch(pishkhanUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'CAFEBAZAAR-PISHKHAN-API-SECRET': BAZAAR_PISHKHAN_SECRET.trim(),
+        },
+      });
+
+      const pishkhanData = await pishkhanRes.json().catch(() => ({}));
+      // purchaseState: 0 = Purchased, 1 = Refunded
+      if (pishkhanRes.ok && (pishkhanData.purchaseState === 0 || pishkhanData.purchaseState === undefined)) {
+        return {
+          isValid: true,
+          rawResponse: {
+            mode: 'pishkhan_api_verified',
+            ...pishkhanData,
+          },
+        };
+      }
+
+      if (!pishkhanRes.ok) {
+        console.warn(`[Bazaar Pishkhan API] Status ${pishkhanRes.status}:`, pishkhanData);
+      }
+    } catch (pishkhanErr) {
+      console.error('[Bazaar Pishkhan API] Connection error:', pishkhanErr);
+    }
+  }
+
+  // 2. Priority 2: Legacy OAuth 2.0 flow
   if (!BAZAAR_CLIENT_ID || !BAZAAR_CLIENT_SECRET || !BAZAAR_REFRESH_TOKEN) {
-    // When server-side OAuth is not yet configured, rely on on-device RSA cryptographic
+    // When server-side credentials are not yet fully active, rely on on-device RSA cryptographic
     // verification performed by FlutterPoolakey with the official Cafe Bazaar Public Key.
     return {
       isValid: true,
