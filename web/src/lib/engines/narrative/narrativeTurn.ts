@@ -27,6 +27,9 @@ export interface SceneSessionTurn {
   turnNumber?: number;
   sceneId?: string;
   narrativeProse?: string;
+  playerActionText?: string;
+  actionStyle?: string;
+  presentedChoices?: any[];
 }
 
 export interface SceneSessionMemory {
@@ -208,6 +211,11 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
   const recentSceneSnippets =
     priorProse.length > 0 ? priorProse : [story.initialStoryBeats?.[0]?.narrativeText || ''];
 
+  const recentCompletedActions = sessionTurns
+    .slice(-4)
+    .map((t) => t.playerActionText)
+    .filter((a): a is string => typeof a === 'string' && a.trim().length > 0);
+
   // Tier 2 rollups + Tier 3 ledger lines from the merged Living World Ledger.
   const threeTier = new MemoryEngine(memoryEntries).buildThreeTierEnvelope(ledger);
 
@@ -305,6 +313,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
           : undefined),
     },
     recentSceneSnippets,
+    recentCompletedActions: recentCompletedActions.length > 0 ? recentCompletedActions : undefined,
     languageDirective: story.language,
     authoredSystemPrompt: world.authoredSystemPrompt,
     worldSummary: world.worldSummary,

@@ -197,7 +197,7 @@ export function buildItemInteractionProfile(
 
     passiveBonus = {
       value: 3,
-      triggerKeywords: ['دفاع', 'سپر', 'تیر', 'پرتابه', 'مهار', 'پناه', 'دفع', 'سنگر', 'defend', 'defense', 'shield', 'block', 'parry', 'arrow', 'projectile'],
+      triggerKeywords: ['دفاع', 'سپر', 'تیر', 'پرتابه', 'مهار ضربه', 'مهار حمله', 'پناه', 'دفع حمله', 'سنگر گرفتن', 'defend', 'defense', 'shield', 'block', 'parry', 'arrow', 'projectile'],
       descriptionEn: '+3 Physical Defense Bonus against incoming attacks and missile volleys',
       descriptionFa: '+3 پاداش دفاع فیزیکی با سپر در برابر پرتابه‌ها و ضربات',
     };

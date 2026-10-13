@@ -121,7 +121,14 @@ export function normalizeChoices(
         : VALID_RISK_LEVELS.has(raw.risk_level as string)
         ? (raw.risk_level as RiskLevel)
         : 'medium';
-    const riskLevel: RiskLevel = riskLevelRaw;
+    let riskLevel: RiskLevel = riskLevelRaw;
+    const isSentryConfrontation =
+      /(?:گزمه|نگهبان|پاسبان|پاسدار|سربازان|sentry|guard|garrison).*(?:تهدید|ارعاب|عصبانیت|فریاد|تشر|تسلیم|راه را باز|کنار بروید|خرد کردن|یورش|حمله|threaten|intimidat|force|open the gate|stand down|command)/i.test(text) ||
+      /(?:تهدید|ارعاب|عصبانیت|فریاد|تشر|تسلیم|راه را باز|کنار بروید|خرد کردن|یورش|حمله|threaten|intimidat|force|open the gate|stand down|command).*(?:گزمه|نگهبان|پاسبان|پاسدار|سربازان|sentry|guard|garrison)/i.test(text);
+
+    if (isSentryConfrontation && riskLevel !== 'high') {
+      riskLevel = 'high';
+    }
 
     // Resolve the checked stat from any supported key shape, including the
     // Studio-style `stat` / `check.stat` variants.

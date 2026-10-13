@@ -550,6 +550,9 @@ export async function POST(req: NextRequest) {
           turnNumber?: number;
           sceneId?: string;
           narrativeProse?: string;
+          playerActionText?: string;
+          actionStyle?: string;
+          presentedChoices?: any[];
         }>).filter((t) => typeof t.turnNumber !== 'number' || t.turnNumber < turnNumber),
         sessionMemories: ((session?.memories ?? []) as Array<{
           category: string;

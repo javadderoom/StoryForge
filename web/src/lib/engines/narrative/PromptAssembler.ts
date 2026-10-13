@@ -251,6 +251,7 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
 - Every choice must be possible at the end of this scene and grounded in facts the protagonist has actually learned. Do not invent profits, motives, ownership, accomplices, or available escape routes from a loosely related clue. Questions may investigate uncertainty, but must not present an unproven premise as fact.
 - STRICT FACTUAL GROUNDING IN SCENE PROSE: Every choice MUST strictly react to the physical obstacles, characters, and situation explicitly established in the scene text. Do NOT invent phantom entities, unmentioned bystanders, cargo inspections, baggage searches, or phantom subplots. Choices must only address what is actually mentioned in the prose.
 - Do not offer leverage that this scene has already spent, such as threatening to disclose information to someone who just heard it. Do not ask an NPC to remove an obstacle they do not control.
+- PSYCHOLOGICAL BREAKING POINT FIDELITY (NO PREMATURE COLLAPSE): Any "Breaking point / نقطه شکست" mentioned in consequence text or NPC notes describes that NPC's internal psychological vulnerability or theoretical condition for future total collapse (e.g. "facing armed rebellion or death of their commander"). It is NOT an event that took place in this turn unless explicitly performed by the player! Do NOT narrate hypothetical breaking point events (such as soldiers abandoning posts, commanders being slain, or garrisons scattering) as accomplished facts unless the player actually caused or executed that exact event.
 - Before returning JSON, check narrative and choices together for action scope, remaining opposition, witness knowledge, and supported premises. Revise contradictions without changing the authoritative game outcome.`;
 
     const systemPrompt = isEnglish
@@ -283,6 +284,10 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 - KINETIC COMBAT CHOREOGRAPHY: When narrating parries, dodges, blocks, or physical clashes, vividly depict BOTH sides of the conflict: first dramatize the adversary's sudden attack, lunge, or strike (e.g., bared fangs, snapping jaws, leaping from the mud, or a sentry's descending blade), and immediately follow with the protagonist's physical reaction, the resounding impact of wood, steel, or shield, and the tactile aftermath. Never omit the enemy's attack, leaving defensive actions to occur in a vacuum.
 - BIOME & CLIMATE FIDELITY: Strictly adhere to the authored biome, climate, and atmospheric conditions of the protagonist's active location (e.g. humid wetlands, warm reed beds, dusty plains). Never hallucinate contradictory environmental extremes (such as frost, ice, half-frozen mud, or snow in warm marshes or arid riverbanks).
 - AUDITORY PLAUSIBILITY & SECLUSION: Unless the protagonist's or adversary's actions cause an overtly loud, echoing disturbance (such as an explosion, a loud battle cry/scream for help, or a massive blaze), secluded micro-locations (e.g. dense river reeds, dark alleys, remote mudbanks) MUST remain strictly solitary and quiet. Distant bystanders, camp occupants, or sentries do NOT randomly notice, grab torches, or walk over unprompted.
+- FORWARD MOMENTUM ON OVERCOME OBSTACLES: When a physical, tactical, or social obstacle has been overcome (especially with a triumph, success, or decisive action like clearing guards, crossing a bridge, unlocking a door, or pacifying beasts), you MUST advance the protagonist physically across the threshold into the new space or next phase! Do NOT reset or re-describe the protagonist stranded before the same old obstacle, and NEVER propose choices that re-attempt or re-phrase what was just completed.
+- BAN REPETITIVE TROPES & STOCK GESTURES: Do NOT repeat identical physical mannerisms, character quirks, or stock gestures across turns (such as NPCs repeatedly slamming pipes, wiping brow sweat, or repeating identical ambient wind/weather phrasing). Show dynamic, evolving reactions and progressive dialogue rather than recycling the exact same physical gesture.
+- NATURAL LITERARY ITEM & GEAR REFERENCES: Refer to the protagonist's gear using natural literary prose (e.g. "your blade", "your shield", "your armor", "the leather tunic"). NEVER copy-paste long, awkward formal catalog/database titles verbatim in every sentence (e.g. avoid repeating "the dust-covered leather cuirass of Hiram" or "metal-rimmed wooden shield" repeatedly). Introduce the item naturally and use simple nouns or pronouns thereafter.
+- REALISTIC SENTRY & GARRISON DISCIPLINE: A single early-game or mortal traveler cannot effortlessly terrify or rout an entire disciplined armed garrison (such as a 10-man squad of sentries) with a mere shout or assertive step. Unless backed by overwhelming supernatural aura, an army, or immense pre-existing leverage, guard units maintain basic military discipline; intimidation may make them hesitate, demand proof, or tighten their grip on weapons, but does NOT cause professional soldiers to instantly burst into tears, drop their weapons, or abandon their posts.
 - NO FLOATING CAMERA SYNDROME: Do NOT open with detached panoramic scenery (weather, distant campfires, tobacco smoke) that ignores what the protagonist just did or said. Action and immediate reaction come first!
 ${statsDirective}
 ${dialogueDirective}
@@ -329,7 +334,10 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 - وفاداری به توانایی‌ها و جادوها (Ability & Spell Awareness): در توصیف صحنه‌های نبرد، خطرات و انتخاب‌های پیش‌رو، به مهارت‌ها، خصلت‌های ذاتی و جادوهای ثبت‌شدهٔ قهرمان وفادار باش. شخصیتی که دارای مهارت‌های دفاعی، کاروانی یا جادویی ویژه است، در مواجهه با بحران‌ها و خطرات باید بتواند بر اساس این آموزش‌ها و توانایی‌ها واکنش نشان دهد.
 - توصیف حسی و طبیعی موجودات (Sensory Bestiary Depiction): هنگام رویارویی با جانوران یا هیولاها، ویژگی‌های عینی، فلس‌ها، صدا و حرکات هولناک آن‌ها را به شکل زنده توصیف کن، اما از گذاشتن نام رسمی کتابچه در داخل گیومه مثل «افعی رسوبی» در متن خودداری کن؛ واسط کاربری بازی خود کارت شناسایی و کشف موجود را نمایش می‌دهد. در گزینه‌ها نیز به شکل طبیعی به آن اشاره کن (مثلاً «خزنده»، «مار»، یا «درنده»).
 - ثبات زاویه دید دوم‌شخص («تو» / Second-Person POV): همواره زاویه دید دوم‌شخص را حفظ کن. هرگز با ذکر نام سوم‌شخصِ قهرمان دربارهٔ او ننویس (از عباراتی مثل «گامِ برزین در گل فرو می‌رود» اکیداً پرهیز کن؛ بنویس: «گام‌هایت»، «پایت در گل فرو می‌رود»، «دستت را دراز می‌کنی»).
-- زبان طبیعی در اشاره به زره و سازوبرگ: از ترکیبات ناشیانهٔ ترجمه‌زده مانند «چرم زره‌پوش» اکیداً خودداری کن (زره‌پوش صفت انسان است، نه چرم). نام دقیق قطعات را از بخش تجهیزات بردار (مانند «زره چرمی‌ات» یا «جوشن چرمی‌ات»).
+- زبان طبیعی در اشاره به زره و سازوبرگ (Natural Literary Item References): در اشاره به سازوبرگ و سلاح‌های قهرمان، از نثر طبیعی و شیوا استفاده کن (مانند «شمشیرت»، «سپر»، «جوشن چرمی‌ات»). از ترکیبات ناشیانهٔ ترجمه‌زده مانند «چرم زره‌پوش» اکیداً خودداری کن (زره‌پوش صفت انسان است، نه چرم). همچنین از تکرار مکانیکی و آزاردهندهٔ عناوین کامل و کاتالوگی دیتابیس در هر بند (مانند تکرار مداوم «جوشن چرمی غبارگرفتهٔ هیرام»، «سپر چوبی لبه‌فلزی» یا «شمشیر سرپایی مسافران») اکیداً خودداری کن؛ پس از اولین اشاره، از ضمایر و نام‌های طبیعی ساده استفاده کن.
+- پیشروی اجباری پس از عبور از موانع (Forward Momentum on Overcome Obstacles): وقتی یک مانع فیزیکی، تاکتیکی یا اجتماعی پشت سر گذاشته می‌شود (به‌ویژه با موفقیت، پیروزی قاطع، گشوده شدن راه، یا عبور از پل/دروازه)، راوی موظف است قهرمان را از آستانه عبور داده و وارد فضا، بن‌بست یا مرحلهٔ بعدی کند! هرگز نباید در نوبت بعدی قهرمان را مجدداً پشت همان درِ بسته یا همان دهانهٔ پل توصیف کنی، و پیشنهاد دادن انتخاب‌هایی که همان کارِ انجام‌شده را تکرار کنند اکیداً ممنوع است.
+- ممنوعیت تکرار حرکات و کلیشه‌های رفتاری (Ban Repetitive Tropes & Stock Gestures): از تکرار حرکات کلیشه‌ای و رفتارهای تکراری شخصیت‌ها در نوبت‌های پیاپی (مانند کوبیدن مداوم چپق رادمان به زمین، مالیدن مداوم عرق پیشانی، یا توصیف یکنواخت زوزهٔ باد) اکیداً خودداری کن. واکنش‌ها و دیالوگ‌های اطرافیان باید پویا، پیش‌رونده و متغیر باشند.
+- انضباط واقع‌گرایانهٔ سربازان و گزمه‌ها (Realistic Garrison Discipline): یک مسافر یا جنگجوی تازه‌کار نمی‌تواند با یک فریاد یا اخم، یک گروهان یا دستهٔ ده نفره از گزمه‌های مسلح را به گریه، فرار و پرتاب سلاح‌هایشان وادار کند! انضباط نظامی نگهبانان را واقع‌گرایانه به تصویر بکش: ارعاب ممکن است باعث درنگ، دست به قبضه بردن، یا طلب پشتوانه شود، اما سربازان مسلح با یک تشر ناگهان پست خود را رها نکرده و فرار نمی‌کنند مگر اینکه با ارتشی ویرانگر یا جادویی مرگبار روبرو شده باشند.
 - طراحی دوسویهٔ حرکات رزمی (Kinetic Combat Choreography): هنگام دفع، جاخالی، دفاع یا نبرد تن‌به‌تن، هر دو سوی درگیری را به شکل ملموس و پرشتاب توصیف کن: ابتدا جهش، نیش یا هجوم ناگهانی دشمن (مانند باز شدن آرواره‌ها، کمانه کردن درنده از میان گل‌ولای یا فرود شمشیر گزمه)، و سپس بلافاصله واکنش فیزیکی قهرمان، طنین صدای برخورد سلاح یا سپر، و پیامد ملموس آن. هرگز هجوم دشمن را جا نینداز تا دفاع قهرمان در خلأ رخ ندهد.
 - پایبندی به اقلیم و اتمسفر بومی (Biome & Climate Fidelity): توصیفات آب‌وهوا، حرارت، لجن و پوشش گیاهی باید کاملاً منطبق بر اتمسفر مکانِ حضور بازیکن در کتابچهٔ جهان باشد (مثلاً هوای شرجی، گرم، خاکی یا نمناک حاشیهٔ دشت و هور). هرگز اقلیم‌های خیالی و متناقض مانند لجن نیمه‌منجمد، یخ‌زدگی یا برف در تالاب‌ها و دشت‌های گرم و شرجی ابداع نکن.
 - واقع‌گرایی صوتی و انزوای صحنه (Auditory Plausibility & Seclusion): تا زمانی که اقدام بازیکن یا درگیری با دشمن صدای مهیب (مانند انفجار، فریاد بلند کمک‌خواهی، یا آتش‌سوزی آشکار) ایجاد نکرده باشد، صحنه‌های مخفیانه، خلوت یا دورافتاده (مانند نیزار حاشیهٔ رود، خرابه‌ها یا پایاب تاریک) باید کاملاً «منزوی و در خلوت» باقی بمانند. هرگز شخصیت‌های دوردست یا افراد کنار آتش را بدون دلیل صوتی موجه یا مشاهدهٔ مستقیم، با پای پیاده و مشعل‌به‌دست به صحنه نکشان.
@@ -510,6 +518,15 @@ You MUST respond with a valid JSON object matching this schema:
         parts.push(`[RECENT SCENE PROSE]\n${context.recentSceneSnippets.join('\n\n')}`);
       }
 
+      if (context.recentCompletedActions && context.recentCompletedActions.length > 0) {
+        parts.push(
+          `[RECENTLY COMPLETED ACTIONS — FORWARD MOMENTUM & NO RECYCLING]\n` +
+          `The protagonist has ALREADY performed and resolved these actions in recent turns:\n` +
+          context.recentCompletedActions.map((a) => `• ${a}`).join('\n') +
+          `\n• STRICT ANTI-REPETITION DIRECTIVE: These actions are DONE. The scene has advanced beyond them. You are STRICTLY FORBIDDEN from offering choices that re-attempt, re-phrase, or cycle through these completed actions. The protagonist must move FORWARD into the new space or deal with the new dilemma created by their success.`
+        );
+      }
+
       // Narrative goal / upcoming milestone encounter directive & Arc Stages
       if (context.activeChapterGoal || context.activeChapterTitle || context.activeChapterStages?.length) {
         const stageLines = context.activeChapterStages?.length
@@ -606,6 +623,15 @@ You MUST respond with a valid JSON object matching this schema:
 
       if (context.recentSceneSnippets.length > 0) {
         parts.push(`[خلاصه صحنه قبلی / RECENT SCENE]\n${context.recentSceneSnippets.join('\n\n')}`);
+      }
+
+      if (context.recentCompletedActions && context.recentCompletedActions.length > 0) {
+        parts.push(
+          `[اقدامات اخیراً انجام‌شده و حل‌شده — لزوم پیشروی داستان و ممنوعیت تکرار / COMPLETED ACTIONS]\n` +
+          `قهرمان داستان این اقدامات را در نوبت‌های اخیر به انجام رسانده و پشت سر گذاشته است:\n` +
+          context.recentCompletedActions.map((a) => `• ${a}`).join('\n') +
+          `\n• دستور اکید جلوگیری از درجا زدن و تکرار: این اقدامات پایان یافته‌اند و مانع مربوطه پشت سر گذاشته شده است. پیشنهاد دادن انتخاب‌هایی که همان کارهای قبلی را با بیانی دیگر تکرار کنند (مانند عبور مجدد از معبری که قبلاً از آن گذشته، یا تکرار همان اقدام موفق) اکیداً ممنوع است! داستان و شخصیت باید وارد فاز بعدی، معبر بعدی یا فضای جدید پس از این اقدام شوند و گزینه‌های جدیدی متناسب با موقعیت پیش‌رو به بازیکن ارائه دهی.`
+        );
       }
 
       // Narrative goal / upcoming milestone encounter directive & Arc Stages

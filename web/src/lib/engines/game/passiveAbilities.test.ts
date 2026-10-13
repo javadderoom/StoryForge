@@ -392,6 +392,35 @@ describe('Passive Abilities Engine — Automated Parsing & Resolution', () => {
       assert.equal(res.totalModifier, 0);
       assert.equal(res.appliedPassives.length, 0);
     });
+
+    it('does NOT leak shield defense bonus or scribe penalty into animal handling or travel with "مهارت کاروان"', () => {
+      const playerWithAll = makePlayerState({
+        abilities: ['ab_shield_wall', 'ab_caravan', 'ab_scribe_friction'],
+        inventory: [
+          {
+            id: 'sh_wood',
+            name: 'سپر چوبی بارانداز',
+            type: 'shield',
+            quantity: 1,
+            description: 'Sturdy wooden shield',
+          },
+        ],
+        equipment: {
+          offHand: 'sh_wood',
+        },
+      });
+
+      const res = evaluatePassiveAbilities(
+        'فریاد کشیدن بر سر ساربانان و هدایت شترها با اتکا به مهارت کاروان برای عبور از معبر خالی‌شده',
+        playerWithAll,
+        rpgSystem
+      );
+
+      // Only caravan mastery applies (+2), shield defense (+3) and scribe friction (-3) must NOT apply!
+      assert.equal(res.totalModifier, 2);
+      assert.equal(res.appliedPassives.length, 1);
+      assert.equal(res.appliedPassives[0].id, 'ab_caravan');
+    });
   });
 });
 

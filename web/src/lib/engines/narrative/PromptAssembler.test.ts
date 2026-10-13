@@ -277,3 +277,41 @@ describe('PromptAssembler - mixed_success cost directive', () => {
     assert.ok(!userPrompt.includes('MIXED SUCCESS'));
   });
 });
+
+describe('PromptAssembler - forward momentum and completed actions guardrail', () => {
+  it('renders recent completed actions and anti-recycling directives (EN)', () => {
+    const env = makeEnvelope({
+      recentCompletedActions: [
+        'Shouted at the camel drivers to clear the path',
+        'Led the caravan across the narrow bridge',
+      ],
+    });
+    const { systemPrompt, userPrompt } = PromptAssembler.buildNarrativePrompt(env);
+    assert.ok(userPrompt.includes('[RECENTLY COMPLETED ACTIONS — FORWARD MOMENTUM & NO RECYCLING]'));
+    assert.ok(userPrompt.includes('Shouted at the camel drivers to clear the path'));
+    assert.ok(userPrompt.includes('Led the caravan across the narrow bridge'));
+    assert.ok(userPrompt.includes('STRICT ANTI-REPETITION DIRECTIVE'));
+    assert.ok(systemPrompt.includes('FORWARD MOMENTUM ON OVERCOME OBSTACLES'));
+    assert.ok(systemPrompt.includes('BAN REPETITIVE TROPES & STOCK GESTURES'));
+    assert.ok(systemPrompt.includes('NATURAL LITERARY ITEM & GEAR REFERENCES'));
+    assert.ok(systemPrompt.includes('REALISTIC SENTRY & GARRISON DISCIPLINE'));
+  });
+
+  it('renders recent completed actions and anti-recycling directives in Persian (FA)', () => {
+    const env = makeEnvelope({
+      languageDirective: 'fa',
+      recentCompletedActions: [
+        'فریاد کشیدن بر سر ساربانان و هدایت شترها با اتکا به مهارت کاروان برای عبور از معبر خالی‌شده',
+      ],
+    });
+    const { systemPrompt, userPrompt } = PromptAssembler.buildNarrativePrompt(env);
+    assert.ok(userPrompt.includes('[اقدامات اخیراً انجام‌شده و حل‌شده — لزوم پیشروی داستان و ممنوعیت تکرار / COMPLETED ACTIONS]'));
+    assert.ok(userPrompt.includes('فریاد کشیدن بر سر ساربانان'));
+    assert.ok(userPrompt.includes('دستور اکید جلوگیری از درجا زدن و تکرار'));
+    assert.ok(systemPrompt.includes('پیشروی اجباری پس از عبور از موانع (Forward Momentum on Overcome Obstacles)'));
+    assert.ok(systemPrompt.includes('ممنوعیت تکرار حرکات و کلیشه‌های رفتاری (Ban Repetitive Tropes & Stock Gestures)'));
+    assert.ok(systemPrompt.includes('زبان طبیعی در اشاره به زره و سازوبرگ (Natural Literary Item References)'));
+    assert.ok(systemPrompt.includes('انضباط واقع‌گرایانهٔ سربازان و گزمه‌ها (Realistic Garrison Discipline)'));
+  });
+});
+

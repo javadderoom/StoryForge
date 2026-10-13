@@ -104,6 +104,7 @@ export function evaluatePassiveAbilities(
   options?: {
     effectiveStatId?: string;
     riskLevel?: string;
+    actionStyle?: string;
     story?: any;
     actionCategories?: string[];
   }
@@ -240,11 +241,15 @@ export function evaluatePassiveAbilities(
         ) && (mod < 0 || /disadvantage|جریمه|دشواری/.test(abilityText));
 
       if (isScribeFrictionAbility) {
-        const isInteractingWithScribes =
-          mentionsAbilityDirectly ||
-          /(?:کاتب|مأمور|اداری|دیوان|منشی|سند|قلم|مهر|دفتردار|حساب‌دار|داروغه|نامه|مجوز|scribe|clerk|official|bureaucrat|notary|quill|registry|permit)/i.test(
+        // Must be an active administrative/clerical engagement, not simply walking past sentries
+        const mentionsBureaucraticAction =
+          /(?:سند|قلم|مهر|دفتردار|حساب‌دار|نامه|مجوز|کاغذ|دیوان خراج|ثبت بار|مالیات|پته|notary|quill|registry|permit|paperwork|tax)/i.test(
             text
-          );
+          ) ||
+          (/(?:کاتب|منشی|دیوان|داروغه|بازرس|scribe|clerk|bureaucrat|inspector)/i.test(text) &&
+            /(?:صحبت|مذاکره|سخن|گفتگو|چانه|فریب|تحویل|نشان دادن|رشوه|talk|speak|negotiate|bribe|convince|persuade|show)/i.test(text));
+
+        const isInteractingWithScribes = mentionsAbilityDirectly || mentionsBureaucraticAction;
 
         if (isInteractingWithScribes) {
           applies = true;
@@ -327,8 +332,15 @@ export function evaluatePassiveAbilities(
 
     const { value, triggerKeywords, descriptionEn, descriptionFa } = profile.passiveBonus;
 
-    // Check if the action matches any trigger keywords
-    const matchesKeyword = triggerKeywords.some((kw) => text.includes(kw.toLowerCase()));
+    // Check if the action matches any trigger keywords using whole-word boundary matching
+    const matchesKeyword = triggerKeywords.some((kw) => {
+      const clean = kw.trim().toLowerCase();
+      if (!clean) return false;
+      if (clean.includes(' ')) return text.includes(clean);
+      const escaped = clean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(^|[^a-zA-Z0-9_\u0600-\u06FF])${escaped}($|[^a-zA-Z0-9_\u0600-\u06FF])`, 'i');
+      return regex.test(text);
+    });
     const mentionsItemDirectly =
       text.includes(profile.name.toLowerCase()) ||
       (profile.itemId && text.includes(profile.itemId.toLowerCase()));
@@ -365,12 +377,17 @@ export function evaluatePassiveAbilities(
             continue;
           }
         } else {
-          // If no categories, an idle stance without incoming attack does NOT trigger reactive shield defense
+          // Shield defense bonus ONLY applies when actively defending, blocking, absorbing attacks, or in a defensive stance
+          const isDefensiveAction =
+            options?.actionStyle === 'defensive' ||
+            /(?:مهار(?!\s*ت)|دفع|دفاع|سنگر|پناه|بلوک|رد کردن ضربه|کوبیدن سپر|سپر را بالا|parry|block|intercept|defend|cover)/i.test(
+              text
+            );
           const isIdleStance =
             /(?:حالت دفاعی|موضع دفاعی|آمادگی برای دفاع|موضع احتیاطی|صرفا آمادگی|defensive stance|ready stance|cautious stance)/i.test(
               text
             );
-          if (isIdleStance) {
+          if (!isDefensiveAction || isIdleStance) {
             continue;
           }
         }

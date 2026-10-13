@@ -72,6 +72,8 @@ export interface WorkingContextEnvelope {
     costLine?: string;
   };
   recentSceneSnippets: string[];
+  /** Recently executed player actions from prior turns (to enforce forward momentum & prevent choice recycling) */
+  recentCompletedActions?: string[];
   languageDirective: 'en' | 'fa';
   // Expanded world grounding (all optional; rendered only when present)
   authoredSystemPrompt?: string;
