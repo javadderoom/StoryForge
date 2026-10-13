@@ -5,6 +5,7 @@
 
 // Frontier heavy model queue for World Generation
 export const WORLD_GENERATION_QUEUE = [
+  'gemini-3.5-flash-lite',
   'gemini-3.1-flash-lite',
   'gemini-3.8-flash',
   'gemini-3.7-flash',
@@ -17,6 +18,7 @@ export const WORLD_GENERATION_QUEUE = [
 
 // High-capacity fast queue for Scene & Story Turn generation
 export const SCENE_GENERATION_QUEUE = [
+  'gemini-3.5-flash-lite',
   'gemini-3.1-flash-lite',
   'gemini-3.8-flash',
   'gemini-3.7-flash',

@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 process.env.ENABLE_DB = 'true';
-process.env.GEMINI_MODEL = 'gemini-3.1-flash-lite';
+process.env.GEMINI_MODEL = 'gemini-3.5-flash-lite';
 
 import crypto from 'node:crypto';
 import { StoryRepository } from '../src/lib/db/repositories/storyRepository';
