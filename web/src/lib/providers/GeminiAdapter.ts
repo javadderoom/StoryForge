@@ -79,7 +79,7 @@ export function cleanChoiceText(rawText: unknown): string {
   text = text.replace(/^(?:choice|گزینه|انتخاب)\s*[\d\u0660-\u0669\u06F0-\u06F9]+\s*[:\-–—]\s*/i, '').trim();
 
   // 3. Strip surrounding book quotation marks
-  text = text.replace(/^[«"“'`](.*)[»"”'`]$/s, '$1').trim();
+  text = text.replace(/^[«"“'`]([\s\S]*)[»"”'`]$/, '$1').trim();
 
   return text;
 }

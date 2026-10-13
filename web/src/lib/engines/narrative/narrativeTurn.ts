@@ -8,6 +8,8 @@ import { PlayerState, CheckResolution } from '@/lib/types/gameplay';
 import { WorldStateLedger } from '@/lib/types/world';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { RawSceneResult } from './modelCall';
+import { SubQAdapter } from '@/lib/providers/SubQAdapter';
+import { evaluateNarrativeMomentum, MomentumEvaluationInput } from './momentumGuardrail';
 
 /**
  * Plan 14 — the shared narrative turn core.
@@ -387,7 +389,8 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
 export async function generateValidatedScene(
   input: SceneTurnInput,
   adapter: GeminiAdapter,
-  secretSanitizer?: (choices: any[]) => any[]
+  secretSanitizer?: (choices: any[]) => any[],
+  subqAdapter?: SubQAdapter
 ): Promise<SceneGenerationOutcome> {
   const { story, resolution, ledger } = input;
   const contextEnvelope = assembleSceneEnvelope(input);
@@ -440,8 +443,31 @@ export async function generateValidatedScene(
 
   // At most two repair calls; retain the initial raw output for evaluation.
   const validationOptions = { ledger, resolution, worldBible: story.worldBible, language: story.language };
+  const subqClient = subqAdapter ?? new SubQAdapter();
   let candidate = aiResponse;
   let check = validateProse(candidate.narrative, validationOptions);
+
+  // SubQ Snap Anti-Stalling & Story Momentum Guardrail
+  const momentumInput: MomentumEvaluationInput = {
+    storyTitle: story.title,
+    language: story.language,
+    priorScenes: contextEnvelope.recentSceneSnippets,
+    priorActions: contextEnvelope.recentCompletedActions || [],
+    playerActionText: input.playerActionText,
+    resolution,
+    candidateNarrative: candidate.narrative,
+    candidateChoices: candidate.choices,
+  };
+  const momentumCheck = await evaluateNarrativeMomentum(momentumInput, subqClient);
+  if (!momentumCheck.ok && momentumCheck.repairInstruction) {
+    check.ok = false;
+    check.findings.push({
+      severity: 'error',
+      category: 'stalling',
+      detail: momentumCheck.repairInstruction,
+    });
+  }
+
   let proseRepaired = false;
   for (let attempt = 1; !check.ok && attempt <= 2; attempt++) {
     const repairPayload = {
@@ -457,6 +483,24 @@ export async function generateValidatedScene(
     }
     candidate = repaired;
     check = validateProse(candidate.narrative, validationOptions);
+    if (check.ok) {
+      const recheckedMomentum = await evaluateNarrativeMomentum(
+        {
+          ...momentumInput,
+          candidateNarrative: candidate.narrative,
+          candidateChoices: candidate.choices,
+        },
+        subqClient
+      );
+      if (!recheckedMomentum.ok && recheckedMomentum.repairInstruction) {
+        check.ok = false;
+        check.findings.push({
+          severity: 'error',
+          category: 'stalling',
+          detail: recheckedMomentum.repairInstruction,
+        });
+      }
+    }
     proseRepaired = check.ok;
   }
   if (!check.ok) {

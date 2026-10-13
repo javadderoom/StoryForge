@@ -39,7 +39,7 @@ describe('Progression Engine — Hybrid XP, Level-Up & Stat Allocations', () => 
     currentLocationId: 'loc_gate',
   };
 
-  const sampleRpg: RPGSystemSchema = {
+  const sampleRpg: any = {
     hasCombat: true,
     diceType: 'd20',
     stats: [
@@ -59,8 +59,7 @@ describe('Progression Engine — Hybrid XP, Level-Up & Stat Allocations', () => 
         id: 'arch_warrior',
         name: 'جنگجو',
         description: '',
-        startingStats: {},
-        startingEquipment: [],
+        startingEquipment: {},
         resourceBonuses: { health: 5 },
       },
     ],
@@ -69,7 +68,7 @@ describe('Progression Engine — Hybrid XP, Level-Up & Stat Allocations', () => 
         id: 'bg_veteran',
         name: 'کهنه‌سرباز',
         description: '',
-        startingStats: {},
+        trait: { id: 'trait_veteran', name: 'کهنه‌سرباز', description: '' },
         resourceBonuses: { health: 3 },
       },
     ],
@@ -396,7 +395,7 @@ describe('Progression Engine — Hybrid XP, Level-Up & Stat Allocations', () => 
       const player: PlayerState = { ...basePlayer, unspentStatPoints: 2, stats: {} };
       const perStatRpg: RPGSystemSchema = {
         ...sampleRpg,
-        stats: sampleRpg.stats.map((s) => (s.id === 'might' ? { ...s, baseValue: 3 } : s)),
+        stats: sampleRpg.stats.map((s: any) => (s.id === 'might' ? { ...s, baseValue: 3 } : s)),
       } as RPGSystemSchema;
 
       const res = allocateLevelUpRewards(player, { might: 2 }, undefined, perStatRpg);
@@ -411,7 +410,7 @@ describe('Progression Engine — Hybrid XP, Level-Up & Stat Allocations', () => 
       const both: RPGSystemSchema = {
         ...sampleRpg,
         universalBaseValue: 7,
-        stats: sampleRpg.stats.map((s) => (s.id === 'might' ? { ...s, baseValue: 3 } : s)),
+        stats: sampleRpg.stats.map((s: any) => (s.id === 'might' ? { ...s, baseValue: 3 } : s)),
       } as RPGSystemSchema;
 
       const res = allocateLevelUpRewards(player, { might: 1 }, undefined, both);

@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     const scalingOptions = resolveScalingOptions(
       playerState,
       story?.rpgSystem,
-      story?.worldBible?.artifacts || story?.artifacts,
+      story?.worldBible?.artifacts || (story as any)?.artifacts,
       story?.worldBible?.powerSchools
     );
 
