@@ -305,7 +305,7 @@ export class GeminiAdapter {
 
   constructor(
     apiKey?: string,
-    modelName = 'gemini-2.5-flash',
+    modelName = 'gemini-3.1-flash-lite',
     options: GeminiAdapterOptions = {}
   ) {
     const key = apiKey || process.env.GEMINI_API_KEY;
