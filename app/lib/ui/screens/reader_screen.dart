@@ -174,12 +174,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             consequenceSummary: '',
           );
 
+    void doSubmitAction() {
+      ref.read(gameSessionProvider.notifier).submitAction(
+        choice,
+        forcedDiceRoll: rolledD20,
+        holdNarrativeUpdate: true,
+      );
+    }
+
     // 3. Start server narrative generation in the background with holdNarrativeUpdate: true
-    ref.read(gameSessionProvider.notifier).submitAction(
-      choice,
-      forcedDiceRoll: rolledD20,
-      holdNarrativeUpdate: true,
-    );
+    doSubmitAction();
 
     // 4. Trigger pre-warmed Root 3D Dice Overlay
     ref.read(diceOverlayProvider.notifier).showRoll(
@@ -189,6 +193,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       statsConfig: session.rpgStats,
       onContinue: () {
         ref.read(gameSessionProvider.notifier).applyPendingTurn();
+      },
+      onRecall: () {
+        ref.read(diceOverlayProvider.notifier).setRecalling(true);
+        doSubmitAction();
       },
     );
   }

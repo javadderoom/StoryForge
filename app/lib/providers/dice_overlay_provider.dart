@@ -40,6 +40,16 @@ class DiceOverlayState {
   final List<StoryStatSummary>? statsConfig;
   final VoidCallback? onContinue;
 
+  /// Callback to recall / re-request adjudication from the server using the
+  /// same locally rolled dice number without altering the settled die face.
+  final VoidCallback? onRecall;
+
+  /// Server or network error message if the action check request failed.
+  final String? errorMessage;
+
+  /// True when a recall request is currently being transmitted to the server.
+  final bool isRecalling;
+
   const DiceOverlayState({
     this.isVisible = false,
     this.isRolling = false,
@@ -50,6 +60,9 @@ class DiceOverlayState {
     this.isPersian = false,
     this.statsConfig,
     this.onContinue,
+    this.onRecall,
+    this.errorMessage,
+    this.isRecalling = false,
   });
 
   DiceOverlayState copyWith({
@@ -62,7 +75,11 @@ class DiceOverlayState {
     bool? isPersian,
     List<StoryStatSummary>? statsConfig,
     VoidCallback? onContinue,
+    VoidCallback? onRecall,
+    String? errorMessage,
+    bool? isRecalling,
     bool clearResolution = false,
+    bool clearError = false,
   }) {
     return DiceOverlayState(
       isVisible: isVisible ?? this.isVisible,
@@ -74,6 +91,9 @@ class DiceOverlayState {
       isPersian: isPersian ?? this.isPersian,
       statsConfig: statsConfig ?? this.statsConfig,
       onContinue: onContinue ?? this.onContinue,
+      onRecall: onRecall ?? this.onRecall,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      isRecalling: isRecalling ?? this.isRecalling,
     );
   }
 }
@@ -88,6 +108,7 @@ class DiceOverlayNotifier extends Notifier<DiceOverlayState> {
     required bool isPersian,
     List<StoryStatSummary>? statsConfig,
     required VoidCallback onContinue,
+    VoidCallback? onRecall,
   }) {
     ref.read(audioProvider.notifier).playSfx(SfxType.diceRoll);
     state = DiceOverlayState(
@@ -101,7 +122,21 @@ class DiceOverlayNotifier extends Notifier<DiceOverlayState> {
       isPersian: isPersian,
       statsConfig: statsConfig,
       onContinue: onContinue,
+      onRecall: onRecall,
+      errorMessage: null,
+      isRecalling: false,
     );
+  }
+
+  /// Sets whether a recall action is currently transmitting to the server.
+  void setRecalling(bool recalling) {
+    state = state.copyWith(isRecalling: recalling, clearError: true);
+  }
+
+  /// Reports a server / network error received while awaiting adjudication.
+  void reportError(String message) {
+    if (!state.isVisible) return;
+    state = state.copyWith(errorMessage: message, isRecalling: false);
   }
 
   /// Called when the 3D dice finish settling.
@@ -122,7 +157,12 @@ class DiceOverlayNotifier extends Notifier<DiceOverlayState> {
     // Ignore a stale push for a previous turn.
     if (state.serverResolution != null) return;
 
-    state = state.copyWith(serverResolution: resolution, awaitingReferee: false);
+    state = state.copyWith(
+      serverResolution: resolution,
+      awaitingReferee: false,
+      clearError: true,
+      isRecalling: false,
+    );
 
     if (resolution.isSuccess) {
       ref.read(audioProvider.notifier).playSfx(SfxType.diceSuccess);
@@ -132,7 +172,12 @@ class DiceOverlayNotifier extends Notifier<DiceOverlayState> {
   }
 
   void hide() {
-    state = state.copyWith(isVisible: false, clearResolution: true);
+    state = state.copyWith(
+      isVisible: false,
+      clearResolution: true,
+      clearError: true,
+      isRecalling: false,
+    );
   }
 }
 

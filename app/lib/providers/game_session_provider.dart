@@ -117,6 +117,7 @@ class GameSessionState {
     bool clearDiscoveredCreature = false,
     bool clearLastXpAward = false,
     bool clearLastStatusDelta = false,
+    bool clearLastResolution = false,
   }) {
     return GameSessionState(
       isLoading: isLoading ?? this.isLoading,
@@ -128,7 +129,7 @@ class GameSessionState {
       currentNarrative: currentNarrative ?? this.currentNarrative,
       choices: choices ?? this.choices,
       playerState: playerState ?? this.playerState,
-      lastResolution: lastResolution ?? this.lastResolution,
+      lastResolution: clearLastResolution ? null : (lastResolution ?? this.lastResolution),
       turnNumber: turnNumber ?? this.turnNumber,
       pendingTurnData: clearPendingTurn ? null : (pendingTurnData ?? this.pendingTurnData),
       isCreditDepleted: isCreditDepleted ?? this.isCreditDepleted,
@@ -315,7 +316,9 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     if (state.playerState == null) return null;
 
     if (!holdNarrativeUpdate) {
-      state = state.copyWith(isLoading: true, errorMessage: null);
+      state = state.copyWith(isLoading: true, errorMessage: null, clearLastResolution: true);
+    } else {
+      state = state.copyWith(errorMessage: null, clearLastResolution: true);
     }
 
     try {

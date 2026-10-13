@@ -25,6 +25,10 @@ class DiceRollOverlay extends StatelessWidget {
   final GlobalKey<ThreeD20DiceViewState>? diceKey;
   final VoidCallback onContinue;
   final VoidCallback onRollComplete;
+  final VoidCallback? onRecall;
+  final VoidCallback? onDismiss;
+  final String? errorMessage;
+  final bool isRecalling;
 
   const DiceRollOverlay({
     super.key,
@@ -39,6 +43,10 @@ class DiceRollOverlay extends StatelessWidget {
     this.diceKey,
     required this.onContinue,
     required this.onRollComplete,
+    this.onRecall,
+    this.onDismiss,
+    this.errorMessage,
+    this.isRecalling = false,
   });
 
   /// The single source of truth for anything the player reads.
@@ -290,12 +298,12 @@ class DiceRollOverlay extends StatelessWidget {
                     // landed. Show a neutral placeholder rather than the client
                     // engine's numbers, which may contradict the real outcome.
                     if (!isRolling && _effective == null) ...[
-                      SizedBox(
-                        height: 120,
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (!isRecalling && errorMessage == null) ...[
                               const SizedBox(
                                 width: 24,
                                 height: 24,
@@ -304,16 +312,113 @@ class DiceRollOverlay extends StatelessWidget {
                                   color: Color(0xFFF59E0B),
                                 ),
                               ),
-                              const SizedBox(height: 14),
+                              const SizedBox(height: 12),
                               Text(
-                                isPersian ? 'در حال بررسی نتیجه...' : 'Adjudicating outcome...',
+                                isPersian ? 'در حال بررسی نتیجه از سرور...' : 'Adjudicating outcome...',
                                 style: GoogleFonts.vazirmatn(
                                   fontSize: 13,
                                   color: Colors.white70,
                                 ),
                               ),
+                            ] else if (isRecalling) ...[
+                              const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Color(0xFF38BDF8),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                isPersian
+                                    ? 'در حال ارسال مجدد درخواست با تاس \u200E${(resolution?.diceRoll ?? 10).toPersianDigits(enable: isPersian)}\u200E...'
+                                    : 'Recalling server with roll \u200E${resolution?.diceRoll ?? 10}\u200E...',
+                                style: GoogleFonts.vazirmatn(
+                                  fontSize: 13,
+                                  color: const Color(0xFF38BDF8),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ],
-                          ),
+                            if (errorMessage != null && !isRecalling) ...[
+                              Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.35)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.wifi_off_rounded, color: Color(0xFFEF4444), size: 16),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        errorMessage!,
+                                        style: GoogleFonts.vazirmatn(
+                                          fontSize: 11.5,
+                                          color: const Color(0xFFFCA5A5),
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            if (onRecall != null) ...[
+                              ElevatedButton.icon(
+                                onPressed: isRecalling ? null : onRecall,
+                                icon: isRecalling
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70),
+                                      )
+                                    : const Icon(Icons.refresh_rounded, size: 16),
+                                label: Text(
+                                  isPersian
+                                      ? 'ارسال مجدد با همین تاس (\u200E${(resolution?.diceRoll ?? 10).toPersianDigits(enable: isPersian)}\u200E)'
+                                      : 'Recall with roll (\u200E${resolution?.diceRoll ?? 10}\u200E)',
+                                  style: GoogleFonts.vazirmatn(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFF59E0B).withValues(alpha: 0.22),
+                                  foregroundColor: const Color(0xFFFBBF24),
+                                  side: BorderSide(
+                                    color: const Color(0xFFF59E0B).withValues(alpha: 0.55),
+                                    width: 1.2,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (onDismiss != null) ...[
+                              const SizedBox(height: 6),
+                              TextButton(
+                                onPressed: onDismiss,
+                                child: Text(
+                                  isPersian ? 'لغو و بازگشت به صحنه' : 'Cancel & return to scene',
+                                  style: GoogleFonts.vazirmatn(
+                                    fontSize: 11,
+                                    color: const Color(0xFF94A3B8),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ],

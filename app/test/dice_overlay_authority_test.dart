@@ -249,6 +249,113 @@ void main() {
       expect(cleared.awaitingReferee, isFalse);
       expect(cleared.isVisible, isFalse);
     });
+
+    test('reportError and setRecalling manage error state properly', () {
+      const state = DiceOverlayState(
+        isVisible: true,
+        isRolling: false,
+        awaitingReferee: true,
+      );
+      final withError = state.copyWith(errorMessage: 'Network timeout');
+      expect(withError.errorMessage, 'Network timeout');
+
+      final recalling = withError.copyWith(isRecalling: true, clearError: true);
+      expect(recalling.isRecalling, isTrue);
+      expect(recalling.errorMessage, isNull);
+    });
+  });
+
+  group('DiceRollOverlay — Recall & Stalled Roll Recovery', () {
+    testWidgets('displays error message and illuminated recall button preserving landed roll',
+        (tester) async {
+      final client = makeResolution(
+        outcome: 'success',
+        diceRoll: 14,
+        statModifier: 2,
+        totalScore: 16,
+      );
+      var recallCalled = false;
+      var dismissCalled = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DiceRollOverlay(
+              resolution: client,
+              serverResolution: null,
+              awaitingReferee: true,
+              actionText: 'Search the crypt',
+              isVisible: true,
+              isRolling: false,
+              isPersian: false,
+              errorMessage: 'Connection lost to referee',
+              onRecall: () {
+                recallCalled = true;
+              },
+              onDismiss: () {
+                dismissCalled = true;
+              },
+              onContinue: _noop,
+              onRollComplete: _noop,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Displays error message banner
+      expect(find.text('Connection lost to referee'), findsOneWidget);
+
+      // Displays recall button with the exact roll number (14)
+      final recallBtn = find.text('Recall with roll (\u200E14\u200E)');
+      expect(recallBtn, findsOneWidget);
+
+      // Displays cancel / dismiss button
+      final dismissBtn = find.text('Cancel & return to scene');
+      expect(dismissBtn, findsOneWidget);
+
+      // Tapping recall triggers callback
+      await tester.tap(recallBtn);
+      await tester.pump();
+      expect(recallCalled, isTrue);
+
+      // Tapping dismiss triggers callback
+      await tester.tap(dismissBtn);
+      await tester.pump();
+      expect(dismissCalled, isTrue);
+    });
+
+    testWidgets('displays active recall spinner when isRecalling is true',
+        (tester) async {
+      final client = makeResolution(
+        outcome: 'success',
+        diceRoll: 14,
+        statModifier: 2,
+        totalScore: 16,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DiceRollOverlay(
+              resolution: client,
+              serverResolution: null,
+              awaitingReferee: true,
+              actionText: 'Search the crypt',
+              isVisible: true,
+              isRolling: false,
+              isPersian: false,
+              isRecalling: true,
+              onContinue: _noop,
+              onRollComplete: _noop,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Recalling server with roll \u200E14\u200E...'), findsOneWidget);
+    });
   });
 }
 
