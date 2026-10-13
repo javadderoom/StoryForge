@@ -309,7 +309,8 @@ export async function POST(req: NextRequest) {
         pressureTarget,
         knownIds,
         playerActionText,
-        isPersianStory
+        isPersianStory,
+        turnNumber
       );
       const changes = resolution.stateDiff.relationshipChanges ?? {};
       const existing = changes[pressureTarget.id] ?? { trustDelta: 0 };

@@ -46,8 +46,29 @@ export const SEVERE_PRESSURE_KEYWORDS =
 
 /** Common words in NPC titles / names that shouldn't trigger spurious matches */
 export const NAME_STOPWORDS = new Set([
-  'the', 'and', 'for', 'van', 'von', 'del', 'der', 'den', 'des', 'with', 'from', 'about',
+  // English grammatical & prepositions
+  'the', 'and', 'for', 'van', 'von', 'del', 'der', 'den', 'des', 'with', 'from', 'about', 'into', 'onto', 'over', 'under',
+  // English generic titles & roles
+  'caravan', 'captain', 'guard', 'guards', 'sentry', 'sentries', 'soldier', 'soldiers', 'merchant', 'merchants',
+  'scribe', 'scribes', 'master', 'apprentice', 'commander', 'leader', 'elder', 'traveler', 'travelers', 'innkeeper',
+  'priest', 'monk', 'warrior', 'blade', 'swordsman', 'archer', 'driver', 'herdsman', 'sailor', 'boatman',
+  // Persian prepositions & common connectors
+  'از', 'به', 'با', 'در', 'بر', 'برای', 'تا', 'که', 'و', 'را', 'این', 'آن', 'روی', 'زیر', 'پشت', 'کنار', 'میان', 'دل',
+  // Persian generic titles, roles & collective nouns
+  'کاروان', 'کاروان‌سالار', 'کاروانسالار', 'سالار', 'فرمانده', 'سرکرده', 'سرگروه', 'سردسته', 'کاتب', 'کاتبان',
+  'تاجر', 'تجار', 'بازرگان', 'بازرگانان', 'نگهبان', 'نگهبانان', 'گزمه', 'گزمه‌ها', 'گزمههای', 'سرباز', 'سربازان', 'پاسبان', 'پاسدار',
+  'پاسداران', 'ساربان', 'ساربانان', 'شاگرد', 'استاد', 'پیرمرد', 'پیرزن', 'جوان', 'مسافر', 'مسافران', 'جنگجو', 'جنگجویان',
+  'تیغ‌زن', 'شمشیردار', 'کماندار', 'نیزه‌دار', 'نیزه‌داران', 'بلم‌ران', 'بلم‌رانان', 'قایقران', 'ماهیگیر', 'راهزن', 'راهزنان',
+  'دشت', 'بیابان', 'کویر', 'شهر', 'ارگ', 'پل', 'رودخانه', 'رود', 'آب', 'بارانداز', 'کاروانسرا', 'بازار', 'بازارچه', 'پادگان',
 ]);
+
+/** Keywords indicating the player is explicitly demanding information, secrets, or confessions (EN + FA). */
+export const INFORMATION_EXTRACTION_KEYWORDS =
+  /interrogat|confess|spill|tell me|admit|reveal|where is|who is|what is|secret|truth|conspiracy|leak|بازجویی|اعتراف|اقرار|بگو|فاش|افشا|راز|حقیقت|کجاست|کیست|چیست|توطئه|پنهان|پاسخ/;
+
+export function isInformationExtractionAction(actionText: string): boolean {
+  return INFORMATION_EXTRACTION_KEYWORDS.test(actionText.toLowerCase());
+}
 
 /** Keywords marking an action as a positive social interaction (EN + FA). */
 export const SOCIAL_KEYWORDS =
@@ -278,20 +299,39 @@ export function discoverSecretsForTurn(
  * as the anti-leak validator). Null when the action is not pressure or no
  * known NPC is named.
  */
+/** Keywords marking an action as demanding tactical / physical compliance (EN + FA). */
+export const TACTICAL_COERCION_KEYWORDS =
+  /pass|passage|step aside|move aside|let us through|let me through|open the|stand down|yield|drop your weapon|surrender|retreat|back off|معبر|راه|کنار|بکش کنار|برو کنار|بگذارید رد شویم|رد شدن|باز کن|باز کردن|تسلیم|سلاح.*بگذار|عقب|عقب‌نشینی/;
+
+export function isTacticalCoercionAction(actionText: string): boolean {
+  return TACTICAL_COERCION_KEYWORDS.test(actionText.toLowerCase());
+}
+
+/**
+ * Finds the NPC a pressure action is aimed at (name match, same word rules
+ * as the anti-leak validator). Null when the action is not pressure or no
+ * known NPC is named.
+ */
 export function detectPressureTarget(
   actionText: string,
   npcs: NPCDossier[]
 ): NPCDossier | null {
   if (!isPressureAction(actionText)) return null;
   const lower = actionText.toLowerCase();
+  // Strip beneficiary / purpose clauses so "for the caravan" or "to help Radman" doesn't treat the beneficiary as the pressure target
+  const targetableText = lower.replace(
+    /(?:برای|به نفع|به خاطر|جهت|به قصد|در راه|for|on behalf of|to help|in favor of)\s+[\w\u0600-\u06FF\u200C]+/gi,
+    ' '
+  );
   for (const npc of npcs ?? []) {
     const nameWords = npc.name
       .toLowerCase()
-      .split(/[^a-z\u0600-\u06FF]+/)
+      .split(/[^a-z\u0600-\u06FF\u200C]+/)
       .filter((w) => w.length >= 3 && !NAME_STOPWORDS.has(w));
+    if (nameWords.length === 0) continue;
     if (nameWords.some((w) => {
-      const regex = new RegExp(`(^|[^a-z\u0600-\u06FF])${w}([^a-z\u0600-\u06FF]|$)`, 'i');
-      return regex.test(lower);
+      const regex = new RegExp(`(^|[^a-z\u0600-\u06FF\u200C])${w}([^a-z\u0600-\u06FF\u200C]|$)`, 'i');
+      return regex.test(targetableText);
     })) return npc;
   }
   return null;
@@ -311,7 +351,8 @@ export function applyPressureOutcome(
   npc: NPCDossier,
   knownSecretIds: string[] = [],
   actionText = '',
-  isPersian = false
+  isPersian = false,
+  turnNumber?: number
 ): PressureOutcome {
   const known = new Set(knownSecretIds);
   const unrevealed = (npc.secrets ?? []).filter(
@@ -336,6 +377,66 @@ export function applyPressureOutcome(
   // Extra -10 when a severe threat lands or blows up; -5 for threatened-but-held.
   const sev = (landed: boolean) => (severe ? (landed ? -10 : -5) : 0);
 
+  // Tactical Coercion vs Information Interrogation:
+  // When the action demands physical/tactical compliance (e.g. stepping aside, opening a passage,
+  // dropping weapons, or surrendering) rather than explicitly interrogating for secrets,
+  // the pressure yields physical/tactical submission without divulging deep narrative secrets.
+  const isTactical = actionText
+    ? isTacticalCoercionAction(actionText) && !isInformationExtractionAction(actionText)
+    : false;
+
+  if (isTactical) {
+    switch (outcome) {
+      case 'critical_success': {
+        const delta = -20 + sev(true);
+        return {
+          trustDelta: delta,
+          note: isPersian
+            ? `${npc.name} به شدت مرعوب شد، سلاحش را پایین آورد و بی‌قیدوشرط موضع را ترک کرد (اعتماد ${delta}).${severeNote}`
+            : `${npc.name} is thoroughly intimidated, drops their guard, and yields unconditionally (Trust ${delta}).${severeNote}`,
+        };
+      }
+      case 'success': {
+        const delta = -15 + sev(true);
+        return {
+          trustDelta: delta,
+          note: isPersian
+            ? `${npc.name} با اکراه در برابر تهدید شما عقب نشست و راه را باز کرد (اعتماد ${delta}).${bpNote}${severeNote}`
+            : `${npc.name} reluctantly yields to your pressure and steps aside (Trust ${delta}).${bpNote}${severeNote}`,
+        };
+      }
+      case 'mixed_success': {
+        const delta = -10 + sev(false);
+        return {
+          trustDelta: delta,
+          note: isPersian
+            ? `${npc.name} با تردید و احتیاط موضع خود را حفظ کرد اما کمی عقب نشست (اعتماد ${delta}).`
+            : `${npc.name} hesitates under pressure, yielding slight ground while staying on guard (Trust ${delta}).`,
+        };
+      }
+      case 'failure': {
+        const delta = -10 + sev(false);
+        return {
+          trustDelta: delta,
+          note: isPersian
+            ? `${npc.name} در برابر تهدید عقب‌نشینی نکرد و موضع دفاعی گرفت (اعتماد ${delta}).`
+            : `${npc.name} refuses to back down and holds their ground (Trust ${delta}).`,
+        };
+      }
+      case 'critical_failure':
+      default: {
+        const delta = -25 + sev(true);
+        return {
+          trustDelta: delta,
+          note: isPersian
+            ? `${npc.name} با خشم سلاح کشید و تهدید شما را به چالش طلبید (اعتماد ${delta}).${severeNote}`
+            : `${npc.name} reacts with fury to the intimidation, drawing steel and rejecting your threats (Trust ${delta}).${severeNote}`,
+        };
+      }
+    }
+  }
+
+  // Interrogation / Information extraction branch
   if (unrevealed.length === 0) {
     return {
       trustDelta: -10,
@@ -393,6 +494,21 @@ export function applyPressureOutcome(
             : `${npc.name} bends but does not break — their deepest secrets hold (threshold ${UNBREAKABLE_TRUST_THRESHOLD}+ only cracks on critical success). (Trust ${delta})`,
         };
       }
+
+      // Early-turn narrative pacing gate:
+      // High-tier secrets (requiredTrustLevel >= 50) cannot be casually extracted on Turn 1-3
+      // with a basic success; a conspirator will not immediately confess high treason to a stranger
+      // without a critical success (breaking point) or later-game leverage.
+      if (turnNumber !== undefined && turnNumber <= 3 && s.requiredTrustLevel >= 50) {
+        const delta = -15 + sev(false);
+        return {
+          trustDelta: delta,
+          note: isPersian
+            ? `${npc.name} تحت فشار قرار گرفت و به لکنت افتاد، اما ترس از عواقب افشای حقیقت قوی‌تر از ارعاب شماست — در این مرحله رازی فاش نشد (اعتماد ${delta}).`
+            : `${npc.name} stammers under questioning, but fear of retribution keeps their tongue tied — they will not break on this early meeting without critical leverage (Trust ${delta}).`,
+        };
+      }
+
       const delta = -30 + sev(true);
       return {
         revealedSecretId: s.id,
@@ -454,14 +570,20 @@ export function detectSocialTarget(
 ): NPCDossier | null {
   if (!isSocialAction(actionText)) return null;
   const lower = actionText.toLowerCase();
+  // Strip beneficiary / purpose clauses so "for the caravan" or "to help Radman" doesn't treat the beneficiary as the direct target
+  const targetableText = lower.replace(
+    /(?:برای|به نفع|به خاطر|جهت|به قصد|در راه|for|on behalf of|to help|in favor of)\s+[\w\u0600-\u06FF\u200C]+/gi,
+    ' '
+  );
   for (const npc of npcs ?? []) {
     const nameWords = npc.name
       .toLowerCase()
-      .split(/[^a-z\u0600-\u06FF]+/)
+      .split(/[^a-z\u0600-\u06FF\u200C]+/)
       .filter((w) => w.length >= 3 && !NAME_STOPWORDS.has(w));
+    if (nameWords.length === 0) continue;
     if (nameWords.some((w) => {
-      const regex = new RegExp(`(^|[^a-z\u0600-\u06FF])${w}([^a-z\u0600-\u06FF]|$)`, 'i');
-      return regex.test(lower);
+      const regex = new RegExp(`(^|[^a-z\u0600-\u06FF\u200C])${w}([^a-z\u0600-\u06FF\u200C]|$)`, 'i');
+      return regex.test(targetableText);
     })) return npc;
   }
   return null;

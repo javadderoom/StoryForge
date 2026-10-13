@@ -30,6 +30,8 @@ import {
 } from './actionCheckEngine';
 import {
   isPressureAction,
+  isInformationExtractionAction,
+  isTacticalCoercionAction,
   describeRevealMethod,
   isPressureCrackable,
   isRevealMethodSatisfied,
@@ -65,6 +67,8 @@ export class GameEngine {
 
   // Social & Secret mechanics
   public static isPressureAction = isPressureAction;
+  public static isInformationExtractionAction = isInformationExtractionAction;
+  public static isTacticalCoercionAction = isTacticalCoercionAction;
   public static describeRevealMethod = describeRevealMethod;
   public static isPressureCrackable = isPressureCrackable;
   public static isRevealMethodSatisfied = isRevealMethodSatisfied;

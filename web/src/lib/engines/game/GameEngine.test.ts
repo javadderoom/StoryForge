@@ -452,6 +452,130 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
       assert.equal(out.revealedSecretId, undefined);
       assert.equal(out.trustDelta, -10);
     });
+
+    it('does not falsely target caravan master Radman when intimidating guards for the caravan', () => {
+      const radman: NPCDossier = {
+        id: 'npc_radman',
+        name: 'کاروان‌سالار رادمان دشت‌پیما',
+        title: 'کاروان‌سالار',
+        currentLocationId: 'loc_bridge',
+        initialTrust: 0,
+        personalityTraits: ['cautious'],
+        speechStyle: 'gruff',
+        goals: [],
+        secrets: [
+          {
+            id: 'secret_conspiracy',
+            description: 'شبکه تخلیه شبانه فراریان در بیابان',
+            requiredTrustLevel: 60,
+            revealed: false,
+          },
+        ],
+      };
+
+      // Player action threatens the guards for the caravan: Radman must NOT be matched
+      const target = GameEngine.detectPressureTarget(
+        'نزدیک شدن به صف گزمه‌ها و تلاش برای ارعاب آن‌ها جهت باز کردن معبر برای کاروان',
+        [radman]
+      );
+      assert.equal(target, null);
+
+      // Direct intimidation naming Radman should match
+      const directTarget = GameEngine.detectPressureTarget(
+        'تهدید کاروان‌سالار رادمان جهت اقرار و تسلیم',
+        [radman]
+      );
+      assert.equal(directTarget?.id, 'npc_radman');
+    });
+
+    it('treats tactical coercion (forcing passage/stand down) without revealing secrets', () => {
+      const radman: NPCDossier = {
+        id: 'npc_radman',
+        name: 'کاروان‌سالار رادمان',
+        title: 'کاروان‌سالار',
+        currentLocationId: 'loc_bridge',
+        initialTrust: 0,
+        personalityTraits: [],
+        speechStyle: '',
+        goals: [],
+        secrets: [
+          {
+            id: 'secret_conspiracy',
+            description: 'شبکه تخلیه شبانه فراریان در بیابان',
+            requiredTrustLevel: 60,
+            revealed: false,
+          },
+        ],
+      };
+
+      const tacticalAction = 'نزدیک شدن به صف گزمه‌ها و تلاش برای ارعاب آن‌ها جهت باز کردن معبر برای کاروان';
+      assert.ok(GameEngine.isTacticalCoercionAction(tacticalAction));
+      assert.ok(!GameEngine.isInformationExtractionAction(tacticalAction));
+
+      const out = GameEngine.applyPressureOutcome('success', radman, [], tacticalAction, true, 1);
+      // No secret leaked during tactical coercion
+      assert.equal(out.revealedSecretId, undefined);
+      assert.equal(out.revealedSecretDescription, undefined);
+      assert.ok(out.note.includes('عقب نشست و راه را باز کرد'));
+    });
+
+    it('enforces early-turn pacing gate: high-tier secrets cannot crack on Turn 1-3 without critical success', () => {
+      const conspirator: NPCDossier = {
+        id: 'npc_conspirator',
+        name: 'کاتب مهرزاد',
+        title: 'کاتب',
+        currentLocationId: 'loc_bridge',
+        initialTrust: 0,
+        personalityTraits: [],
+        speechStyle: '',
+        goals: [],
+        secrets: [
+          {
+            id: 'secret_high_treason',
+            description: 'اسناد جعل احکام پادشاهی در انبار سری',
+            requiredTrustLevel: 65,
+            revealed: false,
+          },
+        ],
+      };
+
+      const interrogationAction = 'بازجویی و فشار شدید جهت افشای راز اسناد پنهان';
+      assert.ok(GameEngine.isInformationExtractionAction(interrogationAction));
+
+      // Turn 1 plain success: stammers and holds tongue, no secret leak
+      const turn1Success = GameEngine.applyPressureOutcome(
+        'success',
+        conspirator,
+        [],
+        interrogationAction,
+        true,
+        1
+      );
+      assert.equal(turn1Success.revealedSecretId, undefined);
+      assert.ok(turn1Success.note.includes('در این مرحله رازی فاش نشد'));
+
+      // Turn 1 critical success: total psychological break cracks the secret
+      const turn1Crit = GameEngine.applyPressureOutcome(
+        'critical_success',
+        conspirator,
+        [],
+        interrogationAction,
+        true,
+        1
+      );
+      assert.equal(turn1Crit.revealedSecretId, 'secret_high_treason');
+
+      // Later turn (Turn 5) plain success: breaks normally
+      const turn5Success = GameEngine.applyPressureOutcome(
+        'success',
+        conspirator,
+        [],
+        interrogationAction,
+        true,
+        5
+      );
+      assert.equal(turn5Success.revealedSecretId, 'secret_high_treason');
+    });
   });
 
   describe('Secret reveal methods (trust / pressure / item / ritual / quest / custom)', () => {
