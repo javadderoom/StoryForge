@@ -298,4 +298,22 @@ export class SessionRepository {
       return null;
     }
   }
+
+  /**
+   * Deletes a session and its associated turns/memories from DB and in-memory map
+   */
+  static async deleteSession(sessionId: string): Promise<boolean> {
+    inMemorySessions.delete(sessionId);
+    if (!isDatabaseActive) return true;
+    try {
+      await prisma.playthroughSession.delete({
+        where: { sessionId },
+      });
+      return true;
+    } catch (e) {
+      console.warn(`Database error deleting session ${sessionId}:`, e);
+      return false;
+    }
+  }
 }
+

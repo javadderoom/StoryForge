@@ -85,6 +85,21 @@ export async function patchSession(sessionId: string, playerState: PlayerState):
   }
 }
 
+export async function resetSession(
+  storyId: string,
+  sessionId?: string
+): Promise<{ refundedCredits: number; newCreditBalance: number | null }> {
+  const res = await fetch('/api/play/session/reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ storyId, sessionId }),
+  });
+  const json = await asJson(res);
+  if (!json.success) throw new Error(json.error || 'Failed to reset session');
+  return json.data;
+}
+
+
 export async function sendAction(payload: {
   storyId: string;
   sessionId?: string;

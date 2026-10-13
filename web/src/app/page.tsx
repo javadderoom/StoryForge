@@ -48,6 +48,7 @@ import {
   startSession,
   resumeSession,
   patchSession,
+  resetSession,
   sendAction,
   getCoverUrl,
   CharacterSetup,
@@ -193,6 +194,25 @@ export default function Home() {
   const [ambientMuted, setAmbientMuted] = useState(false);
 
   const isRtl = (storyMeta?.language ?? selectedStory?.language ?? 'en') !== 'en';
+
+  const [showStoryRevampNotice, setShowStoryRevampNotice] = useState(false);
+
+  useEffect(() => {
+    const isOldSession =
+      selectedStory?.id === 'story_mt4ofllt' &&
+      (turnNumber > 1 ||
+        (currentBeat as any)?.sceneId === 'scene_0243' ||
+        currentBeat?.narrative?.includes('بارانداز غربی کاروانسرای شاخ زرین'));
+
+    if (isOldSession) {
+      const dismissed = localStorage.getItem('dismissed_revamp_notice_story_mt4ofllt');
+      if (!dismissed) {
+        setShowStoryRevampNotice(true);
+      }
+    } else {
+      setShowStoryRevampNotice(false);
+    }
+  }, [selectedStory?.id, turnNumber, currentBeat]);
 
   // ---- Persist settings ----
   useEffect(() => {
@@ -706,11 +726,34 @@ export default function Home() {
     if (!selectedStory) return;
     const ok = await notify.confirm(
       isRtl
-        ? 'آیا از شروع مجدد ماجراجویی اطمینان دارید؟ تمام پیشرفت فعلی این جلسه بازنشانی خواهد شد.'
-        : 'Are you sure you want to restart your adventure? Current session progress will be reset.'
+        ? 'آیا از شروع مجدد ماجراجویی اطمینان دارید؟ تمام پیشرفت فعلی این جلسه بازنشانی خواهد شد و کریدیت‌های مصرف‌شده در این داستان به موجودی شما بازگردانده می‌شوند.'
+        : 'Are you sure you want to restart your adventure? Current session progress will be reset and any credits spent on this story will be refunded to your balance.'
     );
     if (!ok) return;
+
+    try {
+      const resetRes = await resetSession(selectedStory.id, sessionId || undefined);
+      if (resetRes?.newCreditBalance != null) {
+        updateCreditBalance(resetRes.newCreditBalance);
+      }
+      if (resetRes?.refundedCredits && resetRes.refundedCredits > 0) {
+        notify.success(
+          isRtl
+            ? `${toPersianDigits(resetRes.refundedCredits)} صحنه (کریدیت) به موجودی شما بازگردانده شد.`
+            : `${resetRes.refundedCredits} scenes refunded to your credit balance.`
+        );
+      }
+    } catch (err) {
+      console.warn('Failed to reset session on server:', err);
+    }
+
     clearStoredSession(selectedStory.id);
+    try {
+      localStorage.removeItem('dismissed_revamp_notice_story_mt4ofllt');
+    } catch {
+      /* ignore */
+    }
+    setShowStoryRevampNotice(false);
     setSessionId('');
     setCurrentBeat(null);
     audioService.stopAmbient();
@@ -1086,6 +1129,44 @@ export default function Home() {
             {displacementBanner && (
               <div className="animate-pulse rounded-2xl border border-red-500/50 bg-red-950/60 p-3 text-xs font-bold text-red-200 shadow-[0_0_18px_rgba(239,68,68,0.4)]">
                 {isRtl ? `سقوط مرگبار! به «${displacementBanner}» پرتاب شدید.` : `Catastrophic fall! Displaced into “${displacementBanner}”.`}
+              </div>
+            )}
+            {showStoryRevampNotice && (
+              <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-950/60 via-zinc-900/90 to-amber-950/50 p-4 shadow-xl backdrop-blur-md">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
+                      <Sparkles className="h-4 w-4 text-amber-400" />
+                      <span>{isRtl ? 'به‌روزرسانی پردهٔ اول داستان' : 'Arc 1 Story Revamp'}</span>
+                    </div>
+                    <p className="text-xs text-zinc-300 leading-relaxed">
+                      {isRtl
+                        ? 'پردهٔ اول «خاکسترِ زروان» بازنویسی شده و ماجراجویی از پهنهٔ بادیهٔ هیرام و همراهی با کاروان آغاز می‌شود. می‌توانید ماجراجویی خود را از ابتدا آغاز کنید؛ تمامی کریدیت‌های مصرف‌شده در این داستان به کیف پول شما بازگردانده می‌شوند.'
+                        : 'Act 1 of "Ashes of Zarvan" has been revamped to start out in the Hiram wilderness with the caravan. You can reset your playthrough and get all credits spent on this story refunded.'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                    <button
+                      onClick={restartAdventure}
+                      className="flex-1 sm:flex-initial px-3 py-1.5 rounded-xl bg-amber-500/25 hover:bg-amber-500/35 border border-amber-500/40 text-amber-200 text-xs font-medium transition-all"
+                    >
+                      {isRtl ? 'بازنشانی و استرداد کریدیت‌ها' : 'Reset & Refund'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowStoryRevampNotice(false);
+                        try {
+                          localStorage.setItem('dismissed_revamp_notice_story_mt4ofllt', 'true');
+                        } catch {
+                          /* ignore */
+                        }
+                      }}
+                      className="px-2.5 py-1.5 rounded-xl text-zinc-400 hover:text-zinc-200 text-xs transition-colors"
+                    >
+                      {isRtl ? 'ادامه بازی قبلی' : 'Dismiss'}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
             <div
