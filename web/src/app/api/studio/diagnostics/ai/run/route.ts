@@ -6,6 +6,7 @@ import { loadCassette, listCassetteModels } from '@/lib/evals/cassetteStore';
 import { defaultSceneModelCall } from '@/lib/engines/narrative/modelCall';
 import { buildCorsHeaders, handleCorsPreflight } from '@/lib/cors';
 import { requireStudioWrite } from '@/lib/auth/studioAuth';
+import { SubQAdapter } from '@/lib/providers/SubQAdapter';
 
 /**
  * Plan 14 — Tier 5: Studio Diagnostic Bench backend.
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
           language: s.language,
         })),
         cassetteModels: listCassetteModels(),
+        subqConfigured: new SubQAdapter().isConfigured(),
       },
     },
     { headers: buildCorsHeaders(req) }
@@ -46,7 +48,13 @@ export async function POST(req: NextRequest) {
     if (!guard.ok) return guard.response;
 
     const body = await req.json();
-    const { scenarioId, modelId = 'gemini-3.5-flash-lite', live = false, judge = false } = body ?? {};
+    const {
+      scenarioId,
+      modelId = 'gemini-3.5-flash-lite',
+      live = false,
+      judge = false,
+      judgeProvider = 'gemini',
+    } = body ?? {};
 
     const scenario = EVAL_SCENARIOS.find((s) => s.id === scenarioId);
     if (!scenario) {
@@ -68,7 +76,13 @@ export async function POST(req: NextRequest) {
       modelId,
       modelCall,
       source: live ? 'live' : 'cassette',
-      judge: judge ? { modelCall: defaultSceneModelCall, modelId: 'judge' } : undefined,
+      judge: judge
+        ? {
+            modelCall: defaultSceneModelCall,
+            modelId: judgeProvider === 'subq' ? 'subq-snap-preview' : 'judge',
+            provider: (judgeProvider === 'subq' ? 'subq' : 'gemini') as 'gemini' | 'subq',
+          }
+        : undefined,
     });
 
     return NextResponse.json(

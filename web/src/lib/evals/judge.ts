@@ -3,15 +3,17 @@ import { GenerationPromptPayload } from '@/lib/engines/narrative/PromptAssembler
 import { SceneModelCall } from '@/lib/engines/narrative/modelCall';
 import { ChoiceOption } from '@/lib/types/gameplay';
 import { EvalScenario, HeuristicReport, JudgeScore } from './types';
+import { runSubQJudge } from './subqJudge';
 
 /**
  * Plan 14 — Tier 3 Layer B: LLM-as-a-Judge.
  *
- * A lightweight frontier model scores the scene on four literary/mechanical
- * axes (1-5). This complements the deterministic Layer-A rules: Layer A proves
- * rules were obeyed, Layer B judges whether the prose and choices are actually
- * good. Enabled explicitly (CLI `--judge` / `EVAL_JUDGE=1`) so CI stays free.
+ * A lightweight frontier model or decision model scores the scene on four
+ * literary/mechanical axes (1-5). Supports both Gemini (LLM) and SubQ Snap
+ * (fast decision model).
  */
+
+export type JudgeProvider = 'gemini' | 'subq';
 
 export const JUDGE_SCHEMA = z.object({
   causeEffect: z.number().min(1).max(5),
@@ -29,8 +31,9 @@ export const JUDGE_RUBRIC = [
 ].join('\n');
 
 export interface JudgeOptions {
-  modelCall: SceneModelCall;
+  modelCall?: SceneModelCall;
   modelId?: string;
+  provider?: JudgeProvider;
 }
 
 export function buildJudgePrompt(
@@ -95,6 +98,15 @@ export async function runJudge(
   heuristic: HeuristicReport,
   options: JudgeOptions
 ): Promise<JudgeScore | null> {
+  if (options.provider === 'subq') {
+    const subqScore = await runSubQJudge(scenario, narrative, choices, heuristic, {
+      modelId: options.modelId || 'subq-snap-preview',
+    });
+    if (subqScore) return subqScore;
+    if (!options.modelCall) return null;
+  }
+
+  if (!options.modelCall) return null;
   const modelId = options.modelId ?? 'judge';
   const prompt = buildJudgePrompt(scenario, narrative, choices, heuristic);
   const raw = await options.modelCall(prompt);

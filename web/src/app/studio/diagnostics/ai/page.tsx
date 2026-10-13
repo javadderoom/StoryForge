@@ -50,6 +50,8 @@ export default function AiDiagnosticsPage() {
   const [modelId, setModelId] = useState('gemini-3.5-flash-lite');
   const [live, setLive] = useState(false);
   const [judge, setJudge] = useState(false);
+  const [judgeProvider, setJudgeProvider] = useState<'gemini' | 'subq'>('gemini');
+  const [subqConfigured, setSubqConfigured] = useState(false);
   const [runningId, setRunningId] = useState<string | null>(null);
   const [result, setResult] = useState<EvalResultView | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +82,7 @@ export default function AiDiagnosticsPage() {
         if (json?.success) {
           setScenarios(json.data.scenarios ?? []);
           setCassetteModels(json.data.cassetteModels ?? []);
+          setSubqConfigured(Boolean(json.data.subqConfigured));
         }
       })
       .catch(() => setError('Failed to load scenarios.'));
@@ -92,7 +95,7 @@ export default function AiDiagnosticsPage() {
       const res = await fetch('/api/studio/diagnostics/ai/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenarioId, modelId, live, judge }),
+        body: JSON.stringify({ scenarioId, modelId, live, judge, judgeProvider }),
       });
       const json = await res.json();
       if (!json?.success) throw new Error(json?.error ?? 'Evaluation failed');
@@ -154,6 +157,33 @@ export default function AiDiagnosticsPage() {
           <input type="checkbox" checked={judge} onChange={(e) => setJudge(e.target.checked)} />
           {t.judgeToggle}
         </label>
+        {judge && (
+          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1 text-xs">
+            <span className="text-[11px] text-zinc-400 font-bold">
+              {isPersian ? 'موتور داور:' : 'Judge Engine:'}
+            </span>
+            <select
+              value={judgeProvider}
+              onChange={(e) => setJudgeProvider(e.target.value as 'gemini' | 'subq')}
+              className="bg-transparent text-xs text-amber-300 font-bold focus:outline-none cursor-pointer"
+            >
+              <option value="gemini" className="bg-zinc-900 text-zinc-200">
+                Gemini 3.5 (LLM)
+              </option>
+              <option value="subq" className="bg-zinc-900 text-zinc-200">
+                SubQ Snap (384K · $0.05/M)
+              </option>
+            </select>
+            {!subqConfigured && judgeProvider === 'subq' && (
+              <span
+                className="text-[10px] text-amber-400/80 font-mono"
+                title="Set SUBQ_API_KEY in .env.local to enable live decisions"
+              >
+                {isPersian ? '(نیاز به SUBQ_API_KEY)' : '(Requires SUBQ_API_KEY)'}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {error && (
