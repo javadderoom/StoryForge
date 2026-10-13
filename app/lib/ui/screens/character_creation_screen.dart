@@ -1030,60 +1030,63 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
         color: Color(0xFF0F111D),
         border: Border(top: BorderSide(color: Color(0xFF27272A))),
       ),
-      child: Row(
-        children: [
-          if (_currentStep > 0) ...[
-            OutlinedButton(
-              onPressed: () => setState(() => _currentStep--),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                side: const BorderSide(color: Color(0xFF27272A)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            if (_currentStep > 0) ...[
+              OutlinedButton(
+                onPressed: () => setState(() => _currentStep--),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  side: const BorderSide(color: Color(0xFF27272A)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: Text(
+                  isPersian ? 'مرحله قبل' : 'Back',
+                  style: GoogleFonts.vazirmatn(fontSize: 13, color: Colors.white70),
+                ),
               ),
-              child: Text(
-                isPersian ? 'مرحله قبل' : 'Back',
-                style: GoogleFonts.vazirmatn(fontSize: 13, color: Colors.white70),
+              const SizedBox(width: 12),
+            ],
+            Expanded(
+              child: ElevatedButton(
+                onPressed: (_isEmbarking || isStepBlocked)
+                    ? null
+                    : () {
+                        if (_currentStep < 3) {
+                          setState(() => _currentStep++);
+                        } else {
+                          _embark();
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isStepBlocked ? const Color(0xFF27272A) : const Color(0xFFF59E0B),
+                  foregroundColor: isStepBlocked ? Colors.white38 : Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: isStepBlocked ? 0 : 4,
+                ),
+                child: _isEmbarking
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                      )
+                    : Text(
+                        isStepBlocked
+                            ? (isPersian
+                                ? 'امتیازهای باقی‌مانده را تخصیص دهید (${_remainingPoints.toPersianDigits(enable: isPersian)})'
+                                : 'Allocate all points ($_remainingPoints left)')
+                            : (_currentStep == 3
+                                ? (isPersian ? 'آغاز سرگذشت در قلمرو' : 'Embark on Chronicle')
+                                : (isPersian ? 'مرحله بعد' : 'Next Step')),
+                        style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
               ),
             ),
-            const SizedBox(width: 12),
           ],
-          Expanded(
-            child: ElevatedButton(
-              onPressed: (_isEmbarking || isStepBlocked)
-                  ? null
-                  : () {
-                      if (_currentStep < 3) {
-                        setState(() => _currentStep++);
-                      } else {
-                        _embark();
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isStepBlocked ? const Color(0xFF27272A) : const Color(0xFFF59E0B),
-                foregroundColor: isStepBlocked ? Colors.white38 : Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: isStepBlocked ? 0 : 4,
-              ),
-              child: _isEmbarking
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
-                    )
-                  : Text(
-                      isStepBlocked
-                          ? (isPersian
-                              ? 'امتیازهای باقی‌مانده را تخصیص دهید (${_remainingPoints.toPersianDigits(enable: isPersian)})'
-                              : 'Allocate all points ($_remainingPoints left)')
-                          : (_currentStep == 3
-                              ? (isPersian ? 'آغاز سرگذشت در قلمرو' : 'Embark on Chronicle')
-                              : (isPersian ? 'مرحله بعد' : 'Next Step')),
-                      style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold),
-                    ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

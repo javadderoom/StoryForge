@@ -21,6 +21,7 @@ class AuthScreen extends ConsumerStatefulWidget {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const AuthScreen(),
     );
@@ -171,6 +172,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const _ForgotPasswordSheet(),
     );
@@ -270,7 +272,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       textDirection: TextDirection.rtl,
       child: Container(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom +
+              MediaQuery.of(context).padding.bottom +
+              20,
           top: 16,
           left: 20,
           right: 20,
@@ -743,7 +747,9 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet>
       textDirection: TextDirection.rtl,
       child: Container(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom +
+              MediaQuery.of(context).padding.bottom +
+              24,
           top: 16,
           left: 20,
           right: 20,

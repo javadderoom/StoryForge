@@ -212,9 +212,10 @@ class _DiceRollDialogState extends State<DiceRollDialog> {
 
     return Directionality(
       textDirection: widget.isPersian ? TextDirection.rtl : TextDirection.ltr,
-      child: Center(
-        child: Material(
-          color: Colors.transparent,
+      child: SafeArea(
+        child: Center(
+          child: Material(
+            color: Colors.transparent,
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 24),
             padding: const EdgeInsets.all(24),
@@ -426,8 +427,9 @@ class _DiceRollDialogState extends State<DiceRollDialog> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildStatBox(String label, String value, {Color color = Colors.white}) {
     return Column(

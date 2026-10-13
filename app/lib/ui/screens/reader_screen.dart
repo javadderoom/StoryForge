@@ -1028,6 +1028,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                 ],
                               ),
                             ],
+                            const SizedBox(height: 24),
                           ],
                         ),
                       ),

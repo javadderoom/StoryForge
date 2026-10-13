@@ -40,6 +40,7 @@ class ReaderSettingsSheet extends StatefulWidget {
   }) {
     return showModalBottomSheet(
       context: context,
+      useSafeArea: true,
       backgroundColor: const Color(0xFF0F111D),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -81,8 +82,10 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: widget.isPersian ? TextDirection.rtl : TextDirection.ltr,
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: Column(
@@ -275,7 +278,8 @@ class _ReaderSettingsSheetState extends State<ReaderSettingsSheet> {
         ),
       ),
     ),
-  );
+  ),
+);
 }
 
   Widget _buildRealmButton({

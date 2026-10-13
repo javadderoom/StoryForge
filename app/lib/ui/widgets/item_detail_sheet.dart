@@ -26,6 +26,7 @@ class ItemDetailSheet extends ConsumerWidget {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (context) => ItemDetailSheet(
         item: item,
         isPersian: isPersian,
@@ -141,8 +142,10 @@ class ItemDetailSheet extends ConsumerWidget {
             ),
           ],
         ),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -593,7 +596,8 @@ class ItemDetailSheet extends ConsumerWidget {
         ),
       ),
     ),
-  );
+  ),
+);
 }
 
   String _getStatName(String statId) {

@@ -18,6 +18,7 @@ class ShopScreen extends ConsumerStatefulWidget {
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const ShopScreen(),
     );
@@ -275,7 +276,9 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           border: Border(top: BorderSide(color: Color(0xFF272A3C), width: 1.5)),
         ),
-        child: Column(
+        child: SafeArea(
+          top: false,
+          child: Column(
           children: [
             // Handle Drag Bar
             Container(
@@ -564,6 +567,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

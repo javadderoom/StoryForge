@@ -326,40 +326,43 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
             ],
           ),
         ),
-        body: playerState == null
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+        body: SafeArea(
+          top: false,
+          child: playerState == null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(color: Color(0xFFF59E0B)),
+                      const SizedBox(height: 16),
+                      Text(
+                        isPersian ? 'در حال بارگذاری اطلاعات سرگذشت...' : 'Loading Character State...',
+                        style: GoogleFonts.vazirmatn(color: Colors.white70, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                )
+              : TabBarView(
+                  controller: _tabController,
                   children: [
-                    const CircularProgressIndicator(color: Color(0xFFF59E0B)),
-                    const SizedBox(height: 16),
-                    Text(
-                      isPersian ? 'در حال بارگذاری اطلاعات سرگذشت...' : 'Loading Character State...',
-                      style: GoogleFonts.vazirmatn(color: Colors.white70, fontSize: 13),
-                    ),
+                    // Tab 1: Hero & Equipment
+                    _buildHeroSheetTab(playerState, theme, isPersian, session.rpgResources, session.rpgStats,
+                        session.currencyDenominations),
+
+                    // Tab 2: Inventory & Stash
+                    _buildInventoryTab(playerState, theme, isPersian),
+
+                    // Tab 3: NPCs & Factions
+                    _buildNpcDossierTab(playerState, session, theme, isPersian),
+
+                    // Tab 4: Quests & Chronicle
+                    _buildQuestJournalTab(playerState, session, theme, isPersian),
+
+                    // Tab 5: World Codex
+                    _buildWorldCodexTab(playerState, session, theme, isPersian),
                   ],
                 ),
-              )
-            : TabBarView(
-                controller: _tabController,
-                children: [
-                  // Tab 1: Hero & Equipment
-                  _buildHeroSheetTab(playerState, theme, isPersian, session.rpgResources, session.rpgStats,
-                      session.currencyDenominations),
-
-                  // Tab 2: Inventory & Stash
-                  _buildInventoryTab(playerState, theme, isPersian),
-
-                  // Tab 3: NPCs & Factions
-                  _buildNpcDossierTab(playerState, session, theme, isPersian),
-
-                  // Tab 4: Quests & Chronicle
-                  _buildQuestJournalTab(playerState, session, theme, isPersian),
-
-                  // Tab 5: World Codex
-                  _buildWorldCodexTab(playerState, session, theme, isPersian),
-                ],
-              ),
+        ),
       ),
     );
   }

@@ -17,6 +17,7 @@ class ResetPasswordDialog extends StatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => ResetPasswordDialog(token: token),
     );
@@ -100,7 +101,9 @@ class _ResetPasswordDialogState extends State<ResetPasswordDialog> {
       textDirection: TextDirection.rtl,
       child: Container(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom +
+              MediaQuery.of(context).padding.bottom +
+              24,
           top: 16,
           left: 20,
           right: 20,

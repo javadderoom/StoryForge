@@ -132,10 +132,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
           Positioned(
             left: 24,
             right: 24,
-            bottom: 48,
-            child: FadeTransition(
-              opacity: _fadeIn,
-              child: Column(
+            bottom: 24,
+            child: SafeArea(
+              top: false,
+              child: FadeTransition(
+                opacity: _fadeIn,
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Golden Glowing Title
@@ -195,8 +197,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 }

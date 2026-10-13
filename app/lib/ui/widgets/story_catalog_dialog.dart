@@ -79,9 +79,10 @@ class _StoryCatalogDialogState extends State<StoryCatalogDialog> {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: widget.isPersian ? TextDirection.rtl : TextDirection.ltr,
-      child: Center(
-        child: Material(
-          color: Colors.transparent,
+      child: SafeArea(
+        child: Center(
+          child: Material(
+            color: Colors.transparent,
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
             padding: const EdgeInsets.all(24),
@@ -271,6 +272,7 @@ class _StoryCatalogDialogState extends State<StoryCatalogDialog> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

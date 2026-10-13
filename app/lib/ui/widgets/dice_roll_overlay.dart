@@ -203,13 +203,15 @@ class DiceRollOverlay extends StatelessWidget {
         child: Container(
           color: Colors.black.withValues(alpha: 0.88),
           alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Directionality(
-            textDirection: isPersian ? TextDirection.rtl : TextDirection.ltr,
-            child: Material(
-              color: Colors.transparent,
-              child: Container(
-                padding: const EdgeInsets.all(24),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: Directionality(
+                textDirection: isPersian ? TextDirection.rtl : TextDirection.ltr,
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: const Color(0xFF10121D),
                   borderRadius: BorderRadius.circular(28),
@@ -459,7 +461,9 @@ class DiceRollOverlay extends StatelessWidget {
         ),
       ),
     ),
-  );
+  ),
+),
+);
 }
 
   String _formatStatLabel(String? statId) {
