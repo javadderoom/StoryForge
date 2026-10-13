@@ -4,6 +4,7 @@ import '../models/game_state.dart';
 import '../models/choice_option.dart';
 import '../models/character_creation.dart';
 import '../models/story.dart';
+import '../models/turn_status_delta.dart';
 import '../services/game_api_service.dart';
 import '../services/audio_service.dart';
 import 'audio_provider.dart';
@@ -41,6 +42,8 @@ class GameSessionState {
   final DiscoveredCreature? discoveredCreature;
   /// XP and level progression awarded in the latest turn (for toasts and level-up dialogs).
   final ProgressionAward? lastXpAward;
+  /// Vitals, currency, item, and stat changes that occurred on the current turn.
+  final TurnStatusDelta? lastStatusDelta;
 
   GameSessionState({
     this.isLoading = false,
@@ -69,6 +72,7 @@ class GameSessionState {
     this.lastActionText,
     this.discoveredCreature,
     this.lastXpAward,
+    this.lastStatusDelta,
   });
 
   bool get isPersian {
@@ -105,12 +109,14 @@ class GameSessionState {
     String? lastActionText,
     DiscoveredCreature? discoveredCreature,
     ProgressionAward? lastXpAward,
+    TurnStatusDelta? lastStatusDelta,
     bool clearSceneImage = false,
     bool clearPendingTurn = false,
     bool clearDisplacement = false,
     bool clearLastAction = false,
     bool clearDiscoveredCreature = false,
     bool clearLastXpAward = false,
+    bool clearLastStatusDelta = false,
   }) {
     return GameSessionState(
       isLoading: isLoading ?? this.isLoading,
@@ -143,6 +149,7 @@ class GameSessionState {
           ? null
           : (discoveredCreature ?? this.discoveredCreature),
       lastXpAward: clearLastXpAward ? null : (lastXpAward ?? this.lastXpAward),
+      lastStatusDelta: clearLastStatusDelta ? null : (lastStatusDelta ?? this.lastStatusDelta),
     );
   }
 
@@ -356,10 +363,32 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
           ref.read(authProvider.notifier).updateCreditBalance(remainingCredits.toInt());
         }
 
+        final oldPlayer = state.playerState;
+        final rawPlayer = result['data']['updatedPlayerState'];
+        var updatedPlayer = PlayerState.fromJson(rawPlayer);
+        if ((rawPlayer['equipment'] == null || updatedPlayer.equipment.allEquippedIds.isEmpty) &&
+            state.playerState != null &&
+            state.playerState!.equipment.allEquippedIds.isNotEmpty) {
+          updatedPlayer = updatedPlayer.copyWith(equipment: state.playerState!.equipment);
+        }
+
+        final statusDelta = TurnStatusDelta.compute(
+          oldState: oldPlayer,
+          newState: updatedPlayer,
+          isPersian: state.isPersian,
+          rpgResources: state.rpgResources,
+          currencyDenominations: state.currencyDenominations,
+          xpAward: xpAward,
+        );
+
         if (holdNarrativeUpdate) {
+          final pendingData = Map<String, dynamic>.from(result['data'] as Map);
+          if (statusDelta != null) {
+            pendingData['_computedStatusDelta'] = statusDelta;
+          }
           // Store in pending data so the background screen doesn't reveal the next scene
           state = state.copyWith(
-            pendingTurnData: result['data'],
+            pendingTurnData: pendingData,
             lastResolution: resolution,
             lastActionText: choice.text,
             lastXpAward: xpAward,
@@ -369,13 +398,6 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
           );
         } else {
           final beatData = result['data']['beat'];
-          final rawPlayer = result['data']['updatedPlayerState'];
-          var updatedPlayer = PlayerState.fromJson(rawPlayer);
-          if ((rawPlayer['equipment'] == null || updatedPlayer.equipment.allEquippedIds.isEmpty) &&
-              state.playerState != null &&
-              state.playerState!.equipment.allEquippedIds.isNotEmpty) {
-            updatedPlayer = updatedPlayer.copyWith(equipment: state.playerState!.equipment);
-          }
           final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? [];
           final sceneImg = beatData['imageUrl'] as String?;
           final discoveredJson = beatData['discoveredCreature'] as Map<String, dynamic>?;
@@ -391,6 +413,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             lastResolution: resolution,
             lastActionText: choice.text,
             lastXpAward: xpAward,
+            lastStatusDelta: statusDelta,
+            clearLastStatusDelta: statusDelta == null,
             turnNumber: state.turnNumber + 1,
             isCreditDepleted: false,
             clearPendingTurn: true,
@@ -445,6 +469,17 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     final rawProgression = data['progression'] ?? (data['resolution'] as Map<String, dynamic>?)?['progression'];
     final xpAward = rawProgression != null ? ProgressionAward.fromJson(Map<String, dynamic>.from(rawProgression as Map)) : null;
 
+    final computedDelta = data['_computedStatusDelta'] as TurnStatusDelta?;
+    final statusDelta = computedDelta ??
+        TurnStatusDelta.compute(
+          oldState: state.playerState,
+          newState: updatedPlayer,
+          isPersian: state.isPersian,
+          rpgResources: state.rpgResources,
+          currencyDenominations: state.currencyDenominations,
+          xpAward: xpAward,
+        );
+
     state = state.copyWith(
       isLoading: false,
       currentNarrative: beatData['narrativeProse'] ?? '',
@@ -453,6 +488,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
       playerState: updatedPlayer,
       lastXpAward: xpAward,
+      lastStatusDelta: statusDelta,
+      clearLastStatusDelta: statusDelta == null,
       turnNumber: state.turnNumber + 1,
       isCreditDepleted: false,
       clearPendingTurn: true,

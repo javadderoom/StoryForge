@@ -22,6 +22,7 @@ import '../widgets/reader_settings_sheet.dart';
 import '../widgets/story_cover_image.dart';
 import '../widgets/level_up_dialog.dart';
 import '../widgets/rpg_toast.dart';
+import '../widgets/turn_status_delta_banner.dart';
 import '../../providers/auth_provider.dart';
 import 'story_catalog_screen.dart';
 import 'compendium_screen.dart';
@@ -924,6 +925,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                           ),
                                         ],
                                       ),
+                                    ),
+                                  ],
+                                  if (session.lastStatusDelta != null && session.lastStatusDelta!.hasChanges) ...[
+                                    TurnStatusDeltaBanner(
+                                      delta: session.lastStatusDelta!,
+                                      theme: theme,
+                                      isPersian: isPersian,
+                                      onOpenCompendium: () {
+                                        ref.read(audioProvider.notifier).playSfx(SfxType.pageTurn);
+                                        CompendiumScreen.open(context);
+                                      },
                                     ),
                                   ],
                                   NarrativeProse(
