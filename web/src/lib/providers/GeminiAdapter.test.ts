@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   normalizeChoices,
   normalizeExtractedMemories,
+  cleanChoiceText,
   GeminiAdapter,
 } from './GeminiAdapter';
 import { GenerationPromptPayload } from '../engines/narrative/PromptAssembler';
@@ -159,6 +160,40 @@ describe('Plan 08 - AI Output Normalization (choice & memory guardrails)', () =>
       // s3 English sword hilt sentry standoff -> must not be diceless
       assert.ok(out[2].requiredStatId !== undefined, 'English sword standoff must not be diceless');
       assert.ok(typeof out[2].targetDC === 'number' && out[2].targetDC! >= 9);
+    });
+
+    it('strips accidental roll check, stat tags, and DC labels from choice text', () => {
+      const out = normalizeChoices(
+        [
+          { id: 'c1', text: 'فریاد کشیدن بر سر ساربانان (بررسی مهارت کاروان)', requiredStatId: 'might' },
+          { id: 'c2', text: 'سنگر گرفتن پشت تخته‌سنگ [پرتاب تاس - نیرو]', requiredStatId: 'might' },
+          { id: 'c3', text: 'Draw sword and confront the sentry (Skill Check: Might)', requiredStatId: 'might' },
+          { id: 'c4', text: '«آرام خزیدن به سمت بارانداز» [DC 12]', requiredStatId: 'agility' },
+        ],
+        ['might', 'agility'],
+        false
+      );
+
+      assert.equal(out.length, 4);
+      assert.equal(out[0].text, 'فریاد کشیدن بر سر ساربانان');
+      assert.equal(out[1].text, 'سنگر گرفتن پشت تخته‌سنگ');
+      assert.equal(out[2].text, 'Draw sword and confront the sentry');
+      assert.equal(out[3].text, 'آرام خزیدن به سمت بارانداز');
+    });
+
+    it('cleanChoiceText strips outer quotes, numbering prefixes, and check tags', () => {
+      assert.equal(
+        cleanChoiceText('“فریاد کشیدن بر سر ساربانان (بررسی مهارت)”'),
+        'فریاد کشیدن بر سر ساربانان'
+      );
+      assert.equal(
+        cleanChoiceText('Choice 1: Hold the shield high (Roll check)'),
+        'Hold the shield high'
+      );
+      assert.equal(
+        cleanChoiceText('گزینه ۲: پرش از روی شکاف [آزمون چابکی]'),
+        'پرش از روی شکاف'
+      );
     });
   });
 

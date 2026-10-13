@@ -60,6 +60,31 @@ export function isConfrontationalChoiceText(text: string, riskLevel?: string): b
 }
 
 /**
+ * Strips accidental roll-check labels, DC notations, parenthetical skill tags,
+ * and outer quotation marks from choice text so choices only display clean,
+ * immersive literary narrative prose (the UI badge already indicates the check).
+ */
+export function cleanChoiceText(rawText: unknown): string {
+  if (typeof rawText !== 'string') return '';
+  let text = rawText.trim();
+
+  // 1. Strip parenthetical or bracketed check / roll / DC / stat tags first
+  // e.g. "(بررسی مهارت)", "(پرتاب تاس)", "(آزمون نیرو)", "[Roll Check]", "(Skill Check: Might)", "[DC 12]", "(D20)"
+  text = text.replace(
+    /\s*[\(\[\{]\s*(?:roll check|skill check|stat check|ability check|dice check|dice roll|d20 check|d20|check|dc\s*\d+|بررسی مهارت|بررسی صفت|بررسی ویژگی|بررسی تاس|پرتاب تاس|آزمون مهارت|آزمون ویژگی|آزمون صفت|آزمون|تاس)[\s\S]*?[\)\]\}]/gi,
+    ''
+  ).trim();
+
+  // 2. Strip choice numbering prefixes e.g. "Choice 1:", "گزینه ۲: " (supports Latin, Arabic, and Persian digits)
+  text = text.replace(/^(?:choice|گزینه|انتخاب)\s*[\d\u0660-\u0669\u06F0-\u06F9]+\s*[:\-–—]\s*/i, '').trim();
+
+  // 3. Strip surrounding book quotation marks
+  text = text.replace(/^[«"“'`](.*)[»"”'`]$/s, '$1').trim();
+
+  return text;
+}
+
+/**
  * Plan 08 — deterministic normalization of AI-returned choices.
  * Rejects choices referencing stats that do not exist in the active RPG system
  * (they would silently roll with a 0 modifier), clamps DCs to a sane range,
@@ -112,7 +137,8 @@ export function normalizeChoices(
     if (!c || typeof c !== 'object') continue;
     if (normalized.length >= 4) break;
     const raw = c as Record<string, unknown>;
-    const text = typeof raw.text === 'string' && raw.text.trim() ? raw.text.trim() : defaultChoiceText;
+    const rawText = typeof raw.text === 'string' && raw.text.trim() ? raw.text.trim() : defaultChoiceText;
+    const text = cleanChoiceText(rawText) || defaultChoiceText;
 
     const style = VALID_ACTION_STYLES.has(raw.style as string) ? (raw.style as ActionStyle) : 'tactical';
     const riskLevelRaw =

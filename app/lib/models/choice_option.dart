@@ -18,9 +18,28 @@ class ChoiceOption {
   });
 
   factory ChoiceOption.fromJson(Map<String, dynamic> json) {
+    final rawText = json['text'] as String? ?? '';
+    final cleanedText = rawText
+        .replaceAll(
+          RegExp(
+            r'\s*[\(\[\{]\s*(?:roll check|skill check|stat check|ability check|dice check|dice roll|d20 check|d20|check|dc\s*\d+|بررسی مهارت|بررسی صفت|بررسی ویژگی|بررسی تاس|پرتاب تاس|آزمون مهارت|آزمون ویژگی|آزمون صفت|آزمون|تاس)[\s\S]*?[\)\]\}]',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .replaceAll(
+          RegExp(
+            r'^(?:choice|گزینه|انتخاب)\s*[\d\u0660-\u0669\u06F0-\u06F9]+\s*[:\-–—]\s*',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .replaceAll(RegExp(r'^[«"“\x27`](.*)[»"”\x27`]$'), r'$1')
+        .trim();
+
     return ChoiceOption(
       id: json['id'] ?? '',
-      text: json['text'] ?? '',
+      text: cleanedText.isNotEmpty ? cleanedText : rawText,
       style: json['style'] ?? 'tactical',
       riskLevel: json['riskLevel'] ?? 'medium',
       requiredStatId: json['requiredStatId'],
