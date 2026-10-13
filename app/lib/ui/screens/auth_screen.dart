@@ -43,7 +43,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   final TextEditingController _regNameCtrl = TextEditingController();
 
   bool _isPasswordVisible = false;
-  bool _isBazaarLoading = false;
 
   @override
   void initState() {
@@ -99,14 +98,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   }
 
   void _handleRegister() async {
-    final phone = _regPhoneCtrl.text.trim();
+    final contact = _regPhoneCtrl.text.trim();
     final pass = _regPassCtrl.text.trim();
     final name = _regNameCtrl.text.trim();
 
-    if (phone.isEmpty || pass.isEmpty) {
+    if (contact.isEmpty || pass.isEmpty) {
       AppToast.error(
         context,
-        'لطفاً شماره موبایل و رمز عبور را وارد کنید.',
+        'لطفاً شماره موبایل یا نشانی ایمیل و رمز عبور را وارد کنید.',
       );
       return;
     }
@@ -119,9 +118,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       return;
     }
 
+    final isEmail = contact.contains('@');
     AudioService().playSfx(SfxType.buttonClick);
     final success = await ref.read(authProvider.notifier).register(
-          phoneNumber: phone,
+          phoneNumber: isEmail ? null : contact,
+          email: isEmail ? contact : null,
           password: pass,
           name: name.isNotEmpty ? name : null,
         );
@@ -144,28 +145,27 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     }
   }
 
-  void _handleBazaarLogin() async {
-    setState(() => _isBazaarLoading = true);
+  void _handleBazaarLogin() {
     AudioService().playSfx(SfxType.buttonClick);
-    final success = await ref.read(authProvider.notifier).loginWithBazaar();
-    if (mounted) setState(() => _isBazaarLoading = false);
-
-    if (success && mounted) {
-      widget.onAuthSuccess?.call();
-      AppToast.welcome(
-        context,
-        'با حساب کافه‌بازار با موفقیت وارد شدید!',
-        title: 'ورود موفق',
-      );
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop(true);
-      } else {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const StoryCatalogScreen()),
-          (route) => false,
-        );
-      }
-    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _BazaarConnectSheet(
+        onSuccess: () {
+          widget.onAuthSuccess?.call();
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop(true);
+          } else {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => const StoryCatalogScreen()),
+              (route) => false,
+            );
+          }
+        },
+      ),
+    );
   }
 
   void _openForgotPasswordSheet(BuildContext context) {
@@ -432,7 +432,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         const SizedBox(height: 12),
 
         // Cafe Bazaar 1-Tap Login Button
-        _buildBazaarButton(_isBazaarLoading || authState.isLoading),
+        _buildBazaarButton(authState.isLoading),
       ],
     );
   }
@@ -525,9 +525,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       children: [
         _buildTextField(
           controller: _regPhoneCtrl,
-          hint: 'شماره موبایل (مثال: ۰۹۱۲۱۲۳۴۵۶۷)',
-          icon: Icons.phone_iphone_rounded,
-          keyboardType: TextInputType.phone,
+          hint: 'شماره موبایل یا ایمیل',
+          icon: Icons.contact_mail_outlined,
+          keyboardType: TextInputType.emailAddress,
         ),
         const SizedBox(height: 10),
         _buildTextField(
@@ -980,4 +980,180 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet>
     );
   }
 }
+
+class _BazaarConnectSheet extends ConsumerStatefulWidget {
+  final VoidCallback onSuccess;
+
+  const _BazaarConnectSheet({required this.onSuccess});
+
+  @override
+  ConsumerState<_BazaarConnectSheet> createState() => _BazaarConnectSheetState();
+}
+
+class _BazaarConnectSheetState extends ConsumerState<_BazaarConnectSheet> {
+  final TextEditingController _contactCtrl = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _contactCtrl.dispose();
+    super.dispose();
+  }
+
+  void _submit({bool anonymous = false}) async {
+    final contact = anonymous ? '' : _contactCtrl.text.trim();
+    final isEmail = contact.contains('@');
+
+    setState(() => _isLoading = true);
+    AudioService().playSfx(SfxType.buttonClick);
+
+    final success = await ref.read(authProvider.notifier).loginWithBazaar(
+          phoneNumber: (!anonymous && !isEmail && contact.isNotEmpty) ? contact : null,
+          email: (!anonymous && isEmail && contact.isNotEmpty) ? contact : null,
+        );
+
+    if (mounted) setState(() => _isLoading = false);
+
+    if (success && mounted) {
+      Navigator.of(context).pop();
+      AppToast.welcome(
+        context,
+        'با حساب کافه‌بازار با موفقیت وارد شدید!',
+        title: 'ورود موفق',
+      );
+      widget.onSuccess();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasInput = _contactCtrl.text.trim().isNotEmpty;
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Container(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom +
+              MediaQuery.of(context).padding.bottom +
+              24,
+          top: 16,
+          left: 20,
+          right: 20,
+        ),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F111D),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(top: BorderSide(color: Color(0xFF272A3C), width: 1.5)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.shopping_bag_outlined, color: Color(0xFF10B981), size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    'ورود با حساب کافه‌بازار',
+                    style: GoogleFonts.vazirmatn(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF10B981),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'برای ذخیره ابری پیشرفت داستان‌ها و جلوگیری از ایجاد حساب تکراری، شماره موبایل یا ایمیل خود را وارد نمایید (اختیاری):',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.vazirmatn(
+                  fontSize: 12.5,
+                  color: const Color(0xFFA1A1AA),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF181B2C),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF272A3C)),
+                ),
+                child: TextField(
+                  controller: _contactCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  textDirection: TextDirection.ltr,
+                  textAlign: TextAlign.left,
+                  onChanged: (_) => setState(() {}),
+                  style: GoogleFonts.vazirmatn(color: Colors.white, fontSize: 13.5),
+                  decoration: InputDecoration(
+                    hintText: 'شماره موبایل یا ایمیل (اختیاری)',
+                    hintTextDirection: TextDirection.rtl,
+                    hintStyle: GoogleFonts.vazirmatn(color: const Color(0xFF71717A), fontSize: 12.5),
+                    prefixIcon: const Icon(Icons.contact_mail_outlined, color: Color(0xFF10B981), size: 19),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : () => _submit(anonymous: false),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    foregroundColor: const Color(0xFF0F111D),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F111D)),
+                        )
+                      : Text(
+                          hasInput ? 'ورود و همگام‌سازی با شماره/ایمیل' : 'ورود مستقیم با بازار (۱ لمس)',
+                          style: GoogleFonts.vazirmatn(fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                ),
+              ),
+
+              if (hasInput) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _isLoading ? null : () => _submit(anonymous: true),
+                  child: Text(
+                    'ورود بدون شماره (مهمان کافه‌بازار)',
+                    style: GoogleFonts.vazirmatn(
+                      fontSize: 12.5,
+                      color: const Color(0xFFA1A1AA),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 

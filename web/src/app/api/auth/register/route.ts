@@ -12,11 +12,15 @@ import {
   getAppBaseUrl,
   sendWelcomeVerificationEmail,
 } from '@/lib/email/client';
+import { mergeUserAccounts } from '@/lib/auth/mergeAccounts';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { phoneNumber, password, name, email, guestSessionId } = body;
+    const { phoneNumber, password, name, email, guestSessionId, bazaarAccountId } = body;
+    const rawBazaarId = typeof bazaarAccountId === 'string' && bazaarAccountId.trim().length > 0
+      ? bazaarAccountId.trim()
+      : null;
 
     const hasPhone = typeof phoneNumber === 'string' && phoneNumber.trim().length > 0;
     const hasEmail = typeof email === 'string' && email.trim().length > 0;
@@ -103,10 +107,18 @@ export async function POST(req: Request) {
     const verificationToken = normalizedEmail ? generateVerificationToken() : null;
     const tokenExpiry = normalizedEmail ? getVerificationTokenExpiry(24) : null;
 
+    let existingBazaarUser = null;
+    if (rawBazaarId) {
+      existingBazaarUser = await prisma.user.findUnique({
+        where: { bazaarAccountId: rawBazaarId },
+      });
+    }
+
     // Create user and welcome bonus ledger in transaction
     const newUser = await prisma.$transaction(async (tx) => {
       const u = await tx.user.create({
         data: {
+          bazaarAccountId: existingBazaarUser ? null : rawBazaarId,
           phoneNumber: normalizedPhone,
           passwordHash,
           name: typeof name === 'string' && name.trim().length > 0 ? name.trim() : null,
@@ -148,6 +160,21 @@ export async function POST(req: Request) {
       return { user: u, claimedGuestSession };
     });
 
+    // Merge existing temporary Bazaar account if present
+    if (existingBazaarUser) {
+      try {
+        console.log(`[register] Merging temporary Bazaar user ${existingBazaarUser.id} into newly registered ${newUser.user.id}`);
+        await mergeUserAccounts(newUser.user.id, existingBazaarUser.id, prisma);
+      } catch (err) {
+        console.warn('[register] Warning merging Bazaar user:', err);
+      }
+    }
+
+    const refreshedUser = await prisma.user.findUnique({
+      where: { id: newUser.user.id },
+    });
+    const finalUser = refreshedUser || newUser.user;
+
     let emailSent = false;
     let emailError: string | undefined;
 
@@ -156,7 +183,7 @@ export async function POST(req: Request) {
       const verificationUrl = `${baseUrl}/auth/verify-email?token=${verificationToken}`;
       const sendResult = await sendWelcomeVerificationEmail({
         to: normalizedEmail,
-        name: newUser.user.name,
+        name: finalUser.name,
         verificationUrl,
       });
       emailSent = sendResult.success;
@@ -167,21 +194,22 @@ export async function POST(req: Request) {
     }
 
     const token = signJwt({
-      userId: newUser.user.id,
-      phoneNumber: newUser.user.phoneNumber,
-      email: newUser.user.email,
-      role: newUser.user.role,
+      userId: finalUser.id,
+      phoneNumber: finalUser.phoneNumber,
+      email: finalUser.email,
+      role: finalUser.role,
     });
 
     const userProfile = {
-      id: newUser.user.id,
-      phoneNumber: newUser.user.phoneNumber,
-      email: newUser.user.email,
-      emailVerified: newUser.user.emailVerified,
-      name: newUser.user.name,
-      role: newUser.user.role,
-      creditBalance: newUser.user.creditBalance,
-      phoneVerified: newUser.user.phoneVerified,
+      id: finalUser.id,
+      phoneNumber: finalUser.phoneNumber,
+      email: finalUser.email,
+      bazaarAccountId: finalUser.bazaarAccountId,
+      emailVerified: finalUser.emailVerified,
+      name: finalUser.name,
+      role: finalUser.role,
+      creditBalance: finalUser.creditBalance,
+      phoneVerified: finalUser.phoneVerified,
     };
 
     const response = NextResponse.json({

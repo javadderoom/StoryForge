@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/audio_service.dart';
 import '../screens/auth_screen.dart';
 import '../screens/shop_screen.dart';
+import 'link_contact_sheet.dart';
 
 class ProfileDrawer extends ConsumerStatefulWidget {
   const ProfileDrawer({super.key});
@@ -229,7 +230,11 @@ class _ProfileDrawerState extends ConsumerState<ProfileDrawer> {
                                 Directionality(
                                   textDirection: TextDirection.ltr,
                                   child: Text(
-                                    user.phoneNumber,
+                                    user.phoneNumber.isNotEmpty
+                                        ? user.phoneNumber
+                                        : (user.email?.isNotEmpty == true
+                                            ? user.email!
+                                            : 'مهمان کافه‌بازار'),
                                     style: GoogleFonts.vazirmatn(
                                       fontSize: 12.5,
                                       color: const Color(0xFFA1A1AA),
@@ -249,6 +254,44 @@ class _ProfileDrawerState extends ConsumerState<ProfileDrawer> {
                         ),
                       ],
                     ),
+
+                    if (isLoggedIn && !user.hasContact) ...[
+                      const SizedBox(height: 10),
+                      InkWell(
+                        onTap: () {
+                          AudioService().playSfx(SfxType.buttonClick);
+                          LinkContactSheet.open(context);
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.link_rounded, color: Color(0xFF10B981), size: 16),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'اتصال شماره یا ایمیل جهت ذخیره ابری',
+                                  style: GoogleFonts.vazirmatn(
+                                    fontSize: 11.5,
+                                    color: const Color(0xFF34D399),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF10B981), size: 12),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
 
                     const SizedBox(height: 14),
 

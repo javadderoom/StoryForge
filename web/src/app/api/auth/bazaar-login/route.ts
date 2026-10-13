@@ -1,19 +1,21 @@
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/db/client';
 import { normalizePhoneNumber, signJwt, hashPassword } from '@/lib/auth/jwt';
+import { mergeUserAccounts } from '@/lib/auth/mergeAccounts';
 import crypto from 'node:crypto';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { bazaarAccountId, phoneNumber, name, guestSessionId } = body;
+    const { bazaarAccountId, phoneNumber, email, name, guestSessionId } = body;
 
     const rawId = typeof bazaarAccountId === 'string' ? bazaarAccountId.trim() : '';
     const rawPhone = typeof phoneNumber === 'string' ? phoneNumber.trim() : '';
+    const rawEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
-    if (!rawId && !rawPhone) {
+    if (!rawId && !rawPhone && !rawEmail) {
       return NextResponse.json(
-        { success: false, error: 'شناسه یا اطلاعات حساب کافه‌بازار دریافت نشد.' },
+        { success: false, error: 'شناسه حساب کافه‌بازار یا شماره موبایل/ایمیل الزامی است.' },
         { status: 400 }
       );
     }
@@ -27,41 +29,80 @@ export async function POST(req: Request) {
     }
 
     const normalizedPhone = rawPhone ? normalizePhoneNumber(rawPhone) : null;
-    const lookupKey = normalizedPhone || (rawId ? `bazaar_${rawId}` : null);
+    const normalizedEmail = rawEmail && rawEmail.includes('@') ? rawEmail : null;
 
-    if (!lookupKey) {
-      return NextResponse.json(
-        { success: false, error: 'شناسه حساب کافه‌بازار نامعتبر است.' },
-        { status: 400 }
-      );
+    // 1. Look for existing users by Contact (Phone or Email) and by Bazaar Account ID
+    const existingByPhone = normalizedPhone
+      ? await prisma.user.findUnique({ where: { phoneNumber: normalizedPhone } })
+      : null;
+
+    const existingByEmail = normalizedEmail
+      ? await prisma.user.findUnique({ where: { email: normalizedEmail } })
+      : null;
+
+    const existingByBazaar = rawId
+      ? await prisma.user.findUnique({ where: { bazaarAccountId: rawId } })
+      : null;
+
+    let targetUser: any = null;
+    let mergedOrphan = false;
+
+    // Case A: Existing registered user with this phone or email was found
+    const existingPrimary = existingByPhone || existingByEmail;
+    if (existingPrimary) {
+      targetUser = existingPrimary;
+
+      // If a separate temporary Bazaar account existed with this rawId, merge it!
+      if (existingByBazaar && existingByBazaar.id !== targetUser.id) {
+        console.log(`[bazaar-login] Merging temporary Bazaar user ${existingByBazaar.id} into primary ${targetUser.id}`);
+        await mergeUserAccounts(targetUser.id, existingByBazaar.id, prisma);
+        mergedOrphan = true;
+      }
+
+      // Link bazaarAccountId and update missing contact info on the primary account
+      targetUser = await prisma.user.update({
+        where: { id: targetUser.id },
+        data: {
+          ...(rawId ? { bazaarAccountId: rawId } : {}),
+          ...(!targetUser.phoneNumber && normalizedPhone ? { phoneNumber: normalizedPhone } : {}),
+          ...(!targetUser.email && normalizedEmail ? { email: normalizedEmail } : {}),
+        },
+      });
     }
+    // Case B: No user found by phone/email, but existing user found by bazaarAccountId
+    else if (existingByBazaar) {
+      targetUser = existingByBazaar;
 
-    // Try finding existing user
-    let user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          ...(normalizedPhone ? [{ phoneNumber: normalizedPhone }] : []),
-          { phoneNumber: lookupKey },
-        ],
-      },
-    });
-
-    // If not found, create a new user with 15 welcome scenes
-    if (!user) {
+      // Enrich with phone/email if now supplied
+      if (normalizedPhone || normalizedEmail) {
+        targetUser = await prisma.user.update({
+          where: { id: targetUser.id },
+          data: {
+            ...(!targetUser.phoneNumber && normalizedPhone ? { phoneNumber: normalizedPhone } : {}),
+            ...(!targetUser.email && normalizedEmail ? { email: normalizedEmail } : {}),
+          },
+        });
+      }
+    }
+    // Case C: Neither exists - create a fresh user with proper mapping
+    else {
       const generatedPassword = crypto.randomBytes(16).toString('hex');
       const passwordHash = hashPassword(generatedPassword);
       const initialCredits = 15;
 
-      user = await prisma.$transaction(async (tx) => {
+      targetUser = await prisma.$transaction(async (tx) => {
         const u = await tx.user.create({
           data: {
-            phoneNumber: lookupKey,
+            bazaarAccountId: rawId || null,
+            phoneNumber: normalizedPhone,
+            email: normalizedEmail,
             passwordHash,
             name: (name && typeof name === 'string' && name.trim().length > 0)
               ? name.trim()
               : 'ماجراجوی کافه‌بازار',
             creditBalance: initialCredits,
-            phoneVerified: true,
+            phoneVerified: Boolean(normalizedPhone),
+            emailVerified: false,
           },
         });
 
@@ -92,7 +133,7 @@ export async function POST(req: Request) {
             userId: null,
           },
           data: {
-            userId: user.id,
+            userId: targetUser.id,
           },
         });
       } catch {
@@ -101,27 +142,29 @@ export async function POST(req: Request) {
     }
 
     const token = signJwt({
-      userId: user.id,
-      phoneNumber: user.phoneNumber,
-      email: user.email,
-      role: user.role,
+      userId: targetUser.id,
+      phoneNumber: targetUser.phoneNumber,
+      email: targetUser.email,
+      role: targetUser.role,
     });
 
     const userProfile = {
-      id: user.id,
-      phoneNumber: user.phoneNumber,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      creditBalance: user.creditBalance,
-      phoneVerified: user.phoneVerified,
-      emailVerified: user.emailVerified,
+      id: targetUser.id,
+      phoneNumber: targetUser.phoneNumber,
+      email: targetUser.email,
+      bazaarAccountId: targetUser.bazaarAccountId,
+      name: targetUser.name,
+      role: targetUser.role,
+      creditBalance: targetUser.creditBalance,
+      phoneVerified: targetUser.phoneVerified,
+      emailVerified: targetUser.emailVerified,
     };
 
     const response = NextResponse.json({
       success: true,
       token,
       user: userProfile,
+      mergedOrphan,
     });
 
     // Set HTTP-only session cookie

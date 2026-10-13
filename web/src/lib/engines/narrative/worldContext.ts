@@ -303,10 +303,10 @@ const SCOPE_CAPS: Record<ScopeTier, {
   npcs: number;
   laws: number;
 }> = {
-  street: { factions: 3, factionRelations: 4, timeline: 4, artifacts: 4, bestiary: 4, religions: 3, dramaBonds: 4, locations: 4, npcs: 6, laws: 10 },
-  regional: { factions: 6, factionRelations: 8, timeline: 8, artifacts: 8, bestiary: 8, religions: 6, dramaBonds: 6, locations: 8, npcs: 9, laws: 10 },
-  continental: { factions: 10, factionRelations: 10, timeline: 10, artifacts: 10, bestiary: 10, religions: 9, dramaBonds: 7, locations: 10, npcs: 12, laws: 10 },
-  mythic: { factions: 10, factionRelations: 12, timeline: 12, artifacts: 12, bestiary: 12, religions: 12, dramaBonds: 8, locations: 12, npcs: 12, laws: 10 },
+  street: { factions: 2, factionRelations: 3, timeline: 2, artifacts: 3, bestiary: 3, religions: 2, dramaBonds: 3, locations: 3, npcs: 4, laws: 6 },
+  regional: { factions: 4, factionRelations: 5, timeline: 3, artifacts: 4, bestiary: 4, religions: 3, dramaBonds: 4, locations: 5, npcs: 6, laws: 8 },
+  continental: { factions: 8, factionRelations: 8, timeline: 6, artifacts: 8, bestiary: 8, religions: 6, dramaBonds: 6, locations: 8, npcs: 9, laws: 10 },
+  mythic: { factions: 10, factionRelations: 10, timeline: 8, artifacts: 10, bestiary: 10, religions: 8, dramaBonds: 7, locations: 10, npcs: 12, laws: 10 },
 };
 
 /**

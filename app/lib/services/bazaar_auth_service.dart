@@ -30,6 +30,7 @@ class BazaarAuthService {
   /// Initiates quick 1-tap sign-in with Cafe Bazaar
   static Future<Map<String, dynamic>> signInWithBazaar({
     String? phoneNumber,
+    String? email,
     String? name,
     String? guestSessionId,
   }) async {
@@ -38,6 +39,7 @@ class BazaarAuthService {
       final result = await AuthService.loginWithBazaar(
         bazaarAccountId: accountId,
         phoneNumber: phoneNumber,
+        email: email,
         name: name,
         guestSessionId: guestSessionId,
       );

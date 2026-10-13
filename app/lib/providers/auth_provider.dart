@@ -153,7 +153,8 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<bool> register({
-    required String phoneNumber,
+    String? phoneNumber,
+    String? email,
     required String password,
     String? name,
     String? guestSessionId,
@@ -162,6 +163,7 @@ class AuthNotifier extends Notifier<AuthState> {
     try {
       final result = await AuthService.register(
         phoneNumber: phoneNumber,
+        email: email,
         password: password,
         name: name,
         guestSessionId: guestSessionId,
@@ -196,6 +198,7 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<bool> loginWithBazaar({
     String? phoneNumber,
+    String? email,
     String? name,
     String? guestSessionId,
   }) async {
@@ -203,6 +206,7 @@ class AuthNotifier extends Notifier<AuthState> {
     try {
       final result = await BazaarAuthService.signInWithBazaar(
         phoneNumber: phoneNumber,
+        email: email,
         name: name,
         guestSessionId: guestSessionId,
       );
@@ -231,6 +235,48 @@ class AuthNotifier extends Notifier<AuthState> {
         errorMessage: 'خطا در ارتباط با سرور: $e',
       );
       return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> linkContact({
+    String? phoneNumber,
+    String? email,
+    String? password,
+    String? existingAccountPassword,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final result = await AuthService.linkContact(
+        phoneNumber: phoneNumber,
+        email: email,
+        password: password,
+        existingAccountPassword: existingAccountPassword,
+      );
+
+      if (result['success'] == true) {
+        final user = result['user'] as UserProfile;
+        final token = result['token'] as String;
+        state = state.copyWith(
+          isLoading: false,
+          isAuthenticated: true,
+          user: user,
+          token: token,
+          clearError: true,
+        );
+        return result;
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: result['error'] ?? 'اتصال مشخصات با خطا مواجه شد.',
+        );
+        return result;
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'خطا در ارتباط با سرور: $e',
+      );
+      return {'success': false, 'error': 'خطا در ارتباط با سرور: $e'};
     }
   }
 

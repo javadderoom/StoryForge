@@ -131,6 +131,7 @@ model User {
   phoneVerified                   Boolean              @default(false)
   email                           String?              @unique
   emailVerified                   Boolean              @default(false)
+  bazaarAccountId                 String?              @unique
   emailVerificationToken          String?              @unique
   emailVerificationTokenExpiresAt DateTime?
   passwordResetToken              String?              @unique

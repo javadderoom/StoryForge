@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import 'game_api_service.dart';
+import 'bazaar_auth_service.dart';
 
 class AuthService {
   static const String _tokenKey = 'afsanehsaz_auth_jwt_token';
@@ -61,17 +62,20 @@ class AuthService {
   /// Clears the token on logout (alias for clearSession)
   static Future<void> clearToken() => clearSession();
 
-  /// Login with phone number and password
+  /// Login with phone number/email and password (auto-merges device Bazaar account)
   static Future<Map<String, dynamic>> login({
     required String phoneNumber,
     required String password,
+    String? bazaarAccountId,
     String? guestSessionId,
   }) async {
     try {
       final url = Uri.parse('${GameApiService.baseUrl}/api/auth/login');
+      final bazaarId = bazaarAccountId ?? await BazaarAuthService.getOrCreateBazaarAccountId();
       final payload = <String, dynamic>{
         'phoneNumber': phoneNumber,
         'password': password,
+        'bazaarAccountId': bazaarId,
       };
       if (guestSessionId != null) payload['guestSessionId'] = guestSessionId;
 
@@ -115,19 +119,24 @@ class AuthService {
     }
   }
 
-  /// Register with phone number and password
+  /// Register with phone number/email and password (auto-links device Bazaar account)
   static Future<Map<String, dynamic>> register({
-    required String phoneNumber,
+    String? phoneNumber,
+    String? email,
     required String password,
     String? name,
+    String? bazaarAccountId,
     String? guestSessionId,
   }) async {
     try {
       final url = Uri.parse('${GameApiService.baseUrl}/api/auth/register');
+      final bazaarId = bazaarAccountId ?? await BazaarAuthService.getOrCreateBazaarAccountId();
       final payload = <String, dynamic>{
-        'phoneNumber': phoneNumber,
         'password': password,
+        'bazaarAccountId': bazaarId,
       };
+      if (phoneNumber != null && phoneNumber.isNotEmpty) payload['phoneNumber'] = phoneNumber;
+      if (email != null && email.isNotEmpty) payload['email'] = email;
       if (name != null && name.trim().isNotEmpty) payload['name'] = name.trim();
       if (guestSessionId != null) payload['guestSessionId'] = guestSessionId;
 
@@ -258,6 +267,7 @@ class AuthService {
   static Future<Map<String, dynamic>> loginWithBazaar({
     required String bazaarAccountId,
     String? phoneNumber,
+    String? email,
     String? name,
     String? guestSessionId,
   }) async {
@@ -270,6 +280,7 @@ class AuthService {
             body: jsonEncode({
               'bazaarAccountId': bazaarAccountId,
               if (phoneNumber != null && phoneNumber.isNotEmpty) 'phoneNumber': phoneNumber,
+              if (email != null && email.isNotEmpty) 'email': email,
               if (name != null && name.isNotEmpty) 'name': name,
               if (guestSessionId != null && guestSessionId.isNotEmpty) 'guestSessionId': guestSessionId,
             }),
@@ -302,6 +313,74 @@ class AuthService {
       return {
         'success': false,
         'error': 'خطا در برقراری ارتباط با سرور: $e',
+      };
+    }
+  }
+
+  /// Links phone number or email to currently authenticated account,
+  /// merging with an existing account if credentials match.
+  static Future<Map<String, dynamic>> linkContact({
+    String? phoneNumber,
+    String? email,
+    String? password,
+    String? existingAccountPassword,
+  }) async {
+    final token = _cachedToken ?? await loadToken();
+    if (token == null || token.isEmpty) {
+      return {'success': false, 'error': 'لطفاً ابتدا وارد حساب کاربری خود شوید.'};
+    }
+
+    try {
+      final url = Uri.parse('${GameApiService.baseUrl}/api/auth/link-contact');
+      final payload = <String, dynamic>{};
+      if (phoneNumber != null && phoneNumber.isNotEmpty) payload['phoneNumber'] = phoneNumber;
+      if (email != null && email.isNotEmpty) payload['email'] = email;
+      if (password != null && password.isNotEmpty) payload['password'] = password;
+      if (existingAccountPassword != null && existingAccountPassword.isNotEmpty) {
+        payload['existingAccountPassword'] = existingAccountPassword;
+      }
+
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      Map<String, dynamic>? json;
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          json = decoded;
+        }
+      } catch (_) {}
+
+      if (response.statusCode == 200 && json != null && json['success'] == true) {
+        final newToken = json['token'] as String;
+        final user = UserProfile.fromJson(json['user']);
+        await saveSession(token: newToken, user: user);
+        return {
+          'success': true,
+          'token': newToken,
+          'user': user,
+          'merged': json['merged'] ?? false,
+          'message': json['message'],
+        };
+      }
+
+      return {
+        'success': false,
+        'error': json?['error'] ?? 'خطا در اتصال مشخصات تماس.',
+        'requiresExistingPassword': json?['requiresExistingPassword'] ?? false,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'خطا در ارتباط با سرور: $e',
       };
     }
   }

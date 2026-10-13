@@ -5,11 +5,12 @@ import {
   verifyPassword,
   signJwt,
 } from '@/lib/auth/jwt';
+import { mergeUserAccounts } from '@/lib/auth/mergeAccounts';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { identifier, phoneNumber, email, password, guestSessionId } = body;
+    const { identifier, phoneNumber, email, password, guestSessionId, bazaarAccountId } = body;
     const loginInput = (identifier || email || phoneNumber || '').trim();
 
     if (!loginInput || !password) {
@@ -76,32 +77,63 @@ export async function POST(req: Request) {
       }
     }
 
+    // Auto-link Bazaar account if provided
+    let mergedBazaarAccount = false;
+    const rawBazaarId = typeof bazaarAccountId === 'string' ? bazaarAccountId.trim() : null;
+    if (rawBazaarId) {
+      try {
+        const existingByBazaar = await prisma.user.findUnique({
+          where: { bazaarAccountId: rawBazaarId },
+        });
+
+        if (existingByBazaar && existingByBazaar.id !== user.id) {
+          console.log(`[login] Merging secondary Bazaar user ${existingByBazaar.id} into primary ${user.id}`);
+          await mergeUserAccounts(user.id, existingByBazaar.id, prisma);
+          mergedBazaarAccount = true;
+        }
+
+        if (user.bazaarAccountId !== rawBazaarId) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { bazaarAccountId: rawBazaarId },
+          });
+        }
+      } catch (err) {
+        console.warn('[login] Bazaar account linking/merging warning:', err);
+      }
+    }
+
+    // Refresh user state in case credits or fields changed during merge
+    const refreshedUser = await prisma.user.findUnique({
+      where: { id: user.id },
+    });
+    const finalUser = refreshedUser || user;
+
     const token = signJwt({
-      userId: user.id,
-      phoneNumber: user.phoneNumber,
-      email: user.email,
-      role: user.role,
+      userId: finalUser.id,
+      phoneNumber: finalUser.phoneNumber,
+      email: finalUser.email,
+      role: finalUser.role,
     });
 
     const userProfile = {
-      id: user.id,
-      phoneNumber: user.phoneNumber,
-      email: user.email,
-      emailVerified: user.emailVerified,
-      name: user.name,
-      role: user.role,
-      creditBalance: user.creditBalance,
-      phoneVerified: user.phoneVerified,
+      id: finalUser.id,
+      phoneNumber: finalUser.phoneNumber,
+      email: finalUser.email,
+      bazaarAccountId: finalUser.bazaarAccountId,
+      emailVerified: finalUser.emailVerified,
+      name: finalUser.name,
+      role: finalUser.role,
+      creditBalance: finalUser.creditBalance,
+      phoneVerified: finalUser.phoneVerified,
     };
 
     const response = NextResponse.json({
       success: true,
       token,
       user: userProfile,
-      // Lets the client tell the difference between "claimed your guest save"
-      // and "that session did not exist or was already owned" — previously a
-      // failed claim was a silent no-op indistinguishable from success.
       claimedGuestSession,
+      mergedBazaarAccount,
     });
 
     // Set HTTP-only cookie for web clients

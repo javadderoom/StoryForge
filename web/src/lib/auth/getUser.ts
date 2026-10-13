@@ -10,6 +10,7 @@ export interface AuthenticatedUser {
   creditBalance: number;
   phoneVerified: boolean;
   emailVerified?: boolean;
+  bazaarAccountId?: string | null;
 }
 
 /**
@@ -78,6 +79,7 @@ export async function getAuthenticatedUser(
         creditBalance: true,
         phoneVerified: true,
         emailVerified: true,
+        bazaarAccountId: true,
       },
     });
 
