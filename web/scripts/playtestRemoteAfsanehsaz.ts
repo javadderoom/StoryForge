@@ -49,6 +49,21 @@ function selectMightOrConfrontationChoice(choices: ChoiceOption[]): ChoiceOption
   return choices[0];
 }
 
+async function fetchWithRetry(url: string, options: any, maxRetries = 3): Promise<any> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fetch(url, options);
+    } catch (err: any) {
+      if (attempt < maxRetries && (err.code === 'ECONNRESET' || err.message?.includes('socket') || err.message?.includes('fetch failed'))) {
+        console.warn(`[Network Retry] Attempt ${attempt} failed with ${err.code || err.message}. Retrying in 2.5s...`);
+        await new Promise(r => setTimeout(r, 2500));
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
 async function runLivePlaytest() {
   console.log('================================================================');
   console.log('   LIVE PLAYTEST AGAINST https://afsanehsaz.ir                  ');
@@ -57,7 +72,7 @@ async function runLivePlaytest() {
   console.log('================================================================\n');
 
   console.log('1. Initializing new live playthrough session on afsanehsaz.ir...');
-  const initRes = await fetch(`${BASE_URL}/api/play/session`, {
+  const initRes = await fetchWithRetry(`${BASE_URL}/api/play/session`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -119,7 +134,7 @@ async function runLivePlaytest() {
     console.log(`\nSubmitting action to ${BASE_URL}/api/play/action...`);
     const actionStartTime = Date.now();
 
-    const actionRes = await fetch(`${BASE_URL}/api/play/action`, {
+    const actionRes = await fetchWithRetry(`${BASE_URL}/api/play/action`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -152,26 +167,25 @@ async function runLivePlaytest() {
 
     const payload = actionData.data;
     const resolution = payload.resolution;
+    const beat = payload.beat || {};
+    const narrativeProse = beat.narrativeProse || beat.narrative || payload.narrativeProse;
+    const nextChoices = beat.presentedChoices || beat.choices || payload.presentedChoices || [];
+
     console.log('\n--- Engine Deterministic Resolution ---');
-    console.log(`Roll: ${resolution.diceRoll} + ${resolution.statBonus} (Bonus) + ${resolution.modifierSum} (Mod Sum) = ${resolution.totalScore} vs DC ${resolution.targetDC}`);
+    console.log(`Roll: ${resolution.diceRoll} + ${resolution.statModifier ?? 0} (Stat Mod) + ${resolution.environmentalModifier ?? 0} (Env Mod) = ${resolution.totalScore} vs DC ${resolution.difficultyClass}`);
     console.log(`Outcome: ${resolution.outcome}`);
-    if (resolution.modifiersApplied?.length) {
-      console.log(`Modifiers Applied:`, resolution.modifiersApplied.map((m: any) => `${m.name || m.source} (${m.value >= 0 ? '+' : ''}${m.value})`).join(', '));
+    if (resolution.abilityContributions?.length) {
+      console.log(`Ability Contributions:`, resolution.abilityContributions.map((m: any) => `${m.name} (${m.modifier >= 0 ? '+' : ''}${m.modifier})`).join(', '));
     }
     console.log(`Consequence: ${resolution.consequenceSummary}`);
 
     console.log('\n--- Generated Narrative Prose ---');
-    console.log(payload.narrativeProse?.trim());
+    console.log(narrativeProse ? narrativeProse.trim() : '(No prose returned)');
 
-    // Check for stalling or repetition
-    if (/بر سر پل|روی پل|سد راه|مانع عبور/.test(payload.narrativeProse) && resolution.outcome === 'success') {
-      console.log('\n[Momentum Note]: Checking narrative progression beyond the bridge...');
-    }
-
-    playerState = payload.playerState || playerState;
+    playerState = payload.updatedPlayerState || payload.playerState || playerState;
     console.log('\nUpdated Resources:', playerState.resources);
 
-    currentChoices = payload.presentedChoices || [];
+    currentChoices = nextChoices;
     turnNumber++;
   }
 
