@@ -26,34 +26,21 @@ function selectMightOrConfrontationChoice(choices: ChoiceOption[]): ChoiceOption
       /حمله|یورش|شمشیر|سپر|گزمه|سرباز|درگیری|زور|نیرو|کوبیدن|ارعاب|هجوم|شکستن/.test(c.text)
     );
     const sel = violentMight || mightChoices[0];
-    console.log(`\n=> Selected Might Choice: "${sel.text}"`);
+    console.log(`\n=> Selected Might Choice from Suggestions: "${sel.text}"`);
     return sel;
   }
 
-  // 2. High-force, violent, combat or intimidation choices
-  const violentKeywords = /حمله|یورش|هجوم|درگیری|شمشیر|سپر|ارعاب|زور|کوبیدن|گزمه|سرباز|تهدید/;
-  const violentChoices = choices.filter(c => violentKeywords.test(c.text) && !/پرس‌وجو|مذاکره|پنهانی|خزیدن/.test(c.text));
-  if (violentChoices.length > 0) {
-    console.log(`\n=> Selected Violent/Forceful Choice: "${violentChoices[0].text}"`);
-    return violentChoices[0];
-  }
-
-  // 3. Any confrontation with guards or enemies
-  const confrontChoice = choices.find(c => /گزمه|سرباز|ارعاب|تهدید/.test(c.text));
-  if (confrontChoice) {
-    console.log(`\n=> Selected Confrontation Choice: "${confrontChoice.text}"`);
-    return confrontChoice;
-  }
-
-  // 4. Fallback to aggressive or first
-  const aggressiveChoice = choices.find(c => c.actionStyle === 'aggressive');
-  if (aggressiveChoice) {
-    console.log(`\n=> Selected Aggressive Choice: "${aggressiveChoice.text}"`);
-    return aggressiveChoice;
-  }
-
-  console.log(`\n=> Selected Fallback Choice: "${choices[0].text}"`);
-  return choices[0];
+  // 2. If no Might option is offered, take a custom player Might action (as player enters in input box)
+  console.log(`\n=> No Might choice among suggestions. Performing Custom Player Might Action:`);
+  const customMight: ChoiceOption = {
+    text: 'با شمشیر و سپر به سمت صف گزمه‌های روی پل یورش می‌برم و سد معبر را با زور باز می‌کنم.',
+    actionStyle: 'aggressive',
+    riskLevel: 'high',
+    requiredStatId: 'might',
+    targetDC: 15,
+  };
+  console.log(`=> "${customMight.text}" (Stat: might, DC: 15, Risk: high)`);
+  return customMight;
 }
 
 async function fetchWithRetry(url: string, options: any, maxRetries = 4): Promise<any> {
