@@ -1,6 +1,6 @@
 import { RPGSystemSchema } from '@/lib/types/rpg';
 import { PlayerState } from '@/lib/types/gameplay';
-import { computeMaxResources } from './vitalScaling';
+import { computeMaxResources, resolveScalingOptions } from './vitalScaling';
 
 /** Same health-pool selection for production defeat handling and diagnostics. */
 export function resolveHealthKey(rpgSystem?: { resources?: ReadonlyArray<{ id: string }> }): string {
@@ -70,15 +70,13 @@ export function reconcilePlayerResources(
   const defIds = new Set(defs.map((d) => d.id));
   let changed = false;
 
-  const archetype = (rpgSystem?.archetypes ?? []).find((a: any) => a.id === playerState.archetypeId);
-  const background = (rpgSystem?.backgrounds ?? []).find((b: any) => b.id === playerState.backgroundId);
-  const equippedArtifacts = resolveEquippedArtifacts(playerState, storyWorldBible?.artifacts);
-
-  const maxResources = computeMaxResources(playerState.stats ?? {}, rpgSystem, {
-    archetype,
-    background,
-    equippedArtifacts,
-  });
+  const scalingOptions = resolveScalingOptions(
+    playerState,
+    rpgSystem,
+    storyWorldBible?.artifacts,
+    storyWorldBible?.powerSchools
+  );
+  const maxResources = computeMaxResources(playerState.stats ?? {}, rpgSystem, scalingOptions);
 
   const prevMaxSource: Record<string, number> = playerState.maxResources ?? {};
   if (JSON.stringify(prevMaxSource) !== JSON.stringify(maxResources)) changed = true;

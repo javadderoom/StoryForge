@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SessionRepository } from '@/lib/db/repositories/sessionRepository';
 import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { allocateLevelUpRewards } from '@/lib/engines/game/progressionEngine';
+import { resolveScalingOptions } from '@/lib/engines/game/vitalScaling';
 import { buildCorsHeaders, handleCorsPreflight } from '@/lib/cors';
 import { getAuthenticatedUser } from '@/lib/auth/getUser';
 import { PlayerState } from '@/lib/types/gameplay';
@@ -55,15 +56,25 @@ export async function POST(req: NextRequest) {
     );
     const playerState: PlayerState = {
       ...sessionPlayer,
+      ...(clientPlayerState?.equipment ? { equipment: clientPlayerState.equipment } : {}),
+      ...(clientPlayerState?.inventory?.length ? { inventory: clientPlayerState.inventory } : {}),
       unspentStatPoints: unspentPoints,
       unspentAbilityPicks: unspentAbilities,
     };
+
+    const scalingOptions = resolveScalingOptions(
+      playerState,
+      story?.rpgSystem,
+      story?.worldBible?.artifacts || story?.artifacts,
+      story?.worldBible?.powerSchools
+    );
 
     const result = allocateLevelUpRewards(
       playerState,
       statAllocations,
       chosenAbilityId,
-      story?.rpgSystem
+      story?.rpgSystem,
+      scalingOptions
     );
 
     if (!result.success) {

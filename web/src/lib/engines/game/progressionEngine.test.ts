@@ -54,6 +54,25 @@ describe('Progression Engine — Hybrid XP, Level-Up & Stat Allocations', () => 
       { id: 'cunning', name: 'حیله‌گری', description: 'هوش', baseValue: 10 },
     ],
     resources: [{ id: 'health', name: 'سلامت', current: 20, max: 20, min: 0 }],
+    archetypes: [
+      {
+        id: 'arch_warrior',
+        name: 'جنگجو',
+        description: '',
+        startingStats: {},
+        startingEquipment: [],
+        resourceBonuses: { health: 5 },
+      },
+    ],
+    backgrounds: [
+      {
+        id: 'bg_veteran',
+        name: 'کهنه‌سرباز',
+        description: '',
+        startingStats: {},
+        resourceBonuses: { health: 3 },
+      },
+    ],
     skills: [],
     startingInventory: [],
     inventoryCapacity: 10,
@@ -198,6 +217,36 @@ describe('Progression Engine — Hybrid XP, Level-Up & Stat Allocations', () => 
       assert.equal(resLvl3.newLevel, 3);
       assert.equal(resLvl3.updatedPlayerState.unspentAbilityPicks, 1);
     });
+
+    it('preserves archetype, background, and equipment vital modifiers on level up (never resets to base 30)', () => {
+      const fullyGearedPlayer: PlayerState = {
+        ...basePlayer,
+        archetypeId: 'arch_warrior', // +5 HP
+        backgroundId: 'bg_veteran', // +3 HP
+        equipment: { offHand: 'item_shield' },
+        inventory: [
+          {
+            id: 'item_shield',
+            name: 'سپر حماسی',
+            description: '',
+            type: 'shield',
+            quantity: 1,
+            rarity: 'rare',
+            resourceModifiers: { health: 7 }, // +7 HP
+          },
+        ],
+        stats: { might: 14, agility: 10, cunning: 10 }, // might 14 is +8 HP (base 10)
+        resources: { health: 43 },
+        maxResources: { health: 43 }, // 20 base + 8 stat + 5 arch + 3 bg + 7 shield = 43
+      };
+
+      const res = applyXpGain(fullyGearedPlayer, 125, DEFAULT_PROGRESSION_CONFIG, sampleRpg);
+      assert.equal(res.levelUpOccurred, true);
+      assert.equal(res.newLevel, 2);
+      // Max health must NOT drop from 43 to 28/30!
+      assert.equal(res.updatedPlayerState.maxResources?.health, 43);
+      assert.equal(res.updatedPlayerState.resources.health, 43);
+    });
   });
 
   describe('allocateLevelUpRewards', () => {
@@ -215,6 +264,38 @@ describe('Progression Engine — Hybrid XP, Level-Up & Stat Allocations', () => 
       assert.equal(res.updatedPlayerState.stats.agility, 13);
       // Might increased from 14 to 15 -> VitalEffect +2 Max Health
       assert.ok((res.updatedPlayerState.maxResources?.health || 0) >= 20);
+    });
+
+    it('preserves archetype, background, and equipment modifiers and scales vitals correctly on stat allocation', () => {
+      const fullyGearedPlayer: PlayerState = {
+        ...basePlayer,
+        archetypeId: 'arch_warrior', // +5 HP
+        backgroundId: 'bg_veteran', // +3 HP
+        equipment: { offHand: 'item_shield' },
+        inventory: [
+          {
+            id: 'item_shield',
+            name: 'سپر حماسی',
+            description: '',
+            type: 'shield',
+            quantity: 1,
+            rarity: 'rare',
+            resourceModifiers: { health: 7 }, // +7 HP
+          },
+        ],
+        unspentStatPoints: 1,
+        stats: { might: 14, agility: 10, cunning: 10 },
+        resources: { health: 43 },
+        maxResources: { health: 43 },
+      };
+
+      // Spend 1 point in might -> might becomes 15 (+2 HP from vitalEffect)
+      const res = allocateLevelUpRewards(fullyGearedPlayer, { might: 1 }, undefined, sampleRpg);
+      assert.equal(res.success, true);
+      assert.equal(res.updatedPlayerState.stats.might, 15);
+      // 43 + 2 = 45 Max HP! Never drops to 30.
+      assert.equal(res.updatedPlayerState.maxResources?.health, 45);
+      assert.equal(res.updatedPlayerState.resources.health, 45);
     });
 
     it('rejects allocation when spending more points than available', () => {

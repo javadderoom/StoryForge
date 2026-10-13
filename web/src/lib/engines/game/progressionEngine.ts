@@ -5,7 +5,14 @@ import {
   RPGSystemSchema,
   AbilityDefinition,
 } from '@/lib/types/rpg';
-import { computeMaxResources, resolveStatBase, isDefinedStat, isDefinedAbility } from './vitalScaling';
+import {
+  computeMaxResources,
+  resolveScalingOptions,
+  VitalScalingOptions,
+  resolveStatBase,
+  isDefinedStat,
+  isDefinedAbility,
+} from './vitalScaling';
 
 export interface ActionXpContext {
   riskLevel?: RiskLevel;
@@ -157,7 +164,8 @@ export function applyXpGain(
   playerState: PlayerState,
   xpEarned: number,
   config: ProgressionConfig = DEFAULT_PROGRESSION_CONFIG,
-  rpgSystem?: RPGSystemSchema
+  rpgSystem?: RPGSystemSchema,
+  options?: VitalScalingOptions
 ): ProgressionAdvanceResult {
   const updated: PlayerState = JSON.parse(JSON.stringify(playerState));
 
@@ -219,13 +227,18 @@ export function applyXpGain(
   updated.unspentStatPoints = unspentStats;
   updated.unspentAbilityPicks = unspentAbilities;
 
-  // Heroic surge: heal all resources to their maximum on level up if configured
-  if (levelUpOccurred && config.healOnLevelUp !== false && rpgSystem) {
+  // Recompute vitals pool on level up preserving archetype, background & equipment modifiers
+  if (levelUpOccurred && rpgSystem) {
     try {
-      const nextMax = computeMaxResources(updated.stats, rpgSystem);
+      const scalingOptions = options ?? resolveScalingOptions(updated, rpgSystem);
+      const nextMax = computeMaxResources(updated.stats, rpgSystem, scalingOptions);
       updated.maxResources = nextMax;
       for (const [resId, maxVal] of Object.entries(nextMax)) {
-        updated.resources[resId] = maxVal;
+        if (config.healOnLevelUp !== false) {
+          updated.resources[resId] = maxVal;
+        } else if (updated.resources[resId] !== undefined) {
+          updated.resources[resId] = Math.min(updated.resources[resId], maxVal);
+        }
       }
     } catch {
       /* non-fatal: retain previous resources */
@@ -276,7 +289,8 @@ export function allocateLevelUpRewards(
   playerState: PlayerState,
   statAllocations: Record<string, number>,
   chosenAbilityId?: string,
-  rpgSystem?: RPGSystemSchema
+  rpgSystem?: RPGSystemSchema,
+  options?: VitalScalingOptions
 ): { success: boolean; updatedPlayerState: PlayerState; error?: string } {
   const updated: PlayerState = JSON.parse(JSON.stringify(playerState));
   const availablePoints = updated.unspentStatPoints || 0;
@@ -344,15 +358,24 @@ export function allocateLevelUpRewards(
     }
   }
 
-  // Recompute vitals pool with new stats
+  // Recompute vitals pool with new stats preserving archetype, background & equipment modifiers
   if (rpgSystem) {
     try {
-      const nextMax = computeMaxResources(updated.stats, rpgSystem);
+      const scalingOptions = options ?? resolveScalingOptions(updated, rpgSystem);
+      const nextMax = computeMaxResources(updated.stats, rpgSystem, scalingOptions);
+      const prevMax = updated.maxResources ?? {};
       updated.maxResources = nextMax;
       // Also scale current resources if appropriate
       for (const [resId, maxVal] of Object.entries(nextMax)) {
         if (updated.resources[resId] !== undefined) {
-          updated.resources[resId] = Math.min(updated.resources[resId], maxVal);
+          const cur = updated.resources[resId];
+          const oldMax = prevMax[resId];
+          // If the pool was at full capacity, keep it at full capacity with the new ceiling
+          if (typeof oldMax === 'number' && cur >= oldMax && maxVal > oldMax) {
+            updated.resources[resId] = maxVal;
+          } else {
+            updated.resources[resId] = Math.min(cur, maxVal);
+          }
         }
       }
     } catch {

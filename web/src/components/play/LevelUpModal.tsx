@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { PlayerState } from '@/lib/types/gameplay';
 import { StatDefinition, AbilityDefinition, RPGSystemSchema, ResourceDefinition } from '@/lib/types/rpg';
 import { toPersianDigits } from '@/lib/play/persianNumbers';
-import { computeMaxResources } from '@/lib/engines/game/vitalScaling';
+import { computeMaxResources, resolveScalingOptions } from '@/lib/engines/game/vitalScaling';
 import { notify } from '@/lib/notify';
 import { Sparkles, Plus, Minus, ArrowUpCircle, Check, X, Shield, Zap } from 'lucide-react';
 
@@ -61,7 +61,8 @@ export function LevelUpModal({
 
   const baseVitals: ResourceDefinition[] = rpgSystem?.resources || [];
   const currentMaxResources = playerState.maxResources || {};
-  const previewMaxResources = rpgSystem ? computeMaxResources(previewStats, rpgSystem) : currentMaxResources;
+  const scalingOptions = resolveScalingOptions(playerState, rpgSystem);
+  const previewMaxResources = rpgSystem ? computeMaxResources(previewStats, rpgSystem, scalingOptions) : currentMaxResources;
 
   const handleIncrement = (statId: string) => {
     if (remainingPoints <= 0) return;

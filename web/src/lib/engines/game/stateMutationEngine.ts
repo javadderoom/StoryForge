@@ -4,7 +4,7 @@ import {
 } from '@/lib/types/gameplay';
 import { RPGSystemSchema, DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
 import { resolveResourceMax, resolveResourceMin } from './resourcePools';
-import { computeMaxResources } from './vitalScaling';
+import { computeMaxResources, resolveScalingOptions } from './vitalScaling';
 import { applyXpGain } from './progressionEngine';
 
 /**
@@ -122,13 +122,8 @@ export function applyStateMutation(
   // then clamp currents into range (covers Studio max edits mid-campaign).
   if (rpgSystem?.resources) {
     try {
-      const archetype = (rpgSystem.archetypes ?? []).find((a: any) => a.id === updated.archetypeId);
-      const background = (rpgSystem.backgrounds ?? []).find((b: any) => b.id === updated.backgroundId);
-      const equippedIds = new Set(
-        [updated.equipment?.mainHand, updated.equipment?.offHand, updated.equipment?.armor, updated.equipment?.relic].filter(Boolean)
-      );
-      const equippedArtifacts = (updated.inventory ?? []).filter((i: any) => equippedIds.has(i.id));
-      const nextMax = computeMaxResources(updated.stats ?? {}, rpgSystem, { archetype, background, equippedArtifacts });
+      const scalingOptions = resolveScalingOptions(updated, rpgSystem);
+      const nextMax = computeMaxResources(updated.stats ?? {}, rpgSystem, scalingOptions);
       updated.maxResources = nextMax;
       for (const res of rpgSystem.resources) {
         const cur = updated.resources?.[res.id];

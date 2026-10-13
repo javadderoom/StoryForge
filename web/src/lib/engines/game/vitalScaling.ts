@@ -5,6 +5,67 @@ export interface VitalScalingOptions {
   archetype?: ArchetypeDefinition;
   background?: BackgroundOriginDefinition;
   equippedArtifacts?: Array<{ resourceModifiers?: Record<string, number> }>;
+  powerBonuses?: Record<string, number>;
+}
+
+/**
+ * Derives full VitalScalingOptions (archetype, background, equipped items, power bonuses)
+ * directly from a PlayerState, story RPG system, and optional vault artifacts/power schools.
+ */
+export function resolveScalingOptions(
+  playerState?: {
+    archetypeId?: string;
+    backgroundId?: string;
+    equipment?: { mainHand?: string | null; offHand?: string | null; armor?: string | null; relic?: string | null };
+    inventory?: Array<{ id: string; resourceModifiers?: Record<string, number> }>;
+    powerRanks?: Record<string, number>;
+  },
+  rpgSystem?: RPGSystemSchema,
+  storyArtifacts?: any[],
+  storyPowerSchools?: any[]
+): VitalScalingOptions {
+  if (!playerState || !rpgSystem) return {};
+  const archetype = (rpgSystem.archetypes ?? []).find((a: any) => a.id === playerState.archetypeId);
+  const background = (rpgSystem.backgrounds ?? []).find((b: any) => b.id === playerState.backgroundId);
+  const equippedIds = new Set(
+    [
+      playerState.equipment?.mainHand,
+      playerState.equipment?.offHand,
+      playerState.equipment?.armor,
+      playerState.equipment?.relic,
+    ].filter(Boolean)
+  );
+  const byId = new Map<string, any>();
+  for (const item of playerState.inventory ?? []) {
+    if (item?.id) byId.set(item.id, item);
+  }
+  for (const art of storyArtifacts ?? []) {
+    if (art?.id && !byId.has(art.id)) byId.set(art.id, art);
+  }
+  const equippedArtifacts = Array.from(equippedIds).map((id) => byId.get(id!)).filter(Boolean);
+
+  const powerBonuses: Record<string, number> = {};
+  if (playerState.powerRanks && storyPowerSchools) {
+    for (const [schoolId, rankNum] of Object.entries(playerState.powerRanks)) {
+      const school = storyPowerSchools.find((s: any) => s.id === schoolId);
+      if (school?.ranks) {
+        for (const rank of school.ranks) {
+          if (rank.rankNumber <= rankNum && rank.resourceBonuses) {
+            for (const [resId, b] of Object.entries(rank.resourceBonuses)) {
+              powerBonuses[resId] = (powerBonuses[resId] || 0) + (typeof b === 'number' ? b : 0);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    archetype,
+    background,
+    equippedArtifacts,
+    ...(Object.keys(powerBonuses).length > 0 ? { powerBonuses } : {}),
+  };
 }
 
 /**
@@ -115,6 +176,15 @@ export function computeMaxResources(
             maxResources[resId] += bonus;
           }
         }
+      }
+    }
+  }
+
+  // 6. Power rank passive resource bonuses
+  if (options?.powerBonuses) {
+    for (const [resId, bonus] of Object.entries(options.powerBonuses)) {
+      if (typeof bonus === 'number' && maxResources[resId] !== undefined) {
+        maxResources[resId] += bonus;
       }
     }
   }
