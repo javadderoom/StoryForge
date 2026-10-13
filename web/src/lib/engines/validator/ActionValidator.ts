@@ -337,19 +337,129 @@ export class ActionValidator {
     choices: any[] | null | undefined,
     playerState: PlayerState,
     worldBible: WorldBible,
-    storyNpcOverrides?: Record<string, any>
+    storyNpcOverrides?: Record<string, any>,
+    recentSceneSnippets?: string[] | null,
+    currentProse?: string | null
   ): any[] {
     if (!Array.isArray(choices) || choices.length === 0) return [];
-    return choices.filter((c) => {
+
+    // Combine recent scene snippets (last 3 scenes) and current scene prose
+    const allProseSnippets: string[] = [
+      ...(Array.isArray(recentSceneSnippets) ? recentSceneSnippets : []),
+      typeof currentProse === 'string' ? currentProse : '',
+    ].filter((s): s is string => typeof s === 'string' && s.trim().length > 0);
+
+    const fullProse = allProseSnippets.join('\n');
+    const hasProseContext = fullProse.trim().length > 0;
+    const registeredNpcs = worldBible?.npcs ?? [];
+
+    const filtered = choices.filter((c) => {
       const text = typeof c?.text === 'string' ? c.text : '';
       if (!text) return false;
+
+      // 1. Secret violation check (defense-in-depth)
       const violation = ActionValidator.detectUndiscoveredSecret(
         text,
         playerState,
         worldBible,
         storyNpcOverrides
       );
-      return !violation;
+      if (violation) return false;
+
+      // 2. NPC Presence & Grounding check:
+      // An NPC can only appear in choice options if they were present in the last 3 scenes
+      // or the current scene text.
+      if (hasProseContext && registeredNpcs.length > 0) {
+        for (const npc of registeredNpcs) {
+          const namesToCheck = [
+            npc.name,
+            (npc as any).nameFa,
+            (npc as any).nameEn,
+            npc.title,
+          ].filter((n): n is string => typeof n === 'string' && n.trim().length >= 3);
+
+          // Check if this choice explicitly mentions this NPC
+          const choiceMentionsNpc = namesToCheck.some((name) => text.includes(name));
+
+          if (choiceMentionsNpc) {
+            // Check if this NPC is present in the current or recent scenes
+            const npcPresentInProse = namesToCheck.some((name) => fullProse.includes(name));
+            if (!npcPresentInProse) {
+              // NPC was never introduced or is absent from recent scenes!
+              return false;
+            }
+          }
+        }
+      }
+
+      return true;
     });
+
+    // If filtering leaves fewer than 2 choices and we have prose context, replenish with safe tactical options
+    if (filtered.length < 2 && hasProseContext) {
+      const isEnglish = !/[\u0600-\u06FF]/.test(fullProse);
+      const fallbacks = isEnglish
+        ? [
+            {
+              id: 'choice_fallback_cunning',
+              text: 'Carefully assess your surroundings and look for hidden openings or alternate paths.',
+              style: 'tactical',
+              riskLevel: 'medium',
+              requiredStatId: 'cunning',
+              targetDC: 12,
+            },
+            {
+              id: 'choice_fallback_agility',
+              text: 'Maintain a low profile, keep your footing, and watch for sudden threats.',
+              style: 'cautious',
+              riskLevel: 'low',
+              requiredStatId: 'agility',
+              targetDC: 11,
+            },
+            {
+              id: 'choice_fallback_might',
+              text: 'Stand firm, grip your weapon ready, and prepare for any sudden confrontation.',
+              style: 'aggressive',
+              riskLevel: 'medium',
+              requiredStatId: 'might',
+              targetDC: 13,
+            },
+          ]
+        : [
+            {
+              id: 'choice_fallback_cunning',
+              text: 'بررسی دقیق موقعیت و جست‌وجوی نشانه‌ها یا معابر پنهان در محیط پیرامون.',
+              style: 'tactical',
+              riskLevel: 'medium',
+              requiredStatId: 'cunning',
+              targetDC: 12,
+            },
+            {
+              id: 'choice_fallback_agility',
+              text: 'حفظ خونسردی، زیر نظر گرفتن حرکات و آماده شدن برای هرگونه واکنش ناگهانی.',
+              style: 'cautious',
+              riskLevel: 'low',
+              requiredStatId: 'agility',
+              targetDC: 11,
+            },
+            {
+              id: 'choice_fallback_might',
+              text: 'ایستادن استوار، محکم کردن دست بر سلاح و آمادگی کامل برای رویارویی مستقیم.',
+              style: 'aggressive',
+              riskLevel: 'medium',
+              requiredStatId: 'might',
+              targetDC: 13,
+            },
+          ];
+
+      for (const fb of fallbacks) {
+        if (filtered.length >= 3) break;
+        if (!filtered.some((c) => c.text === fb.text)) {
+          filtered.push(fb);
+        }
+      }
+    }
+
+    return filtered;
   }
 }

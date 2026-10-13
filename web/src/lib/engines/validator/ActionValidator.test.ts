@@ -519,7 +519,7 @@ describe('ActionValidator - sanitizeChoices (pre-presentation filter)', () => {
     );
   });
 
-  it('never returns more choices than it was given', () => {
+  it('never returns more choices than it was given when no prose context is provided', () => {
     const sanitized = ActionValidator.sanitizeChoices(
       [
         { id: 'c1', text: 'I confront the baroness about the royal wine', targetDC: 8 },
@@ -530,5 +530,75 @@ describe('ActionValidator - sanitizeChoices (pre-presentation filter)', () => {
       worldBible
     );
     assert.ok(sanitized.length <= 3);
+  });
+
+  it('strips choices naming an unintroduced NPC absent from recent scene prose', () => {
+    const customWorldBible: WorldBible = {
+      ...worldBible,
+      npcs: [
+        {
+          id: 'npc_giva',
+          name: 'گیوا بَلد',
+          title: 'راه‌بلد کاروان',
+          description: 'A secretive guide',
+          secrets: [],
+        } as any,
+      ],
+    };
+
+    const openingProse = ['مه غلیظی روی رودخانه نشسته است. صفی فشرده از گزمه‌های مسلح راه پل را بسته‌اند.'];
+    const choices = [
+      { id: 'c1', text: 'ایستادن در کنارِ گیوا بَلد و بازجویی از او درباره محتویات کجاوه‌ها', targetDC: 12 },
+      { id: 'c2', text: 'نزدیک شدن به صف گزمه‌ها و پرس‌وجو از فرمانده درباره علت قرنطینه', targetDC: 14 },
+    ];
+
+    const sanitized = ActionValidator.sanitizeChoices(
+      choices,
+      playerState,
+      customWorldBible,
+      undefined,
+      openingProse
+    );
+
+    // c1 mentioned Giva who is absent from opening prose; should be stripped!
+    assert.equal(sanitized.some((c: any) => c.text.includes('گیوا')), false);
+    // At least 2 choices exist (replenished with safe fallback so player is never stuck)
+    assert.ok(sanitized.length >= 2);
+    assert.ok(sanitized.some((c: any) => c.text.includes('گزمه‌ها')));
+  });
+
+  it('permits choices naming an NPC once introduced in recent scenes or current prose', () => {
+    const customWorldBible: WorldBible = {
+      ...worldBible,
+      npcs: [
+        {
+          id: 'npc_giva',
+          name: 'گیوا بَلد',
+          title: 'راه‌بلد کاروان',
+          description: 'A secretive guide',
+          secrets: [],
+        } as any,
+      ],
+    };
+
+    const currentProse = 'مردی با ردای خاک‌گرفته پیش می‌آید و خود را گیوا بَلد، راه‌بلد کاروان، می‌نامد.';
+    const choices = [
+      { id: 'c1', text: 'ایستادن در کنارِ گیوا بَلد و درخواست هدایت کاروان', targetDC: 12 },
+      { id: 'c2', text: 'بررسی استحکام کجاوه‌ها پیش از آغاز حرکت', targetDC: 10 },
+    ];
+
+    const sanitized = ActionValidator.sanitizeChoices(
+      choices,
+      playerState,
+      customWorldBible,
+      undefined,
+      [],
+      currentProse
+    );
+
+    // Both choices are permitted because Giva was introduced in currentProse!
+    assert.equal(sanitized.length, 2);
+    assert.equal(sanitized[0].id, 'c1');
+    assert.equal(sanitized[1].id, 'c2');
   });
 });

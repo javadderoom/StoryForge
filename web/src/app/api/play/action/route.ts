@@ -585,13 +585,29 @@ export async function POST(req: NextRequest) {
         previousLocationId: preTurnLocationId,
       },
       geminiAdapter,
-      (choices) =>
-        ActionValidator.sanitizeChoices(
+      (choices, currentProse) => {
+        const priorTurns = ((session?.turns ?? []) as Array<{
+          turnNumber?: number;
+          narrativeProse?: string;
+        }>).filter((t) => typeof t.turnNumber !== 'number' || t.turnNumber < turnNumber);
+        const priorSnippets = priorTurns
+          .slice(-3)
+          .map((t) => t.narrativeProse)
+          .filter((p): p is string => typeof p === 'string' && p.length > 0);
+        const recentSceneSnippets =
+          priorSnippets.length > 0
+            ? priorSnippets
+            : [story.initialStoryBeats?.[0]?.narrativeText || ''];
+
+        return ActionValidator.sanitizeChoices(
           choices,
           updatedPlayerState,
           story.worldBible,
-          story.storyNpcOverrides
-        )
+          story.storyNpcOverrides,
+          recentSceneSnippets,
+          currentProse
+        );
+      }
     );
 
     // Plan 08 Phase 1: NEVER persist mock/offline output as story canon.

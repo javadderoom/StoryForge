@@ -175,13 +175,14 @@ async function generateOpeningChoices(
       return [];
     }
     // Defense-in-depth: never present an opening choice that would leak a
-    // secret the player has not yet discovered. (The presented-choice bypass
-    // would otherwise still block the click, but the text must never appear.)
+    // secret the player has not yet discovered or reference an unintroduced NPC.
+    const openingProse = [String(beat.narrativeText || '')];
     return ActionValidator.sanitizeChoices(
       generated.choices,
       playerState,
       story.worldBible,
-      (story as any).storyNpcOverrides
+      (story as any).storyNpcOverrides,
+      openingProse
     );
   } catch (e) {
     console.warn('[session] Opening choice generation failed — falling back to authored choices:', e);

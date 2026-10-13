@@ -264,14 +264,18 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
         });
         powerAffiliationLine = parts.join(' • ');
       }
-      const lastSceneProse = recentSceneSnippets[recentSceneSnippets.length - 1] || '';
       const isTargetOfAction =
         input.playerActionText.includes(npc.name) ||
         (npc.title && input.playerActionText.includes(npc.title));
       const isInImmediateScene =
         isTargetOfAction ||
-        lastSceneProse.includes(npc.name) ||
-        (npc.title && lastSceneProse.includes(npc.title));
+        recentSceneSnippets.some(
+          (snippet) =>
+            snippet.includes(npc.name) ||
+            (npc.title && snippet.includes(npc.title)) ||
+            (npc.nameFa && snippet.includes(npc.nameFa)) ||
+            (npc.nameEn && snippet.includes(npc.nameEn))
+        );
       return {
         name: npc.name,
         trust:
@@ -389,7 +393,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
 export async function generateValidatedScene(
   input: SceneTurnInput,
   adapter: GeminiAdapter,
-  secretSanitizer?: (choices: any[]) => any[],
+  secretSanitizer?: (choices: any[], currentProse?: string) => any[],
   subqAdapter?: SubQAdapter
 ): Promise<SceneGenerationOutcome> {
   const { story, resolution, ledger } = input;
@@ -414,7 +418,7 @@ export async function generateValidatedScene(
       status: 'ok',
       aiResponse: {
         narrative: resolvedAuthoredBeat.narrativeText,
-        choices: secretSanitizer ? secretSanitizer(authoredChoices) : authoredChoices,
+        choices: secretSanitizer ? secretSanitizer(authoredChoices, resolvedAuthoredBeat.narrativeText) : authoredChoices,
         extractedMemories: [],
         isMock: false,
       },
@@ -513,9 +517,9 @@ export async function generateValidatedScene(
   Object.assign(aiResponse, candidate);
   const proseFindings = check.findings;
 
-  // Defense-in-depth: drop any AI choice that would leak an undiscovered secret.
+  // Defense-in-depth: drop any AI choice that would leak an undiscovered secret or unintroduced NPC.
   if (secretSanitizer) {
-    aiResponse.choices = secretSanitizer(aiResponse.choices);
+    aiResponse.choices = secretSanitizer(aiResponse.choices, candidate.narrative);
   }
 
   return {
