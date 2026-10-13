@@ -176,4 +176,30 @@ class GameApiService {
     }
     throw Exception('خطا در اعمال ارتقای سطح (${response.statusCode})');
   }
+
+  /// Resets a story session and refunds any spent credits to the user's account
+  static Future<Map<String, dynamic>> resetSession({
+    required String storyId,
+    String? sessionId,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/play/session/reset'),
+      headers: defaultHeaders,
+      body: jsonEncode({
+        'storyId': storyId,
+        if (sessionId != null && sessionId.isNotEmpty) 'sessionId': sessionId,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      try {
+        final json = jsonDecode(response.body);
+        return json['data'] ?? json;
+      } catch (e) {
+        throw Exception('پاسخ بازنشانی با ساختار نامعتبر دریافت شد.');
+      }
+    }
+    throw Exception('خطا در بازنشانی سرگذشت (${response.statusCode})');
+  }
 }
+

@@ -813,6 +813,40 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
   void dismissDiscoveredCreature() {
     state = state.copyWith(clearDiscoveredCreature: true);
   }
+
+  /// Resets a story session, refunds any spent credits via the backend, and clears local session cache
+  Future<int> resetStorySession(String storyId) async {
+    final targetSessionId = state.storyId == storyId && state.sessionId.isNotEmpty ? state.sessionId : null;
+    int refundedCredits = 0;
+    try {
+      final res = await GameApiService.resetSession(
+        storyId: storyId,
+        sessionId: targetSessionId,
+      );
+      refundedCredits = (res['refundedCredits'] as num?)?.toInt() ?? 0;
+      final newBalance = (res['newCreditBalance'] as num?)?.toInt();
+      if (newBalance != null) {
+        ref.read(authProvider.notifier).updateCreditBalance(newBalance);
+      }
+    } catch (_) {
+      // Best-effort server reset
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('story_session_$storyId');
+      if (prefs.getString('active_story_id') == storyId) {
+        await prefs.remove('active_story_id');
+      }
+      await prefs.remove('dismissed_revamp_notice_$storyId');
+    } catch (_) {}
+
+    if (state.storyId == storyId) {
+      state = GameSessionState();
+    }
+
+    return refundedCredits;
+  }
 }
 
 class ItemUseResult {

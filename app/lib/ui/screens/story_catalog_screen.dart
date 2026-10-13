@@ -9,6 +9,8 @@ import '../../services/game_api_service.dart';
 import '../widgets/story_cover_image.dart';
 import '../widgets/profile_drawer.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/restart_adventure_dialog.dart';
+import '../../core/utils/persian_numbers.dart';
 import 'reader_screen.dart';
 import 'character_creation_screen.dart';
 
@@ -621,6 +623,51 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
                           ),
                   ),
                 ),
+                if (isActive) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 42,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFF59E0B),
+                        side: BorderSide(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      icon: const Icon(Icons.refresh_rounded, size: 16),
+                      label: Text(
+                        isPersian ? 'شروع مجدد (با استرداد کریدیت)' : 'Restart (Refund Credits)',
+                        style: GoogleFonts.vazirmatn(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      onPressed: _startingStoryId != null
+                          ? null
+                          : () async {
+                              final confirmed = await RestartAdventureDialog.show(context, isPersian: isPersian);
+                              if (!confirmed || !mounted) return;
+
+                              final refunded = await ref.read(gameSessionProvider.notifier).resetStorySession(story.id);
+                              if (!mounted) return;
+
+                              if (refunded > 0) {
+                                AppToast.show(
+                                  context,
+                                  message: isPersian
+                                      ? '${PersianNumbers.toPersian(refunded)} صحنه (کریدیت) به کیف پول شما بازگردانده شد.'
+                                      : '$refunded scenes refunded to your credit balance.',
+                                  type: ToastType.success,
+                                );
+                              }
+                              await _loadStories();
+                              if (mounted) {
+                                CharacterCreationScreen.open(context, story: story);
+                              }
+                            },
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

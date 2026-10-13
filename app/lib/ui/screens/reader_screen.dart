@@ -23,10 +23,16 @@ import '../widgets/story_cover_image.dart';
 import '../widgets/level_up_dialog.dart';
 import '../widgets/rpg_toast.dart';
 import '../widgets/turn_status_delta_banner.dart';
+import '../widgets/app_toast.dart';
+import '../widgets/restart_adventure_dialog.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/game_api_service.dart';
 import 'story_catalog_screen.dart';
+import 'character_creation_screen.dart';
 import 'compendium_screen.dart';
 import 'shop_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({super.key});
@@ -46,10 +52,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   double _fontSize = 16.0;
   double _lineHeight = 1.95;
   bool _isInitialPortalComplete = false;
+  bool _dismissedRevampNotice = false;
 
   @override
   void initState() {
     super.initState();
+    SharedPreferences.getInstance().then((prefs) {
+      if (mounted) {
+        setState(() {
+          _dismissedRevampNotice = prefs.getBool('dismissed_revamp_notice_story_mt4ofllt') ?? false;
+        });
+      }
+    });
+
     // Allow a smooth cinematic transition window for initial realm loading & 3D dice warm-up
     Future.delayed(const Duration(milliseconds: 700), () {
       if (mounted) {
@@ -85,6 +100,154 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       );
     });
   }
+
+  Future<void> _restartAdventure(bool isPersian) async {
+    final session = ref.read(gameSessionProvider);
+    final storyId = session.storyId;
+    if (storyId.isEmpty) return;
+
+    final confirmed = await RestartAdventureDialog.show(context, isPersian: isPersian);
+    if (!confirmed || !mounted) return;
+
+    final refunded = await ref.read(gameSessionProvider.notifier).resetStorySession(storyId);
+    if (!mounted) return;
+
+    if (refunded > 0) {
+      AppToast.show(
+        context,
+        message: isPersian
+            ? '${PersianNumbers.toPersian(refunded)} صحنه (کریدیت) به کیف پول شما بازگردانده شد.'
+            : '$refunded scenes refunded to your credit balance.',
+        type: ToastType.success,
+      );
+    }
+
+    try {
+      final stories = await GameApiService.fetchStories();
+      final story = stories.firstWhere((s) => s.id == storyId);
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => CharacterCreationScreen(story: story)),
+      );
+      return;
+    } catch (_) {}
+
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const StoryCatalogScreen()),
+    );
+  }
+
+  Widget _buildRevampNoticeBanner(BuildContext context, bool isPersian, RealmTheme theme) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF451A03).withValues(alpha: 0.65),
+            const Color(0xFF18181B).withValues(alpha: 0.9),
+            const Color(0xFF451A03).withValues(alpha: 0.5),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.45), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.auto_awesome, color: Color(0xFFF59E0B), size: 16),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isPersian ? 'به‌روزرسانی پردهٔ اول داستان' : 'Arc 1 Story Revamp',
+                  style: isPersian
+                      ? GoogleFonts.vazirmatn(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFFFBBF24),
+                        )
+                      : GoogleFonts.cinzel(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFFFBBF24),
+                        ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isPersian
+                ? 'پردهٔ اول «خاکسترِ زروان» بازنویسی شده و ماجراجویی از پهنهٔ بادیهٔ هیرام و همراهی با کاروان آغاز می‌شود. می‌توانید ماجراجویی خود را از ابتدا آغاز کنید؛ تمامی کریدیت‌های مصرف‌شده در این داستان به کیف پول شما بازگردانده می‌شوند.'
+                : 'Act 1 of "Ashes of Zarvan" has been revamped to start out in the Hiram wilderness with the caravan. You can reset your playthrough and get all credits spent on this story refunded.',
+            style: isPersian
+                ? GoogleFonts.vazirmatn(
+                    fontSize: 12,
+                    height: 1.6,
+                    color: const Color(0xFFE4E4E7),
+                  )
+                : GoogleFonts.merriweather(
+                    fontSize: 11.5,
+                    height: 1.6,
+                    color: const Color(0xFFE4E4E7),
+                  ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                  foregroundColor: const Color(0xFFFDE68A),
+                  side: const BorderSide(color: Color(0xFFF59E0B), width: 1),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  elevation: 0,
+                ),
+                onPressed: () => _restartAdventure(isPersian),
+                child: Text(
+                  isPersian ? 'بازنشانی و استرداد کریدیت‌ها' : 'Reset & Refund',
+                  style: GoogleFonts.vazirmatn(fontSize: 11.5, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: () async {
+                  setState(() => _dismissedRevampNotice = true);
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('dismissed_revamp_notice_story_mt4ofllt', true);
+                },
+                child: Text(
+                  isPersian ? 'ادامه بازی قبلی' : 'Dismiss',
+                  style: GoogleFonts.vazirmatn(fontSize: 11.5, color: Colors.white60),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
 
   /// Danger vignette when the story's primary vital pool drops below 30%.
   /// Resolves the health key dynamically (health/hp/…) instead of hardcoding 'hp'.
@@ -459,6 +622,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               },
             ),
 
+            // Restart Adventure with credit refund
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded, color: Colors.white70, size: 20),
+              tooltip: isPersian ? 'شروع مجدد ماجراجویی' : 'Restart Adventure',
+              onPressed: () => _restartAdventure(isPersian),
+            ),
+
             // 3D Animated Realm Relic Badge (Tapping opens Full Compendium)
             RealmRelicBadge(
               theme: theme,
@@ -604,6 +774,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                 ),
                               ),
                             ),
+
+                            if (!_dismissedRevampNotice &&
+                                session.storyId == 'story_mt4ofllt' &&
+                                (session.turnNumber > 1 || session.currentNarrative.contains('بارانداز غربی کاروانسرای شاخ زرین'))) ...[
+                              _buildRevampNoticeBanner(context, isPersian, theme),
+                            ],
 
                             // Plan 13: threat clocks + displacement banner
                             TensionClockWidget(
