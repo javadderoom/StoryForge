@@ -195,6 +195,9 @@ export interface CheckResolution {
     maxSegments: number;
     isCrisis: boolean;
   };
+  /** Universal Action Feasibility assessment */
+  feasibilityTier?: string;
+  expectedReaction?: string;
   /** Progression XP and level up metadata for client celebrations */
   progression?: {
     xpAwarded: number;

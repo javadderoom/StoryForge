@@ -29,6 +29,10 @@ import {
   resolveActionCheck,
 } from './actionCheckEngine';
 import {
+  assessActionFeasibility,
+  evaluateFeasibilityHeuristics,
+} from './actionFeasibilityEngine';
+import {
   isPressureAction,
   isInformationExtractionAction,
   isTacticalCoercionAction,
@@ -64,6 +68,8 @@ export class GameEngine {
   public static hasStructuredMechanics = hasStructuredMechanics;
   public static validateAbilityInvocation = validateAbilityInvocation;
   public static resolveActionCheck = resolveActionCheck;
+  public static assessActionFeasibility = assessActionFeasibility;
+  public static evaluateFeasibilityHeuristics = evaluateFeasibilityHeuristics;
 
   // Social & Secret mechanics
   public static isPressureAction = isPressureAction;

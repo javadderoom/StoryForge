@@ -22,6 +22,7 @@ import {
   detectInvokedAbility,
 } from './abilityEffects';
 import { calculateActionXp, applyXpGain } from './progressionEngine';
+import { FeasibilityAssessment } from './actionFeasibilityEngine';
 
 export interface RollOptions {
   statId?: string;
@@ -43,6 +44,8 @@ export interface RollOptions {
   invokedAbilityId?: string;
   /** Active action or threat categories for this check (e.g. ['incoming_light_projectile']). */
   actionCategories?: string[];
+  /** Universal Action Feasibility assessment (SubQ Snap or heuristic fallback) */
+  feasibility?: FeasibilityAssessment;
 }
 
 /**
@@ -402,7 +405,57 @@ export function resolveActionCheck(
       /[\u0600-\u06FF]/.test(playerState.backgroundName || '') ||
       (rpgSystem.stats && rpgSystem.stats.some((s) => /[\u0600-\u06FF]/.test(s.name))));
 
-  if (isNatMin) {
+  const feasibility = options.feasibility;
+
+  if (feasibility && feasibility.tier === 'impossible') {
+    // Impossible / Absurd Feats: The stated goal cannot succeed as requested regardless of dice.
+    // Nat 20 represents miraculous survival / leniency / comedy; lower rolls trigger proportionate reprisal.
+    if (isNatMax) {
+      outcome = 'mixed_success';
+      consequenceSummary = isPersian
+        ? feasibility.nat20SalvageSummaryFa
+        : feasibility.nat20SalvageSummaryEn;
+      const penalty =
+        feasibility.reaction === 'overwhelming_violence'
+          ? -5
+          : feasibility.reaction === 'lethal_hazard'
+          ? -20
+          : 0;
+      if (penalty < 0) {
+        stateDiff.resourceChanges = {
+          ...(stateDiff.resourceChanges || {}),
+          [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) + penalty,
+        };
+      }
+    } else if (isNatMin) {
+      outcome = 'critical_failure';
+      consequenceSummary = isPersian
+        ? feasibility.criticalFailureConsequenceFa
+        : feasibility.criticalFailureConsequenceEn;
+      const penalty = feasibility.reaction === 'lethal_hazard' ? -40 : -25;
+      stateDiff.resourceChanges = {
+        ...(stateDiff.resourceChanges || {}),
+        [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) + penalty,
+      };
+    } else {
+      outcome = 'failure';
+      consequenceSummary = isPersian
+        ? feasibility.failureConsequenceFa
+        : feasibility.failureConsequenceEn;
+      const penalty =
+        feasibility.reaction === 'overwhelming_violence'
+          ? -15
+          : feasibility.reaction === 'lethal_hazard'
+          ? -30
+          : feasibility.reaction === 'imprisonment_or_law'
+          ? -5
+          : -10;
+      stateDiff.resourceChanges = {
+        ...(stateDiff.resourceChanges || {}),
+        [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) + penalty,
+      };
+    }
+  } else if (isNatMin) {
     outcome = 'critical_failure';
     consequenceSummary = isPersian
       ? 'فاجعه رخ داد: شکست کامل همراه با آسیب سنگین یا عواقب ناگوار.'
@@ -594,5 +647,11 @@ export function resolveActionCheck(
     ...(displacedLocationId ? { displacedLocationId } : {}),
     ...(clockUpdate ? { clockUpdate } : {}),
     ...(progressionResult ? { progression: progressionResult } : {}),
+    ...(options.feasibility
+      ? {
+          feasibilityTier: options.feasibility.tier,
+          expectedReaction: options.feasibility.reaction,
+        }
+      : {}),
   };
 }

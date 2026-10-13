@@ -22,23 +22,30 @@ function selectMightOrConfrontationChoice(choices: ChoiceOption[]): ChoiceOption
   // 1. Explicitly Might
   const mightChoices = choices.filter(c => c.requiredStatId === 'might');
   if (mightChoices.length > 0) {
-    const combatMight = mightChoices.find(c =>
-      /گزمه|سپر|شمشیر|حمله|درگیری|پیشروی|شکستن|نیرو|زور|مهار|دفاع|معبر|یورش|سد|کنار/.test(c.text)
+    const violentMight = mightChoices.find(c =>
+      /حمله|یورش|شمشیر|سپر|گزمه|سرباز|درگیری|زور|نیرو|کوبیدن|ارعاب|هجوم|شکستن/.test(c.text)
     );
-    const sel = combatMight || mightChoices[0];
+    const sel = violentMight || mightChoices[0];
     console.log(`\n=> Selected Might Choice: "${sel.text}"`);
     return sel;
   }
 
-  // 2. Confrontation keywords
-  const confrontKeywords = /گزمه|سرباز|سپر|شمشیر|حمله|درگیری|پیشروی|نیرو|زور|یورش|سد|معبر|کنار/;
-  const confrontChoice = choices.find(c => confrontKeywords.test(c.text));
+  // 2. High-force, violent, combat or intimidation choices
+  const violentKeywords = /حمله|یورش|هجوم|درگیری|شمشیر|سپر|ارعاب|زور|کوبیدن|گزمه|سرباز|تهدید/;
+  const violentChoices = choices.filter(c => violentKeywords.test(c.text) && !/پرس‌وجو|مذاکره|پنهانی|خزیدن/.test(c.text));
+  if (violentChoices.length > 0) {
+    console.log(`\n=> Selected Violent/Forceful Choice: "${violentChoices[0].text}"`);
+    return violentChoices[0];
+  }
+
+  // 3. Any confrontation with guards or enemies
+  const confrontChoice = choices.find(c => /گزمه|سرباز|ارعاب|تهدید/.test(c.text));
   if (confrontChoice) {
     console.log(`\n=> Selected Confrontation Choice: "${confrontChoice.text}"`);
     return confrontChoice;
   }
 
-  // 3. Fallback to aggressive or first
+  // 4. Fallback to aggressive or first
   const aggressiveChoice = choices.find(c => c.actionStyle === 'aggressive');
   if (aggressiveChoice) {
     console.log(`\n=> Selected Aggressive Choice: "${aggressiveChoice.text}"`);
@@ -49,10 +56,16 @@ function selectMightOrConfrontationChoice(choices: ChoiceOption[]): ChoiceOption
   return choices[0];
 }
 
-async function fetchWithRetry(url: string, options: any, maxRetries = 3): Promise<any> {
+async function fetchWithRetry(url: string, options: any, maxRetries = 4): Promise<any> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      return await fetch(url, options);
+      const res = await fetch(url, options);
+      if ((res.status === 503 || res.status === 429) && attempt < maxRetries) {
+        console.warn(`[HTTP Retry] Status ${res.status} on attempt ${attempt}. Waiting 15s for Gemini quota cooldown...`);
+        await new Promise(r => setTimeout(r, 15000));
+        continue;
+      }
+      return res;
     } catch (err: any) {
       if (attempt < maxRetries && (err.code === 'ECONNRESET' || err.message?.includes('socket') || err.message?.includes('fetch failed'))) {
         console.warn(`[Network Retry] Attempt ${attempt} failed with ${err.code || err.message}. Retrying in 2.5s...`);
@@ -110,7 +123,7 @@ async function runLivePlaytest() {
   let playerState = initialPlayerState;
   let currentChoices: ChoiceOption[] = currentBeat.choices || [];
   let turnNumber = 2;
-  const TOTAL_TURNS = 3;
+  const TOTAL_TURNS = 2;
 
   for (let turn = 1; turn <= TOTAL_TURNS; turn++) {
     console.log(`\n================================================================`);

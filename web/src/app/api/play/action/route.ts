@@ -273,6 +273,19 @@ export async function POST(req: NextRequest) {
         ...(progressionResult ? { progression: progressionResult } : {}),
       };
     } else {
+      const currentLocation = story.worldBible.locations?.find(
+        (l) => l.id === playerState.currentLocationId
+      );
+      const feasibility = await GameEngine.assessActionFeasibility(
+        playerActionText,
+        {
+          characterName: playerState.characterName,
+          isPersian: isPersianStory,
+          currentLocationName: currentLocation?.name,
+          level: playerState.level || 1,
+        }
+      );
+
       resolution = GameEngine.resolveActionCheck(
         playerActionText,
         playerState,
@@ -291,6 +304,7 @@ export async function POST(req: NextRequest) {
           actionStyle,
           turnNumber,
           invokedAbilityId,
+          feasibility,
         }
       );
     }

@@ -254,6 +254,11 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
 - STRICT FACTUAL GROUNDING IN SCENE PROSE: Every choice MUST strictly react to the physical obstacles, characters, and situation explicitly established in the scene text. Do NOT invent phantom entities, unmentioned bystanders, cargo inspections, baggage searches, or phantom subplots. Choices must only address what is actually mentioned in the prose.
 - Do not offer leverage that this scene has already spent, such as threatening to disclose information to someone who just heard it. Do not ask an NPC to remove an obstacle they do not control.
 - PSYCHOLOGICAL BREAKING POINT FIDELITY (NO PREMATURE COLLAPSE): Any "Breaking point / نقطه شکست" mentioned in consequence text or NPC notes describes that NPC's internal psychological vulnerability or theoretical condition for future total collapse (e.g. "facing armed rebellion or death of their commander"). It is NOT an event that took place in this turn unless explicitly performed by the player! Do NOT narrate hypothetical breaking point events (such as soldiers abandoning posts, commanders being slain, or garrisons scattering) as accomplished facts unless the player actually caused or executed that exact event.
+- UNIVERSAL ACTION FEASIBILITY & PROPORTIONATE CONSEQUENCES: Impossible or absurd actions (e.g. asking a reigning king to hand over his crown, a lone mortal charging an entrenched armed military squad, leaping a 100ft canyon bare-bodied) CANNOT grant the impossible goal even on high dice rolls. The narrative reaction MUST be strictly proportionate to the absurdity of the action:
+  * Social Audacity (e.g. asking the king for his crown): A salvage roll makes the ruler roar with laughter or treat the player as a harmless court jester; a standard roll results in immediate arrest for high treason / dungeon.
+  * Asymmetric Combat (e.g. charging a military squad solo): A salvage roll represents miraculous narrow survival (parrying killing blows, scrambling back alive with wounds); a normal roll results in being battered down by numbers, disarmed, and pinned in the mud.
+  * Physical Defiance (e.g. jumping vast chasms): Results in plunging down, broken bones, or fatal hazard.
+  Never grant superhuman plot armor or treat absurd demands as successful real-world accomplishments.
 - Before returning JSON, check narrative and choices together for action scope, remaining opposition, witness knowledge, and supported premises. Revise contradictions without changing the authoritative game outcome.`;
 
     const systemPrompt = isEnglish
@@ -344,6 +349,11 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 - پایبندی به اقلیم و اتمسفر بومی (Biome & Climate Fidelity): توصیفات آب‌وهوا، حرارت، لجن و پوشش گیاهی باید کاملاً منطبق بر اتمسفر مکانِ حضور بازیکن در کتابچهٔ جهان باشد (مثلاً هوای شرجی، گرم، خاکی یا نمناک حاشیهٔ دشت و هور). هرگز اقلیم‌های خیالی و متناقض مانند لجن نیمه‌منجمد، یخ‌زدگی یا برف در تالاب‌ها و دشت‌های گرم و شرجی ابداع نکن.
 - واقع‌گرایی صوتی و انزوای صحنه (Auditory Plausibility & Seclusion): تا زمانی که اقدام بازیکن یا درگیری با دشمن صدای مهیب (مانند انفجار، فریاد بلند کمک‌خواهی، یا آتش‌سوزی آشکار) ایجاد نکرده باشد، صحنه‌های مخفیانه، خلوت یا دورافتاده (مانند نیزار حاشیهٔ رود، خرابه‌ها یا پایاب تاریک) باید کاملاً «منزوی و در خلوت» باقی بمانند. هرگز شخصیت‌های دوردست یا افراد کنار آتش را بدون دلیل صوتی موجه یا مشاهدهٔ مستقیم، با پای پیاده و مشعل‌به‌دست به صحنه نکشان.
 - منع زاویه دید دوربین معلق: صحنه را با توصیفات کلی و منفعلانه از منظره و دود و آتش‌های دوردست شروع نکن که عمل مشخصِ بازیکن در آن نادیده گرفته شود. اقدام و واکنش در اولویت اول هستند!
+- واقع‌گرایی همه‌جانبهٔ اقدامات و پیامدهای متناسب (Universal Action Feasibility): اقداماتی که از نظر فیزیکی، اجتماعی یا مقیاس نبرد ناممکن یا نامعقول هستند (مانند طلب تاج از پادشاه، حملهٔ تن‌به‌تن یک مسافر تازه‌کار به یک صف یا گروهان نظامی، یا پریدن از روی یک درهٔ صدمتری) حتی با تاس بالا هرگز نمی‌توانند به تحقق خواستهٔ ناممکن منجر شوند! پیامد روایت باید دقیقاً متناسب با ماهیت اقدام باشد:
+  * جسارت اجتماعی (مانند طلب تاج از شاه): پرتاب نجات‌بخش باعث خندهٔ شاه و تلقی بازیکن به عنوان دلقک دربار می‌شود؛ اما یک پرتاب عادی فوراً به کشیده شدن شمشیرها و پرتاب به سیاه‌چال به جرم خیانت منجر می‌شود.
+  * نبرد نامتقارن (مانند یورش انفرادی به صف گزمه‌ها): پرتاب نجات‌بخش تنها به معنی فرار معجزه‌آسا از مرگ با جراحت است؛ پرتاب عادی به معنی کوبیده شدن به گل، خلع سلاح و زمین‌گیر شدن است.
+  * تمرد از قوانین فیزیک (مانند پریدن از دره یا پرواز بدون جادو): به سقوط، شکستن استخوان‌ها و مخاطرهٔ مرگبار ختم می‌شود.
+  هرگز زره‌پوش خیالی (پلات آرمور) یا پیروزی‌های مضحک و غیرمنطقی در برابر قوانین جهان داستان خلق نکن.
 ${statsDirective}
 ${dialogueDirective}
 ${secretGuardDirective}
