@@ -44,6 +44,8 @@ class GameSessionState {
   final ProgressionAward? lastXpAward;
   /// Vitals, currency, item, and stat changes that occurred on the current turn.
   final TurnStatusDelta? lastStatusDelta;
+  /// The initial scene id defined in the story manifest on the server.
+  final String? initialSceneId;
 
   GameSessionState({
     this.isLoading = false,
@@ -73,6 +75,7 @@ class GameSessionState {
     this.discoveredCreature,
     this.lastXpAward,
     this.lastStatusDelta,
+    this.initialSceneId,
   });
 
   bool get isPersian {
@@ -110,6 +113,7 @@ class GameSessionState {
     DiscoveredCreature? discoveredCreature,
     ProgressionAward? lastXpAward,
     TurnStatusDelta? lastStatusDelta,
+    String? initialSceneId,
     bool clearSceneImage = false,
     bool clearPendingTurn = false,
     bool clearDisplacement = false,
@@ -151,6 +155,7 @@ class GameSessionState {
           : (discoveredCreature ?? this.discoveredCreature),
       lastXpAward: clearLastXpAward ? null : (lastXpAward ?? this.lastXpAward),
       lastStatusDelta: clearLastStatusDelta ? null : (lastStatusDelta ?? this.lastStatusDelta),
+      initialSceneId: initialSceneId ?? this.initialSceneId,
     );
   }
 
@@ -284,6 +289,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         clearPendingTurn: true,
         discoveredCreature: startDiscovered,
         clearDiscoveredCreature: startDiscovered == null,
+        initialSceneId: storyData?['initialSceneId'] as String?,
       );
 
       // Trigger location ambient audio
@@ -573,6 +579,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         clearPendingTurn: true,
         discoveredCreature: startDiscovered,
         clearDiscoveredCreature: startDiscovered == null,
+        initialSceneId: storyData?['initialSceneId'] as String?,
       );
 
       await prefs.setString('active_story_id', storyId);

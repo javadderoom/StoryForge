@@ -116,7 +116,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       AppToast.show(
         context,
         message: isPersian
-            ? '${PersianNumbers.toPersian(refunded)} صحنه (کریدیت) به کیف پول شما بازگردانده شد.'
+            ? '${PersianNumbers.toPersian(refunded)} صحنه (اعتبار) به کیف پول شما بازگردانده شد.'
             : '$refunded scenes refunded to your credit balance.',
         type: ToastType.success,
       );
@@ -197,7 +197,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           const SizedBox(height: 8),
           Text(
             isPersian
-                ? 'پردهٔ اول «خاکسترِ زروان» بازنویسی شده و ماجراجویی از پهنهٔ بادیهٔ هیرام و همراهی با کاروان آغاز می‌شود. می‌توانید ماجراجویی خود را از ابتدا آغاز کنید؛ تمامی کریدیت‌های مصرف‌شده در این داستان به کیف پول شما بازگردانده می‌شوند.'
+                ? 'پردهٔ اول «خاکسترِ زروان» بازنویسی شده و ماجراجویی از پهنهٔ بادیهٔ هیرام و همراهی با کاروان آغاز می‌شود. می‌توانید ماجراجویی خود را از ابتدا آغاز کنید؛ تمامی اعتبار مصرف‌شده در این داستان به کیف پول شما بازگردانده می‌شود.'
                 : 'Act 1 of "Ashes of Zarvan" has been revamped to start out in the Hiram wilderness with the caravan. You can reset your playthrough and get all credits spent on this story refunded.',
             style: isPersian
                 ? GoogleFonts.vazirmatn(
@@ -225,7 +225,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 ),
                 onPressed: () => _restartAdventure(isPersian),
                 child: Text(
-                  isPersian ? 'بازنشانی و استرداد کریدیت‌ها' : 'Reset & Refund',
+                  isPersian ? 'بازنشانی و بازگشت اعتبار' : 'Reset & Refund',
                   style: GoogleFonts.vazirmatn(fontSize: 11.5, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -777,7 +777,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
                             if (!_dismissedRevampNotice &&
                                 session.storyId == 'story_mt4ofllt' &&
-                                (session.turnNumber > 1 || session.currentNarrative.contains('بارانداز غربی کاروانسرای شاخ زرین'))) ...[
+                                session.initialSceneId == 'scene_hiram_trail_01' &&
+                                session.currentNarrative.contains('بارانداز غربی کاروانسرای شاخ زرین')) ...[
                               _buildRevampNoticeBanner(context, isPersian, theme),
                             ],
 

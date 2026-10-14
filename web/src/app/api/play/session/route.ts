@@ -274,6 +274,7 @@ export async function GET(req: NextRequest) {
             language: story.language,
             coverImageUrl: story.coverImageUrl,
             rpgSystem: story.rpgSystem,
+            initialSceneId: story.initialSceneId,
           },
           playerState: reconciledPlayerState,
           lore: buildPlayLore(story),
@@ -656,6 +657,7 @@ export async function POST(req: NextRequest) {
             language: story.language,
             coverImageUrl: story.coverImageUrl,
             rpgSystem: story.rpgSystem,
+            initialSceneId: story.initialSceneId,
           },
           lore: buildPlayLore(story),
           currentBeat: {

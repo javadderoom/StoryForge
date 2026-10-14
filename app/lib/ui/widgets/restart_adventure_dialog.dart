@@ -73,7 +73,7 @@ class RestartAdventureDialog extends StatelessWidget {
           children: [
             Text(
               isPersian
-                  ? 'آیا از شروع مجدد ماجراجویی اطمینان دارید؟ تمام پیشرفت فعلی این جلسه بازنشانی خواهد شد و کریدیت‌های مصرف‌شده در این داستان به کیف پول شما بازگردانده می‌شوند.'
+                  ? 'آیا از شروع مجدد ماجراجویی اطمینان دارید؟ تمام پیشرفت فعلی این جلسه بازنشانی خواهد شد و اعتبار مصرف‌شده در این داستان به کیف پول شما بازگردانده می‌شود.'
                   : 'Are you sure you want to restart your adventure? Current session progress will be reset and all credits spent on this story will be refunded to your balance.',
               style: isPersian
                   ? GoogleFonts.vazirmatn(

@@ -636,7 +636,7 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
                       ),
                       icon: const Icon(Icons.refresh_rounded, size: 16),
                       label: Text(
-                        isPersian ? 'شروع مجدد (با استرداد کریدیت)' : 'Restart (Refund Credits)',
+                        isPersian ? 'شروع مجدد (با استرداد اعتبار)' : 'Restart (Refund Credits)',
                         style: GoogleFonts.vazirmatn(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -655,7 +655,7 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
                                 AppToast.show(
                                   context,
                                   message: isPersian
-                                      ? '${PersianNumbers.toPersian(refunded)} صحنه (کریدیت) به کیف پول شما بازگردانده شد.'
+                                      ? '${PersianNumbers.toPersian(refunded)} صحنه (اعتبار) به کیف پول شما بازگردانده شد.'
                                       : '$refunded scenes refunded to your credit balance.',
                                   type: ToastType.success,
                                 );
