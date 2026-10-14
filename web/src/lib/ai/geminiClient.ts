@@ -66,6 +66,19 @@ export function getGeminiEndpoint(modelName: string): string {
   return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 }
 
+/**
+ * Determines whether a model supports Gemini thinking configuration.
+ * Lite models (e.g. gemini-3.5-flash-lite, gemini-3.1-flash-lite) and Gemma models
+ * do not have thinking capabilities and will fail with HTTP 400 if thinkingConfig is supplied.
+ */
+export function isThinkingSupported(model: string): boolean {
+  const m = model.toLowerCase();
+  if (m.includes('lite') || m.startsWith('gemma')) {
+    return false;
+  }
+  return true;
+}
+
 function getBaseQueueForTask(taskType?: 'world' | 'scene' | 'default'): readonly string[] {
   const envModel = process.env.GEMINI_MODEL?.trim();
   const queue = taskType === 'world' ? WORLD_GENERATION_QUEUE : SCENE_GENERATION_QUEUE;
@@ -126,23 +139,30 @@ export async function generateStructuredJson<T = unknown>(
     try {
       const endpoint = getGeminiEndpoint(model);
 
+      const generationConfig: Record<string, unknown> = {
+        responseMimeType: 'application/json',
+        temperature: options.temperature ?? 0.7,
+      };
+
+      if (isThinkingSupported(model)) {
+        generationConfig.thinkingConfig = {
+          thinkingBudget: 0,
+        };
+      }
+
+      if (options.maxOutputTokens) {
+        generationConfig.maxOutputTokens = options.maxOutputTokens;
+      }
+
       const requestBody: Record<string, unknown> = {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: options.temperature ?? 0.7,
-        },
+        generationConfig,
       };
 
       if (systemInstruction) {
         requestBody.systemInstruction = {
           parts: [{ text: systemInstruction }],
         };
-      }
-
-      if (options.maxOutputTokens) {
-        (requestBody.generationConfig as Record<string, unknown>).maxOutputTokens =
-          options.maxOutputTokens;
       }
 
       const res = await fetch(endpoint, {
@@ -237,21 +257,29 @@ export async function generateChat(
         parts: [{ text: m.content }],
       }));
 
+      const generationConfig: Record<string, unknown> = {
+        temperature: options.temperature ?? 0.8,
+      };
+
+      if (isThinkingSupported(model)) {
+        generationConfig.thinkingConfig = {
+          thinkingBudget: 0,
+        };
+      }
+
+      if (options.maxOutputTokens) {
+        generationConfig.maxOutputTokens = options.maxOutputTokens;
+      }
+
       const requestBody: any = {
         contents,
-        generationConfig: {
-          temperature: options.temperature ?? 0.8,
-        },
+        generationConfig,
       };
 
       if (systemInstruction) {
         requestBody.systemInstruction = {
           parts: [{ text: systemInstruction }],
         };
-      }
-
-      if (options.maxOutputTokens) {
-        requestBody.generationConfig.maxOutputTokens = options.maxOutputTokens;
       }
 
       const res = await fetch(endpoint, {
@@ -309,22 +337,29 @@ export async function generateText(
     try {
       const endpoint = getGeminiEndpoint(model);
 
+      const generationConfig: Record<string, unknown> = {
+        temperature: options.temperature ?? 0.7,
+      };
+
+      if (isThinkingSupported(model)) {
+        generationConfig.thinkingConfig = {
+          thinkingBudget: 0,
+        };
+      }
+
+      if (options.maxOutputTokens) {
+        generationConfig.maxOutputTokens = options.maxOutputTokens;
+      }
+
       const requestBody: Record<string, unknown> = {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: options.temperature ?? 0.7,
-        },
+        generationConfig,
       };
 
       if (systemInstruction) {
         requestBody.systemInstruction = {
           parts: [{ text: systemInstruction }],
         };
-      }
-
-      if (options.maxOutputTokens) {
-        (requestBody.generationConfig as Record<string, unknown>).maxOutputTokens =
-          options.maxOutputTokens;
       }
 
       const res = await fetch(endpoint, {
