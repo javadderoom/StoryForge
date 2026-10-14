@@ -30,6 +30,7 @@ import {
 import { WorldArtifact, ArtifactVaultLore, EnhancedArtifactPayload, ARTIFACT_RARITY_BUDGETS, getArtifactStatBudget } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import AiFillSection from '@/components/studio/AiFillSection';
+import { ImageUploadField } from '@/components/studio/ImageUploadField';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
 
 const RARITY_MAP = {
@@ -101,6 +102,7 @@ export default function ArtifactsStudioPage() {
   const [artSecretLore, setArtSecretLore] = useState('');
   const [artStartsQuestId, setArtStartsQuestId] = useState('');
   const [artNonEquippable, setArtNonEquippable] = useState(false);
+  const [artImageUrl, setArtImageUrl] = useState('');
 
   // Plan 05 Vault Lore form fields
   const [vaultCreator, setVaultCreator] = useState('');
@@ -154,6 +156,7 @@ export default function ArtifactsStudioPage() {
     setArtSecretLore('');
     setArtStartsQuestId('');
     setArtNonEquippable(false);
+    setArtImageUrl('');
     setVaultCreator('');
     setVaultLocation('');
     setVaultRitual('');
@@ -185,6 +188,7 @@ export default function ArtifactsStudioPage() {
     setArtSecretLore(art.secretLore || '');
     setArtStartsQuestId(art.startsQuestId || '');
     setArtNonEquippable(!!art.nonEquippable);
+    setArtImageUrl(art.imageUrl || '');
     setVaultCreator(art.vaultLore?.creator || '');
     setVaultLocation(art.vaultLore?.currentVaultLocation || '');
     setVaultRitual(art.vaultLore?.unsealingRitual || '');
@@ -271,11 +275,13 @@ export default function ArtifactsStudioPage() {
     const safeAttunement = (artAttunement || '').trim();
     const safeHolderId = (artHolderId || '').trim();
     const safeSecretLore = (artSecretLore || '').trim();
+    const safeImageUrl = (artImageUrl || '').trim();
 
     const payload: WorldArtifact = {
       id: editingArtifactId || `art_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
       name: safeName,
       title: safeTitle,
+      imageUrl: safeImageUrl || undefined,
       originEra: safeOrigin || (isPersian ? 'عصر باستان' : 'Ancient Era'),
       rarity: artRarity || 'common',
       description: safeDesc,
@@ -384,6 +390,7 @@ export default function ArtifactsStudioPage() {
     if (!artCurse && data.curseOrCost) setArtCurse(String(data.curseOrCost || ''));
     if (!artAttunement && data.attunementRules) setArtAttunement(String(data.attunementRules || ''));
     if (!artSecretLore && data.secretLore) setArtSecretLore(String(data.secretLore || ''));
+    if (!artImageUrl && data.imageUrl) setArtImageUrl(String(data.imageUrl || ''));
   };
 
   return (
@@ -516,6 +523,15 @@ export default function ArtifactsStudioPage() {
                 className={`bg-zinc-900/70 border-2 rounded-3xl p-6 backdrop-blur-xl shadow-2xl flex flex-col justify-between transition-all ${meta.borderClass} ${meta.glowClass} space-y-4`}
               >
                 <div className="space-y-4">
+                  {art.imageUrl && (
+                    <div className="relative h-40 w-full overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
+                      <img
+                        src={art.imageUrl}
+                        alt={art.name}
+                        className="h-full w-full object-cover object-center"
+                      />
+                    </div>
+                  )}
                   {/* Card Header */}
                   <div className="flex items-center justify-between gap-2 border-b border-zinc-800 pb-3">
                     <span className={`px-3 py-1 rounded-xl text-xs font-bold border ${meta.badgeClass}`}>
@@ -865,6 +881,14 @@ export default function ArtifactsStudioPage() {
 
             <form onSubmit={handleSaveArtifact} className="space-y-4">
               <AiFillSection type="artifact" onFilled={applyAiFill} />
+
+              <ImageUploadField
+                value={artImageUrl}
+                onChange={setArtImageUrl}
+                label={isPersian ? 'تصویر عتیقه یا دست‌سازه:' : 'Artifact Image:'}
+                folder="artifacts"
+                isPersian={isPersian}
+              />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

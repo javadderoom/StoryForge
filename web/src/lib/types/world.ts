@@ -493,6 +493,8 @@ export interface WorldArtifact {
   startsQuestId?: string;
   /** Plot/quest tokens (sealed relics, letters-in-steel) that can never occupy an equipment slot. Mirrors GameItem.nonEquippable. */
   nonEquippable?: boolean;
+  /** Image or relic icon URL */
+  imageUrl?: string;
 }
 
 export const ARTIFACT_RARITY_BUDGETS = {
