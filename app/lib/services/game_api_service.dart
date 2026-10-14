@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/story.dart';
 import '../models/game_state.dart';
 import '../models/character_creation.dart';
+import '../models/story_character_session.dart';
 import 'auth_service.dart';
 
 class GameApiService {
@@ -200,6 +201,41 @@ class GameApiService {
       }
     }
     throw Exception('خطا در بازنشانی سرگذشت (${response.statusCode})');
+  }
+
+  /// Fetches all character playthrough sessions for a story belonging to the authenticated user
+  static Future<List<StoryCharacterSession>> fetchStorySessions(String storyId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/play/sessions?storyId=$storyId'),
+      headers: defaultHeaders,
+    );
+    if (response.statusCode == 200) {
+      try {
+        final json = jsonDecode(response.body);
+        final List list = json['sessions'] ?? json['data'] ?? [];
+        return list.map((s) => StoryCharacterSession.fromJson(s as Map<String, dynamic>)).toList();
+      } catch (e) {
+        throw Exception('پاسخ سرور با ساختار نامعتبر دریافت شد.');
+      }
+    }
+    throw Exception('خطا در بارگذاری کاراکترهای داستان (${response.statusCode})');
+  }
+
+  /// Deletes a specific character session without refunding credits
+  static Future<bool> deleteSession(String sessionId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/api/play/session?sessionId=$sessionId'),
+      headers: defaultHeaders,
+    );
+    if (response.statusCode == 200) {
+      try {
+        final json = jsonDecode(response.body);
+        return json['success'] == true;
+      } catch (_) {
+        return false;
+      }
+    }
+    return false;
   }
 }
 

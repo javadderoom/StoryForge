@@ -300,6 +300,33 @@ export class SessionRepository {
   }
 
   /**
+   * Retrieves all playthrough sessions for a specific user and story, ordered by most recently updated
+   */
+  static async getUserSessionsForStory(userId: string, storyId: string) {
+    if (!isDatabaseActive) {
+      const results: any[] = [];
+      for (const s of inMemorySessions.values()) {
+        if (s.userId === userId && s.storyId === storyId) {
+          results.push(s);
+        }
+      }
+      return results.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    }
+    try {
+      return await prisma.playthroughSession.findMany({
+        where: {
+          userId,
+          storyId,
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+    } catch (e) {
+      console.warn(`Database error fetching user sessions for story ${storyId}:`, e);
+      return [];
+    }
+  }
+
+  /**
    * Deletes a session and its associated turns/memories from DB and in-memory map
    */
   static async deleteSession(sessionId: string): Promise<boolean> {

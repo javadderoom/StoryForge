@@ -9,10 +9,7 @@ import '../../services/game_api_service.dart';
 import '../widgets/story_cover_image.dart';
 import '../widgets/profile_drawer.dart';
 import '../widgets/app_toast.dart';
-import '../widgets/restart_adventure_dialog.dart';
-import '../../core/utils/persian_numbers.dart';
-import 'reader_screen.dart';
-import 'character_creation_screen.dart';
+import 'story_characters_screen.dart';
 
 class StoryCatalogScreen extends ConsumerStatefulWidget {
   const StoryCatalogScreen({super.key});
@@ -26,7 +23,6 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
   Set<String> _savedSessionStoryIds = {};
   bool _isLoading = true;
   String? _errorMessage;
-  String? _startingStoryId;
   DateTime? _lastBackPressTime;
 
   @override
@@ -552,122 +548,36 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
                 SizedBox(
                   width: double.infinity,
                   height: 46,
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isActive ? const Color(0xFF27272A) : const Color(0xFFF59E0B),
-                      foregroundColor: isActive ? Colors.white70 : Colors.black,
+                      foregroundColor: isActive ? const Color(0xFFFDE68A) : Colors.black,
+                      side: isActive ? const BorderSide(color: Color(0xFFF59E0B), width: 1) : null,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       elevation: isActive ? 0 : 4,
                     ),
-                    onPressed: _startingStoryId != null
-                        ? null
-                        : () async {
-                            if (isActive) {
-                              if (isInMemoryActive) {
-                                if (Navigator.canPop(context)) {
-                                  Navigator.of(context).pop();
-                                } else {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (context) => const ReaderScreen()),
-                                  );
-                                }
-                              } else {
-                                setState(() => _startingStoryId = story.id);
-                                final ok = await ref.read(gameSessionProvider.notifier).resumeStory(story.id);
-                                if (mounted) {
-                                  setState(() => _startingStoryId = null);
-                                  if (ok) {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(builder: (context) => const ReaderScreen()),
-                                    );
-                                  } else {
-                                    CharacterCreationScreen.open(context, story: story);
-                                  }
-                                }
-                              }
-                            } else {
-                              CharacterCreationScreen.open(context, story: story);
-                            }
-                          },
-                    child: _startingStoryId == story.id
-                        ? Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.2,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                isPersian ? 'در حال ورود به قلمرو...' : 'Entering Realm...',
-                                style: GoogleFonts.vazirmatn(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ],
-                          )
-                        : Text(
-                            isActive
-                                ? (isPersian ? 'ادامه ماجراجویی' : 'Continue Adventure')
-                                : (isPersian ? 'آغاز این ماجراجویی' : 'Start This Adventure'),
-                            style: GoogleFonts.vazirmatn(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                    icon: Icon(
+                      isActive ? Icons.groups_rounded : Icons.play_arrow_rounded,
+                      size: 20,
+                      color: isActive ? const Color(0xFFF59E0B) : Colors.black,
+                    ),
+                    label: Text(
+                      isActive
+                          ? (isPersian ? 'شخصیت‌ها و ادامه ماجراجویی' : 'Characters & Continue')
+                          : (isPersian ? 'آغاز این ماجراجویی' : 'Start This Adventure'),
+                      style: GoogleFonts.vazirmatn(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onPressed: () async {
+                      await StoryCharactersScreen.open(context, story: story);
+                      if (mounted) {
+                        _loadStories();
+                      }
+                    },
                   ),
                 ),
-                if (isActive) ...[
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 42,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFF59E0B),
-                        side: BorderSide(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      icon: const Icon(Icons.refresh_rounded, size: 16),
-                      label: Text(
-                        isPersian ? 'شروع مجدد (با استرداد اعتبار)' : 'Restart (Refund Credits)',
-                        style: GoogleFonts.vazirmatn(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      onPressed: _startingStoryId != null
-                          ? null
-                          : () async {
-                              final confirmed = await RestartAdventureDialog.show(context, isPersian: isPersian);
-                              if (!confirmed || !mounted) return;
-
-                              final refunded = await ref.read(gameSessionProvider.notifier).resetStorySession(story.id);
-                              if (!mounted) return;
-
-                              if (refunded > 0) {
-                                AppToast.show(
-                                  context,
-                                  message: isPersian
-                                      ? '${PersianNumbers.toPersian(refunded)} صحنه (اعتبار) به کیف پول شما بازگردانده شد.'
-                                      : '$refunded scenes refunded to your credit balance.',
-                                  type: ToastType.success,
-                                );
-                              }
-                              await _loadStories();
-                              if (mounted) {
-                                CharacterCreationScreen.open(context, story: story);
-                              }
-                            },
-                    ),
-                  ),
-                ],
               ],
             ),
           ),

@@ -1127,15 +1127,6 @@ export default function Home() {
             {ambientMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
           </button>
 
-          <button
-            onClick={restartAdventure}
-            className="flex items-center gap-1 rounded-lg border border-zinc-700/60 bg-zinc-800/80 px-2.5 py-1.5 text-xs text-zinc-300 transition-all hover:bg-zinc-700"
-            title={isRtl ? 'شروع مجدد' : 'Restart'}
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{isRtl ? 'شروع مجدد' : 'Restart'}</span>
-          </button>
-
         </div>
       </header>
 
@@ -1732,17 +1723,6 @@ export default function Home() {
                     </button>
                   </div>
                 </div>
-
-                <button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    restartAdventure();
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-800/80 rounded-xl transition-colors cursor-pointer"
-                >
-                  <RefreshCw className="h-4 w-4 text-zinc-400" />
-                  <span>{isRtl ? 'شروع مجدد ماجراجویی' : 'Restart Adventure'}</span>
-                </button>
 
                 {/* Studio link if author/admin */}
                 {(user?.role === 'ADMIN' || user?.role === 'AUTHOR') && (

@@ -693,3 +693,47 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const sessionId = req.nextUrl.searchParams.get('sessionId');
+    if (!sessionId) {
+      return NextResponse.json(
+        { success: false, error: 'sessionId is required' },
+        { status: 400, headers: buildCorsHeaders(req) }
+      );
+    }
+
+    const auth = await getAuthenticatedUser(req);
+    const session = await SessionRepository.getSessionForUser(
+      sessionId,
+      auth ? { id: auth.user.id, role: auth.user.role } : null
+    );
+
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: 'Session not found or access denied' },
+        { status: 404, headers: buildCorsHeaders(req) }
+      );
+    }
+
+    const deleted = await SessionRepository.deleteSession(sessionId);
+    if (!deleted) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to delete session' },
+        { status: 500, headers: buildCorsHeaders(req) }
+      );
+    }
+
+    return NextResponse.json(
+      { success: true, message: 'Character playthrough session deleted successfully' },
+      { headers: buildCorsHeaders(req) }
+    );
+  } catch (error: any) {
+    console.error('Session deletion error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to delete session' },
+      { status: 500, headers: buildCorsHeaders(req) }
+    );
+  }
+}

@@ -540,27 +540,33 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     } catch (_) {}
   }
 
-  /// Resumes an existing playthrough session for the given storyId
-  Future<bool> resumeStory(String storyId) async {
-    // If state already has this story active in memory with narrative, it is ready
-    if (state.storyId == storyId && state.currentNarrative.isNotEmpty && !state.isLoading) {
+  /// Resumes an existing playthrough session for the given storyId and optional sessionId
+  Future<bool> resumeStory(String storyId, {String? sessionId}) async {
+    // If a specific sessionId is requested, check if it matches in-memory active session
+    if (sessionId != null && sessionId.isNotEmpty) {
+      if (state.sessionId == sessionId && state.currentNarrative.isNotEmpty && !state.isLoading) {
+        return true;
+      }
+    } else if (state.storyId == storyId && state.currentNarrative.isNotEmpty && !state.isLoading) {
       return true;
     }
 
     state = state.copyWith(isLoading: true, storyId: storyId);
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedSessionId = prefs.getString('story_session_$storyId') ?? (state.storyId == storyId ? state.sessionId : '');
-      if (savedSessionId.isEmpty) {
+      final targetSessionId = (sessionId != null && sessionId.isNotEmpty)
+          ? sessionId
+          : prefs.getString('story_session_$storyId') ?? (state.storyId == storyId ? state.sessionId : '');
+      if (targetSessionId.isEmpty) {
         state = state.copyWith(isLoading: false);
         return false;
       }
 
-      final data = await GameApiService.fetchSession(savedSessionId);
+      final data = await GameApiService.fetchSession(targetSessionId);
       final sessionData = data['session'] ?? data;
       final resolvedSessionId = (data['sessionId'] as String?) ??
           (sessionData?['sessionId'] as String?) ??
-          savedSessionId;
+          targetSessionId;
       final playerState = PlayerState.fromJson(sessionData['playerState'] ?? data['playerState']);
       final currentBeat = data['currentBeat'] ?? {};
       final rawChoices = currentBeat['choices'] as List<dynamic>? ?? [];
@@ -615,6 +621,26 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         isLoading: false,
         errorMessage: e.toString(),
       );
+      return false;
+    }
+  }
+
+  /// Deletes a character session from the server and local preferences (zero refund)
+  Future<bool> deleteStorySession(String sessionId, {required String storyId}) async {
+    try {
+      final success = await GameApiService.deleteSession(sessionId);
+      if (success) {
+        final prefs = await SharedPreferences.getInstance();
+        if (prefs.getString('story_session_$storyId') == sessionId) {
+          await prefs.remove('story_session_$storyId');
+        }
+        if (state.sessionId == sessionId) {
+          state = GameSessionState();
+        }
+        return true;
+      }
+      return false;
+    } catch (_) {
       return false;
     }
   }
