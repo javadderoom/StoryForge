@@ -131,9 +131,6 @@ export async function generateStructuredJson<T = unknown>(
         generationConfig: {
           responseMimeType: 'application/json',
           temperature: options.temperature ?? 0.7,
-          thinkingConfig: {
-            thinkingBudget: 0,
-          },
         },
       };
 
