@@ -129,6 +129,7 @@ class StorySummary {
   final List<AbilityModel> abilities;
   final int universalBaseValue;
   final Map<String, dynamic>? progressionConfig;
+  final StoryUpdateNotice? updateNotice;
 
   StorySummary({
     required this.id,
@@ -146,6 +147,7 @@ class StorySummary {
     this.abilities = const [],
     this.universalBaseValue = 10,
     this.progressionConfig,
+    this.updateNotice,
   });
 
   factory StorySummary.fromJson(Map<String, dynamic> json) {
@@ -164,6 +166,12 @@ class StorySummary {
     // The play API nests abilities under rpgSystem; accept top-level too.
     final rawAbilities = json['abilities'] as List<dynamic>? ?? json['rpgSystem']?['abilities'] as List<dynamic>? ?? [];
 
+    StoryUpdateNotice? parsedNotice;
+    final noticeJson = json['updateNotice'];
+    if (noticeJson is Map<String, dynamic> && noticeJson['enabled'] == true) {
+      parsedNotice = StoryUpdateNotice.fromJson(noticeJson);
+    }
+
     return StorySummary(
       id: json['id'] ?? '',
       title: json['title'] ?? '',
@@ -180,6 +188,52 @@ class StorySummary {
       abilities: rawAbilities.map((ab) => AbilityModel.fromJson(ab as Map<String, dynamic>)).toList(),
       universalBaseValue: (json['universalBaseValue'] ?? json['rpgSystem']?['universalBaseValue'] as num?)?.toInt() ?? 10,
       progressionConfig: json['rpgSystem']?['progression'] as Map<String, dynamic>?,
+      updateNotice: parsedNotice,
     );
   }
+}
+
+class StoryUpdateNotice {
+  final String id;
+  final bool enabled;
+  final String title;
+  final String message;
+  final String? actionLabel;
+  final bool allowRefund;
+  final List<String> targetSceneIds;
+
+  const StoryUpdateNotice({
+    this.id = '',
+    this.enabled = true,
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.allowRefund = true,
+    this.targetSceneIds = const [],
+  });
+
+  factory StoryUpdateNotice.fromJson(Map<String, dynamic> json) {
+    return StoryUpdateNotice(
+      id: json['id'] as String? ?? '',
+      enabled: json['enabled'] as bool? ?? true,
+      title: json['title'] as String? ?? '',
+      message: json['message'] as String? ?? '',
+      actionLabel: json['actionLabel'] as String?,
+      allowRefund: json['allowRefund'] as bool? ?? true,
+      targetSceneIds: (json['targetSceneIds'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'enabled': enabled,
+        'title': title,
+        'message': message,
+        if (actionLabel != null) 'actionLabel': actionLabel,
+        'allowRefund': allowRefund,
+        'targetSceneIds': targetSceneIds,
+      };
 }

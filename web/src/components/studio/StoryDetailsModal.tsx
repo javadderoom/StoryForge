@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Check, Plus, Tag, Image as ImageIcon } from 'lucide-react';
+import { X, Check, Plus, Tag, Sparkles, Image as ImageIcon } from 'lucide-react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { GENRE_LABELS, GENRE_PRESETS } from '@/lib/genrePresets';
-import { StoryScale } from '@/lib/types';
+import { StoryScale, StoryUpdateNotice } from '@/lib/types';
 import { ImageUploadField } from '@/components/studio/ImageUploadField';
 
 function StoryDetailsForm({
@@ -25,6 +25,16 @@ function StoryDetailsForm({
   const [selectedGenres, setSelectedGenres] = useState<string[]>(story.genres || []);
   const [customGenre, setCustomGenre] = useState('');
 
+  // Story Update & Revamp Notice State
+  const [updateNoticeEnabled, setUpdateNoticeEnabled] = useState(story.updateNotice?.enabled ?? false);
+  const [noticeTitle, setNoticeTitle] = useState(story.updateNotice?.title ?? '');
+  const [noticeMessage, setNoticeMessage] = useState(story.updateNotice?.message ?? '');
+  const [noticeActionLabel, setNoticeActionLabel] = useState(story.updateNotice?.actionLabel ?? '');
+  const [noticeAllowRefund, setNoticeAllowRefund] = useState(story.updateNotice?.allowRefund ?? true);
+  const [noticeTargetScenes, setNoticeTargetScenes] = useState(
+    story.updateNotice?.targetSceneIds?.join(', ') ?? ''
+  );
+
   const togglePreset = (g: string) => {
     setSelectedGenres((prev) =>
       prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]
@@ -44,6 +54,11 @@ function StoryDetailsForm({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    const parsedTargetScenes = noticeTargetScenes
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     updateStoryMeta({
       title: title.trim() || story.title,
       tagline,
@@ -54,6 +69,15 @@ function StoryDetailsForm({
       version: version.trim() || story.version,
       language,
       genres: selectedGenres,
+      updateNotice: {
+        id: story.updateNotice?.id || `notice_${Date.now().toString(36)}`,
+        enabled: updateNoticeEnabled,
+        title: noticeTitle.trim(),
+        message: noticeMessage.trim(),
+        actionLabel: noticeActionLabel.trim() || undefined,
+        allowRefund: noticeAllowRefund,
+        targetSceneIds: parsedTargetScenes,
+      },
     });
     onClose();
   };
@@ -283,6 +307,113 @@ function StoryDetailsForm({
               {isPersian ? 'افزودن' : 'Add'}
             </button>
           </div>
+        </div>
+
+        {/* Story Update & Revamp Notice */}
+        <div className="rounded-2xl border border-amber-500/30 bg-zinc-950/70 p-4 space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+              <div>
+                <h4 className="text-xs font-bold text-zinc-100">
+                  {isPersian ? 'اعلان بازنویسی / به‌روزرسانی داستان' : 'Story Revamp / Update Notice'}
+                </h4>
+                <p className="text-[10px] text-zinc-400">
+                  {isPersian
+                    ? 'نمایش بنر اطلاع‌رسانی به بازیکنان در صورت بازنویسی پرده‌ها یا تغییرات ماجراجویی'
+                    : 'Broadcast an update/revamp banner to active players when chapters are rewritten'}
+                </p>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+              <input
+                type="checkbox"
+                checked={updateNoticeEnabled}
+                onChange={(e) => setUpdateNoticeEnabled(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+            </label>
+          </div>
+
+          {updateNoticeEnabled && (
+            <div className="space-y-3 pt-2 border-t border-zinc-800/80 animate-fadeIn">
+              <div>
+                <label className="block text-[11px] font-semibold text-zinc-300 mb-1">
+                  {isPersian ? 'عنوان اعلان:' : 'Notice Title:'}
+                </label>
+                <input
+                  type="text"
+                  value={noticeTitle}
+                  onChange={(e) => setNoticeTitle(e.target.value)}
+                  placeholder={isPersian ? 'مثال: به‌روزرسانی پردهٔ اول داستان' : 'e.g. Act 1 Story Revamp'}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-zinc-300 mb-1">
+                  {isPersian ? 'متن پیام اعلان:' : 'Notice Message:'}
+                </label>
+                <textarea
+                  value={noticeMessage}
+                  onChange={(e) => setNoticeMessage(e.target.value)}
+                  rows={3}
+                  placeholder={
+                    isPersian
+                      ? 'توضیحات مربوط به تغییرات یا بازنویسی بخش‌های داستان...'
+                      : 'Explanation of changes made to the story or instructions for the reader...'
+                  }
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-zinc-300 mb-1">
+                    {isPersian ? 'عنوان دکمه اقدام (اختیاری):' : 'Action Button Label (Optional):'}
+                  </label>
+                  <input
+                    type="text"
+                    value={noticeActionLabel}
+                    onChange={(e) => setNoticeActionLabel(e.target.value)}
+                    placeholder={isPersian ? 'پیش‌فرض: بازنشانی و بازگشت اعتبار' : 'Default: Reset & Refund'}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div className="flex items-center gap-2 pt-4">
+                  <input
+                    type="checkbox"
+                    id="noticeAllowRefund"
+                    checked={noticeAllowRefund}
+                    onChange={(e) => setNoticeAllowRefund(e.target.checked)}
+                    className="rounded border-zinc-700 bg-zinc-900 text-amber-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                  />
+                  <label htmlFor="noticeAllowRefund" className="text-xs text-zinc-300 cursor-pointer select-none">
+                    {isPersian ? 'امکان بازنشانی با استرداد اعتبار' : 'Allow Reset & Refund'}
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-zinc-300 mb-1">
+                  {isPersian ? 'شناسه صحنه‌های هدف (اختیاری، با کاما جدا کنید):' : 'Target Scene IDs (Optional, comma-separated):'}
+                </label>
+                <input
+                  type="text"
+                  value={noticeTargetScenes}
+                  onChange={(e) => setNoticeTargetScenes(e.target.value)}
+                  placeholder={isPersian ? 'خالی بگذارید تا برای تمام جلسات فعال نمایش داده شود' : 'Leave empty to display for all active playthroughs'}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+                />
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  {isPersian
+                    ? 'اگر پرده یا صحنه‌ای خاص بازنویسی شده، می‌توانید شناسه آن صحنه‌ها را وارد کنید تا فقط بازیکنان همان صحنه‌ها اعلان را ببینند.'
+                    : 'If only specific scenes were rewritten, enter their scene IDs so only players at those scenes see the banner.'}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

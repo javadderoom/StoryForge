@@ -46,6 +46,10 @@ class GameSessionState {
   final TurnStatusDelta? lastStatusDelta;
   /// The initial scene id defined in the story manifest on the server.
   final String? initialSceneId;
+  /// Optional author-managed story revamp / update notice broadcast to players.
+  final StoryUpdateNotice? updateNotice;
+  /// Active scene ID for the current beat.
+  final String? currentSceneId;
 
   GameSessionState({
     this.isLoading = false,
@@ -76,6 +80,8 @@ class GameSessionState {
     this.lastXpAward,
     this.lastStatusDelta,
     this.initialSceneId,
+    this.updateNotice,
+    this.currentSceneId,
   });
 
   bool get isPersian {
@@ -114,6 +120,8 @@ class GameSessionState {
     ProgressionAward? lastXpAward,
     TurnStatusDelta? lastStatusDelta,
     String? initialSceneId,
+    StoryUpdateNotice? updateNotice,
+    String? currentSceneId,
     bool clearSceneImage = false,
     bool clearPendingTurn = false,
     bool clearDisplacement = false,
@@ -122,6 +130,7 @@ class GameSessionState {
     bool clearLastXpAward = false,
     bool clearLastStatusDelta = false,
     bool clearLastResolution = false,
+    bool clearUpdateNotice = false,
   }) {
     return GameSessionState(
       isLoading: isLoading ?? this.isLoading,
@@ -156,6 +165,8 @@ class GameSessionState {
       lastXpAward: clearLastXpAward ? null : (lastXpAward ?? this.lastXpAward),
       lastStatusDelta: clearLastStatusDelta ? null : (lastStatusDelta ?? this.lastStatusDelta),
       initialSceneId: initialSceneId ?? this.initialSceneId,
+      updateNotice: clearUpdateNotice ? null : (updateNotice ?? this.updateNotice),
+      currentSceneId: currentSceneId ?? this.currentSceneId,
     );
   }
 
@@ -290,6 +301,11 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         discoveredCreature: startDiscovered,
         clearDiscoveredCreature: startDiscovered == null,
         initialSceneId: storyData?['initialSceneId'] as String?,
+        currentSceneId: currentBeat['sceneId'] as String?,
+        updateNotice: storyData?['updateNotice'] is Map<String, dynamic> &&
+                (storyData!['updateNotice'] as Map<String, dynamic>)['enabled'] == true
+            ? StoryUpdateNotice.fromJson(storyData['updateNotice'] as Map<String, dynamic>)
+            : null,
       );
 
       // Trigger location ambient audio
@@ -504,6 +520,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       clearPendingTurn: true,
       discoveredCreature: discovered,
       clearDiscoveredCreature: discovered == null,
+      currentSceneId: beatData['sceneId'] as String?,
       lastDisplacement: GameSessionState.displacementName(data, state.lore),
       clearDisplacement: GameSessionState.displacementName(data, state.lore) == null,
     );
@@ -580,6 +597,12 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         discoveredCreature: startDiscovered,
         clearDiscoveredCreature: startDiscovered == null,
         initialSceneId: storyData?['initialSceneId'] as String?,
+        currentSceneId: currentBeat['sceneId'] as String? ??
+            (data['session'] as Map<String, dynamic>?)?['currentSceneId'] as String?,
+        updateNotice: storyData?['updateNotice'] is Map<String, dynamic> &&
+                (storyData!['updateNotice'] as Map<String, dynamic>)['enabled'] == true
+            ? StoryUpdateNotice.fromJson(storyData['updateNotice'] as Map<String, dynamic>)
+            : null,
       );
 
       await prefs.setString('active_story_id', storyId);
@@ -845,7 +868,14 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       if (prefs.getString('active_story_id') == storyId) {
         await prefs.remove('active_story_id');
       }
-      await prefs.remove('dismissed_revamp_notice_$storyId');
+      final allKeys = prefs.getKeys();
+      for (final key in allKeys) {
+        if (key.startsWith('dismissed_update_notice_$storyId') ||
+            key == 'dismissed_revamp_notice_$storyId' ||
+            key == 'dismissed_revamp_notice_story_mt4ofllt') {
+          await prefs.remove(key);
+        }
+      }
     } catch (_) {}
 
     if (state.storyId == storyId) {

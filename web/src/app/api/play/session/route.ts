@@ -275,10 +275,17 @@ export async function GET(req: NextRequest) {
             coverImageUrl: story.coverImageUrl,
             rpgSystem: story.rpgSystem,
             initialSceneId: story.initialSceneId,
+            updateNotice:
+              (story as any).updateNotice?.enabled
+                ? (story as any).updateNotice
+                : (story as any).manifest?.updateNotice?.enabled
+                  ? (story as any).manifest.updateNotice
+                  : null,
           },
           playerState: reconciledPlayerState,
           lore: buildPlayLore(story),
           currentBeat: {
+            sceneId: session.currentSceneId,
             narrative: lastTurn?.narrativeProse ?? story.initialStoryBeats?.[0]?.narrativeText ?? '',
             choices: resumeChoices,
             imageUrl:
@@ -658,9 +665,16 @@ export async function POST(req: NextRequest) {
             coverImageUrl: story.coverImageUrl,
             rpgSystem: story.rpgSystem,
             initialSceneId: story.initialSceneId,
+            updateNotice:
+              (story as any).updateNotice?.enabled
+                ? (story as any).updateNotice
+                : (story as any).manifest?.updateNotice?.enabled
+                  ? (story as any).manifest.updateNotice
+                  : null,
           },
           lore: buildPlayLore(story),
           currentBeat: {
+            sceneId: initialBeat.sceneId,
             narrative: initialBeat.narrativeText,
             choices: openingChoices,
             imageUrl: initialBeat.imageUrl,

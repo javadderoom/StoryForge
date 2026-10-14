@@ -71,6 +71,8 @@ export interface StoryManifest {
   storyScale?: StoryScale;
   /** Optional story-level NPC role overrides (keyed by npcId) */
   storyNpcOverrides?: Record<string, StoryNpcOverride>;
+  /** Optional author-managed story revamp / update notice broadcast to players */
+  updateNotice?: StoryUpdateNotice;
   initialStoryBeats: Array<{
     sceneId: string;
     locationId: string;
@@ -89,6 +91,26 @@ export interface StoryManifest {
   }>;
   encounters?: StoryEncounter[];
 }
+
+export interface StoryUpdateNotice {
+  id?: string;
+  enabled: boolean;
+  title: string;
+  message: string;
+  actionLabel?: string;
+  allowRefund?: boolean;
+  targetSceneIds?: string[];
+}
+
+export const StoryUpdateNoticeSchema = z.object({
+  id: z.string().optional().default(''),
+  enabled: z.boolean().default(false),
+  title: z.string().default(''),
+  message: z.string().default(''),
+  actionLabel: z.string().optional(),
+  allowRefund: z.boolean().optional().default(true),
+  targetSceneIds: z.array(z.string()).optional().default([]),
+});
 
 export const StoryManifestSchema = z.object({
   id: z.string().min(2),
@@ -111,6 +133,7 @@ export const StoryManifestSchema = z.object({
   saga: SagaManifestSchema.optional(),
   storyScale: StoryScaleSchema.optional().default('urban'),
   storyNpcOverrides: z.record(z.string(), StoryNpcOverrideSchema).optional().default({}),
+  updateNotice: StoryUpdateNoticeSchema.optional(),
   initialStoryBeats: z.array(z.any()).default([]),
   encounters: z.array(StoryEncounterSchema).default([]),
 });

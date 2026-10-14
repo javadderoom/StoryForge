@@ -66,6 +66,7 @@ import { resolveActionCheck, serverToCheckResolution, DiceResolution, getEffecti
 import { audioService, ambientFromLocation } from '@/lib/play/audioService';
 import { toPersianDigits } from '@/lib/play/persianNumbers';
 import { notify } from '@/lib/notify';
+import { StoryUpdateNotice } from '@/lib/types';
 
 const PLAY_SELECTED_STORY_KEY = 'storyforge_play_selected_story_v1';
 const PLAY_SESSION_KEY = 'storyforge_play_session_v1';
@@ -195,29 +196,37 @@ export default function Home() {
 
   const isRtl = (storyMeta?.language ?? selectedStory?.language ?? 'en') !== 'en';
 
-  const [showStoryRevampNotice, setShowStoryRevampNotice] = useState(false);
+  const [showStoryUpdateNotice, setShowStoryUpdateNotice] = useState(false);
+  const activeUpdateNotice: StoryUpdateNotice | null =
+    (storyMeta as any)?.updateNotice || (selectedStory as any)?.updateNotice || null;
 
   useEffect(() => {
-    // Only check for revamp if the server story has actually been updated to the new prologue!
-    const serverStoryIsRevamped =
-      (storyMeta as any)?.initialSceneId === 'scene_hiram_trail_01' ||
-      (selectedStory as any)?.initialSceneId === 'scene_hiram_trail_01';
-
-    const isOldSession =
-      serverStoryIsRevamped &&
-      selectedStory?.id === 'story_mt4ofllt' &&
-      ((currentBeat as any)?.sceneId === 'scene_0243' ||
-        currentBeat?.narrative?.includes('بارانداز غربی کاروانسرای شاخ زرین'));
-
-    if (isOldSession) {
-      const dismissed = localStorage.getItem('dismissed_revamp_notice_story_mt4ofllt');
-      if (!dismissed) {
-        setShowStoryRevampNotice(true);
-      }
-    } else {
-      setShowStoryRevampNotice(false);
+    if (!activeUpdateNotice || !activeUpdateNotice.enabled || !selectedStory?.id) {
+      setShowStoryUpdateNotice(false);
+      return;
     }
-  }, [selectedStory?.id, (selectedStory as any)?.initialSceneId, (storyMeta as any)?.initialSceneId, turnNumber, currentBeat]);
+
+    // Filter by targetSceneIds if specified by the author
+    if (activeUpdateNotice.targetSceneIds && activeUpdateNotice.targetSceneIds.length > 0) {
+      const currentScene = (currentBeat as any)?.sceneId;
+      if (!currentScene || !activeUpdateNotice.targetSceneIds.includes(currentScene)) {
+        setShowStoryUpdateNotice(false);
+        return;
+      }
+    }
+
+    const noticeKey = `dismissed_update_notice_${selectedStory.id}_${activeUpdateNotice.id || activeUpdateNotice.title}`;
+    try {
+      const dismissed = localStorage.getItem(noticeKey);
+      if (!dismissed) {
+        setShowStoryUpdateNotice(true);
+      } else {
+        setShowStoryUpdateNotice(false);
+      }
+    } catch {
+      setShowStoryUpdateNotice(true);
+    }
+  }, [selectedStory?.id, activeUpdateNotice, currentBeat]);
 
   // ---- Persist settings ----
   useEffect(() => {
@@ -754,11 +763,18 @@ export default function Home() {
 
     clearStoredSession(selectedStory.id);
     try {
-      localStorage.removeItem('dismissed_revamp_notice_story_mt4ofllt');
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith(`dismissed_update_notice_${selectedStory.id}`) || key === 'dismissed_revamp_notice_story_mt4ofllt')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
     } catch {
       /* ignore */
     }
-    setShowStoryRevampNotice(false);
+    setShowStoryUpdateNotice(false);
     setSessionId('');
     setCurrentBeat(null);
     audioService.stopAmbient();
@@ -1136,18 +1152,16 @@ export default function Home() {
                 {isRtl ? `سقوط مرگبار! به «${displacementBanner}» پرتاب شدید.` : `Catastrophic fall! Displaced into “${displacementBanner}”.`}
               </div>
             )}
-            {showStoryRevampNotice && (
-              <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-950/60 via-zinc-900/90 to-amber-950/50 p-4 shadow-xl backdrop-blur-md">
+            {showStoryUpdateNotice && activeUpdateNotice && (
+              <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-950/60 via-zinc-900/90 to-amber-950/50 p-4 shadow-xl backdrop-blur-md animate-fadeIn">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
-                      <Sparkles className="h-4 w-4 text-amber-400" />
-                      <span>{isRtl ? 'به‌روزرسانی پردهٔ اول داستان' : 'Arc 1 Story Revamp'}</span>
+                      <Sparkles className="h-4 w-4 text-amber-400 shrink-0" />
+                      <span>{activeUpdateNotice.title || (isRtl ? 'اعلان به‌روزرسانی داستان' : 'Story Update')}</span>
                     </div>
-                    <p className="text-xs text-zinc-300 leading-relaxed">
-                      {isRtl
-                        ? 'پردهٔ اول «خاکسترِ زروان» بازنویسی شده و ماجراجویی از پهنهٔ بادیهٔ هیرام و همراهی با کاروان آغاز می‌شود. می‌توانید ماجراجویی خود را از ابتدا آغاز کنید؛ تمامی اعتبار مصرف‌شده در این داستان به کیف پول شما بازگردانده می‌شود.'
-                        : 'Act 1 of "Ashes of Zarvan" has been revamped to start out in the Hiram wilderness with the caravan. You can reset your playthrough and get all credits spent on this story refunded.'}
+                    <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line">
+                      {activeUpdateNotice.message}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
@@ -1155,13 +1169,14 @@ export default function Home() {
                       onClick={restartAdventure}
                       className="flex-1 sm:flex-initial px-3 py-1.5 rounded-xl bg-amber-500/25 hover:bg-amber-500/35 border border-amber-500/40 text-amber-200 text-xs font-medium transition-all"
                     >
-                      {isRtl ? 'بازنشانی و بازگشت اعتبار' : 'Reset & Refund'}
+                      {activeUpdateNotice.actionLabel || (isRtl ? 'بازنشانی و بازگشت اعتبار' : 'Reset & Refund')}
                     </button>
                     <button
                       onClick={() => {
-                        setShowStoryRevampNotice(false);
+                        setShowStoryUpdateNotice(false);
                         try {
-                          localStorage.setItem('dismissed_revamp_notice_story_mt4ofllt', 'true');
+                          const noticeKey = `dismissed_update_notice_${selectedStory?.id}_${activeUpdateNotice.id || activeUpdateNotice.title}`;
+                          localStorage.setItem(noticeKey, 'true');
                         } catch {
                           /* ignore */
                         }

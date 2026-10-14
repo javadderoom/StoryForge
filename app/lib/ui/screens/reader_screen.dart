@@ -31,6 +31,7 @@ import 'story_catalog_screen.dart';
 import 'character_creation_screen.dart';
 import 'compendium_screen.dart';
 import 'shop_screen.dart';
+import '../../models/story.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
@@ -52,7 +53,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   double _fontSize = 16.0;
   double _lineHeight = 1.95;
   bool _isInitialPortalComplete = false;
-  bool _dismissedRevampNotice = false;
+  final Set<String> _dismissedNoticeKeys = {};
 
   @override
   void initState() {
@@ -60,7 +61,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     SharedPreferences.getInstance().then((prefs) {
       if (mounted) {
         setState(() {
-          _dismissedRevampNotice = prefs.getBool('dismissed_revamp_notice_story_mt4ofllt') ?? false;
+          final keys = prefs.getKeys().where((k) => k.startsWith('dismissed_update_notice_')).toSet();
+          _dismissedNoticeKeys.addAll(keys);
         });
       }
     });
@@ -138,7 +140,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
   }
 
-  Widget _buildRevampNoticeBanner(BuildContext context, bool isPersian, RealmTheme theme) {
+  Widget _buildUpdateNoticeBanner(
+    BuildContext context,
+    bool isPersian,
+    RealmTheme theme,
+    StoryUpdateNotice notice,
+  ) {
+    final titleText = notice.title.isNotEmpty
+        ? notice.title
+        : (isPersian ? 'اعلان به‌روزرسانی داستان' : 'Story Update');
+    final actionText = notice.actionLabel != null && notice.actionLabel!.isNotEmpty
+        ? notice.actionLabel!
+        : (isPersian ? 'بازنشانی و بازگشت اعتبار' : 'Reset & Refund');
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
@@ -178,7 +192,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  isPersian ? 'به‌روزرسانی پردهٔ اول داستان' : 'Arc 1 Story Revamp',
+                  titleText,
                   style: isPersian
                       ? GoogleFonts.vazirmatn(
                           fontSize: 14,
@@ -196,9 +210,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            isPersian
-                ? 'پردهٔ اول «خاکسترِ زروان» بازنویسی شده و ماجراجویی از پهنهٔ بادیهٔ هیرام و همراهی با کاروان آغاز می‌شود. می‌توانید ماجراجویی خود را از ابتدا آغاز کنید؛ تمامی اعتبار مصرف‌شده در این داستان به کیف پول شما بازگردانده می‌شود.'
-                : 'Act 1 of "Ashes of Zarvan" has been revamped to start out in the Hiram wilderness with the caravan. You can reset your playthrough and get all credits spent on this story refunded.',
+            notice.message,
             style: isPersian
                 ? GoogleFonts.vazirmatn(
                     fontSize: 12,
@@ -225,16 +237,18 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 ),
                 onPressed: () => _restartAdventure(isPersian),
                 child: Text(
-                  isPersian ? 'بازنشانی و بازگشت اعتبار' : 'Reset & Refund',
+                  actionText,
                   style: GoogleFonts.vazirmatn(fontSize: 11.5, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(width: 8),
               TextButton(
                 onPressed: () async {
-                  setState(() => _dismissedRevampNotice = true);
+                  final session = ref.read(gameSessionProvider);
+                  final key = 'dismissed_update_notice_${session.storyId}_${notice.id.isNotEmpty ? notice.id : notice.title}';
+                  setState(() => _dismissedNoticeKeys.add(key));
                   final prefs = await SharedPreferences.getInstance();
-                  await prefs.setBool('dismissed_revamp_notice_story_mt4ofllt', true);
+                  await prefs.setBool(key, true);
                 },
                 child: Text(
                   isPersian ? 'ادامه بازی قبلی' : 'Dismiss',
@@ -775,11 +789,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               ),
                             ),
 
-                            if (!_dismissedRevampNotice &&
-                                session.storyId == 'story_mt4ofllt' &&
-                                session.initialSceneId == 'scene_hiram_trail_01' &&
-                                session.currentNarrative.contains('بارانداز غربی کاروانسرای شاخ زرین')) ...[
-                              _buildRevampNoticeBanner(context, isPersian, theme),
+                            if (session.updateNotice != null && session.updateNotice!.enabled) ...[
+                              Builder(builder: (context) {
+                                final notice = session.updateNotice!;
+                                final key = 'dismissed_update_notice_${session.storyId}_${notice.id.isNotEmpty ? notice.id : notice.title}';
+                                if (_dismissedNoticeKeys.contains(key)) {
+                                  return const SizedBox.shrink();
+                                }
+                                if (notice.targetSceneIds.isNotEmpty) {
+                                  final currentScene = session.currentSceneId;
+                                  if (currentScene != null && !notice.targetSceneIds.contains(currentScene)) {
+                                    return const SizedBox.shrink();
+                                  }
+                                }
+                                return _buildUpdateNoticeBanner(context, isPersian, theme, notice);
+                              }),
                             ],
 
                             // Plan 13: threat clocks + displacement banner
