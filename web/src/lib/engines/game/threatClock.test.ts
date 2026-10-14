@@ -97,6 +97,43 @@ describe('Plan 13: threat clocks', () => {
     assert.equal(clock!.id, clockIdForLocation('loc_battlements'));
     assert.equal(clock!.maxSegments, 4);
   });
+
+  it('inherits threat clock from regional ancestor when child location has none', () => {
+    const regionalBible: WorldBible = {
+      ...bible,
+      locations: [
+        {
+          id: 'loc_region_desert',
+          name: 'The Great Desert',
+          description: 'Vast expanse',
+          region: 'Wilderness',
+          dangerLevel: 4,
+          connectedLocationIds: [],
+          atmosphere: 'Scorching',
+          threatClockDefault: { name: 'Water Reserves', maxSegments: 6, crisisDescription: 'Caravan dehydrates' },
+        },
+        {
+          id: 'loc_desert_dune',
+          name: 'Shifting Dunes',
+          description: 'Dry sand',
+          region: 'Wilderness',
+          parentLocationId: 'loc_region_desert',
+          dangerLevel: 3,
+          connectedLocationIds: [],
+          atmosphere: 'Windy',
+        },
+      ],
+    };
+
+    const targetClockId = clockIdForLocation('loc_desert_dune', regionalBible);
+    assert.equal(targetClockId, 'clock_loc_region_desert');
+
+    const clock = ensureClockForLocation([], regionalBible.locations[1], regionalBible);
+    assert.ok(clock);
+    assert.equal(clock!.id, 'clock_loc_region_desert');
+    assert.equal(clock!.name, 'Water Reserves');
+    assert.equal(clock!.maxSegments, 6);
+  });
 });
 
 describe('Plan 13: hazard displacement', () => {

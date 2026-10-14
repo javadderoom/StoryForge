@@ -519,10 +519,11 @@ export function resolveActionCheck(
     const locId = options.currentLocationId || playerState.currentLocationId;
     const bible = options.worldBible;
     const location = bible?.locations?.find((l) => l.id === locId);
+    const targetClockId = clockIdForLocation(locId, bible);
     const activeClock =
       (options.activeClocks ?? playerState.activeTensionClocks ?? []).find(
-        (c) => c.id === clockIdForLocation(locId)
-      ) || ensureClockForLocation(options.activeClocks ?? playerState.activeTensionClocks, location);
+        (c) => c.id === targetClockId
+      ) || ensureClockForLocation(options.activeClocks ?? playerState.activeTensionClocks, location, bible);
 
     if (activeClock) {
       const { newSegments, isCrisis } = tickTensionClock(activeClock, outcome);

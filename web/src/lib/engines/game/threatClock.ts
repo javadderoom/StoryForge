@@ -32,25 +32,62 @@ export function tickTensionClock(
   return { newSegments: next, isCrisis: next >= max };
 }
 
-/** Clock id convention: one active clock per zone. */
-export function clockIdForLocation(locationId: string): string {
+/**
+ * Resolves the effective location declaring a threat clock for the given location,
+ * traversing up the ancestry chain (parentLocationId) if the current location has no clock.
+ */
+export function resolveLocationWithThreatClock(
+  location: WorldLocation | undefined,
+  worldBible?: WorldBible
+): WorldLocation | null {
+  if (!location) return null;
+  if (location.threatClockDefault?.name) return location;
+  if (!location.parentLocationId || !worldBible?.locations) return null;
+
+  const visited = new Set<string>([location.id]);
+  let currentParentId: string | undefined = location.parentLocationId;
+
+  while (currentParentId) {
+    if (visited.has(currentParentId)) break;
+    visited.add(currentParentId);
+    const parentLoc = worldBible.locations.find((l) => l.id === currentParentId);
+    if (!parentLoc) break;
+    if (parentLoc.threatClockDefault?.name) {
+      return parentLoc;
+    }
+    currentParentId = parentLoc.parentLocationId;
+  }
+  return null;
+}
+
+/** Clock id convention: one active clock per zone (or shared regional ancestor). */
+export function clockIdForLocation(locationId: string, worldBible?: WorldBible): string {
+  if (worldBible?.locations) {
+    const loc = worldBible.locations.find((l) => l.id === locationId);
+    const effectiveLoc = resolveLocationWithThreatClock(loc, worldBible);
+    if (effectiveLoc) {
+      return `clock_${effectiveLoc.id}`;
+    }
+  }
   return `clock_${locationId}`;
 }
 
 /**
- * Ensures an active clock exists for the zone when the location declares a
- * threatClockDefault. Returns the clock to use (existing or freshly spawned),
+ * Ensures an active clock exists for the zone when the location (or its regional ancestor)
+ * declares a threatClockDefault. Returns the clock to use (existing or freshly spawned),
  * or null when neither exists.
  */
 export function ensureClockForLocation(
   activeClocks: TensionClock[] | undefined,
-  location: WorldLocation | undefined
+  location: WorldLocation | undefined,
+  worldBible?: WorldBible
 ): TensionClock | null {
   if (!location) return null;
-  const id = clockIdForLocation(location.id);
+  const effectiveLoc = resolveLocationWithThreatClock(location, worldBible) || location;
+  const id = `clock_${effectiveLoc.id}`;
   const existing = (activeClocks ?? []).find((c) => c.id === id);
   if (existing) return existing;
-  const def = location.threatClockDefault;
+  const def = effectiveLoc.threatClockDefault;
   if (!def?.name) return null;
   return {
     id,
