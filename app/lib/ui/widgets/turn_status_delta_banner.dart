@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -5,15 +7,17 @@ import '../../core/theme/realm_theme.dart';
 import '../../core/utils/persian_numbers.dart';
 import '../../models/turn_status_delta.dart';
 
-/// An illuminated RPG status delta banner displayed directly above NarrativeProse.
-/// Visually highlights health, resource, currency, inventory, and progression updates
-/// that occurred as a result of the player's previous action.
+/// An illuminated RPG status delta banner displayed as a floating notification
+/// or inline card. Visually highlights health, resource, currency, inventory,
+/// and progression updates that occurred as a result of the player's previous action.
 class TurnStatusDeltaBanner extends StatefulWidget {
   final TurnStatusDelta delta;
   final RealmTheme theme;
   final bool isPersian;
   final VoidCallback? onOpenCompendium;
   final VoidCallback? onDismiss;
+  final Duration? autoDismissDuration;
+  final bool isFloating;
 
   const TurnStatusDeltaBanner({
     super.key,
@@ -22,6 +26,8 @@ class TurnStatusDeltaBanner extends StatefulWidget {
     this.isPersian = true,
     this.onOpenCompendium,
     this.onDismiss,
+    this.autoDismissDuration,
+    this.isFloating = false,
   });
 
   @override
@@ -29,7 +35,51 @@ class TurnStatusDeltaBanner extends StatefulWidget {
 }
 
 class _TurnStatusDeltaBannerState extends State<TurnStatusDeltaBanner> {
+  Timer? _dismissTimer;
   bool _isDismissed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startDismissTimer();
+  }
+
+  @override
+  void didUpdateWidget(TurnStatusDeltaBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.delta != widget.delta) {
+      _isDismissed = false;
+      _startDismissTimer();
+    }
+  }
+
+  void _startDismissTimer() {
+    _dismissTimer?.cancel();
+    _dismissTimer = null;
+    if (widget.autoDismissDuration != null && widget.delta.hasChanges && !_isDismissed) {
+      _dismissTimer = Timer(widget.autoDismissDuration!, () {
+        if (mounted) {
+          setState(() => _isDismissed = true);
+          widget.onDismiss?.call();
+        }
+      });
+    }
+  }
+
+  void _handleDismiss() {
+    _dismissTimer?.cancel();
+    _dismissTimer = null;
+    if (mounted) {
+      setState(() => _isDismissed = true);
+      widget.onDismiss?.call();
+    }
+  }
+
+  @override
+  void dispose() {
+    _dismissTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,24 +106,24 @@ class _TurnStatusDeltaBannerState extends State<TurnStatusDeltaBanner> {
       primaryTint = const Color(0xFFA855F7);
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+    final container = Container(
+      margin: widget.isFloating ? EdgeInsets.zero : const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D0F1B).withValues(alpha: 0.94),
+        color: const Color(0xFF0D0F1B).withValues(alpha: widget.isFloating ? 0.96 : 0.94),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: primaryTint.withValues(alpha: 0.38),
+          color: primaryTint.withValues(alpha: widget.isFloating ? 0.45 : 0.38),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: primaryTint.withValues(alpha: 0.12),
-            blurRadius: 18,
+            color: primaryTint.withValues(alpha: widget.isFloating ? 0.20 : 0.12),
+            blurRadius: widget.isFloating ? 24 : 18,
             offset: const Offset(0, 3),
           ),
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
-            blurRadius: 12,
+            color: Colors.black.withValues(alpha: widget.isFloating ? 0.70 : 0.5),
+            blurRadius: widget.isFloating ? 16 : 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -85,7 +135,7 @@ class _TurnStatusDeltaBannerState extends State<TurnStatusDeltaBanner> {
         children: [
           // Top Ribbon Header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8.5),
             decoration: BoxDecoration(
               color: primaryTint.withValues(alpha: 0.10),
               border: Border(
@@ -179,10 +229,7 @@ class _TurnStatusDeltaBannerState extends State<TurnStatusDeltaBanner> {
                       const SizedBox(width: 6),
                     ],
                     InkWell(
-                      onTap: () {
-                        setState(() => _isDismissed = true);
-                        widget.onDismiss?.call();
-                      },
+                      onTap: _handleDismiss,
                       borderRadius: BorderRadius.circular(6),
                       child: Padding(
                         padding: const EdgeInsets.all(3),
@@ -201,7 +248,7 @@ class _TurnStatusDeltaBannerState extends State<TurnStatusDeltaBanner> {
 
           // Body: Delta Chips
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(11),
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -210,7 +257,29 @@ class _TurnStatusDeltaBannerState extends State<TurnStatusDeltaBanner> {
           ),
         ],
       ),
-    )
+    );
+
+    if (widget.isFloating) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: GestureDetector(
+            onVerticalDragEnd: (details) {
+              if (details.primaryVelocity != null && details.primaryVelocity! > 180) {
+                _handleDismiss();
+              }
+            },
+            child: container,
+          ),
+        ),
+      )
+          .animate()
+          .fadeIn(duration: 300.ms)
+          .slideY(begin: 0.18, end: 0, duration: 350.ms, curve: Curves.easeOutCubic);
+    }
+
+    return container
         .animate()
         .fadeIn(duration: 350.ms)
         .slideY(begin: -0.05, end: 0, duration: 350.ms, curve: Curves.easeOutCubic);

@@ -870,6 +870,11 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     state = state.copyWith(clearDiscoveredCreature: true);
   }
 
+  /// Dismisses the transient turn status delta notification banner.
+  void dismissStatusDelta() {
+    state = state.copyWith(clearLastStatusDelta: true);
+  }
+
   /// Resets a story session, refunds any spent credits via the backend, and clears local session cache
   Future<int> resetStorySession(String storyId) async {
     final targetSessionId = state.storyId == storyId && state.sessionId.isNotEmpty ? state.sessionId : null;

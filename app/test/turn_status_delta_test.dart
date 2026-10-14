@@ -288,5 +288,42 @@ void main() {
       expect(dismissed, isTrue);
       expect(find.text('پیامدهای نوبت و تغییرات وضعیت'), findsNothing);
     });
+
+    testWidgets('auto-dismisses when autoDismissDuration expires', (tester) async {
+      var dismissed = false;
+      final delta = TurnStatusDelta(
+        items: [
+          const StatusDeltaItem(
+            type: StatusDeltaType.currencyGain,
+            label: 'سکه طلا',
+            delta: 10,
+            icon: Icons.monetization_on_rounded,
+            color: Color(0xFFF59E0B),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TurnStatusDeltaBanner(
+              delta: delta,
+              theme: RealmTheme.darkFantasy,
+              isPersian: true,
+              autoDismissDuration: const Duration(milliseconds: 600),
+              onDismiss: () => dismissed = true,
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('پیامدهای نوبت و تغییرات وضعیت'), findsOneWidget);
+      expect(dismissed, isFalse);
+
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(dismissed, isTrue);
+      expect(find.text('پیامدهای نوبت و تغییرات وضعیت'), findsNothing);
+    });
   });
 }

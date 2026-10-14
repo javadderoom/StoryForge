@@ -54,6 +54,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   double _lineHeight = 1.95;
   bool _isInitialPortalComplete = false;
   final Set<String> _dismissedNoticeKeys = {};
+  bool _isStatusDeltaDismissed = false;
 
   @override
   void initState() {
@@ -404,6 +405,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         _scrollToTop();
       }
 
+      // Reset turn status delta notification dismissal on new turn changes
+      if (next.lastStatusDelta != null && next.lastStatusDelta != prev?.lastStatusDelta) {
+        setState(() {
+          _isStatusDeltaDismissed = false;
+        });
+      }
+
       // Check for XP gain and Level-Up celebration events
       if (next.lastXpAward != null && next.lastXpAward != prev?.lastXpAward) {
         final award = next.lastXpAward!;
@@ -652,8 +660,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           enableParticles: _enableParticles,
           isDanger: isLowHp,
           child: SafeArea(
-            // Main Reader Scroll View with smooth cross-fade
-            child: AnimatedSwitcher(
+            child: Stack(
+              children: [
+                // Main Reader Scroll View with smooth cross-fade
+                Positioned.fill(
+                  child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 400),
                   child: session.currentNarrative.isEmpty ||
                           (session.isLoading && session.playerState == null) ||
@@ -1129,17 +1140,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                       ),
                                     ),
                                   ],
-                                  if (session.lastStatusDelta != null && session.lastStatusDelta!.hasChanges) ...[
-                                    TurnStatusDeltaBanner(
-                                      delta: session.lastStatusDelta!,
-                                      theme: theme,
-                                      isPersian: isPersian,
-                                      onOpenCompendium: () {
-                                        ref.read(audioProvider.notifier).playSfx(SfxType.pageTurn);
-                                        CompendiumScreen.open(context);
-                                      },
-                                    ),
-                                  ],
                                   NarrativeProse(
                                     text: session.currentNarrative,
                                     isPersian: isPersian,
@@ -1246,10 +1246,40 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                           ],
                         ),
                       ),
+                    ),
+                  ),
+
+                  // Floating Transient Turn Status Delta Notification (Matching Web)
+                  if (session.lastStatusDelta != null &&
+                      session.lastStatusDelta!.hasChanges &&
+                      !_isStatusDeltaDismissed) ...[
+                    Positioned(
+                      left: 16,
+                      right: 16,
+                      bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+                      child: TurnStatusDeltaBanner(
+                        key: ValueKey('delta_${session.turnNumber}'),
+                        delta: session.lastStatusDelta!,
+                        theme: theme,
+                        isPersian: isPersian,
+                        isFloating: true,
+                        autoDismissDuration: const Duration(milliseconds: 4500),
+                        onOpenCompendium: () {
+                          ref.read(audioProvider.notifier).playSfx(SfxType.pageTurn);
+                          CompendiumScreen.open(context);
+                        },
+                        onDismiss: () {
+                          setState(() => _isStatusDeltaDismissed = true);
+                          ref.read(gameSessionProvider.notifier).dismissStatusDelta();
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ),
-      ),
     );
   }
 
