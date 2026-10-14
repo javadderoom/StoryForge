@@ -123,6 +123,7 @@ async function main() {
     if (b) {
       b.id = 'npc_borzou';
       b.appearance = appearances.npc_borzou;
+      b.imageUrl = '/images/npcs/borzou.jpg';
     }
   }
 
