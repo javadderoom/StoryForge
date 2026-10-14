@@ -636,13 +636,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               },
             ),
 
-            // Restart Adventure with credit refund
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded, color: Colors.white70, size: 20),
-              tooltip: isPersian ? 'شروع مجدد ماجراجویی' : 'Restart Adventure',
-              onPressed: () => _restartAdventure(isPersian),
-            ),
-
             // 3D Animated Realm Relic Badge (Tapping opens Full Compendium)
             RealmRelicBadge(
               theme: theme,
