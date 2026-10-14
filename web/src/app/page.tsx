@@ -24,6 +24,7 @@ import {
   Menu,
   X,
   Heart,
+  Users,
 } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -31,6 +32,7 @@ import { WebShopModal } from '@/components/billing/WebShopModal';
 import { DiceRollModal } from '@/components/DiceRollModal';
 import { ReaderSettingsModal } from '@/components/ReaderSettingsModal';
 import { StoryCatalogModal } from '@/components/StoryCatalogModal';
+import { StoryCharactersModal } from '@/components/StoryCharactersModal';
 import { CharacterCreationModal } from '@/components/play/CharacterCreationModal';
 import { LockEncounterModal } from '@/components/play/LockEncounterModal';
 import { GameLoadingScreen } from '@/components/play/GameLoadingScreen';
@@ -137,6 +139,7 @@ export default function Home() {
 
   // Modals
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [isCharactersModalOpen, setIsCharactersModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCharCreationOpen, setIsCharCreationOpen] = useState(false);
   const [isCompendiumOpen, setIsCompendiumOpen] = useState(false);
@@ -427,14 +430,7 @@ export default function Home() {
   const onSelectStory = async (story: CatalogStory) => {
     const resolved = resolveStoryWithLocalDraft(story, story.id) || story;
     setSelectedStory(resolved);
-    // Character creation is one-time per story: resume the saved character
-    // when a session already exists instead of asking again.
-    const existing = readStoredSession(resolved.id);
-    if (existing) {
-      await startGame(resolved.id, existing, undefined, resolved.genres);
-    } else {
-      setIsCharCreationOpen(true);
-    }
+    setIsCharactersModalOpen(true);
   };
 
   const onEmbark = async (setup: CharacterSetup) => {
@@ -1112,6 +1108,17 @@ export default function Home() {
             )}
           </div>
 
+          {selectedStory && (
+            <button
+              onClick={() => setIsCharactersModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-300 transition-all hover:bg-amber-500/20"
+              title={isRtl ? 'شخصیت‌های این داستان' : 'Characters'}
+            >
+              <Users className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{isRtl ? 'شخصیت‌ها' : 'Characters'}</span>
+            </button>
+          )}
+
           <button
             onClick={() => audioService.toggleSfxMute()}
             className="rounded-lg border border-zinc-700/60 bg-zinc-800/80 p-1.5 text-zinc-300 transition-all hover:bg-zinc-700"
@@ -1131,7 +1138,19 @@ export default function Home() {
       </header>
 
       {!storyMeta && !loading ? (
-        <EmptyState isRtl={isRtl} onOpenLibrary={() => setIsCatalogOpen(true)} coverUrl={selectedStory ? getCoverUrl(selectedStory.id, selectedStory.coverImageUrl) : null} title={selectedStory?.title} onBegin={() => setIsCharCreationOpen(true)} />
+        <EmptyState
+          isRtl={isRtl}
+          onOpenLibrary={() => setIsCatalogOpen(true)}
+          coverUrl={selectedStory ? getCoverUrl(selectedStory.id, selectedStory.coverImageUrl) : null}
+          title={selectedStory?.title}
+          onBegin={() => {
+            if (selectedStory) {
+              setIsCharactersModalOpen(true);
+            } else {
+              setIsCatalogOpen(true);
+            }
+          }}
+        />
       ) : (
         <div className="grid w-full max-w-6xl flex-1 grid-cols-1 items-start gap-6 p-4 md:mx-auto md:grid-cols-12 md:p-6">
           {/* Reader */}
@@ -1703,6 +1722,19 @@ export default function Home() {
                   <span>{isRtl ? 'تنظیمات پوسته و قلم' : 'Theme & Typography'}</span>
                 </button>
 
+                {selectedStory && (
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      setIsCharactersModalOpen(true);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-amber-300 hover:bg-zinc-800/80 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <Users className="h-4 w-4 text-amber-400" />
+                    <span>{isRtl ? 'مدیریت شخصیت‌های این داستان' : 'Story Characters'}</span>
+                  </button>
+                )}
+
                 {/* Audio controls */}
                 <div className="flex items-center justify-between px-3 py-2 text-xs text-zinc-300 rounded-xl bg-zinc-900/50 border border-zinc-800/60">
                   <span className="text-xs text-zinc-400">صدا و موسیقی:</span>
@@ -1800,6 +1832,20 @@ export default function Home() {
         stories={stories}
         onSelectStory={onSelectStory}
         onClose={() => setIsCatalogOpen(false)}
+      />
+
+      <StoryCharactersModal
+        isOpen={isCharactersModalOpen}
+        story={selectedStory}
+        activeSessionId={sessionId || undefined}
+        isPersian={isRtl}
+        onSelectSession={async (sid) => {
+          if (selectedStory) {
+            await startGame(selectedStory.id, sid, undefined, selectedStory.genres);
+          }
+        }}
+        onCreateNew={() => setIsCharCreationOpen(true)}
+        onClose={() => setIsCharactersModalOpen(false)}
       />
 
       {selectedStory && isCharCreationOpen && (

@@ -99,6 +99,50 @@ export async function resetSession(
   return json.data;
 }
 
+export interface StorySessionSummary {
+  sessionId: string;
+  storyId: string;
+  currentSceneId: string;
+  turnCount: number;
+  characterName: string;
+  archetypeId?: string;
+  archetypeName: string;
+  backgroundId?: string;
+  backgroundName: string;
+  level: number;
+  currentLocationId?: string;
+  stats: Record<string, number>;
+  resources: Record<string, number>;
+  maxResources: Record<string, number>;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export async function fetchStorySessions(storyId: string): Promise<StorySessionSummary[]> {
+  try {
+    const res = await fetch(`/api/play/sessions?storyId=${encodeURIComponent(storyId)}`, { cache: 'no-store' });
+    const json = await asJson(res);
+    if (json.success && Array.isArray(json.sessions)) {
+      return json.sessions as StorySessionSummary[];
+    }
+  } catch {
+    /* offline */
+  }
+  return [];
+}
+
+export async function deleteSession(sessionId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/play/session?sessionId=${encodeURIComponent(sessionId)}`, {
+      method: 'DELETE',
+    });
+    const json = await asJson(res);
+    return json.success === true;
+  } catch {
+    return false;
+  }
+}
+
 
 export async function sendAction(payload: {
   storyId: string;
