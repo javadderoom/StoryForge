@@ -415,6 +415,13 @@ export interface SecretRevealMethod {
   detail?: string;
 }
 
+export interface NpcAppearance {
+  physicalBuild?: string; // height, frame, posture, gait (قد، قامت، شانه و راه رفتن)
+  faceAndGaze?: string;   // facial lines, skin, beard/hair, gaze, scars (سیمای چهره، چشم‌ها، ریش/مو، خطوط و جای زخم)
+  attire?: string;        // clothing, fabrics, colors, signature gear, footwear (پوشش، جنس پارچه، رنگ‌ها، ابزار و پاپوش)
+  mannerisms?: string;    // hands, body language, physical habits (حرکات دست، زبان بدن، عادت‌های رفتاری)
+}
+
 export interface NPCDossier {
   id: string;
   name: string;
@@ -426,6 +433,7 @@ export interface NPCDossier {
   applicableLocationIds?: string[]; // Multiple operating districts / spawn locations for templates
   personalityTraits: string[];
   speechStyle: string; // Directives for AI dialog tone (e.g. "Speaks curtly, rarely makes eye contact")
+  appearance?: NpcAppearance | string; // Sensory literary description: build, face, gaze, attire, mannerisms
   goals: string[];
   secrets: Array<{
     id: string;

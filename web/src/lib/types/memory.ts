@@ -41,6 +41,8 @@ export interface WorkingContextEnvelope {
     presenceStatus?: 'present' | 'nearby_resident';
     /** Caravan role or affiliation (e.g. "Caravan Master of The Silk Trail") if traveling with a trade route touching the location */
     caravanAffiliation?: string;
+    /** Sensory physical description: build, face, gaze, clothing, gear, mannerisms */
+    appearance?: string;
   }>;
   relevantMemories: Array<{
     category: MemoryCategory;

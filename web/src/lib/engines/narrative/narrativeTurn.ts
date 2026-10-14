@@ -135,6 +135,17 @@ export function formatOutcomeCost(resolution: CheckResolution, language: string)
   return isFa ? `هزینه قطعی این نوبت: ${parts.join('، ')}.` : `Certain cost this turn: ${parts.join(', ')}.`;
 }
 
+export function formatNpcAppearance(npc: any): string | undefined {
+  if (!npc.appearance) return undefined;
+  if (typeof npc.appearance === 'string') return npc.appearance;
+  const parts: string[] = [];
+  if (npc.appearance.physicalBuild) parts.push(`قامت و اندام: ${npc.appearance.physicalBuild}`);
+  if (npc.appearance.faceAndGaze) parts.push(`سیما و نگاه: ${npc.appearance.faceAndGaze}`);
+  if (npc.appearance.attire) parts.push(`پوشش و ابزار: ${npc.appearance.attire}`);
+  if (npc.appearance.mannerisms) parts.push(`زبان بدن و حرکات: ${npc.appearance.mannerisms}`);
+  return parts.length ? parts.join(' • ') : undefined;
+}
+
 /**
  * Builds the `WorkingContextEnvelope` fed to `PromptAssembler`. Pure aside from
  * `MemoryEngine` retrieval, which is deterministic over its inputs.
@@ -291,6 +302,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
         powerAffiliationLine,
         presenceStatus: isInImmediateScene ? ('present' as const) : ('nearby_resident' as const),
         caravanAffiliation: caravanAffiliationByNpcId.get(npc.id),
+        appearance: formatNpcAppearance(npc),
       };
     }),
     relevantMemories,

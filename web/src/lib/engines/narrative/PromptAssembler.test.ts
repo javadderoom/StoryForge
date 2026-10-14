@@ -201,6 +201,31 @@ describe('PromptAssembler - expanded world context', () => {
     assert.ok(fa.userPrompt.includes('دستور حضور کاروان‌ها و شخصیت‌های مسافر'));
   });
 
+  it('renders NPC appearance and literary portrait directives (EN + FA)', () => {
+    const dossiers = [
+      {
+        name: 'Borzou',
+        trust: 5,
+        knownSecrets: [],
+        speechStyle: 'Booming voice',
+        presenceStatus: 'present' as const,
+        appearance: 'قامت: بلند و چهارشانه • سیما: آفتاب‌سوخته • پوشش: ردای پشمین',
+      },
+    ];
+
+    const en = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({ activeNpcDossiers: dossiers, languageDirective: 'en' })
+    );
+    assert.ok(en.userPrompt.includes('Appearance & Attire: قامت: بلند و چهارشانه'));
+    assert.ok(en.userPrompt.includes('LITERARY CHARACTER PORTRAIT DIRECTIVE'));
+
+    const fa = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({ activeNpcDossiers: dossiers, languageDirective: 'fa', storyTitle: 'داستان افسانه' })
+    );
+    assert.ok(fa.userPrompt.includes('سیما، اندام و پوشش: قامت: بلند و چهارشانه'));
+    assert.ok(fa.userPrompt.includes('دستور شاهکار ادبی برای توصیف سیمای شخصیت‌ها'));
+  });
+
   it('renders equipped item interactions catalogue and item fidelity directives in prompts (EN + FA)', () => {
     const catalogEn = '[EQUIPPED GEAR & ARTIFACT INTERACTION CATALOGUE]\n• Wooden Buckler: Kinetic physical protection';
     const catalogFa = '[کاتالوگ تعاملات و کارکرد تجهیزات همراه / EQUIPPED GEAR & ARTIFACT INTERACTION CATALOGUE]\n• سپر چوبی: پدافند فیزیکی فعال';
