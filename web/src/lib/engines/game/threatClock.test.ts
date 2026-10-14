@@ -5,6 +5,7 @@ import {
   ensureClockForLocation,
   resolveDisplacement,
   clockIdForLocation,
+  pruneInactiveZoneClocks,
 } from './threatClock';
 import { GameEngine } from './GameEngine';
 import { PlayerState } from '../../types/gameplay';
@@ -133,6 +134,57 @@ describe('Plan 13: threat clocks', () => {
     assert.equal(clock!.id, 'clock_loc_region_desert');
     assert.equal(clock!.name, 'Water Reserves');
     assert.equal(clock!.maxSegments, 6);
+  });
+
+  it('prunes regional threat clocks when moving to a destination city outside the region', () => {
+    const regionalBible: WorldBible = {
+      ...bible,
+      locations: [
+        {
+          id: 'loc_region_desert',
+          name: 'The Great Desert',
+          description: 'Vast expanse',
+          region: 'Wilderness',
+          dangerLevel: 4,
+          connectedLocationIds: [],
+          atmosphere: 'Scorching',
+          threatClockDefault: { name: 'Water Reserves', maxSegments: 6, crisisDescription: 'Caravan dehydrates' },
+        },
+        {
+          id: 'loc_desert_dune',
+          name: 'Shifting Dunes',
+          description: 'Dry sand',
+          region: 'Wilderness',
+          parentLocationId: 'loc_region_desert',
+          dangerLevel: 3,
+          connectedLocationIds: [],
+          atmosphere: 'Windy',
+        },
+        {
+          id: 'loc_river_city',
+          name: 'River City',
+          description: 'Lush river haven',
+          region: 'River Valley',
+          dangerLevel: 1,
+          connectedLocationIds: [],
+          atmosphere: 'Peaceful',
+        },
+      ],
+    };
+
+    const activeClocks = [
+      { id: 'clock_loc_region_desert', name: 'Water Reserves', currentSegments: 3, maxSegments: 6, crisisDescription: '' },
+      { id: 'quest_clock_timer', name: 'Story Countdown', currentSegments: 1, maxSegments: 4, crisisDescription: '' },
+    ];
+
+    // Inside the desert: desert clock stays
+    const inDesert = pruneInactiveZoneClocks(activeClocks, 'loc_desert_dune', regionalBible);
+    assert.equal(inDesert.length, 2);
+
+    // Arrived in the river city: desert clock is pruned, non-zone quest clocks stay
+    const inCity = pruneInactiveZoneClocks(activeClocks, 'loc_river_city', regionalBible);
+    assert.equal(inCity.length, 1);
+    assert.equal(inCity[0].id, 'quest_clock_timer');
   });
 });
 

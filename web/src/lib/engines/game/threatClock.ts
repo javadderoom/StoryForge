@@ -125,3 +125,26 @@ export function resolveDisplacement(
   if (target.id === currentLocationId) return undefined;
   return target.id;
 }
+
+/**
+ * Prunes location/regional threat clocks when the player leaves their region or reaches
+ * a destination city/safe zone that does not belong to that threat region.
+ */
+export function pruneInactiveZoneClocks(
+  activeClocks: TensionClock[] | undefined,
+  currentLocationId: string | undefined,
+  worldBible?: WorldBible
+): TensionClock[] {
+  if (!activeClocks || activeClocks.length === 0) return [];
+  if (!currentLocationId || !worldBible?.locations) return activeClocks;
+
+  const currentLoc = worldBible.locations.find((l) => l.id === currentLocationId);
+  const activeZoneWithClock = resolveLocationWithThreatClock(currentLoc, worldBible);
+  const activeZoneClockId = activeZoneWithClock ? `clock_${activeZoneWithClock.id}` : null;
+
+  return activeClocks.filter((clock) => {
+    // Only prune location-scoped clocks (starting with clock_loc_); non-location clocks stay.
+    if (!clock.id.startsWith('clock_loc_')) return true;
+    return clock.id === activeZoneClockId;
+  });
+}

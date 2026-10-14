@@ -14,6 +14,7 @@ import { reconcilePlayerResources, resolveHealthKey } from '@/lib/engines/game/r
 import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
 import { calculateActionXp, applyXpGain } from '@/lib/engines/game/progressionEngine';
 import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
+import { pruneInactiveZoneClocks } from '@/lib/engines/game/threatClock';
 
 const geminiAdapter = new GeminiAdapter();
 
@@ -433,6 +434,16 @@ export async function POST(req: NextRequest) {
         });
       }
     }
+
+    // Prune location/regional clocks if the player moved outside their region or entered a safe city
+    if (updatedPlayerState.activeTensionClocks && story.worldBible) {
+      updatedPlayerState.activeTensionClocks = pruneInactiveZoneClocks(
+        updatedPlayerState.activeTensionClocks,
+        updatedPlayerState.currentLocationId,
+        story.worldBible
+      );
+    }
+
     const displacedLocationId = resolution.displacedLocationId || resolution.stateDiff.displacedLocationId;
     const previousLocation = story.worldBible.locations.find((l) => l.id === preTurnLocationId);
 
