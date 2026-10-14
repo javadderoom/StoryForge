@@ -44,6 +44,8 @@ import { NarrativeProse } from '@/components/play/NarrativeProse';
 import { CreatureDiscoveryCard } from '@/components/play/CreatureDiscoveryCard';
 import { ThreeDChoiceCard } from '@/components/play/ThreeDChoiceCard';
 import { TensionClockWidget } from '@/components/play/TensionClockWidget';
+import { TurnStatusDeltaBanner } from '@/components/play/TurnStatusDeltaBanner';
+import { computeTurnStatusDelta, StatusDeltaItem } from '@/lib/play/turnStatusDelta';
 import { preloadD20 } from '@/lib/play/diceAssetCache';
 import {
   fetchCatalog,
@@ -145,6 +147,7 @@ export default function Home() {
   const [isCompendiumOpen, setIsCompendiumOpen] = useState(false);
   const [isLevelUpModalOpen, setIsLevelUpModalOpen] = useState(false);
   const [xpToast, setXpToast] = useState<{ amount: number; levelUp: boolean } | null>(null);
+  const [statusDeltas, setStatusDeltas] = useState<StatusDeltaItem[]>([]);
   const [isDiceModalOpen, setIsDiceModalOpen] = useState(false);
   const [diceRolling, setDiceRolling] = useState(true);
   const [diceResolution, setDiceResolution] = useState<DiceResolution | null>(null);
@@ -508,6 +511,18 @@ export default function Home() {
           choices: json.data.beat.presentedChoices,
           discoveredCreature: json.data.beat.discoveredCreature,
         });
+        const deltas = computeTurnStatusDelta(playerState, json.data.updatedPlayerState, {
+          isPersian: isRtl,
+          rpgResources: storyMeta?.rpgSystem?.resources || selectedStory?.rpgSystem?.resources || [],
+          currencyDenominations:
+            storyMeta?.rpgSystem?.currencySystem?.denominations ||
+            selectedStory?.rpgSystem?.currencySystem?.denominations ||
+            [],
+        });
+        if (deltas.length > 0) {
+          setStatusDeltas(deltas);
+        }
+
         setPlayerState(json.data.updatedPlayerState);
         setTurnNumber(nextTurn);
         showDisplacementBanner(json.data, lore.locations);
@@ -662,6 +677,18 @@ export default function Home() {
       choices: pendingTurn.beat.presentedChoices,
       discoveredCreature: pendingTurn.beat.discoveredCreature,
     });
+    const deltas = computeTurnStatusDelta(playerState, pendingTurn.updatedPlayerState, {
+      isPersian: isRtl,
+      rpgResources: storyMeta?.rpgSystem?.resources || selectedStory?.rpgSystem?.resources || [],
+      currencyDenominations:
+        storyMeta?.rpgSystem?.currencySystem?.denominations ||
+        selectedStory?.rpgSystem?.currencySystem?.denominations ||
+        [],
+    });
+    if (deltas.length > 0) {
+      setStatusDeltas(deltas);
+    }
+
     setPlayerState(pendingTurn.updatedPlayerState);
     showDisplacementBanner(pendingTurn, lore.locations);
     setTurnNumber((t) => t + 1);
@@ -1482,39 +1509,12 @@ export default function Home() {
         </div>
       )}
 
-      {/* Floating Mobile Mini-HUD Pill */}
-      {playerState && !isMobileMenuOpen && (
-        <div className="md:hidden fixed bottom-3 left-3 right-3 z-30 pointer-events-none flex justify-center">
-          <button
-            onClick={() => setIsMobileMenuOpen(true)}
-            className="pointer-events-auto flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl bg-[#0F111D]/95 border border-amber-500/35 backdrop-blur-lg shadow-2xl shadow-black/90 text-xs w-full max-w-md transition-transform active:scale-95 cursor-pointer"
-          >
-            {/* Primary Health / Vitals Pill */}
-            <div className="flex items-center gap-2">
-              <Heart className="h-4 w-4 text-rose-500 animate-pulse shrink-0" />
-              <span className="font-bold text-slate-200">
-                {toPersianDigits(playerState.resources?.hp ?? playerState.resources?.health ?? 100)} / {toPersianDigits(playerState.maxResources?.hp ?? playerState.maxResources?.health ?? 100)}
-              </span>
-            </div>
-
-            {/* Level & Sheet Trigger */}
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-400 font-bold text-[10px] border border-emerald-500/30">
-                {isRtl ? `سطح ${toPersianDigits(playerState.level ?? 1)}` : `Lvl ${playerState.level ?? 1}`}
-              </span>
-              {(playerState.unspentStatPoints ?? 0) > 0 && (
-                <span className="px-1.5 py-0.5 rounded-lg bg-amber-500/25 text-amber-300 font-bold text-[9px] border border-amber-500/40 animate-pulse">
-                  ✨ {toPersianDigits(playerState.unspentStatPoints)}
-                </span>
-              )}
-              <span className="text-[11px] text-amber-400 font-bold flex items-center gap-1">
-                <Shield className="h-3.5 w-3.5" />
-                <span>{isRtl ? 'مشخصات و کوله' : 'Character & Gear'}</span>
-              </span>
-            </div>
-          </button>
-        </div>
-      )}
+      {/* Transient Turn Status Delta Banner (Health, Resources, Items, Currency) */}
+      <TurnStatusDeltaBanner
+        items={statusDeltas}
+        isRtl={isRtl}
+        onDismiss={() => setStatusDeltas([])}
+      />
 
       {/* Mobile RPG HUD & Profile Drawer */}
       {isMobileMenuOpen && (
