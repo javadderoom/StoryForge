@@ -47,7 +47,7 @@ class AudioService {
   bool _isSfxMuted = false;
   bool _isAmbientMuted = false;
   double _sfxVolume = 0.85;
-  double _ambientVolume = 0.40;
+  double _ambientVolume = 0.22;
   AmbientTrack _currentAmbient = AmbientTrack.none;
 
   bool get isSfxMuted => _isSfxMuted;

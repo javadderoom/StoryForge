@@ -52,7 +52,7 @@ let state: AudioState = {
   sfxMuted: false,
   ambientMuted: false,
   sfxVolume: 0.85,
-  ambientVolume: 0.4,
+  ambientVolume: 0.22,
   currentAmbient: 'none',
 };
 
