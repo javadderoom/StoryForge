@@ -3,6 +3,7 @@ import { put } from '@vercel/blob';
 import { requireStudioWrite } from '@/lib/auth/studioAuth';
 import fs from 'fs/promises';
 import path from 'path';
+import sharp from 'sharp';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,19 @@ export async function POST(req: Request) {
       );
     }
 
+    // Target dimensions (defaults to 480x640 mobile portrait for optimal size and speed)
+    const widthParam = formData.get('width');
+    const heightParam = formData.get('height');
+    const targetWidth = widthParam ? parseInt(widthParam.toString(), 10) : 480;
+    const targetHeight = heightParam ? parseInt(heightParam.toString(), 10) : 640;
+
+    // Read incoming file buffer and run through sharp optimization pipeline
+    const rawBuffer = Buffer.from(await file.arrayBuffer());
+    const optimizedBuffer = await sharp(rawBuffer)
+      .resize(targetWidth, targetHeight, { fit: 'cover', position: 'top' })
+      .webp({ quality: 80, effort: 6 })
+      .toBuffer();
+
     // Determine filename
     const originalName = file instanceof File ? file.name : 'image.webp';
     const baseClean = originalName
@@ -39,7 +53,7 @@ export async function POST(req: Request) {
 
     // 1. If Vercel Blob token is set, upload directly to Vercel Blob
     if (process.env.BLOB_READ_WRITE_TOKEN) {
-      const blob = await put(blobPath, file, {
+      const blob = await put(blobPath, optimizedBuffer, {
         access: 'public',
         contentType: 'image/webp',
       });
@@ -48,6 +62,7 @@ export async function POST(req: Request) {
         success: true,
         url: blob.url,
         pathname: blob.pathname,
+        sizeBytes: optimizedBuffer.length,
       });
     }
 
@@ -59,14 +74,14 @@ export async function POST(req: Request) {
       const localFileName = `${baseClean}_${timestamp}_${rand}.webp`;
       const localFilePath = path.join(uploadDir, localFileName);
 
-      const buffer = Buffer.from(await file.arrayBuffer());
-      await fs.writeFile(localFilePath, buffer);
+      await fs.writeFile(localFilePath, optimizedBuffer);
 
       const localUrl = `/uploads/${folder}/${localFileName}`;
       return NextResponse.json({
         success: true,
         url: localUrl,
         pathname: localFileName,
+        sizeBytes: optimizedBuffer.length,
         isLocalFallback: true,
       });
     }
