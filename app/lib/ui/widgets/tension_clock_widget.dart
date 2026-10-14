@@ -48,26 +48,34 @@ class TensionClockWidget extends StatelessWidget {
                   ),
                 ),
               ),
-              Row(
-                children: List.generate(max, (i) {
-                  final filled = i < cur;
-                  return Container(
-                    width: 10,
-                    height: 12,
-                    margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                    decoration: BoxDecoration(
-                      color: filled
-                          ? (clock.isTriggered ? Colors.redAccent : nearCrisis ? Colors.amber : Colors.pinkAccent)
-                          : Colors.grey.shade800,
-                      borderRadius: BorderRadius.circular(3),
-                      border: Border.all(color: filled ? border : Colors.grey.shade700),
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: List.generate(max, (i) {
+                        final filled = i < cur;
+                        return Container(
+                          width: 10,
+                          height: 12,
+                          margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                          decoration: BoxDecoration(
+                            color: filled
+                                ? (clock.isTriggered ? Colors.redAccent : nearCrisis ? Colors.amber : Colors.pinkAccent)
+                                : Colors.grey.shade800,
+                            borderRadius: BorderRadius.circular(3),
+                            border: Border.all(color: filled ? border : Colors.grey.shade700),
+                          ),
+                        );
+                      }),
                     ),
-                  );
-                }),
+                    const SizedBox(width: 6),
+                    Text('$cur/$max',
+                        style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Colors.grey)),
+                  ],
+                ),
               ),
-              const SizedBox(width: 6),
-              Text('$cur/$max',
-                  style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Colors.grey)),
             ],
           ),
         );
