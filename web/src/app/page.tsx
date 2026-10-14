@@ -44,6 +44,7 @@ import { NarrativeProse } from '@/components/play/NarrativeProse';
 import { CreatureDiscoveryCard } from '@/components/play/CreatureDiscoveryCard';
 import { ThreeDChoiceCard } from '@/components/play/ThreeDChoiceCard';
 import { TensionClockWidget } from '@/components/play/TensionClockWidget';
+import { CharacterConditionChips } from '@/components/play/CharacterConditionChips';
 import { TurnStatusDeltaBanner } from '@/components/play/TurnStatusDeltaBanner';
 import { computeTurnStatusDelta, StatusDeltaItem } from '@/lib/play/turnStatusDelta';
 import { preloadD20 } from '@/lib/play/diceAssetCache';
@@ -1184,6 +1185,8 @@ export default function Home() {
           <div className="space-y-6 md:col-span-8">
             {/* Plan 13: threat clocks + displacement banner */}
             <TensionClockWidget clocks={playerState?.activeTensionClocks || []} isRtl={isRtl} />
+            {/* Dynamic Character Conditions / Status */}
+            <CharacterConditionChips conditions={playerState?.conditions || []} isRtl={isRtl} />
             {displacementBanner && (
               <div className="animate-pulse rounded-2xl border border-red-500/50 bg-red-950/60 p-3 text-xs font-bold text-red-200 shadow-[0_0_18px_rgba(239,68,68,0.4)]">
                 {isRtl ? `سقوط مرگبار! به «${displacementBanner}» پرتاب شدید.` : `Catastrophic fall! Displaced into “${displacementBanner}”.`}

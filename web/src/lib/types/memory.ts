@@ -56,6 +56,8 @@ export interface WorkingContextEnvelope {
     characterName?: string;
     archetypeName?: string;
     abilities?: string[];
+    /** Dynamic physical/mental/situational character conditions */
+    conditions?: string[];
     /**
      * Background traits with their authored mechanical effects, so the narrator
      * can dramatise a trait that actually altered the roll (rather than inventing one).

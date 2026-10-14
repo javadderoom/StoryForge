@@ -437,6 +437,9 @@ You MUST respond with a valid JSON object matching this schema:
           traitsLineEn
             ? `• Background Traits (these ALREADY altered this turn's roll — depict them as real):\n  ${traitsLineEn}`
             : '',
+          context.playerStatus?.conditions?.length
+            ? `• Active Character Conditions (MANDATORY sensory reflection in prose & tone): ${context.playerStatus.conditions.join(', ')}`
+            : '',
           powerRanksLineEn ? `\n[POWER SCHOOL RANKINGS & MASTERY]\n${powerRanksLineEn}` : '',
           context.playerStatus?.itemInteractionsCatalog ? `\n${context.playerStatus.itemInteractionsCatalog}` : '',
         ]
@@ -444,7 +447,7 @@ You MUST respond with a valid JSON object matching this schema:
           .join('\n')
       : '';
 
-    const faProtagonistBlock = (statsLineFa || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || traitsLineFa || powerRanksLineFa || context.playerStatus?.itemInteractionsCatalog)
+    const faProtagonistBlock = (statsLineFa || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || traitsLineFa || context.playerStatus?.conditions?.length || powerRanksLineFa || context.playerStatus?.itemInteractionsCatalog)
       ? [
           '[وضعیت و توانمندی‌های قهرمان داستان / PROTAGONIST STATUS]',
           context.playerStatus?.characterName
@@ -460,6 +463,9 @@ You MUST respond with a valid JSON object matching this schema:
             : '',
           traitsLineFa
             ? `• ویژگی‌های پیشینه (همین‌ها بر تاس این نوبت اثر گذاشته‌اند — آن‌ها را واقعی و ملموس روایت کن):\n  ${traitsLineFa}`
+            : '',
+          context.playerStatus?.conditions?.length
+            ? `• حالت‌ها و وضعیت‌های فعلی کاراکتر (بسیار مهم: حتماً این احوال، تنش و فرسودگی را در نثر، تنفس و توصیف حسی منعکس کن): ${context.playerStatus.conditions.join('، ')}`
             : '',
           powerRanksLineFa ? `\n[مکاتب قدرت و درجات تسلط / POWER SYSTEM RANKINGS]\n${powerRanksLineFa}` : '',
           context.playerStatus?.itemInteractionsCatalog ? `\n${context.playerStatus.itemInteractionsCatalog}` : '',

@@ -315,6 +315,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
       abilities: formatAbilitiesForContext(playerState, story),
       traits: formatTraitsForContext(playerState, story),
       itemInteractionsCatalog: formatItemInteractionsCatalogForContext(playerState, story),
+      conditions: playerState.conditions,
     },
     statsConfig: story.rpgSystem?.stats,
     universalBaseValue: (story.rpgSystem as any)?.universalBaseValue,

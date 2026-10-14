@@ -15,6 +15,7 @@ import '../widgets/atmosphere_canvas.dart';
 import '../widgets/narrative_prose.dart';
 import '../widgets/creature_discovery_card.dart';
 import '../widgets/tension_clock_widget.dart';
+import '../widgets/condition_chips.dart';
 import '../widgets/three_d_choice_card.dart';
 import '../widgets/realm_relic_badge.dart';
 import '../widgets/rpg_hud_drawer.dart';
@@ -809,6 +810,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                 return _buildUpdateNoticeBanner(context, isPersian, theme, notice);
                               }),
                             ],
+
+                            // Dynamic Character Conditions / Status Chips
+                            ConditionChips(
+                              conditions: session.playerState?.conditions ?? const [],
+                              isPersian: isPersian,
+                            ),
 
                             // Plan 13: threat clocks + displacement banner
                             TensionClockWidget(

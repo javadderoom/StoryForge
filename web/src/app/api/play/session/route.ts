@@ -137,6 +137,7 @@ async function generateOpeningChoices(
       playerStatus: {
         stats: playerState.stats || {},
         resources: playerState.resources || {},
+        conditions: playerState.conditions || [],
         equippedItems: formatEquippedItemsForContext(playerState, story),
         characterName: playerState.characterName,
         archetypeName: playerState.archetypeName,
@@ -240,11 +241,18 @@ export async function GET(req: NextRequest) {
         (story as any).worldBible
       );
       reconciledPlayerState = reconciled.playerState;
-      if (reconciled.changed) {
+      let shouldPersist = reconciled.changed;
+      if (!Array.isArray(reconciledPlayerState.conditions)) {
+        reconciledPlayerState.conditions = (story as any).manifest?.startingConditions || ['ناآشنا', 'هوشیار'];
+        shouldPersist = true;
+      }
+      if (shouldPersist) {
         await SessionRepository.updatePlayerState(session.sessionId, reconciledPlayerState).catch(() => null);
       }
     } catch {
-      /* non-fatal: serve stored state */
+      if (reconciledPlayerState && !Array.isArray(reconciledPlayerState.conditions)) {
+        reconciledPlayerState.conditions = (story as any).manifest?.startingConditions || ['ناآشنا', 'هوشیار'];
+      }
     }
 
     // Plan: fresh sessions whose opening beat has no choices (and no recorded
@@ -593,6 +601,7 @@ export async function POST(req: NextRequest) {
       activeQuestIds: ['quest_prologue'],
       completedQuestIds: [],
       currentLocationId: initialBeat.locationId,
+      conditions: (story as any).manifest?.startingConditions || (story as any).startingConditions || ['ناآشنا', 'هوشیار'],
     };
 
     const auth = await getAuthenticatedUser(req);

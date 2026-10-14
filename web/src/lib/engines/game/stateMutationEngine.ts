@@ -98,6 +98,62 @@ export function applyStateMutation(
     }
   }
 
+  // 5c. Character Conditions & Status System (سیستم وضعیت و حالت‌های کاراکتر)
+  let activeConditions = Array.isArray(updated.conditions) ? [...updated.conditions] : [];
+
+  // Direct overwrite if provided
+  if (Array.isArray(diff.conditions)) {
+    activeConditions = [...diff.conditions];
+  }
+
+  // Apply explicit removals
+  if (Array.isArray(diff.conditionsRemoved) && diff.conditionsRemoved.length > 0) {
+    activeConditions = activeConditions.filter((c) => !diff.conditionsRemoved!.includes(c));
+  }
+
+  // Apply explicit additions
+  if (Array.isArray(diff.conditionsAdded) && diff.conditionsAdded.length > 0) {
+    for (const c of diff.conditionsAdded) {
+      const clean = c.trim();
+      if (clean && !activeConditions.includes(clean)) {
+        activeConditions.push(clean);
+      }
+    }
+  }
+
+  // Auto-derivation rules based on vitals & tension
+  const currentHp = updated.resources['hp'] ?? 100;
+  const maxHp = updated.maxResources?.['hp'] ?? 100;
+  const hpRatio = maxHp > 0 ? currentHp / maxHp : 1;
+
+  if (hpRatio <= 0.35 && !activeConditions.includes('زخمی')) {
+    activeConditions.push('زخمی');
+  } else if (hpRatio >= 0.70 && activeConditions.includes('زخمی') && !diff.conditionsAdded?.includes('زخمی')) {
+    activeConditions = activeConditions.filter((c) => c !== 'زخمی');
+  }
+
+  const currentStamina = updated.resources['stamina'] ?? 50;
+  const maxStamina = updated.maxResources?.['stamina'] ?? 50;
+  const staminaRatio = maxStamina > 0 ? currentStamina / maxStamina : 1;
+
+  if (staminaRatio <= 0.20 && !activeConditions.includes('خسته')) {
+    activeConditions.push('خسته');
+  } else if (staminaRatio >= 0.75 && activeConditions.includes('خسته') && !diff.conditionsAdded?.includes('خسته')) {
+    activeConditions = activeConditions.filter((c) => c !== 'خسته');
+  }
+
+  // Desert water tension clock derivation
+  const waterClock = (updated.activeTensionClocks || []).find((c) => c.id.includes('mtpqnxvl_jdgi') || c.name.includes('آب'));
+  if (waterClock) {
+    if (waterClock.currentSegments >= 2 && !activeConditions.includes('تشنه')) {
+      activeConditions.push('تشنه');
+    } else if (waterClock.currentSegments === 0 && activeConditions.includes('تشنه') && !diff.conditionsAdded?.includes('تشنه')) {
+      activeConditions = activeConditions.filter((c) => c !== 'تشنه');
+    }
+  }
+
+  updated.conditions = activeConditions;
+
   // 6. Apply Relationship Changes
   if (diff.relationshipChanges) {
     for (const [npcId, change] of Object.entries(diff.relationshipChanges)) {

@@ -434,6 +434,8 @@ class PlayerState {
   final List<String> activeQuestIds;
   final List<String> completedQuestIds;
   final List<TensionClock> activeTensionClocks;
+  /// Dynamic physical/mental/situational conditions (e.g. ['تشنه', 'خسته', 'ناآشنا']).
+  final List<String> conditions;
   /// Multi-denomination coin purse, e.g. {gold: 2, silver: 15, copper: 30}.
   final Map<String, int> purse;
   /// Unlocked/known ability IDs.
@@ -465,6 +467,7 @@ class PlayerState {
     this.activeQuestIds = const [],
     this.completedQuestIds = const [],
     this.activeTensionClocks = const [],
+    this.conditions = const [],
     this.purse = const {},
     this.abilities = const [],
     this.level = 1,
@@ -518,6 +521,7 @@ class PlayerState {
     List<String>? activeQuestIds,
     List<String>? completedQuestIds,
     List<TensionClock>? activeTensionClocks,
+    List<String>? conditions,
     Map<String, int>? purse,
     List<String>? abilities,
     int? level,
@@ -546,6 +550,7 @@ class PlayerState {
       activeQuestIds: activeQuestIds ?? this.activeQuestIds,
       completedQuestIds: completedQuestIds ?? this.completedQuestIds,
       activeTensionClocks: activeTensionClocks ?? this.activeTensionClocks,
+      conditions: conditions ?? this.conditions,
       purse: purse ?? this.purse,
       abilities: abilities ?? this.abilities,
       level: level ?? this.level,
@@ -571,6 +576,7 @@ class PlayerState {
     final rawTraits = json['traits'] as List<dynamic>? ?? [];
     final rawPurse = json['purse'] as Map<String, dynamic>? ?? {};
     final rawClocks = json['activeTensionClocks'] as List<dynamic>? ?? [];
+    final rawConditions = json['conditions'] as List<dynamic>? ?? [];
     final rawAbilities = json['abilities'] as List<dynamic>? ?? [];
 
     return PlayerState(
@@ -592,6 +598,7 @@ class PlayerState {
       activeQuestIds: rawActiveQuests.map((e) => e.toString()).toList(),
       completedQuestIds: rawCompQuests.map((e) => e.toString()).toList(),
       activeTensionClocks: rawClocks.map((e) => TensionClock.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
+      conditions: rawConditions.map((e) => e.toString()).toList(),
       purse: rawPurse.map((k, v) => MapEntry(k, (v as num).toInt())),
       abilities: rawAbilities.map((e) => e.toString()).toList(),
       level: (json['level'] as num?)?.toInt() ?? 1,
@@ -622,6 +629,7 @@ class PlayerState {
         'activeQuestIds': activeQuestIds,
         'completedQuestIds': completedQuestIds,
         'activeTensionClocks': activeTensionClocks.map((c) => c.toJson()).toList(),
+        'conditions': conditions,
         'purse': purse,
         'abilities': abilities,
         'level': level,

@@ -82,6 +82,8 @@ export interface PlayerState {
   currentLocationId: string;
   /** Plan 13: active tension/threat clocks travelling with the session. */
   activeTensionClocks?: TensionClock[];
+  /** Dynamic physical/mental/situational conditions (e.g. ['تشنه', 'خسته', 'ناآشنا']) */
+  conditions?: string[];
   /** Unlocked or learned ability IDs */
   abilities?: string[];
   /**
@@ -140,6 +142,12 @@ export interface StateMutationDiff {
   /** Plan 13: hazard displacement target (mirrored into locationChange for applyStateMutation). */
   displacedLocationId?: string;
   clockUpdates?: Array<{ id: string; delta: number; isCrisis: boolean }>;
+  /** Dynamic character condition updates (added to playerState.conditions) */
+  conditionsAdded?: string[];
+  /** Conditions removed/cleared from playerState.conditions */
+  conditionsRemoved?: string[];
+  /** Direct overwrite of playerState.conditions */
+  conditions?: string[];
   /** Power system rank updates (schoolId -> newRank) */
   powerRankChanges?: Record<string, number>;
   /** Power mastery point updates (schoolId -> pointsDelta) */
