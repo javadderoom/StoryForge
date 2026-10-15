@@ -131,8 +131,6 @@ export function NpcDossierModal({
     setGoalInput('');
   }, [editingNpc, defaultKind, story, open]);
 
-  if (!open) return null;
-
   const handleAddTrait = () => {
     if (!traitInput.trim()) return;
     const split = splitCommaSeparated(traitInput);
@@ -236,6 +234,8 @@ export function NpcDossierModal({
     }
     setNpcForm((prev) => ({ ...prev, ...rest }));
   };
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
