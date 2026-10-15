@@ -733,6 +733,7 @@ export async function POST(req: NextRequest) {
     // ensure they are registered in the player's relationships so they appear in the Compendium.
     const relMap = { ...(updatedPlayerState.relationships || {}) };
     let relChanged = false;
+    let firstDiscoveredNpc: any = undefined;
     for (const npc of story.worldBible?.npcs || []) {
       if (relMap[npc.id]) continue;
       const isMentioned = Boolean(
@@ -746,6 +747,7 @@ export async function POST(req: NextRequest) {
           notes: [],
         };
         relChanged = true;
+        if (!firstDiscoveredNpc) firstDiscoveredNpc = npc;
       }
     }
     if (relChanged) {
@@ -763,6 +765,7 @@ export async function POST(req: NextRequest) {
       chapterNumber: activeChapter?.chapterNumber,
       imageUrl: matchedAuthoredBeat?.imageUrl,
       discoveredCreature: firstDiscoveredCreature,
+      discoveredNpc: firstDiscoveredNpc,
       timestamp: Date.now(),
     };
 

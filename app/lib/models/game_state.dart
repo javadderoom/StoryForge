@@ -415,6 +415,45 @@ class DiscoveredCreature {
       };
 }
 
+/// NPC codex entry parsed from beat data on first introduction.
+class DiscoveredNpc {
+  final String id;
+  final String name;
+  final String title;
+  final String role;
+  final String description;
+  final String? imageUrl;
+
+  const DiscoveredNpc({
+    required this.id,
+    required this.name,
+    this.title = '',
+    this.role = '',
+    this.description = '',
+    this.imageUrl,
+  });
+
+  factory DiscoveredNpc.fromJson(Map<String, dynamic> json) {
+    return DiscoveredNpc(
+      id: json['id']?.toString() ?? '',
+      name: (json['name']?.toString() ?? '').trim(),
+      title: (json['title']?.toString() ?? '').trim(),
+      role: (json['role'] ?? json['archetype'])?.toString().trim() ?? '',
+      description: (json['description'] ?? json['loreDescription'])?.toString() ?? '',
+      imageUrl: (json['imageUrl'] ?? json['image'] ?? json['avatarUrl'])?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        if (title.isNotEmpty) 'title': title,
+        if (role.isNotEmpty) 'role': role,
+        if (description.isNotEmpty) 'description': description,
+        if (imageUrl != null) 'imageUrl': imageUrl,
+      };
+}
+
 class PlayerState {
   final String? characterName;
   final String? archetypeId;

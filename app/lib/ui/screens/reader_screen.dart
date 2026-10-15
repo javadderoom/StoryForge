@@ -14,6 +14,7 @@ import '../../models/choice_option.dart';
 import '../widgets/atmosphere_canvas.dart';
 import '../widgets/narrative_prose.dart';
 import '../widgets/creature_discovery_card.dart';
+import '../widgets/npc_discovery_card.dart';
 import '../widgets/tension_clock_widget.dart';
 import '../widgets/condition_chips.dart';
 import '../widgets/three_d_choice_card.dart';
@@ -1165,6 +1166,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                       accentColor: theme.primaryAccent,
                                       onDismiss: () {
                                         ref.read(gameSessionProvider.notifier).dismissDiscoveredCreature();
+                                      },
+                                    ),
+                                  ],
+                                  if (session.discoveredNpc != null) ...[
+                                    NpcDiscoveryCard(
+                                      npc: session.discoveredNpc!,
+                                      isPersian: isPersian,
+                                      onDismiss: () {
+                                        ref.read(gameSessionProvider.notifier).dismissDiscoveredNpc();
                                       },
                                     ),
                                   ],

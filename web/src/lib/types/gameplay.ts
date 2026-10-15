@@ -234,6 +234,8 @@ export interface TurnBeat {
   timestamp: number;
   /** Bestiary creature discovered for the first time in this turn (triggers Spotlight Card) */
   discoveredCreature?: any;
+  /** NPC introduced for the first time in this turn (triggers NPC Spotlight Card) */
+  discoveredNpc?: any;
 }
 
 export interface PlaythroughSession {

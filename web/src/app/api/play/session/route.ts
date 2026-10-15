@@ -687,6 +687,7 @@ export async function POST(req: NextRequest) {
             narrative: initialBeat.narrativeText,
             choices: openingChoices,
             imageUrl: initialBeat.imageUrl,
+            discoveredNpc: (story.worldBible?.npcs || []).find((n: any) => initialRelationships[n.id]),
           },
         },
       },
