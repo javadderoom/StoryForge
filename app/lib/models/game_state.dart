@@ -435,7 +435,14 @@ class DiscoveredNpc {
 
   factory DiscoveredNpc.fromJson(Map<String, dynamic> json) {
     final appearance = json['appearance'];
-    final appearanceText = appearance is String ? appearance : '';
+    final appearanceText = appearance is String
+        ? appearance
+        : appearance is Map
+            ? (['physicalBuild', 'faceAndGaze', 'attire', 'mannerisms']
+                .map((k) => (appearance[k]?.toString() ?? '').trim())
+                .where((v) => v.isNotEmpty)
+                .join(' • '))
+            : '';
     return DiscoveredNpc(
       id: json['id']?.toString() ?? '',
       name: (json['name']?.toString() ?? '').trim(),

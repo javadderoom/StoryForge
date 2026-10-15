@@ -39,7 +39,16 @@ export function NpcDiscoveryCard({
   const roleText = (npc.role || '').trim();
   const isRoleCode = /^[a-z_]+$/.test(roleText);
   const subtitle = (npc.title || '').trim() || (!isRoleCode ? roleText : '');
-  const appearanceText = typeof npc.appearance === 'string' ? npc.appearance : '';
+  // Structured appearance objects render as joined phrases.
+  const appearanceText =
+    typeof npc.appearance === 'string'
+      ? npc.appearance
+      : npc.appearance && typeof npc.appearance === 'object'
+        ? (['physicalBuild', 'faceAndGaze', 'attire', 'mannerisms'] as const)
+            .map((k) => (npc.appearance as Record<string, unknown>)[k])
+            .filter((v) => typeof v === 'string' && (v as string).trim())
+            .join(' • ')
+        : '';
   const description = npc.description || appearanceText || '';
 
   return (
