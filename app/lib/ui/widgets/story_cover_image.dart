@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class StoryCoverImage extends StatelessWidget {
   final String storyId;
@@ -38,16 +39,13 @@ class StoryCoverImage extends StatelessWidget {
         (coverImageUrl!.startsWith('http://') || coverImageUrl!.startsWith('https://'));
 
     if (isNetworkUrl) {
-      return Image.network(
-        coverImageUrl!,
+      return CachedNetworkImage(
+        imageUrl: coverImageUrl!,
         fit: fit,
         width: width ?? double.infinity,
         height: height,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return _buildLoadingPlaceholder();
-        },
-        errorBuilder: (context, error, stackTrace) => _buildAssetFallback(),
+        placeholder: (context, url) => _buildLoadingPlaceholder(),
+        errorWidget: (context, url, error) => _buildAssetFallback(),
       );
     }
 

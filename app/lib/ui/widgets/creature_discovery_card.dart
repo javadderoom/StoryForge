@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/game_state.dart';
@@ -127,12 +128,26 @@ class CreatureDiscoveryCard extends StatelessWidget {
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Image.network(
-                        c.imageUrl!,
+                      child: CachedNetworkImage(
+                        imageUrl: c.imageUrl!,
                         height: 180,
                         width: double.infinity,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                        placeholder: (context, url) => Container(
+                          height: 180,
+                          color: const Color(0xFF0F111D),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFFF59E0B),
+                              ),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => const SizedBox.shrink(),
                       ),
                     ),
                   ),

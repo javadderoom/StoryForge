@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/engine/rpg_engine.dart';
@@ -1257,12 +1258,19 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                 ),
                 child: ClipOval(
                   child: ((npcMeta?['imageUrl'] ?? npcMeta?['avatarUrl']) != null && (npcMeta!['imageUrl'] ?? npcMeta['avatarUrl']).toString().trim().isNotEmpty)
-                      ? Image.network(
-                          (npcMeta['imageUrl'] ?? npcMeta['avatarUrl']).toString(),
+                      ? CachedNetworkImage(
+                          imageUrl: (npcMeta['imageUrl'] ?? npcMeta['avatarUrl']).toString(),
                           width: 48,
                           height: 48,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Center(
+                          placeholder: (_, _) => Center(
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 1.5, color: statusColor),
+                            ),
+                          ),
+                          errorWidget: (_, _, _) => Center(
                             child: Text(
                               displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
                               style: GoogleFonts.cinzel(
@@ -1536,12 +1544,23 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                   if (((loc['imageUrl'] ?? loc['image']) as String?)?.isNotEmpty == true) ...[
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: Image.network(
-                        (loc['imageUrl'] ?? loc['image']).toString(),
+                      child: CachedNetworkImage(
+                        imageUrl: (loc['imageUrl'] ?? loc['image']).toString(),
                         height: 120,
                         width: double.infinity,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                        placeholder: (_, _) => Container(
+                          height: 120,
+                          color: const Color(0xFF0F111D),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFF59E0B)),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (_, _, _) => const SizedBox.shrink(),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -1652,12 +1671,23 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                   if (((beast['imageUrl'] ?? beast['image']) as String?)?.isNotEmpty == true) ...[
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: Image.network(
-                        (beast['imageUrl'] ?? beast['image']).toString(),
+                      child: CachedNetworkImage(
+                        imageUrl: (beast['imageUrl'] ?? beast['image']).toString(),
                         height: 120,
                         width: double.infinity,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                        placeholder: (_, _) => Container(
+                          height: 120,
+                          color: const Color(0xFF0F111D),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFEF4444)),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (_, _, _) => const SizedBox.shrink(),
                       ),
                     ),
                     const SizedBox(height: 10),
