@@ -31,7 +31,7 @@ export interface StartSessionResult {
   story: { id: string; title: string; language: string; rpgSystem: any };
   lore: { laws: any[]; locations: { id: string; name: string }[]; npcs: { id: string; name: string }[] };
   playerState: PlayerState;
-  currentBeat: { narrative: string; choices: any[] };
+  currentBeat: { narrative: string; choices: any[]; discoveredCreature?: any; discoveredNpc?: any; discoveredNpcs?: any[] };
   turnNumber: number;
 }
 

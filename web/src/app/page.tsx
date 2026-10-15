@@ -42,6 +42,7 @@ import { LevelUpModal } from '@/components/play/LevelUpModal';
 import { AtmosphereCanvas } from '@/components/play/AtmosphereCanvas';
 import { NarrativeProse } from '@/components/play/NarrativeProse';
 import { CreatureDiscoveryCard } from '@/components/play/CreatureDiscoveryCard';
+import { NpcDiscoveryCard } from '@/components/play/NpcDiscoveryCard';
 import { ThreeDChoiceCard } from '@/components/play/ThreeDChoiceCard';
 import { TensionClockWidget } from '@/components/play/TensionClockWidget';
 import { CharacterConditionChips } from '@/components/play/CharacterConditionChips';
@@ -131,7 +132,7 @@ export default function Home() {
   const [playerState, setPlayerState] = useState<any>(null);
   const [storyMeta, setStoryMeta] = useState<{ id: string; title: string; language: string; rpgSystem: any } | null>(null);
   const [lore, setLore] = useState<{ locations: { id: string; name: string }[]; npcs: { id: string; name: string }[] }>({ locations: [], npcs: [] });
-  const [currentBeat, setCurrentBeat] = useState<{ narrative: string; choices: any[]; discoveredCreature?: any } | null>(null);
+  const [currentBeat, setCurrentBeat] = useState<{ narrative: string; choices: any[]; discoveredCreature?: any; discoveredNpcs?: any[] } | null>(null);
   const [turnNumber, setTurnNumber] = useState<number>(1);
   const [freeTextAction, setFreeTextAction] = useState('');
   const [loading, setLoading] = useState(false);
@@ -511,6 +512,7 @@ export default function Home() {
           narrative: json.data.beat.narrativeProse,
           choices: json.data.beat.presentedChoices,
           discoveredCreature: json.data.beat.discoveredCreature,
+          discoveredNpcs: json.data.beat.discoveredNpcs ?? (json.data.beat.discoveredNpc ? [json.data.beat.discoveredNpc] : []),
         });
         const deltas = computeTurnStatusDelta(playerState, json.data.updatedPlayerState, {
           isPersian: isRtl,
@@ -619,6 +621,7 @@ export default function Home() {
           narrative: json.data.beat.narrativeProse,
           choices: json.data.beat.presentedChoices,
           discoveredCreature: json.data.beat.discoveredCreature,
+          discoveredNpcs: json.data.beat.discoveredNpcs ?? (json.data.beat.discoveredNpc ? [json.data.beat.discoveredNpc] : []),
         });
         setPlayerState(json.data.updatedPlayerState);
         setTurnNumber(nextTurn);
@@ -677,6 +680,7 @@ export default function Home() {
       narrative: pendingTurn.beat.narrativeProse,
       choices: pendingTurn.beat.presentedChoices,
       discoveredCreature: pendingTurn.beat.discoveredCreature,
+      discoveredNpcs: pendingTurn.beat.discoveredNpcs ?? (pendingTurn.beat.discoveredNpc ? [pendingTurn.beat.discoveredNpc] : []),
     });
     const deltas = computeTurnStatusDelta(playerState, pendingTurn.updatedPlayerState, {
       isPersian: isRtl,
@@ -1330,6 +1334,18 @@ export default function Home() {
                         cardBorder={themeObj.cardBorder}
                       />
                     )}
+                    {(currentBeat?.discoveredNpcs && currentBeat.discoveredNpcs.length > 0
+                      ? currentBeat.discoveredNpcs
+                      : (currentBeat as any)?.discoveredNpc
+                        ? [(currentBeat as any).discoveredNpc]
+                        : []
+                    ).map((npc: any, i: number) => (
+                      <NpcDiscoveryCard
+                        key={npc?.id || i}
+                        npc={npc}
+                        isRtl={isRtl}
+                      />
+                    ))}
                   </div>
                 )}
               </div>

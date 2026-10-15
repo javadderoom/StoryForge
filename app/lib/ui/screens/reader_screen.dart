@@ -1169,9 +1169,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                       },
                                     ),
                                   ],
-                                  if (session.discoveredNpc != null) ...[
+                                  for (final npc in session.discoveredNpcs) ...[
                                     NpcDiscoveryCard(
-                                      npc: session.discoveredNpc!,
+                                      npc: npc,
                                       isPersian: isPersian,
                                       onDismiss: () {
                                         ref.read(gameSessionProvider.notifier).dismissDiscoveredNpc();

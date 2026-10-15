@@ -236,6 +236,8 @@ export interface TurnBeat {
   discoveredCreature?: any;
   /** NPC introduced for the first time in this turn (triggers NPC Spotlight Card) */
   discoveredNpc?: any;
+  /** ALL NPCs introduced for the first time in this turn (supports multi-NPC scenes) */
+  discoveredNpcs?: any[];
 }
 
 export interface PlaythroughSession {

@@ -733,7 +733,7 @@ export async function POST(req: NextRequest) {
     // ensure they are registered in the player's relationships so they appear in the Compendium.
     const relMap = { ...(updatedPlayerState.relationships || {}) };
     let relChanged = false;
-    let firstDiscoveredNpc: any = undefined;
+    const newlyMetNpcs: any[] = [];
     const normalizedActionNarrative = normalizeTextForMatching(aiResponse.narrative || '');
     const normalizedActionText = normalizeTextForMatching(playerActionText || '');
     for (const npc of story.worldBible?.npcs || []) {
@@ -753,7 +753,7 @@ export async function POST(req: NextRequest) {
           notes: [],
         };
         relChanged = true;
-        if (!firstDiscoveredNpc) firstDiscoveredNpc = npc;
+        newlyMetNpcs.push(npc);
       }
     }
     if (relChanged) {
@@ -771,7 +771,8 @@ export async function POST(req: NextRequest) {
       chapterNumber: activeChapter?.chapterNumber,
       imageUrl: matchedAuthoredBeat?.imageUrl,
       discoveredCreature: firstDiscoveredCreature,
-      discoveredNpc: firstDiscoveredNpc,
+      discoveredNpc: newlyMetNpcs[0],
+      discoveredNpcs: newlyMetNpcs.length > 0 ? newlyMetNpcs : undefined,
       timestamp: Date.now(),
     };
 

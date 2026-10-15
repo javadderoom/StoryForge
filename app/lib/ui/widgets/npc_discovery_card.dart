@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/game_state.dart';
+import '../../services/game_api_service.dart';
 
 /// An atmospheric RPG introduction card shown when an NPC appears for the
 /// first time: portrait image with gradient overlay, name, title/role badge,
@@ -25,7 +26,11 @@ class NpcDiscoveryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isFa = isPersian;
     final n = npc;
-    final hasImage = n.imageUrl != null && n.imageUrl!.trim().isNotEmpty;
+    final rawImage = n.imageUrl?.trim() ?? '';
+    // Local dev uploads come back as relative paths (/uploads/...); resolve
+    // them against the active backend so emulator/dev builds load them.
+    final resolvedImage = rawImage.startsWith('/') ? '${GameApiService.baseUrl}$rawImage' : rawImage;
+    final hasImage = resolvedImage.isNotEmpty;
     final subtitle = [n.title, n.role].where((s) => s.trim().isNotEmpty).join(' • ');
 
     return Container(
@@ -117,7 +122,7 @@ class NpcDiscoveryCard extends StatelessWidget {
             Stack(
               children: [
                 CachedNetworkImage(
-                  imageUrl: n.imageUrl!,
+                  imageUrl: resolvedImage,
                   height: 220,
                   width: double.infinity,
                   fit: BoxFit.cover,

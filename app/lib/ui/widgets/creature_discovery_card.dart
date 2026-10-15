@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/game_state.dart';
+import '../../services/game_api_service.dart';
 
 /// An atmospheric RPG Codex Discovery Card displaying creature initial encounter spotlight:
 /// shows only name, short lore description, and possible image.
@@ -24,7 +25,9 @@ class CreatureDiscoveryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isFa = isPersian;
     final c = creature;
-    final hasImage = c.imageUrl != null && c.imageUrl!.trim().isNotEmpty;
+    final rawImage = c.imageUrl?.trim() ?? '';
+    final resolvedImage = rawImage.startsWith('/') ? '${GameApiService.baseUrl}$rawImage' : rawImage;
+    final hasImage = resolvedImage.isNotEmpty;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 14),
@@ -129,7 +132,7 @@ class CreatureDiscoveryCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: CachedNetworkImage(
-                        imageUrl: c.imageUrl!,
+                        imageUrl: resolvedImage,
                         height: 180,
                         width: double.infinity,
                         fit: BoxFit.cover,

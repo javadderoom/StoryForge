@@ -40,8 +40,8 @@ class GameSessionState {
   final String? lastActionText;
   /// The newly discovered creature spotlight for the current turn beat (if any).
   final DiscoveredCreature? discoveredCreature;
-  /// The newly introduced NPC spotlight for the current turn beat (if any).
-  final DiscoveredNpc? discoveredNpc;
+  /// The newly introduced NPC spotlights for the current turn beat (if any).
+  final List<DiscoveredNpc> discoveredNpcs;
   /// XP and level progression awarded in the latest turn (for toasts and level-up dialogs).
   final ProgressionAward? lastXpAward;
   /// Vitals, currency, item, and stat changes that occurred on the current turn.
@@ -79,7 +79,7 @@ class GameSessionState {
     this.lastDisplacement,
     this.lastActionText,
     this.discoveredCreature,
-    this.discoveredNpc,
+    this.discoveredNpcs = const [],
     this.lastXpAward,
     this.lastStatusDelta,
     this.initialSceneId,
@@ -120,7 +120,7 @@ class GameSessionState {
     String? lastDisplacement,
     String? lastActionText,
     DiscoveredCreature? discoveredCreature,
-    DiscoveredNpc? discoveredNpc,
+    List<DiscoveredNpc>? discoveredNpcs,
     ProgressionAward? lastXpAward,
     TurnStatusDelta? lastStatusDelta,
     String? initialSceneId,
@@ -131,7 +131,7 @@ class GameSessionState {
     bool clearDisplacement = false,
     bool clearLastAction = false,
     bool clearDiscoveredCreature = false,
-    bool clearDiscoveredNpc = false,
+    bool clearDiscoveredNpcs = false,
     bool clearLastXpAward = false,
     bool clearLastStatusDelta = false,
     bool clearLastResolution = false,
@@ -167,7 +167,7 @@ class GameSessionState {
       discoveredCreature: clearDiscoveredCreature
           ? null
           : (discoveredCreature ?? this.discoveredCreature),
-      discoveredNpc: clearDiscoveredNpc ? null : (discoveredNpc ?? this.discoveredNpc),
+      discoveredNpcs: clearDiscoveredNpcs ? const [] : (discoveredNpcs ?? this.discoveredNpcs),
       lastXpAward: clearLastXpAward ? null : (lastXpAward ?? this.lastXpAward),
       lastStatusDelta: clearLastStatusDelta ? null : (lastStatusDelta ?? this.lastStatusDelta),
       initialSceneId: initialSceneId ?? this.initialSceneId,
@@ -204,6 +204,23 @@ class GameSessionState {
       }
     }
     return id;
+  }
+
+  /// Parses NPC introduction spotlights from beat data. Accepts the
+  /// `discoveredNpcs` array, falling back to the legacy single `discoveredNpc`.
+  static List<DiscoveredNpc> parseDiscoveredNpcs(Map<String, dynamic> beat) {
+    final raw = beat['discoveredNpcs'] as List<dynamic>?;
+    if (raw != null && raw.isNotEmpty) {
+      return raw
+          .whereType<Map>()
+          .map((e) => DiscoveredNpc.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    }
+    final single = beat['discoveredNpc'];
+    if (single is Map) {
+      return [DiscoveredNpc.fromJson(Map<String, dynamic>.from(single))];
+    }
+    return const [];
   }
 
   /// Merges server resource definitions with live maxResources so Studio
@@ -299,8 +316,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       final sceneImg = currentBeat['imageUrl'] as String?;
       final startDiscoveredJson = currentBeat['discoveredCreature'] as Map<String, dynamic>?;
       final startDiscovered = startDiscoveredJson != null ? DiscoveredCreature.fromJson(startDiscoveredJson) : null;
-      final startNpcJson = currentBeat['discoveredNpc'] as Map<String, dynamic>?;
-      final startNpc = startNpcJson != null ? DiscoveredNpc.fromJson(startNpcJson) : null;
+      final startNpcs = GameSessionState.parseDiscoveredNpcs(Map<String, dynamic>.from(currentBeat as Map));
 
       state = state.copyWith(
         isLoading: false,
@@ -324,8 +340,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         clearPendingTurn: true,
         discoveredCreature: startDiscovered,
         clearDiscoveredCreature: startDiscovered == null,
-        discoveredNpc: startNpc,
-        clearDiscoveredNpc: startNpc == null,
+        discoveredNpcs: startNpcs,
+        clearDiscoveredNpcs: startNpcs.isEmpty,
         initialSceneId: storyData?['initialSceneId'] as String?,
         currentSceneId: currentBeat['sceneId'] as String?,
         updateNotice: storyData?['updateNotice'] is Map<String, dynamic> &&
@@ -453,8 +469,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
           final sceneImg = beatData['imageUrl'] as String?;
           final discoveredJson = beatData['discoveredCreature'] as Map<String, dynamic>?;
           final discovered = discoveredJson != null ? DiscoveredCreature.fromJson(discoveredJson) : null;
-          final npcJson = beatData['discoveredNpc'] as Map<String, dynamic>?;
-          final discoveredNpc = npcJson != null ? DiscoveredNpc.fromJson(npcJson) : null;
+          final turnNpcs = GameSessionState.parseDiscoveredNpcs(Map<String, dynamic>.from(beatData as Map));
 
           state = state.copyWith(
             isLoading: false,
@@ -473,8 +488,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             clearPendingTurn: true,
             discoveredCreature: discovered,
             clearDiscoveredCreature: discovered == null,
-            discoveredNpc: discoveredNpc,
-            clearDiscoveredNpc: discoveredNpc == null,
+            discoveredNpcs: turnNpcs,
+            clearDiscoveredNpcs: turnNpcs.isEmpty,
             lastDisplacement: GameSessionState.displacementName(result['data'], state.lore),
             clearDisplacement: GameSessionState.displacementName(result['data'], state.lore) == null,
           );
@@ -514,8 +529,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     final sceneImg = beatData['imageUrl'] as String?;
     final discoveredJson = beatData['discoveredCreature'] as Map<String, dynamic>?;
     final discovered = discoveredJson != null ? DiscoveredCreature.fromJson(discoveredJson) : null;
-    final npcJson = beatData['discoveredNpc'] as Map<String, dynamic>?;
-    final discoveredNpc = npcJson != null ? DiscoveredNpc.fromJson(npcJson) : null;
+    final pendingNpcs = GameSessionState.parseDiscoveredNpcs(Map<String, dynamic>.from(beatData as Map));
 
     // Update remaining credits in authProvider if provided
     final remainingCredits = data['remainingCredits'];
@@ -552,8 +566,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       clearPendingTurn: true,
       discoveredCreature: discovered,
       clearDiscoveredCreature: discovered == null,
-      discoveredNpc: discoveredNpc,
-      clearDiscoveredNpc: discoveredNpc == null,
+      discoveredNpcs: pendingNpcs,
+      clearDiscoveredNpcs: pendingNpcs.isEmpty,
       currentSceneId: beatData['sceneId'] as String?,
       lastDisplacement: GameSessionState.displacementName(data, state.lore),
       clearDisplacement: GameSessionState.displacementName(data, state.lore) == null,
@@ -636,7 +650,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         clearPendingTurn: true,
         discoveredCreature: startDiscovered,
         clearDiscoveredCreature: startDiscovered == null,
-        clearDiscoveredNpc: true,
+        clearDiscoveredNpcs: true,
         initialSceneId: storyData?['initialSceneId'] as String?,
         currentSceneId: currentBeat['sceneId'] as String? ??
             (data['session'] as Map<String, dynamic>?)?['currentSceneId'] as String?,
@@ -905,9 +919,9 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     state = state.copyWith(clearDiscoveredCreature: true);
   }
 
-  /// Dismisses the active NPC introduction spotlight card.
+  /// Dismisses the active NPC introduction spotlight cards.
   void dismissDiscoveredNpc() {
-    state = state.copyWith(clearDiscoveredNpc: true);
+    state = state.copyWith(clearDiscoveredNpcs: true);
   }
 
   /// Dismisses the transient turn status delta notification banner.

@@ -701,6 +701,7 @@ export async function POST(req: NextRequest) {
             choices: openingChoices,
             imageUrl: initialBeat.imageUrl,
             discoveredNpc: (story.worldBible?.npcs || []).find((n: any) => initialRelationships[n.id]),
+            discoveredNpcs: (story.worldBible?.npcs || []).filter((n: any) => initialRelationships[n.id]),
           },
         },
       },
