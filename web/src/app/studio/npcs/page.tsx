@@ -167,7 +167,10 @@ export default function NpcDossiersPage() {
 
   // --- NPC Handlers ---
   const handleOpenNpcModal = (npc?: NPCDossier) => {
-    setEditingNpc(npc || null);
+    // Always open from the live story object: the previously edited copy goes
+    // stale after a save (context holds the fresh values, this state doesn't).
+    const fresh = npc ? npcs.find((n) => n.id === npc.id) ?? npc : null;
+    setEditingNpc(fresh);
     setNpcModalOpen(true);
   };
 
@@ -1064,7 +1067,10 @@ DIRECTIVES:
         story={story}
         isPersian={isPersian}
         t={t}
-        onClose={() => setNpcModalOpen(false)}
+        onClose={() => {
+          setNpcModalOpen(false);
+          setEditingNpc(null);
+        }}
         onSave={handleSaveNpc}
       />
 
