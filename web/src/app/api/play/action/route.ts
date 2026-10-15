@@ -734,11 +734,17 @@ export async function POST(req: NextRequest) {
     const relMap = { ...(updatedPlayerState.relationships || {}) };
     let relChanged = false;
     let firstDiscoveredNpc: any = undefined;
+    const normalizedActionNarrative = normalizeTextForMatching(aiResponse.narrative || '');
+    const normalizedActionText = normalizeTextForMatching(playerActionText || '');
     for (const npc of story.worldBible?.npcs || []) {
       if (relMap[npc.id]) continue;
+      const normalizedName = normalizeTextForMatching(npc.name || '');
+      const normalizedTitle = normalizeTextForMatching(npc.title || '');
       const isMentioned = Boolean(
-        (npc.name && (aiResponse.narrative?.includes(npc.name) || playerActionText.includes(npc.name))) ||
-        (npc.title && (aiResponse.narrative?.includes(npc.title) || playerActionText.includes(npc.title)))
+        (normalizedName &&
+          (normalizedActionNarrative.includes(normalizedName) || normalizedActionText.includes(normalizedName))) ||
+        (normalizedTitle &&
+          (normalizedActionNarrative.includes(normalizedTitle) || normalizedActionText.includes(normalizedTitle)))
       );
       if (isMentioned) {
         relMap[npc.id] = {

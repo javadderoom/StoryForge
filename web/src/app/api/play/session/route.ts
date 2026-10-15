@@ -539,13 +539,26 @@ export async function POST(req: NextRequest) {
     const initialBeat = openingBeat;
 
     // Only include NPCs that are known to the player at campaign start
-    // (e.g. explicitly introduced in the opening beat prose, or starting companions)
+    // (e.g. explicitly introduced in the opening beat prose, or starting companions).
+    // Names are normalized (ZWNJ/whitespace/diacritics) so Persian prose
+    // matches even when spacing differs from the dossier name.
+    const normalizeNpcText = (text: string): string =>
+      (text || '')
+        .replace(/[‌‍‎‏]/g, ' ')
+        .replace(/[ً-ٰٟ]/g, '')
+        .replace(/[«»"'`]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+    const normalizedProse = normalizeNpcText(openingBeat.narrativeText || '');
     const initialRelationships: Record<string, any> = {};
     for (const npc of story.worldBible?.npcs || []) {
+      const normalizedName = normalizeNpcText(npc.name || '');
+      const normalizedTitle = normalizeNpcText(npc.title || '');
       const isMentionedInProse = Boolean(
         openingBeat.narrativeText && (
-          openingBeat.narrativeText.includes(npc.name) ||
-          (npc.title && openingBeat.narrativeText.includes(npc.title))
+          (normalizedName && normalizedProse.includes(normalizedName)) ||
+          (normalizedTitle && normalizedProse.includes(normalizedTitle))
         )
       );
       const isCompanion = (npc as any).status === 'companion';
