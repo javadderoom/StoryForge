@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { WorldCreature, CreatureAlchemicalYield, EnhancedCreaturePayload } from '@/lib/types';
 import { notify } from '@/lib/notify';
+import { JsonViewEditor } from '@/components/studio/JsonViewEditor';
 import AiFillSection from '@/components/studio/AiFillSection';
 import { ImageUploadField } from '@/components/studio/ImageUploadField';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
@@ -179,6 +180,7 @@ export default function BestiaryStudioPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [editingCreatureId, setEditingCreatureId] = useState<string | null>(null);
+  const [modalView, setModalView] = useState<'form' | 'json'>('form');
 
   // Form states
   const [cName, setCName] = useState('');
@@ -392,6 +394,7 @@ export default function BestiaryStudioPage() {
     setCYields([]);
     setCExtractionMethod(prefill?.extractionMethod || '');
     setCCraftingProperties(prefill?.craftingProperties || '');
+    setModalView('form');
     setShowAddModal(true);
   };
 
@@ -415,7 +418,101 @@ export default function BestiaryStudioPage() {
     setCYields(c.alchemicalYields || []);
     setCExtractionMethod(c.extractionMethod || '');
     setCCraftingProperties(c.craftingProperties || '');
+    setModalView('form');
     setShowAddModal(true);
+  };
+
+  // Live Creature / Mineral JSON representation for JSON view/editor
+  const creatureJsonValue = useMemo(() => {
+    const isMineral = cCategory === 'mineral';
+    const weaknessesArr = isMineral
+      ? []
+      : (cWeaknesses || '')
+          .split('\n')
+          .map((w) => w.trim())
+          .filter((w) => w.length > 0);
+    const resistancesArr = isMineral
+      ? []
+      : (cResistances || '')
+          .split('\n')
+          .map((r) => r.trim())
+          .filter((r) => r.length > 0);
+    const existing = bestiary.find((b) => b.id === editingCreatureId);
+
+    return {
+      id: editingCreatureId || 'creature_new',
+      name: cName,
+      speciesCategory: cCategory || 'beast',
+      dangerLevel: isMineral ? 1 : (cDanger || 3),
+      rarity: cRarity || 'common',
+      isDomesticated: cDomesticated || undefined,
+      habitatLocationIds: cHabitats || [],
+      behavioralTactics: isMineral
+        ? (cExtractionMethod.trim() || (isPersian ? 'استخراج با ابزار ویژه معدن‌کاوی' : 'Excavation via mining tools'))
+        : (cTactics.trim() || (isPersian ? 'حمله غافلگیرکننده' : 'Ambush and swarm tactics')),
+      weaknesses: isMineral ? [] : weaknessesArr,
+      resistances: resistancesArr,
+      harvestableLoot: cLoot || [],
+      loreDescription: cDesc.trim(),
+      imageUrl: cImageUrl.trim() || undefined,
+      predatorPreyNiche: isMineral ? undefined : (cNiche.trim() || undefined),
+      nonCombatPacificationMethod: isMineral ? undefined : (cPacification.trim() || undefined),
+      alchemicalYields: cYields.length > 0 ? cYields : undefined,
+      extractionMethod: isMineral ? (cExtractionMethod.trim() || undefined) : undefined,
+      craftingProperties: isMineral ? (cCraftingProperties.trim() || undefined) : undefined,
+      pacificationReagents: existing?.pacificationReagents,
+    };
+  }, [
+    editingCreatureId,
+    cName,
+    cCategory,
+    cDanger,
+    cRarity,
+    cDomesticated,
+    cHabitats,
+    cTactics,
+    cWeaknesses,
+    cResistances,
+    cLoot,
+    cDesc,
+    cImageUrl,
+    cNiche,
+    cPacification,
+    cYields,
+    cExtractionMethod,
+    cCraftingProperties,
+    bestiary,
+    isPersian,
+  ]);
+
+  const handleApplyJson = (parsed: any) => {
+    if (!parsed || typeof parsed !== 'object') return;
+    if (parsed.name !== undefined) setCName(String(parsed.name || ''));
+    if (parsed.speciesCategory !== undefined) setCCategory(parsed.speciesCategory);
+    if (parsed.dangerLevel !== undefined) {
+      const d = Number(parsed.dangerLevel);
+      if ([1, 2, 3, 4, 5].includes(d)) setCDanger(d as 1 | 2 | 3 | 4 | 5);
+    }
+    if (parsed.rarity !== undefined) setCRarity(parsed.rarity);
+    if (parsed.isDomesticated !== undefined) setCDomesticated(Boolean(parsed.isDomesticated));
+    if (Array.isArray(parsed.habitatLocationIds)) setCHabitats(parsed.habitatLocationIds.map(String));
+    if (parsed.behavioralTactics !== undefined) setCTactics(String(parsed.behavioralTactics || ''));
+    if (parsed.weaknesses !== undefined) {
+      if (Array.isArray(parsed.weaknesses)) setCWeaknesses(parsed.weaknesses.join('\n'));
+      else if (typeof parsed.weaknesses === 'string') setCWeaknesses(parsed.weaknesses);
+    }
+    if (parsed.resistances !== undefined) {
+      if (Array.isArray(parsed.resistances)) setCResistances(parsed.resistances.join('\n'));
+      else if (typeof parsed.resistances === 'string') setCResistances(parsed.resistances);
+    }
+    if (Array.isArray(parsed.harvestableLoot)) setCLoot(parsed.harvestableLoot);
+    if (parsed.loreDescription !== undefined) setCDesc(String(parsed.loreDescription || ''));
+    if (parsed.imageUrl !== undefined) setCImageUrl(String(parsed.imageUrl || ''));
+    if (parsed.predatorPreyNiche !== undefined) setCNiche(String(parsed.predatorPreyNiche || ''));
+    if (parsed.nonCombatPacificationMethod !== undefined) setCPacification(String(parsed.nonCombatPacificationMethod || ''));
+    if (Array.isArray(parsed.alchemicalYields)) setCYields(parsed.alchemicalYields);
+    if (parsed.extractionMethod !== undefined) setCExtractionMethod(String(parsed.extractionMethod || ''));
+    if (parsed.craftingProperties !== undefined) setCCraftingProperties(String(parsed.craftingProperties || ''));
   };
 
   const handleAddLootItem = () => {
@@ -1790,6 +1887,40 @@ export default function BestiaryStudioPage() {
               </button>
             </div>
 
+            {/* Form / JSON view toggle */}
+            <div className="flex items-center gap-2 p-1 bg-zinc-950/60 rounded-2xl border border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setModalView('form')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  modalView === 'form'
+                    ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {isPersian ? 'فرم' : 'Form'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalView('json')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  modalView === 'json'
+                    ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {isPersian ? 'جی‌سون' : 'JSON'}
+              </button>
+            </div>
+
+            {modalView === 'json' ? (
+              <JsonViewEditor
+                value={creatureJsonValue}
+                onApply={handleApplyJson}
+                isPersian={isPersian}
+                title={cName || (isPersian ? 'اطلاعات موجود یا کانی' : 'Creature / Mineral Data')}
+              />
+            ) : (
             <form onSubmit={handleSaveCreature} className="space-y-4">
               <AiFillSection type="creature" onFilled={applyAiFill} />
 
@@ -2219,6 +2350,7 @@ export default function BestiaryStudioPage() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
+import { JsonViewEditor } from '@/components/studio/JsonViewEditor';
 import {
   Sun,
   Moon,
@@ -47,6 +48,7 @@ export default function ReligionsStudioPage() {
   const [filterDomain, setFilterDomain] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [editingDeityId, setEditingDeityId] = useState<string | null>(null);
+  const [modalView, setModalView] = useState<'form' | 'json'>('form');
 
   // Form state
   const [dName, setDName] = useState('');
@@ -109,6 +111,7 @@ export default function ReligionsStudioPage() {
     setDImageUrl('');
     setDOmens('');
     setDSchisms([]);
+    setModalView('form');
     setShowAddModal(true);
   };
 
@@ -126,7 +129,73 @@ export default function ReligionsStudioPage() {
     setDImageUrl(d.imageUrl || '');
     setDOmens(d.divineOmensForViolation || '');
     setDSchisms(d.sectarianSchisms || []);
+    setModalView('form');
     setShowAddModal(true);
+  };
+
+  // Live Deity / Faith JSON representation for JSON view/editor
+  const deityJsonValue = useMemo(() => {
+    const taboosArr = (dTaboos || '')
+      .split('\n')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+    const blessingsArr = (dBlessings || '')
+      .split('\n')
+      .map((b) => b.trim())
+      .filter((b) => b.length > 0);
+
+    return {
+      id: editingDeityId || 'deity_new',
+      name: dName,
+      title: dTitle.trim() || undefined,
+      domain: dDomain || 'light',
+      sacredSymbol: dSymbol.trim() || (isPersian ? 'نماد ناشناخته' : 'Unspecified Symbol'),
+      coreDogma: dDogma.trim() || (isPersian ? 'ایمان و اراده الهی' : 'Faith and divine conviction'),
+      taboos: taboosArr.length > 0 ? taboosArr : [isPersian ? 'هتک حرمت معابد' : 'Desecration of shrines'],
+      divineBlessings: blessingsArr.length > 0 ? blessingsArr : [isPersian ? 'برکت و هدایت الهی' : 'Divine guidance'],
+      affiliatedFactionIds: dFactions || [],
+      holyLocationIds: dLocations || [],
+      imageUrl: dImageUrl.trim() || undefined,
+      divineOmensForViolation: dOmens.trim() || undefined,
+      sectarianSchisms: dSchisms && dSchisms.length > 0 ? dSchisms : undefined,
+    };
+  }, [
+    editingDeityId,
+    dName,
+    dTitle,
+    dDomain,
+    dSymbol,
+    dDogma,
+    dTaboos,
+    dBlessings,
+    dFactions,
+    dLocations,
+    dImageUrl,
+    dOmens,
+    dSchisms,
+    isPersian,
+  ]);
+
+  const handleApplyJson = (parsed: any) => {
+    if (!parsed || typeof parsed !== 'object') return;
+    if (parsed.name !== undefined) setDName(String(parsed.name || ''));
+    if (parsed.title !== undefined) setDTitle(String(parsed.title || ''));
+    if (parsed.domain !== undefined) setDDomain(parsed.domain);
+    if (parsed.sacredSymbol !== undefined) setDSymbol(String(parsed.sacredSymbol || ''));
+    if (parsed.coreDogma !== undefined) setDDogma(String(parsed.coreDogma || ''));
+    if (parsed.taboos !== undefined) {
+      if (Array.isArray(parsed.taboos)) setDTaboos(parsed.taboos.join('\n'));
+      else if (typeof parsed.taboos === 'string') setDTaboos(parsed.taboos);
+    }
+    if (parsed.divineBlessings !== undefined) {
+      if (Array.isArray(parsed.divineBlessings)) setDBlessings(parsed.divineBlessings.join('\n'));
+      else if (typeof parsed.divineBlessings === 'string') setDBlessings(parsed.divineBlessings);
+    }
+    if (Array.isArray(parsed.affiliatedFactionIds)) setDFactions(parsed.affiliatedFactionIds.map(String));
+    if (Array.isArray(parsed.holyLocationIds)) setDLocations(parsed.holyLocationIds.map(String));
+    if (parsed.imageUrl !== undefined) setDImageUrl(String(parsed.imageUrl || ''));
+    if (parsed.divineOmensForViolation !== undefined) setDOmens(String(parsed.divineOmensForViolation || ''));
+    if (Array.isArray(parsed.sectarianSchisms)) setDSchisms(parsed.sectarianSchisms);
   };
 
   const handleToggleFaction = (facId: string) => {
@@ -644,6 +713,40 @@ export default function ReligionsStudioPage() {
               </button>
             </div>
 
+            {/* Form / JSON view toggle */}
+            <div className="flex items-center gap-2 p-1 bg-zinc-950/60 rounded-2xl border border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setModalView('form')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  modalView === 'form'
+                    ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {isPersian ? 'فرم' : 'Form'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalView('json')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  modalView === 'json'
+                    ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {isPersian ? 'جی‌سون' : 'JSON'}
+              </button>
+            </div>
+
+            {modalView === 'json' ? (
+              <JsonViewEditor
+                value={deityJsonValue}
+                onApply={handleApplyJson}
+                isPersian={isPersian}
+                title={dName || (isPersian ? 'اطلاعات ایزد / آیین' : 'Faith / Deity Data')}
+              />
+            ) : (
             <form onSubmit={handleSaveDeity} className="space-y-4">
               <AiFillSection type="deity" onFilled={applyAiFill} />
 
@@ -777,6 +880,7 @@ export default function ReligionsStudioPage() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

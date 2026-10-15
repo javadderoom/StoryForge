@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useStudioStory, normalizeOntology } from '@/lib/context/StudioStoryContext';
+import { JsonViewEditor } from '@/components/studio/JsonViewEditor';
 import {
   Sparkles,
   Plus,
@@ -97,6 +98,7 @@ export default function LocationsStudioPage() {
 
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
+  const [modalView, setModalView] = useState<'form' | 'json'>('form');
 
   const [locName, setLocName] = useState('');
   const [locRegion, setLocRegion] = useState('');
@@ -314,6 +316,7 @@ export default function LocationsStudioPage() {
     setLocThreatName('');
     setLocThreatMax(4);
     setLocThreatCrisis('');
+    setModalView('form');
     setShowAddModal(true);
   };
 
@@ -334,7 +337,92 @@ export default function LocationsStudioPage() {
     setLocThreatName(loc.threatClockDefault?.name || '');
     setLocThreatMax(loc.threatClockDefault?.maxSegments || 4);
     setLocThreatCrisis(loc.threatClockDefault?.crisisDescription || '');
+    setModalView('form');
     setShowAddModal(true);
+  };
+
+  // Live Location JSON representation for JSON view/editor
+  const locationJsonValue = useMemo(() => {
+    const specialRulesArray = (locSpecialRules || '')
+      .split('\n')
+      .map((r) => r.trim())
+      .filter((r) => r.length > 0);
+    const existingLoc = locations.find((l) => l.id === editingLocationId);
+
+    return {
+      id: editingLocationId || 'loc_new',
+      name: locName,
+      region: locRegion || (isPersian ? 'ناشناخته' : 'Unknown'),
+      parentLocationId: locParentLocationId || undefined,
+      description: locDesc,
+      atmosphere: locAtmosphere,
+      category: locCategory,
+      imageUrl: locImageUrl || undefined,
+      dangerLevel: locDangerLevel,
+      connectedLocationIds: locConnectedIds,
+      specialRules: specialRulesArray.length > 0 ? specialRulesArray : undefined,
+      subZones: existingLoc?.subZones,
+      pointsOfInterest: existingLoc?.pointsOfInterest,
+      hazardFallbackLocationId: locHazardFallbackId || undefined,
+      threatClockDefault: locThreatName.trim()
+        ? {
+            name: locThreatName.trim(),
+            maxSegments: Math.min(12, Math.max(2, locThreatMax || 4)),
+            crisisDescription: locThreatCrisis.trim(),
+          }
+        : undefined,
+    };
+  }, [
+    editingLocationId,
+    locName,
+    locRegion,
+    locParentLocationId,
+    locDesc,
+    locAtmosphere,
+    locCategory,
+    locImageUrl,
+    locDangerLevel,
+    locConnectedIds,
+    locSpecialRules,
+    locHazardFallbackId,
+    locThreatName,
+    locThreatMax,
+    locThreatCrisis,
+    locations,
+    isPersian,
+  ]);
+
+  const handleApplyJson = (parsed: any) => {
+    if (!parsed || typeof parsed !== 'object') return;
+    if (parsed.name !== undefined) setLocName(String(parsed.name || ''));
+    if (parsed.region !== undefined) setLocRegion(String(parsed.region || ''));
+    if (parsed.parentLocationId !== undefined) setLocParentLocationId(String(parsed.parentLocationId || ''));
+    if (parsed.description !== undefined) setLocDesc(String(parsed.description || ''));
+    if (parsed.atmosphere !== undefined) setLocAtmosphere(String(parsed.atmosphere || ''));
+    if (parsed.category !== undefined) setLocCategory(String(parsed.category || 'dungeon'));
+    if (parsed.imageUrl !== undefined) setLocImageUrl(String(parsed.imageUrl || ''));
+    if (parsed.dangerLevel !== undefined) {
+      const d = Number(parsed.dangerLevel);
+      if ([1, 2, 3, 4, 5].includes(d)) setLocDangerLevel(d as 1 | 2 | 3 | 4 | 5);
+    }
+    if (Array.isArray(parsed.connectedLocationIds)) {
+      setLocConnectedIds(parsed.connectedLocationIds.map(String));
+    }
+    if (parsed.specialRules !== undefined) {
+      if (Array.isArray(parsed.specialRules)) {
+        setLocSpecialRules(parsed.specialRules.join('\n'));
+      } else if (typeof parsed.specialRules === 'string') {
+        setLocSpecialRules(parsed.specialRules);
+      }
+    }
+    if (parsed.hazardFallbackLocationId !== undefined) {
+      setLocHazardFallbackId(String(parsed.hazardFallbackLocationId || ''));
+    }
+    if (parsed.threatClockDefault && typeof parsed.threatClockDefault === 'object') {
+      if (parsed.threatClockDefault.name !== undefined) setLocThreatName(String(parsed.threatClockDefault.name || ''));
+      if (parsed.threatClockDefault.maxSegments !== undefined) setLocThreatMax(Number(parsed.threatClockDefault.maxSegments) || 4);
+      if (parsed.threatClockDefault.crisisDescription !== undefined) setLocThreatCrisis(String(parsed.threatClockDefault.crisisDescription || ''));
+    }
   };
 
   const toggleConnected = (id: string) => {
@@ -1215,6 +1303,40 @@ export default function LocationsStudioPage() {
               </button>
             </div>
 
+            {/* Form / JSON view toggle */}
+            <div className="flex items-center gap-2 p-1 bg-zinc-950/60 rounded-2xl border border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setModalView('form')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  modalView === 'form'
+                    ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {isPersian ? 'فرم' : 'Form'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalView('json')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  modalView === 'json'
+                    ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {isPersian ? 'جی‌سون' : 'JSON'}
+              </button>
+            </div>
+
+            {modalView === 'json' ? (
+              <JsonViewEditor
+                value={locationJsonValue}
+                onApply={handleApplyJson}
+                isPersian={isPersian}
+                title={locName || (isPersian ? 'اطلاعات مکان' : 'Location Data')}
+              />
+            ) : (
             <form onSubmit={handleSaveLocation} className="space-y-4">
               <AiFillSection type="location" onFilled={applyAiFill} />
 
@@ -1607,6 +1729,7 @@ export default function LocationsStudioPage() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

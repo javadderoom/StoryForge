@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
+import { JsonViewEditor } from '@/components/studio/JsonViewEditor';
 import {
   Sparkles,
   Plus,
@@ -84,6 +85,7 @@ export default function ArtifactsStudioPage() {
   const [filterRarity, setFilterRarity] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [editingArtifactId, setEditingArtifactId] = useState<string | null>(null);
+  const [modalView, setModalView] = useState<'form' | 'json'>('form');
 
   // Form states
   const [artName, setArtName] = useState('');
@@ -161,6 +163,7 @@ export default function ArtifactsStudioPage() {
     setVaultLocation('');
     setVaultRitual('');
     setVaultSeekers('');
+    setModalView('form');
     setShowAddModal(true);
   };
 
@@ -197,7 +200,106 @@ export default function ArtifactsStudioPage() {
         ? art.vaultLore.rivalSeekers.join(', ')
         : ''
     );
+    setModalView('form');
     setShowAddModal(true);
+  };
+
+  // Live Artifact JSON representation for JSON view/editor
+  const artifactJsonValue = useMemo(() => {
+    const powersArray = (artPowers || '')
+      .split('\n')
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+    const seekersArray = (vaultSeekers || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    const vaultLorePayload =
+      vaultCreator.trim() || vaultLocation.trim() || vaultRitual.trim() || seekersArray.length > 0
+        ? {
+            creator: vaultCreator.trim() || (isPersian ? 'استاد افزارمند ناشناس' : 'Unknown Artificer'),
+            currentVaultLocation: vaultLocation.trim() || (isPersian ? 'خزانه پنهان' : 'Hidden Vault'),
+            unsealingRitual: vaultRitual.trim() || (isPersian ? 'رمزگشایی با رون‌های کهن' : 'Ancient runic deciphering'),
+            rivalSeekers: seekersArray,
+          }
+        : undefined;
+
+    return {
+      id: editingArtifactId || 'artifact_new',
+      name: artName,
+      title: artTitle.trim() || undefined,
+      originEra: artOriginEra.trim() || undefined,
+      rarity: artRarity,
+      slot: artSlot,
+      description: artDesc.trim(),
+      powers: powersArray,
+      curseOrCost: artCurse.trim() || undefined,
+      attunementRules: artAttunement.trim() || undefined,
+      statModifiers: Object.keys(artStatModifiers || {}).length > 0 ? artStatModifiers : undefined,
+      resourceModifiers: Object.keys(artResourceModifiers || {}).length > 0 ? artResourceModifiers : undefined,
+      currentHolderType: artHolderType,
+      currentHolderId: artHolderId.trim() || undefined,
+      secretLore: artSecretLore.trim() || undefined,
+      startsQuestId: artStartsQuestId.trim() || undefined,
+      nonEquippable: artNonEquippable || undefined,
+      imageUrl: artImageUrl.trim() || undefined,
+      vaultLore: vaultLorePayload,
+    };
+  }, [
+    editingArtifactId,
+    artName,
+    artTitle,
+    artOriginEra,
+    artRarity,
+    artSlot,
+    artDesc,
+    artPowers,
+    artCurse,
+    artAttunement,
+    artStatModifiers,
+    artResourceModifiers,
+    artHolderType,
+    artHolderId,
+    artSecretLore,
+    artStartsQuestId,
+    artNonEquippable,
+    artImageUrl,
+    vaultCreator,
+    vaultLocation,
+    vaultRitual,
+    vaultSeekers,
+    isPersian,
+  ]);
+
+  const handleApplyJson = (parsed: any) => {
+    if (!parsed || typeof parsed !== 'object') return;
+    if (parsed.name !== undefined) setArtName(String(parsed.name || ''));
+    if (parsed.title !== undefined) setArtTitle(String(parsed.title || ''));
+    if (parsed.originEra !== undefined) setArtOriginEra(String(parsed.originEra || ''));
+    if (parsed.rarity !== undefined) setArtRarity(parsed.rarity);
+    if (parsed.slot !== undefined) setArtSlot(parsed.slot);
+    if (parsed.description !== undefined) setArtDesc(String(parsed.description || ''));
+    if (parsed.powers !== undefined) {
+      if (Array.isArray(parsed.powers)) setArtPowers(parsed.powers.join('\n'));
+      else if (typeof parsed.powers === 'string') setArtPowers(parsed.powers);
+    }
+    if (parsed.curseOrCost !== undefined) setArtCurse(String(parsed.curseOrCost || ''));
+    if (parsed.attunementRules !== undefined) setArtAttunement(String(parsed.attunementRules || ''));
+    if (parsed.statModifiers && typeof parsed.statModifiers === 'object') setArtStatModifiers(parsed.statModifiers);
+    if (parsed.resourceModifiers && typeof parsed.resourceModifiers === 'object') setArtResourceModifiers(parsed.resourceModifiers);
+    if (parsed.currentHolderType !== undefined) setArtHolderType(parsed.currentHolderType);
+    if (parsed.currentHolderId !== undefined) setArtHolderId(String(parsed.currentHolderId || ''));
+    if (parsed.secretLore !== undefined) setArtSecretLore(String(parsed.secretLore || ''));
+    if (parsed.startsQuestId !== undefined) setArtStartsQuestId(String(parsed.startsQuestId || ''));
+    if (parsed.nonEquippable !== undefined) setArtNonEquippable(Boolean(parsed.nonEquippable));
+    if (parsed.imageUrl !== undefined) setArtImageUrl(String(parsed.imageUrl || ''));
+    if (parsed.vaultLore && typeof parsed.vaultLore === 'object') {
+      if (parsed.vaultLore.creator !== undefined) setVaultCreator(String(parsed.vaultLore.creator || ''));
+      if (parsed.vaultLore.currentVaultLocation !== undefined) setVaultLocation(String(parsed.vaultLore.currentVaultLocation || ''));
+      if (parsed.vaultLore.unsealingRitual !== undefined) setVaultRitual(String(parsed.vaultLore.unsealingRitual || ''));
+      if (Array.isArray(parsed.vaultLore.rivalSeekers)) setVaultSeekers(parsed.vaultLore.rivalSeekers.join(', '));
+      else if (typeof parsed.vaultLore.rivalSeekers === 'string') setVaultSeekers(parsed.vaultLore.rivalSeekers);
+    }
   };
 
   const handleSaveArtifact = (e: React.FormEvent) => {
@@ -879,6 +981,40 @@ export default function ArtifactsStudioPage() {
               </button>
             </div>
 
+            {/* Form / JSON view toggle */}
+            <div className="flex items-center gap-2 p-1 bg-zinc-950/60 rounded-2xl border border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setModalView('form')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  modalView === 'form'
+                    ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {isPersian ? 'فرم' : 'Form'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalView('json')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  modalView === 'json'
+                    ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {isPersian ? 'جی‌سون' : 'JSON'}
+              </button>
+            </div>
+
+            {modalView === 'json' ? (
+              <JsonViewEditor
+                value={artifactJsonValue}
+                onApply={handleApplyJson}
+                isPersian={isPersian}
+                title={artName || (isPersian ? 'اطلاعات یادگار باستانی' : 'Relic / Artifact Data')}
+              />
+            ) : (
             <form onSubmit={handleSaveArtifact} className="space-y-4">
               <AiFillSection type="artifact" onFilled={applyAiFill} />
 
@@ -1198,6 +1334,7 @@ export default function ArtifactsStudioPage() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}
