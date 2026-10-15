@@ -187,6 +187,9 @@ function StoryDetailsForm({
           placeholder="https://... or upload file"
           folder="covers"
           isPersian={isPersian}
+          resizeFit="inside"
+          resizeWidth={1600}
+          resizeHeight={1600}
         />
 
         <div className="grid grid-cols-2 gap-4">

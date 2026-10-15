@@ -13,6 +13,10 @@ interface ImageUploadFieldProps {
   isPersian?: boolean;
   previewShape?: 'rectangle' | 'circle' | 'square';
   className?: string;
+  /** Server resize fit: 'cover' crops to exact dims (avatars), 'inside' preserves aspect (covers), 'none' skips resize. */
+  resizeFit?: 'cover' | 'inside' | 'none';
+  resizeWidth?: number;
+  resizeHeight?: number;
 }
 
 export function ImageUploadField({
@@ -24,6 +28,9 @@ export function ImageUploadField({
   isPersian = true,
   previewShape = 'rectangle',
   className = '',
+  resizeFit,
+  resizeWidth,
+  resizeHeight,
 }: ImageUploadFieldProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -51,6 +58,9 @@ export function ImageUploadField({
       const formData = new FormData();
       formData.append('file', webpFile);
       formData.append('folder', folder);
+      if (resizeFit) formData.append('fit', resizeFit);
+      if (resizeWidth) formData.append('width', String(resizeWidth));
+      if (resizeHeight) formData.append('height', String(resizeHeight));
 
       const token = typeof window !== 'undefined'
         ? localStorage.getItem('storyforge_auth_token') ||

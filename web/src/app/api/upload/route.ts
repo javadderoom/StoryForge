@@ -27,18 +27,44 @@ export async function POST(req: Request) {
       );
     }
 
-    // Target dimensions (defaults to 480x640 mobile portrait for optimal size and speed)
+    // Target dimensions + fit mode.
+    // NPCs/avatars default to 480x640 mobile portrait with hard crop ('cover').
+    // Story covers default to aspect-preserving downscale ('inside') so wide
+    // banner art is never cropped — client already converted to WebP.
     const widthParam = formData.get('width');
     const heightParam = formData.get('height');
-    const targetWidth = widthParam ? parseInt(widthParam.toString(), 10) : 480;
-    const targetHeight = heightParam ? parseInt(heightParam.toString(), 10) : 640;
+    const fitParam = (formData.get('fit') as string) || (folder === 'covers' ? 'inside' : 'cover');
+    const fit: 'cover' | 'inside' | 'none' =
+      fitParam === 'none' || fitParam === 'inside' ? fitParam : 'cover';
+    const targetWidth = widthParam
+      ? parseInt(widthParam.toString(), 10)
+      : fit === 'cover'
+        ? 480
+        : 1600;
+    const targetHeight = heightParam
+      ? parseInt(heightParam.toString(), 10)
+      : fit === 'cover'
+        ? 640
+        : 1600;
 
     // Read incoming file buffer and run through sharp optimization pipeline
     const rawBuffer = Buffer.from(await file.arrayBuffer());
-    const optimizedBuffer = await sharp(rawBuffer)
-      .resize(targetWidth, targetHeight, { fit: 'cover', position: 'top' })
-      .webp({ quality: 80, effort: 6 })
-      .toBuffer();
+    let optimizedBuffer: Buffer;
+    if (fit === 'none') {
+      optimizedBuffer = await sharp(rawBuffer)
+        .webp({ quality: 82, effort: 6 })
+        .toBuffer();
+    } else if (fit === 'inside') {
+      optimizedBuffer = await sharp(rawBuffer)
+        .resize(targetWidth, targetHeight, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 82, effort: 6 })
+        .toBuffer();
+    } else {
+      optimizedBuffer = await sharp(rawBuffer)
+        .resize(targetWidth, targetHeight, { fit: 'cover', position: 'top' })
+        .webp({ quality: 80, effort: 6 })
+        .toBuffer();
+    }
 
     // Determine filename
     const originalName = file instanceof File ? file.name : 'image.webp';
