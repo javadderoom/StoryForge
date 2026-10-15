@@ -125,8 +125,8 @@ export function NpcDossierModal({
         initialTrust: 0,
         imageUrl: '',
       });
+      setAppearance({});
     }
-    setAppearance({});
     setTraitInput('');
     setGoalInput('');
   }, [editingNpc, defaultKind, story, open]);
