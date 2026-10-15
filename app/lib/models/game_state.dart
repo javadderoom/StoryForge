@@ -454,6 +454,16 @@ class DiscoveredNpc {
         if (description.isNotEmpty) 'description': description,
         if (imageUrl != null) 'imageUrl': imageUrl,
       };
+
+  /// Name variants for inline prose matching: full name, given name alone
+  /// (prose often drops the epithet), and title.
+  List<String> get spotNames {
+    final out = <String>[name.trim()];
+    final first = name.trim().split(RegExp(r'\s+')).where((t) => t.length >= 3).toList();
+    if (first.isNotEmpty && first.first != name.trim()) out.add(first.first);
+    if (title.trim().isNotEmpty) out.add(title.trim());
+    return out.where((s) => s.isNotEmpty).toList();
+  }
 }
 
 class PlayerState {

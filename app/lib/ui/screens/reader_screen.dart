@@ -1161,7 +1161,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                     spotlights: [
                                       for (final npc in session.discoveredNpcs)
                                         ProseSpotlight(
-                                          matchNames: [npc.name, npc.title],
+                                          matchNames: npc.spotNames,
                                           card: NpcDiscoveryCard(
                                             npc: npc,
                                             isPersian: isPersian,

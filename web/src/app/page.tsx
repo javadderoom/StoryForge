@@ -1330,16 +1330,21 @@ export default function Home() {
                           : (currentBeat as any)?.discoveredNpc
                             ? [(currentBeat as any).discoveredNpc]
                             : []
-                        ).map((npc: any, i: number) => ({
-                          names: [npc?.name, npc?.title].filter(Boolean),
-                          node: (
-                            <NpcDiscoveryCard
-                              key={npc?.id || `npc-${i}`}
-                              npc={npc}
-                              isRtl={isRtl}
-                            />
-                          ),
-                        }))),
+                        ).map((npc: any, i: number) => {
+                          const rawName = (npc?.name || '').trim();
+                          const firstToken = rawName.split(/\s+/).find((t: string) => t.length >= 3) || '';
+                          const names = [rawName, firstToken, (npc?.title || '').trim()].filter(Boolean);
+                          return {
+                            names,
+                            node: (
+                              <NpcDiscoveryCard
+                                key={npc?.id || `npc-${i}`}
+                                npc={npc}
+                                isRtl={isRtl}
+                              />
+                            ),
+                          };
+                        })),
                         ...(currentBeat?.discoveredCreature
                           ? [{
                               names: [currentBeat.discoveredCreature?.name].filter(Boolean),
