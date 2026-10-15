@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/game_state.dart';
 import '../../services/game_api_service.dart';
+import 'full_screen_image_viewer.dart';
 
 /// An atmospheric RPG Codex Discovery Card displaying creature initial encounter spotlight:
 /// shows only name, short lore description, and possible image.
@@ -119,38 +120,41 @@ class CreatureDiscoveryCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Optional Creature Image
+                // Optional Creature Image (tap for fullscreen)
                 if (hasImage) ...[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: const Color(0xFF272A3C),
-                          width: 1,
+                    child: GestureDetector(
+                      onTap: () => FullScreenImageViewer.show(context, resolvedImage),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: const Color(0xFF272A3C),
+                            width: 1,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: CachedNetworkImage(
-                        imageUrl: resolvedImage,
-                        height: 180,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
+                        child: CachedNetworkImage(
+                          imageUrl: resolvedImage,
                           height: 180,
-                          color: const Color(0xFF0F111D),
-                          child: const Center(
-                            child: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Color(0xFFF59E0B),
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            height: 180,
+                            color: const Color(0xFF0F111D),
+                            child: const Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFFF59E0B),
+                                ),
                               ),
                             ),
                           ),
+                          errorWidget: (context, url, error) => const SizedBox.shrink(),
                         ),
-                        errorWidget: (context, url, error) => const SizedBox.shrink(),
                       ),
                     ),
                   ),

@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/game_state.dart';
 import '../../services/game_api_service.dart';
+import 'full_screen_image_viewer.dart';
 
 /// An atmospheric RPG introduction card shown when an NPC appears for the
 /// first time: portrait image with gradient overlay, name, title/role badge,
@@ -128,34 +129,37 @@ class NpcDiscoveryCard extends StatelessWidget {
           if (hasImage) ...[
             Stack(
               children: [
-                CachedNetworkImage(
-                  imageUrl: resolvedImage,
-                  height: 320,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  alignment: Alignment.topCenter,
-                  placeholder: (context, url) => Container(
+                GestureDetector(
+                  onTap: () => FullScreenImageViewer.show(context, resolvedImage),
+                  child: CachedNetworkImage(
+                    imageUrl: resolvedImage,
                     height: 320,
-                    color: const Color(0xFF0F111D),
-                    child: const Center(
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Color(0xFFA78BFA),
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    alignment: Alignment.topCenter,
+                    placeholder: (context, url) => Container(
+                      height: 320,
+                      color: const Color(0xFF0F111D),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFFA78BFA),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    height: 200,
-                    color: const Color(0xFF0F111D),
-                    child: const Center(
-                      child: Icon(
-                        Icons.person_rounded,
-                        color: Color(0xFFA78BFA),
-                        size: 48,
+                    errorWidget: (context, url, error) => Container(
+                      height: 200,
+                      color: const Color(0xFF0F111D),
+                      child: const Center(
+                        child: Icon(
+                          Icons.person_rounded,
+                          color: Color(0xFFA78BFA),
+                          size: 48,
+                        ),
                       ),
                     ),
                   ),
@@ -173,6 +177,22 @@ class NpcDiscoveryCard extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                       ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.zoom_in_rounded,
+                      color: Colors.white70,
+                      size: 16,
                     ),
                   ),
                 ),

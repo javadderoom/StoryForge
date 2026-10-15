@@ -29,6 +29,7 @@ export function NpcDiscoveryCard({
 }: NpcDiscoveryCardProps) {
   const [isDismissed, setIsDismissed] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [lightbox, setLightbox] = useState(false);
 
   if (!npc || isDismissed) return null;
 
@@ -80,7 +81,8 @@ export function NpcDiscoveryCard({
             src={imageUrl}
             alt={npc.name}
             onError={() => setImageFailed(true)}
-            className="w-full h-72 sm:h-80 object-cover object-top"
+            onClick={() => setLightbox(true)}
+            className="w-full h-72 sm:h-80 object-cover object-top cursor-zoom-in"
           />
           <div
             className="absolute inset-0 pointer-events-none"
@@ -127,6 +129,28 @@ export function NpcDiscoveryCard({
           <p className="text-xs sm:text-sm leading-relaxed text-zinc-300/90 font-sans">
             {description}
           </p>
+        </div>
+      )}
+
+      {/* Fullscreen lightbox */}
+      {lightbox && imageUrl && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/92 p-4"
+          onClick={() => setLightbox(false)}
+        >
+          <button
+            onClick={() => setLightbox(false)}
+            className="absolute top-4 right-4 rounded-full bg-black/60 p-2 text-white hover:bg-black/80"
+            title={isRtl ? 'بستن' : 'Close'}
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img
+            src={imageUrl}
+            alt={npc.name}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[92vh] max-w-full rounded-xl object-contain shadow-2xl"
+          />
         </div>
       )}
     </aside>
