@@ -12,6 +12,7 @@ import '../../providers/audio_provider.dart';
 import '../../services/audio_service.dart';
 import '../widgets/item_detail_sheet.dart';
 import '../widgets/level_up_dialog.dart';
+import '../widgets/full_screen_image_viewer.dart';
 
 /// Full-Page RPG Character, Inventory, Quest & Realm Compendium Screen
 class CompendiumScreen extends ConsumerStatefulWidget {
@@ -1219,7 +1220,8 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
     final description = npcMeta?['description']?.toString() ?? '';
 
     final trust = rel.trust;
-    String statusLabel;
+
+    final npcImageUrl = ((npcMeta?['imageUrl'] ?? npcMeta?['avatarUrl'])?.toString() ?? '').trim();    String statusLabel;
     Color statusColor;
 
     if (trust >= 60) {
@@ -1257,26 +1259,29 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                   border: Border.all(color: statusColor, width: 1.5),
                 ),
                 child: ClipOval(
-                  child: ((npcMeta?['imageUrl'] ?? npcMeta?['avatarUrl']) != null && (npcMeta!['imageUrl'] ?? npcMeta['avatarUrl']).toString().trim().isNotEmpty)
-                      ? CachedNetworkImage(
-                          imageUrl: (npcMeta['imageUrl'] ?? npcMeta['avatarUrl']).toString(),
-                          width: 48,
-                          height: 48,
-                          fit: BoxFit.cover,
-                          placeholder: (_, _) => Center(
-                            child: SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 1.5, color: statusColor),
+                  child: npcImageUrl.isNotEmpty
+                      ? GestureDetector(
+                          onTap: () => FullScreenImageViewer.show(context, npcImageUrl),
+                          child: CachedNetworkImage(
+                            imageUrl: npcImageUrl,
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
+                            placeholder: (_, _) => Center(
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 1.5, color: statusColor),
+                              ),
                             ),
-                          ),
-                          errorWidget: (_, _, _) => Center(
-                            child: Text(
-                              displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-                              style: GoogleFonts.cinzel(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: statusColor,
+                            errorWidget: (_, _, _) => Center(
+                              child: Text(
+                                displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                                style: GoogleFonts.cinzel(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusColor,
+                                ),
                               ),
                             ),
                           ),
