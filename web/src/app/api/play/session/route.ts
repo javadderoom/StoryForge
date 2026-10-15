@@ -540,28 +540,36 @@ export async function POST(req: NextRequest) {
 
     // Only include NPCs that are known to the player at campaign start
     // (e.g. explicitly introduced in the opening beat prose, or starting companions).
-    // Names are normalized (ZWNJ/whitespace/diacritics) so Persian prose
-    // matches even when spacing differs from the dossier name.
+    // Persian-aware matching: ZWNJ compounds ("ماه‌بانو") stay atomic so the
+    // bare word ("ماه") never matches; Arabic kaf/yeh variants are unified.
     const normalizeNpcText = (text: string): string =>
       (text || '')
-        .replace(/[‌‍‎‏]/g, ' ')
+        .replace(/[‌‍‎‏­]/g, '')
+        .replace(/ي/g, 'ی')
+        .replace(/ك/g, 'ک')
         .replace(/[ً-ٰٟ]/g, '')
-        .replace(/[«»"'`]/g, '')
+        .replace(/[.,،؟!؛:()«»"'`\-_]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
         .toLowerCase();
+    const proseVariants = (normalizedProse: string): string[] =>
+      normalizedProse.includes('‌')
+        ? [normalizedProse, normalizedProse.replace(/‌/g, ' ')]
+        : [normalizedProse];
     const normalizedProse = normalizeNpcText(openingBeat.narrativeText || '');
+    const proseForms = proseVariants(normalizedProse);
     const initialRelationships: Record<string, any> = {};
     for (const npc of story.worldBible?.npcs || []) {
       const normalizedName = normalizeNpcText(npc.name || '');
       const normalizedTitle = normalizeNpcText(npc.title || '');
-      // Full name, or the given name alone (prose often drops the epithet,
-      // e.g. "برزو" for "برزو سنگ‌تراش").
+      // Full name (either ZWNJ spelling), or the whitespace-separated given
+      // name alone (prose often drops the epithet, e.g. "برزو").
+      const nameForms = proseVariants(normalizedName);
       const firstToken = normalizedName.split(' ').filter((t) => t.length >= 3)[0] || '';
       const isMentionedInProse = Boolean(
         openingBeat.narrativeText && (
-          (normalizedName && normalizedProse.includes(normalizedName)) ||
-          (firstToken && normalizedProse.includes(firstToken)) ||
+          (normalizedName && nameForms.some((f) => normalizedProse.includes(f))) ||
+          (firstToken && proseForms.some((f) => f.split(' ').includes(firstToken))) ||
           (normalizedTitle && normalizedProse.includes(normalizedTitle))
         )
       );

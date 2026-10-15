@@ -734,18 +734,49 @@ export async function POST(req: NextRequest) {
     const relMap = { ...(updatedPlayerState.relationships || {}) };
     let relChanged = false;
     const newlyMetNpcs: any[] = [];
-    const normalizedActionNarrative = normalizeTextForMatching(aiResponse.narrative || '');
-    const normalizedActionText = normalizeTextForMatching(playerActionText || '');
+    const normalizeNpcText = (text: string): string =>
+      (text || '')
+        .replace(/[‌‍‎‏­]/g, '')
+        .replace(/ي/g, 'ی')
+        .replace(/ك/g, 'ک')
+        .replace(/[ً-ٰٟ]/g, '')
+        .replace(/[.,،؟!؛:()«»"'`\-_]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+    const proseWordSet = (normalizedProse: string): Set<string> =>
+      new Set(
+        (normalizedProse.includes('‌')
+          ? [normalizedProse, normalizedProse.replace(/‌/g, ' ')]
+          : [normalizedProse]
+        ).flatMap((f) => f.split(' '))
+      );
+    const normalizedActionNarrative = normalizeNpcText(aiResponse.narrative || '');
+    const normalizedActionText = normalizeNpcText(playerActionText || '');
+    const actionWords = new Set([
+      ...proseWordSet(normalizedActionNarrative),
+      ...proseWordSet(normalizedActionText),
+    ]);
     for (const npc of story.worldBible?.npcs || []) {
       if (relMap[npc.id]) continue;
-      const normalizedName = normalizeTextForMatching(npc.name || '');
-      const normalizedTitle = normalizeTextForMatching(npc.title || '');
-      // Full name, given name alone (epithet often dropped in prose), or title.
+      const normalizedName = normalizeNpcText(npc.name || '');
+      const normalizedTitle = normalizeNpcText(npc.title || '');
+      // Full name (either ZWNJ spelling), the whitespace-separated given name
+      // as an exact word (ZWNJ compounds stay atomic), or the title.
+      const nameForms =
+        normalizedName && normalizedName.includes('‌')
+          ? [normalizedName, normalizedName.replace(/‌/g, ' ')]
+          : [normalizedName];
       const firstToken = normalizedName.split(' ').filter((t) => t.length >= 3)[0] || '';
       const mentions = (nm: string) =>
-        nm && (normalizedActionNarrative.includes(nm) || normalizedActionText.includes(nm));
+        nm &&
+        (normalizedActionNarrative.includes(nm) ||
+          normalizedActionText.includes(nm) ||
+          actionWords.has(nm));
       const isMentioned = Boolean(
-        mentions(normalizedName) || mentions(firstToken) || mentions(normalizedTitle)
+        (normalizedName && nameForms.some((f) => mentions(f))) ||
+          (firstToken && actionWords.has(firstToken)) ||
+          mentions(normalizedTitle)
       );
       if (isMentioned) {
         relMap[npc.id] = {

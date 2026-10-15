@@ -1330,7 +1330,9 @@ export default function Home() {
                           : (currentBeat as any)?.discoveredNpc
                             ? [(currentBeat as any).discoveredNpc]
                             : []
-                        ).map((npc: any, i: number) => {
+                        )
+                          .filter((npc: any) => npc?.imageUrl || npc?.image || npc?.avatarUrl)
+                          .map((npc: any, i: number) => {
                           const rawName = (npc?.name || '').trim();
                           const firstToken = rawName.split(/\s+/).find((t: string) => t.length >= 3) || '';
                           const names = [rawName, firstToken, (npc?.title || '').trim()].filter(Boolean);
@@ -1345,7 +1347,8 @@ export default function Home() {
                             ),
                           };
                         })),
-                        ...(currentBeat?.discoveredCreature
+                        ...(currentBeat?.discoveredCreature &&
+                        (currentBeat.discoveredCreature?.imageUrl || currentBeat.discoveredCreature?.image)
                           ? [{
                               names: [currentBeat.discoveredCreature?.name].filter(Boolean),
                               node: (

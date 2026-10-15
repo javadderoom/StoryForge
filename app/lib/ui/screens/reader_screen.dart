@@ -1160,6 +1160,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                     accentColor: theme.primaryAccent,
                                     spotlights: [
                                       for (final npc in session.discoveredNpcs)
+                                        if ((npc.imageUrl?.trim().isNotEmpty == true))
                                         ProseSpotlight(
                                           matchNames: npc.spotNames,
                                           card: NpcDiscoveryCard(
@@ -1170,7 +1171,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                             },
                                           ),
                                         ),
-                                      if (session.discoveredCreature != null)
+                                      if (session.discoveredCreature != null &&
+                                          session.discoveredCreature!.imageUrl?.trim().isNotEmpty == true)
                                         ProseSpotlight(
                                           matchNames: [session.discoveredCreature!.name],
                                           card: CreatureDiscoveryCard(
