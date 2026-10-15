@@ -171,8 +171,7 @@ class GameSessionState {
   }
 
   /// Plan 13: resolves a location display name for displacement banners.
-  static String? displacementName(Map<String, dynamic>? data, Map<String, dynamic>? lore) {
-    if (data == null || data['locationChanged'] != true) return null;
+  static String? displacementName(Map<String, dynamic>? data, Map<String, dynamic>? lore) {    if (data == null || data['locationChanged'] != true) return null;
     final id = (data['displacedLocationId'] ??
             (data['updatedPlayerState'] as Map<String, dynamic>?)?['currentLocationId'])
         ?.toString();
@@ -180,6 +179,22 @@ class GameSessionState {
     final locations = (lore?['locations'] as List<dynamic>?) ?? const [];
     for (final l in locations) {
       if (l is Map && l['id']?.toString() == id) return (l['name']?.toString().isNotEmpty == true) ? l['name'].toString() : id;
+    }
+    return id;
+  }
+
+  /// Resolves a location id to its display name via lore, falling back to the
+  /// raw id. Returns null when there is no location.
+  static String? locationName(Map<String, dynamic>? lore, String? locationId) {
+    final id = locationId?.trim();
+    if (id == null || id.isEmpty) return null;
+    final locations = (lore?['locations'] as List<dynamic>?) ?? const [];
+    for (final l in locations) {
+      if (l is Map && l['id']?.toString() == id) {
+        final name = l['name']?.toString().trim();
+        if (name != null && name.isNotEmpty) return name;
+        return id;
+      }
     }
     return id;
   }

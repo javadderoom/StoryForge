@@ -811,10 +811,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               }),
                             ],
 
-                            // Dynamic Character Conditions / Status Chips
+                            // Dynamic Character Conditions / Status Chips + current location
                             ConditionChips(
                               conditions: session.playerState?.conditions ?? const [],
                               isPersian: isPersian,
+                              locationName: GameSessionState.locationName(
+                                session.lore,
+                                session.playerState?.currentLocationId,
+                              ),
                             ),
 
                             // Plan 13: threat clocks + displacement banner

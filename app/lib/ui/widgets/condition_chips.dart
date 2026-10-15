@@ -96,20 +96,25 @@ const Map<String, ConditionMeta> _conditionRegistry = {
 };
 
 /// Renders dynamic character conditions (e.g. ['تشنه', 'خسته', 'ناآشنا'])
-/// as stylish badges at the top of the scene.
+/// as stylish badges at the top of the scene, plus an optional current
+/// location chip (e.g. resolved via lore from currentLocationId).
 class ConditionChips extends StatelessWidget {
   final List<String> conditions;
   final bool isPersian;
+  final String? locationName;
 
   const ConditionChips({
     super.key,
     required this.conditions,
     this.isPersian = true,
+    this.locationName,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (conditions.isEmpty) return const SizedBox.shrink();
+    final loc = (locationName?.trim() ?? '');
+    final hasLocation = loc.isNotEmpty;
+    if (conditions.isEmpty && !hasLocation) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -126,6 +131,40 @@ class ConditionChips extends StatelessWidget {
               color: Colors.grey.shade400,
             ),
           ),
+          if (hasLocation)
+            Tooltip(
+              message: isPersian ? 'مکان فعلی قهرمان' : 'Current location',
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B2B3A).withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.5), width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.cyanAccent.withValues(alpha: 0.15),
+                      blurRadius: 6,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.place_outlined, size: 12, color: Colors.cyanAccent),
+                    const SizedBox(width: 4),
+                    Text(
+                      loc,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.cyanAccent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ...conditions.map((raw) {
             final key = raw.trim();
             final meta = _conditionRegistry[key];
