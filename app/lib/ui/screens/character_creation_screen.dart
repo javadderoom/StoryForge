@@ -111,22 +111,17 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
     return result;
   }
 
-  Future<void> _embark({bool quickstart = false}) async {
+  Future<void> _embark() async {
     if (_isEmbarking) return;
     setState(() => _isEmbarking = true);
 
     try {
-      final payload = quickstart
-          ? CharacterSetupPayload(
-              archetypeId: _selectedArchetypeId,
-              backgroundId: _selectedBackgroundId,
-            )
-          : CharacterSetupPayload(
-              archetypeId: _selectedArchetypeId,
-              backgroundId: _selectedBackgroundId,
-              allocatedStats: _buildFinalAllocatedStats(),
-              characterName: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
-            );
+      final payload = CharacterSetupPayload(
+        archetypeId: _selectedArchetypeId,
+        backgroundId: _selectedBackgroundId,
+        allocatedStats: _buildFinalAllocatedStats(),
+        characterName: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
+      );
 
       // Start story on server with customized character setup
       await ref.read(gameSessionProvider.notifier).startStory(
@@ -264,20 +259,6 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: _isEmbarking ? null : () => _embark(quickstart: true),
-              child: Text(
-                isPersian ? 'آغاز سریع' : 'Quick Start',
-                style: GoogleFonts.vazirmatn(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFFF59E0B),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
         ),
         body: Column(
           children: [
