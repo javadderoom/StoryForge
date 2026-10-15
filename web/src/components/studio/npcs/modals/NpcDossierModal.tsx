@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User, Users, X, MapPin, Briefcase } from 'lucide-react';
 import { NPCDossier, StoryManifest, Faction, WorldLocation, NpcKind, NpcAppearance } from '@/lib/types';
 import { ImageUploadField } from '@/components/studio/ImageUploadField';
+import { JsonViewEditor } from '@/components/studio/JsonViewEditor';
 
 export interface NpcDossierModalProps {
   open: boolean;
@@ -54,6 +55,7 @@ export function NpcDossierModal({
   const [traitInput, setTraitInput] = useState('');
   const [goalInput, setGoalInput] = useState('');
   const [appearance, setAppearance] = useState<NpcAppearance>({});
+  const [view, setView] = useState<'form' | 'json'>('form');
 
   const splitCommaSeparated = (text?: string): string[] => {
     if (!text || typeof text !== 'string') return [];
@@ -191,7 +193,6 @@ export function NpcDossierModal({
   const nameLabel = npcForm.kind === 'template'
     ? (isPersian ? 'عنوان الگو / نام گروه' : 'Template Title / Group Name')
     : (t?.npcName || (isPersian ? 'نام شخصیت' : 'Character Name'));
-
   const titleLabel = npcForm.kind === 'template'
     ? (isPersian ? 'کارکرد / نقش کهن‌الگو' : 'Archetype Function / Role')
     : (t?.npcTitle || (isPersian ? 'عنوان / پیشه' : 'Title / Role'));
@@ -200,6 +201,41 @@ export function NpcDossierModal({
   const goalsLabel = t?.goals || (isPersian ? 'اهداف و انگیزه‌ها' : 'Goals & Agendas');
   const cancelLabel = t?.cancel || (isPersian ? 'انصراف' : 'Cancel');
   const saveLabel = t?.save || (isPersian ? 'ذخیره' : 'Save');
+
+  // Live NPC object for the JSON view (form fields + structured appearance).
+  const npcJsonValue = useMemo(() => {
+    const hasAppearance = ['physicalBuild', 'faceAndGaze', 'attire', 'mannerisms'].some(
+      (k) => (appearance[k as keyof NpcAppearance] || '').trim()
+    );
+    return {
+      ...npcForm,
+      appearance: hasAppearance
+        ? {
+            physicalBuild: appearance.physicalBuild?.trim() || undefined,
+            faceAndGaze: appearance.faceAndGaze?.trim() || undefined,
+            attire: appearance.attire?.trim() || undefined,
+            mannerisms: appearance.mannerisms?.trim() || undefined,
+          }
+        : undefined,
+    };
+  }, [npcForm, appearance]);
+
+  const handleApplyJson = (parsed: any) => {
+    const { appearance: rawAppearance, ...rest } = parsed;
+    if (rawAppearance && typeof rawAppearance === 'object' && !Array.isArray(rawAppearance)) {
+      setAppearance({
+        physicalBuild: typeof rawAppearance.physicalBuild === 'string' ? rawAppearance.physicalBuild : undefined,
+        faceAndGaze: typeof rawAppearance.faceAndGaze === 'string' ? rawAppearance.faceAndGaze : undefined,
+        attire: typeof rawAppearance.attire === 'string' ? rawAppearance.attire : undefined,
+        mannerisms: typeof rawAppearance.mannerisms === 'string' ? rawAppearance.mannerisms : undefined,
+      });
+    } else if (typeof rawAppearance === 'string' && rawAppearance.trim()) {
+      setAppearance({ faceAndGaze: rawAppearance.trim() });
+    } else {
+      setAppearance({});
+    }
+    setNpcForm((prev) => ({ ...prev, ...rest }));
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
@@ -227,6 +263,39 @@ export function NpcDossierModal({
           </button>
         </div>
 
+        {/* Form / JSON view toggle */}
+        <div className="flex items-center gap-2 p-1 bg-zinc-950/60 rounded-2xl border border-zinc-800">
+          <button
+            type="button"
+            onClick={() => setView('form')}
+            className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${view === 'form'
+                ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+          >
+            {isPersian ? 'فرم' : 'Form'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('json')}
+            className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${view === 'json'
+                ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+          >
+            {isPersian ? 'جی‌سون' : 'JSON'}
+          </button>
+        </div>
+
+        {view === 'json' ? (
+          <JsonViewEditor
+            value={npcJsonValue}
+            onApply={handleApplyJson}
+            isPersian={isPersian}
+            title={npcForm.name || (isPersian ? 'پرونده شخصیت' : 'NPC dossier')}
+          />
+        ) : (
+        <>
         {/* NPC Kind Selector (Named Individual vs Group Archetype) */}
         <div className="flex items-center gap-2 p-1 bg-zinc-950/60 rounded-2xl border border-zinc-800">
           <button
@@ -636,6 +705,8 @@ export function NpcDossierModal({
             </button>
           </div>
         </form>
+        </>
+        )}
       </div>
     </div>
   );
