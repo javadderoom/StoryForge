@@ -1508,24 +1508,50 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
     final bestiary = (session.lore?['bestiary'] as List<dynamic>?) ?? [];
     final artifacts = (session.lore?['artifacts'] as List<dynamic>?) ?? [];
 
-    final hasDiscoveredLocs = player.discoveredLocationIds.isNotEmpty || player.currentLocationId.isNotEmpty;
+    // Only what the player has actually seen: discovered ids + current position.
+    final seenLocationIds = {...player.discoveredLocationIds, player.currentLocationId}.where((l) => l.isNotEmpty).toSet();
+    final seenLocations = worldLocations.where((loc) {
+      return loc is Map && seenLocationIds.contains(loc['id']?.toString());
+    }).toList();
+    final seenCreatureIds = player.discoveredCreatureIds.map((e) => e.toString()).toSet();
+    final seenBeasts = bestiary.where((b) {
+      return b is Map && seenCreatureIds.contains(b['id']?.toString());
+    }).toList();
+    // No artifact-discovery tracking exists server-side yet, so "seen" means
+    // the artifact is (or was) in the player's inventory.
+    final inventoryIds = player.inventory.map((i) => i.id.toString()).toSet();
+    final inventoryNames = player.inventory.map((i) => i.name.toString().trim().toLowerCase()).where((n) => n.isNotEmpty).toSet();
+    final seenArtifacts = artifacts.where((a) {
+      if (a is! Map) return false;
+      final id = a['id']?.toString() ?? '';
+      final name = (a['name']?.toString() ?? '').trim().toLowerCase();
+      return inventoryIds.contains(id) || (name.isNotEmpty && inventoryNames.contains(name));
+    }).toList();
+
+    final unmatchedLocationIds = seenLocationIds.where((id) =>
+        !seenLocations.any((l) => l is Map && l['id']?.toString() == id)).toList();
+
+    final nothingSeen = seenLocations.isEmpty &&
+        unmatchedLocationIds.isEmpty &&
+        seenBeasts.isEmpty &&
+        seenArtifacts.isEmpty;
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       children: [
-        // Discovered Locations Section
+        if (nothingSeen)
+          Text(
+            isPersian ? 'هنوز چیزی کشف نشده است. ماجراجویی را ادامه دهید.' : 'Nothing discovered yet. Keep exploring.',
+            style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white38),
+          ),
+        // Discovered Locations Section (seen only)
+        if (seenLocations.isNotEmpty || unmatchedLocationIds.isNotEmpty) ...[
         Text(
-          isPersian ? 'مکان‌ها و اقلیم‌های قلمرو' : 'REALM LOCATIONS & REALMS',
+          isPersian ? 'مکان‌ها و اقلیم‌های کشف‌شده' : 'DISCOVERED LOCATIONS',
           style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF9CA3AF)),
         ),
         const SizedBox(height: 12),
-        if (worldLocations.isEmpty && !hasDiscoveredLocs)
-          Text(
-            isPersian ? 'هنوز مکانی ثبت نشده است.' : 'No locations discovered yet.',
-            style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white38),
-          )
-        else if (worldLocations.isNotEmpty) ...[
-          for (final loc in worldLocations) ...[
+        for (final loc in seenLocations) ...[
             Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
@@ -1611,8 +1637,9 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
               ),
             ),
           ],
-        ] else ...[
-          for (final loc in {...player.discoveredLocationIds, player.currentLocationId}.where((l) => l.isNotEmpty))
+        ],
+        // Seen location ids with no lore entry yet (id-only fallback chips)
+        for (final loc in unmatchedLocationIds)
             Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(14),
@@ -1646,17 +1673,16 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                 ],
               ),
             ),
-        ],
 
-        // Bestiary & Creatures Section
-        if (bestiary.isNotEmpty) ...[
+        // Bestiary & Creatures Section (encountered only)
+        if (seenBeasts.isNotEmpty) ...[
           const SizedBox(height: 24),
           Text(
             isPersian ? 'موجودات و هیولاهای شناخته‌شده' : 'BESTIARY & CREATURES',
             style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF9CA3AF)),
           ),
           const SizedBox(height: 12),
-          for (final beast in bestiary) ...[
+          for (final beast in seenBeasts) ...[
             Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
@@ -1732,15 +1758,15 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
           ],
         ],
 
-        // Relics & Artifacts Section
-        if (artifacts.isNotEmpty) ...[
+        // Relics & Artifacts Section (inventory-seen only)
+        if (seenArtifacts.isNotEmpty) ...[
           const SizedBox(height: 24),
           Text(
             isPersian ? 'آثار کهن و دست‌سازه‌های جادویی' : 'RELICS & ARTIFACTS',
             style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF9CA3AF)),
           ),
           const SizedBox(height: 12),
-          for (final art in artifacts) ...[
+          for (final art in seenArtifacts) ...[
             Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
