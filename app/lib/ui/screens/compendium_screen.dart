@@ -13,6 +13,16 @@ import '../../services/audio_service.dart';
 import '../widgets/item_detail_sheet.dart';
 import '../widgets/level_up_dialog.dart';
 import '../widgets/full_screen_image_viewer.dart';
+import '../../services/game_api_service.dart';
+
+/// Resolves lore image paths: local dev uploads come back as relative
+/// (/uploads/...) and must be prefixed with the active backend URL.
+String _resolveLoreImageUrl(String raw) {
+  final t = raw.trim();
+  if (t.isEmpty) return t;
+  if (t.startsWith('/')) return '${GameApiService.baseUrl}$t';
+  return t;
+}
 
 /// Full-Page RPG Character, Inventory, Quest & Realm Compendium Screen
 class CompendiumScreen extends ConsumerStatefulWidget {
@@ -1221,7 +1231,10 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
 
     final trust = rel.trust;
 
-    final npcImageUrl = ((npcMeta?['imageUrl'] ?? npcMeta?['avatarUrl'])?.toString() ?? '').trim();    String statusLabel;
+    final npcImageUrl = _resolveLoreImageUrl(
+      ((npcMeta?['imageUrl'] ?? npcMeta?['avatarUrl'])?.toString() ?? ''),
+    );
+    String statusLabel;
     Color statusColor;
 
     if (trust >= 60) {
@@ -1576,7 +1589,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: CachedNetworkImage(
-                        imageUrl: (loc['imageUrl'] ?? loc['image']).toString(),
+                        imageUrl: _resolveLoreImageUrl((loc['imageUrl'] ?? loc['image']).toString()),
                         height: 120,
                         width: double.infinity,
                         fit: BoxFit.cover,
@@ -1703,7 +1716,7 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: CachedNetworkImage(
-                        imageUrl: (beast['imageUrl'] ?? beast['image']).toString(),
+                        imageUrl: _resolveLoreImageUrl((beast['imageUrl'] ?? beast['image']).toString()),
                         height: 120,
                         width: double.infinity,
                         fit: BoxFit.cover,
