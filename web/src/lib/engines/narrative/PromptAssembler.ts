@@ -197,8 +197,9 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
   * Appropriate DC Matching: Truly extreme or superhuman feats carry commensurate DCs (14-18) so that high attributes or legendary gear are what make them achievable and rewarding.
 - GROUNDING & ITEM ROLE FIDELITY: Ground choices in equipped gear, environmental interactables, and discovered clues. Honor item role fidelity: equipped relics, charms, and specialized gear must ONLY be proposed in choices when their specific authored function or powers are genuinely relevant. NEVER propose permanent relics or talismans as throwaway diversion pebbles or irrelevant conversational fidget props. Non-consumable gear must never be tossed or destroyed. NEVER reveal or base choices on hidden/undiscovered NPC secrets. Span distinct philosophies (tactical, aggressive, defensive, inquisitive).
 - ACTIVE ITEM & ARTIFACT INTEGRATION (ITEM FIDELITY): Consult the [EQUIPPED GEAR & ARTIFACT INTERACTION CATALOGUE]. When relevant tactical, survival, or martial challenges arise (e.g. arrows/missiles, desert heat, deciphering seals, tight combat), actively offer choices utilizing the authentic primary purposes and interactions of the protagonist's equipped items (e.g. bracing behind a shield to intercept incoming missile volleys or executing a shield-bash, focusing through lenses to decipher eroded seals, or relying on desert beads to resist heat). NEVER propose any action listed under [FORBIDDEN MISUSES].
-- ACTIVE ABILITY & SPELL INTEGRATION (ABILITY FIDELITY): When the protagonist faces combat, tactical obstacles, physical perils, or specialized challenges, you MUST actively leverage their known abilities, feats, and spells (from [PROTAGONIST STATUS & CAPABILITIES]). In hostile, combat, or high-stakes encounters, at least one offered choice should provide a proactive application of one of their signature abilities or spells with an appropriate stat check and targetDC matching the action. Describe the concrete physical or magical action directly (e.g. "Brace behind the shield against incoming shafts" rather than "Leverage Shield Defense skill to block arrows"). NEVER shoehorn meta skill names or phrases like "relying on the skill of..." into the choice text.
-- STRICT GROUNDING IN SCENE PROSE (NO PHANTOM ENTITIES): Every choice MUST strictly react to the physical obstacles, characters, and events EXPLICITLY established in the scene's narrative prose. NEVER invent phantom entities, unmentioned bystanders, imaginary cargo, caravan inspections, or unstated subplots. All choices must be actions directly referenced or present in the text (e.g. if only a closed gate is described, choices must interact with that gate or visible sentries, NOT inspect unmentioned caravans or baggage).`
+- ACTIVE ABILITY & SPELL INTEGRATION (ABILITY FIDELITY): When the protagonist faces active combat, tactical obstacles, physical perils, or specialized challenges (ONLY when conflict or danger is actively present in the scene, NEVER in peaceful or travel scenes), you MUST actively leverage their known abilities, feats, and spells (from [PROTAGONIST STATUS & CAPABILITIES]). In hostile, combat, or high-stakes encounters, at least one offered choice should provide a proactive application of one of their signature abilities or spells with an appropriate stat check and targetDC matching the action. Describe the concrete physical or magical action directly (e.g. "Brace behind the shield against incoming shafts" rather than "Leverage Shield Defense skill to block arrows"). NEVER shoehorn meta skill names or phrases like "relying on the skill of..." into the choice text.
+- STRICT GROUNDING IN SCENE PROSE (NO PHANTOM ENTITIES): Every choice MUST strictly react to the physical obstacles, characters, and events EXPLICITLY established in the scene's narrative prose. NEVER invent phantom entities, unmentioned bystanders, imaginary cargo, caravan inspections, or unstated subplots. All choices must be actions directly referenced or present in the text (e.g. if only a closed gate is described, choices must interact with that gate or visible sentries, NOT inspect unmentioned caravans or baggage).
+- SCENE ATMOSPHERE, PACING & NO COMBAT PARANOIA: In calm, exploratory, travel, introductory, or conversational scenes (such as walking with a caravan at dawn, resting at camp, or talking in a tavern), DO NOT invent sudden surprise monster attacks or force combat paranoia choices (such as drawing weapons, holding shields forward, or bracing for phantom ambushes). Choices in calm scenes must feel natural and atmospheric: engaging in conversation with present companions, observing environmental landmarks or tracks, assisting travelers, adjusting pace, or inspecting supplies.`
         : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای و طبیعی ارائه کن:
 - گام‌های اتمیک و تک‌مرحله‌ای (ATOMIC SINGLE-BEAT): هر انتخاب باید دقیقاً «یک اقدام فیزیکی یا گفتاری فوری» را در همین لحظه بیان کند. هرگز چند اقدام پیاپی را با «و» به هم متصل نکن (از فرمول «کار الف و سپس کار ب و کار ج» اکیداً پرهیز کن).
 - ممنوعیت درج نتیجه در متن انتخاب: متن انتخاب باید صرفاً کنشِ عینی شخصیت باشد، نه هدف یا نتیجهٔ از پیش‌تعیین‌شده (از عباراتی چون «برای اینکه...»، «به منظور فرار...»، «تا مسیر امن را پیدا کند» پرهیز کن). نتیجه و پیامد کار تنها پس از تاس و توسط راوی مشخص می‌شود.
@@ -218,12 +219,13 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
     - سطح قهرمانی و فراانسانی (ویژگی‌های ۱۲، ۱۶، ۲۰ به بالا، ابزارها و سلاح‌های جادویی، طلسم‌های قوی، یا جهان‌های حماسی): با رشد و پیشرفت شخصیت، این محدودیت‌ها برداشته می‌شوند! با ارتقای ویژگی‌ها و دستیابی به یادگارهای کهن، اعمال حماسی، ماوراءطبیعی و فراانسانیِ متناسب با قدرت جدید قهرمان را در گزینه‌ها آزاد و پیشنهاد کن.
   * تناسب درجه سختی (DC): اعمال بسیار سنگین یا فراانسانی سختی متناسب (۱۴ تا ۱۸) دارند تا بازیکن با داشتن ویژگی‌های بالا و تجهیزات برتر طعم غلبه بر چالش‌های ناممکن اولیه را بچشد.
 - زمینه و وفاداری به کارکرد تجهیزات (ITEM ROLE FIDELITY): انتخاب‌ها را بر تجهیزات، عناصر محیطی و سرنخ‌ها استوار کن. وفاداری به ماهیت آیتم‌ها الزامی است: تجهیزات، یادگارها و طلسم‌های همراه قهرمان باید صرفاً در زمینهٔ کارکرد و قدرت‌های واقعی‌شان در گزینه‌ها پیشنهاد شوند. هرگز یادگارهای باستانی، نمادها یا مهره‌های مقدس و دائمی (مانند دافع عطش و سراب) را به عنوان سنگریزه برای پرتاب و انحراف حواس دشمن، یا فیجت و بازیچهٔ دست در حین صحبت پیشنهاد نده! آیتم‌های دائمی و غیرمصرفی هرگز نباید به عنوان اشیاء پرتابی یا یک‌بارمصرف تلف شوند. هرگز اسرار کشف‌نشده را لو نده. فلسفه‌های متفاوت (تاکتیکی، تهاجمی، تدافعی، کنجکاوانه) را پوشش بده.
-- به‌کارگیری فعال تجهیزات و یادگارها (ITEM FIDELITY): به بخش [کاتالوگ تعاملات و کارکرد تجهیزات همراه / EQUIPPED GEAR & ARTIFACT INTERACTION CATALOGUE] مراجعه کن. در رویارویی با چالش‌های تاکتیکی، رزمی یا بقا (مانند باران تیر و پرتابه‌ها، گرمای کویر، جعل یا خواندن اسناد، و نبرد نزدیک)، در صورت تناسب موقعیت حتماً گزینه‌ای متکی بر کارکرد اصیل تجهیزات مجهز قهرمان پیشنهاد کن (مانند سنگر گرفتن پشت سپر برای مهار باران تیر یا اجرای کوبش سپر / Shield Bash، تمرکز از طریق عدسی جهت بازرسی مهرهای مخدوش، یا اتکا به مهره جهت مقاومت در برابر عطش و سراب). اکیداً از پیشنهاد هرگونه اقدامی که تحت عنوان «سوءاستفاده‌های اکیداً ممنوع / FORBIDDEN MISUSES» ثبت شده است خودداری کن.
-- به‌کارگیری فعال توانایی‌ها، مهارت‌ها و جادوها (ABILITY & SPELL FIDELITY): در شرایط نبرد، موانع فیزیکی، تعارضات یا چالش‌های تاکتیکی، حتماً از توانایی‌ها، مهارت‌ها و جادوهای شناخته‌شدهٔ قهرمان (مندرج در بخش وضعیت و توانمندی‌های قهرمان) استفاده کن. در مواجهه با خطرات، نبرد یا موانع دشوار، حداقل یکی از گزینه‌های پیشنهادی باید استفادهٔ هدفمند و تاکتیکی از یکی از توانایی‌ها، مهارت‌ها یا جادوهای قهرمان را به بازیکن پیشنهاد دهد (مثلاً هدایت و مهار حیوانات با نهیب و تجربه‌ کاروانی، سنگر گرفتن پشت سپر در دفع حملات، یا اجرای وردهای جادویی) و برای آن یک بررسی صفت متناسب («requiredStatId» و «targetDC») تعیین کند. خودِ عمل فیزیکی یا کلامی را به شکلی طبیعی و داستانی توصیف کن و هرگز نام کاتالوگی مهارت را به شکل تصنعی در متن گزینه نیاور (مانند آوردن «با اتکا به مهارت کاروان...»).
-- انطباق مطلق با متن و صحنه (ممنوعیت توهم و فرضیات ناموجود): تک‌تک گزینه‌ها باید دقیقاً از دلِ موانع، اشخاص، محیط و رویدادهایی که در متنِ همین صحنه صریحاً به آن‌ها اشاره شده است برآیند. ابداع موجودیت‌های فرضی، افراد غایب، کاروان‌ها یا بارهای ذکرنشده، یا بازرسی بارهایی که اصلاً در متن نیامده‌اند اکیداً ممنوع است. تمام انتخاب‌ها باید مواردی باشند که در متن به آن‌ها اشاره شده است (مثلاً اگر در متن فقط از بسته بودن دروازه سخن رفته، گزینه‌ها باید منحصراً پیرامون خودِ دروازه، نگهبانان حاضر یا محیط پیرامونی باشند، نه بازرسی کالاهای خیالی).`
+- به‌کارگیری فعال تجهیزات و یادگارها (ITEM FIDELITY): به بخش [کاتالوگ تعاملات و کارکرد تجهیزات همراه / EQUIPPED GEAR & ARTIFACT INTERACTION CATALOGUE] مراجعه کن. در رویارویی با چالش‌های تاکتیکی، رزمی یا بقا (صرفاً در صورت وجود خطر، مانع یا نبرد واقعی در متن صحنه، نه در پیاده‌روی یا سفر مسالمت‌آمیز)، در صورت تناسب موقعیت گزینه‌ای متکی بر کارکرد اصیل تجهیزات مجهز قهرمان پیشنهاد کن. اکیداً از پیشنهاد هرگونه اقدامی که تحت عنوان «سوءاستفاده‌های اکیداً ممنوع / FORBIDDEN MISUSES» ثبت شده است خودداری کن.
+- به‌کارگیری فعال توانایی‌ها، مهارت‌ها و جادوها (ABILITY & SPELL FIDELITY): در شرایط نبرد، موانع فیزیکی، تعارضات یا چالش‌های تاکتیکی (صرفاً هنگامی که خطر، مانع یا نبردی در متن فعال است)، از توانایی‌ها، مهارت‌ها و جادوهای شناخته‌شدهٔ قهرمان (مندرج در بخش وضعیت و توانمندی‌های قهرمان) استفاده کن. در مواجهه با خطرات یا موانع دشوار، حداقل یکی از گزینه‌های پیشنهادی می‌تواند استفادهٔ هدفمند و تاکتیکی از یکی از توانایی‌ها یا مهارت‌ها را پیشنهاد دهد (مثلاً هدایت و مهار حیوانات با نهیب و تجربه‌ کاروانی، یا اجرای وردهای جادویی) و برای آن یک بررسی صفت متناسب («requiredStatId» و «targetDC») تعیین کند. خودِ عمل فیزیکی یا کلامی را به شکلی طبیعی و داستانی توصیف کن و هرگز نام کاتالوگی مهارت را به شکل تصنعی در متن گزینه نیاور (مانند آوردن «با اتکا به مهارت کاروان...»).
+- انطباق مطلق با متن و صحنه (ممنوعیت توهم و فرضیات ناموجود): تک‌تک گزینه‌ها باید دقیقاً از دلِ موانع، اشخاص، محیط و رویدادهایی که در متنِ همین صحنه صریحاً به آن‌ها اشاره شده است برآیند. ابداع موجودیت‌های فرضی، افراد غایب، کاروان‌ها یا بارهای ذکرنشده، یا بازرسی بارهایی که اصلاً در متن نیامده‌اند اکیداً ممنوع است. تمام انتخاب‌ها باید مواردی باشند که در متن به آن‌ها اشاره شده است (مثلاً اگر در متن فقط از بسته بودن دروازه سخن رفته، گزینه‌ها باید منحصراً پیرامون خودِ دروازه، نگهبانان حاضر یا محیط پیرامونی باشند، نه بازرسی کالاهای خیالی).
+- انطباق با لحن و اتمسفر صحنه و منع پارانویای رزمی (SCENE ATMOSPHERE & NO COMBAT PARANOIA): در صحنه‌های آرام، کاروانی، پیاده‌روی، سفر، گفت‌وگو یا معرفی (مانند حرکت کاروان در سپیده‌دم، استراحت در کاروانسرا، یا پیاده‌روی مسالمت‌آمیز)، اکیداً از ابداع یورش‌های ناگهانی موجودات یا هیولاها و تحمیل انتخاب‌های پارانوئید جنگی (مانند سپر رو به جلو گرفتن برای آماده شدن در برابر حادثه، کشیدن سلاح، یا موضع دفاعی گرفتن در یک پیاده‌روی عادی) خودداری کن! در صحنه‌های آرام، انتخاب‌ها باید کاملاً طبیعی، جوّی، اجتماعی، کاوشگرانه یا هدایتی باشند: گفت‌وگو با همراهان حاضر، بررسی مسیر یا ردپای جانوران، وارسی بار و چهارپایان، نوشیدن آب، کمک به ساربانان یا رصد افق و عوارض زمین.`
       : isEnglish
-      ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Keep choices strictly atomic without pre-baked outcomes, actively offer choices leveraging the protagonist's known abilities/spells in combat or obstacles, and strictly ground them in what has been explicitly mentioned in the scene prose without hallucinating unmentioned entities. In tense standoffs or conflicts, all choices must have a stat check and DC.`
-      : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای تک‌مرحله‌ای (اتمیک) ارائه کن که در شرایط نبرد و چالش‌ها به طور فعال از توانایی‌ها و جادوهای قهرمان بهره بگیرند و کاملاً بر عناصر و وقایعِ صریحاً ذکرشده در متن صحنه استوار باشند (بدون توهم یا ابداع موارد غایب). در شرایط درگیری، بن‌بست مسلحانه یا تنش با دشمنان، تمام گزینه‌ها باید دارای بررسی ویژگی و درجه سختی باشند.`;
+      ? `4. Provide 2 to 4 natural, contextual next choices for the reader in English. Keep choices strictly atomic without pre-baked outcomes, actively offer choices leveraging the protagonist's known abilities/spells in combat or obstacles, and strictly ground them in what has been explicitly mentioned in the scene prose without hallucinating unmentioned entities. In calm travel/exploratory scenes, keep choices peaceful and atmospheric without combat paranoia. In tense standoffs or conflicts, all choices must have a stat check and DC.`
+      : `۴. برای خواننده ۲ تا ۴ انتخاب زمینه‌ای تک‌مرحله‌ای (اتمیک) ارائه کن که در شرایط نبرد و چالش‌ها به طور فعال از توانایی‌ها و جادوهای قهرمان بهره بگیرند و کاملاً بر عناصر و وقایعِ صریحاً ذکرشده در متن صحنه استوار باشند (بدون توهم یا ابداع موارد غایب). در صحنه‌های آرام و سفر، گزینه‌ها باید مسالمت‌آمیز، اجتماعی و متناسب با اتمسفر باشند بدون تحمیل موضع‌گیری‌های جنگی. در شرایط درگیری، بن‌بست مسلحانه یا تنش با دشمنان، تمام گزینه‌ها باید دارای بررسی ویژگی و درجه سختی باشند.`;
 
     // Plan 13: contextual choice material shared by both language branches.
     const choiceMaterial = [
@@ -697,6 +699,138 @@ You MUST respond with a valid JSON object matching this schema:
       }
 
       parts.push(`[دستور نهایی]\nصحنه بعدی داستان را با نثر ادبی و تاثیر نتیجه تاس بنویس و ۲ تا ۴ انتخاب کاملاً منطبق بر متن صحنه (بدون ابداع موارد ذکرنشده) در قالب JSON برگردان.`);
+    }
+
+    return {
+      systemPrompt,
+      userPrompt: parts.join('\n\n'),
+      isEnglish,
+      playerStatIds: context.playerStatus?.stats || {},
+      isLowBase,
+      statIdAliases: PromptAssembler.buildStatIdAliases(statsDefs),
+    };
+  }
+
+  /**
+   * Generates opening choices tailored specifically to an already-authored opening
+   * beat narrative text. Unlike buildNarrativePrompt, this does NOT instruct the
+   * model to author a new narrative beat or advance the timeline, avoiding
+   * phantom beast attacks, ungrounded combat paranoia, or narrative desynchronization.
+   */
+  public static buildOpeningChoicesPrompt(
+    context: WorkingContextEnvelope,
+    openingProse: string
+  ): GenerationPromptPayload {
+    const isExplicitlyPersian =
+      context.languageDirective === 'fa' ||
+      /[\u0600-\u06FF]/.test(context.storyTitle || '') ||
+      /[\u0600-\u06FF]/.test(context.worldSummary || '') ||
+      /[\u0600-\u06FF]/.test(openingProse);
+    const isEnglish = !isExplicitlyPersian && context.languageDirective === 'en';
+
+    const statsDefs = context.statsConfig || [];
+    const validStatIds = Object.keys(context.playerStatus?.stats || {});
+    const statDescriptors = statsDefs.length > 0
+      ? statsDefs.map((s) => `${s.id}${s.name ? ` (${s.name})` : ''}`).join(', ')
+      : validStatIds.join(', ');
+
+    const isLowBase = context.universalBaseValue !== undefined
+      ? context.universalBaseValue < 8
+      : statsDefs.length > 0
+      ? statsDefs.every((s) => (s.baseValue ?? 10) < 8)
+      : false;
+
+    const systemPrompt = isEnglish
+      ? `You are the Lead Choice Architect for StoryForge, a literary dark fantasy interactive RPG.
+Your sole responsibility is to generate 3 to 4 varied, engaging, atmospheric opening choices for the player at the very start of the story.
+The opening scene prose has ALREADY been written and shown to the player.
+DO NOT generate any narrative prose. DO NOT invent new scenes or advance time.
+Return ONLY a valid JSON object matching this schema:
+{
+  "choices": [
+    {
+      "id": "choice_1",
+      "text": "Literary description of the action in English",
+      "style": "tactical", // "tactical" | "cautious" | "inquisitive" | "diplomatic" | "bold"
+      "riskLevel": "low", // "low" | "medium" | "high"
+      "requiredStatId": "cunning", // optional, omit for diceless choices
+      "targetDC": 10 // optional, omit for diceless choices
+    }
+  ]
+}`
+      : `تو معمار ارشد انتخاب‌ها برای بازی تعاملی StoryForge هستی.
+وظیفهٔ تو صرفاً تولید ۳ تا ۴ انتخاب غنی، ادبی، متناسب با اتمسفر صحنه و هوشمندانه برای شروع بازی توسط بازیکن است.
+متن صحنهٔ آغازین قبلاً نگارش شده و در برابر دیدگان بازیکن قرار گرفته است.
+هرگز متن روایی جدید ننویس! صحنه را پیش نبر و چیزی را به عنوان اتفاق افتاده فرض نکن.
+صرفاً یک آبجکت معتبر JSON با ساختار زیر برگردان:
+{
+  "choices": [
+    {
+      "id": "choice_1",
+      "text": "شرح کنش داستانی و ادبی به زبان فارسی",
+      "style": "tactical", // "tactical" | "cautious" | "inquisitive" | "diplomatic" | "bold"
+      "riskLevel": "low", // "low" | "medium" | "high"
+      "requiredStatId": "might", // اختیاری، برای اقدامات بدون تاس حذف شود
+      "targetDC": 10 // اختیاری، برای اقدامات بدون تاس حذف شود
+    }
+  ]
+}`;
+
+    const parts: string[] = [];
+
+    if (isEnglish) {
+      parts.push(`[STORY TITLE]\n${context.storyTitle || 'Story'}`);
+      if (context.worldSummary) parts.push(`[WORLD SUMMARY]\n${context.worldSummary}`);
+      if (context.themeNotes) parts.push(`[THEMATIC TONE]\n${context.themeNotes}`);
+      parts.push(`[PROTAGONIST STATUS]\nName: ${context.playerStatus?.characterName || 'Protagonist'}\nArchetype: ${context.playerStatus?.archetypeName || 'Traveler'}\nAttributes: ${JSON.stringify(context.playerStatus?.stats || {})}`);
+
+      // Filter active NPCs to those mentioned in openingProse
+      const presentNpcs = (context.activeNpcDossiers || []).filter(
+        (n) => openingProse.includes(n.name) || (n.caravanAffiliation && openingProse.includes(n.caravanAffiliation))
+      );
+      if (presentNpcs.length > 0) {
+        parts.push(`[NPCS PRESENT IN THIS OPENING SCENE]\n${presentNpcs.map((n) => `• ${n.name} (Trust: ${n.trust})`).join('\n')}`);
+      }
+
+      parts.push(
+        `[OPENING SCENE PROSE — ALREADY PRESENTED TO THE READER]\n${openingProse}\n\n` +
+        `[INSTRUCTIONS FOR OPENING CHOICES]\n` +
+        `1. STRICT SCENE GROUNDING: Every choice must directly stem from the characters, environment, and situation described in the opening prose above.\n` +
+        `2. NO PHANTOM THREATS OR COMBAT PARANOIA: If this is an introductory, traveling, walking, or peaceful scene, DO NOT invent sudden monster attacks, ambushes, or force ridiculous combat stances (like raising a shield or drawing weapons on thin air). Ground choices in the authentic atmosphere.\n` +
+        `3. VARIED OPENING INTENTS: Offer 3 to 4 distinct options reflecting different player impulses:\n` +
+        `   - Conversing with one of the present companions or figures.\n` +
+        `   - Observing tracks, landmarks, weather, or scouting the route ahead.\n` +
+        `   - Tending to journey responsibilities (supplies, pack beasts, pace, equipment).\n` +
+        `   - Taking an attentive or curious initiative.\n` +
+        `4. DICELESS VS CHECKS: Provide at least 1-2 diceless conversational or observational options, and 1-2 options with low/moderate checks using valid stats: [${validStatIds.join(', ')}]. DCs should be modest (8-11) for opening moments.\n` +
+        `5. LITERARY PROSE: Clean narrative prose with NO dice tags, roll labels, or parenthetical annotations in the choice text.`
+      );
+    } else {
+      parts.push(`[عنوان داستان]\n${context.storyTitle || 'داستان'}`);
+      if (context.worldSummary) parts.push(`[خلاصه جهان]\n${context.worldSummary}`);
+      if (context.themeNotes) parts.push(`[فضای تماتیک]\n${context.themeNotes}`);
+      parts.push(`[وضعیت قهرمان]\nنام: ${context.playerStatus?.characterName || 'قهرمان'}\nشغل/کهن‌الگو: ${context.playerStatus?.archetypeName || 'مسافر'}\nویژگی‌ها: ${JSON.stringify(context.playerStatus?.stats || {})}`);
+
+      const presentNpcs = (context.activeNpcDossiers || []).filter(
+        (n) => openingProse.includes(n.name) || (n.caravanAffiliation && openingProse.includes(n.caravanAffiliation))
+      );
+      if (presentNpcs.length > 0) {
+        parts.push(`[شخصیت‌های حاضر در این صحنهٔ آغازین]\n${presentNpcs.map((n) => `• ${n.name} (میزان اعتماد: ${n.trust})`).join('\n')}`);
+      }
+
+      parts.push(
+        `[متن نثر صحنهٔ آغازین — قبلاً به خواننده نمایش داده شده است]\n${openingProse}\n\n` +
+        `[دستورالعمل طراحی انتخاب‌های آغازین]\n` +
+        `۱. انطباق کامل با صحنه: تک‌تک انتخاب‌ها باید دقیقاً از دلِ اشخاص، عناصر، فضا و رویدادهای توصیف‌شده در متن بالا برآیند.\n` +
+        `۲. منع اکید توهم حمله و پارانویای رزمی: اگر این صحنه یک صحنهٔ معرفی، سفر، پیاده‌روی یا آرامش است، هرگز حملهٔ ناگهانی موجودات یا هیولاها را ابداع نکن و ژست‌های جنگی بی‌مورد (مانند سپر رو به جلو گرفتن یا کشیدن سلاح در پیاده‌روی عادی) تحمیل نکن! گزینه‌ها باید کاملاً طبیعی و متناسب با اتمسفر صحنه باشند.\n` +
+        `۳. تنوع رویکردها (۳ تا ۴ گزینهٔ متمایز):\n` +
+        `   - گفت‌وگو یا مشورت با یکی از یاران یا شخصیت‌های حاضر در صحنه.\n` +
+        `   - وارسی عوارض زمین، ردپای جانوران، مسیر پیش‌رو یا رصد افق.\n` +
+        `   - رسیدگی به امور کاروان، چهارپایان، آب و آذوقه، یا تنظیم گام‌های حرکت.\n` +
+        `   - کنش کنجکاوانه، هوشیارانه یا تأمل در موقعیت.\n` +
+        `۴. تعادل تاس: حداقل ۱ تا ۲ گزینه می‌تواند بدون تاس (DICELESS) برای گفت‌وگوی عادی یا وارسی ساده باشد، و ۱ تا ۲ گزینه دارای بررسی ویژگی با صفات معتبر ([${validStatIds.join('، ')}] با نام‌های: ${statDescriptors}) با درجه سختی پایین و آغازین (۹ تا ۱۱).\n` +
+        `۵. نثر ادبی ناب: از درج هرگونه پرانتز، برچسب بررسی مهارت یا شماره در متن گزینه‌ها خودداری کن. خروجی صرفاً در قالب JSON معتبر باشد.`
+      );
     }
 
     return {

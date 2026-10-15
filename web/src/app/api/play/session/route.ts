@@ -14,7 +14,7 @@ import { isPlaceholderBeat } from '@/lib/engines/world/sceneResolution';
 import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
 import { buildWorldContextBlocks, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatTraitsForContext, formatItemInteractionsCatalogForContext } from '@/lib/engines/narrative/worldContext';
 import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
-import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
+import { GeminiAdapter, normalizeChoices } from '@/lib/providers/GeminiAdapter';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import { WorkingContextEnvelope } from '@/lib/types/memory';
 
@@ -169,17 +169,28 @@ async function generateOpeningChoices(
       activeChapterGoal: activeChapter?.narrativeGoal || undefined,
     };
 
-        const promptPayload = PromptAssembler.buildNarrativePrompt(context);
-    const generated = await openingGeminiAdapter.generateScene(promptPayload);
-    if (generated.isMock) {
-      console.warn('[session] Opening choice generation unavailable (mock) — opening with authored choices.');
+        const openingProseText = String(beat.narrativeText || '');
+    const promptPayload = PromptAssembler.buildOpeningChoicesPrompt(context, openingProseText);
+    const rawResult = await openingGeminiAdapter.generateSceneRaw(promptPayload);
+    if (!rawResult || !rawResult.data) {
+      console.warn('[session] Opening choice generation unavailable (mock/offline) — opening with authored choices.');
       return [];
     }
+
+    const validStatIds = Object.keys(context.playerStatus?.stats || {});
+    const normalizedChoices = normalizeChoices(
+      rawResult.data.choices,
+      validStatIds,
+      promptPayload.isEnglish,
+      promptPayload.isLowBase ?? false,
+      promptPayload.statIdAliases
+    );
+
     // Defense-in-depth: never present an opening choice that would leak a
     // secret the player has not yet discovered or reference an unintroduced NPC.
-    const openingProse = [String(beat.narrativeText || '')];
+    const openingProse = [openingProseText];
     return ActionValidator.sanitizeChoices(
-      generated.choices,
+      normalizedChoices,
       playerState,
       story.worldBible,
       (story as any).storyNpcOverrides,

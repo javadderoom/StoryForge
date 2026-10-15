@@ -395,62 +395,114 @@ export class ActionValidator {
       return true;
     });
 
-    // If filtering leaves fewer than 2 choices and we have prose context, replenish with safe tactical options
+    // If filtering leaves fewer than 2 choices and we have prose context, replenish with safe options matching scene atmosphere
     if (filtered.length < 2 && hasProseContext) {
       const isEnglish = !/[\u0600-\u06FF]/.test(fullProse);
+      const isHostileScene = /(?:attack|combat|threat|ambush|blade|sword|weapon|arrow|strike|blood|guard|sentry|حمله|درگیری|یورش|شمشیر|خون|کمان|تیر|سلاح|تیغه|تهدید|کمین|گزمه|پاسبان|دشمن)/i.test(fullProse);
+
       const fallbacks = isEnglish
-        ? [
-            {
-              id: 'choice_fallback_cunning',
-              text: 'Carefully assess your surroundings and look for hidden openings or alternate paths.',
-              style: 'tactical',
-              riskLevel: 'medium',
-              requiredStatId: 'cunning',
-              targetDC: 12,
-            },
-            {
-              id: 'choice_fallback_agility',
-              text: 'Maintain a low profile, keep your footing, and watch for sudden threats.',
-              style: 'cautious',
-              riskLevel: 'low',
-              requiredStatId: 'agility',
-              targetDC: 11,
-            },
-            {
-              id: 'choice_fallback_might',
-              text: 'Stand firm, grip your weapon ready, and prepare for any sudden confrontation.',
-              style: 'aggressive',
-              riskLevel: 'medium',
-              requiredStatId: 'might',
-              targetDC: 13,
-            },
-          ]
-        : [
-            {
-              id: 'choice_fallback_cunning',
-              text: 'بررسی دقیق موقعیت و جست‌وجوی نشانه‌ها یا معابر پنهان در محیط پیرامون.',
-              style: 'tactical',
-              riskLevel: 'medium',
-              requiredStatId: 'cunning',
-              targetDC: 12,
-            },
-            {
-              id: 'choice_fallback_agility',
-              text: 'حفظ خونسردی، زیر نظر گرفتن حرکات و آماده شدن برای هرگونه واکنش ناگهانی.',
-              style: 'cautious',
-              riskLevel: 'low',
-              requiredStatId: 'agility',
-              targetDC: 11,
-            },
-            {
-              id: 'choice_fallback_might',
-              text: 'ایستادن استوار، محکم کردن دست بر سلاح و آمادگی کامل برای رویارویی مستقیم.',
-              style: 'aggressive',
-              riskLevel: 'medium',
-              requiredStatId: 'might',
-              targetDC: 13,
-            },
-          ];
+        ? isHostileScene
+          ? [
+              {
+                id: 'choice_fallback_cunning',
+                text: 'Carefully assess your surroundings and look for hidden openings or alternate paths.',
+                style: 'tactical',
+                riskLevel: 'medium',
+                requiredStatId: 'cunning',
+                targetDC: 12,
+              },
+              {
+                id: 'choice_fallback_agility',
+                text: 'Maintain a low profile, keep your footing, and watch for sudden threats.',
+                style: 'cautious',
+                riskLevel: 'low',
+                requiredStatId: 'agility',
+                targetDC: 11,
+              },
+              {
+                id: 'choice_fallback_might',
+                text: 'Stand firm, grip your weapon ready, and prepare for any sudden confrontation.',
+                style: 'aggressive',
+                riskLevel: 'medium',
+                requiredStatId: 'might',
+                targetDC: 13,
+              },
+            ]
+          : [
+              {
+                id: 'choice_fallback_cunning',
+                text: 'Carefully assess your surroundings, noting terrain landmarks and the path ahead.',
+                style: 'tactical',
+                riskLevel: 'low',
+                requiredStatId: 'cunning',
+                targetDC: 10,
+              },
+              {
+                id: 'choice_fallback_agility',
+                text: 'Maintain a steady pace and keep your attention tuned to the journey ahead.',
+                style: 'cautious',
+                riskLevel: 'low',
+                requiredStatId: 'agility',
+                targetDC: 10,
+              },
+              {
+                id: 'choice_fallback_social',
+                text: 'Observe your traveling companions and take the measure of the road ahead.',
+                style: 'inquisitive',
+                riskLevel: 'low',
+              },
+            ]
+        : isHostileScene
+          ? [
+              {
+                id: 'choice_fallback_cunning',
+                text: 'بررسی دقیق موقعیت و جست‌وجوی نشانه‌ها یا معابر پنهان در محیط پیرامون.',
+                style: 'tactical',
+                riskLevel: 'medium',
+                requiredStatId: 'cunning',
+                targetDC: 12,
+              },
+              {
+                id: 'choice_fallback_agility',
+                text: 'حفظ خونسردی، زیر نظر گرفتن حرکات و آماده شدن برای هرگونه واکنش ناگهانی.',
+                style: 'cautious',
+                riskLevel: 'low',
+                requiredStatId: 'agility',
+                targetDC: 11,
+              },
+              {
+                id: 'choice_fallback_might',
+                text: 'ایستادن استوار، محکم کردن دست بر سلاح و آمادگی کامل برای رویارویی مستقیم.',
+                style: 'aggressive',
+                riskLevel: 'medium',
+                requiredStatId: 'might',
+                targetDC: 13,
+              },
+            ]
+          : [
+              {
+                id: 'choice_fallback_cunning',
+                text: 'بررسی دقیق موقعیت و رصد نشانه‌ها، عوارض زمین و مسیر پیش‌رو.',
+                style: 'tactical',
+                riskLevel: 'low',
+                requiredStatId: 'cunning',
+                targetDC: 10,
+              },
+              {
+                id: 'choice_fallback_agility',
+                text: 'حفظ آرامش، گام برداشتن استوار و هماهنگ کردن سرعت خود با کاروان.',
+                style: 'cautious',
+                riskLevel: 'low',
+                requiredStatId: 'agility',
+                targetDC: 10,
+              },
+              {
+                id: 'choice_fallback_social',
+                text: 'زیر نظر گرفتن همراهان و درنگ برای ارزیابی ادامهٔ راه.',
+                style: 'inquisitive',
+                riskLevel: 'low',
+              },
+            ];
 
       for (const fb of fallbacks) {
         if (filtered.length >= 3) break;

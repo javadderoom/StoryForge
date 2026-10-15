@@ -344,14 +344,40 @@ function takeRanked<T extends { id?: string }>(
   return [...pinned, ...rest].slice(0, max).map(toLine);
 }
 
-const TIER_RANK: Record<ScopeTier, number> = { street: 0, regional: 1, continental: 2, mythic: 3 };
+export function normalizeScopeTier(tier?: string | null): ScopeTier {
+  if (!tier) return 'regional';
+  const lower = String(tier).toLowerCase().trim();
+  if (lower === 'street' || lower === 'local') return 'street';
+  if (lower === 'regional' || lower === 'wilderness' || lower === 'province') return 'regional';
+  if (lower === 'continental' || lower === 'kingdom' || lower === 'empire') return 'continental';
+  if (lower === 'mythic' || lower === 'cosmic' || lower === 'planar') return 'mythic';
+  return 'regional';
+}
+
+const TIER_RANK: Record<string, number> = {
+  street: 0,
+  local: 0,
+  regional: 1,
+  wilderness: 1,
+  province: 1,
+  continental: 2,
+  kingdom: 2,
+  empire: 2,
+  mythic: 3,
+  cosmic: 3,
+  planar: 3,
+};
 
 /**
  * A faction with an explicit scope only surfaces once the active chapter's
  * tier has escalated to it. Unscoped factions are always relevant.
  */
-const passesFactionTierGate = (scope: ScopeTier | undefined, current: ScopeTier): boolean =>
-  !scope || TIER_RANK[scope] <= TIER_RANK[current];
+const passesFactionTierGate = (scope: ScopeTier | undefined, current: ScopeTier): boolean => {
+  if (!scope) return true;
+  const sRank = TIER_RANK[scope] ?? 1;
+  const cRank = TIER_RANK[current] ?? 1;
+  return sRank <= cRank;
+};
 
 /**
  * Plan 07 — Dynamic Context-Aware Lore Retrieval.
@@ -364,7 +390,10 @@ export function pruneWorldBibleToScope(
   options: ScopedContextOptions,
   storyNpcOverrides?: Record<string, StoryNpcOverride>
 ): WorldBible {
-  const { scopeTier = 'mythic', locationIds = [], npcIds = [], currentChapterNumber } = options;
+  const scopeTier = normalizeScopeTier(options.scopeTier);
+  const locationIds = options.locationIds ?? [];
+  const npcIds = options.npcIds ?? [];
+  const currentChapterNumber = options.currentChapterNumber;
 
   // 1-hop neighborhood of the active locations (travel-adjacent context) + full ancestry hierarchy.
   const activeLocSet = new Set(locationIds);
@@ -512,7 +541,7 @@ export function buildWorldContextBlocks(
   }
 
   const isStudioMode = !options || options.unconstrained === true;
-  const scopeTier: ScopeTier = options?.scopeTier ?? 'mythic';
+  const scopeTier: ScopeTier = normalizeScopeTier(options?.scopeTier);
   const overrides = story.storyNpcOverrides || {};
   const centralNpcIds: string[] = [];
   for (const [npcId, ov] of Object.entries(overrides)) {
@@ -532,7 +561,7 @@ export function buildWorldContextBlocks(
   if (effectiveOptions && !effectiveOptions.unconstrained) {
     wb = pruneWorldBibleToScope(wb, effectiveOptions, overrides);
   }
-  const caps = isStudioMode ? STUDIO_CAPS : SCOPE_CAPS[scopeTier];
+  const caps = isStudioMode ? STUDIO_CAPS : (SCOPE_CAPS[scopeTier] ?? SCOPE_CAPS.regional);
   const pinLocs = new Set(options?.locationIds || []);
   const pinNpcs = new Set([...(options?.npcIds || []), ...centralNpcIds]);
   // Factions pinned when they hold a pinned territory or member NPC.
