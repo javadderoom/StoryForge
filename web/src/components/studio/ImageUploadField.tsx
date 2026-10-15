@@ -52,10 +52,15 @@ export function ImageUploadField({
       formData.append('file', webpFile);
       formData.append('folder', folder);
 
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const token = typeof window !== 'undefined'
+        ? localStorage.getItem('storyforge_auth_token') ||
+          localStorage.getItem('token') ||
+          null
+        : null;
       const res = await fetch('/api/upload', {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
         body: formData,
       });
 

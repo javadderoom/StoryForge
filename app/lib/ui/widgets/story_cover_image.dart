@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../services/game_api_service.dart';
 
 class StoryCoverImage extends StatelessWidget {
   final String storyId;
@@ -27,25 +28,48 @@ class StoryCoverImage extends StatelessWidget {
     this.heroTag,
   });
 
+  String? _trimmedUrl() {
+    final t = coverImageUrl?.trim();
+    if (t == null || t.isEmpty) return null;
+    return t;
+  }
+
+  /// Returns an absolute https(http) URL, or null when there is no usable remote image.
+  /// Handles Vercel Blob https URLs plus legacy relative paths (/uploads/..., /covers/...)
+  /// by prefixing the current backend baseUrl.
+  String? _resolveNetworkUrl() {
+    final t = _trimmedUrl();
+    if (t == null) return null;
+    if (t.startsWith('http://') || t.startsWith('https://')) return t;
+    if (t.startsWith('//')) return 'https:$t';
+    if (t.startsWith('/')) return '${GameApiService.baseUrl}$t';
+    return null;
+  }
+
   String _resolveLocalAsset() {
-    if (coverImageUrl != null && coverImageUrl!.isNotEmpty && !coverImageUrl!.startsWith('http')) {
-      return coverImageUrl!;
+    final t = _trimmedUrl();
+    // Only real bundled assets (assets/...) load via Image.asset.
+    // Anything else (empty, relative web path) uses splash.
+    if (t != null && t.startsWith('assets/')) {
+      return t;
     }
     return 'assets/images/splash_art.jpg';
   }
 
   Widget _buildImageContent() {
-    final isNetworkUrl = coverImageUrl != null &&
-        (coverImageUrl!.startsWith('http://') || coverImageUrl!.startsWith('https://'));
+    final networkUrl = _resolveNetworkUrl();
 
-    if (isNetworkUrl) {
+    if (networkUrl != null) {
       return CachedNetworkImage(
-        imageUrl: coverImageUrl!,
+        imageUrl: networkUrl,
         fit: fit,
         width: width ?? double.infinity,
         height: height,
         placeholder: (context, url) => _buildLoadingPlaceholder(),
-        errorWidget: (context, url, error) => _buildAssetFallback(),
+        errorWidget: (context, url, error) {
+          debugPrint('[StoryCoverImage] failed: $networkUrl -> $error');
+          return _buildAssetFallback();
+        },
       );
     }
 
