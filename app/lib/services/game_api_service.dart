@@ -124,24 +124,31 @@ class GameApiService {
     String? targetSceneId,
     String? choiceId,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/play/action'),
-      headers: defaultHeaders,
-      body: jsonEncode({
-        'storyId': storyId,
-        if (sessionId != null && sessionId.isNotEmpty) 'sessionId': sessionId,
-        'playerActionText': actionText,
-        'actionStyle': actionStyle,
-        'riskLevel': riskLevel,
-        'statId': statId,
-        'targetDC': targetDC,
-        'forcedDiceRoll': forcedDiceRoll,
-        if (targetSceneId != null && targetSceneId.isNotEmpty) 'targetSceneId': targetSceneId,
-        if (choiceId != null && choiceId.isNotEmpty) 'choiceId': choiceId,
-        'playerState': playerState.toJson(),
-        'turnNumber': turnNumber,
-      }),
-    );
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/api/play/action'),
+          headers: defaultHeaders,
+          body: jsonEncode({
+            'storyId': storyId,
+            if (sessionId != null && sessionId.isNotEmpty) 'sessionId': sessionId,
+            'playerActionText': actionText,
+            'actionStyle': actionStyle,
+            'riskLevel': riskLevel,
+            'statId': statId,
+            'targetDC': targetDC,
+            'forcedDiceRoll': forcedDiceRoll,
+            if (targetSceneId != null && targetSceneId.isNotEmpty) 'targetSceneId': targetSceneId,
+            if (choiceId != null && choiceId.isNotEmpty) 'choiceId': choiceId,
+            'playerState': playerState.toJson(),
+            'turnNumber': turnNumber,
+          }),
+        )
+        .timeout(
+          const Duration(seconds: 40),
+          onTimeout: () {
+            throw http.ClientException('پاسخی از سرور دریافت نشد (اتمام مهلت زمانی).');
+          },
+        );
 
     final json = jsonDecode(response.body);
     return json;

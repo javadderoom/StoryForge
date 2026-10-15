@@ -504,9 +504,15 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         return null;
       }
     } catch (e) {
+      final raw = e.toString();
+      final msg = raw.startsWith('ClientException: ')
+          ? raw.substring('ClientException: '.length)
+          : raw.startsWith('Exception: ')
+              ? raw.substring('Exception: '.length)
+              : raw;
       state = state.copyWith(
         isLoading: false,
-        errorMessage: e.toString(),
+        errorMessage: msg,
       );
       return null;
     }

@@ -371,52 +371,54 @@ class DiceRollOverlay extends StatelessWidget {
                                 ),
                               ),
                             ],
-                            const SizedBox(height: 12),
-                            if (onRecall != null) ...[
-                              ElevatedButton.icon(
-                                onPressed: isRecalling ? null : onRecall,
-                                icon: isRecalling
-                                    ? const SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70),
-                                      )
-                                    : const Icon(Icons.refresh_rounded, size: 16),
-                                label: Text(
-                                  isPersian
-                                      ? 'ارسال مجدد با همین تاس (\u200E${(resolution?.diceRoll ?? 10).toPersianDigits(enable: isPersian)}\u200E)'
-                                      : 'Recall with roll (\u200E${resolution?.diceRoll ?? 10}\u200E)',
-                                  style: GoogleFonts.vazirmatn(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w700,
+                            if (errorMessage != null) ...[
+                              const SizedBox(height: 12),
+                              if (onRecall != null) ...[
+                                ElevatedButton.icon(
+                                  onPressed: isRecalling ? null : onRecall,
+                                  icon: isRecalling
+                                      ? const SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70),
+                                        )
+                                      : const Icon(Icons.refresh_rounded, size: 16),
+                                  label: Text(
+                                    isPersian
+                                        ? 'ارسال مجدد با همین تاس (\u200E${(resolution?.diceRoll ?? 10).toPersianDigits(enable: isPersian)}\u200E)'
+                                        : 'Recall with roll (\u200E${resolution?.diceRoll ?? 10}\u200E)',
+                                    style: GoogleFonts.vazirmatn(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFF59E0B).withValues(alpha: 0.22),
+                                    foregroundColor: const Color(0xFFFBBF24),
+                                    side: BorderSide(
+                                      color: const Color(0xFFF59E0B).withValues(alpha: 0.55),
+                                      width: 1.2,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
                                 ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFF59E0B).withValues(alpha: 0.22),
-                                  foregroundColor: const Color(0xFFFBBF24),
-                                  side: BorderSide(
-                                    color: const Color(0xFFF59E0B).withValues(alpha: 0.55),
-                                    width: 1.2,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ],
-                            if (onDismiss != null) ...[
-                              const SizedBox(height: 6),
-                              TextButton(
-                                onPressed: onDismiss,
-                                child: Text(
-                                  isPersian ? 'لغو و بازگشت به صحنه' : 'Cancel & return to scene',
-                                  style: GoogleFonts.vazirmatn(
-                                    fontSize: 11,
-                                    color: const Color(0xFF94A3B8),
+                              ],
+                              if (onDismiss != null) ...[
+                                const SizedBox(height: 6),
+                                TextButton(
+                                  onPressed: onDismiss,
+                                  child: Text(
+                                    isPersian ? 'لغو و بازگشت به صحنه' : 'Cancel & return to scene',
+                                    style: GoogleFonts.vazirmatn(
+                                      fontSize: 11,
+                                      color: const Color(0xFF94A3B8),
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ],
                           ],
                         ),
