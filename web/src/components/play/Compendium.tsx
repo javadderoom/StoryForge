@@ -66,6 +66,7 @@ export function Compendium({
 }: CompendiumProps) {
   const [tab, setTab] = useState(0);
   const [detailItem, setDetailItem] = useState<string | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   if (!isOpen) return null;
 
   const resources = storyMeta?.rpgSystem?.resources ?? [];
@@ -329,7 +330,8 @@ export function Compendium({
                         <img
                           src={npcObj.imageUrl}
                           alt={npcName(lore, id)}
-                          className="h-10 w-10 rounded-full object-cover border border-zinc-700 shrink-0"
+                          onClick={() => setLightboxUrl(npcObj.imageUrl)}
+                          className="h-10 w-10 rounded-full object-cover border border-zinc-700 shrink-0 cursor-zoom-in"
                         />
                       ) : (
                         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800 text-sm font-bold text-zinc-200 shrink-0">
@@ -441,6 +443,28 @@ export function Compendium({
         onUnequip={handleUnequip}
         onUse={handleUse}
       />
+
+      {/* Fullscreen image lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/92 p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            onClick={() => setLightboxUrl(null)}
+            className="absolute top-4 right-4 rounded-full bg-black/60 p-2 text-white hover:bg-black/80"
+            title={isPersian ? 'بستن' : 'Close'}
+          >
+            ✕
+          </button>
+          <img
+            src={lightboxUrl}
+            alt=""
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[92vh] max-w-full rounded-xl object-contain shadow-2xl"
+          />
+        </div>
+      )}
     </div>
   );
 }
