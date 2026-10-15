@@ -759,6 +759,9 @@ export async function POST(req: NextRequest) {
     if (relChanged) {
       updatedPlayerState.relationships = relMap;
     }
+    if (newlyMetNpcs.length > 0) {
+      console.info('[action] newly met NPCs:', newlyMetNpcs.map((n) => n.id));
+    }
 
     const newBeat: TurnBeat = {
       turnNumber,

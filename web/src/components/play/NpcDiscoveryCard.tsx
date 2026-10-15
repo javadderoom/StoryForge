@@ -69,21 +69,19 @@ export function NpcDiscoveryCard({
         </button>
       </div>
 
-      {/* Portrait with gradient name overlay, or name header when imageless */}
+      {/* Portrait (3:4) + identity header, or name header when imageless */}
       {imageUrl && !imageFailed ? (
-        <div className="relative">
-          <img
-            src={imageUrl}
-            alt={npc.name}
-            onError={() => setImageFailed(true)}
-            className="w-full h-56 sm:h-64 object-cover object-center"
-          />
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ background: 'linear-gradient(to top, rgba(9,10,16,0.92) 0%, rgba(9,10,16,0.4) 45%, transparent 75%)' }}
-          />
-          <div className="absolute bottom-0 left-0 right-0 p-4">
-            <h4 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-100 font-serif">
+        <div className="flex items-start gap-4 px-4 sm:px-5 pt-4">
+          <div className="w-28 sm:w-32 shrink-0 overflow-hidden rounded-xl border border-zinc-700/60 bg-zinc-950/60 shadow-lg">
+            <img
+              src={imageUrl}
+              alt={npc.name}
+              onError={() => setImageFailed(true)}
+              className="w-full aspect-[3/4] object-cover object-top"
+            />
+          </div>
+          <div className="min-w-0 pt-1">
+            <h4 className="text-lg sm:text-xl font-bold tracking-tight text-zinc-100 font-serif">
               {npc.name}
             </h4>
             {subtitle && (

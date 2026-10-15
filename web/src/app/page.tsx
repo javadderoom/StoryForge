@@ -1324,28 +1324,38 @@ export default function Home() {
                       accentColor={themeObj.primaryAccent}
                       fontSizeClass={fontSizeClass[settings.fontSize]}
                       lineHeightClass={lineHeightClass[settings.lineHeight]}
+                      spotlights={[
+                        ...((currentBeat?.discoveredNpcs && currentBeat.discoveredNpcs.length > 0
+                          ? currentBeat.discoveredNpcs
+                          : (currentBeat as any)?.discoveredNpc
+                            ? [(currentBeat as any).discoveredNpc]
+                            : []
+                        ).map((npc: any, i: number) => ({
+                          names: [npc?.name, npc?.title].filter(Boolean),
+                          node: (
+                            <NpcDiscoveryCard
+                              key={npc?.id || `npc-${i}`}
+                              npc={npc}
+                              isRtl={isRtl}
+                            />
+                          ),
+                        }))),
+                        ...(currentBeat?.discoveredCreature
+                          ? [{
+                              names: [currentBeat.discoveredCreature?.name].filter(Boolean),
+                              node: (
+                                <CreatureDiscoveryCard
+                                  creature={currentBeat.discoveredCreature}
+                                  isRtl={isRtl}
+                                  accentColor={themeObj.primaryAccent}
+                                  cardBorder={themeObj.cardBorder}
+                                />
+                              ),
+                            }]
+                          : []),
+                      ]}
                     />
 
-                    {currentBeat?.discoveredCreature && (
-                      <CreatureDiscoveryCard
-                        creature={currentBeat.discoveredCreature}
-                        isRtl={isRtl}
-                        accentColor={themeObj.primaryAccent}
-                        cardBorder={themeObj.cardBorder}
-                      />
-                    )}
-                    {(currentBeat?.discoveredNpcs && currentBeat.discoveredNpcs.length > 0
-                      ? currentBeat.discoveredNpcs
-                      : (currentBeat as any)?.discoveredNpc
-                        ? [(currentBeat as any).discoveredNpc]
-                        : []
-                    ).map((npc: any, i: number) => (
-                      <NpcDiscoveryCard
-                        key={npc?.id || i}
-                        npc={npc}
-                        isRtl={isRtl}
-                      />
-                    ))}
                   </div>
                 )}
               </div>

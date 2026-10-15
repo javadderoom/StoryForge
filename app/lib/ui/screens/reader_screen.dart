@@ -1158,26 +1158,32 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                     fontSize: _fontSize,
                                     lineHeight: _lineHeight,
                                     accentColor: theme.primaryAccent,
+                                    spotlights: [
+                                      for (final npc in session.discoveredNpcs)
+                                        ProseSpotlight(
+                                          matchNames: [npc.name, npc.title],
+                                          card: NpcDiscoveryCard(
+                                            npc: npc,
+                                            isPersian: isPersian,
+                                            onDismiss: () {
+                                              ref.read(gameSessionProvider.notifier).dismissDiscoveredNpc();
+                                            },
+                                          ),
+                                        ),
+                                      if (session.discoveredCreature != null)
+                                        ProseSpotlight(
+                                          matchNames: [session.discoveredCreature!.name],
+                                          card: CreatureDiscoveryCard(
+                                            creature: session.discoveredCreature!,
+                                            isPersian: isPersian,
+                                            accentColor: theme.primaryAccent,
+                                            onDismiss: () {
+                                              ref.read(gameSessionProvider.notifier).dismissDiscoveredCreature();
+                                            },
+                                          ),
+                                        ),
+                                    ],
                                   ),
-                                  if (session.discoveredCreature != null) ...[
-                                    CreatureDiscoveryCard(
-                                      creature: session.discoveredCreature!,
-                                      isPersian: isPersian,
-                                      accentColor: theme.primaryAccent,
-                                      onDismiss: () {
-                                        ref.read(gameSessionProvider.notifier).dismissDiscoveredCreature();
-                                      },
-                                    ),
-                                  ],
-                                  for (final npc in session.discoveredNpcs) ...[
-                                    NpcDiscoveryCard(
-                                      npc: npc,
-                                      isPersian: isPersian,
-                                      onDismiss: () {
-                                        ref.read(gameSessionProvider.notifier).dismissDiscoveredNpc();
-                                      },
-                                    ),
-                                  ],
                                   if (session.isLoading) ...[
                                     const SizedBox(height: 20),
                                     _buildNarrativeScribeLoader(theme, isPersian),

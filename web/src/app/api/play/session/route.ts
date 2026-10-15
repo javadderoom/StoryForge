@@ -570,6 +570,9 @@ export async function POST(req: NextRequest) {
         };
       }
     }
+    if (Object.keys(initialRelationships).length > 0) {
+      console.info('[session] opening-beat NPCs:', Object.keys(initialRelationships));
+    }
 
     // 4. Starting abilities from Archetype & Background
     const initialAbilities: string[] = [];
