@@ -31,7 +31,13 @@ class NpcDiscoveryCard extends StatelessWidget {
     // them against the active backend so emulator/dev builds load them.
     final resolvedImage = rawImage.startsWith('/') ? '${GameApiService.baseUrl}$rawImage' : rawImage;
     final hasImage = resolvedImage.isNotEmpty;
-    final subtitle = [n.title, n.role].where((s) => s.trim().isNotEmpty).join(' • ');
+    // Prefer the display title; raw latin role codes (e.g. "drover") are
+    // never shown next to a proper title.
+    final roleText = n.role.trim();
+    final isRoleCode = RegExp(r'^[a-z_]+$').hasMatch(roleText);
+    final subtitle = n.title.trim().isNotEmpty
+        ? n.title.trim()
+        : (isRoleCode ? '' : roleText);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 14),
@@ -117,106 +123,106 @@ class NpcDiscoveryCard extends StatelessWidget {
             ),
           ),
 
-          // Portrait (3:4) + identity header, or name header when imageless
+          // Image-dominant portrait with name + title overlaid inside the image,
+          // or a compact name header when imageless
           if (hasImage) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 112,
+            Stack(
+              children: [
+                CachedNetworkImage(
+                  imageUrl: resolvedImage,
+                  height: 320,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  placeholder: (context, url) => Container(
+                    height: 320,
+                    color: const Color(0xFF0F111D),
+                    child: const Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFFA78BFA),
+                        ),
+                      ),
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    height: 200,
+                    color: const Color(0xFF0F111D),
+                    child: const Center(
+                      child: Icon(
+                        Icons.person_rounded,
+                        color: Color(0xFFA78BFA),
+                        size: 48,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: DecoratedBox(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: accentColor.withValues(alpha: 0.4),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: AspectRatio(
-                      aspectRatio: 3 / 4,
-                      child: CachedNetworkImage(
-                        imageUrl: resolvedImage,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: const Color(0xFF0F111D),
-                          child: const Center(
-                            child: SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Color(0xFFA78BFA),
-                              ),
-                            ),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: const Color(0xFF0F111D),
-                          child: const Center(
-                            child: Icon(
-                              Icons.person_rounded,
-                              color: Color(0xFFA78BFA),
-                              size: 40,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 2),
-                        Text(
-                          n.name,
-                          style: isFa
-                              ? GoogleFonts.vazirmatn(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFFF4F4F5),
-                                )
-                              : GoogleFonts.cinzel(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFFF4F4F5),
-                                  letterSpacing: 0.8,
-                                ),
-                        ),
-                        if (subtitle.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: accentColor.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: accentColor.withValues(alpha: 0.4)),
-                            ),
-                            child: Text(
-                              subtitle,
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.bold,
-                                color: accentColor,
-                              ),
-                            ),
-                          ),
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          const Color(0x33090A10),
+                          const Color(0xFF0F111D).withValues(alpha: 0.94),
                         ],
-                      ],
+                        stops: const [0.45, 0.72, 1.0],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
                     ),
                   ),
-                ],
-              ),
+                ),
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 14,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        n.name,
+                        style: isFa
+                            ? GoogleFonts.vazirmatn(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFFF4F4F5),
+                                shadows: const [Shadow(color: Colors.black, blurRadius: 8)],
+                              )
+                            : GoogleFonts.cinzel(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFFF4F4F5),
+                                letterSpacing: 0.8,
+                              ),
+                      ),
+                      if (subtitle.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: accentColor.withValues(alpha: 0.45)),
+                          ),
+                          child: Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.bold,
+                              color: accentColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
           ] else ...[
             Padding(

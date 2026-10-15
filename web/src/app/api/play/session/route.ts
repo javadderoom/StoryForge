@@ -555,9 +555,13 @@ export async function POST(req: NextRequest) {
     for (const npc of story.worldBible?.npcs || []) {
       const normalizedName = normalizeNpcText(npc.name || '');
       const normalizedTitle = normalizeNpcText(npc.title || '');
+      // Full name, or the given name alone (prose often drops the epithet,
+      // e.g. "برزو" for "برزو سنگ‌تراش").
+      const firstToken = normalizedName.split(' ').filter((t) => t.length >= 3)[0] || '';
       const isMentionedInProse = Boolean(
         openingBeat.narrativeText && (
           (normalizedName && normalizedProse.includes(normalizedName)) ||
+          (firstToken && normalizedProse.includes(firstToken)) ||
           (normalizedTitle && normalizedProse.includes(normalizedTitle))
         )
       );

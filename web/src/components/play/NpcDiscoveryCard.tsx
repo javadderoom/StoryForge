@@ -33,7 +33,11 @@ export function NpcDiscoveryCard({
   if (!npc || isDismissed) return null;
 
   const imageUrl = npc.imageUrl || npc.image || npc.avatarUrl;
-  const subtitle = [npc.title, npc.role || npc.archetype].filter(Boolean).join(' • ');
+  // Prefer the display title; raw latin role codes (e.g. "drover") are
+  // never shown next to a proper title.
+  const roleText = (npc.role || '').trim();
+  const isRoleCode = /^[a-z_]+$/.test(roleText);
+  const subtitle = (npc.title || '').trim() || (!isRoleCode ? roleText : '');
   const appearanceText = typeof npc.appearance === 'string' ? npc.appearance : '';
   const description = npc.description || appearanceText || '';
 
@@ -69,25 +73,27 @@ export function NpcDiscoveryCard({
         </button>
       </div>
 
-      {/* Portrait (3:4) + identity header, or name header when imageless */}
+      {/* Image-dominant portrait with name + title overlaid inside the image */}
       {imageUrl && !imageFailed ? (
-        <div className="flex items-start gap-4 px-4 sm:px-5 pt-4">
-          <div className="w-28 sm:w-32 shrink-0 overflow-hidden rounded-xl border border-zinc-700/60 bg-zinc-950/60 shadow-lg">
-            <img
-              src={imageUrl}
-              alt={npc.name}
-              onError={() => setImageFailed(true)}
-              className="w-full aspect-[3/4] object-cover object-top"
-            />
-          </div>
-          <div className="min-w-0 pt-1">
-            <h4 className="text-lg sm:text-xl font-bold tracking-tight text-zinc-100 font-serif">
+        <div className="relative">
+          <img
+            src={imageUrl}
+            alt={npc.name}
+            onError={() => setImageFailed(true)}
+            className="w-full h-72 sm:h-80 object-cover object-top"
+          />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: 'linear-gradient(to top, rgba(15,17,29,0.94) 0%, rgba(15,17,29,0.25) 45%, transparent 70%)' }}
+          />
+          <div className="absolute bottom-0 left-0 right-0 p-4">
+            <h4 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-100 font-serif drop-shadow-lg">
               {npc.name}
             </h4>
             {subtitle && (
               <span
                 className="mt-1.5 inline-block rounded-md px-2 py-0.5 text-[11px] font-bold"
-                style={{ color: accentColor, backgroundColor: `${accentColor}20`, border: `1px solid ${accentColor}40` }}
+                style={{ color: accentColor, backgroundColor: `${accentColor}25`, border: `1px solid ${accentColor}45` }}
               >
                 {subtitle}
               </span>

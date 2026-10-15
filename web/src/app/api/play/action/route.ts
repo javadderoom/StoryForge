@@ -740,11 +740,12 @@ export async function POST(req: NextRequest) {
       if (relMap[npc.id]) continue;
       const normalizedName = normalizeTextForMatching(npc.name || '');
       const normalizedTitle = normalizeTextForMatching(npc.title || '');
+      // Full name, given name alone (epithet often dropped in prose), or title.
+      const firstToken = normalizedName.split(' ').filter((t) => t.length >= 3)[0] || '';
+      const mentions = (nm: string) =>
+        nm && (normalizedActionNarrative.includes(nm) || normalizedActionText.includes(nm));
       const isMentioned = Boolean(
-        (normalizedName &&
-          (normalizedActionNarrative.includes(normalizedName) || normalizedActionText.includes(normalizedName))) ||
-        (normalizedTitle &&
-          (normalizedActionNarrative.includes(normalizedTitle) || normalizedActionText.includes(normalizedTitle)))
+        mentions(normalizedName) || mentions(firstToken) || mentions(normalizedTitle)
       );
       if (isMentioned) {
         relMap[npc.id] = {
