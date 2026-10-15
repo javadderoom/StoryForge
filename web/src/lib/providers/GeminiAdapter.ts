@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import '@/lib/ai/geminiProxy';
 import { GenerationPromptPayload } from '../engines/narrative/PromptAssembler';
 import {
   SceneModelCall,

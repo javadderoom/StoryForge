@@ -1,7 +1,13 @@
 /**
  * Gemini AI Client & Multi-Model Failover Manager
- * Supports Cloudflare Worker proxy via GEMINI_PROXY_URL and automated cascading queue across available models.
+ * Supports Cloudflare Worker proxy via GEMINI_PROXY_URL, local HTTPS proxy (10808), and automated cascading queue across available models.
  */
+
+import { getGeminiProxyAgent, initLocalGeminiProxy, isLocalEnvironment, getLocalGeminiProxyUrl } from './geminiProxy';
+export { isLocalEnvironment, getLocalGeminiProxyUrl } from './geminiProxy';
+
+// Auto-initialize local proxy if in local environment
+initLocalGeminiProxy();
 
 // Frontier heavy model queue for World Generation
 export const WORLD_GENERATION_QUEUE = [
@@ -56,8 +62,13 @@ export interface GenerationResult<T = any> {
  */
 export function getGeminiEndpoint(modelName: string): string {
   const apiKey = process.env.GEMINI_API_KEY || '';
-  const proxyUrl = process.env.GEMINI_PROXY_URL;
 
+  // In local mode with local HTTPS proxy (port 10808), use the official Gemini endpoint directly via proxy
+  if (isLocalEnvironment() && getLocalGeminiProxyUrl()) {
+    return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+  }
+
+  const proxyUrl = process.env.GEMINI_PROXY_URL;
   if (proxyUrl) {
     const cleanProxy = proxyUrl.replace(/\/$/, '');
     return `${cleanProxy}/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
@@ -165,12 +176,14 @@ export async function generateStructuredJson<T = unknown>(
         };
       }
 
+      const dispatcher = getGeminiProxyAgent();
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
         signal: AbortSignal.timeout(timeoutMs),
-      });
+        ...(dispatcher ? { dispatcher } : {}),
+      } as any);
 
       if (!res.ok) {
         const errorText = await res.text().catch(() => '');
@@ -282,12 +295,14 @@ export async function generateChat(
         };
       }
 
+      const dispatcher = getGeminiProxyAgent();
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
         signal: AbortSignal.timeout(timeoutMs),
-      });
+        ...(dispatcher ? { dispatcher } : {}),
+      } as any);
 
       if (!res.ok) {
         const errorText = await res.text().catch(() => '');
@@ -362,12 +377,14 @@ export async function generateText(
         };
       }
 
+      const dispatcher = getGeminiProxyAgent();
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
         signal: AbortSignal.timeout(timeoutMs),
-      });
+        ...(dispatcher ? { dispatcher } : {}),
+      } as any);
 
       if (!res.ok) {
         const errorText = await res.text().catch(() => '');
