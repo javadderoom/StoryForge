@@ -13,9 +13,15 @@ import {
   sendWelcomeVerificationEmail,
 } from '@/lib/email/client';
 import { mergeUserAccounts } from '@/lib/auth/mergeAccounts';
+import { buildCorsHeaders, handleCorsPreflight } from '@/lib/cors';
+
+export async function OPTIONS(req: Request) {
+  return handleCorsPreflight(req);
+}
 
 export async function POST(req: Request) {
   try {
+    const corsHeaders = buildCorsHeaders(req);
     const body = await req.json();
     const { phoneNumber, password, name, email, guestSessionId, bazaarAccountId } = body;
     const rawBazaarId = typeof bazaarAccountId === 'string' && bazaarAccountId.trim().length > 0
@@ -212,17 +218,20 @@ export async function POST(req: Request) {
       phoneVerified: finalUser.phoneVerified,
     };
 
-    const response = NextResponse.json({
-      success: true,
-      token,
-      user: userProfile,
-      claimedGuestSession: newUser.claimedGuestSession,
-      emailSent,
-      emailError: emailError ? 'ایمیل تأیید ارسال نشد؛ می‌توانید بعداً مجدداً درخواست نمایید.' : undefined,
-      message: emailSent
-        ? 'حساب کاربری با موفقیت ساخته شد و ایمیل تأیید ارسال گردید.'
-        : 'حساب کاربری با موفقیت ساخته شد و ۱۵ صحنه رایگان دریافت کردید!',
-    });
+    const response = NextResponse.json(
+      {
+        success: true,
+        token,
+        user: userProfile,
+        claimedGuestSession: newUser.claimedGuestSession,
+        emailSent,
+        emailError: emailError ? 'ایمیل تأیید ارسال نشد؛ می‌توانید بعداً مجدداً درخواست نمایید.' : undefined,
+        message: emailSent
+          ? 'حساب کاربری با موفقیت ساخته شد و ایمیل تأیید ارسال گردید.'
+          : 'حساب کاربری با موفقیت ساخته شد و ۱۵ صحنه رایگان دریافت کردید!',
+      },
+      { headers: corsHeaders }
+    );
 
     // Set HTTP-only cookie for web clients
     response.cookies.set('token', token, {
@@ -239,7 +248,7 @@ export async function POST(req: Request) {
     console.error('Registration error:', error);
     return NextResponse.json(
       { success: false, error: message },
-      { status: 500 }
+      { status: 500, headers: buildCorsHeaders(req) }
     );
   }
 }

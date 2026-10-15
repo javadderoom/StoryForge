@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/story.dart';
 import '../models/game_state.dart';
@@ -9,10 +10,31 @@ import 'auth_service.dart';
 class GameApiService {
   static const String _defaultProdUrl = 'https://afsanehsaz.ir';
 
+  static String get _localBackendUrl {
+    if (kIsWeb) {
+      return 'http://localhost:3000';
+    }
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return 'http://10.0.2.2:3000';
+      case TargetPlatform.windows:
+      case TargetPlatform.macOS:
+      case TargetPlatform.linux:
+      case TargetPlatform.iOS:
+        return 'http://127.0.0.1:3000';
+      default:
+        return 'http://localhost:3000';
+    }
+  }
+
   static String get baseUrl {
-    const envUrl = String.fromEnvironment('API_BASE_URL', defaultValue: _defaultProdUrl);
+    const envUrl = String.fromEnvironment('API_BASE_URL');
     if (envUrl.isNotEmpty) {
       return envUrl.endsWith('/') ? envUrl.substring(0, envUrl.length - 1) : envUrl;
+    }
+    // In local development / debug mode, automatically connect to the local backend
+    if (kDebugMode) {
+      return _localBackendUrl;
     }
     return _defaultProdUrl;
   }

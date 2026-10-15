@@ -6,9 +6,15 @@ import {
   signJwt,
 } from '@/lib/auth/jwt';
 import { mergeUserAccounts } from '@/lib/auth/mergeAccounts';
+import { buildCorsHeaders, handleCorsPreflight } from '@/lib/cors';
+
+export async function OPTIONS(req: Request) {
+  return handleCorsPreflight(req);
+}
 
 export async function POST(req: Request) {
   try {
+    const corsHeaders = buildCorsHeaders(req);
     const body = await req.json();
     const { identifier, phoneNumber, email, password, guestSessionId, bazaarAccountId } = body;
     const loginInput = (identifier || email || phoneNumber || '').trim();
@@ -16,7 +22,7 @@ export async function POST(req: Request) {
     if (!loginInput || !password) {
       return NextResponse.json(
         { success: false, error: 'وارد کردن نشانی ایمیل یا شماره موبایل و رمز عبور الزامی است.' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -34,7 +40,7 @@ export async function POST(req: Request) {
     if (!prisma) {
       return NextResponse.json(
         { success: false, error: 'سرویس پایگاه داده در دسترس نیست.' },
-        { status: 503 }
+        { status: 503, headers: corsHeaders }
       );
     }
 
@@ -47,7 +53,7 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'حساب کاربری با این مشخصات یافت نشد.' },
-        { status: 401 }
+        { status: 401, headers: corsHeaders }
       );
     }
 
@@ -55,7 +61,7 @@ export async function POST(req: Request) {
     if (!isMatch) {
       return NextResponse.json(
         { success: false, error: 'رمز عبور وارد شده نادرست است.' },
-        { status: 401 }
+        { status: 401, headers: corsHeaders }
       );
     }
 
@@ -128,13 +134,16 @@ export async function POST(req: Request) {
       phoneVerified: finalUser.phoneVerified,
     };
 
-    const response = NextResponse.json({
-      success: true,
-      token,
-      user: userProfile,
-      claimedGuestSession,
-      mergedBazaarAccount,
-    });
+    const response = NextResponse.json(
+      {
+        success: true,
+        token,
+        user: userProfile,
+        claimedGuestSession,
+        mergedBazaarAccount,
+      },
+      { headers: corsHeaders }
+    );
 
     // Set HTTP-only cookie for web clients
     response.cookies.set('token', token, {
@@ -151,7 +160,7 @@ export async function POST(req: Request) {
     console.error('Login error:', error);
     return NextResponse.json(
       { success: false, error: message },
-      { status: 500 }
+      { status: 500, headers: buildCorsHeaders(req) }
     );
   }
 }

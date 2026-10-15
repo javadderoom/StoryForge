@@ -49,6 +49,14 @@ function getAllowedOrigins(): string[] {
 export function resolveCorsOrigin(requestOrigin: string | null): string | null {
   if (!requestOrigin) return null;
   const normalized = requestOrigin.replace(/\/+$/, '');
+
+  // In development, permit any localhost or 127.0.0.1 port (e.g. Flutter Web on dynamic ports like http://localhost:64433)
+  if (process.env.NODE_ENV !== 'production') {
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalized)) {
+      return normalized;
+    }
+  }
+
   return getAllowedOrigins().includes(normalized) ? normalized : null;
 }
 
