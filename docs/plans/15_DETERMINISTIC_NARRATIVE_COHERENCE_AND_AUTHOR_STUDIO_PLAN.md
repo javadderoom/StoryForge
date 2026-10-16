@@ -85,6 +85,17 @@ Branching explosion  Convergent Milestones         Background JIT       Authored
 | **E. Predictive AOT Pre-Caching** | Strong (with strict scoper) | **0ms on hit** (miss = full generation + wasted background call) | Infinite dynamic branching | Low (fully automated) |
 | **F. Hybrid Reader (Plan 12)** | 90% (anchored to canon) | 0ms on canon, 2s on bridges | High | Moderate (author sets 10 beats) |
 
+### 2.3 Reader Dwell-Time Compute Program
+
+The 30–60s a player spends reading a scene is the only free compute in the loop. Spend it in four tiers, cheapest first:
+
+1. **Asset prefetch (near-free, never wasted)** — next-likely location art, undecided discovery-card portraits, ambient audio. Pure client work, no model cost.
+2. **Snap pre-judgments (~1s, tiny cost)** — run the turn's bounded decisions (wound check, confrontation classification, discovery mention validation) during reading via the in-repo `SubQAdapter` (`subq-snap-preview`), so choice-tap time does zero decision work. Results cache on the turn; fast tappers fall through to the live timeout+regex path.
+3. **Context precompute (free, deterministic)** — build pruned world-context blocks for each choice's likely next location now; pure CPU off the next turn's critical path.
+4. **AOT narrative pre-generation, Snap-gated (expensive, gated)** — instead of generating all 2–4 continuations, Snap predicts the single most likely choice (session history + traits/relationships + presented choices; 384K context fits full history), the server pre-rolls that choice's check during reading (free RNG, stored, revealed on tap), and the writer pre-generates that exact branch. Predicted tap → instant render; anything else (including free text) → live path as today. Cost per turn: 1 Snap + at most 1 wasted writer call on a miss.
+
+**Constraints**: all background work cancels the moment the user acts (AbortController); the dice pre-roll is a design change — tap-time dice animation must reveal the stored value, not roll fresh; free-text actions always miss (unpredictable input); AOT ships only behind a measured-hit-rate gate (log prediction hits/misses in production first — fast tappers make ungated AOT pure waste, and mobile battery/data pays for every background generation).
+
 ---
 
 ## 3. The Five Architectural Pillars
@@ -254,6 +265,14 @@ Contextual environmental stance tags:
   | 1. Studio tool to generate a 15–25 node folded bottleneck graph for a chapter.    |
   | 2. In-browser editor to review, polish, and lock in 100% human-vetted scenes.     |
   +-----------------------------------------------------------------------------------+
+                                           |
+                                           v
+  +-----------------------------------------------------------------------------------+
+  | PHASE 6: READER DWELL-TIME COMPUTE (§2.3)                                         |
+  | 1. Asset prefetch + context precompute (no gate, pure win).                       |
+  | 2. Snap pre-judgments during reading, timeout+regex fallback (needs SUBQ key).     |
+  | 3. Log choice-prediction hit rate; promote Snap-gated AOT only behind data.       |
+  +-----------------------------------------------------------------------------------+
 ```
 
 ---
@@ -267,6 +286,7 @@ Contextual environmental stance tags:
 5. **Emotional Continuity**: 100% of severe injuries acknowledged by present companions in subsequent narrative turns.
 6. **Latency Budget**: Maintained turn latency $\le 2.5\text{s}$ pinned to the `gemini-3.5-flash-lite` default. 0ms for pre-generated/cached nodes on hit.
 7. **Author Visibility**: Complete context envelope and entity exclusion rationale visible in `/studio/sandbox` in $< 1\text{s}$.
+8. **Dwell-Time Efficiency**: Snap pre-judgments cached before tap on measured turns; AOT pre-generation promotes from logging-only to live only behind a measured prediction hit rate.
 
 ---
 
