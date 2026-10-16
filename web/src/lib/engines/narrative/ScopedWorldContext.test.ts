@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildWorldContextBlocks,
   pruneWorldBibleToScope,
+  resolveAccompanyingIds,
   formatLivingWorldLedger,
   buildChapterContextString,
 } from './worldContext';
@@ -271,8 +272,32 @@ describe('Plan 07 — Dynamic Context-Aware Lore Retrieval (scope pruning)', () 
     assert.ok(prunedEntities <= Math.ceil(totalEntities / 2));
   });
 
-  it('unscoped calls retain full-bible compression behavior', () => {
-    const blocks = buildWorldContextBlocks({ worldBible });
+  it('Plan 15: accompanying roster is pulled into scope even from distant locations', () => {
+    // Emperor is far away (distant capital) — normally pruned at street scope…
+    const baseline = pruneWorldBibleToScope(worldBible, {
+      scopeTier: 'street',
+      locationIds: ['loc_alley'],
+    });
+    assert.ok(!baseline.npcs.some((n) => n.id === 'npc_emperor'));
+    // …but travels with the player when on the roster.
+    const withParty = pruneWorldBibleToScope(worldBible, {
+      scopeTier: 'street',
+      locationIds: ['loc_alley'],
+      accompanyingNpcIds: ['npc_emperor'],
+    });
+    assert.ok(withParty.npcs.some((n) => n.id === 'npc_emperor'));
+  });
+
+  it('Plan 15: resolveAccompanyingIds prefers the explicit roster, falls back to ledger companions', () => {
+    const ledger = { npcStatuses: [{ npcId: 'npc_emperor', status: 'companion' }, { npcId: 'npc_sewer_rat', status: 'alive' }] };
+    assert.deepEqual(resolveAccompanyingIds({}, ledger), ['npc_emperor']);
+    assert.deepEqual(resolveAccompanyingIds({ accompanyingNpcIds: ['npc_sewer_rat'] }, ledger), ['npc_sewer_rat']);
+    // Explicitly alone beats the ledger fallback.
+    assert.deepEqual(resolveAccompanyingIds({ accompanyingNpcIds: [] }, ledger), []);
+    assert.deepEqual(resolveAccompanyingIds({}, null), []);
+  });
+
+  it('unscoped calls retain full-bible compression behavior', () => {    const blocks = buildWorldContextBlocks({ worldBible });
     assert.equal(blocks.locations.length, 4);
     assert.equal(blocks.npcs.length, 3);
     assert.equal(blocks.factions.length, 2);

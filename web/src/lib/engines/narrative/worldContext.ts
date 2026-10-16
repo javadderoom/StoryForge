@@ -282,6 +282,12 @@ export interface ScopedContextOptions {
   locationIds?: string[];
   /** NPC ids present in the active scene(s). */
   npcIds?: string[];
+  /**
+   * Plan 15 (Bug 3): party roster travelling with the protagonist. Members
+   * are pulled into the scoped context even when their home location is
+   * elsewhere. Callers resolve it via resolveAccompanyingIds().
+   */
+  accompanyingNpcIds?: string[];
   /** When true, bypasses scope-pruning and tight caps (for full Studio generation / chat / audits). */
   unconstrained?: boolean;
 }
@@ -380,6 +386,26 @@ const passesFactionTierGate = (scope: ScopeTier | undefined, current: ScopeTier)
 };
 
 /**
+ * Plan 15 (Bug 3): effective party roster for a turn.
+ * - Explicit `playerState.accompanyingNpcIds` is authoritative when present:
+ *   non-empty pulls those NPCs into the scene; `[]` means explicitly alone.
+ * - `undefined`/`null` (legacy sessions, no writer yet) falls back to ledger
+ *   companions (`npcStatuses` entries with status `'companion'`).
+ * Structural params keep this free of gameplay-type import cycles.
+ */
+export function resolveAccompanyingIds(
+  playerState: { accompanyingNpcIds?: string[] | null },
+  ledger?: { npcStatuses?: Array<{ npcId: string; status: string }> | null } | null
+): string[] {
+  if (playerState.accompanyingNpcIds !== undefined && playerState.accompanyingNpcIds !== null) {
+    return [...playerState.accompanyingNpcIds];
+  }
+  return (ledger?.npcStatuses ?? [])
+    .filter((s) => s.status === 'companion')
+    .map((s) => s.npcId);
+}
+
+/**
  * Plan 07 — Dynamic Context-Aware Lore Retrieval.
  * Prunes the World Bible down to only the entities relevant to the active
  * chapter scope and scene location/NPCs (~5-10% of total lore), so long-form
@@ -404,9 +430,13 @@ export function pruneWorldBibleToScope(
     ancestors.forEach((a) => activeLocSet.add(a.id));
   }
   const activeNpcSet = new Set(npcIds);
+  // Plan 15 (Bug 3): the travelling party is present wherever the player is,
+  // even when a companion's home location is elsewhere.
+  const accompanyingSet = new Set(options.accompanyingNpcIds ?? []);
 
   const keepNpcs = (wb.npcs ?? []).filter((n) => {
     if (activeNpcSet.has(n.id)) return true;
+    if (accompanyingSet.has(n.id)) return true;
     if (currentChapterNumber !== undefined) {
       const ov = storyNpcOverrides?.[n.id];
       if (ov?.firstAppearanceChapter !== undefined && ov.firstAppearanceChapter > currentChapterNumber) {

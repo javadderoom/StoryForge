@@ -12,7 +12,7 @@ import { addToPurse } from '@/lib/engines/game/currencyEngine';
 import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
 import { isPlaceholderBeat } from '@/lib/engines/world/sceneResolution';
 import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
-import { buildWorldContextBlocks, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatTraitsForContext, formatItemInteractionsCatalogForContext } from '@/lib/engines/narrative/worldContext';
+import { buildWorldContextBlocks, resolveAccompanyingIds, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatTraitsForContext, formatItemInteractionsCatalogForContext } from '@/lib/engines/narrative/worldContext';
 import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
 import { GeminiAdapter, normalizeChoices } from '@/lib/providers/GeminiAdapter';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
@@ -96,16 +96,27 @@ async function generateOpeningChoices(
         name: 'Citadel',
         description: '',
       };
-    const { activeNpcs: activeNPCs, activeNpcIds, caravanAffiliationByNpcId } =
+    // Plan 15 (Bug 3): party companions travel with the player even when
+    // their home location is elsewhere. Fresh sessions resolve to [] (legacy).
+    const accompanyingIds = resolveAccompanyingIds(playerState, story.saga?.ledger);
+    const { activeNpcs: locationNpcs, caravanAffiliationByNpcId } =
       getActiveNpcsForLocation(
         locationId,
         wb,
         story.language === 'en' ? 'en' : 'fa'
       );
+    const activeNPCs = [...locationNpcs];
+    for (const companionId of accompanyingIds) {
+      if (activeNPCs.some((n: any) => n.id === companionId)) continue;
+      const companion = (wb.npcs ?? []).find((n: any) => n.id === companionId);
+      if (companion) activeNPCs.push(companion);
+    }
+    const activeNpcIds = activeNPCs.map((n: any) => n.id);
     const world = buildWorldContextBlocks(story, {
       scopeTier: 'regional',
       locationIds: [locationId],
       npcIds: activeNpcIds,
+      accompanyingNpcIds: accompanyingIds,
     });
     const activeChapter = story.saga?.chapters?.[0];
 

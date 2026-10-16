@@ -1,6 +1,6 @@
 import { PromptAssembler } from './PromptAssembler';
 import { validateProse, buildProseRepairInstruction, ProseFinding } from './ProseValidator';
-import { buildWorldContextBlocks, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatTraitsForContext, formatItemInteractionsCatalogForContext } from './worldContext';
+import { buildWorldContextBlocks, resolveAccompanyingIds, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatTraitsForContext, formatItemInteractionsCatalogForContext } from './worldContext';
 import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
 import { MemoryEngine } from '@/lib/engines/memory/MemoryEngine';
 import { WorkingContextEnvelope, MemoryCategory, MemoryEntry } from '@/lib/types/memory';
@@ -165,23 +165,35 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
       description: 'Dark fortress',
     };
 
-  const { activeNpcs: activeNPCs, activeNpcIds, caravanAffiliationByNpcId } =
+  // Plan 15 (Bug 3): party companions travel with the player even when
+  // their home location is elsewhere — pull them into the active set.
+  const accompanyingIds = resolveAccompanyingIds(playerState, ledger);
+  const { activeNpcs: locationNpcs, caravanAffiliationByNpcId } =
     getActiveNpcsForLocation(
       currentLocationId,
       story.worldBible,
       story.language === 'fa' ? 'fa' : 'en'
     );
+  const activeNPCs = [...locationNpcs];
+  for (const companionId of accompanyingIds) {
+    if (activeNPCs.some((n) => n.id === companionId)) continue;
+    const companion = (story.worldBible.npcs ?? []).find((n: any) => n.id === companionId);
+    if (companion) activeNPCs.push(companion);
+  }
+  const activeNpcIds = activeNPCs.map((n) => n.id);
 
   const world = activeChapter
     ? buildWorldContextBlocks(story, {
         scopeTier: activeChapter.scopeTier,
         locationIds: [currentLocationId],
         npcIds: activeNpcIds,
+        accompanyingNpcIds: accompanyingIds,
       })
     : buildWorldContextBlocks(story, {
         scopeTier: 'regional',
         locationIds: [currentLocationId],
         npcIds: activeNpcIds,
+        accompanyingNpcIds: accompanyingIds,
       });
 
   // Hierarchical memory retrieval from the persisted session log.

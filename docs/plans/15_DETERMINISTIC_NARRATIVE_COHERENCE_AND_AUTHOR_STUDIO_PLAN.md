@@ -219,7 +219,8 @@ Contextual environmental stance tags:
                                           |
   +-----------------------------------------------------------------------------------+
   | PHASE 1: IMMEDIATE ZERO-MIGRATION BACKEND FIXES                                   |
-  | 1. Fix worldContext.ts: plug habitatLocationIds.length === 0 loophole.            |
+  | 1. worldContext.ts: specified habitats must match; empty-habitat stays      |
+  |    eligible in Phase 1 + Studio coverage nudge (strict exclusion deferred).  |
   | 2. Fix PromptAssembler.ts: inject [ENVIRONMENTAL GUIDANCE] when bestiary is empty.|
   | 3. Fix tradeRoutes.ts & worldContext.ts: stop blanket caravan retinue exposure.   |
   +-----------------------------------------------------------------------------------+
@@ -293,3 +294,8 @@ Contextual environmental stance tags:
 - `accompanyingNpcIds`: no producer exists today. Decide writer (player-action parser, LLM `npcStatusChanges`, Studio authoring, or derivation), clearer ("scout ahead alone" writes `[]`), and home (`PlayerState` vs. session).
 - `currentSubZoneId`: no writer exists today. Decide who sets it on movement and where it lives; the Flutter client parses zero subZones today, so `locationWithSubZone` is new model + provider work, not an extension of `locationName` (`game_session_provider.dart:195`).
 - Wound tags (`'injury:bleeding:severe'` style strings on the protagonist's `conditions`) need no migration; per-NPC wounds are out of scope for Bug 4.
+
+### 7.4 Phase 3 v1 Decisions (2026-10-16, implemented)
+- **Roster tri-state**: `accompanyingNpcIds` `undefined` = legacy (derive from ledger `companion` statuses); `[]` = explicitly alone; non-empty = authoritative. Nullable end-to-end (web + Flutter `PlayerState`) so the tri-state survives the JSON round-trip.
+- **Writer deferred**: no producer writes the roster yet (no LLM `npcStatusChanges` schema change, no action-parser rule) — the field is enforced at all three read points (prune, active set, dossiers) and activates as soon as a writer lands.
+- **Wound tags**: `injury|wound|bleed|lesion|trauma|lacerat|زخم|جراحت|خونریزی|مجروح` (case-insensitive), suppressed by treated markers (`treated|bandaged|healed|…|مداوا|پانسمان|بهبود|بخیه`). Single-line beat, language-picked, appended to the continuity directive; empty when no tag.

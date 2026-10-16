@@ -256,6 +256,20 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
       ? `- BESTIARY GROUNDING & VISCERAL TRAITS: When introducing wild beasts, predators, or monstrosities, you MUST draw from the [BESTIARY & CREATURES] section and depict their specific authored physical features, secretions, and behaviors. Integrate the creature naturally through direct sensory prose (scale patterns, sounds, colors, predatory motion); do not awkwardly put its formal taxonomy name in quotation marks (the game UI automatically renders its Bestiary Discovery Card).`
       : `- [ENVIRONMENTAL GUIDANCE]: No predatory beasts inhabit this immediate terrain. Focus tension on terrain hazards, physical exhaustion, harsh weather, and environmental atmosphere — do NOT introduce wildlife, predators, or monstrosities into this scene.`;
 
+    // Plan 15 (Bug 4): a single-line emotional directive for the
+    // protagonist's untreated wound — present allies must acknowledge it.
+    // Treated markers (bandaged/healed/…) suppress the beat.
+    const woundTag = (context.playerStatus?.conditions ?? []).find((c) => {
+      const t = (c || '').toLowerCase();
+      if (/treated|bandaged|healed|dressed|stitched|مداوا|پانسمان|بهبود|بخیه/.test(t)) return false;
+      return /injury|wound|bleed|lesion|trauma|lacerat|زخم|جراحت|خونریزی|مجروح/.test(t);
+    });
+    const woundBeat = woundTag
+      ? isEnglish
+        ? `- [CRITICAL EMOTIONAL BEAT]: The protagonist suffered an untreated injury last turn (active wound tag: "${woundTag}"). Present allies must acknowledge this (checking the wound, offering water, or bandaging) before advancing.`
+        : `- [ضربهٔ عاطفی حیاتی / CRITICAL EMOTIONAL BEAT]: قهرمان در نوبت پیش زخمی درمان‌نشده برداشته است (نشان زخم فعال: «${woundTag}»). یاران حاضر باید پیش از پیشروی به آن واکنش نشان دهند (وارسی زخم، آب دادن، یا پانسمان).`
+      : '';
+
     const continuityDirective = `[SCENE CONTINUITY & CHOICE PREMISES]
 - Resolve only the player's stated action against its actual target. Success does not authorize unrelated victories, confessions, or extra player actions beyond the pre-resolved consequence.
 - TARGET FIDELITY & NO TELEPORTING NPCS: If the player acts toward generic guards, sentries, gates, or obstacles, do NOT substitute a named commander or unintroduced off-scene NPC as the immediate responder. Address only the actual recipient of the action.
@@ -276,7 +290,7 @@ ${bestiaryGrounding}
   * Asymmetric Combat (e.g. charging a military squad solo): A salvage roll represents miraculous narrow survival (parrying killing blows, scrambling back alive with wounds); a normal roll results in being battered down by numbers, disarmed, and pinned in the mud.
   * Physical Defiance (e.g. jumping vast chasms): Results in plunging down, broken bones, or fatal hazard.
   Never grant superhuman plot armor or treat absurd demands as successful real-world accomplishments.
-- Before returning JSON, check narrative and choices together for action scope, remaining opposition, witness knowledge, and supported premises. Revise contradictions without changing the authoritative game outcome.`;
+- Before returning JSON, check narrative and choices together for action scope, remaining opposition, witness knowledge, and supported premises. Revise contradictions without changing the authoritative game outcome.${woundBeat ? `\n${woundBeat}` : ''}`;
 
     const systemPrompt = isEnglish
       ? `[ROLE & PERSONA: LITERARY NOVELIST & RPG NARRATIVE DIRECTOR]

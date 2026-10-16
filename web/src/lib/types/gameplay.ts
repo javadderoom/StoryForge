@@ -84,6 +84,15 @@ export interface PlayerState {
   activeTensionClocks?: TensionClock[];
   /** Dynamic physical/mental/situational conditions (e.g. ['تشنه', 'خسته', 'ناآشنا']) */
   conditions?: string[];
+  /**
+   * Plan 15 (Bug 3): explicit party roster — NPC ids travelling with the
+   * protagonist even when their home location is elsewhere. Authoritative
+   * when present: non-empty pulls those NPCs into the scene; `[]` means
+   * explicitly alone ("I scout ahead alone" writes `[]`). `undefined`
+   * (legacy sessions) falls back to ledger companions (see
+   * resolveAccompanyingIds in worldContext.ts).
+   */
+  accompanyingNpcIds?: string[];
   /** Unlocked or learned ability IDs */
   abilities?: string[];
   /**

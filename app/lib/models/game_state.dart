@@ -494,6 +494,11 @@ class PlayerState {
   final List<TensionClock> activeTensionClocks;
   /// Dynamic physical/mental/situational conditions (e.g. ['تشنه', 'خسته', 'ناآشنا']).
   final List<String> conditions;
+  /// Plan 15 (Bug 3): explicit party roster travelling with the protagonist.
+  /// Null = legacy/unset (backend derives from ledger companions);
+  /// [] = explicitly alone; non-empty = those NPCs travel with the player.
+  /// Nullable (not default []) so the tri-state survives the JSON round-trip.
+  final List<String>? accompanyingNpcIds;
   /// Multi-denomination coin purse, e.g. {gold: 2, silver: 15, copper: 30}.
   final Map<String, int> purse;
   /// Unlocked/known ability IDs.
@@ -526,6 +531,7 @@ class PlayerState {
     this.completedQuestIds = const [],
     this.activeTensionClocks = const [],
     this.conditions = const [],
+    this.accompanyingNpcIds,
     this.purse = const {},
     this.abilities = const [],
     this.level = 1,
@@ -580,6 +586,7 @@ class PlayerState {
     List<String>? completedQuestIds,
     List<TensionClock>? activeTensionClocks,
     List<String>? conditions,
+    List<String>? accompanyingNpcIds,
     Map<String, int>? purse,
     List<String>? abilities,
     int? level,
@@ -609,6 +616,7 @@ class PlayerState {
       completedQuestIds: completedQuestIds ?? this.completedQuestIds,
       activeTensionClocks: activeTensionClocks ?? this.activeTensionClocks,
       conditions: conditions ?? this.conditions,
+      accompanyingNpcIds: accompanyingNpcIds ?? this.accompanyingNpcIds,
       purse: purse ?? this.purse,
       abilities: abilities ?? this.abilities,
       level: level ?? this.level,
@@ -635,6 +643,7 @@ class PlayerState {
     final rawPurse = json['purse'] as Map<String, dynamic>? ?? {};
     final rawClocks = json['activeTensionClocks'] as List<dynamic>? ?? [];
     final rawConditions = json['conditions'] as List<dynamic>? ?? [];
+    final rawAccompanying = json['accompanyingNpcIds'] as List<dynamic>?;
     final rawAbilities = json['abilities'] as List<dynamic>? ?? [];
 
     return PlayerState(
@@ -657,6 +666,7 @@ class PlayerState {
       completedQuestIds: rawCompQuests.map((e) => e.toString()).toList(),
       activeTensionClocks: rawClocks.map((e) => TensionClock.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
       conditions: rawConditions.map((e) => e.toString()).toList(),
+      accompanyingNpcIds: rawAccompanying?.map((e) => e.toString()).toList(),
       purse: rawPurse.map((k, v) => MapEntry(k, (v as num).toInt())),
       abilities: rawAbilities.map((e) => e.toString()).toList(),
       level: (json['level'] as num?)?.toInt() ?? 1,
@@ -688,6 +698,7 @@ class PlayerState {
         'completedQuestIds': completedQuestIds,
         'activeTensionClocks': activeTensionClocks.map((c) => c.toJson()).toList(),
         'conditions': conditions,
+        if (accompanyingNpcIds != null) 'accompanyingNpcIds': accompanyingNpcIds,
         'purse': purse,
         'abilities': abilities,
         'level': level,

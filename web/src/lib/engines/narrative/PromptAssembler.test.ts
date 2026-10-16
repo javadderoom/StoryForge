@@ -340,3 +340,35 @@ describe('PromptAssembler - forward momentum and completed actions guardrail', (
   });
 });
 
+describe('PromptAssembler - Plan 15 wound beat', () => {
+  for (const languageDirective of ['en', 'fa'] as const) {
+    it(`injects the emotional beat for an untreated wound (${languageDirective})`, () => {
+      const env = makeEnvelope({
+        languageDirective,
+        playerStatus: { stats: {}, resources: {}, equippedItems: [], conditions: ['wound:arrow'] },
+      });
+      const { systemPrompt } = PromptAssembler.buildNarrativePrompt(env);
+      assert.ok(systemPrompt.includes('CRITICAL EMOTIONAL BEAT'));
+      assert.ok(systemPrompt.includes('wound:arrow'));
+    });
+
+    it(`stays silent without wound tags (${languageDirective})`, () => {
+      const env = makeEnvelope({
+        languageDirective,
+        playerStatus: { stats: {}, resources: {}, equippedItems: [], conditions: ['هوشیار'] },
+      });
+      const { systemPrompt } = PromptAssembler.buildNarrativePrompt(env);
+      assert.ok(!systemPrompt.includes('CRITICAL EMOTIONAL BEAT'));
+    });
+
+    it(`treated wounds suppress the beat (${languageDirective})`, () => {
+      const env = makeEnvelope({
+        languageDirective,
+        playerStatus: { stats: {}, resources: {}, equippedItems: [], conditions: ['wound:arrow (bandaged)'] },
+      });
+      const { systemPrompt } = PromptAssembler.buildNarrativePrompt(env);
+      assert.ok(!systemPrompt.includes('CRITICAL EMOTIONAL BEAT'));
+    });
+  }
+});
+
