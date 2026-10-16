@@ -1,4 +1,4 @@
-# Plan 15: Deterministic Narrative Coherence, Pre-Generation Paradigms & Author Studio Plan
+# Plan 15: Deterministic Narrative Coherence, Pre-Generation Paradigms, Vitality Bar & Author Studio Plan
 
 ## 1. Executive Summary & Problem Diagnosis
 
@@ -17,6 +17,15 @@ Prompt patching is fundamentally unsustainable for five reasons:
    If the story only has a marsh serpent defined, and the player is in a desert cave, the LLM is trapped between an imperative command to use canonical creatures and an absence of desert beasts. It chooses the marsh serpent.
 4. **Blanket Caravan Presence**: In [`tradeRoutes.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/world/tradeRoutes.ts#L144-L195), touching any waypoint on a trade route tags **all caravan NPCs** as physically active at that location. Furthermore, `tradeRoutes.ts:114-115` explicitly prints the traveling retinue names into the prompt, giving the model double exposure. The model naturally has them speak, even if the player snuck down a cliff alone.
 5. **Forward-Momentum Bias**: Pre-trained LLMs naturally rush toward action tropes. Without an explicit, mechanical mandate forcing an emotional pause, companions will step over a friend's bleeding wound to trigger the next combat encounter.
+
+### 1.2 The "Dead Status" Problem in the Reader Client
+At the beginning of each beat in the Flutter app, the player's status is rendered by [`ConditionChips`](file:///g:/Code/StoryForge/app/lib/ui/widgets/condition_chips.dart):
+> `وضعیت: [کویر سرخ هیام] [ناآشنا] [هوشیار]`
+
+This component is currently **lifeless and ineffective**:
+1. **Flat Developer Aesthetic**: Small, undifferentiated grey and colored pills dumped next to a generic `"وضعیت:"` label. It reads like a debug inspector rather than a vital storytelling dashboard.
+2. **Missing Spatial Depth**: Location is rendered as a flat string (e.g. `[کویر سرخ هیام]`). If the player descends into a ravine, enters a hidden cave, or rests at the caravan campfire, this micro-location is invisible.
+3. **Static & Uncommunicative**: If no explicit conditions are active, the bar either vanishes or stays stuck on static character-creation traits (like `ناآشنا`). It fails to communicate vitality, somatic strain (wounds, thirst, exhaustion), or psychological tension (fear, shock, focus).
 
 ---
 
@@ -73,12 +82,12 @@ Branching explosion  Convergent Milestones         Background JIT       Authored
 | **B. More Expensive LLM (Pro/Opus)** | Higher literary polish | 8–15s (unacceptable for mobile) | Infinite dynamic branching | Low (higher API bill) |
 | **C. Post-Generation LLM Critic** | Catches blunders before render | 6–10s (doubled latency) | Infinite dynamic branching | Low (timeout prone) |
 | **D. Folded Bottleneck Graph (CYOA)** | **100% human-vetted** | **0ms (instant)** | Fixed chapter length (15–25 scenes) | Moderate (author reviews 20 scenes) |
-| **E. Predictive AOT Pre-Caching** | Strong (with strict scoper) | **0ms (instant)** | Infinite dynamic branching | Low (fully automated) |
+| **E. Predictive AOT Pre-Caching** | Strong (with strict scoper) | **0ms on hit** (miss = full generation + wasted background call) | Infinite dynamic branching | Low (fully automated) |
 | **F. Hybrid Reader (Plan 12)** | 90% (anchored to canon) | 0ms on canon, 2s on bridges | High | Moderate (author sets 10 beats) |
 
 ---
 
-## 3. The Four Architectural Pillars
+## 3. The Five Architectural Pillars
 
 ```
                                   [ Player Action + Check Result ]
@@ -108,13 +117,14 @@ Branching explosion  Convergent Milestones         Background JIT       Authored
                                                  |
                                                  v
   +-----------------------------------------------------------------------------------------------+
-  | WRITER LLM (GEMINI 3.8 FLASH / HIGH) OR FOLDED GRAPH NODE                                     |
-  | - Focuses 100% of capacity on high-literary prose dramatization without context noise.        |
+  | PILLAR 4: LIVING VITALITY & SCENE PRESENCE BAR (FLUTTER FULL REWORK)                          |
+  | - Full rework of beat header tags: Macro/Micro-location + Body (physical) + Mind (mental).    |
+  | - Dynamic baseline derivation: always alive and communicative, never empty.                  |
   +-----------------------------------------------------------------------------------------------+
                                                  |
                                                  v
   +-----------------------------------------------------------------------------------------------+
-  | PILLAR 4: STUDIO ENVELOPE INSPECTOR & SANDBOX UI                                              |
+  | PILLAR 5: STUDIO ENVELOPE INSPECTOR & SANDBOX UI                                              |
   | - Extend /studio/sandbox: inspect included vs. excluded entities with explicit rationale.     |
   | - Optional Chapter Graph Generator: generate and hand-polish 15–25 scene folded graphs.       |
   +-----------------------------------------------------------------------------------------------+
@@ -122,15 +132,9 @@ Branching explosion  Convergent Milestones         Background JIT       Authored
 
 ---
 
-## 4. Codebase Reality & Refined Specifications
+## 4. Detailed Specifications
 
-### 4.1 What Already Exists (Do Not Rebuild)
-- **Location-anchored NPC filtering** ([`worldContext.ts:408-431`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/worldContext.ts#L408-L431)): NPCs are already filtered by `currentLocationId`, `applicableLocationIds`, and `firstAppearanceChapter`. New party scoping composes with this.
-- **Holder-based artifact filtering** ([`worldContext.ts:469-483`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/worldContext.ts#L469-L483)): Already correctly scoped by NPC, location, and faction holders.
-- **Sandbox UI Shell** ([`/studio/sandbox`](file:///g:/Code/StoryForge/web/src/app/studio/sandbox/page.tsx)): Already provides an Action & Guardrail Simulator. Pillar 4 extends this page rather than building a redundant route.
-- **Pacing Guardrail** ([`momentumGuardrail.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/momentumGuardrail.ts)): Already tracks dramatic tension. Breathing beats hook into this existing guardrail.
-
-### 4.2 Narrow Live Bug Fixes (Zero Migration)
+### 4.1 Narrow Live Bug Fixes (Zero Migration)
 
 #### Bug 1: The Bestiary Habitat Loophole & "MUST Draw" Trap
 - **Current Problem**: In `worldContext.ts:463-467`, creatures pass if `habitatLocationIds.length === 0`. If authors haven't filled in habitats, all creatures pass. Then `PromptAssembler.ts:68` commands: *"When wildlife, predators, or monstrosities appear, you MUST draw from these canonical creatures"*. The model is trapped into placing wetland creatures in desert caves.
@@ -143,18 +147,67 @@ Branching explosion  Convergent Milestones         Background JIT       Authored
 #### Bug 2: Blanket Caravan Retinue Exposure
 - **Current Problem**: In `worldContext.ts:421-428`, every trade route touching the location pulls all `travelingNpcIds`. Then `tradeRoutes.ts:114-115` prints the retinue names into the prompt string.
 - **Fix**:
-  1. Only pull caravan travelers into `activeNpcDossiers` if the player is explicitly at the Caravan Camp or waypoint.
+  1. Only pull caravan travelers into `activeNpcDossiers` when the traveler's `currentLocationId` equals the scene location (data that exists today; see §7.2-E).
   2. Scope the retinue string in `tradeRoutes.ts` to omit individual retinue names unless the caravan is the primary interaction point.
 
 #### Bug 3: Teleporting NPCs without Heavy Sub-Zone Migrations
-- **Fix**: Introduce `accompanyingNpcIds: string[]` on `PlayerState` (or defaulting to the 1–2 party companions).
+- **Fix**: Introduce `accompanyingNpcIds: string[]` on `PlayerState`.
 - Only resident NPCs of the current location OR NPCs in `accompanyingNpcIds` are eligible to speak in immediate dialogue. Caravan members resting at camp remain in the background.
 
 #### Bug 4: Companion Apathy Toward Wounds
-- **Current Representation**: Conditions in `PlayerState` are currently `List<string>` (e.g. `['ناآشنا', 'هوشیار']`).
+- **Current Representation**: Conditions in `PlayerState` are currently `List<string>` (e.g. `['ناآشنا', 'هوشیار']`) and describe the *protagonist*, not companions (companion injuries are tracked nowhere — see §7.2-A).
 - **Fix**: Support string tags like `'injury:bleeding:severe'` or `'wound:arrow'` without breaking existing sessions.
-- Inject a single-line directive when an active untreated wound tag exists:
-  > `[CRITICAL EMOTIONAL BEAT]: A companion suffered an untreated injury last turn. Present allies must acknowledge this (checking the wound, offering water, or bandaging) before advancing.`
+- Inject a single-line directive for the *player's* untreated wound, which present allies must acknowledge:
+  > `[CRITICAL EMOTIONAL BEAT]: The protagonist suffered an untreated injury last turn. Present allies must acknowledge this (checking the wound, offering water, or bandaging) before advancing.`
+
+---
+
+### 4.2 Pillar 4: Living Vitality & Scene Presence Bar (Flutter Rework)
+
+Rework the beat header from the flat `ConditionChips` into a cohesive, atmospheric **Vitality & Scene Presence Bar** placed directly above each beat's narrative prose.
+
+```
++----------------------------------------------------------------------------------------------------+
+|  📍 SPATIAL PRESENCE (موقعیت و خرد‌مکان)       ❤️ BODY (جسم و تن)            🧠 MIND (روان و ذهن)     |
+|  [ کویر سرخ هیام • کاروان‌گاه دشت‌بانان ]     [ 🩸 جراحت خونین ] [ 💧 تشنه ]    [ 👁️ هوشیار و مراقب ]  |
++----------------------------------------------------------------------------------------------------+
+```
+
+#### A. Zone 1: Spatial Presence & Micro-Location (Sphere of Presence)
+- **Hierarchical Display**: Shows `[Macro Location] • [Micro-Location / Sub-Zone]`.
+  - E.g.: `کویر سرخ هیام • کاروان‌گاه دشت‌بانان` (*Hiram Red Desert • Drover's Camp*)
+  - Or: `کویر سرخ هیام • شیب درهٔ خاموش` (*Hiram Red Desert • Silent Ravine Slopes*)
+  - Or: `غار نمک • مدخل بادگیر` (*Salt Cavern • Windswept Mouth*)
+- **Resolution**:
+  - `PlayerState` tracks `currentLocationId` and `currentSubZoneId`.
+  - `GameSessionState.locationWithSubZone(lore, locationId, subZoneId)` resolves the parent location and the matching entry in `location.subZones[]` (or active point of interest).
+- **Visual**: Glassmorphic dark cyan/amber badge with compass/pin icon and subtle ambient border glow.
+
+#### B. Zone 2: The Physical Body (جسم و تن)
+Tracks somatic integrity, wounds, and physical needs. **Never empty or dead**:
+- **Dynamic Baseline Derivation**:
+  - If $HP \le 35\%$ or explicit injury tag: **`🩸 جراحت خونین / Wounded`** (Crimson pulse badge).
+  - If $Stamina \le 25\%$: **`💨 فرسوده و بی‌رمق / Exhausted`** (Warm amber badge).
+  - If $WaterClock \ge 2$: **`💧 تشنه و خشک‌لب / Parched`** (Sky-blue badge).
+  - If $Poisoned$: **`🧪 مسموم / Venomed`** (Toxic lime badge).
+  - If healthy & unburdened ($HP > 75\%$ & no debuffs): **`🛡️ تندرست و قبراق / Vigorous`** (Soft emerald badge).
+
+#### C. Zone 3: The Mind & Morale (روان و ذهن)
+Tracks focus, shock, fear, and mental posture:
+- If surprised / in shock: **`⚡ شوک‌زده و مبهوت / Shaken`** (Violet badge).
+- If focused & alert: **`👁️ هوشیار و گوش‌به‌زنگ / Vigilant`** (Teal badge).
+- If disoriented / concussed: **`🌀 سرگیجه و گیجی / Dazed`** (Deep purple badge).
+- If in a strange, unexplored land: **`🧭 غریبه در اقلیم / Outsider`** (Indigo badge).
+- If resolute under pressure: **`⚔️ ارادهٔ پولادین / Resolute`** (Steel-blue badge).
+
+#### D. Tactical Stance / Environment (موقعیت و کنش)
+Contextual environmental stance tags:
+- `در پناه سایه‌ها / Concealed`, `در تیررس و بی‌پناه / Exposed`, `موقعیت مسلط / High Ground`.
+
+#### E. Visual Polish & Interactions (Emil Kowalski Philosophy)
+1. **Glassmorphism Styling**: `surfaceContainer` dark translucent styling with rounded 16px contours, subtle directional borders, and responsive wrap.
+2. **Interactive Literary Tooltips**: Tapping or holding any badge opens a rich, lore-grounded tooltip explaining the physical state and its gameplay consequences (e.g. *"جراحت بر بازو: در صورت درگیری فیزیکی سنگین، استقامت بیشتری از دست می‌دهید."*).
+3. **RTL Directionality Enforcement**: Explicit `Directionality.ltr` or Left-to-Right Marks (`\u200E`) on all numbers, icons, and separators to guarantee clean typography in Persian and English.
 
 ---
 
@@ -172,21 +225,30 @@ Branching explosion  Convergent Milestones         Background JIT       Authored
                                           |
                                           v
   +-----------------------------------------------------------------------------------+
-  | PHASE 2: ACCOMPANYING PARTY ROSTER & WOUND DIRECTIVES                             |
+  | PHASE 2: LIVING VITALITY BAR & MICRO-LOCATION CLIENT REWORK                       |
+  | 1. Extend PlayerState in Flutter & web with currentSubZoneId.                     |
+  | 2. Implement GameSessionState.locationWithSubZone resolution in provider.         |
+  | 3. Completely rebuild ConditionChips into VitalityPresenceBar in Flutter app.     |
+  | 4. Implement dynamic baseline derivation for Body and Mind (zero dead state).     |
+  +-----------------------------------------------------------------------------------+
+                                          |
+                                          v
+  +-----------------------------------------------------------------------------------+
+  | PHASE 3: ACCOMPANYING PARTY ROSTER & WOUND DIRECTIVES                             |
   | 1. Support accompanyingNpcIds on PlayerState (caps immediate dialogue).           |
   | 2. Add single-line emotional reaction directive for untreated wound conditions.   |
   +-----------------------------------------------------------------------------------+
                                           |
                                           v
   +-----------------------------------------------------------------------------------+
-  | PHASE 3: STUDIO SANDBOX ENVELOPE INSPECTOR                                        |
+  | PHASE 4: STUDIO SANDBOX ENVELOPE INSPECTOR                                        |
   | 1. Extend /studio/sandbox with an Envelope Inspector panel.                       |
   | 2. Display included vs. excluded entities with explicit exclusion rationale.      |
   +-----------------------------------------------------------------------------------+
                                           |
                                           v
   +-----------------------------------------------------------------------------------+
-  | PHASE 4: STUDIO FOLDED GRAPH GENERATOR (OPTIONAL PRE-GENERATION)                  |
+  | PHASE 5: STUDIO FOLDED GRAPH GENERATOR (OPTIONAL PRE-GENERATION)                  |
   | 1. Studio tool to generate a 15–25 node folded bottleneck graph for a chapter.    |
   | 2. In-browser editor to review, polish, and lock in 100% human-vetted scenes.     |
   +-----------------------------------------------------------------------------------+
@@ -198,6 +260,30 @@ Branching explosion  Convergent Milestones         Background JIT       Authored
 
 1. **Ecology Verification**: Zero cross-biome creatures spawned across 50 test turns in desert/cave environments.
 2. **Co-Presence Verification**: Zero dialogue lines spoken by camped caravan members when the player is scouting away from the main camp.
-3. **Emotional Continuity**: 100% of severe injuries acknowledged by present companions in subsequent narrative turns.
-4. **Latency Budget**: Maintained turn latency $\le 2.5\text{s}$ on Flash model; 0ms for pre-generated/cached nodes.
-5. **Author Visibility**: Complete context envelope and entity exclusion rationale visible in `/studio/sandbox` in $< 1\text{s}$.
+3. **Vitality Bar Liveness**: The beat header is 100% active on every single turn, displaying valid Body (physical) and Mind (mental) statuses with zero empty states.
+4. **Micro-Location Accuracy**: Sub-zones render alongside macro-locations in the beat header whenever defined in the World Bible.
+5. **Emotional Continuity**: 100% of severe injuries acknowledged by present companions in subsequent narrative turns.
+6. **Latency Budget**: Maintained turn latency $\le 2.5\text{s}$ pinned to the `gemini-3.5-flash-lite` default. 0ms for pre-generated/cached nodes on hit.
+7. **Author Visibility**: Complete context envelope and entity exclusion rationale visible in `/studio/sandbox` in $< 1\text{s}$.
+
+---
+
+## 7. Review Notes & Code-Verified Amendments
+
+> Added during implementation review (October 2026). Every file, line range, and claim was re-verified against the working tree.
+
+### 7.1 Verification Ledger
+
+| Claim | Status | Detail |
+| :--- | :--- | :--- |
+| Bestiary "MUST draw" imperative | Confirmed | [`PromptAssembler.ts:66-70`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/PromptAssembler.ts#L66-L70) — directive is verbatim; fires whenever `context.bestiary?.length > 0`. |
+| Habitat loophole passes all empty-habitat creatures | Confirmed | [`worldContext.ts:463-467`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/worldContext.ts#L463-L467) — `c.habitatLocationIds.length === 0 \|\|` short-circuit as described. |
+| Blanket caravan retinue exposure | Confirmed, understated | [`worldContext.ts:421-429`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/worldContext.ts#L421-L429) tests against `activeLocSet`, which also contains connected locations ([L402](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/worldContext.ts#L402)) and location ancestors ([L403-404](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/worldContext.ts#L403-L404)). Routes touching an *adjacent* location leak their retinues into the current scene. Double exposure via [`tradeRoutes.ts:114-115`](file:///g:/Code/StoryForge/web/src/lib/engines/world/tradeRoutes.ts#L114-L115) and [`getActiveNpcsForLocation` L144-195](file:///g:/Code/StoryForge/web/src/lib/engines/world/tradeRoutes.ts#L144-L195) confirmed. |
+| Location sub-zones schema exists | Confirmed | [`world.ts:183`](file:///g:/Code/StoryForge/web/src/lib/types/world.ts#L183) — `subZones?: LocationSubZone[]` already exists in WorldLocation schema. |
+| `momentumGuardrail.ts` and `/studio/sandbox` exist as extension points | Confirmed | No rebuild needed for Pillars 3 & 5. |
+
+### 7.2 Vitality Bar Compatibility Note
+- In existing sessions where `playerState.conditions` is a simple `List<String>` (e.g. `['ناآشنا', 'هوشیار']`), the new `VitalityPresenceBar` classifies them gracefully:
+  - Tags matching physical keywords (`'زخمی'`, `'خسته'`, `'تشنه'`, `'مسموم'`) map to the **Body** column.
+  - Tags matching mental keywords (`'هوشیار'`, `'گیج'`, `'ناآشنا'`, `'مظنون'`) map to the **Mind** column.
+  - If either column has no explicit condition, the dynamic baseline auto-derives healthy/vigorous status from $HP$ and stamina, guaranteeing **zero dead states**.
