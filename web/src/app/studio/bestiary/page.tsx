@@ -348,9 +348,20 @@ export default function BestiaryStudioPage() {
     return ghosts;
   }, [bestiary, story.worldBible.artifacts, story.worldBible.npcs, story.worldBible.factions]);
 
+  // ----------------------------------------------------------------
+  // Plan 15: Habitat Coverage Nudge — creatures without habitats pass the
+  // narrator's ecological scoper everywhere, so off-biome spawns stay
+  // possible until authors pin them down. Surface the gap, don't block.
+  // ----------------------------------------------------------------
+  const noHabitatList = useMemo(
+    () => bestiary.filter((c) => !(c.habitatLocationIds && c.habitatLocationIds.length > 0)),
+    [bestiary]
+  );
+
   const filteredCreatures = bestiary.filter((c) => {
     if (filterCategory === 'all') return true;
     if (filterCategory === 'domesticated') return !!c.isDomesticated;
+    if (filterCategory === 'no-habitat') return !(c.habitatLocationIds && c.habitatLocationIds.length > 0);
     return c.speciesCategory === filterCategory;
   });
 
@@ -932,6 +943,22 @@ export default function BestiaryStudioPage() {
               </span>
             </button>
           )}
+          {noHabitatList.length > 0 && (
+            <button
+              onClick={() => setFilterCategory('no-habitat')}
+              title={
+                isPersian
+                  ? 'گونه‌های بدون زیستگاه از صافی بوم‌شناختی راوی عبور می‌کنند و ممکن است در زیست‌بوم نامتناسب ظاهر شوند. برای هر گونه زیستگاه تعیین کنید.'
+                  : 'Species without habitats pass the narrator ecological scoper everywhere and may spawn in mismatched biomes. Pin habitats to fix.'
+              }
+              className="text-xs bg-amber-500/15 border border-amber-500/30 hover:border-amber-500/60 text-amber-300 px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(245,158,11,0.25)] cursor-pointer"
+            >
+              <MapPin className="w-3.5 h-3.5 text-amber-400" />
+              <span>
+                {noHabitatList.length} {isPersian ? 'گونه بدون زیستگاه' : 'species lack habitats'}
+              </span>
+            </button>
+          )}
           <span className="text-xs bg-red-500/10 border border-red-500/20 text-red-300 px-3.5 py-1.5 rounded-xl font-mono flex items-center gap-1.5">
             <Crosshair className="w-3.5 h-3.5 text-red-400" />
             {bestiary.length} {isPersian ? 'گونه ثبت‌شده' : 'Registered Species'}
@@ -995,6 +1022,22 @@ export default function BestiaryStudioPage() {
             <span>{isPersian ? 'گونه‌های ناموجود' : 'Ghost Species'}</span>
             <span className="px-1.5 py-0.2 rounded-full bg-red-500/30 text-[10px] font-mono">
               {ghostSpeciesList.length}
+            </span>
+          </button>
+        )}
+        {noHabitatList.length > 0 && (
+          <button
+            onClick={() => setFilterCategory('no-habitat')}
+            className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              filterCategory === 'no-habitat'
+                ? 'bg-amber-500/20 border border-amber-500/50 text-amber-300 shadow-md shadow-amber-500/20'
+                : 'text-amber-400/90 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/20'
+            }`}
+          >
+            <MapPin className="w-3.5 h-3.5 text-amber-400" />
+            <span>{isPersian ? 'بدون زیستگاه' : 'No Habitat'}</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-amber-500/30 text-[10px] font-mono">
+              {noHabitatList.length}
             </span>
           </button>
         )}
