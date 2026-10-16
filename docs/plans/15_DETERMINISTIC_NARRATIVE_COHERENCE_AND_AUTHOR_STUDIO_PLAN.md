@@ -112,7 +112,7 @@ Branching explosion  Convergent Milestones         Background JIT       Authored
   +-----------------------------------------------------------------------------------------------+
   | PILLAR 3: PRE-GENERATION SCENE FRAMING (DIRECTOR PASS)                                       |
   | - Hook into existing momentumGuardrail.ts to enforce pacing (reflective vs. kinetic beats).   |
-  | - Whitelist 2–4 physical interactables in the immediate 20m bubble.                           |
+  | - Whitelist up to 2–4 physical interactables derived from the location's `pointsOfInterest` / `subZones` entries (or carried inventory props) — no invented metric distances; no `20m bubble` data source exists. |
   +-----------------------------------------------------------------------------------------------+
                                                  |
                                                  v
@@ -140,22 +140,23 @@ Branching explosion  Convergent Milestones         Background JIT       Authored
 - **Current Problem**: In `worldContext.ts:463-467`, creatures pass if `habitatLocationIds.length === 0`. If authors haven't filled in habitats, all creatures pass. Then `PromptAssembler.ts:68` commands: *"When wildlife, predators, or monstrosities appear, you MUST draw from these canonical creatures"*. The model is trapped into placing wetland creatures in desert caves.
 - **Fix**:
   1. If `habitatLocationIds` is specified, strictly require matching the current location.
-  2. If a creature lacks `habitatLocationIds`, require an explicit `global_roaming` flag or omit from extreme biomes (desert, arctic, underwater).
-  3. When no creature matches the location, replace the imperative command in `PromptAssembler.ts` with:
+  2. If a creature lacks `habitatLocationIds`, keep it eligible in Phase 1 (no strict exclusion) and surface a Studio habitat-coverage nudge ("N creatures lack habitats") so authors fill the data. Strict exclusion is deferred: it needs a new `globalRoaming` flag on `WorldCreature` (does not exist today) plus a location biome tag (`category` today is only stronghold/dungeon/ruins/settlement/wilderness — no desert/arctic/underwater concept), i.e. an explicit data migration, not zero-migration.
+  3. When no creature matches the location, replace the imperative command at BOTH MUST-draw sites in `PromptAssembler.ts` — the context-header directive (`:66-70`) AND the continuity `BESTIARY GROUNDING & VISCERAL TRAITS` directive (`:250`, plus its Persian protocol twin if authored separately) — with:
      > `[ENVIRONMENTAL GUIDANCE]: No predatory beasts inhabit this immediate terrain. Focus tension on terrain hazards, physical exhaustion, harsh weather, and environmental atmosphere.`
 
 #### Bug 2: Blanket Caravan Retinue Exposure
 - **Current Problem**: In `worldContext.ts:421-428`, every trade route touching the location pulls all `travelingNpcIds`. Then `tradeRoutes.ts:114-115` prints the retinue names into the prompt string.
 - **Fix**:
-  1. Only pull caravan travelers into `activeNpcDossiers` when the traveler's `currentLocationId` equals the scene location (data that exists today; see §7.2-E).
-  2. Scope the retinue string in `tradeRoutes.ts` to omit individual retinue names unless the caravan is the primary interaction point.
+  1. Only pull caravan travelers into `activeNpcDossiers` when the traveler's `currentLocationId` equals the scene location (data that exists today — locations carry no camp/waypoint concept, so rules keyed on "Caravan Camp" are not computable).
+  2. Scope the retinue string in `tradeRoutes.ts` to omit individual retinue names unless at least one traveler satisfies rule 1 (caravan physically present); otherwise list only the route/cargo summary with no names.
 
 #### Bug 3: Teleporting NPCs without Heavy Sub-Zone Migrations
 - **Fix**: Introduce `accompanyingNpcIds: string[]` on `PlayerState`.
 - Only resident NPCs of the current location OR NPCs in `accompanyingNpcIds` are eligible to speak in immediate dialogue. Caravan members resting at camp remain in the background.
+- **Open owners (must decide before implementing)**: who populates the roster (player-action parser, LLM `npcStatusChanges`, Studio authoring, or derivation from companion status), who clears it ("I scout ahead alone" must write `[]`), and where it lives (`PlayerState` vs. session). There is no existing roster to default from — ship this together with Bug 4 so "present allies" has a computable meaning.
 
 #### Bug 4: Companion Apathy Toward Wounds
-- **Current Representation**: Conditions in `PlayerState` are currently `List<string>` (e.g. `['ناآشنا', 'هوشیار']`) and describe the *protagonist*, not companions (companion injuries are tracked nowhere — see §7.2-A).
+- **Current Representation**: Conditions in `PlayerState` are currently `List<string>` (e.g. `['ناآشنا', 'هوشیار']`) and describe the *protagonist*, not companions (companion injuries are tracked nowhere — per-NPC wound storage is a separate schema decision, not part of this fix).
 - **Fix**: Support string tags like `'injury:bleeding:severe'` or `'wound:arrow'` without breaking existing sessions.
 - Inject a single-line directive for the *player's* untreated wound, which present allies must acknowledge:
   > `[CRITICAL EMOTIONAL BEAT]: The protagonist suffered an untreated injury last turn. Present allies must acknowledge this (checking the wound, offering water, or bandaging) before advancing.`
@@ -287,3 +288,8 @@ Contextual environmental stance tags:
   - Tags matching physical keywords (`'زخمی'`, `'خسته'`, `'تشنه'`, `'مسموم'`) map to the **Body** column.
   - Tags matching mental keywords (`'هوشیار'`, `'گیج'`, `'ناآشنا'`, `'مظنون'`) map to the **Mind** column.
   - If either column has no explicit condition, the dynamic baseline auto-derives healthy/vigorous status from $HP$ and stamina, guaranteeing **zero dead states**.
+
+### 7.3 State Ownership (must decide before Phases 2–3)
+- `accompanyingNpcIds`: no producer exists today. Decide writer (player-action parser, LLM `npcStatusChanges`, Studio authoring, or derivation), clearer ("scout ahead alone" writes `[]`), and home (`PlayerState` vs. session).
+- `currentSubZoneId`: no writer exists today. Decide who sets it on movement and where it lives; the Flutter client parses zero subZones today, so `locationWithSubZone` is new model + provider work, not an extension of `locationName` (`game_session_provider.dart:195`).
+- Wound tags (`'injury:bleeding:severe'` style strings on the protagonist's `conditions`) need no migration; per-NPC wounds are out of scope for Bug 4.
