@@ -1,4 +1,4 @@
-# Plan 15: Deterministic Narrative Coherence & Author Studio Plan
+# Plan 15: Deterministic Narrative Coherence, Pre-Generation Paradigms & Author Studio Plan
 
 ## 1. Executive Summary & Problem Diagnosis
 
@@ -15,20 +15,66 @@ Prompt patching is fundamentally unsustainable for five reasons:
 3. **Context Contradiction (Data vs. Instruction)**: In [`PromptAssembler.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/PromptAssembler.ts#L66-L70), the engine dumps the entire World Bible bestiary into the prompt and commands:
    > *"When wildlife, predators, or monstrosities appear, you MUST draw from these canonical creatures..."*
    If the story only has a marsh serpent defined, and the player is in a desert cave, the LLM is trapped between an imperative command to use canonical creatures and an absence of desert beasts. It chooses the marsh serpent.
-4. **Blanket Caravan Presence**: In [`tradeRoutes.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/world/tradeRoutes.ts#L144-L195), touching any waypoint on a trade route tags **all caravan NPCs** as physically active at that location. The model receives 6 full NPC dossiers and naturally has them participate in the conversation, even if the player snuck down a cliff alone.
+4. **Blanket Caravan Presence**: In [`tradeRoutes.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/world/tradeRoutes.ts#L144-L195), touching any waypoint on a trade route tags **all caravan NPCs** as physically active at that location. Furthermore, `tradeRoutes.ts:114-115` explicitly prints the traveling retinue names into the prompt, giving the model double exposure. The model naturally has them speak, even if the player snuck down a cliff alone.
 5. **Forward-Momentum Bias**: Pre-trained LLMs naturally rush toward action tropes. Without an explicit, mechanical mandate forcing an emotional pause, companions will step over a friend's bleeding wound to trigger the next combat encounter.
 
 ---
 
-## 2. Strategic Evaluation of Proposed Paradigms
+## 2. Strategic Evaluation of Generation Paradigms
 
-| Paradigm | Pros | Cons & Bottlenecks | Verdict |
-| :--- | :--- | :--- | :--- |
-| **A. Upgrading to Expensive Models (Gemini 1.5 Pro, Claude Opus, GPT-4o)** | Stronger logical deduction, richer emotional prose, better nuanced instruction following. | **Latency (8–15s per turn)** kills interactive reader flow. **10x–30x API cost**. Crucially: *A smarter model given the wrong context will still hallucinate.* If 6 caravan NPCs are listed in the prompt context, Claude Opus will also assume they are present. | **Complementary, not a root fix.** Better models cannot compensate for dirty context. |
-| **B. Post-Generation LLM Critic / Referee** | Catches continuity and canon errors before displaying text to the player. | **Doubles turn latency** (Player waits 3s for writer + 3s for critic + 4s for re-drafting = 10s total). Rejection loops cause frequent timeouts. | **Reject for live runtime**; reserve for offline automated story test suites. |
-| **C. Pre-Generation Scene Framing (Director Pass)** | Pre-determines the immediate 20m radius, emotional stakes, and active participants in <200ms before calling the writer. | Requires lightweight schema and state-driven triggers. | **Core Recommendation**. |
-| **D. Strict Deterministic Scoping (Micro-Locations & Biomes)** | **100% mathematically prevents entity misuse.** If an entity is not in the immediate scene, it is completely removed from the prompt context. The LLM cannot hallucinate an entity it never saw. | Requires structuring location sub-zones and party presence. | **Foundational Pillar**. |
-| **E. Author Studio Narrative & Prompt Dashboard** | Author gains complete visual inspection of the context envelope, token counts, and entity filters, plus an in-browser turn simulator. | Requires building Next.js Studio UI components. | **Highest Value for Author Productivity & Quality Assurance**. |
+### 2.1 The Pre-Generation Question: "What if we pre-generate every scene?"
+
+A natural question arises: *Can we eliminate all AI hallucinations and latency by pre-generating all scenes in Studio ahead of time?*
+
+Evaluating pre-generation reveals four distinct approaches with stark trade-offs:
+
+```
+                            PRE-GENERATION APPROACHES
+                                       |
+    +-------------------+--------------+--------------+--------------------+
+    |                   |                             |                    |
+[1. Pure Tree]     [2. Folded Graph]             [3. AOT Cache]       [4. Hybrid Reader]
+Branching explosion  Convergent Milestones         Background JIT       Authored Spine +
+(9^D paths; fails)  (15-25 nodes/chapter)         (0ms, state-aware)   AI Bridges (Plan 12)
+```
+
+#### Approach 1: The Pure Branching Tree (Combinatorial Trap)
+- **Math**: If each turn offers 3 choices and 3 RPG check outcomes (Success, Mixed, Failure), branching factor $B = 9$:
+  - Turn 1: 1 scene
+  - Turn 3: 81 scenes
+  - Turn 5: 6,561 scenes
+  - Turn 7: **531,441 scenes!**
+- **The Verdict**: Pure tree pre-generation is mathematically unviable for long stories. 98% of generated content is never seen by a single player, and no human author can review 50,000 scenes. Furthermore, pre-generated text cannot anticipate dynamic player state (inventory combinations, custom trust scores, specific limb injuries).
+
+#### Approach 2: The Folded "Diamond" Graph (The Inkle / Telltale Model)
+- **Concept**: Instead of an endless tree, story chapters use **Convergent Milestones (Bottlenecks)**:
+  - Turn 1 (Oasis Camp) offers 3 divergent choices (Scout ahead, Guard camels, Interrogate traveler).
+  - Turn 2 branches diverge into 3 distinct scenes.
+  - Turn 3 **folds back** into a single mandatory milestone: *The Night Sandstorm Strikes*.
+  - Scene variations in Turn 3 are handled by **conditional state tags** (*"if player scouted ahead: caught in the open"*; *"if player guarded camels: holding reins"*).
+- **The Verdict**: Highly practical! A chapter contains only **15–25 total scenes**. Authors can generate, review, and polish all 25 scenes in Studio. Delivers 100% quality control, 0ms mobile latency, and offline play.
+
+#### Approach 3: Predictive Ahead-of-Time (AOT) Pre-Caching
+- **Concept**: Generate just-in-time while the player is reading:
+  - While the player spends 30–60 seconds reading Scene 2, a background worker pre-generates the 3 possible Scene 3 continuations based on their exact current inventory, health, and relationship scores.
+  - When the player taps a choice, the next scene renders **instantly (0ms)** with zero combinatorial waste.
+- **The Verdict**: Combines dynamic, state-aware AI generation with zero player latency.
+
+#### Approach 4: The Hybrid Reader (Plan 12)
+- **Concept**: 8–12 canonical authored beats form the chapter's backbone. Runtime AI (Director/Scribe) acts as an adaptive bridge whenever players roll failures, get displaced into hazards, or improvise unusual tactics, guiding them back toward the canon spine.
+
+---
+
+### 2.2 Paradigm Comparison Matrix
+
+| Paradigm | Quality & Control | Turn Latency | Story Length & Freedom | Author Workload |
+| :--- | :--- | :--- | :--- | :--- |
+| **A. Pure Runtime AI (Current)** | Variable (hallucination risk) | 2–5s | Infinite dynamic branching | Low (author writes Bible) |
+| **B. More Expensive LLM (Pro/Opus)** | Higher literary polish | 8–15s (unacceptable for mobile) | Infinite dynamic branching | Low (higher API bill) |
+| **C. Post-Generation LLM Critic** | Catches blunders before render | 6–10s (doubled latency) | Infinite dynamic branching | Low (timeout prone) |
+| **D. Folded Bottleneck Graph (CYOA)** | **100% human-vetted** | **0ms (instant)** | Fixed chapter length (15–25 scenes) | Moderate (author reviews 20 scenes) |
+| **E. Predictive AOT Pre-Caching** | Strong (with strict scoper) | **0ms (instant)** | Infinite dynamic branching | Low (fully automated) |
+| **F. Hybrid Reader (Plan 12)** | 90% (anchored to canon) | 0ms on canon, 2s on bridges | High | Moderate (author sets 10 beats) |
 
 ---
 
@@ -40,139 +86,118 @@ Prompt patching is fundamentally unsustainable for five reasons:
                                                  v
   +-----------------------------------------------------------------------------------------------+
   | PILLAR 1: DETERMINISTIC SPATIAL & ECOLOGICAL SCOPER                                          |
-  | - Micro-location filter: Is player at "Caravan Camp" or "Deep Ravine"?                         |
-  | - Party Co-Presence filter: Who is physically walking with player? (Strip absent NPCs)        |
-  | - Bestiary Habitat filter: Does creature biome match current location? (Strip invalid beasts)  |
+  | - Habitat filter: Creature habitatLocationIds MUST match current location.                    |
+  | - If no match, inject [ENVIRONMENTAL GUIDANCE] fallback (no predator beasts).                 |
+  | - Party Co-Presence filter: Only accompanyingNpcIds or resident NPCs are active.              |
+  | - Narrow caravan retinue: Do not dump traveling retinue into active scene dossiers.           |
   +-----------------------------------------------------------------------------------------------+
                                                  |
                                                  v
   +-----------------------------------------------------------------------------------------------+
   | PILLAR 2: MECHANICAL CONDITIONS & EMOTIONAL ANCHORS                                           |
-  | - Check for active untreated wounds/trauma on player or party members.                       |
-  | - Inject Mandatory Immediate Beat: "Companion wounded; must provide aid before proceeding."    |
+  | - Parse playerState.conditions for untreated injuries (e.g. bleeding_wound, severe trauma).    |
+  | - Inject a capped single-line [MANDATORY EMOTIONAL DIRECTIVE] for immediate human reaction.   |
   +-----------------------------------------------------------------------------------------------+
                                                  |
                                                  v
   +-----------------------------------------------------------------------------------------------+
   | PILLAR 3: PRE-GENERATION SCENE FRAMING (DIRECTOR PASS)                                       |
-  | - Consolidate immediate 20-meter zone, tension level, and active interactables.              |
-  | - Assemble clean, minimal WorkingContextEnvelope.                                             |
+  | - Hook into existing momentumGuardrail.ts to enforce pacing (reflective vs. kinetic beats).   |
+  | - Whitelist 2–4 physical interactables in the immediate 20m bubble.                           |
   +-----------------------------------------------------------------------------------------------+
                                                  |
                                                  v
   +-----------------------------------------------------------------------------------------------+
-  | WRITER LLM (GEMINI 3.8 FLASH / HIGH)                                                          |
-  | - Focuses 100% of capacity on high-literary prose dramatization.                              |
+  | WRITER LLM (GEMINI 3.8 FLASH / HIGH) OR FOLDED GRAPH NODE                                     |
+  | - Focuses 100% of capacity on high-literary prose dramatization without context noise.        |
   +-----------------------------------------------------------------------------------------------+
                                                  |
                                                  v
   +-----------------------------------------------------------------------------------------------+
-  | PILLAR 4: STUDIO NARRATIVE INSPECTOR & PLAYGROUND                                             |
-  | - Author visualizes envelope, overrides rules, and simulates turns live in Web Studio.        |
+  | PILLAR 4: STUDIO ENVELOPE INSPECTOR & SANDBOX UI                                              |
+  | - Extend /studio/sandbox: inspect included vs. excluded entities with explicit rationale.     |
+  | - Optional Chapter Graph Generator: generate and hand-polish 15–25 scene folded graphs.       |
   +-----------------------------------------------------------------------------------------------+
 ```
 
 ---
 
-## 4. Detailed Specification of the Pillars
+## 4. Codebase Reality & Refined Specifications
 
-### Pillar 1: Deterministic Spatial & Ecological Scoping
+### 4.1 What Already Exists (Do Not Rebuild)
+- **Location-anchored NPC filtering** ([`worldContext.ts:408-431`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/worldContext.ts#L408-L431)): NPCs are already filtered by `currentLocationId`, `applicableLocationIds`, and `firstAppearanceChapter`. New party scoping composes with this.
+- **Holder-based artifact filtering** ([`worldContext.ts:469-483`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/worldContext.ts#L469-L483)): Already correctly scoped by NPC, location, and faction holders.
+- **Sandbox UI Shell** ([`/studio/sandbox`](file:///g:/Code/StoryForge/web/src/app/studio/sandbox/page.tsx)): Already provides an Action & Guardrail Simulator. Pillar 4 extends this page rather than building a redundant route.
+- **Pacing Guardrail** ([`momentumGuardrail.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/momentumGuardrail.ts)): Already tracks dramatic tension. Breathing beats hook into this existing guardrail.
 
-#### 1.1 Bestiary Habitat & Biome Exclusion
-In [`PromptAssembler.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/PromptAssembler.ts) and [`worldContext.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/worldContext.ts):
-- A creature is **only** eligible for context injection if its `habitatLocationIds` includes the player's current `locationId` (or its designated biome matches).
-- If no creature in the World Bible matches the current location, **do not inject any creature records**.
-- Instead, inject an explicit environmental guidance line:
-  > *`[ENVIRONMENTAL GUIDANCE]: No predatory beasts inhabit this immediate barren terrain. Focus narrative tension on environmental perils, physical exhaustion, harsh winds, and rockfall.`*
+### 4.2 Narrow Live Bug Fixes (Zero Migration)
 
-#### 1.2 Micro-Locations (Sub-Zones) & Point of Interest Scoping
-Locations in the World Bible already support `subZones` and `pointsOfInterest`.
-- When an action moves the player into a sub-zone (e.g. `Ravine Floor`, `Hidden Cavern`, `Scout Ridge`), the engine updates `playerState.currentSubZoneId`.
-- NPCs possess an explicit co-presence state:
-  - `resident`: Static inhabitants of a specific sub-zone.
-  - `camped`: Members of the caravan resting at the primary campsite.
-  - `accompanying`: Explicit companions currently walking beside the player (maximum 1–2).
-- Any NPC whose location does not match the active sub-zone is marked `ABSENT_FROM_SCENE`. Their dossiers are **completely omitted** from the prompt's `[ACTIVE NPCS]` block.
+#### Bug 1: The Bestiary Habitat Loophole & "MUST Draw" Trap
+- **Current Problem**: In `worldContext.ts:463-467`, creatures pass if `habitatLocationIds.length === 0`. If authors haven't filled in habitats, all creatures pass. Then `PromptAssembler.ts:68` commands: *"When wildlife, predators, or monstrosities appear, you MUST draw from these canonical creatures"*. The model is trapped into placing wetland creatures in desert caves.
+- **Fix**:
+  1. If `habitatLocationIds` is specified, strictly require matching the current location.
+  2. If a creature lacks `habitatLocationIds`, require an explicit `global_roaming` flag or omit from extreme biomes (desert, arctic, underwater).
+  3. When no creature matches the location, replace the imperative command in `PromptAssembler.ts` with:
+     > `[ENVIRONMENTAL GUIDANCE]: No predatory beasts inhabit this immediate terrain. Focus tension on terrain hazards, physical exhaustion, harsh weather, and environmental atmosphere.`
+
+#### Bug 2: Blanket Caravan Retinue Exposure
+- **Current Problem**: In `worldContext.ts:421-428`, every trade route touching the location pulls all `travelingNpcIds`. Then `tradeRoutes.ts:114-115` prints the retinue names into the prompt string.
+- **Fix**:
+  1. Only pull caravan travelers into `activeNpcDossiers` if the player is explicitly at the Caravan Camp or waypoint.
+  2. Scope the retinue string in `tradeRoutes.ts` to omit individual retinue names unless the caravan is the primary interaction point.
+
+#### Bug 3: Teleporting NPCs without Heavy Sub-Zone Migrations
+- **Fix**: Introduce `accompanyingNpcIds: string[]` on `PlayerState` (or defaulting to the 1–2 party companions).
+- Only resident NPCs of the current location OR NPCs in `accompanyingNpcIds` are eligible to speak in immediate dialogue. Caravan members resting at camp remain in the background.
+
+#### Bug 4: Companion Apathy Toward Wounds
+- **Current Representation**: Conditions in `PlayerState` are currently `List<string>` (e.g. `['ناآشنا', 'هوشیار']`).
+- **Fix**: Support string tags like `'injury:bleeding:severe'` or `'wound:arrow'` without breaking existing sessions.
+- Inject a single-line directive when an active untreated wound tag exists:
+  > `[CRITICAL EMOTIONAL BEAT]: A companion suffered an untreated injury last turn. Present allies must acknowledge this (checking the wound, offering water, or bandaging) before advancing.`
 
 ---
 
-### Pillar 2: Mechanical Conditions & Emotional Directives
+## 5. Pragmatic Implementation Roadmap
 
-#### 2.1 Condition Tracking
-Characters and companions maintain structured conditions in `PlayerState`:
-```typescript
-export interface CharacterCondition {
-  id: string;
-  targetId: string; // 'player' or npcId
-  type: 'bleeding_wound' | 'broken_bone' | 'exhaustion' | 'hypothermia' | 'trauma';
-  severity: 'minor' | 'moderate' | 'severe';
-  treated: boolean;
-  acquiredAtTurn: number;
-}
+```
+                                  EXECUTION ROADMAP
+                                          |
+  +-----------------------------------------------------------------------------------+
+  | PHASE 1: IMMEDIATE ZERO-MIGRATION BACKEND FIXES                                   |
+  | 1. Fix worldContext.ts: plug habitatLocationIds.length === 0 loophole.            |
+  | 2. Fix PromptAssembler.ts: inject [ENVIRONMENTAL GUIDANCE] when bestiary is empty.|
+  | 3. Fix tradeRoutes.ts & worldContext.ts: stop blanket caravan retinue exposure.   |
+  +-----------------------------------------------------------------------------------+
+                                          |
+                                          v
+  +-----------------------------------------------------------------------------------+
+  | PHASE 2: ACCOMPANYING PARTY ROSTER & WOUND DIRECTIVES                             |
+  | 1. Support accompanyingNpcIds on PlayerState (caps immediate dialogue).           |
+  | 2. Add single-line emotional reaction directive for untreated wound conditions.   |
+  +-----------------------------------------------------------------------------------+
+                                          |
+                                          v
+  +-----------------------------------------------------------------------------------+
+  | PHASE 3: STUDIO SANDBOX ENVELOPE INSPECTOR                                        |
+  | 1. Extend /studio/sandbox with an Envelope Inspector panel.                       |
+  | 2. Display included vs. excluded entities with explicit exclusion rationale.      |
+  +-----------------------------------------------------------------------------------+
+                                          |
+                                          v
+  +-----------------------------------------------------------------------------------+
+  | PHASE 4: STUDIO FOLDED GRAPH GENERATOR (OPTIONAL PRE-GENERATION)                  |
+  | 1. Studio tool to generate a 15–25 node folded bottleneck graph for a chapter.    |
+  | 2. In-browser editor to review, polish, and lock in 100% human-vetted scenes.     |
+  +-----------------------------------------------------------------------------------+
 ```
 
-#### 2.2 Mandatory Emotional Beat Injection
-If `playerState.conditions` contains an untreated condition (e.g., severe wound from previous turn's combat):
-- The engine injects a mandatory directive into the prompt:
-  > *`[MANDATORY EMOTIONAL DIRECTIVE — UNTREATED INJURY]: {TargetName} suffered a {severity} {type} during the last turn. Before introducing any new physical confrontation or moving forward, companions present MUST react realistically to this injury (expressing alarm, offering water, halting to dress or bind the wound, or questioning whether to turn back). Purely brushing off physical trauma is forbidden.`*
-
 ---
 
-### Pillar 3: Fast Scene Director (Plan 13 Runtime Integration)
+## 6. Success Metrics & Verification
 
-Before triggering the full literary prose generator:
-1. **Physical Boundary**: Establish a 20-meter bubble around the player.
-2. **Interactable Whitelist**: List 2–4 physical items in that radius (e.g. canteen, loose slate, walking staff).
-3. **Pacing Guardrail**: If the previous 2 turns were intense combat checks, enforce a "Reflective / Breathing" beat before the next check.
-
----
-
-### Pillar 4: Author Narrative Studio & Sandbox (Studio UI)
-
-To give the creator complete transparency and command over the narrative engine without editing backend TypeScript code or running Flutter builds:
-
-#### 4.1 Narrative Envelope Inspector (`/studio/sandbox` & `/studio/story/[id]/narrative`)
-A dedicated visual dashboard in the Next.js web application displaying:
-1. **Live Context Envelope Viewer**:
-   - Tabbed view showing exactly what is included in the prompt: *World Laws*, *Active Sub-Zone*, *Present NPCs (with presence rationale)*, *Eligible Bestiary*, *Active Conditions*, and *Retrieved Memories*.
-   - Red highlights for entities that were **excluded** (e.g., *"Marsh Serpent excluded: biome mismatch"*, *"Parviz Kateb excluded: camped at main trail"*).
-2. **Modular Tone & Behavior Controls**:
-   - Story-level and chapter-level configuration sliders:
-     - **Atmospheric Register**: Gritty/Grounded vs. Mythic/High Fantasy vs. Accessible/Modern Literary.
-     - **Pacing**: Reflective (high dialogue & character beats) vs. Kinetic (fast obstacles).
-     - **Entity Constraint Strictness**: Hard Canon (only listed entities) vs. Fluid (allow minor ambient fauna like desert beetles or crows).
-3. **Interactive Turn Simulator**:
-   - Author selects starting location, companions, and character condition.
-   - Author types an action (or picks a choice) and clicks **"Execute Narrative Turn"**.
-   - Displays the raw prompt, the generated prose, the choices, and any warnings from `ProseValidator` side-by-side.
-   - Allows instant re-roll or parameter adjustment.
-
----
-
-## 5. Phased Implementation Roadmap
-
-### Phase 1: Context Sanitization & Strict Exclusion (Immediate Core Fix)
-- [ ] Filter `bestiary` by `habitatLocationIds` and biome before building `WorkingContextEnvelope`.
-- [ ] Omit absent caravan NPCs from `activeNpcDossiers` when player is not in the caravan camp.
-- [ ] Strip out-of-context creature directives from `PromptAssembler.ts`.
-
-### Phase 2: Condition & Emotional Reaction Directives
-- [ ] Connect `playerState.conditions` to narrative generation.
-- [ ] Inject `MANDATORY EMOTIONAL DIRECTIVE` when untreated wounds or trauma exist.
-
-### Phase 3: Micro-Location & Sub-Zone Co-Presence
-- [ ] Add `subZoneId` tracking to `PlayerState` and World Bible locations.
-- [ ] Tag NPCs with `residentLocationId` / `currentSubZoneId` and `isAccompanyingPlayer`.
-
-### Phase 4: Author Narrative Studio & Sandbox UI
-- [ ] Build the Context Envelope Inspector in StoryForge Studio.
-- [ ] Add the interactive Turn Simulator with live prompt/output diffing.
-- [ ] Add author-facing tone and pacing controls to Story Settings.
-
----
-
-## 6. Success Metrics
-- **Zero Cross-Biome Hallucinations**: 0 occurrences of wetland creatures in desert zones across automated eval runs.
-- **Zero NPC Teleportation**: 0 instances of camped NPCs speaking in secluded sub-zones.
-- **Consistent Emotional Continuity**: 100% of severe injuries acknowledged by present companions in subsequent narrative turns.
-- **Author Transparency**: The author can inspect the complete prompt payload and debug generation in under 5 seconds from the Studio UI.
+1. **Ecology Verification**: Zero cross-biome creatures spawned across 50 test turns in desert/cave environments.
+2. **Co-Presence Verification**: Zero dialogue lines spoken by camped caravan members when the player is scouting away from the main camp.
+3. **Emotional Continuity**: 100% of severe injuries acknowledged by present companions in subsequent narrative turns.
+4. **Latency Budget**: Maintained turn latency $\le 2.5\text{s}$ on Flash model; 0ms for pre-generated/cached nodes.
+5. **Author Visibility**: Complete context envelope and entity exclusion rationale visible in `/studio/sandbox` in $< 1\text{s}$.
