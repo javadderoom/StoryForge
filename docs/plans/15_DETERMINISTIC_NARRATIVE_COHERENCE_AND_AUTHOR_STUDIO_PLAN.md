@@ -155,21 +155,22 @@ The 30–60s a player spends reading a scene is the only free compute in the loo
 
 ### 4.1 Narrow Live Bug Fixes (Zero Migration)
 
-#### Bug 1: The Bestiary Habitat Loophole & "MUST Draw" Trap
+#### Bug 1: The Bestiary Habitat Loophole & "MUST Draw" Trap (Completed)
 - **Current Problem**: In `worldContext.ts:463-467`, creatures pass if `habitatLocationIds.length === 0`. If authors haven't filled in habitats, all creatures pass. Then `PromptAssembler.ts:68` commands: *"When wildlife, predators, or monstrosities appear, you MUST draw from these canonical creatures"*. The model is trapped into placing wetland creatures in desert caves.
-- **Fix**:
-  1. If `habitatLocationIds` is specified, strictly require matching the current location.
-  2. If a creature lacks `habitatLocationIds`, keep it eligible in Phase 1 (no strict exclusion) and surface a Studio habitat-coverage nudge ("N creatures lack habitats") so authors fill the data. Strict exclusion is deferred: it needs a new `globalRoaming` flag on `WorldCreature` (does not exist today) plus a location biome tag (`category` today is only stronghold/dungeon/ruins/settlement/wilderness — no desert/arctic/underwater concept), i.e. an explicit data migration, not zero-migration.
-  3. When no creature matches the location, replace the imperative command at BOTH MUST-draw sites in `PromptAssembler.ts` — the context-header directive (`:66-70`) AND the continuity `BESTIARY GROUNDING & VISCERAL TRAITS` directive (`:250`, plus its Persian protocol twin if authored separately) — with:
-     > `[ENVIRONMENTAL GUIDANCE]: No predatory beasts inhabit this immediate terrain. Focus tension on terrain hazards, physical exhaustion, harsh weather, and environmental atmosphere.`
+- **Implementation & Resolution (Completed)**:
+  1. **Scene-Location Hierarchy Match**: Implemented in `worldContext.ts:494-510` (`pruneWorldBibleToScope`). Creatures with specified `habitatLocationIds` must strictly match the scene location or its ancestor hierarchy (`sceneLocationIds`). 1-hop connected travel destinations are strictly excluded.
+  2. **Phase 1 Zero-Migration**: Creatures lacking `habitatLocationIds` remain eligible roaming beasts.
+  3. **Studio Habitat Coverage Nudge**: Implemented in `LoreAuditor.ts:633-649` (`checkBestiaryHabitats`) as a `suggestion` finding (*"Creature lacks habitat location"*) to guide authors in Studio.
+  4. **Bilingual Environmental Guidance Fallback**: In `PromptAssembler.ts:71-79` and `:253-265`, when no creature matches the location, the imperative MUST-draw command is replaced in both English and Persian with:
+     > `[ENVIRONMENTAL GUIDANCE]: No predatory beasts inhabit this immediate terrain. Focus tension on terrain hazards, physical exhaustion, harsh weather, and environmental atmosphere — do NOT introduce wildlife, predators, or monstrosities into this scene.`
 
-#### Bug 2: Blanket Caravan Retinue Exposure
+#### Bug 2: Blanket Caravan Retinue Exposure (Completed)
 - **Current Problem**: In `worldContext.ts:421-428`, every trade route touching the location pulls all `travelingNpcIds`. Then `tradeRoutes.ts:114-115` prints the retinue names into the prompt string.
-- **Fix**:
-  1. Only pull caravan travelers into `activeNpcDossiers` when the traveler's `currentLocationId` equals the scene location (data that exists today — locations carry no camp/waypoint concept, so rules keyed on "Caravan Camp" are not computable).
-  2. Scope the retinue string in `tradeRoutes.ts` to omit individual retinue names unless at least one traveler satisfies rule 1 (caravan physically present); otherwise list only the route/cargo summary with no names.
+- **Implementation & Resolution (Completed)**:
+  1. **Strict Scene-Present Scoping**: Implemented in `worldContext.ts:767-788`. `scopedPresent` only contains NPCs physically located at the scene locations (`sceneLocs`), in `accompanyingNpcIds`, or in `explicitNpcs`. Caravan travelers and masters stationed at adjacent connected locations are excluded from the retinue string in `formatTradeRouteLine`.
+  2. **Scene Seclusion Guard**: In `narrativeTurn.ts:290-318`, when an authoritative party roster exists, companions left at camp (`isLeftBehindPartyMember`) stay marked as `nearby_resident` (`[STATIONED AT LOCATION — NOT currently in this immediate scene]`) and do not get marked `present` merely because their name appeared in previous campfire prose.
 
-#### Bug 3: Teleporting NPCs without Heavy Sub-Zone Migrations
+#### Bug 3: Teleporting NPCs without Heavy Sub-Zone Migrations (Completed)
 - **Fix**: Introduce `accompanyingNpcIds: string[]` on `PlayerState`.
 - Only resident NPCs of the current location OR NPCs in `accompanyingNpcIds` are eligible to speak in immediate dialogue. Caravan members resting at camp remain in the background.
 - **Roster Writer Architecture (Completed)**:
@@ -181,15 +182,14 @@ The 30–60s a player spends reading a scene is the only free compute in the loo
   2. **Session Seeding**: Initialized in `session/route.ts` from canonical companions (`worldBible.npcs` where `status === 'companion'` or `role === 'companion'`) and pre-authored `saga.ledger.npcStatuses`.
   3. **State Mutation & Round-Trip**: Emitted through `resolution.stateDiff.accompanyingNpcIds`, applied via `applyStateMutation`, stored on `playerState`, and synced to Flutter `GameState.accompanyingNpcIds` with full tri-state preservation (`undefined` = legacy ledger fallback, `[]` = alone, `[id, ...]` = active party). Localized consequence summaries (EN + FA) narrate the party change.
 
-#### Bug 4: Companion Apathy Toward Wounds
-- **Current Representation**: Conditions in `PlayerState` are currently `List<string>` (e.g. `['ناآشنا', 'هوشیار']`) and describe the *protagonist*, not companions (companion injuries are tracked nowhere — per-NPC wound storage is a separate schema decision, not part of this fix).
-- **Fix**: Support string tags like `'injury:bleeding:severe'` or `'wound:arrow'` without breaking existing sessions.
-- Inject a single-line directive for the *player's* untreated wound, which present allies must acknowledge:
+#### Bug 4: Companion Apathy Toward Wounds (Completed)
+- **Implementation & Resolution (Completed)**: Support string tags like `'injury:bleeding:severe'` or `'wound:arrow'` without breaking existing sessions.
+- Injected a single-line emotional directive in `PromptAssembler.ts:260-272` for the *player's* untreated wound, which present allies must acknowledge (suppressed when treated/bandaged):
   > `[CRITICAL EMOTIONAL BEAT]: The protagonist suffered an untreated injury last turn. Present allies must acknowledge this (checking the wound, offering water, or bandaging) before advancing.`
 
 ---
 
-### 4.2 Pillar 4: Living Vitality & Scene Presence Bar (Flutter Rework)
+### 4.2 Pillar 4: Living Vitality & Scene Presence Bar (Flutter Rework - Completed)
 
 Rework the beat header from the flat `ConditionChips` into a cohesive, atmospheric **Vitality & Scene Presence Bar** placed directly above each beat's narrative prose.
 
@@ -326,7 +326,7 @@ Authors and players can take an extraordinarily divergent playthrough in StoryFo
                                           |
                                           v
   +-----------------------------------------------------------------------------------+
-  | PHASE 2: LIVING VITALITY BAR & MICRO-LOCATION CLIENT REWORK                       |
+  | PHASE 2: LIVING VITALITY BAR & MICRO-LOCATION CLIENT REWORK (COMPLETED)           |
   | 1. Extend PlayerState in Flutter & web with currentSubZoneId.                     |
   | 2. Implement GameSessionState.locationWithSubZone resolution in provider.         |
   | 3. Completely rebuild ConditionChips into VitalityPresenceBar in Flutter app.     |
@@ -416,3 +416,25 @@ Authors and players can take an extraordinarily divergent playthrough in StoryFo
 - **Roster tri-state**: `accompanyingNpcIds` `undefined` = legacy (derive from ledger `companion` statuses); `[]` = explicitly alone; non-empty = authoritative. Nullable end-to-end (web + Flutter `PlayerState`) so the tri-state survives the JSON round-trip.
 - **Roster Writer (Completed)**: Pure deterministic action parser in `socialEngine.ts` (`detectPartyChange`, `applyPartyChange`) executed at `action/route.ts:371`. Supports recruitment/follow (`join`), leave-behind (`leave`), standalone scouting (`clear` -> `[]`), and camp return/regroup (`regroup` -> unions with canonical companions, filtering deceased/missing NPCs). Seeded at session creation in `session/route.ts`.
 - **Wound tags**: `injury|wound|bleed|lesion|trauma|lacerat|زخم|جراحت|خونریزی|مجروح` (case-insensitive), suppressed by treated markers (`treated|bandaged|healed|…|مداوا|پانسمان|بهبود|بخیه`). Single-line beat, language-picked, appended to the continuity directive; empty when no tag.
+
+### 7.5 Phase 1 & Phase 2 Verified Implementation Summary (October 2026)
+
+#### A. Phase 1: Zero-Migration Ecological Scoper & Proximity Fixes (Completed)
+- **Bug 1 (Bestiary Habitat Loophole & "MUST Draw" Trap)**:
+  - `pruneWorldBibleToScope` in [`worldContext.ts:494-510`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/worldContext.ts#L494-L510): Bestiary filtering strictly requires creatures with defined `habitatLocationIds` to match the immediate scene location or its ancestor hierarchy (`sceneLocationIds`). 1-hop connected travel destinations (e.g. a swamp connected to a desert cave) are strictly excluded from the scene context.
+  - Creatures with `habitatLocationIds: []` remain eligible in Phase 1 as roaming fauna (zero-migration).
+  - `LoreAuditor.ts:633-649`: Added `checkBestiaryHabitats` audit suggestion finding (*"Creature lacks habitat location"*) to nudge authors in Studio to anchor unlinked creatures.
+  - `PromptAssembler.ts:71-79` & `:253-265`: Injected bilingual `[ENVIRONMENTAL GUIDANCE]` fallback in both the context block and continuity directives when no creatures match, releasing the LLM from the "MUST draw" trap.
+- **Bug 2 & Bug 3 (Caravan Retinue & Party Isolation)**:
+  - `worldContext.ts:767-788`: Scoped `scopedPresent` in `buildWorldContextBlocks` to include only NPCs physically at the scene location (`sceneLocs`), in `accompanyingNpcIds`, or in `explicitNpcs`. Connected location residents are excluded from caravan retinue strings in `formatTradeRouteLine`.
+  - `narrativeTurn.ts:290-318`: In `assembleSceneEnvelope`, when an authoritative party roster exists, companions left at camp (`isLeftBehindPartyMember`) stay marked as `nearby_resident` (`[STATIONED AT LOCATION — NOT currently in this immediate scene]`) and do not get marked `present` merely because their name appeared in previous campfire prose.
+- **Verification**: 947 unit tests pass across all suites (`npm test`); TypeScript compiles with zero errors (`npx tsc --noEmit`).
+
+#### B. Phase 2: Living Vitality Bar & Micro-Location Client Rework (Completed)
+- **Model & Resolution**: Extended `PlayerState` with `currentSubZoneId?: string` across web ([`gameplay.ts:84`](file:///g:/Code/StoryForge/web/src/lib/types/gameplay.ts#L84), [`stateMutationEngine.ts:162`](file:///g:/Code/StoryForge/web/src/lib/engines/game/stateMutationEngine.ts#L162)) and Flutter ([`game_state.dart:488`](file:///g:/Code/StoryForge/app/lib/models/game_state.dart#L488)). Implemented `GameSessionState.locationWithSubZone` in [`game_session_provider.dart:210`](file:///g:/Code/StoryForge/app/lib/providers/game_session_provider.dart#L210).
+- **UI Rework**: Replaced flat `ConditionChips` with `VitalityPresenceBar` ([`condition_chips.dart`](file:///g:/Code/StoryForge/app/lib/ui/widgets/condition_chips.dart)):
+  - Glassmorphic container with 3 distinct zones: Spatial Presence (`Macro • Micro`), Body (physical vitality), and Mind (mental stance).
+  - Dynamic baseline derivation from $HP$, Stamina, WaterClock, and condition tags guarantees **zero dead states**.
+  - Integrated into [`reader_screen.dart:815-827`](file:///g:/Code/StoryForge/app/lib/ui/screens/reader_screen.dart#L815-L827).
+- **Verification**: Analyzed cleanly via `dart analyze` and `npx tsc --noEmit`.
+
