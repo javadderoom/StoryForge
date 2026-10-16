@@ -157,6 +157,8 @@ export interface StateMutationDiff {
   conditionsRemoved?: string[];
   /** Direct overwrite of playerState.conditions */
   conditions?: string[];
+  /** Plan 15 (Bug 3): explicit roster overwrite — set when the deterministic party parser fires (incl. []). */
+  accompanyingNpcIds?: string[];
   /** Power system rank updates (schoolId -> newRank) */
   powerRankChanges?: Record<string, number>;
   /** Power mastery point updates (schoolId -> pointsDelta) */

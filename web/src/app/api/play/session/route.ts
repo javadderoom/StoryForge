@@ -580,6 +580,18 @@ export async function POST(req: NextRequest) {
         : [normalizedProse];
     const normalizedProse = normalizeNpcText(openingBeat.narrativeText || '');
     const proseForms = proseVariants(normalizedProse);
+    // Plan 15 (Bug 3): starting companions from worldBible NPCs and saga ledger
+    const startingCompanionIds = Array.from(
+      new Set([
+        ...(story.saga?.ledger?.npcStatuses ?? [])
+          .filter((s: any) => s.status === 'companion')
+          .map((s: any) => s.npcId),
+        ...(story.worldBible?.npcs ?? [])
+          .filter((n: any) => n.status === 'companion' || n.role === 'companion')
+          .map((n: any) => n.id),
+      ])
+    );
+
     const initialRelationships: Record<string, any> = {};
     for (const npc of story.worldBible?.npcs || []) {
       const normalizedName = normalizeNpcText(npc.name || '');
@@ -595,7 +607,10 @@ export async function POST(req: NextRequest) {
           (normalizedTitle && normalizedProse.includes(normalizedTitle))
         )
       );
-      const isCompanion = (npc as any).status === 'companion';
+      const isCompanion =
+        (npc as any).status === 'companion' ||
+        (npc as any).role === 'companion' ||
+        startingCompanionIds.includes(npc.id);
       if (isMentionedInProse || isCompanion) {
         initialRelationships[npc.id] = {
           trust: npc.initialTrust ?? 0,
@@ -651,6 +666,7 @@ export async function POST(req: NextRequest) {
       activeQuestIds: ['quest_prologue'],
       completedQuestIds: [],
       currentLocationId: initialBeat.locationId,
+      accompanyingNpcIds: startingCompanionIds,
       conditions: (story as any).manifest?.startingConditions || (story as any).startingConditions || ['ناآشنا', 'هوشیار'],
     };
 
@@ -670,6 +686,18 @@ export async function POST(req: NextRequest) {
         ? authoredBeatChoices
         : await generateOpeningChoices(story, initialBeat, playerState);
 
+    const initialNpcStatuses = [...(story.saga?.ledger?.npcStatuses ?? [])];
+    for (const companionId of startingCompanionIds) {
+      if (!initialNpcStatuses.some((s) => s.npcId === companionId)) {
+        const npcObj = (story.worldBible?.npcs ?? []).find((n) => n.id === companionId);
+        initialNpcStatuses.push({
+          npcId: companionId,
+          npcName: npcObj?.name ?? companionId,
+          status: 'companion',
+        });
+      }
+    }
+
     const session: PlaythroughSession = {
       // A CSPRNG UUID (122 bits), not `Date.now()` + `Math.random()` (~31 bits
       // from a non-cryptographic PRNG, enumerable in hours). The sessionId is the
@@ -682,11 +710,11 @@ export async function POST(req: NextRequest) {
       turnCount: 1,
       playerState,
       sagaLedger: {
-        factionReputations: [],
-        npcStatuses: [],
-        keyItems: [],
-        chapterSummaries: [],
-        openPlotThreads: [],
+        factionReputations: [...(story.saga?.ledger?.factionReputations ?? [])],
+        npcStatuses: initialNpcStatuses,
+        keyItems: [...(story.saga?.ledger?.keyItems ?? [])],
+        chapterSummaries: [...(story.saga?.ledger?.chapterSummaries ?? [])],
+        openPlotThreads: [...(story.saga?.ledger?.openPlotThreads ?? [])],
         worldBibleVersion: (story as unknown as { worldBibleVersion?: number }).worldBibleVersion
           || story.worldBible.worldBibleVersion
           || 1,

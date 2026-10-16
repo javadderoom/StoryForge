@@ -15,6 +15,7 @@ import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMig
 import { calculateActionXp, applyXpGain } from '@/lib/engines/game/progressionEngine';
 import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
 import { pruneInactiveZoneClocks } from '@/lib/engines/game/threatClock';
+import { resolveAccompanyingIds } from '@/lib/engines/narrative/worldContext';
 
 const geminiAdapter = new GeminiAdapter();
 
@@ -362,6 +363,52 @@ export async function POST(req: NextRequest) {
         resolution.stateDiff.relationshipChanges = changes;
         resolution.consequenceSummary += ` ${social.note}`;
       }
+    }
+
+    // 2b¾. Plan 15 (Bug 3): deterministic party roster writer. Explicit
+    // follow / leave-behind / go-alone / regroup commands rewrite the accompanying
+    // roster with zero model calls (same mention-matching as pressure/social).
+    const partyChange = GameEngine.detectPartyChange(playerActionText, story.worldBible.npcs ?? []);
+    if (partyChange) {
+      const effectiveRoster = resolveAccompanyingIds(
+        playerState,
+        (session?.sagaLedger as WorldStateLedger | null | undefined) ?? null
+      );
+      const deadOrMissingIds = new Set(
+        ((session?.sagaLedger as WorldStateLedger | null | undefined)?.npcStatuses ?? [])
+          .filter((s) => s.status === 'dead' || s.status === 'missing' || s.status === 'imprisoned')
+          .map((s) => s.npcId)
+      );
+      const baseCompanionIds = Array.from(
+        new Set([
+          ...((session?.sagaLedger as WorldStateLedger | null | undefined)?.npcStatuses ?? [])
+            .filter((s) => s.status === 'companion')
+            .map((s) => s.npcId),
+          ...(story.worldBible?.npcs ?? [])
+            .filter((n: any) => n.status === 'companion' || n.role === 'companion')
+            .map((n) => n.id),
+        ])
+      ).filter((id) => !deadOrMissingIds.has(id));
+
+      const finalRoster = GameEngine.applyPartyChange(effectiveRoster, partyChange, baseCompanionIds);
+      resolution.stateDiff.accompanyingNpcIds = finalRoster;
+      const partyNote =
+        partyChange.kind === 'clear'
+          ? isPersianStory
+            ? 'قهرمان به‌تنهایی پیش می‌رود؛ همراهان در پس‌زمینه می‌مانند.'
+            : 'The protagonist moves on alone; companions stay in the background.'
+          : partyChange.kind === 'regroup'
+            ? isPersianStory
+              ? 'قهرمان به کاروان و همراهان بازگشت.'
+              : 'The protagonist regroups with the caravan companions.'
+          : partyChange.kind === 'join'
+            ? isPersianStory
+              ? `${partyChange.npc.name} به گروه همراه پیوست.`
+              : `${partyChange.npc.name} joins the travelling party.`
+            : isPersianStory
+              ? `${partyChange.npc.name} از گروه جدا شد و ماند.`
+              : `${partyChange.npc.name} stays behind.`;
+      resolution.consequenceSummary += ` ${partyNote}`;
     }
 
         // 2c. Strict, method-sourced secret discovery (Plan 08 Phase 3): a secret

@@ -319,10 +319,12 @@ export function detectPressureTarget(
   if (!isPressureAction(actionText)) return null;
   const lower = actionText.toLowerCase();
   // Strip beneficiary / purpose clauses so "for the caravan" or "to help Radman" doesn't treat the beneficiary as the pressure target
-  const targetableText = lower.replace(
-    /(?:برای|به نفع|به خاطر|جهت|به قصد|در راه|for|on behalf of|to help|in favor of)\s+[\w\u0600-\u06FF\u200C]+/gi,
-    ' '
-  );
+  const targetableText = lower
+    .replace(
+      /(?:برای|به نفع|به خاطر|جهت|به قصد|در راه|for|on behalf of|to help|in favor of)\s+[\w\u0600-\u06FF\u200C]+/gi,
+      ' '
+    )
+    .replace(/[.,،؟!؛:()«»"'`\-_/\\#@$%^&*~+=<>]/g, ' ');
   for (const npc of npcs ?? []) {
     const nameWords = npc.name
       .toLowerCase()
@@ -571,10 +573,12 @@ export function detectSocialTarget(
   if (!isSocialAction(actionText)) return null;
   const lower = actionText.toLowerCase();
   // Strip beneficiary / purpose clauses so "for the caravan" or "to help Radman" doesn't treat the beneficiary as the direct target
-  const targetableText = lower.replace(
-    /(?:برای|به نفع|به خاطر|جهت|به قصد|در راه|for|on behalf of|to help|in favor of)\s+[\w\u0600-\u06FF\u200C]+/gi,
-    ' '
-  );
+  const targetableText = lower
+    .replace(
+      /(?:برای|به نفع|به خاطر|جهت|به قصد|در راه|for|on behalf of|to help|in favor of)\s+[\w\u0600-\u06FF\u200C]+/gi,
+      ' '
+    )
+    .replace(/[.,،؟!؛:()«»"'`\-_/\\#@$%^&*~+=<>]/g, ' ');
   for (const npc of npcs ?? []) {
     const nameWords = npc.name
       .toLowerCase()
@@ -633,4 +637,95 @@ export function applySocialOutcome(
     default:
       return { trustDelta: -3, note: 'A social blunder — the gesture backfires.' };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Plan 15 (Bug 3): deterministic party roster writer.
+// Explicit follow / leave-behind / go-alone commands rewrite the accompanying
+// roster with zero model calls — same mention-matching word rules as the
+// pressure/social parsers. The writer LLM only narrates; state writes stay
+// deterministic (see action route §2b¾).
+// ---------------------------------------------------------------------------
+
+/** "Take this NPC with me" verbs (EN + FA). A named NPC is still required. */
+export const PARTY_JOIN_KEYWORDS =
+  /come with|join me|join us|follow me|take .* with|bring .* along|accompany|travel with|همراه|بپیوند|به ما بپیوند|دنبال.*کن|با من بیا|با ما بیا|همراه من/;
+
+/** "Leave this NPC behind" verbs (EN + FA). A named NPC is still required. */
+export const PARTY_LEAVE_KEYWORDS =
+  /leave .* behind|stay here|wait here|remain here|guard the|hold this|stand watch|بمان|صبر کن|منتظر بمان|اینجا بمان|نگهبانی بده/;
+
+/** Standalone "I go alone" markers (EN + FA). No NPC mention needed. */
+const PARTY_ALONE_CORE =
+  /by myself|on my own|without (them|anyone|an escort)|no one comes|nobody comes|leave (them|everyone) behind|go it alone|leave them|تنها می‌روم|به‌تنهایی|کسی نیاید|بدون همراه|خودم می‌روم|همه بمانند/;
+
+/** Bare "alone" only counts with a motion verb (so "I feel alone" is safe). */
+const PARTY_ALONE_MOTION =
+  /(go|going|continue|scout|move|ride|walk|head|proceed|slip|return|travel)\b.{0,30}\balone\b/i;
+
+/** Camp / caravan return & regroup markers (EN + FA). Restores base companions. */
+export const PARTY_REGROUP_KEYWORDS =
+  /(?:return|head back|go back|back|regroup|rejoin)\s+(?:to\s+|with\s+)?(?:the\s+)?(?:camp|caravan|campground|main body|group|party)|rejoin the (?:caravan|camp|party)|بازگشت به (?:کاروان|اردوگاه|کمپ|گروه)|برگشت(?:ن)? به (?:کاروان|اردوگاه|کمپ|گروه)|پیوستن (?:دوباره )?به (?:کاروان|اردوگاه|گروه)|(?:رفتن|بازگشتن|برگشتن) پیش بقیه|پیش بقیه (?:رفتن|بازگشتن|برگشتن)|برگردیم به (?:کاروان|اردوگاه|کمپ)/i;
+
+export type PartyChange =
+  | { kind: 'join'; npc: NPCDossier }
+  | { kind: 'leave'; npc: NPCDossier }
+  | { kind: 'clear' }
+  | { kind: 'regroup' };
+
+function findMentionedPartyNpc(actionText: string, npcs: NPCDossier[]): NPCDossier | null {
+  const targetableText = actionText
+    .toLowerCase()
+    .replace(
+      /(?:برای|به نفع|به خاطر|جهت|به قصد|در راه|for|on behalf of|to help|in favor of)\s+[\w\u0600-\u06FF\u200C]+/gi,
+      ' '
+    )
+    .replace(/[.,،؟!؛:()«»"'`\-_/\\#@$%^&*~+=<>]/g, ' ');
+  for (const npc of npcs ?? []) {
+    const nameWords = npc.name
+      .toLowerCase()
+      .split(/[^a-z\u0600-\u06FF\u200C]+/)
+      .filter((w) => w.length >= 3 && !NAME_STOPWORDS.has(w));
+    if (nameWords.length === 0) continue;
+    if (nameWords.some((w) => {
+      const regex = new RegExp(`(^|[^a-z\u0600-\u06FF\u200C])${w}([^a-z\u0600-\u06FF\u200C]|$)`, 'i');
+      return regex.test(targetableText);
+    })) return npc;
+  }
+  return null;
+}
+
+/**
+ * Detects an explicit party change command. Alone-clear needs no NPC;
+ * join/leave need a mentioned NPC plus the matching verbs. Regroup restores
+ * base companions when returning to camp/caravan. Pressure actions
+ * are excluded (coercion is not recruitment). Null = no roster change.
+ */
+export function detectPartyChange(
+  actionText: string,
+  npcs: NPCDossier[]
+): PartyChange | null {
+  if (!actionText || isPressureAction(actionText)) return null;
+  const lower = actionText.toLowerCase();
+  if (PARTY_ALONE_CORE.test(lower) || PARTY_ALONE_MOTION.test(actionText)) return { kind: 'clear' };
+  const mentioned = findMentionedPartyNpc(actionText, npcs);
+  if (mentioned && PARTY_LEAVE_KEYWORDS.test(lower)) return { kind: 'leave', npc: mentioned };
+  if (mentioned && PARTY_JOIN_KEYWORDS.test(lower)) return { kind: 'join', npc: mentioned };
+  if (PARTY_REGROUP_KEYWORDS.test(lower)) return { kind: 'regroup' };
+  return null;
+}
+
+/** Pure roster transition: join unions, leave removes, clear empties, regroup merges default companions. */
+export function applyPartyChange(
+  current: string[],
+  change: PartyChange,
+  defaultCompanions: string[] = []
+): string[] {
+  if (change.kind === 'clear') return [];
+  if (change.kind === 'regroup') {
+    const set = new Set([...current, ...defaultCompanions]);
+    return Array.from(set);
+  }
+  if (change.kind === 'leave') return current.filter((id) => id !== change.npc.id);
+  return current.includes(change.npc.id) ? [...current] : [...current, change.npc.id];
 }

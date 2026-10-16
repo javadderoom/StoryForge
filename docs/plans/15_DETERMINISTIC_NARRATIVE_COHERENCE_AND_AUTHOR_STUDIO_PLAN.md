@@ -164,7 +164,14 @@ The 30–60s a player spends reading a scene is the only free compute in the loo
 #### Bug 3: Teleporting NPCs without Heavy Sub-Zone Migrations
 - **Fix**: Introduce `accompanyingNpcIds: string[]` on `PlayerState`.
 - Only resident NPCs of the current location OR NPCs in `accompanyingNpcIds` are eligible to speak in immediate dialogue. Caravan members resting at camp remain in the background.
-- **Open owners (must decide before implementing)**: who populates the roster (player-action parser, LLM `npcStatusChanges`, Studio authoring, or derivation from companion status), who clears it ("I scout ahead alone" must write `[]`), and where it lives (`PlayerState` vs. session). There is no existing roster to default from — ship this together with Bug 4 so "present allies" has a computable meaning.
+- **Roster Writer Architecture (Completed)**:
+  1. **Deterministic Action Parser**: Implemented via `GameEngine.detectPartyChange` and `applyPartyChange` in `socialEngine.ts`. Rewrites the accompanying roster purely based on reader actions with zero LLM model calls or schema drift.
+     - **Join**: "come with / join me / follow me / با من بیا" + mentioned NPC adds them to `accompanyingNpcIds`.
+     - **Leave**: "stay here / wait here / اینجا بمان / نگهبانی بده" + mentioned NPC removes them.
+     - **Go Alone**: "by myself / on my own / scout alone / تنها می‌روم / به‌تنهایی" sets `accompanyingNpcIds: []` (explicitly alone).
+     - **Camp Return & Regroup**: "return to camp / head back to caravan / regroup with caravan / بازگشت به کاروان / برگشت به اردوگاه" automatically rejoins with caravan base companions (excluding deceased/missing NPCs).
+  2. **Session Seeding**: Initialized in `session/route.ts` from canonical companions (`worldBible.npcs` where `status === 'companion'` or `role === 'companion'`) and pre-authored `saga.ledger.npcStatuses`.
+  3. **State Mutation & Round-Trip**: Emitted through `resolution.stateDiff.accompanyingNpcIds`, applied via `applyStateMutation`, stored on `playerState`, and synced to Flutter `GameState.accompanyingNpcIds` with full tri-state preservation (`undefined` = legacy ledger fallback, `[]` = alone, `[id, ...]` = active party). Localized consequence summaries (EN + FA) narrate the party change.
 
 #### Bug 4: Companion Apathy Toward Wounds
 - **Current Representation**: Conditions in `PlayerState` are currently `List<string>` (e.g. `['ناآشنا', 'هوشیار']`) and describe the *protagonist*, not companions (companion injuries are tracked nowhere — per-NPC wound storage is a separate schema decision, not part of this fix).
@@ -247,8 +254,8 @@ Contextual environmental stance tags:
                                           |
                                           v
   +-----------------------------------------------------------------------------------+
-  | PHASE 3: ACCOMPANYING PARTY ROSTER & WOUND DIRECTIVES                             |
-  | 1. Support accompanyingNpcIds on PlayerState (caps immediate dialogue).           |
+  | PHASE 3: ACCOMPANYING PARTY ROSTER & WOUND DIRECTIVES (COMPLETED)                 |
+  | 1. Support accompanyingNpcIds on PlayerState & deterministic Roster Writer.        |
   | 2. Add single-line emotional reaction directive for untreated wound conditions.   |
   +-----------------------------------------------------------------------------------+
                                           |
@@ -310,12 +317,12 @@ Contextual environmental stance tags:
   - Tags matching mental keywords (`'هوشیار'`, `'گیج'`, `'ناآشنا'`, `'مظنون'`) map to the **Mind** column.
   - If either column has no explicit condition, the dynamic baseline auto-derives healthy/vigorous status from $HP$ and stamina, guaranteeing **zero dead states**.
 
-### 7.3 State Ownership (must decide before Phases 2–3)
-- `accompanyingNpcIds`: no producer exists today. Decide writer (player-action parser, LLM `npcStatusChanges`, Studio authoring, or derivation), clearer ("scout ahead alone" writes `[]`), and home (`PlayerState` vs. session).
+### 7.3 State Ownership
+- `accompanyingNpcIds`: Fully implemented & resolved. Home is `PlayerState.accompanyingNpcIds` (mirrored in Flutter `GameState.accompanyingNpcIds`). Written deterministically by `GameEngine.detectPartyChange` / `applyPartyChange` in `socialEngine.ts` and `action/route.ts` (§2b¾). Seeded at session initialization in `session/route.ts`. Cleared (`[]`) on explicit "scout alone / go alone" actions. Regroups with camp companions on "return to camp / caravan" actions.
 - `currentSubZoneId`: no writer exists today. Decide who sets it on movement and where it lives; the Flutter client parses zero subZones today, so `locationWithSubZone` is new model + provider work, not an extension of `locationName` (`game_session_provider.dart:195`).
 - Wound tags (`'injury:bleeding:severe'` style strings on the protagonist's `conditions`) need no migration; per-NPC wounds are out of scope for Bug 4.
 
 ### 7.4 Phase 3 v1 Decisions (2026-10-16, implemented)
 - **Roster tri-state**: `accompanyingNpcIds` `undefined` = legacy (derive from ledger `companion` statuses); `[]` = explicitly alone; non-empty = authoritative. Nullable end-to-end (web + Flutter `PlayerState`) so the tri-state survives the JSON round-trip.
-- **Writer deferred**: no producer writes the roster yet (no LLM `npcStatusChanges` schema change, no action-parser rule) — the field is enforced at all three read points (prune, active set, dossiers) and activates as soon as a writer lands.
+- **Roster Writer (Completed)**: Pure deterministic action parser in `socialEngine.ts` (`detectPartyChange`, `applyPartyChange`) executed at `action/route.ts:371`. Supports recruitment/follow (`join`), leave-behind (`leave`), standalone scouting (`clear` -> `[]`), and camp return/regroup (`regroup` -> unions with canonical companions, filtering deceased/missing NPCs). Seeded at session creation in `session/route.ts`.
 - **Wound tags**: `injury|wound|bleed|lesion|trauma|lacerat|زخم|جراحت|خونریزی|مجروح` (case-insensitive), suppressed by treated markers (`treated|bandaged|healed|…|مداوا|پانسمان|بهبود|بخیه`). Single-line beat, language-picked, appended to the continuity directive; empty when no tag.

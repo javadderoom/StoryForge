@@ -47,6 +47,8 @@ import {
   isSocialAction,
   detectSocialTarget,
   applySocialOutcome,
+  detectPartyChange,
+  applyPartyChange,
 } from './socialEngine';
 import { resolveDefeat } from './defeatEngine';
 import {
@@ -86,6 +88,8 @@ export class GameEngine {
   public static isSocialAction = isSocialAction;
   public static detectSocialTarget = detectSocialTarget;
   public static applySocialOutcome = applySocialOutcome;
+  public static detectPartyChange = detectPartyChange;
+  public static applyPartyChange = applyPartyChange;
 
   // Defeat resolution
   public static resolveDefeat = resolveDefeat;

@@ -1009,6 +1009,16 @@ describe('GameEngine - Social Trust Detection', () => {
     secrets: [],
   } as unknown as NPCDossier;
 
+  const sara: NPCDossier = {
+    id: 'npc_sara',
+    name: 'سارا دختر آهنگر',
+    role: 'guide',
+    personality: 'brave',
+    speechStyle: 'warm',
+    initialTrust: 40,
+    secrets: [],
+  } as unknown as NPCDossier;
+
   describe('isSocialAction', () => {
     it('detects positive social keywords (EN)', () => {
       assert.equal(GameEngine.isSocialAction('I greet the merchant warmly'), true);
@@ -1053,6 +1063,88 @@ describe('GameEngine - Social Trust Detection', () => {
         GameEngine.detectSocialTarget('Attack Baroness Vey', [baroness, merchant]),
         null
       );
+    });
+  });
+
+  describe('detectPartyChange / applyPartyChange (Plan 15)', () => {
+    it('detects join commands (EN + FA)', () => {
+      assert.equal(
+        GameEngine.detectPartyChange('Baroness Vey, come with me', [baroness, merchant])?.kind,
+        'join'
+      );
+      assert.equal(
+        GameEngine.detectPartyChange('Ask Kael the Merchant to join us', [baroness, merchant])?.kind,
+        'join'
+      );
+      assert.equal(
+        GameEngine.detectPartyChange('بارونس، با من بیا', [baroness, merchant]),
+        null
+      );
+      assert.equal(
+        GameEngine.detectPartyChange('سارا، با من بیا', [baroness, merchant, sara])?.kind,
+        'join'
+      );
+    });
+
+    it('detects leave-behind and go-alone commands', () => {
+      const leave = GameEngine.detectPartyChange('Tell Kael the Merchant to wait here', [baroness, merchant]);
+      assert.equal(leave?.kind, 'leave');
+      assert.equal((leave as { npc: { id: string } })?.npc?.id, 'npc_merchant');
+      assert.equal(GameEngine.detectPartyChange('I scout ahead alone', [baroness, merchant])?.kind, 'clear');
+      assert.equal(GameEngine.detectPartyChange('به‌تنهایی ادامه می‌دهم', [baroness, merchant])?.kind, 'clear');
+    });
+
+    it('detects camp return and regroup commands (EN + FA)', () => {
+      assert.equal(GameEngine.detectPartyChange('Return to camp', [baroness, merchant])?.kind, 'regroup');
+      assert.equal(GameEngine.detectPartyChange('بازگشت به کاروان', [baroness, merchant])?.kind, 'regroup');
+      assert.equal(GameEngine.detectPartyChange('برگشت به اردوگاه و گزارش به بارونس', [baroness, merchant])?.kind, 'regroup');
+      assert.equal(GameEngine.detectPartyChange('Head back to the caravan', [baroness, merchant])?.kind, 'regroup');
+      assert.equal(GameEngine.detectPartyChange('Regroup with caravan', [baroness, merchant])?.kind, 'regroup');
+      // Explicit alone modifier wins over regroup intent
+      assert.equal(GameEngine.detectPartyChange('Return to camp alone', [baroness, merchant])?.kind, 'clear');
+    });
+
+    it('ignores non-party actions, beneficiaries, pressure, and bare feelings', () => {
+      assert.equal(GameEngine.detectPartyChange('Greet Baroness Vey warmly', [baroness, merchant]), null);
+      assert.equal(GameEngine.detectPartyChange('Fight for Baroness Vey', [baroness, merchant]), null);
+      assert.equal(GameEngine.detectPartyChange('Threaten Baroness Vey to come with me', [baroness, merchant]), null);
+      assert.equal(GameEngine.detectPartyChange('I feel alone in this crowd', [baroness, merchant]), null);
+      assert.equal(GameEngine.detectPartyChange('Scout the ravine', [baroness, merchant]), null);
+    });
+
+    it('applies join/leave/clear/regroup transitions purely', () => {
+      const join = { kind: 'join', npc: baroness } as const;
+      assert.deepEqual(GameEngine.applyPartyChange([], join), ['npc_baroness']);
+      assert.deepEqual(GameEngine.applyPartyChange(['npc_baroness'], join), ['npc_baroness']);
+      assert.deepEqual(
+        GameEngine.applyPartyChange(['npc_baroness'], { kind: 'leave', npc: baroness } as const),
+        []
+      );
+      assert.deepEqual(
+        GameEngine.applyPartyChange(['npc_baroness', 'npc_merchant'], { kind: 'clear' } as const),
+        []
+      );
+      assert.deepEqual(
+        GameEngine.applyPartyChange([], { kind: 'regroup' } as const, ['npc_baroness', 'npc_merchant']),
+        ['npc_baroness', 'npc_merchant']
+      );
+      assert.deepEqual(
+        GameEngine.applyPartyChange(['npc_scout'], { kind: 'regroup' } as const, ['npc_baroness']),
+        ['npc_scout', 'npc_baroness']
+      );
+    });
+
+    it('writes the roster through applyStateMutation', () => {
+      const base: any = { stats: {}, resources: {}, inventory: [], conditions: [] };
+      const joined = GameEngine.applyStateMutation(base, { accompanyingNpcIds: ['npc_baroness'] });
+      assert.deepEqual(joined.accompanyingNpcIds, ['npc_baroness']);
+      const cleared = GameEngine.applyStateMutation(
+        { ...base, accompanyingNpcIds: ['npc_baroness'] },
+        { accompanyingNpcIds: [] }
+      );
+      assert.deepEqual(cleared.accompanyingNpcIds, []);
+      const untouched = GameEngine.applyStateMutation({ ...base }, {});
+      assert.equal(untouched.accompanyingNpcIds, undefined);
     });
   });
 

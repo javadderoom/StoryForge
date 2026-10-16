@@ -154,6 +154,11 @@ export function applyStateMutation(
 
   updated.conditions = activeConditions;
 
+  // Plan 15 (Bug 3): explicit roster overwrite (set when present, incl. []).
+  if (Array.isArray(diff.accompanyingNpcIds)) {
+    updated.accompanyingNpcIds = [...diff.accompanyingNpcIds];
+  }
+
   // 6. Apply Relationship Changes
   if (diff.relationshipChanges) {
     for (const [npcId, change] of Object.entries(diff.relationshipChanges)) {
