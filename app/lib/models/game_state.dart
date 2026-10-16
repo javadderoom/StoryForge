@@ -486,6 +486,8 @@ class PlayerState {
   final List<GameItem> inventory;
   final PlayerEquipment equipment;
   final String currentLocationId;
+  /// Plan 15 (Pillar 4): active sub-zone / micro-location within currentLocationId.
+  final String? currentSubZoneId;
   final List<String> discoveredLocationIds;
   final List<String> discoveredCreatureIds;
   final Map<String, NpcRelationship> relationships;
@@ -524,6 +526,7 @@ class PlayerState {
     required this.inventory,
     this.equipment = const PlayerEquipment(),
     required this.currentLocationId,
+    this.currentSubZoneId,
     this.discoveredLocationIds = const [],
     this.discoveredCreatureIds = const [],
     this.relationships = const {},
@@ -579,6 +582,7 @@ class PlayerState {
     List<GameItem>? inventory,
     PlayerEquipment? equipment,
     String? currentLocationId,
+    String? currentSubZoneId,
     List<String>? discoveredLocationIds,
     List<String>? discoveredCreatureIds,
     Map<String, NpcRelationship>? relationships,
@@ -609,6 +613,7 @@ class PlayerState {
       inventory: inventory ?? this.inventory,
       equipment: equipment ?? this.equipment,
       currentLocationId: currentLocationId ?? this.currentLocationId,
+      currentSubZoneId: currentSubZoneId ?? this.currentSubZoneId,
       discoveredLocationIds: discoveredLocationIds ?? this.discoveredLocationIds,
       discoveredCreatureIds: discoveredCreatureIds ?? this.discoveredCreatureIds,
       relationships: relationships ?? this.relationships,
@@ -659,6 +664,7 @@ class PlayerState {
       inventory: rawInv.map((i) => GameItem.fromJson(i)).toList(),
       equipment: PlayerEquipment.fromJson(rawEq),
       currentLocationId: json['currentLocationId'] ?? '',
+      currentSubZoneId: json['currentSubZoneId']?.toString(),
       discoveredLocationIds: rawLocs.map((e) => e.toString()).toList(),
       discoveredCreatureIds: rawCreatures.map((e) => e.toString()).toList(),
       relationships: rawRel.map((k, v) => MapEntry(k, NpcRelationship.fromJson(v as Map<String, dynamic>))),
@@ -691,6 +697,7 @@ class PlayerState {
         'inventory': inventory.map((i) => i.toJson()).toList(),
         'equipment': equipment.toJson(),
         'currentLocationId': currentLocationId,
+        if (currentSubZoneId != null) 'currentSubZoneId': currentSubZoneId,
         'discoveredLocationIds': discoveredLocationIds,
         'discoveredCreatureIds': discoveredCreatureIds,
         'relationships': relationships.map((k, v) => MapEntry(k, v.toJson())),

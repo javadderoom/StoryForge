@@ -80,6 +80,8 @@ export interface PlayerState {
   activeQuestIds: string[];
   completedQuestIds: string[];
   currentLocationId: string;
+  /** Plan 15 (Pillar 4): active sub-zone / micro-location within currentLocationId. */
+  currentSubZoneId?: string;
   /** Plan 13: active tension/threat clocks travelling with the session. */
   activeTensionClocks?: TensionClock[];
   /** Dynamic physical/mental/situational conditions (e.g. ['تشنه', 'خسته', 'ناآشنا']) */
@@ -159,6 +161,8 @@ export interface StateMutationDiff {
   conditions?: string[];
   /** Plan 15 (Bug 3): explicit roster overwrite — set when the deterministic party parser fires (incl. []). */
   accompanyingNpcIds?: string[];
+  /** Plan 15 (Pillar 4): micro-location / sub-zone transition within currentLocationId. */
+  currentSubZoneId?: string;
   /** Power system rank updates (schoolId -> newRank) */
   powerRankChanges?: Record<string, number>;
   /** Power mastery point updates (schoolId -> pointsDelta) */

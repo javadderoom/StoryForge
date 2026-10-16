@@ -159,6 +159,11 @@ export function applyStateMutation(
     updated.accompanyingNpcIds = [...diff.accompanyingNpcIds];
   }
 
+  // Plan 15 (Pillar 4): micro-location / sub-zone updates
+  if (diff.currentSubZoneId !== undefined) {
+    updated.currentSubZoneId = diff.currentSubZoneId || undefined;
+  }
+
   // 6. Apply Relationship Changes
   if (diff.relationshipChanges) {
     for (const [npcId, change] of Object.entries(diff.relationshipChanges)) {

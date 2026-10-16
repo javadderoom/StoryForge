@@ -812,13 +812,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               }),
                             ],
 
-                            // Dynamic Character Conditions / Status Chips + current location
+                            // Plan 15 (Pillar 4): Living Vitality & Scene Presence Bar
                             ConditionChips(
                               conditions: session.playerState?.conditions ?? const [],
                               isPersian: isPersian,
-                              locationName: GameSessionState.locationName(
+                              playerState: session.playerState,
+                              lore: session.lore,
+                              locationName: GameSessionState.locationWithSubZone(
                                 session.lore,
                                 session.playerState?.currentLocationId,
+                                session.playerState?.currentSubZoneId,
                               ),
                             ),
 

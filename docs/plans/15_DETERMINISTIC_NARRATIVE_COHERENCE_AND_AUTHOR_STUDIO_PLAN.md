@@ -139,6 +139,14 @@ The 30–60s a player spends reading a scene is the only free compute in the loo
   | - Extend /studio/sandbox: inspect included vs. excluded entities with explicit rationale.     |
   | - Optional Chapter Graph Generator: generate and hand-polish 15–25 scene folded graphs.       |
   +-----------------------------------------------------------------------------------------------+
+                                                 |
+                                                 v
+  +-----------------------------------------------------------------------------------------------+
+  | PILLAR 6: COPY-ON-WRITE LIVING WORLD STATE OVERLAY (PER-PLAYTHROUGH BRANCH ISOLATION)         |
+  | - Persistent delta overlay in sagaLedger (locationStatuses, factionStatuses, worldEvents).     |
+  | - Cataclysm projection: destroyed cities, severed bridges, dead mentors stay dead per player. |
+  | - Zero database bloat: canonical World Bible remains immutable; delta projected at runtime.   |
+  +-----------------------------------------------------------------------------------------------+
 ```
 
 ---
@@ -230,6 +238,79 @@ Contextual environmental stance tags:
 
 ---
 
+### 4.3 Pillar 6: Copy-on-Write (CoW) Living World State Overlay & Playthrough Isolation
+
+#### A. The Problem: Irreversible World Cataclysms & Player Divergence
+When a player makes high-stakes decisions during a campaign:
+- **Major Character Deaths**: A mentor, companion, or imperial monarch is executed or falls in battle (e.g. Borzou dies defending the caravan, or Baroness Vey is slain).
+- **Macro Cataclysms / Cities Wiped Off the Map**: A siege breaches the walls, an earthquake shatters the mountain pass, or a plague/curse renders an entire metropolis a ruined, uninhabitable wasteland (e.g. the Citadel of Winds collapses into a smoking crater; its sub-zones are obliterated; bridges are severed).
+- **Faction Fracture & Geopolitical Collapse**: A dominant faction is overthrown, a civil war breaks out, or an underground guild seizes power.
+- **Relic / Artifact Destinies**: Legendary world relics are consumed, shattered, stolen, or unsealed.
+
+**The Danger**: If world modifications overwrite canonical entities, every player's campaign or the master Story Bible is permanently corrupted. If they are not recorded, the AI hallucinates living dead characters and intact bustling cities in subsequent turns, completely shattering narrative immersion. Full JSON cloning of the entire World Bible for each session causes database bloat, breaks schema migrations, and severs upstream author updates.
+
+#### B. The Solution: Copy-on-Write (CoW) Delta Overlay Architecture
+We treat the canonical `story.worldBible` as an immutable **Base Layer** (version-pinned via `worldBibleVersion`). Each player playthrough maintains a lightweight **Delta Overlay Layer** directly inside `session.sagaLedger`:
+
+```ts
+export interface LocationStatusEntry {
+  locationId: string;
+  locationName: string;
+  status: 'intact' | 'damaged' | 'ruined' | 'destroyed' | 'occupied' | 'inaccessible';
+  nameOverride?: string;             // e.g. "خرابه‌های ارگ بادها / Ruins of the Citadel"
+  descriptionPatch?: string;         // Literary atmosphere describing devastation/occupation
+  destroyedSubZoneIds?: string[];    // Micro-locations that no longer exist
+  hazardLevelDelta?: number;         // Danger level escalation (+1 to +5)
+  severedConnectionIds?: string[];   // Cut travel links (collapsed bridges / blockaded roads)
+  note?: string;                     // Chapter/turn summary of why this change occurred
+}
+
+export interface FactionStatusEntry {
+  factionId: string;
+  factionName: string;
+  status: 'active' | 'weakened' | 'dissolved' | 'dominant' | 'civil_war';
+  leaderNpcId?: string;              // Succession after leader assassination
+  powerLevelDelta?: number;          // Military/economic drift
+  note?: string;
+}
+
+// Extended WorldStateLedger Schema (in world.ts)
+export interface WorldStateLedger {
+  factionReputations: FactionReputationEntry[];
+  npcStatuses: NpcLifeStatusEntry[];
+  keyItems: KeyItemLedgerEntry[];
+  chapterSummaries: ChapterSummaryEntry[];
+  openPlotThreads: string[];
+  worldBibleVersion?: number;
+  
+  // Pillar 6: Per-Playthrough Cataclysm & World State Overlay
+  locationStatuses?: LocationStatusEntry[];
+  factionStatuses?: FactionStatusEntry[];
+  irreversibleWorldEvents?: string[]; // e.g. ["cataclysm:citadel_collapsed", "breach:salt_cavern_flooded"]
+}
+```
+
+#### C. Runtime Projection: `projectPlaythroughWorld(baseBible, sagaLedger)`
+Before prompt assembly and narrative generation (`worldContext.ts:buildWorldContextBlocks` and `pruneWorldBibleToScope`), the engine dynamically projects the playthrough overlay onto a working view:
+1. **Destroyed Locations**:
+   - Status, description patches, and name overrides replace canonical fields in the active context envelope.
+   - Connected locations listed in `severedConnectionIds` are removed from the 1-hop travel graph.
+   - Sub-zones listed in `destroyedSubZoneIds` are purged from selectable destinations.
+   - If the player is at or near a destroyed location, prompt directives enforce the devastation:
+     > `[WORLD STATE INVARIANT]: The Citadel of Winds was destroyed in Chapter 2. It is a lifeless, smoldering ruin. Under NO circumstances depict functioning taverns, guards on patrol, or thriving markets.`
+2. **Deceased / Transformed NPCs**:
+   - Any NPC marked `status: 'dead'` in `ledger.npcStatuses` is strictly barred from active dialogue pools, companion rosters, and living scene encounters.
+   - If mentioned, they are referred to only in the past tense or as an underlying emotional memory.
+3. **Faction Realignment**:
+   - Dissolved factions lose their standing and presence; successor leaders take over command directives.
+
+#### D. Snapshot Promotion ("Fork Playthrough into Custom Sandbox World")
+Authors and players can take an extraordinarily divergent playthrough in StoryForge Studio and execute **"Fork World from Playthrough"**:
+- The projected `base + overlay` state is materialized into a brand-new canonical `World` and `Story` row in PostgreSQL.
+- Allows authors to playtest catastrophic campaign paths and instantly turn them into official sequel modules (e.g. *StoryForge: Fall of the Citadel*).
+
+---
+
 ## 5. Pragmatic Implementation Roadmap
 
 ```
@@ -280,6 +361,14 @@ Contextual environmental stance tags:
   | 2. Snap pre-judgments during reading, timeout+regex fallback (needs SUBQ key).     |
   | 3. Log choice-prediction hit rate; promote Snap-gated AOT only behind data.       |
   +-----------------------------------------------------------------------------------+
+                                           |
+                                           v
+  +-----------------------------------------------------------------------------------+
+  | PHASE 7: COPY-ON-WRITE WORLD STATE OVERLAY & PROJECTION (§4.3)                     |
+  | 1. Extend WorldStateLedger with locationStatuses, factionStatuses, worldEvents.    |
+  | 2. Implement projectPlaythroughWorld() in worldContext.ts before context build.    |
+  | 3. Add Studio "Fork World from Playthrough" action for persistent divergent lore.  |
+  +-----------------------------------------------------------------------------------+
 ```
 
 ---
@@ -294,6 +383,7 @@ Contextual environmental stance tags:
 6. **Latency Budget**: Maintained turn latency $\le 2.5\text{s}$ pinned to the `gemini-3.5-flash-lite` default. 0ms for pre-generated/cached nodes on hit.
 7. **Author Visibility**: Complete context envelope and entity exclusion rationale visible in `/studio/sandbox` in $< 1\text{s}$.
 8. **Dwell-Time Efficiency**: Snap pre-judgments cached before tap on measured turns; AOT pre-generation promotes from logging-only to live only behind the measured hit rate over `snap_decision_logs`.
+9. **Multiverse Isolation Verification**: Zero state bleed across distinct playthroughs of the same story; cataclysms and character deaths remain 100% contained within the session's ledger overlay.
 
 ---
 

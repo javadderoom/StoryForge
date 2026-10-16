@@ -206,6 +206,42 @@ class GameSessionState {
     return id;
   }
 
+  /// Plan 15 (Pillar 4): Resolves a hierarchical macro-location and micro-location/sub-zone.
+  /// Formats as "[Macro Location] • [Micro-Location]" or falls back to macro location.
+  static String? locationWithSubZone(Map<String, dynamic>? lore, String? locationId, String? subZoneId) {
+    final id = locationId?.trim();
+    if (id == null || id.isEmpty) return null;
+    final locations = (lore?['locations'] as List<dynamic>?) ?? const [];
+    for (final l in locations) {
+      if (l is Map && l['id']?.toString() == id) {
+        final locName = (l['name']?.toString().trim().isNotEmpty == true) ? l['name'].toString().trim() : id;
+        final subId = subZoneId?.trim();
+        if (subId != null && subId.isNotEmpty) {
+          final subZones = (l['subZones'] as List<dynamic>?) ?? const [];
+          for (final sz in subZones) {
+            if (sz is Map && sz['id']?.toString() == subId) {
+              final szName = sz['name']?.toString().trim();
+              if (szName != null && szName.isNotEmpty) {
+                return '$locName • $szName';
+              }
+            }
+          }
+          final pois = (l['pointsOfInterest'] as List<dynamic>?) ?? const [];
+          for (final poi in pois) {
+            if (poi is Map && (poi['id']?.toString() == subId || poi['name']?.toString() == subId)) {
+              final poiName = poi['name']?.toString().trim();
+              if (poiName != null && poiName.isNotEmpty) {
+                return '$locName • $poiName';
+              }
+            }
+          }
+        }
+        return locName;
+      }
+    }
+    return id;
+  }
+
   /// Parses NPC introduction spotlights from beat data. Accepts the
   /// `discoveredNpcs` array, falling back to the legacy single `discoveredNpc`.
   static List<DiscoveredNpc> parseDiscoveredNpcs(Map<String, dynamic> beat) {
