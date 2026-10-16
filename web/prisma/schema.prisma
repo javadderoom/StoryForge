@@ -218,6 +218,7 @@ model PlaythroughSession {
   user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   turns            TurnHistory[]
   memories         MemoryLog[]
+  snapDecisions    SnapDecisionLog[]
 
   @@index([userId])
   @@map("playthrough_sessions")
@@ -260,6 +261,38 @@ model MemoryLog {
 
   @@index([sessionId, importance])
   @@map("memory_logs")
+}
+
+/**
+ * Plan 15 §2.3: Snap decision log. Every choice-prediction (and future
+ * pre-judgment) is recorded at render time; the row is resolved on tap with
+ * the actual choice. Hit rate over this table gates AOT promotion.
+ * hit: true = predicted tap; false = wrong choice OR free-text (miss for AOT);
+ * null = pending/abandoned (app closed mid-turn).
+ */
+model SnapDecisionLog {
+  id                 String    @id @default(uuid())
+  sessionId          String
+  storyId            String
+  turnNumber         Int
+  questionKey        String    @default("predicted_choice")
+  model              String    @default("subq-snap-preview")
+  presentedChoiceIds String[]  @default([])
+  predictedChoiceId  String?
+  choiceProbabilities Json?
+  confidence         Float?
+  actualChoiceId     String?
+  actualActionText   String?
+  hit                Boolean?
+  latencyMs          Int?
+  createdAt          DateTime  @default(now())
+  resolvedAt         DateTime?
+
+  session            PlaythroughSession @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
+
+  @@index([sessionId, turnNumber])
+  @@index([hit])
+  @@map("snap_decision_logs")
 }
 
 model ActionCategory {

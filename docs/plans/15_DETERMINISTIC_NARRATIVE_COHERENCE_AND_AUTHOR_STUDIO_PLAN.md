@@ -94,7 +94,7 @@ The 30–60s a player spends reading a scene is the only free compute in the loo
 3. **Context precompute (free, deterministic)** — build pruned world-context blocks for each choice's likely next location now; pure CPU off the next turn's critical path.
 4. **AOT narrative pre-generation, Snap-gated (expensive, gated)** — instead of generating all 2–4 continuations, Snap predicts the single most likely choice (session history + traits/relationships + presented choices; 384K context fits full history), the server pre-rolls that choice's check during reading (free RNG, stored, revealed on tap), and the writer pre-generates that exact branch. Predicted tap → instant render; anything else (including free text) → live path as today. Cost per turn: 1 Snap + at most 1 wasted writer call on a miss.
 
-**Constraints**: all background work cancels the moment the user acts (AbortController); the dice pre-roll is a design change — tap-time dice animation must reveal the stored value, not roll fresh; free-text actions always miss (unpredictable input); AOT ships only behind a measured-hit-rate gate (log prediction hits/misses in production first — fast tappers make ungated AOT pure waste, and mobile battery/data pays for every background generation).
+**Constraints**: all background work cancels the moment the user acts (AbortController); the dice pre-roll is a design change — tap-time dice animation must reveal the stored value, not roll fresh; free-text actions always miss (unpredictable input); AOT ships only behind a measured-hit-rate gate — every prediction is logged to `snap_decision_logs` at render and resolved on tap (`hit`: true = predicted tap, false = wrong choice or free text, null = abandoned), and promotion to live AOT requires the measured hit rate over that table, not intuition.
 
 ---
 
@@ -286,7 +286,7 @@ Contextual environmental stance tags:
 5. **Emotional Continuity**: 100% of severe injuries acknowledged by present companions in subsequent narrative turns.
 6. **Latency Budget**: Maintained turn latency $\le 2.5\text{s}$ pinned to the `gemini-3.5-flash-lite` default. 0ms for pre-generated/cached nodes on hit.
 7. **Author Visibility**: Complete context envelope and entity exclusion rationale visible in `/studio/sandbox` in $< 1\text{s}$.
-8. **Dwell-Time Efficiency**: Snap pre-judgments cached before tap on measured turns; AOT pre-generation promotes from logging-only to live only behind a measured prediction hit rate.
+8. **Dwell-Time Efficiency**: Snap pre-judgments cached before tap on measured turns; AOT pre-generation promotes from logging-only to live only behind the measured hit rate over `snap_decision_logs`.
 
 ---
 
