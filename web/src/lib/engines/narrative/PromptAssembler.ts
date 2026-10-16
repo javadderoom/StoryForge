@@ -68,6 +68,14 @@ function worldContextBlock(context: WorkingContextEnvelope, isEnglish: boolean):
       ? ' — When wildlife, predators, or monstrosities appear, you MUST draw from these canonical creatures and their lore descriptions below instead of inventing ad-hoc generic beasts'
       : ' — در صورت حضور جانوران، درندگان یا هیولاها، حتماً از این موجودات مانیفست و ویژگی‌های ظاهری آن‌ها استفاده کن نه ابداع موجودات فرضی و کلیشه‌ای';
     out.push(`[${labels.bestiary}${bestiaryDirective}]\n${context.bestiary.map((x) => `• ${x}`).join('\n')}`);
+  } else {
+    // Plan 15: no location-matched beasts — release the MUST-draw pressure so
+    // the model does not trap itself into placing off-biome creatures.
+    out.push(
+      isEnglish
+        ? `[ENVIRONMENTAL GUIDANCE]: No predatory beasts inhabit this immediate terrain. Focus tension on terrain hazards, physical exhaustion, harsh weather, and environmental atmosphere.`
+        : `[راهنمای محیطی / ENVIRONMENTAL GUIDANCE]: در این پهنه هیچ درنده‌ای زندگی نمی‌کند. تنش را بر خطرات زمین، فرسودگی جسمانی، آب‌وهوای خشن و فضای محیط متمرکز کن.`
+    );
   }
   if (context.religions?.length) out.push(`[${labels.religions}]\n${context.religions.map((x) => `• ${x}`).join('\n')}`);
   if (context.dramaBonds?.length) out.push(`[${labels.bonds}]\n${context.dramaBonds.map((x) => `• ${x}`).join('\n')}`);
@@ -241,13 +249,20 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
       ? '6. KNOWLEDGE BOUNDARY & NO PREMATURE LEAKS: Never expose or offer choices that act upon unrevealed NPC secrets or hidden plot twists. The protagonist only knows what has been explicitly discovered or experienced in the story. In early turns (Turns 1-3), never dump overarching conspiracies or treasonous plots unless critically unlocked by the engine. Third-party sentries and environmental adversaries do not possess or leak unrelated NPC secrets.'
       : '۶. مرز دانش شخصیت و منع افشای زودهنگام رازها: هرگز در گزینه‌های انتخابی یا روایت، اسرار پنهان و ناگفته شخصیت‌ها یا توطئه‌های کلان را پیش از کشف منطقی و گام‌به‌گام توسط بازیکن لو نده. انتخاب‌ها باید صرفاً بر اساس دانسته‌ها و شواهد ملموس صحنه باشند. گزمه‌ها و نگهبانان صحنه نمی‌توانند رازهای پنهان و توطئه‌های کاروانیان یا اشخاص دیگر را که ربطی به آن‌ها ندارد فاش کنند.';
 
+    // Plan 15: the MUST-draw imperative fires only when the scoper actually
+    // placed beasts in context; otherwise the environmental fallback applies
+    // (mirrors the worldContextBlock guidance above).
+    const bestiaryGrounding = context.bestiary?.length
+      ? `- BESTIARY GROUNDING & VISCERAL TRAITS: When introducing wild beasts, predators, or monstrosities, you MUST draw from the [BESTIARY & CREATURES] section and depict their specific authored physical features, secretions, and behaviors. Integrate the creature naturally through direct sensory prose (scale patterns, sounds, colors, predatory motion); do not awkwardly put its formal taxonomy name in quotation marks (the game UI automatically renders its Bestiary Discovery Card).`
+      : `- [ENVIRONMENTAL GUIDANCE]: No predatory beasts inhabit this immediate terrain. Focus tension on terrain hazards, physical exhaustion, harsh weather, and environmental atmosphere — do NOT introduce wildlife, predators, or monstrosities into this scene.`;
+
     const continuityDirective = `[SCENE CONTINUITY & CHOICE PREMISES]
 - Resolve only the player's stated action against its actual target. Success does not authorize unrelated victories, confessions, or extra player actions beyond the pre-resolved consequence.
 - TARGET FIDELITY & NO TELEPORTING NPCS: If the player acts toward generic guards, sentries, gates, or obstacles, do NOT substitute a named commander or unintroduced off-scene NPC as the immediate responder. Address only the actual recipient of the action.
 - SPATIAL CONTINUITY & MICRO-VANTAGE (NO MAGIC NPC TELEPORTATION): If the protagonist stepped away, snuck off, or moved to a distinct micro-feature (e.g. down into the muddy reeds by the riverbank, behind wagons, onto a roof, or down a dark alley), NPCs left behind at camp, at the gates, or by a campfire DO NOT magically spawn or teleport beside the protagonist! They remain at their original post. They do not follow silently unless the player specifically asked them to accompany them. If a violent, noisy, or dramatic event occurs in a secluded spot, distant NPCs can only react from afar (hearing the noise from the campfire, shouting across the gloom, or running over with torches to see what happened). They are NEVER already standing over the aftermath!
 - PHYSICAL ENVIRONMENT CONTINUITY: Only depict physical elements, obstacles, and props that exist in the scene. Do NOT hallucinate unmentioned physical objects (e.g., piled cargo, baggage wagons, caravan inspections) out of nowhere unless explicitly introduced by story prose or player action.
 - SINGLE DRAMATIC FOCUS (NO THREAT STACKING): Maintain a single, cohesive source of dramatic conflict per turn. When a check fails or complications escalate, escalate ONE primary threat (e.g., either an encountered creature OR a patrolling sentry), rather than piling multiple uncoordinated antagonists into the same instant. Never depict an NPC completely oblivious to a giant predator coiling in front of them!
-- BESTIARY GROUNDING & VISCERAL TRAITS: When introducing wild beasts, predators, or monstrosities, you MUST draw from the [BESTIARY & CREATURES] section and depict their specific authored physical features, secretions, and behaviors. Integrate the creature naturally through direct sensory prose (scale patterns, sounds, colors, predatory motion); do not awkwardly put its formal taxonomy name in quotation marks (the game UI automatically renders its Bestiary Discovery Card).
+${bestiaryGrounding}
 - COMPREHENSIVE CHOICE COVERAGE: The generated choices MUST directly address the active demands, ultimatums, or physical hazards presented at the end of the prose (e.g., if an adversary orders the protagonist to back away or face violence, choices must provide direct responses such as compliance, de-escalation, deception, cover, or counter-resistance).
 - ITEM ROLE FIDELITY & NO ABSURD MISUSE: Equipped gear, relics, talismans, and artifacts must ONLY be referenced or offered in choices according to their true authored nature and powers (e.g. a desert survival bead, talisman, or sacred relic is NOT a throwaway pebble to toss into mud as a diversion, nor a random fidget prop to touch while talking). Permanent and non-consumable items must NEVER be used as disposable projectiles or distractions!
 - Preserve present participants, their positions, and unresolved threats from recent prose. Do not silently remove opposition or treat a brief opening as a fully secured scene.

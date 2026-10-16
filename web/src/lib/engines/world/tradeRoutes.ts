@@ -97,8 +97,16 @@ export function getRouteAvailability(
   return getMarketGoodsForLocation(locationId, wb).find((g) => g.entityId === entityId) ?? null;
 }
 
-/** One-liner for AI context envelopes: route, status, flow, and economic impact. */
-export function formatTradeRouteLine(route: WorldTradeRoute, wb: WorldBible): string {
+/** One-liner for AI context envelopes: route, status, flow, and economic impact.
+ * Plan 15: pass the scene-present NPC ids to scope names — the caravan master
+ * and retinue are named only when physically present at the scene; otherwise
+ * the line carries the route/cargo summary with no individual names. Omit the
+ * set (Studio/unscoped callers) to keep the legacy full listing. */
+export function formatTradeRouteLine(
+  route: WorldTradeRoute,
+  wb: WorldBible,
+  presentNpcIds?: Set<string> | string[]
+): string {
   const origin = locName(wb, route.originLocationId);
   const dest = locName(wb, route.destinationLocationId);
   const ways = (route.intermediateLocationIds ?? [])
@@ -110,9 +118,15 @@ export function formatTradeRouteLine(route: WorldTradeRoute, wb: WorldBible): st
     .join(', ');
   const controller = route.controllingFactionId ? `, controlled by ${factionName(wb, route.controllingFactionId)}` : '';
   const raider = route.rivalRaidingFactionId ? `, raided by ${factionName(wb, route.rivalRaidingFactionId)}` : '';
-  const master = route.caravanMasterNpcId ? `, led by Caravan Master ${npcName(wb, route.caravanMasterNpcId)}` : '';
-  const travelers = (route.travelingNpcIds ?? []).length
-    ? `, traveling retinue: ${(route.travelingNpcIds ?? []).map((id) => npcName(wb, id)).join(', ')}`
+  // Plan 15: name individuals only when physically present at the scene.
+  const present = presentNpcIds ? new Set(presentNpcIds) : undefined;
+  const master =
+    route.caravanMasterNpcId && (!present || present.has(route.caravanMasterNpcId))
+      ? `, led by Caravan Master ${npcName(wb, route.caravanMasterNpcId)}`
+      : '';
+  const presentTravelers = (route.travelingNpcIds ?? []).filter((id) => !present || present.has(id));
+  const travelers = presentTravelers.length
+    ? `, traveling retinue: ${presentTravelers.map((id) => npcName(wb, id)).join(', ')}`
     : '';
   const disruption = route.disruptionReason ? ` — ${route.disruptionReason}` : '';
   const impact =
@@ -138,7 +152,10 @@ export function getRoutesForLocation(locationId: string, wb: WorldBible): WorldT
  * Resolves all NPCs who are physically present at a location.
  * This includes:
  * 1. Resident NPCs whose static currentLocationId matches locationId.
- * 2. Caravan Masters and traveling retinue members whose active trade routes touch locationId.
+ * 2. Caravan Masters and traveling retinue members whose own
+ *    currentLocationId matches locationId (Plan 15: a route merely touching
+ *    the location is NOT presence — members resting at camp elsewhere stay
+ *    in the background).
  * Returns both the merged list of WorldNpc entities, their IDs, and a Map of caravan affiliations.
  */
 export function getActiveNpcsForLocation(
@@ -160,7 +177,8 @@ export function getActiveNpcsForLocation(
   for (const route of touchingRoutes) {
     if (route.caravanMasterNpcId) {
       const masterNpc = (wb.npcs ?? []).find((n) => n.id === route.caravanMasterNpcId);
-      if (masterNpc) {
+      // Plan 15: only physically present (same locationId), not merely routed through.
+      if (masterNpc && masterNpc.currentLocationId === locationId) {
         activeNpcMap.set(masterNpc.id, masterNpc);
         if (!caravanAffiliationByNpcId.has(masterNpc.id)) {
           caravanAffiliationByNpcId.set(
@@ -174,7 +192,8 @@ export function getActiveNpcsForLocation(
     }
     for (const travelerId of route.travelingNpcIds ?? []) {
       const travelerNpc = (wb.npcs ?? []).find((n) => n.id === travelerId);
-      if (travelerNpc) {
+      // Plan 15: only physically present (same locationId), not merely routed through.
+      if (travelerNpc && travelerNpc.currentLocationId === locationId) {
         activeNpcMap.set(travelerNpc.id, travelerNpc);
         if (!caravanAffiliationByNpcId.has(travelerNpc.id)) {
           caravanAffiliationByNpcId.set(

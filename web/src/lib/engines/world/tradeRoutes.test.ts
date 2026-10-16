@@ -254,11 +254,11 @@ describe('Plan 10 — narrative context & route helpers', () => {
     assert.equal(getRoutesForLocation('loc_nowhere', wb).length, 0);
   });
 
-  it('getActiveNpcsForLocation resolves caravan master and retinue even if their home location is elsewhere', () => {
+  it('Plan 15: getActiveNpcsForLocation excludes caravan members resting elsewhere, keeps those physically present', () => {
     const routeWithCaravan: WorldTradeRoute = {
       ...baseRoute,
       caravanMasterNpcId: 'npc_master_tariq',
-      travelingNpcIds: ['npc_guard_zara'],
+      travelingNpcIds: ['npc_guard_zara', 'npc_scout_layla'],
     };
     const wb = makeWb({
       locations: LOCS,
@@ -266,19 +266,56 @@ describe('Plan 10 — narrative context & route helpers', () => {
         { id: 'npc_clerk', name: 'Clerk Simon', currentLocationId: 'loc_capital' } as any,
         { id: 'npc_master_tariq', name: 'Master Tariq', currentLocationId: 'loc_mines' } as any,
         { id: 'npc_guard_zara', name: 'Zara', currentLocationId: 'loc_mines' } as any,
+        // Layla travels with the caravan AND is physically at the capital scene.
+        { id: 'npc_scout_layla', name: 'Layla', currentLocationId: 'loc_capital' } as any,
       ],
       tradeRoutes: [routeWithCaravan],
     });
 
+    // A route touching the capital is NOT presence: master + Zara stay in the background.
     const resCapital = getActiveNpcsForLocation('loc_capital', wb, 'en');
-    assert.equal(resCapital.activeNpcs.length, 3);
-    assert.deepEqual(resCapital.activeNpcIds.sort(), ['npc_clerk', 'npc_guard_zara', 'npc_master_tariq'].sort());
-    assert.equal(resCapital.caravanAffiliationByNpcId.get('npc_master_tariq'), 'Caravan Master of "The Frost-Peak Highway"');
-    assert.equal(resCapital.caravanAffiliationByNpcId.get('npc_guard_zara'), 'Traveling with Caravan "The Frost-Peak Highway"');
+    assert.deepEqual(resCapital.activeNpcIds.sort(), ['npc_clerk', 'npc_scout_layla'].sort());
+    assert.equal(
+      resCapital.caravanAffiliationByNpcId.get('npc_scout_layla'),
+      'Traveling with Caravan "The Frost-Peak Highway"'
+    );
+    assert.ok(!resCapital.caravanAffiliationByNpcId.has('npc_master_tariq'));
+    assert.ok(!resCapital.caravanAffiliationByNpcId.has('npc_guard_zara'));
 
-    // Persian labels test
+    // Persian labels test (present traveler only)
     const resFa = getActiveNpcsForLocation('loc_capital', wb, 'fa');
-    assert.equal(resFa.caravanAffiliationByNpcId.get('npc_master_tariq'), 'کاروان‌سالار کاروان «The Frost-Peak Highway»');
-    assert.equal(resFa.caravanAffiliationByNpcId.get('npc_guard_zara'), 'همراه کاروان «The Frost-Peak Highway»');
+    assert.equal(
+      resFa.caravanAffiliationByNpcId.get('npc_scout_layla'),
+      'همراه کاروان «The Frost-Peak Highway»'
+    );
+  });
+
+  it('Plan 15: formatTradeRouteLine omits absent caravan names when a present-set is passed', () => {
+    const routeWithCaravan: WorldTradeRoute = {
+      ...baseRoute,
+      caravanMasterNpcId: 'npc_master_tariq',
+      travelingNpcIds: ['npc_guard_zara', 'npc_merchant_farid'],
+    };
+    const wb = makeWb({
+      locations: LOCS,
+      npcs: [
+        { id: 'npc_master_tariq', name: 'Master Tariq', title: 'Caravan Captain', currentLocationId: 'loc_mines' } as any,
+        { id: 'npc_guard_zara', name: 'Zara', title: 'Caravan Guard', currentLocationId: 'loc_mines' } as any,
+        { id: 'npc_merchant_farid', name: 'Farid', title: 'Spice Merchant', currentLocationId: 'loc_capital' } as any,
+      ],
+      tradeRoutes: [routeWithCaravan],
+    });
+    // Legacy call (no present-set): full listing preserved for Studio/unscoped callers.
+    const legacy = formatTradeRouteLine(routeWithCaravan, wb);
+    assert.match(legacy, /Caravan Master Master Tariq/);
+    assert.match(legacy, /traveling retinue: Zara, Farid/);
+    // Scoped call: nobody present — route/cargo summary only, no individual names.
+    const scopedEmpty = formatTradeRouteLine(routeWithCaravan, wb, new Set(['npc_clerk']));
+    assert.doesNotMatch(scopedEmpty, /Tariq|Zara|Farid/);
+    assert.match(scopedEmpty, /Frost-Peak Highway/);
+    // Scoped call: only Farid present — master hidden, retinue lists Farid alone.
+    const scopedPartial = formatTradeRouteLine(routeWithCaravan, wb, ['npc_merchant_farid']);
+    assert.doesNotMatch(scopedPartial, /Tariq|Zara/);
+    assert.match(scopedPartial, /traveling retinue: Farid/);
   });
 });

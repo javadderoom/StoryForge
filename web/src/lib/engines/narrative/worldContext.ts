@@ -417,14 +417,16 @@ export function pruneWorldBibleToScope(
     if (n.applicableLocationIds && n.applicableLocationIds.some((locId) => activeLocSet.has(locId))) {
       return true;
     }
-    // Caravan travelers: NPCs traveling along active trade routes touching the scene's locations
+    // Plan 15: caravan travelers count as present only when physically at a
+    // scene location (their own currentLocationId). A route merely touching
+    // the scene is NOT presence — members resting at camp stay in the
+    // background and must not speak in secluded scenes.
+    // (Scene residents already pass via currentLocationId above, so this
+    // branch is intentionally narrow; it stays explicit so the rule is
+    // visible next to the blanket-exposure logic it replaced.)
     const isCaravanTraveler = (wb.tradeRoutes ?? []).some((r) => {
-      const touchesLoc =
-        activeLocSet.has(r.originLocationId) ||
-        activeLocSet.has(r.destinationLocationId) ||
-        (r.intermediateLocationIds ?? []).some((id) => activeLocSet.has(id));
-      if (!touchesLoc) return false;
-      return r.caravanMasterNpcId === n.id || (r.travelingNpcIds ?? []).includes(n.id);
+      if (r.caravanMasterNpcId !== n.id && !(r.travelingNpcIds ?? []).includes(n.id)) return false;
+      return locationIds.includes(n.currentLocationId);
     });
     if (isCaravanTraveler) return true;
     return false;
@@ -722,7 +724,14 @@ export function buildWorldContextBlocks(
     return `"${q.title}" (${q.category}${giver ? `, giver: ${giver}` : ''}): objectives [${objs}]${trust ? ` -> ${trust}` : ''}`;
   });
 
-  const tradeRoutes = (wb.tradeRoutes ?? []).map((r) => formatTradeRouteLine(r, wb));
+  // Plan 15: in scoped (play-time) mode, name caravan individuals only when
+  // they survived pruning (i.e. are scene-present); Studio/unconstrained
+  // mode keeps the full legacy listing for authoring visibility.
+  const scopedPresent =
+    effectiveOptions && !effectiveOptions.unconstrained
+      ? new Set((wb.npcs ?? []).map((n) => n.id))
+      : undefined;
+  const tradeRoutes = (wb.tradeRoutes ?? []).map((r) => formatTradeRouteLine(r, wb, scopedPresent));
 
   return {
     storyScale: story.storyScale,
