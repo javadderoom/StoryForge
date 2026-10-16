@@ -281,6 +281,32 @@ describe('Plan 08 — LoreAuditor v2 cross-vault integrity', () => {
     assert.ok(report.findings.some((f) => f.title === 'Creature habitat not found'));
   });
 
+  it('Plan 15 Bug 1: flags creatures lacking habitat location IDs as a coverage nudge', () => {
+    const world = baseWorld({
+      locations: [{ id: 'loc_den', name: 'Wolf Den', region: '', description: '', atmosphere: 'Echoing dampness', dangerLevel: 1, connectedLocationIds: [] }],
+      bestiary: [
+        {
+          id: 'cre_no_hab',
+          name: 'Roaming Beast',
+          speciesCategory: 'beast',
+          dangerLevel: 2,
+          habitatLocationIds: [],
+          behavioralTactics: '',
+          weaknesses: [],
+          resistances: [],
+          harvestableLoot: [],
+          loreDescription: '',
+        },
+      ],
+    });
+
+    const report = LoreAuditor.audit(world);
+    const nudge = report.findings.find((f) => f.title === 'Creature lacks habitat location');
+    assert.ok(nudge, 'Must flag creature lacking habitat locations');
+    assert.equal(nudge.severity, 'suggestion');
+    assert.ok(nudge.description.includes('Roaming Beast'));
+  });
+
   it('flags drama bonds with missing endpoints and duplicate entity names', () => {
     const npc = (id: string, name: string) => ({
       id,

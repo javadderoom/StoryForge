@@ -372,3 +372,72 @@ describe('PromptAssembler - Plan 15 wound beat', () => {
   }
 });
 
+describe('PromptAssembler - Plan 15 Bug 1 environmental guidance & bestiary grounding', () => {
+  it('injects [ENVIRONMENTAL GUIDANCE] in context block and continuity directive when bestiary is empty (EN)', () => {
+    const env = makeEnvelope({
+      languageDirective: 'en',
+      bestiary: [],
+    });
+    const { userPrompt, systemPrompt } = PromptAssembler.buildNarrativePrompt(env);
+
+    assert.ok(
+      userPrompt.includes('[ENVIRONMENTAL GUIDANCE]: No predatory beasts inhabit this immediate terrain'),
+      'User prompt must include environmental guidance when bestiary is empty'
+    );
+    assert.ok(
+      systemPrompt.includes('[ENVIRONMENTAL GUIDANCE]: No predatory beasts inhabit this immediate terrain'),
+      'System prompt must include environmental guidance directive when bestiary is empty'
+    );
+    assert.ok(
+      !userPrompt.includes('MUST draw from these canonical creatures'),
+      'Must NOT command drawing from canonical creatures when none match'
+    );
+    assert.ok(
+      !systemPrompt.includes('BESTIARY GROUNDING & VISCERAL TRAITS: When introducing wild beasts, predators, or monstrosities, you MUST draw'),
+      'Must NOT include MUST-draw continuity directive when bestiary is empty'
+    );
+  });
+
+  it('injects [راهنمای محیطی / ENVIRONMENTAL GUIDANCE] in Persian when bestiary is empty (FA)', () => {
+    const env = makeEnvelope({
+      languageDirective: 'fa',
+      storyTitle: 'افسانه کویر',
+      bestiary: [],
+    });
+    const { userPrompt, systemPrompt } = PromptAssembler.buildNarrativePrompt(env);
+
+    assert.ok(
+      userPrompt.includes('[راهنمای محیطی / ENVIRONMENTAL GUIDANCE]: در این پهنه هیچ درنده‌ای زندگی نمی‌کند'),
+      'Persian user prompt must include Persian environmental guidance when bestiary is empty'
+    );
+    assert.ok(
+      systemPrompt.includes('[راهنمای محیطی / ENVIRONMENTAL GUIDANCE]: در این پهنه هیچ درنده‌ای زندگی نمی‌کند'),
+      'Persian system prompt must include Persian environmental guidance directive when bestiary is empty'
+    );
+    assert.ok(
+      !userPrompt.includes('حتماً از این موجودات مانیفست'),
+      'Must NOT command drawing from canonical creatures in Persian when none match'
+    );
+  });
+
+  it('injects canonical MUST-draw directive when bestiary contains matching creatures (EN + FA)', () => {
+    const enEnv = makeEnvelope({
+      languageDirective: 'en',
+      bestiary: ['Ash Hound (danger 3, monstrosity) — Description: Dark predator...'],
+    });
+    const en = PromptAssembler.buildNarrativePrompt(enEnv);
+    assert.ok(en.userPrompt.includes('MUST draw from these canonical creatures'));
+    assert.ok(en.systemPrompt.includes('BESTIARY GROUNDING & VISCERAL TRAITS'));
+
+    const faEnv = makeEnvelope({
+      languageDirective: 'fa',
+      storyTitle: 'افسانه کویر',
+      bestiary: ['سگ خاکستر (سطح خطر ۳) — توصیف: درندهٔ سیاه...'],
+    });
+    const fa = PromptAssembler.buildNarrativePrompt(faEnv);
+    assert.ok(fa.userPrompt.includes('حتماً از این موجودات مانیفست'));
+    assert.ok(fa.systemPrompt.includes('بازنمایی حسی و دقیق موجودات (BESTIARY GROUNDING & VISCERAL TRAITS)'));
+  });
+});
+
+

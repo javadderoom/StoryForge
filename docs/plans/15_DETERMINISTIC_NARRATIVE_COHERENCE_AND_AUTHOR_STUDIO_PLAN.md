@@ -317,11 +317,11 @@ Authors and players can take an extraordinarily divergent playthrough in StoryFo
                                   EXECUTION ROADMAP
                                           |
   +-----------------------------------------------------------------------------------+
-  | PHASE 1: IMMEDIATE ZERO-MIGRATION BACKEND FIXES                                   |
-  | 1. worldContext.ts: specified habitats must match; empty-habitat stays      |
-  |    eligible in Phase 1 + Studio coverage nudge (strict exclusion deferred).  |
-  | 2. Fix PromptAssembler.ts: inject [ENVIRONMENTAL GUIDANCE] when bestiary is empty.|
-  | 3. Fix tradeRoutes.ts & worldContext.ts: stop blanket caravan retinue exposure.   |
+  | PHASE 1: IMMEDIATE ZERO-MIGRATION BACKEND FIXES (COMPLETED)                       |
+  | 1. worldContext.ts: specified habitats must match; empty-habitat stays            |
+  |    eligible in Phase 1 + Studio coverage nudge in LoreAuditor & bestiary page.    |
+  | 2. PromptAssembler.ts: inject bilingual [ENVIRONMENTAL GUIDANCE] fallback.        |
+  | 3. worldContext.ts & narrativeTurn.ts: stop blanket caravan retinue exposure.     |
   +-----------------------------------------------------------------------------------+
                                           |
                                           v

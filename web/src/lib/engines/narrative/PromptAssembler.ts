@@ -253,8 +253,12 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
     // placed beasts in context; otherwise the environmental fallback applies
     // (mirrors the worldContextBlock guidance above).
     const bestiaryGrounding = context.bestiary?.length
-      ? `- BESTIARY GROUNDING & VISCERAL TRAITS: When introducing wild beasts, predators, or monstrosities, you MUST draw from the [BESTIARY & CREATURES] section and depict their specific authored physical features, secretions, and behaviors. Integrate the creature naturally through direct sensory prose (scale patterns, sounds, colors, predatory motion); do not awkwardly put its formal taxonomy name in quotation marks (the game UI automatically renders its Bestiary Discovery Card).`
-      : `- [ENVIRONMENTAL GUIDANCE]: No predatory beasts inhabit this immediate terrain. Focus tension on terrain hazards, physical exhaustion, harsh weather, and environmental atmosphere — do NOT introduce wildlife, predators, or monstrosities into this scene.`;
+      ? isEnglish
+        ? `- BESTIARY GROUNDING & VISCERAL TRAITS: When introducing wild beasts, predators, or monstrosities, you MUST draw from the [BESTIARY & CREATURES] section and depict their specific authored physical features, secretions, and behaviors. Integrate the creature naturally through direct sensory prose (scale patterns, sounds, colors, predatory motion); do not awkwardly put its formal taxonomy name in quotation marks (the game UI automatically renders its Bestiary Discovery Card).`
+        : `- بازنمایی حسی و دقیق موجودات (BESTIARY GROUNDING & VISCERAL TRAITS): هنگام معرفی یا مواجهه با جانوران وحشی، درندگان یا هیولاها، حتماً از بخش [موجودات و جانوران / BESTIARY & CREATURES] استفاده کن و ویژگی‌های ظاهری عینی، ترشحات، فلس‌ها و الگوهای رفتاری ثبت‌شدهٔ آن‌ها را به تصویر بکش. موجود را به شکلی طبیعی و از طریق توصیف حسی ملموس (نقش‌ونگار پوست، اصوات، رنگ‌ها، و حرکات درنده) در متن بنشان؛ از گذاشتن نام رسمی کتابچه در داخل گیومه خودداری کن (واسط کاربری بازی کارت شناسایی آن را نمایش می‌دهد).`
+      : isEnglish
+        ? `- [ENVIRONMENTAL GUIDANCE]: No predatory beasts inhabit this immediate terrain. Focus tension on terrain hazards, physical exhaustion, harsh weather, and environmental atmosphere — do NOT introduce wildlife, predators, or monstrosities into this scene.`
+        : `- [راهنمای محیطی / ENVIRONMENTAL GUIDANCE]: در این پهنه هیچ درنده‌ای زندگی نمی‌کند. تنش را بر خطرات زمین، فرسودگی جسمانی، آب‌وهوای خشن و فضای محیط متمرکز کن — اکیداً جانور، درنده یا هیولایی در این صحنه وارد نکن.`;
 
     // Plan 15 (Bug 4): a single-line emotional directive for the
     // protagonist's untreated wound — present allies must acknowledge it.

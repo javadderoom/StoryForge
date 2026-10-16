@@ -467,3 +467,221 @@ describe('Plan 07 — Living World Ledger & Chapter Context Envelope', () => {
     assert.ok(streetBlocks.locations.length <= 4);
   });
 });
+
+describe('Plan 15 — Phase 1: Ecological Scoper & Caravan Retinue Scoping', () => {
+  const ecoWorld: WorldBible = {
+    worldId: 'world_eco',
+    worldName: 'Ecology Test Realm',
+    summary: 'Realm with deserts and marshes.',
+    themeNotes: 'Harsh and varied.',
+    laws: [],
+    factions: [],
+    locations: [
+      {
+        id: 'loc_desert',
+        name: 'Red Desert',
+        region: 'The Arid Wastes',
+        description: 'Vast expanse of crimson sand.',
+        atmosphere: 'Scorching winds and shifting dunes',
+        dangerLevel: 2,
+        connectedLocationIds: ['loc_marsh'],
+      },
+      {
+        id: 'loc_cave',
+        name: 'Desert Cave',
+        region: 'The Arid Wastes',
+        description: 'A dark hollow beneath the red dunes.',
+        atmosphere: 'Cool sandstone shadows',
+        dangerLevel: 3,
+        connectedLocationIds: ['loc_desert'],
+      },
+      {
+        id: 'loc_marsh',
+        name: 'Misty Marshlands',
+        region: 'The Lowlands',
+        description: 'Flooded reed beds miles away.',
+        atmosphere: 'Dank fog and stagnant water',
+        dangerLevel: 3,
+        connectedLocationIds: ['loc_desert'],
+      },
+    ],
+    timeline: [],
+    npcs: [
+      {
+        id: 'npc_master',
+        name: 'Master Tariq',
+        title: 'Caravan Captain',
+        role: 'merchant',
+        currentLocationId: 'loc_marsh',
+        personalityTraits: [],
+        speechStyle: '',
+        goals: [],
+        secrets: [],
+        initialTrust: 0,
+      },
+      {
+        id: 'npc_traveler_marsh',
+        name: 'Zara the Guard',
+        title: 'Mercenary',
+        role: 'guard',
+        currentLocationId: 'loc_marsh',
+        personalityTraits: [],
+        speechStyle: '',
+        goals: [],
+        secrets: [],
+        initialTrust: 0,
+      },
+      {
+        id: 'npc_traveler_desert',
+        name: 'Farid the Merchant',
+        title: 'Spice Trader',
+        role: 'merchant',
+        currentLocationId: 'loc_desert',
+        personalityTraits: [],
+        speechStyle: '',
+        goals: [],
+        secrets: [],
+        initialTrust: 0,
+      },
+    ],
+    bestiary: [
+      {
+        id: 'cre_marsh_viper',
+        name: 'Marsh Viper',
+        speciesCategory: 'beast',
+        dangerLevel: 2,
+        habitatLocationIds: ['loc_marsh'],
+        behavioralTactics: '',
+        weaknesses: [],
+        resistances: [],
+        harvestableLoot: [],
+        loreDescription: 'Coils in muddy reed beds.',
+      },
+      {
+        id: 'cre_desert_scorpion',
+        name: 'Sand Scorpion',
+        speciesCategory: 'beast',
+        dangerLevel: 2,
+        habitatLocationIds: ['loc_desert'],
+        behavioralTactics: '',
+        weaknesses: [],
+        resistances: [],
+        harvestableLoot: [],
+        loreDescription: 'Burrows in red sand dunes.',
+      },
+      {
+        id: 'cre_cave_crawler',
+        name: 'Cave Crawler',
+        speciesCategory: 'monstrosity',
+        dangerLevel: 3,
+        habitatLocationIds: ['loc_cave'],
+        behavioralTactics: '',
+        weaknesses: [],
+        resistances: [],
+        harvestableLoot: [],
+        loreDescription: 'Stalks dark rocky crevices.',
+      },
+      {
+        id: 'cre_generic_wolf',
+        name: 'Wandering Wolf',
+        speciesCategory: 'beast',
+        dangerLevel: 1,
+        habitatLocationIds: [],
+        behavioralTactics: '',
+        weaknesses: [],
+        resistances: [],
+        harvestableLoot: [],
+        loreDescription: 'Roams freely across regions.',
+      },
+    ],
+    tradeRoutes: [
+      {
+        id: 'route_salt',
+        name: 'The Great Salt Road',
+        originLocationId: 'loc_desert',
+        destinationLocationId: 'loc_marsh',
+        caravanMasterNpcId: 'npc_master',
+        travelingNpcIds: ['npc_traveler_marsh', 'npc_traveler_desert'],
+        commodities: [{ entityId: 'cre_salt', name: 'Salt', flowDirection: 'forward' }],
+        dangerLevel: 2,
+        status: 'active',
+      },
+    ],
+  };
+
+  it('Bug 1: creature habitats strictly require matching scene location, excluding 1-hop connected habitats', () => {
+    // Player is in the desert cave (loc_cave).
+    // loc_marsh is 1-hop connected to loc_desert, but loc_marsh is NOT the scene location or ancestor!
+    const blocks = buildWorldContextBlocks(
+      { worldBible: ecoWorld },
+      { scopeTier: 'regional', locationIds: ['loc_cave'] }
+    );
+
+    // Marsh Viper must be EXCLUDED from the desert cave context
+    assert.ok(
+      !blocks.bestiary.some((b) => b.includes('Marsh Viper')),
+      'Marsh Viper from connected marsh must NOT spawn in desert cave'
+    );
+
+    // Cave Crawler and Desert Scorpion (matching cave or region) must be kept
+    assert.ok(blocks.bestiary.some((b) => b.includes('Cave Crawler')));
+
+    // Unassigned habitat creature (Wandering Wolf) stays eligible in Phase 1 (zero-migration)
+    assert.ok(blocks.bestiary.some((b) => b.includes('Wandering Wolf')));
+  });
+
+  it('Bug 1: returns empty bestiary when no creature matches, releasing the MUST-draw pressure', () => {
+    // World with ONLY a marsh creature
+    const onlyMarshWorld: WorldBible = {
+      ...ecoWorld,
+      bestiary: [ecoWorld.bestiary![0]], // Marsh Viper only
+    };
+
+    const blocks = buildWorldContextBlocks(
+      { worldBible: onlyMarshWorld },
+      { scopeTier: 'regional', locationIds: ['loc_desert'] }
+    );
+
+    assert.equal(blocks.bestiary.length, 0, 'No creatures match the desert; bestiary must be empty');
+  });
+
+  it('Bug 2: caravan retinue line omits travelers and master stationed at adjacent connected locations', () => {
+    // Player is at loc_desert.
+    // Master Tariq and Zara are at loc_marsh (connected location).
+    // Farid is at loc_desert (scene location).
+    const blocks = buildWorldContextBlocks(
+      { worldBible: ecoWorld },
+      { scopeTier: 'regional', locationIds: ['loc_desert'] }
+    );
+
+    assert.ok(blocks.tradeRoutes);
+    assert.equal(blocks.tradeRoutes.length, 1);
+    const line = blocks.tradeRoutes[0];
+
+    // Master Tariq (at loc_marsh) must NOT be named as leader
+    assert.ok(!line.includes('Master Tariq'), 'Master Tariq stationed at marsh must not be named');
+
+    // Zara (at loc_marsh) must NOT be in the traveling retinue
+    assert.ok(!line.includes('Zara'), 'Zara stationed at marsh must not be named');
+
+    // Farid (at loc_desert) MUST be named
+    assert.ok(line.includes('Farid'), 'Farid stationed at desert must be named in retinue');
+  });
+
+  it('Bug 2: caravan retinue line omits all individuals when entire caravan is at an adjacent location', () => {
+    // Player is at loc_cave. No caravan members are stationed in the cave.
+    const blocks = buildWorldContextBlocks(
+      { worldBible: ecoWorld },
+      { scopeTier: 'regional', locationIds: ['loc_cave'] }
+    );
+
+    assert.ok(blocks.tradeRoutes);
+    const line = blocks.tradeRoutes[0];
+    assert.ok(!line.includes('Master Tariq'));
+    assert.ok(!line.includes('Zara'));
+    assert.ok(!line.includes('Farid'));
+    assert.ok(!line.includes('traveling retinue:'));
+    assert.ok(line.includes('The Great Salt Road'));
+  });
+});
+

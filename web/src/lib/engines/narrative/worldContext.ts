@@ -492,11 +492,21 @@ export function pruneWorldBibleToScope(
         );
   const keptLocationIds = new Set(keepLocations.map((l) => l.id));
 
-  const keepBestiary = (wb.bestiary ?? []).filter(
-    (c) =>
-      c.habitatLocationIds.length === 0 ||
-      c.habitatLocationIds.some((h) => keptLocationIds.has(h))
-  );
+  // Plan 15 (Bug 1): Scene-location hierarchy (scene location + ancestors).
+  // Connected locations (1-hop travel destinations) are NOT habitats for the immediate scene.
+  const sceneLocationIds = new Set(locationIds);
+  for (const locId of locationIds) {
+    const ancestors = getLocationAncestry(wb.locations ?? [], locId);
+    ancestors.forEach((a) => sceneLocationIds.add(a.id));
+  }
+
+  const keepBestiary = (wb.bestiary ?? []).filter((c) => {
+    // Empty habitat stays eligible in Phase 1 (zero-migration; strict exclusion deferred)
+    if (!c.habitatLocationIds || c.habitatLocationIds.length === 0) return true;
+    // Specified habitats must match the active scene location hierarchy (or kept locations if no specific scene location is set)
+    const matchTargets = sceneLocationIds.size > 0 ? sceneLocationIds : keptLocationIds;
+    return c.habitatLocationIds.some((h) => matchTargets.has(h));
+  });
 
   const keepArtifacts = (wb.artifacts ?? []).filter((a) => {
     switch (a.currentHolderType) {
@@ -754,12 +764,25 @@ export function buildWorldContextBlocks(
     return `"${q.title}" (${q.category}${giver ? `, giver: ${giver}` : ''}): objectives [${objs}]${trust ? ` -> ${trust}` : ''}`;
   });
 
-  // Plan 15: in scoped (play-time) mode, name caravan individuals only when
-  // they survived pruning (i.e. are scene-present); Studio/unconstrained
-  // mode keeps the full legacy listing for authoring visibility.
+  // Plan 15 (Bug 2): in scoped (play-time) mode, name caravan individuals only when
+  // physically present at the scene location, in the accompanying party, or explicitly
+  // listed in scene NPCs. NPCs stationed at connected 1-hop locations must not leak into
+  // the caravan retinue string. Studio/unconstrained mode keeps the full legacy listing.
+  const sceneLocs = new Set(effectiveOptions?.locationIds ?? []);
+  const accompanying = new Set(effectiveOptions?.accompanyingNpcIds ?? []);
+  const explicitNpcs = new Set(effectiveOptions?.npcIds ?? []);
   const scopedPresent =
     effectiveOptions && !effectiveOptions.unconstrained
-      ? new Set((wb.npcs ?? []).map((n) => n.id))
+      ? new Set(
+          (wb.npcs ?? [])
+            .filter(
+              (n) =>
+                sceneLocs.has(n.currentLocationId) ||
+                accompanying.has(n.id) ||
+                explicitNpcs.has(n.id)
+            )
+            .map((n) => n.id)
+        )
       : undefined;
   const tradeRoutes = (wb.tradeRoutes ?? []).map((r) => formatTradeRouteLine(r, wb, scopedPresent));
 

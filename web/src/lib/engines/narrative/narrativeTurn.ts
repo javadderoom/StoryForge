@@ -290,15 +290,25 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
       const isTargetOfAction =
         input.playerActionText.includes(npc.name) ||
         (npc.title && input.playerActionText.includes(npc.title));
+      // Plan 15 (Bug 3): When an authoritative party roster exists, companions left behind
+      // at camp/base (not in accompanyingIds) do not follow the player into secluded or scouting
+      // scenes. Even if they spoke at camp in recent turns, they remain stationed in the background
+      // unless directly sought out or targeted by the player's action.
+      const hasAuthoritativeParty =
+        playerState.accompanyingNpcIds !== undefined && playerState.accompanyingNpcIds !== null;
+      const isLeftBehindPartyMember =
+        hasAuthoritativeParty && !accompanyingIds.includes(npc.id);
+
       const isInImmediateScene =
         isTargetOfAction ||
-        recentSceneSnippets.some(
-          (snippet) =>
-            snippet.includes(npc.name) ||
-            (npc.title && snippet.includes(npc.title)) ||
-            (npc.nameFa && snippet.includes(npc.nameFa)) ||
-            (npc.nameEn && snippet.includes(npc.nameEn))
-        );
+        (!isLeftBehindPartyMember &&
+          recentSceneSnippets.some(
+            (snippet) =>
+              snippet.includes(npc.name) ||
+              (npc.title && snippet.includes(npc.title)) ||
+              (npc.nameFa && snippet.includes(npc.nameFa)) ||
+              (npc.nameEn && snippet.includes(npc.nameEn))
+          ));
       return {
         name: npc.name,
         trust:

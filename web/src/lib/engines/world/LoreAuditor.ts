@@ -633,6 +633,19 @@ export class LoreAuditor {
   private static checkBestiaryHabitats(world: WorldBible, findings: ContradictionFinding[]): void {
     const locationIds = new Set(world.locations.map((l) => l.id));
     for (const creature of world.bestiary || []) {
+      // Plan 15 (Bug 1): Surface a Studio habitat-coverage nudge so authors anchor creatures to canonical habitats.
+      if (!creature.habitatLocationIds || creature.habitatLocationIds.length === 0) {
+        findings.push({
+          id: `creature_no_habitat_${creature.id}`,
+          severity: 'suggestion',
+          category: 'missing_link',
+          title: 'Creature lacks habitat location',
+          description: `Creature "${creature.name}" has no habitat locations assigned and may roam into off-biome scenes.`,
+          involvedEntities: [{ entityType: 'creature', name: creature.name }],
+          suggestedFix: 'Assign at least one canonical habitat location to anchor its ecology.',
+        });
+        continue;
+      }
       for (const habitatId of creature.habitatLocationIds || []) {
         if (!locationIds.has(habitatId)) {
           findings.push({
