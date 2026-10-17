@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { preGenerateAotBranch, type AotBranchContext } from './aotBranchEngine';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
-import { SubQAdapter } from '@/lib/providers/SubQAdapter';
+import { SubQAdapter, type SubQDecisionRequest } from '@/lib/providers/SubQAdapter';
 import { ChoiceOption, PlayerState } from '@/lib/types/gameplay';
 import type { StoryManifest } from '@/lib/types/story';
 
@@ -110,13 +110,16 @@ function makeSubqStub(): SubQAdapter {
 async function withTestEnv(run: () => Promise<void>): Promise<void> {
   const previousSubq = process.env.SUBQ_API_KEY;
   const previousGemini = process.env.GEMINI_API_KEY;
+  const previousJudge = process.env.SNAP_AOT_JUDGE;
   delete process.env.SUBQ_API_KEY;
   delete process.env.GEMINI_API_KEY;
+  delete process.env.SNAP_AOT_JUDGE;
   try {
     await run();
   } finally {
     if (previousSubq !== undefined) process.env.SUBQ_API_KEY = previousSubq;
     if (previousGemini !== undefined) process.env.GEMINI_API_KEY = previousGemini;
+    if (previousJudge !== undefined) process.env.SNAP_AOT_JUDGE = previousJudge;
   }
 }
 
@@ -167,6 +170,74 @@ describe('Plan 15 §2.3 tier 4 — AOT branch engine', () => {
       assert.equal(result.audit!.stats.repairAttempts, 0);
       // One generation call — the branch is a single writer pass here.
       assert.equal(calls.length, 1);
+    });
+  });
+
+  it('keeps the deterministic audit unchanged and makes no judge call when disabled', async () => {
+    await withTestEnv(async () => {
+      let judgeCalls = 0;
+      const subqAdapter = {
+        isConfigured: () => true,
+        evaluate: async (req: SubQDecisionRequest) => {
+          const reqState = req?.state as { task?: string } | undefined;
+          if (reqState?.task === 'critique_shadow_branch') {
+            judgeCalls += 1;
+          }
+          return { success: true, answers: {}, model: 'subq-test' };
+        },
+      } as unknown as SubQAdapter;
+      const result = await preGenerateAotBranch(makeContext({ subqAdapter, forcedDiceRoll: 20 }));
+      assert.equal(judgeCalls, 0);
+      assert.equal(result.audit?.stats.judgeSkipped, undefined);
+      assert.deepEqual(result.audit?.findings.some((finding) => finding.source === 'judge'), false);
+    });
+  });
+
+  it('judges the final generated prose and merges judge findings into the audit', async () => {
+    await withTestEnv(async () => {
+      process.env.SNAP_AOT_JUDGE = 'true';
+      const judgeCalls: Array<{ request: SubQDecisionRequest; options?: { timeoutMs?: number; signal?: AbortSignal } }> = [];
+      const subqAdapter = {
+        isConfigured: () => true,
+        evaluate: async (request: SubQDecisionRequest, options?: { timeoutMs?: number; signal?: AbortSignal }) => {
+          const reqState = request?.state as { task?: string } | undefined;
+          if (reqState?.task === 'critique_shadow_branch') {
+            judgeCalls.push({ request, options });
+            return {
+              success: true,
+              model: 'subq-test',
+              latencyMs: 17,
+              answers: {
+                state_consistent: { answer: false, reason: 'NPC contradicts ledger.' },
+                outcome_consistent: { answer: true },
+                coherent: { answer: true },
+                in_character: { answer: true },
+                choices_follow: { answer: true },
+                no_leak: { answer: true },
+                no_meta: { answer: true },
+              },
+            };
+          }
+          return {
+            success: true,
+            model: 'subq-test',
+            answers: { stalling_assessment: { choice: 'none' } },
+          };
+        },
+      } as unknown as SubQAdapter;
+      const { adapter } = makeGeminiStub();
+      const result = await preGenerateAotBranch(makeContext({ geminiAdapter: adapter, subqAdapter, forcedDiceRoll: 20 }));
+      assert.equal(result.status, 'generated');
+      assert.equal(judgeCalls.length, 1);
+      const requestState = judgeCalls[0].request.state as { branch_prose?: string; player?: { location_id?: string } };
+      assert.equal(requestState.branch_prose, result.narrative);
+      assert.equal(requestState.player?.location_id, 'loc_gate');
+      assert.equal(judgeCalls[0].options?.timeoutMs, 4000);
+      assert.equal(result.audit?.verdict, 'rejected');
+      assert.equal(result.audit?.stats.judgeSkipped, false);
+      assert.equal(result.audit?.stats.judgeFindings, 1);
+      assert.equal(result.audit?.stats.judgeLatencyMs, 17);
+      assert.ok(result.audit?.findings.some((finding) => finding.source === 'judge' && finding.category === 'judge_state'));
     });
   });
 

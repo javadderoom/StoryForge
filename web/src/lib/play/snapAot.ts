@@ -235,6 +235,7 @@ export async function preGenerateSnapAotBranch(
         sessionMemories: session.memories ?? [],
         geminiAdapter: deps.geminiAdapter ?? new GeminiAdapter(),
         subqAdapter: deps.subqAdapter,
+        signal: ctx.signal,
       });
     } catch (error) {
       result = {

@@ -19,9 +19,10 @@ import type { SceneSessionTurn } from '@/lib/engines/narrative/narrativeTurn';
  *   - one serving verdict per branch: `rejected` (must never serve) >
  *     `warned` (needs review) > `repaired` (pipeline caught & fixed) > `clean`.
  *
- * Pure module — no DB/Next imports, deterministic checks only. An LLM critic
- * pass (SubQ judge) is a deliberately separate layer; its findings can share
- * the `AotAuditFinding` shape when it is wired.
+ * Pure module — no DB/Next imports, deterministic checks only. The semantic
+ * layer (SubQ LLM judge, §7.6G) lives in `aotBranchJudge.ts`; its findings are
+ * folded into this shape via `mergeAotJudgeIntoAudit` and share one verdict
+ * math (`computeAotVerdict`).
  */
 
 export type AotAuditSeverity = 'error' | 'warning' | 'info';
@@ -35,10 +36,17 @@ export type AotAuditCategory =
   | 'momentum_recycling'
   | 'scene_repetition'
   | 'narrative_length'
-  | 'row_integrity';
+  | 'row_integrity'
+  | 'judge_state'
+  | 'judge_outcome'
+  | 'judge_coherence'
+  | 'judge_voice'
+  | 'judge_choice_fit'
+  | 'judge_leak'
+  | 'judge_meta';
 
-/** Where the signal came from: the shared validator, the sanitizer, or this audit. */
-export type AotAuditSource = 'validator' | 'sanitizer' | 'audit';
+/** Where the signal came from: the shared validator, the sanitizer, this audit, or the §7.6G SubQ judge. */
+export type AotAuditSource = 'validator' | 'sanitizer' | 'audit' | 'judge';
 
 /** Serving classification: `clean`/`repaired` are gate-eligible, `warned` needs review, `rejected` is a blocker. */
 export type AotBranchVerdict = 'clean' | 'repaired' | 'warned' | 'rejected';
@@ -60,6 +68,16 @@ export interface AotBranchAuditStats {
   proseRepaired: boolean;
   /** Validator findings still standing on the final draft. */
   leftoverFindings: number;
+  /**
+   * §7.6G judge telemetry — present only when the SubQ judge pass was enabled
+   * for this branch. `judgeSkipped: true` means the pass did not complete
+   * (unconfigured / timeout / parse failure), so absence of judge findings
+   * must not be read as a clean bill.
+   */
+  judgeSkipped?: boolean;
+  judgeFindings?: number;
+  judgeLatencyMs?: number;
+  judgeError?: string;
 }
 
 export interface AotBranchAudit {
@@ -350,6 +368,23 @@ function integrityFindings(input: AotBranchAuditInput): AotAuditFinding[] {
 }
 
 /**
+ * One verdict math for every audit layer (deterministic §7.6E and the §7.6G
+ * judge): an error is a serving blocker, a warning needs review, a spent
+ * repair is `repaired`, otherwise `clean`. The judge can only escalate.
+ */
+export function computeAotVerdict(input: {
+  findings: AotAuditFinding[];
+  repairAttempts: number;
+  proseRepaired: boolean;
+}): AotBranchVerdict {
+  const hasError = input.findings.some((f) => f.severity === 'error');
+  if (hasError) return 'rejected';
+  const hasWarning = input.findings.some((f) => f.severity === 'warning');
+  if (hasWarning) return 'warned';
+  return input.repairAttempts > 0 || input.proseRepaired ? 'repaired' : 'clean';
+}
+
+/**
  * Audits one generated shadow branch: mistake telemetry (first draft mistakes,
  * repair spend, surviving findings) plus deterministic checks and a serving
  * verdict. Pure — same input, same report.
@@ -414,15 +449,11 @@ export function auditAotBranch(input: AotBranchAuditInput): AotBranchAudit {
     leftoverFindings: finalFindings.length,
   };
 
-  const hasError = findings.some((f) => f.severity === 'error');
-  const hasWarning = findings.some((f) => f.severity === 'warning');
-  const verdict: AotBranchVerdict = hasError
-    ? 'rejected'
-    : hasWarning
-      ? 'warned'
-      : input.repairAttempts > 0 || input.proseRepaired
-        ? 'repaired'
-        : 'clean';
+  const verdict: AotBranchVerdict = computeAotVerdict({
+    findings,
+    repairAttempts: input.repairAttempts,
+    proseRepaired: input.proseRepaired,
+  });
 
   return { verdict, findings, stats };
 }

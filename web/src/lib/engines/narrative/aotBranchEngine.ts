@@ -14,6 +14,11 @@ import {
   buildRejectedAudit,
   type AotBranchAudit,
 } from '@/lib/engines/narrative/aotBranchAudit';
+import {
+  isSnapAotJudgeEnabled,
+  mergeAotJudgeIntoAudit,
+  runAotBranchJudge,
+} from '@/lib/engines/narrative/aotBranchJudge';
 import { resolveAccompanyingIds } from '@/lib/engines/narrative/worldContext';
 import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
 import type { StoryManifest } from '@/lib/types/story';
@@ -72,6 +77,8 @@ export interface AotBranchContext {
   sessionMemories: SceneSessionMemory[];
   geminiAdapter: GeminiAdapter;
   subqAdapter?: SubQAdapter;
+  /** Fired the moment the reader acts; the §7.6G judge call aborts with it. */
+  signal?: AbortSignal;
   /** Test-only: pin the pre-rolled check instead of drawing from the RNG. */
   forcedDiceRoll?: number;
 }
@@ -558,7 +565,7 @@ export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBr
     // §7.6E: audit the pre-written branch — first-draft mistakes, repairs,
     // surviving findings, secret echoes, choice hygiene, language, recycling —
     // so the shadow phase produces analyzable verdicts, not just prose.
-    const audit = auditAotBranch({
+    let audit = auditAotBranch({
       storyTitle: story.title || '',
       language: story.language,
       narrative: sceneOutcome.aiResponse.narrative,
@@ -576,6 +583,32 @@ export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBr
       repairAttempts: sceneOutcome.repairAttempts,
       choicesDroppedBySanitizer,
     });
+
+    // §7.6G (opt-in): the SubQ judge critiques the FINAL (post-repair) branch —
+    // semantic contradictions the deterministic checks cannot see. It never
+    // throws and can only escalate the verdict; a skipped pass records
+    // `stats.judgeSkipped` so absence of judge findings is not a clean bill.
+    if (isSnapAotJudgeEnabled()) {
+      const sceneOnScreen = ctx.sessionTurns?.[ctx.sessionTurns.length - 1]?.narrativeProse;
+      const judge = await runAotBranchJudge(
+        {
+          storyTitle: story.title || '',
+          language: story.language,
+          currentScene: sceneOnScreen,
+          playerActionText,
+          resolution,
+          isDiceless,
+          playerState: updatedPlayerState,
+          worldBible: story.worldBible,
+          storyNpcOverrides: story.storyNpcOverrides,
+          ledger: nextLedger,
+          narrative: sceneOutcome.aiResponse.narrative,
+          choices: sceneOutcome.aiResponse.choices,
+        },
+        { adapter: ctx.subqAdapter, signal: ctx.signal }
+      );
+      audit = mergeAotJudgeIntoAudit(audit, judge);
+    }
 
     return {
       status: 'generated',

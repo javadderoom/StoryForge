@@ -159,6 +159,9 @@ async function main() {
   let auditedBranches = 0;
   let firstPassErrorBranches = 0;
   let repairedBranches = 0;
+  let judgeEvaluated = 0;
+  let judgeSkippedCount = 0;
+  let judgeFindings = 0;
   for (const b of branches) {
     const audit = b.audit as unknown as AotBranchAudit | null;
     if (!audit || typeof audit !== 'object' || !Array.isArray(audit.findings)) continue;
@@ -166,6 +169,14 @@ async function main() {
     verdictCounts[audit.verdict] = (verdictCounts[audit.verdict] ?? 0) + 1;
     if ((audit.stats?.firstPassErrors ?? 0) > 0) firstPassErrorBranches += 1;
     if (audit.stats?.proseRepaired) repairedBranches += 1;
+    // §7.6G judge coverage: a skipped pass is not a clean bill, so it is
+    // counted separately from an evaluated one.
+    if (audit.stats?.judgeSkipped) {
+      judgeSkippedCount += 1;
+    } else if (typeof audit.stats?.judgeFindings === 'number') {
+      judgeEvaluated += 1;
+      judgeFindings += audit.stats.judgeFindings;
+    }
     for (const finding of audit.findings) {
       if (finding.severity === 'info') continue;
       findingsByCategory[finding.category] = (findingsByCategory[finding.category] ?? 0) + 1;
@@ -211,6 +222,7 @@ async function main() {
       firstDraftFailed: firstPassErrorBranches,
       repaired: repairedBranches,
       findingsByCategory,
+      judge: { evaluated: judgeEvaluated, skipped: judgeSkippedCount, findings: judgeFindings },
     },
   };
 
@@ -259,6 +271,12 @@ async function main() {
       `${DIM}  first-draft mistakes on ${firstPassErrorBranches} branch(es) (repaired by the pipeline); ` +
         `surviving flags: ${categoryLine || 'none'}${RESET}`
     );
+    if (judgeEvaluated > 0 || judgeSkippedCount > 0) {
+      console.log(
+        `${DIM}  §7.6G judge (SNAP_AOT_JUDGE): evaluated ${judgeEvaluated} (findings ${judgeFindings}) | ` +
+          `skipped ${judgeSkippedCount} — skipped is not a clean bill${RESET}`
+      );
+    }
   }
 
   if (branches.length === 0) {
@@ -288,7 +306,7 @@ async function main() {
       const highlights = (audit?.findings ?? [])
         .filter((finding) => finding.severity !== 'info')
         .slice(0, 2)
-        .map((finding) => `[${finding.category}] ${finding.detail}`)
+        .map((finding) => `[${finding.category}] (${finding.source}) ${finding.detail}`)
         .join('  ||  ');
       const color = b.verdict === 'rejected' ? RED : YELLOW;
       console.log(
