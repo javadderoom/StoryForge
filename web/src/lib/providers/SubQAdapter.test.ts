@@ -48,7 +48,7 @@ describe('SubQAdapter — Decisions API client', () => {
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
-    }) as any;
+    }) as unknown as typeof globalThis.fetch;
 
     try {
       const adapter = new SubQAdapter('mock-subq-key');
@@ -75,7 +75,7 @@ describe('SubQAdapter — Decisions API client', () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async () => {
       return new Response('Rate limit exceeded', { status: 429 });
-    }) as any;
+    }) as unknown as typeof globalThis.fetch;
 
     try {
       const adapter = new SubQAdapter('mock-subq-key');
@@ -86,6 +86,62 @@ describe('SubQAdapter — Decisions API client', () => {
 
       assert.equal(res.success, false);
       assert.match(res.error || '', /HTTP 429/);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('aborts on the caller signal and reports caller cancellation distinctly', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+      const signal = init?.signal as AbortSignal | undefined;
+      if (signal?.aborted) {
+        throw Object.assign(new Error('This operation was aborted'), { name: 'AbortError' });
+      }
+      return new Promise<Response>((_resolve, reject) => {
+        signal?.addEventListener('abort', () =>
+          reject(Object.assign(new Error('This operation was aborted'), { name: 'AbortError' }))
+        );
+      });
+    }) as unknown as typeof globalThis.fetch;
+
+    try {
+      const adapter = new SubQAdapter('mock-subq-key');
+      const controller = new AbortController();
+      const pending = adapter.evaluate(
+        { state: 'Dwell prediction', questions: {} },
+        { timeoutMs: 5000, signal: controller.signal }
+      );
+      controller.abort();
+      const res = await pending;
+
+      assert.equal(res.success, false);
+      assert.match(res.error || '', /aborted by caller/i);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('still enforces the internal timeout when a caller signal is provided', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal as AbortSignal | undefined;
+        signal?.addEventListener('abort', () =>
+          reject(Object.assign(new Error('This operation was aborted'), { name: 'AbortError' }))
+        );
+      })) as unknown as typeof globalThis.fetch;
+
+    try {
+      const adapter = new SubQAdapter('mock-subq-key');
+      const neverAborted = new AbortController(); // simulates a dwell window that stays open
+      const res = await adapter.evaluate(
+        { state: 'Dwell prediction', questions: {} },
+        { timeoutMs: 25, signal: neverAborted.signal }
+      );
+
+      assert.equal(res.success, false);
+      assert.match(res.error || '', /timed out after 25ms/i);
     } finally {
       globalThis.fetch = originalFetch;
     }

@@ -73,7 +73,12 @@ export class SubQAdapter {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    const mergedSignal = options?.signal || controller.signal;
+    // Merge the caller's signal (e.g. reader-action cancellation) with the
+    // internal timeout so *either* aborts the request — passing a caller
+    // signal used to disable the timeout entirely.
+    const mergedSignal = options?.signal
+      ? AbortSignal.any([options.signal, controller.signal])
+      : controller.signal;
 
     try {
       const payload = {
@@ -125,11 +130,16 @@ export class SubQAdapter {
       clearTimeout(timeoutId);
       const latencyMs = Date.now() - startTime;
       const isAbort = err?.name === 'AbortError' || mergedSignal?.aborted;
+      const abortedByCaller = Boolean(options?.signal?.aborted);
       return {
         success: false,
         answers: {},
         model,
-        error: isAbort ? `SubQ request timed out after ${timeoutMs}ms.` : (err?.message || 'Unknown network error'),
+        error: isAbort
+          ? abortedByCaller
+            ? 'SubQ request aborted by caller.'
+            : `SubQ request timed out after ${timeoutMs}ms.`
+          : (err?.message || 'Unknown network error'),
         latencyMs,
       };
     }

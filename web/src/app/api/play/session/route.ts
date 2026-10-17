@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { SessionRepository } from '@/lib/db/repositories/sessionRepository';
 import { PlaythroughSession, PlayerState, ChoiceOption } from '@/lib/types/gameplay';
@@ -13,6 +13,8 @@ import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMig
 import { isPlaceholderBeat } from '@/lib/engines/world/sceneResolution';
 import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
 import { buildWorldContextBlocks, resolveAccompanyingIds, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatTraitsForContext, formatItemInteractionsCatalogForContext } from '@/lib/engines/narrative/worldContext';
+import { buildNpcIdToName } from '@/lib/engines/narrative/snapPredictor';
+import { scheduleSnapPrediction } from '@/lib/play/snapDecisions';
 import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
 import { GeminiAdapter, normalizeChoices } from '@/lib/providers/GeminiAdapter';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
@@ -736,6 +738,24 @@ export async function POST(req: NextRequest) {
 
     // Persist session into PostgreSQL
     await SessionRepository.createSession(session);
+
+    // Plan 15 §2.3 (Phase 6): opener dwell — predict the reader's first choice
+    // as the session-opening scene renders; logged at render, resolved when
+    // they tap. Runs after this response is on the wire.
+    after(async () => {
+      await scheduleSnapPrediction({
+        sessionId: session.sessionId,
+        storyId: story.id,
+        storyTitle: story.title,
+        storyLanguage: story.language,
+        npcIdToName: buildNpcIdToName(story.worldBible?.npcs),
+        turnNumber: 1,
+        currentProse: initialBeat.narrativeText,
+        choices: openingChoices,
+        playerState,
+        history: [],
+      });
+    });
 
     return NextResponse.json(
       {

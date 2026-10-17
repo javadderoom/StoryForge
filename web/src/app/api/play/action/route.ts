@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { SessionRepository } from '@/lib/db/repositories/sessionRepository';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
@@ -16,6 +16,8 @@ import { calculateActionXp, applyXpGain } from '@/lib/engines/game/progressionEn
 import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
 import { pruneInactiveZoneClocks } from '@/lib/engines/game/threatClock';
 import { resolveAccompanyingIds } from '@/lib/engines/narrative/worldContext';
+import { buildNpcIdToName } from '@/lib/engines/narrative/snapPredictor';
+import { cancelSnapPrediction, resolveSnapDecision, scheduleSnapPrediction } from '@/lib/play/snapDecisions';
 
 const geminiAdapter = new GeminiAdapter();
 
@@ -110,6 +112,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Plan 15 §2.3 (Phase 6): the reader just acted — abort any Snap dwell
+    // prediction still in flight for this session so it cannot log a row that
+    // raced the tap. Rows that already logged are resolved below.
+    if (session) cancelSnapPrediction(session.sessionId);
+
     // ------------------------------------------------------------------
     // Plan 08 Phase 2: SERVER-AUTHORITATIVE PlayerState.
     // A desynced/replayed client payload can claim knowledge or inventory
@@ -154,9 +161,27 @@ export async function POST(req: NextRequest) {
     // text or — preferred — on the explicit `choiceId` the reader now sends.
     const sessionTurns =
       (session?.turns ?? (session as any)?.history ?? []) as Array<{
+        turnNumber?: number;
+        playerActionText?: string;
+        narrativeProse?: string;
         presentedChoices?: any[];
       }>;
     const lastTurn = sessionTurns.length > 0 ? sessionTurns[sessionTurns.length - 1] : null;
+
+    // Plan 15 §2.3 (Phase 6): the previous turn's Snap choice-prediction was
+    // logged when its choices rendered; this submission is its answer. A tap
+    // of a different choice and any free-text action both resolve as a miss;
+    // predictions on abandoned turns stay `null`. Never blocks or fails the turn.
+    if (session && typeof lastTurn?.turnNumber === 'number') {
+      await resolveSnapDecision({
+        sessionId: session.sessionId,
+        turnNumber: lastTurn.turnNumber,
+        presentedChoices: lastTurn.presentedChoices,
+        explicitChoiceId: typeof body.choiceId === 'string' ? body.choiceId : undefined,
+        actionText: playerActionText,
+      });
+    }
+
     const isPresetChoice = Boolean(
       lastTurn?.presentedChoices?.some(
         (c: any) =>
@@ -979,6 +1004,32 @@ export async function POST(req: NextRequest) {
           console.error('Failed to deduct scene credit:', creditErr);
         }
       }
+    }
+
+    // Plan 15 §2.3 (Phase 6): Snap dwell prediction, logged at render.
+    // `after()` runs once this response is on the wire — the moment the reader
+    // sees the new scene and its choices. Fire-and-forget: the adapter timeout
+    // and the cancellation registry bound it; failures write no row. Stateless
+    // calls (no session) have nothing to resolve against.
+    if (sessionId && session) {
+      after(async () => {
+        await scheduleSnapPrediction({
+          sessionId,
+          storyId,
+          storyTitle: story.title,
+          storyLanguage: story.language,
+          npcIdToName: buildNpcIdToName(story.worldBible?.npcs),
+          turnNumber,
+          currentProse: newBeat.narrativeProse,
+          choices: newBeat.presentedChoices,
+          playerState: updatedPlayerState,
+          history: sessionTurns.map((turn) => ({
+            turnNumber: turn.turnNumber ?? 0,
+            playerActionText: turn.playerActionText ?? '',
+            narrativeProse: turn.narrativeProse ?? '',
+          })),
+        });
+      });
     }
 
     return NextResponse.json(
