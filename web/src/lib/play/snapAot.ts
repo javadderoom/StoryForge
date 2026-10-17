@@ -13,6 +13,7 @@ import { ChoiceOption, PlayerState } from '@/lib/types/gameplay';
 import { WorldStateLedger } from '@/lib/types/world';
 import type { StoryManifest } from '@/lib/types/story';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
+import { getNarrativeAdapter } from '@/lib/providers/narrativeAdapterFactory';
 import { SubQAdapter } from '@/lib/providers/SubQAdapter';
 
 /**
@@ -233,7 +234,7 @@ export async function preGenerateSnapAotBranch(
         currentChapterId: session.currentChapterId ?? null,
         sessionTurns: session.turns ?? [],
         sessionMemories: session.memories ?? [],
-        geminiAdapter: deps.geminiAdapter ?? new GeminiAdapter(),
+        geminiAdapter: deps.geminiAdapter ?? getNarrativeAdapter(ctx.story.engineTier),
         subqAdapter: deps.subqAdapter,
         signal: ctx.signal,
       });

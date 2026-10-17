@@ -18,8 +18,7 @@ import { pruneInactiveZoneClocks } from '@/lib/engines/game/threatClock';
 import { resolveAccompanyingIds } from '@/lib/engines/narrative/worldContext';
 import { buildNpcIdToName } from '@/lib/engines/narrative/snapPredictor';
 import { cancelSnapPrediction, resolveSnapDecision, scheduleSnapDwell } from '@/lib/play/snapDecisions';
-
-const geminiAdapter = new GeminiAdapter();
+import { getNarrativeAdapter, ENGINE_TIER_COSTS, type EngineTier } from '@/lib/providers/narrativeAdapterFactory';
 
 export async function OPTIONS(req: NextRequest) {
   return handleCorsPreflight(req);
@@ -140,16 +139,26 @@ export async function POST(req: NextRequest) {
       /* non-fatal */
     }
 
+    // Engine tier resolution and credit metering.
+    // normal = 1 credit, advance = 5 credits.
+    const engineTier: EngineTier = story.engineTier === 'advance' ? 'advance' : 'normal';
+    const sceneCreditCost = ENGINE_TIER_COSTS[engineTier] ?? 1;
+    const activeNarrativeAdapter = getNarrativeAdapter(engineTier);
+
     // Credit metering. `if (auth && ...)` is intentional: guests play for free,
     // authenticated players are metered. This is NOT an authorization gate —
     // session ownership is enforced above via getSessionForUser.
-    if (auth && auth.user.creditBalance <= 0) {
+    if (auth && auth.user.creditBalance < sceneCreditCost) {
       return NextResponse.json(
         {
           success: false,
           creditDepleted: true,
-          error: 'اعتبار صحنه‌های شما به پایان رسیده است. برای ادامه داستان لطفاً از فروشگاه اعتبار خود را شارژ کنید.',
-          remainingCredits: 0,
+          error:
+            story.language === 'fa'
+              ? `اعتبار صحنه‌های شما کافی نیست (نیاز به ${sceneCreditCost} اعتبار). برای ادامه داستان لطفاً از فروشگاه اعتبار خود را شارژ کنید.`
+              : `Insufficient scene credits (requires ${sceneCreditCost} credits). Please recharge your credits in the store.`,
+          remainingCredits: auth.user.creditBalance,
+          requiredCredits: sceneCreditCost,
         },
         { status: 402, headers: buildCorsHeaders(req) }
       );
@@ -737,7 +746,7 @@ export async function POST(req: NextRequest) {
         displacedLocationId,
         previousLocationId: preTurnLocationId,
       },
-      geminiAdapter,
+      activeNarrativeAdapter,
       (choices, currentProse) => {
         const priorTurns = ((session?.turns ?? []) as Array<{
           turnNumber?: number;
@@ -979,7 +988,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 6. Deduct 1 Scene Credit for Authenticated User
+    // 6. Deduct Scene Credit for Authenticated User (1 for normal, 5 for advance)
     let remainingCredits: number | null = null;
     if (auth) {
       const prisma = getPrisma();
@@ -987,7 +996,7 @@ export async function POST(req: NextRequest) {
         try {
           const updated = await prisma.user.update({
             where: { id: auth.user.id },
-            data: { creditBalance: { decrement: 1 } },
+            data: { creditBalance: { decrement: sceneCreditCost } },
             select: { creditBalance: true },
           });
           remainingCredits = updated.creditBalance;
@@ -995,10 +1004,10 @@ export async function POST(req: NextRequest) {
           await prisma.userCreditLedger.create({
             data: {
               userId: auth.user.id,
-              amount: -1,
+              amount: -sceneCreditCost,
               balanceAfter: updated.creditBalance,
-              reason: 'SCENE_PLAY',
-              metadata: { storyId, turnNumber },
+              reason: engineTier === 'advance' ? 'SCENE_PLAY_ADVANCE' : 'SCENE_PLAY',
+              metadata: { storyId, turnNumber, engineTier, cost: sceneCreditCost },
             },
           });
         } catch (creditErr) {

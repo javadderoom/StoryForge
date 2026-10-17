@@ -18,6 +18,7 @@ export interface CatalogStory {
   language: string;
   author: string;
   published?: boolean;
+  engineTier?: 'normal' | 'advance';
   statsPreview?: string[];
   coverImageUrl?: string;
   rpgSystem?: any;
@@ -28,7 +29,7 @@ export interface CatalogStory {
 
 export interface StartSessionResult {
   sessionId: string;
-  story: { id: string; title: string; language: string; rpgSystem: any };
+  story: { id: string; title: string; language: string; rpgSystem: any; engineTier?: 'normal' | 'advance' };
   lore: { laws: any[]; locations: { id: string; name: string }[]; npcs: { id: string; name: string }[] };
   playerState: PlayerState;
   currentBeat: { narrative: string; choices: any[]; discoveredCreature?: any; discoveredNpc?: any; discoveredNpcs?: any[] };

@@ -70,6 +70,8 @@ export interface SceneTurnInput {
   minWordCount?: number;
   /** Explicit continuity correction directive for scene remakes. */
   remakeDirective?: string;
+  /** Explicitly toggle choice-only regeneration (defaults to true in non-test env). */
+  allowChoiceRepair?: boolean;
 }
 
 export interface SceneAiResponse {
@@ -93,6 +95,8 @@ export interface SceneGenerationOutcome {
   firstPassFindings: ProseFinding[];
   /** Repair calls actually spent on this scene (0 = the first draft passed). */
   repairAttempts: number;
+  /** True when choices were regenerated because initial choices were invalid/dropped. */
+  choicesRepaired?: boolean;
   /** True when authored prose/choices were served instead of a model call. */
   usedAuthoredBeat: boolean;
   /** Raw model payload — the eval seam's capture point (null for authored beats). */
@@ -587,8 +591,69 @@ export async function generateValidatedScene(
   const proseFindings = check.findings;
 
   // Defense-in-depth: drop any AI choice that would leak an undiscovered secret or unintroduced NPC.
+  let choicesDropped = 0;
   if (secretSanitizer) {
+    const originalCount = aiResponse.choices?.length ?? 0;
     aiResponse.choices = secretSanitizer(aiResponse.choices, candidate.narrative);
+    choicesDropped = Math.max(0, originalCount - (aiResponse.choices?.length ?? 0));
+  }
+
+  // Targeted Choice-Only Regeneration:
+  // If the scene prose is completely valid, but the generated choices were defective
+  // (dropped by sanitizer leaving fewer than 2 choices, or only fallback choices injected),
+  // we ONLY ask for new choices for this established, validated scene rather than
+  // discarding or rewriting the 700-word prose.
+  const hasInjectedFallbacks = (aiResponse.choices || []).some(
+    (c: any) => typeof c.id === 'string' && c.id.startsWith('choice_fallback')
+  );
+  const shouldAttemptChoiceRepair =
+    input.allowChoiceRepair ?? (process.env.NODE_ENV !== 'test');
+  const needsChoiceRegeneration =
+    !aiResponse.choices || aiResponse.choices.length < 2 || hasInjectedFallbacks;
+
+  let choicesRepaired = false;
+  if (shouldAttemptChoiceRepair && needsChoiceRegeneration && !candidate.isMock) {
+    const defectReasons: string[] = [];
+    if (choicesDropped > 0) {
+      defectReasons.push(
+        `${choicesDropped} choice(s) leaked undiscovered secrets or named characters not present in the scene.`
+      );
+    }
+    if (hasInjectedFallbacks) {
+      defectReasons.push(
+        'Previous choices could not be used and were replaced with emergency fallbacks. Fresh narrative choices are required.'
+      );
+    }
+    if ((aiResponse.choices?.length ?? 0) < 2) {
+      defectReasons.push('Too few usable choices were produced. Exactly 3 to 4 varied choices are needed.');
+    }
+
+    try {
+      const choicesOnlyPayload = PromptAssembler.buildChoicesOnlyPrompt(
+        contextEnvelope,
+        candidate.narrative,
+        defectReasons
+      );
+      const { response: regeneratedChoices } = await adapter.generateSceneWithRaw(choicesOnlyPayload);
+      if (
+        !regeneratedChoices.isMock &&
+        Array.isArray(regeneratedChoices.choices) &&
+        regeneratedChoices.choices.length >= 2
+      ) {
+        const newlySanitized = secretSanitizer
+          ? secretSanitizer(regeneratedChoices.choices, candidate.narrative)
+          : regeneratedChoices.choices;
+        const newHasFallbacks = (newlySanitized || []).some(
+          (c: any) => typeof c.id === 'string' && c.id.startsWith('choice_fallback')
+        );
+        if (newlySanitized.length >= 2 && !newHasFallbacks) {
+          aiResponse.choices = newlySanitized;
+          choicesRepaired = true;
+        }
+      }
+    } catch (err) {
+      console.warn('[narrativeTurn] Choice-only regeneration non-fatal error:', err);
+    }
   }
 
   return {
@@ -596,6 +661,7 @@ export async function generateValidatedScene(
     aiResponse,
     proseFindings,
     proseRepaired,
+    choicesRepaired,
     firstPassFindings,
     repairAttempts,
     usedAuthoredBeat: false,

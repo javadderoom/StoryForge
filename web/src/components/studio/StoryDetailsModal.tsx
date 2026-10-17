@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Check, Plus, Tag, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { X, Check, Plus, Tag, Sparkles, Zap, Image as ImageIcon } from 'lucide-react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { GENRE_LABELS, GENRE_PRESETS } from '@/lib/genrePresets';
 import { StoryScale, StoryUpdateNotice } from '@/lib/types';
@@ -18,6 +18,7 @@ function StoryDetailsForm({
   const [tagline, setTagline] = useState(story.tagline);
   const [synopsis, setSynopsis] = useState(story.synopsis);
   const [storyScale, setStoryScale] = useState<StoryScale>(story.storyScale || 'urban');
+  const [engineTier, setEngineTierState] = useState<'normal' | 'advance'>(story.engineTier || 'normal');
   const [coverImageUrl, setCoverImageUrl] = useState(story.coverImageUrl || '');
   const [author, setAuthor] = useState(story.author);
   const [version, setVersion] = useState(story.version);
@@ -64,6 +65,7 @@ function StoryDetailsForm({
       tagline,
       synopsis,
       storyScale,
+      engineTier,
       coverImageUrl: coverImageUrl.trim(),
       author: author.trim() || story.author,
       version: version.trim() || story.version,
@@ -308,6 +310,94 @@ function StoryDetailsForm({
             >
               <Plus className="w-3 h-3" />
               {isPersian ? 'افزودن' : 'Add'}
+            </button>
+          </div>
+        </div>
+
+        {/* Engine Quality & Credit Tier */}
+        <div className="rounded-2xl border border-zinc-700/80 bg-zinc-950/70 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+              <div>
+                <h4 className="text-xs font-bold text-zinc-100">
+                  {isPersian ? 'کیفیت و سطح پردازش صحنه‌ها' : 'Scene Engine Quality & Tier'}
+                </h4>
+                <p className="text-[11px] text-zinc-400">
+                  {isPersian
+                    ? 'تعیین کیفیت هوش مصنوعی روایی و هزینهٔ اعتبار هر نوبت'
+                    : 'Configure storytelling AI tier and credit cost per scene.'}
+                </p>
+              </div>
+            </div>
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                engineTier === 'advance'
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                  : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+              }`}
+            >
+              {engineTier === 'advance'
+                ? isPersian
+                  ? 'پیشرفته ۵x • ۵ اعتبار'
+                  : 'Advance 5x • 5 Credits'
+                : isPersian
+                  ? 'معمولی • ۱ اعتبار'
+                  : 'Normal • 1 Credit'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5 pt-1">
+            <button
+              type="button"
+              onClick={() => setEngineTierState('normal')}
+              className={`p-3 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
+                engineTier === 'normal'
+                  ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-200 shadow-md shadow-emerald-950/30'
+                  : 'bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+              }`}
+            >
+              <div className="flex items-center justify-between w-full mb-1">
+                <span className="text-xs font-bold text-zinc-100 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  {isPersian ? 'Normal (معمولی)' : 'Normal'}
+                </span>
+                {engineTier === 'normal' && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+              </div>
+              <p className="text-[11px] text-zinc-400 leading-relaxed mb-2">
+                {isPersian
+                  ? 'پردازش استاندارد و روان روایت با سرعت بالا'
+                  : 'Fast, reliable standard narrative generation'}
+              </p>
+              <div className="inline-block text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-zinc-800/80 text-emerald-300 border border-emerald-500/20 w-fit">
+                {isPersian ? '۱ اعتبار در هر صحنه' : '1 Credit per scene'}
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEngineTierState('advance')}
+              className={`p-3 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
+                engineTier === 'advance'
+                  ? 'bg-amber-500/10 border-amber-500/50 text-amber-200 shadow-md shadow-amber-950/30'
+                  : 'bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+              }`}
+            >
+              <div className="flex items-center justify-between w-full mb-1">
+                <span className="text-xs font-bold text-zinc-100 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  {isPersian ? 'Advance (پیشرفته)' : 'Advance'}
+                </span>
+                {engineTier === 'advance' && <Check className="w-3.5 h-3.5 text-amber-400" />}
+              </div>
+              <p className="text-[11px] text-zinc-400 leading-relaxed mb-2">
+                {isPersian
+                  ? 'هوش مصنوعی عمیق با قدرت تحلیل تماتیک و نثر ارتقایافته'
+                  : 'Deep narrative reasoning and richer literary atmosphere'}
+              </p>
+              <div className="inline-block text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-zinc-800/80 text-amber-300 border border-amber-500/20 w-fit">
+                {isPersian ? '۵ اعتبار در هر صحنه (5x)' : '5 Credits per scene (5x)'}
+              </div>
             </button>
           </div>
         </div>

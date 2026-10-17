@@ -134,7 +134,7 @@ export default function Home() {
   const [selectedStory, setSelectedStory] = useState<CatalogStory | null>(null);
   const [sessionId, setSessionId] = useState<string>('');
   const [playerState, setPlayerState] = useState<any>(null);
-  const [storyMeta, setStoryMeta] = useState<{ id: string; title: string; language: string; rpgSystem: any } | null>(null);
+  const [storyMeta, setStoryMeta] = useState<{ id: string; title: string; language: string; rpgSystem: any; engineTier?: 'normal' | 'advance' } | null>(null);
   const [lore, setLore] = useState<{ locations: { id: string; name: string }[]; npcs: { id: string; name: string }[] }>({ locations: [], npcs: [] });
   const [currentBeat, setCurrentBeat] = useState<{ narrative: string; choices: any[]; discoveredCreature?: any; discoveredNpcs?: any[] } | null>(null);
   const [turnNumber, setTurnNumber] = useState<number>(1);
@@ -210,6 +210,8 @@ export default function Home() {
   const [ambientMuted, setAmbientMuted] = useState(false);
 
   const isRtl = (storyMeta?.language ?? selectedStory?.language ?? 'en') !== 'en';
+  const currentEngineTier = storyMeta?.engineTier || selectedStory?.engineTier || 'normal';
+  const requiredCredits = currentEngineTier === 'advance' ? 5 : 1;
 
   const [showStoryUpdateNotice, setShowStoryUpdateNotice] = useState(false);
   const activeUpdateNotice: StoryUpdateNotice | null =
@@ -465,8 +467,9 @@ export default function Home() {
         setIsShopModalOpen(true);
       }
     };
-    // Guests never spend credits; authenticated users at 0 go straight to the shop.
-    if (isAuthenticated && (user?.creditBalance ?? 0) <= 0) {
+    // Guests never spend credits; authenticated users with insufficient balance go straight to the shop.
+    const choiceCost = currentEngineTier === 'advance' ? 5 : 1;
+    if (isAuthenticated && (user?.creditBalance ?? 0) < choiceCost) {
       setIsShopModalOpen(true);
       setActionInFlight(false);
       return;
@@ -1042,6 +1045,27 @@ export default function Home() {
             <span className="hidden sm:inline">{isRtl ? 'پوسته' : 'Theme'}</span>
           </button>
 
+          {/* Engine Tier Badge */}
+          <span
+            className={`hidden sm:flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-bold ${
+              currentEngineTier === 'advance'
+                ? 'border-amber-500/50 bg-amber-500/15 text-amber-300 shadow-sm shadow-amber-950/20'
+                : 'border-zinc-700/60 bg-zinc-800/60 text-zinc-400'
+            }`}
+            title={
+              currentEngineTier === 'advance'
+                ? isRtl
+                  ? 'موتور روایی پیشرفته ۵x (۵ اعتبار)'
+                  : 'Advance Narrative Tier (5 Credits)'
+                : isRtl
+                  ? 'موتور روایی معمولی (۱ اعتبار)'
+                  : 'Normal Narrative Tier (1 Credit)'
+            }
+          >
+            <Sparkles className="h-3 w-3 text-amber-400" />
+            <span>{currentEngineTier === 'advance' ? 'Advance 5x' : 'Normal'}</span>
+          </span>
+
           {/* Credit Balance Pill */}
           <button
             onClick={() => setIsShopModalOpen(true)}
@@ -1439,11 +1463,13 @@ export default function Home() {
 
               {!loading && currentBeat?.choices && (
                 <div className="mt-8 space-y-4 border-t pt-8" style={{ borderColor: themeObj.cardBorder }}>
-                  {isAuthenticated && (user?.creditBalance ?? 0) <= 0 ? (
+                  {isAuthenticated && (user?.creditBalance ?? 0) < (currentEngineTier === 'advance' ? 5 : 1) ? (
                     <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 text-center">
                       <Zap className="mx-auto h-8 w-8 text-amber-400" />
                       <p className="mt-2 text-sm font-bold text-amber-200">
-                        {isRtl ? 'اعتبار صحنه‌های شما تمام شده است' : 'You are out of scene credits'}
+                        {isRtl
+                          ? `اعتبار صحنه‌های شما کافی نیست (نیاز به ${currentEngineTier === 'advance' ? '۵' : '۱'} اعتبار)`
+                          : `Insufficient scene credits (requires ${currentEngineTier === 'advance' ? 5 : 1} credits)`}
                       </p>
                       <p className="mt-1 text-xs text-zinc-400">
                         {isRtl ? 'برای ادامه ماجراجویی، بسته اعتباری تهیه کنید.' : 'Top up credits to continue your adventure.'}

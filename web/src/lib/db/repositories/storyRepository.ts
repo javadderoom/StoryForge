@@ -278,6 +278,7 @@ export class StoryRepository {
           coverImageUrl: s.coverImageUrl || undefined,
           author: s.author,
           published: s.published,
+          engineTier: (s.manifest as any)?.engineTier || 'normal',
           worldId: s.worldId || undefined,
           worldName: s.world?.name || undefined,
           statsPreview: ((rpg?.stats as any[]) || []).map((stat) => stat.name || stat.id),
@@ -365,6 +366,7 @@ export class StoryRepository {
       const manifest = story.manifest as unknown as StoryManifest;
       const worldId = story.worldId || manifest.worldId || storyId;
       manifest.worldId = worldId;
+      manifest.engineTier = manifest.engineTier || 'normal';
 
       // Live world lore wins over the embedded manifest snapshot.
       const liveBible = toWorldBible(story.world?.worldBible || story.worldBible);

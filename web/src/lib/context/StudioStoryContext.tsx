@@ -326,6 +326,7 @@ export interface StoryListItem {
   author: string;
   version: string;
   published?: boolean;
+  engineTier?: 'normal' | 'advance';
   updatedAt?: string;
   /** Shared-world link (many stories per world). Absent = legacy solo story. */
   worldId?: string;
@@ -388,7 +389,8 @@ interface StudioStoryContextType {
   selectedWorldId: string;
   refreshWorlds: () => Promise<void>;
   // Updaters
-  updateStoryMeta: (updates: Partial<Pick<StoryManifest, 'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'coverImageUrl' | 'activeMilestoneGoal' | 'storyScale' | 'initialSceneId' | 'updateNotice'>>) => void;
+  updateStoryMeta: (updates: Partial<Pick<StoryManifest, 'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'coverImageUrl' | 'activeMilestoneGoal' | 'storyScale' | 'initialSceneId' | 'updateNotice' | 'engineTier'>>) => void;
+  setEngineTier: (tier: 'normal' | 'advance') => void;
   updateWorldBible: (updater: (prev: WorldBible) => WorldBible) => void;
   updateWorldMeta: (meta: Partial<Pick<WorldBible, 'worldName' | 'summary' | 'themeNotes' | 'aiSystemPrompt'>>) => void;
   // Laws CRUD
@@ -623,6 +625,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
           author: s.author,
           version: s.version || '1.0.0',
           published: s.published ?? false,
+          engineTier: s.engineTier || 'normal',
           worldId: s.worldId || undefined,
           worldName: s.worldName || undefined,
         }));
@@ -1086,7 +1089,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
       updates: Partial<
         Pick<
           StoryManifest,
-          'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'coverImageUrl' | 'activeMilestoneGoal' | 'storyScale' | 'initialSceneId' | 'updateNotice'
+          'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'coverImageUrl' | 'activeMilestoneGoal' | 'storyScale' | 'initialSceneId' | 'updateNotice' | 'engineTier'
         >
       >
     ) => {
@@ -1098,6 +1101,13 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
       notify.success(isPersian ? 'اطلاعات داستان ذخیره شد' : 'Story metadata updated');
     },
     [isPersian, persistToStorage]
+  );
+
+  const setEngineTier = useCallback(
+    (tier: 'normal' | 'advance') => {
+      updateStoryMeta({ engineTier: tier });
+    },
+    [updateStoryMeta]
   );
 
   // World Bible updater
@@ -2684,6 +2694,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         selectedWorldId,
         refreshWorlds,
         updateStoryMeta,
+        setEngineTier,
         updateWorldBible,
         updateWorldMeta,
         addWorldLaw,

@@ -26,6 +26,7 @@ export function getEmptyStoryManifest(language: 'en' | 'fa'): StoryManifest {
     version: '0.1.0',
     published: false,
     storyScale: 'urban',
+    engineTier: 'normal',
     worldBibleVersion: 1,
     worldBibleHistory: [],
     rpgSystem: {

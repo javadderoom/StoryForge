@@ -6,9 +6,11 @@ import { reconcilePlayerResources, resolveHealthKey } from '@/lib/engines/game/r
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import {
   generateValidatedScene,
+  assembleSceneEnvelope,
   type SceneSessionMemory,
   type SceneSessionTurn,
 } from '@/lib/engines/narrative/narrativeTurn';
+import { PromptAssembler } from '@/lib/engines/narrative/PromptAssembler';
 import {
   auditAotBranch,
   buildRejectedAudit,
@@ -608,6 +610,101 @@ export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBr
         { adapter: ctx.subqAdapter, signal: ctx.signal }
       );
       audit = mergeAotJudgeIntoAudit(audit, judge);
+    }
+
+    // Targeted Choice-Only Regeneration in AOT:
+    // If the branch prose is valid and the only standing defects are choice-related
+    // (choice hygiene or SubQ judge choice fit), do not discard the branch or mark it rejected.
+    // Instead, ask for new choices for the established scene prose.
+    const severeFindings = audit.findings.filter((f) => f.severity === 'error' || f.severity === 'warning');
+    const isChoiceOnlyDefect =
+      severeFindings.length > 0 &&
+      severeFindings.every((f) => f.category === 'choice_hygiene' || f.category === 'judge_choice_fit');
+
+    if (isChoiceOnlyDefect && !sceneOutcome.aiResponse.isMock) {
+      const defectReasons = severeFindings.map((f) => f.detail);
+      try {
+        const choiceContext = assembleSceneEnvelope({
+          story,
+          playerState: updatedPlayerState,
+          resolution,
+          playerActionText,
+          ledger: nextLedger,
+          sessionTurns: ctx.sessionTurns,
+          sessionMemories: ctx.sessionMemories,
+          targetSceneId: undefined,
+          activeChapter,
+          displacedLocationId,
+          previousLocationId: preTurnLocationId,
+        });
+
+        const choicePromptPayload = PromptAssembler.buildChoicesOnlyPrompt(
+          choiceContext,
+          sceneOutcome.aiResponse.narrative,
+          defectReasons
+        );
+
+        const { response: regeneratedChoices } =
+          await ctx.geminiAdapter.generateSceneWithRaw(choicePromptPayload);
+
+        if (
+          !regeneratedChoices.isMock &&
+          Array.isArray(regeneratedChoices.choices) &&
+          regeneratedChoices.choices.length >= 2
+        ) {
+          const priorSnippets = ctx.sessionTurns
+            .slice(-3)
+            .map((t) => t.narrativeProse)
+            .filter((p): p is string => typeof p === 'string' && p.length > 0);
+          const recentSceneSnippets =
+            priorSnippets.length > 0
+              ? priorSnippets
+              : [story.initialStoryBeats?.[0]?.narrativeText || ''];
+
+          const freshlySanitized = ActionValidator.sanitizeChoices(
+            regeneratedChoices.choices,
+            updatedPlayerState,
+            story.worldBible,
+            story.storyNpcOverrides,
+            recentSceneSnippets,
+            sceneOutcome.aiResponse.narrative
+          );
+
+          const hasFallbacks = (freshlySanitized || []).some(
+            (c: any) => typeof c.id === 'string' && c.id.startsWith('choice_fallback')
+          );
+
+          if (freshlySanitized.length >= 2 && !hasFallbacks) {
+            sceneOutcome.aiResponse.choices = freshlySanitized;
+            choicesDroppedBySanitizer = Math.max(
+              0,
+              (regeneratedChoices.choices.length ?? 0) - freshlySanitized.length
+            );
+
+            // Re-audit branch with the newly generated choices
+            audit = auditAotBranch({
+              storyTitle: story.title || '',
+              language: story.language,
+              narrative: sceneOutcome.aiResponse.narrative,
+              choices: freshlySanitized,
+              resolution,
+              isDiceless,
+              playerActionText,
+              playerState: updatedPlayerState,
+              worldBible: story.worldBible,
+              storyNpcOverrides: story.storyNpcOverrides,
+              priorTurns: ctx.sessionTurns,
+              firstPassFindings: sceneOutcome.firstPassFindings,
+              finalFindings: sceneOutcome.proseFindings,
+              proseRepaired: sceneOutcome.proseRepaired,
+              repairAttempts: sceneOutcome.repairAttempts,
+              choicesDroppedBySanitizer,
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[aotBranchEngine] Choice-only regeneration non-fatal error:', err);
+      }
     }
 
     return {
