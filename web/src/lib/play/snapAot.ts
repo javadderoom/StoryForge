@@ -22,9 +22,10 @@ import { SubQAdapter } from '@/lib/providers/SubQAdapter';
  * Sequencing (all inside the reader's dwell, after the turn response is on the
  * wire): Snap predicts the tap → the predicted choice's check is pre-rolled and
  * its branch pre-written by `aotBranchEngine` → the candidate is stored in
- * `snap_aot_branches` for analysis. Serving a stored branch on a predicted tap
- * remains GATED on the measured hit rate over `snap_decision_logs`; nothing in
- * this module renders to the reader.
+ * `snap_aot_branches` for analysis, carrying its audit verdict + findings
+ * (§7.6E: what the writer got wrong, what was repaired, what survived). Serving
+ * a stored branch on a predicted tap remains GATED on the measured hit rate
+ * over `snap_decision_logs`; nothing in this module renders to the reader.
  *
  * Guards, cheapest first:
  *   - `ENABLE_SNAP_AOT=true` opt-in (generation doubles writer spend per dwell),
@@ -77,6 +78,10 @@ export interface SnapAotBranchRow {
   narrative?: string;
   choices: unknown[];
   resolution?: unknown;
+  /** §7.6E serving verdict: clean | repaired | warned | rejected. */
+  verdict?: string;
+  /** §7.6E full audit report (findings + mistake telemetry) for analysis. */
+  audit?: unknown;
   latencyMs?: number;
   error?: string;
 }
@@ -153,6 +158,8 @@ export function buildSnapAotBranchRow(
     narrative: result.narrative,
     choices: (toJsonSafe(result.choices ?? []) as unknown[]) ?? [],
     resolution: toJsonSafe(result.resolution),
+    verdict: result.audit?.verdict,
+    audit: toJsonSafe(result.audit),
     latencyMs: result.latencyMs != null ? Math.round(result.latencyMs) : undefined,
     error: result.error,
   };
@@ -176,6 +183,8 @@ async function defaultStoreBranch(row: SnapAotBranchRow): Promise<void> {
       narrative: row.narrative,
       choices: asJson(row.choices),
       resolution: row.resolution === undefined ? undefined : asJson(row.resolution),
+      verdict: row.verdict,
+      audit: row.audit === undefined ? undefined : asJson(row.audit),
       latencyMs: row.latencyMs,
       error: row.error,
     },

@@ -190,9 +190,49 @@ describe('Plan 15 §2.3 tier 4 — AOT pre-generation orchestration', () => {
       narrative: 'Prose.',
       choices: [{ id: 'next_a', text: 'Move on', style: 'tactical', riskLevel: 'medium' }],
       resolution: { diceRoll: 12, outcome: 'success' },
+      verdict: undefined,
+      audit: undefined,
       latencyMs: 124,
       error: undefined,
     });
+  });
+
+  it('carries the §7.6E audit verdict and report onto the stored row', () => {
+    const audit = {
+      verdict: 'warned' as const,
+      findings: [
+        { severity: 'warning' as const, category: 'narrative_length' as const, source: 'audit' as const, detail: 'short' },
+      ],
+      stats: {
+        narrativeChars: 12,
+        choiceCount: 1,
+        choicesDroppedBySanitizer: 0,
+        firstPassErrors: 0,
+        firstPassWarnings: 0,
+        repairAttempts: 0,
+        proseRepaired: false,
+        leftoverFindings: 0,
+      },
+    };
+    const result: AotBranchResult = {
+      status: 'generated',
+      narrative: 'Prose.',
+      choices: [{ id: 'next_a', text: 'Move on', style: 'tactical', riskLevel: 'medium' }],
+      diceRoll: 12,
+      isDiceless: false,
+      outcome: 'success',
+      resolution: { diceRoll: 12, outcome: 'success' } as unknown as CheckResolution,
+      model: 'gemini-test',
+      audit,
+      latencyMs: 10,
+    };
+    const row = buildSnapAotBranchRow(
+      { sessionId: 'sess_1', storyId: 'story_1', turnNumber: 3, choice: DICELESS_CHOICE },
+      result
+    );
+
+    assert.equal(row.verdict, 'warned');
+    assert.deepEqual(row.audit, audit);
   });
 
   it('does not even load the session for an authored predicted choice', async () => {

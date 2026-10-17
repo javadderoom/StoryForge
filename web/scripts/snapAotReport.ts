@@ -2,9 +2,11 @@
  * Plan 15 §2.3 tier 4 — Snap-gated AOT shadow analysis (CLI).
  *
  * Reads `snap_decision_logs` (render-time prediction vs. actual tap) and
- * `snap_aot_branches` (pre-written branches) and reports the AOT gate picture:
- * the measured hit rate over resolved predictions, branch reliability/latency,
- * and what promoting serving WOULD have done (would-serve / wasted spend).
+ * `snap_aot_branches` (pre-written branches + §7.6E audits) and reports the
+ * AOT picture: the measured hit rate over resolved predictions, branch
+ * reliability/latency, the promotion matrix (would-serve vs wasted spend), and
+ * the shadow AUDIT — what the writer got wrong on the pre-generated turn
+ * (first-draft mistakes, repairs, surviving findings, verdicts).
  * Promotion of live serving stays gated on the measured hit rate over
  * `snap_decision_logs` — this report is the evidence, not the switch.
  *
@@ -12,6 +14,8 @@
  *   npm run aot:report
  *   npm run aot:report -- --limit=100
  *   npm run aot:report -- --session=<sessionId>
+ *   npm run aot:report -- --flagged            (warned/rejected branches + top findings)
+ *   npm run aot:report -- --branch=<branchId>  (full dump: prose, choices, audit, resolution)
  *   npm run aot:report -- --json
  */
 
@@ -23,6 +27,7 @@ try {
   /* .env optional (CI passes env directly) */
 }
 import { getPrisma } from '@/lib/db/client';
+import type { AotBranchAudit } from '@/lib/engines/narrative/aotBranchAudit';
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -43,11 +48,77 @@ async function main() {
   const limit = Math.max(1, Number(arg('limit') ?? '50') || 50);
   const sessionFilter = arg('session');
   const asJson = flag('json');
+  const branchId = arg('branch');
+  const flagged = flag('flagged');
 
   const prisma = getPrisma();
   if (!prisma) {
     console.error(`${RED}ENABLE_DB is not "true" — nothing to analyze.${RESET}`);
     process.exit(1);
+  }
+
+  // Single-branch inspector: full dump (prose, choices, audit, resolution).
+  if (branchId) {
+    const branch = await prisma.snapAotBranch.findUnique({ where: { id: branchId } });
+    if (!branch) {
+      console.error(`${RED}No snap_aot_branches row with id "${branchId}".${RESET}`);
+      await prisma.$disconnect();
+      process.exit(1);
+    }
+    const audit = branch.audit as unknown as AotBranchAudit | null;
+    const resolution = branch.resolution as Record<string, unknown> | null;
+
+    console.log(`\n${DIM}Snap AOT branch dump — ${branch.id}${RESET}`);
+    console.log(
+      `session ${branch.sessionId} | turn ${branch.turnNumber} | status ${branch.status} | ` +
+        `verdict ${branch.verdict ?? '—'} | model ${branch.model ?? '—'} | ${branch.latencyMs ?? '—'} ms`
+    );
+    console.log(
+      `predicted choice "${branch.choiceText ?? '—'}" (${branch.predictedChoiceId}) | ` +
+        `dice ${branch.isDiceless ? 'diceless' : (branch.diceRoll ?? '—')} | outcome ${branch.outcome ?? '—'}`
+    );
+    if (branch.error) console.log(`${RED}error: ${branch.error}${RESET}`);
+
+    if (audit) {
+      console.log(`\n${DIM}Audit (${audit.verdict}):${RESET}`);
+      for (const finding of audit.findings) {
+        const color = finding.severity === 'error' ? RED : finding.severity === 'warning' ? YELLOW : DIM;
+        console.log(
+          `  ${color}${finding.severity.padEnd(7)}${RESET} [${finding.category}] (${finding.source}) ${finding.detail}`
+        );
+      }
+      console.log(`${DIM}  stats: ${JSON.stringify(audit.stats)}${RESET}`);
+    } else {
+      console.log(`${DIM}No audit report on this row.${RESET}`);
+    }
+
+    if (branch.narrative) {
+      console.log(`\n${DIM}Prose (${branch.narrative.length} chars):${RESET}\n${branch.narrative}`);
+    }
+    const choices = branch.choices as Array<{ id?: string; text?: string; style?: string; riskLevel?: string }>;
+    if (Array.isArray(choices) && choices.length) {
+      console.log(`\n${DIM}Choices:${RESET}`);
+      for (const c of choices) {
+        console.log(`  • [${c.style ?? '—'}/${c.riskLevel ?? '—'}] ${c.text ?? '—'} (${c.id ?? '?'})`);
+      }
+    }
+    if (resolution) {
+      console.log(
+        `\n${DIM}Resolution:${RESET} outcome ${resolution.outcome ?? '—'} | ` +
+          `dice ${resolution.diceRoll ?? '—'} ${resolution.diceType ?? ''} | ` +
+          `DC ${resolution.difficultyClass ?? '—'} | total ${resolution.totalScore ?? '—'}`
+      );
+      if (resolution.consequenceSummary) {
+        console.log(`${DIM}  consequence:${RESET} ${resolution.consequenceSummary}`);
+      }
+      if (resolution.stateDiff) {
+        console.log(`${DIM}  stateDiff:${RESET} ${JSON.stringify(resolution.stateDiff)}`);
+      }
+    }
+
+    console.log('');
+    await prisma.$disconnect();
+    return;
   }
 
   const where = sessionFilter ? { sessionId: sessionFilter } : {};
@@ -80,6 +151,25 @@ async function main() {
   for (const b of generated) {
     const m = b.model ?? 'unknown';
     models[m] = (models[m] ?? 0) + 1;
+  }
+
+  // §7.6E audit aggregation: verdicts + mistake telemetry across stored branches.
+  const verdictCounts: Record<string, number> = {};
+  const findingsByCategory: Record<string, number> = {};
+  let auditedBranches = 0;
+  let firstPassErrorBranches = 0;
+  let repairedBranches = 0;
+  for (const b of branches) {
+    const audit = b.audit as unknown as AotBranchAudit | null;
+    if (!audit || typeof audit !== 'object' || !Array.isArray(audit.findings)) continue;
+    auditedBranches += 1;
+    verdictCounts[audit.verdict] = (verdictCounts[audit.verdict] ?? 0) + 1;
+    if ((audit.stats?.firstPassErrors ?? 0) > 0) firstPassErrorBranches += 1;
+    if (audit.stats?.proseRepaired) repairedBranches += 1;
+    for (const finding of audit.findings) {
+      if (finding.severity === 'info') continue;
+      findingsByCategory[finding.category] = (findingsByCategory[finding.category] ?? 0) + 1;
+    }
   }
 
   // Gate matrix: join each prediction with the branch that exists for it.
@@ -115,6 +205,13 @@ async function main() {
       models,
     },
     gate: { wouldServe, hitWithoutBranch, wastedSpend, savedSpend, pendingBranch },
+    audit: {
+      branchesAudited: auditedBranches,
+      byVerdict: verdictCounts,
+      firstDraftFailed: firstPassErrorBranches,
+      repaired: repairedBranches,
+      findingsByCategory,
+    },
   };
 
   if (asJson) {
@@ -146,6 +243,24 @@ async function main() {
     console.log(`${DIM}  models: ${modelLine}${RESET}`);
   }
 
+  if (auditedBranches > 0) {
+    const verdictLine = (['clean', 'repaired', 'warned', 'rejected'] as const)
+      .map((v) => `${v} ${verdictCounts[v] ?? 0}`)
+      .join(' | ');
+    console.log(
+      `Branch audit   (last ${limit}): ${verdictLine}` +
+        (auditedBranches < branches.length ? ` | no audit ${branches.length - auditedBranches}` : '')
+    );
+    const categoryLine = Object.entries(findingsByCategory)
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, v]) => `${k} ${v}`)
+      .join(', ');
+    console.log(
+      `${DIM}  first-draft mistakes on ${firstPassErrorBranches} branch(es) (repaired by the pipeline); ` +
+        `surviving flags: ${categoryLine || 'none'}${RESET}`
+    );
+  }
+
   if (branches.length === 0) {
     console.log(
       `\n${YELLOW}No pre-written branches found.${RESET} AOT generation is opt-in and off by ` +
@@ -159,6 +274,30 @@ async function main() {
   console.log(`  ${DIM}miss + branch${RESET}   wasted generation  ${wastedSpend}`);
   console.log(`  ${DIM}miss + none${RESET}     saved spend        ${savedSpend}`);
   if (pendingBranch > 0) console.log(`  ${DIM}pending + branch${RESET} dwell in progress  ${pendingBranch}`);
+
+  if (flagged) {
+    const flaggedRows = branches
+      .filter((b) => b.verdict === 'warned' || b.verdict === 'rejected')
+      .slice(0, 15);
+    console.log(`\n${DIM}Flagged branches (warned/rejected, newest first):${RESET}`);
+    if (!flaggedRows.length) {
+      console.log(`  ${GREEN}none${RESET}`);
+    }
+    for (const b of flaggedRows) {
+      const audit = b.audit as unknown as AotBranchAudit | null;
+      const highlights = (audit?.findings ?? [])
+        .filter((finding) => finding.severity !== 'info')
+        .slice(0, 2)
+        .map((finding) => `[${finding.category}] ${finding.detail}`)
+        .join('  ||  ');
+      const color = b.verdict === 'rejected' ? RED : YELLOW;
+      console.log(
+        `  ${color}${String(b.verdict).padEnd(9)}${RESET} ${b.id} turn ${b.turnNumber} ` +
+          `${DIM}${String(b.predictedChoiceId).slice(0, 20)}${RESET}`
+      );
+      console.log(`    ${DIM}${highlights || b.error || '—'}${RESET}`);
+    }
+  }
 
   const branchByKey = new Map(branches.map((b) => [`${b.sessionId}:${b.turnNumber}`, b]));
   const rows = decisions.slice(0, 20);

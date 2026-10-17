@@ -158,6 +158,13 @@ describe('Plan 15 §2.3 tier 4 — AOT branch engine', () => {
       assert.ok((result.choices ?? []).some((c) => c.id === 'next_a'));
       assert.equal(result.model, 'gemini-test');
       assert.equal(typeof result.latencyMs, 'number');
+      // §7.6E: generated branches carry their audit (mistake telemetry + verdict).
+      assert.ok(result.audit, 'generated branches carry an audit');
+      assert.ok(
+        ['clean', 'repaired', 'warned', 'rejected'].includes(result.audit!.verdict),
+        `unexpected audit verdict ${result.audit!.verdict}`
+      );
+      assert.equal(result.audit!.stats.repairAttempts, 0);
       // One generation call — the branch is a single writer pass here.
       assert.equal(calls.length, 1);
     });
@@ -200,6 +207,9 @@ describe('Plan 15 §2.3 tier 4 — AOT branch engine', () => {
       assert.equal(result.status, 'prose_invalid');
       assert.equal(result.narrative, undefined);
       assert.equal(result.error, 'unrepairable');
+      // The rejection itself is audited: verdict rejected + the canon findings.
+      assert.equal(result.audit?.verdict, 'rejected');
+      assert.ok(result.audit?.findings.some((f) => f.detail.includes('not usable')));
       // The pre-rolled resolution is still retained for analysis.
       assert.equal(result.resolution?.diceRoll, 20);
     });
@@ -215,6 +225,7 @@ describe('Plan 15 §2.3 tier 4 — AOT branch engine', () => {
       assert.equal(result.status, 'mock_unavailable');
       assert.equal(result.narrative, undefined);
       assert.equal(result.error, 'model_unavailable');
+      assert.equal(result.audit?.verdict, 'rejected');
       assert.equal(result.diceRoll, 20);
     });
   });

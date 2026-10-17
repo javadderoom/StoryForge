@@ -303,6 +303,9 @@ model SnapDecisionLog {
  * gated on the measured hit rate over `snap_decision_logs`; until then every
  * row here is analysis-only (`servedAt` stays null).
  * status: generated | mock_unavailable | prose_invalid | failed
+ * verdict (§7.6E audit): clean | repaired | warned | rejected — a generated
+ * branch that is `rejected` must never be served; `audit` holds the findings
+ * (first-draft mistakes, repairs, surviving findings) for analysis.
  * resolution: the full pre-rolled CheckResolution (dice, outcome, state diff).
  */
 model SnapAotBranch {
@@ -320,6 +323,8 @@ model SnapAotBranch {
   narrative         String?
   choices           Json     @default("[]")
   resolution        Json?
+  verdict           String?
+  audit             Json?
   latencyMs         Int?
   error             String?
   createdAt         DateTime @default(now())
@@ -329,6 +334,7 @@ model SnapAotBranch {
 
   @@index([sessionId, turnNumber])
   @@index([status])
+  @@index([verdict])
   @@map("snap_aot_branches")
 }
 

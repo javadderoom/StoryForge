@@ -81,6 +81,14 @@ export interface SceneGenerationOutcome {
   aiResponse: SceneAiResponse;
   proseFindings: ProseFinding[];
   proseRepaired: boolean;
+  /**
+   * Findings from the FIRST draft evaluation, snapshotted BEFORE any repair
+   * call — "what the writer got wrong on attempt zero". Shadow-AOT audit
+   * telemetry (Plan 15 §7.6E); callers that ignore it behave identically.
+   */
+  firstPassFindings: ProseFinding[];
+  /** Repair calls actually spent on this scene (0 = the first draft passed). */
+  repairAttempts: number;
   /** True when authored prose/choices were served instead of a model call. */
   usedAuthoredBeat: boolean;
   /** Raw model payload — the eval seam's capture point (null for authored beats). */
@@ -459,6 +467,8 @@ export async function generateValidatedScene(
       },
       proseFindings: [],
       proseRepaired: false,
+      firstPassFindings: [],
+      repairAttempts: 0,
       usedAuthoredBeat: true,
       raw: null,
     };
@@ -475,6 +485,8 @@ export async function generateValidatedScene(
       aiResponse,
       proseFindings: [],
       proseRepaired: false,
+      firstPassFindings: [],
+      repairAttempts: 0,
       usedAuthoredBeat: false,
       raw,
     };
@@ -507,8 +519,15 @@ export async function generateValidatedScene(
     });
   }
 
+  // Shadow-AOT telemetry (§7.6E): snapshot the first-draft findings BEFORE any
+  // repair call, so analysis can see exactly what the writer got wrong on
+  // attempt zero and whether the repair loop caught it.
+  const firstPassFindings = check.findings.map((f) => ({ ...f }));
+
   let proseRepaired = false;
+  let repairAttempts = 0;
   for (let attempt = 1; !check.ok && attempt <= 2; attempt++) {
+    repairAttempts = attempt;
     const repairPayload = {
       ...promptPayload,
       userPrompt: `${promptPayload.userPrompt}\n\n${buildProseRepairInstruction(check.findings)}\n\nREPAIR ATTEMPT ${attempt}/2: Correct every listed violation without changing the resolved outcome.\nPREVIOUS PROSE:\n${candidate.narrative}`,
@@ -517,7 +536,8 @@ export async function generateValidatedScene(
     if (repaired.isMock) {
       return {
         status: 'prose_invalid', aiResponse: candidate, proseFindings: check.findings,
-        proseRepaired: false, usedAuthoredBeat: false, raw, proseInvalidReason: 'repair_unavailable',
+        proseRepaired: false, firstPassFindings, repairAttempts,
+        usedAuthoredBeat: false, raw, proseInvalidReason: 'repair_unavailable',
       };
     }
     candidate = repaired;
@@ -545,7 +565,8 @@ export async function generateValidatedScene(
   if (!check.ok) {
     return {
       status: 'prose_invalid', aiResponse: candidate, proseFindings: check.findings,
-      proseRepaired: false, usedAuthoredBeat: false, raw, proseInvalidReason: 'unrepairable',
+      proseRepaired: false, firstPassFindings, repairAttempts,
+      usedAuthoredBeat: false, raw, proseInvalidReason: 'unrepairable',
     };
   }
   // Keep prose, choices and extracted memories from the same validated draft.
@@ -562,6 +583,8 @@ export async function generateValidatedScene(
     aiResponse,
     proseFindings,
     proseRepaired,
+    firstPassFindings,
+    repairAttempts,
     usedAuthoredBeat: false,
     raw,
   };

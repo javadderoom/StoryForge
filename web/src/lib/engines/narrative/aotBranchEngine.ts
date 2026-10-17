@@ -9,6 +9,11 @@ import {
   type SceneSessionMemory,
   type SceneSessionTurn,
 } from '@/lib/engines/narrative/narrativeTurn';
+import {
+  auditAotBranch,
+  buildRejectedAudit,
+  type AotBranchAudit,
+} from '@/lib/engines/narrative/aotBranchAudit';
 import { resolveAccompanyingIds } from '@/lib/engines/narrative/worldContext';
 import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
 import type { StoryManifest } from '@/lib/types/story';
@@ -85,6 +90,11 @@ export interface AotBranchResult {
   resolution?: CheckResolution;
   /** Model that wrote the branch, when the raw payload reports one. */
   model?: string;
+  /**
+   * Shadow audit (§7.6E): mistake telemetry + serving verdict for this branch.
+   * Absent only when the engine itself threw before producing a candidate.
+   */
+  audit?: AotBranchAudit;
   latencyMs: number;
   error?: string;
 }
@@ -503,6 +513,8 @@ export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBr
   // Model generation through the shared narrative core (route 699-763):
   // envelope → prompt → model → prose validation → secret sanitization.
   // ------------------------------------------------------------------
+  // Audit telemetry (§7.6E): how many model choices the sanitizer dropped.
+  let choicesDroppedBySanitizer = 0;
   const sceneOutcome = await generateValidatedScene(
     {
       story,
@@ -528,7 +540,7 @@ export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBr
           ? priorSnippets
           : [story.initialStoryBeats?.[0]?.narrativeText || ''];
 
-      return ActionValidator.sanitizeChoices(
+      const sanitized = ActionValidator.sanitizeChoices(
         choices,
         updatedPlayerState,
         story.worldBible,
@@ -536,11 +548,35 @@ export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBr
         recentSceneSnippets,
         currentProse
       );
+      choicesDroppedBySanitizer = Math.max(0, (choices?.length ?? 0) - (sanitized?.length ?? 0));
+      return sanitized;
     },
     ctx.subqAdapter
   );
 
   if (sceneOutcome.status === 'ok') {
+    // §7.6E: audit the pre-written branch — first-draft mistakes, repairs,
+    // surviving findings, secret echoes, choice hygiene, language, recycling —
+    // so the shadow phase produces analyzable verdicts, not just prose.
+    const audit = auditAotBranch({
+      storyTitle: story.title || '',
+      language: story.language,
+      narrative: sceneOutcome.aiResponse.narrative,
+      choices: sceneOutcome.aiResponse.choices,
+      resolution,
+      isDiceless,
+      playerActionText,
+      playerState: updatedPlayerState,
+      worldBible: story.worldBible,
+      storyNpcOverrides: story.storyNpcOverrides,
+      priorTurns: ctx.sessionTurns,
+      firstPassFindings: sceneOutcome.firstPassFindings,
+      finalFindings: sceneOutcome.proseFindings,
+      proseRepaired: sceneOutcome.proseRepaired,
+      repairAttempts: sceneOutcome.repairAttempts,
+      choicesDroppedBySanitizer,
+    });
+
     return {
       status: 'generated',
       narrative: sceneOutcome.aiResponse.narrative,
@@ -550,9 +586,17 @@ export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBr
       outcome: resolution.outcome,
       resolution,
       model: sceneOutcome.raw?.modelUsed,
+      audit,
       latencyMs: elapsed(),
     };
   }
+
+  const rejectionReason =
+    sceneOutcome.status === 'prose_invalid'
+      ? sceneOutcome.proseInvalidReason === 'repair_unavailable'
+        ? 'repair required but the writer was offline (mock output)'
+        : 'prose violated canon and was not repairable'
+      : 'the writer produced mock/offline output';
 
   return {
     status: sceneOutcome.status,
@@ -561,6 +605,10 @@ export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBr
     outcome: resolution.outcome,
     resolution,
     model: sceneOutcome.raw?.modelUsed,
+    audit: buildRejectedAudit(rejectionReason, sceneOutcome.proseFindings, {
+      narrativeChars: sceneOutcome.aiResponse.narrative?.length ?? 0,
+      repairAttempts: sceneOutcome.repairAttempts,
+    }),
     latencyMs: elapsed(),
     error:
       sceneOutcome.status === 'prose_invalid'
