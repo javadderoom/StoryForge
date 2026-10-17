@@ -134,7 +134,7 @@ export default function Home() {
   const [selectedStory, setSelectedStory] = useState<CatalogStory | null>(null);
   const [sessionId, setSessionId] = useState<string>('');
   const [playerState, setPlayerState] = useState<any>(null);
-  const [storyMeta, setStoryMeta] = useState<{ id: string; title: string; language: string; rpgSystem: any; engineTier?: 'normal' | 'advance' } | null>(null);
+  const [storyMeta, setStoryMeta] = useState<{ id: string; title: string; language: string; rpgSystem: any; engineTier?: 'normal' | 'plus' | 'advance' } | null>(null);
   const [lore, setLore] = useState<{ locations: { id: string; name: string }[]; npcs: { id: string; name: string }[] }>({ locations: [], npcs: [] });
   const [currentBeat, setCurrentBeat] = useState<{ narrative: string; choices: any[]; discoveredCreature?: any; discoveredNpcs?: any[] } | null>(null);
   const [turnNumber, setTurnNumber] = useState<number>(1);
@@ -211,7 +211,7 @@ export default function Home() {
 
   const isRtl = (storyMeta?.language ?? selectedStory?.language ?? 'en') !== 'en';
   const currentEngineTier = storyMeta?.engineTier || selectedStory?.engineTier || 'normal';
-  const requiredCredits = currentEngineTier === 'advance' ? 5 : 1;
+  const requiredCredits = currentEngineTier === 'advance' ? 5 : currentEngineTier === 'plus' ? 2 : 1;
 
   const [showStoryUpdateNotice, setShowStoryUpdateNotice] = useState(false);
   const activeUpdateNotice: StoryUpdateNotice | null =
@@ -347,10 +347,12 @@ export default function Home() {
         const resolvedSessionId = data.sessionId || (data as any).session?.sessionId;
         const resolvedPlayerState = data.playerState || (data as any).session?.playerState;
         const resolvedTurnNumber = data.turnNumber ?? (data as any).session?.turnCount ?? 1;
+        const resolvedRemakeCount = (data.currentBeat as any)?.remakeCount ?? (data as any).remakeCount ?? 0;
         setSessionId(resolvedSessionId);
         setPlayerState(resolvedPlayerState);
         setCurrentBeat(data.currentBeat);
         setTurnNumber(resolvedTurnNumber);
+        setCurrentRemakeCount(resolvedRemakeCount);
         setStoryMeta(data.story);
         setLore(data.lore);
         // Auto-pick realm theme from the story (only if user hasn't customized yet)
@@ -468,7 +470,7 @@ export default function Home() {
       }
     };
     // Guests never spend credits; authenticated users with insufficient balance go straight to the shop.
-    const choiceCost = currentEngineTier === 'advance' ? 5 : 1;
+    const choiceCost = requiredCredits;
     if (isAuthenticated && (user?.creditBalance ?? 0) < choiceCost) {
       setIsShopModalOpen(true);
       setActionInFlight(false);
@@ -1050,6 +1052,8 @@ export default function Home() {
             className={`hidden sm:flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-bold ${
               currentEngineTier === 'advance'
                 ? 'border-amber-500/50 bg-amber-500/15 text-amber-300 shadow-sm shadow-amber-950/20'
+                : currentEngineTier === 'plus'
+                ? 'border-indigo-500/50 bg-indigo-500/15 text-indigo-300 shadow-sm shadow-indigo-950/20'
                 : 'border-zinc-700/60 bg-zinc-800/60 text-zinc-400'
             }`}
             title={
@@ -1057,13 +1061,23 @@ export default function Home() {
                 ? isRtl
                   ? 'موتور روایی پیشرفته ۵x (۵ اعتبار)'
                   : 'Advance Narrative Tier (5 Credits)'
+                : currentEngineTier === 'plus'
+                ? isRtl
+                  ? 'موتور روایی پلاس ۲x (۲ اعتبار)'
+                  : 'Plus Narrative Tier (2 Credits)'
                 : isRtl
                   ? 'موتور روایی معمولی (۱ اعتبار)'
                   : 'Normal Narrative Tier (1 Credit)'
             }
           >
             <Sparkles className="h-3 w-3 text-amber-400" />
-            <span>{currentEngineTier === 'advance' ? 'Advance 5x' : 'Normal'}</span>
+            <span>
+              {currentEngineTier === 'advance'
+                ? 'Advance 5x'
+                : currentEngineTier === 'plus'
+                ? 'Plus 2x'
+                : 'Normal'}
+            </span>
           </span>
 
           {/* Credit Balance Pill */}
@@ -1463,13 +1477,13 @@ export default function Home() {
 
               {!loading && currentBeat?.choices && (
                 <div className="mt-8 space-y-4 border-t pt-8" style={{ borderColor: themeObj.cardBorder }}>
-                  {isAuthenticated && (user?.creditBalance ?? 0) < (currentEngineTier === 'advance' ? 5 : 1) ? (
+                  {isAuthenticated && (user?.creditBalance ?? 0) < requiredCredits ? (
                     <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 text-center">
                       <Zap className="mx-auto h-8 w-8 text-amber-400" />
                       <p className="mt-2 text-sm font-bold text-amber-200">
                         {isRtl
-                          ? `اعتبار صحنه‌های شما کافی نیست (نیاز به ${currentEngineTier === 'advance' ? '۵' : '۱'} اعتبار)`
-                          : `Insufficient scene credits (requires ${currentEngineTier === 'advance' ? 5 : 1} credits)`}
+                          ? `اعتبار صحنه‌های شما کافی نیست (نیاز به ${requiredCredits === 5 ? '۵' : requiredCredits === 2 ? '۲' : '۱'} اعتبار)`
+                          : `Insufficient scene credits (requires ${requiredCredits} credits)`}
                       </p>
                       <p className="mt-1 text-xs text-zinc-400">
                         {isRtl ? 'برای ادامه ماجراجویی، بسته اعتباری تهیه کنید.' : 'Top up credits to continue your adventure.'}

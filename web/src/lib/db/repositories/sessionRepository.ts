@@ -201,6 +201,7 @@ export class SessionRepository {
     chapterNumber,
     currentChapterId,
     sagaLedger,
+    isRemake = false,
   }: {
     sessionId: string;
     beat: TurnBeat;
@@ -210,13 +211,18 @@ export class SessionRepository {
     chapterNumber?: number;
     currentChapterId?: string;
     sagaLedger?: WorldStateLedger;
+    isRemake?: boolean;
   }) {
     const turnChapter = chapterNumber ?? beat.chapterNumber;
 
     if (!isDatabaseActive) {
       const existing = inMemorySessions.get(sessionId) || {};
-      const turns = (existing.turns || []).filter((t: any) => (t.turnNumber ?? 0) < beat.turnNumber);
-      const mems = (existing.memories || []).filter((m: any) => (m.turnNumber ?? 0) < beat.turnNumber);
+      const turns = (existing.turns || []).filter((t: any) =>
+        isRemake ? (t.turnNumber ?? 0) < beat.turnNumber : (t.turnNumber ?? 0) < beat.turnNumber
+      );
+      const mems = (existing.memories || []).filter((m: any) =>
+        isRemake ? (m.turnNumber ?? 0) < beat.turnNumber : (m.turnNumber ?? 0) < beat.turnNumber
+      );
       const newTurn = {
         sessionId,
         turnNumber: beat.turnNumber,
@@ -227,6 +233,7 @@ export class SessionRepository {
         presentedChoices: beat.presentedChoices,
         resolution,
         chapterNumber: turnChapter,
+        remakeCount: isRemake ? 1 : 0,
       };
       turns.push(newTurn);
       for (const m of memories) {
@@ -246,6 +253,16 @@ export class SessionRepository {
     }
     try {
       return await prisma.$transaction(async (tx) => {
+        // If this is a remake of the turn, prune the prior turn's history and memories
+        if (isRemake) {
+          await tx.turnHistory.deleteMany({
+            where: { sessionId, turnNumber: beat.turnNumber },
+          });
+          await tx.memoryLog.deleteMany({
+            where: { sessionId, turnNumber: beat.turnNumber },
+          });
+        }
+
         // 1. Update playthrough session state (+ Plan 07 chapter & ledger sync)
         await tx.playthroughSession.update({
           where: { sessionId },
@@ -270,6 +287,7 @@ export class SessionRepository {
             presentedChoices: beat.presentedChoices as any,
             resolution: resolution as any,
             chapterNumber: turnChapter ?? null,
+            remakeCount: isRemake ? 1 : 0,
           },
         });
 

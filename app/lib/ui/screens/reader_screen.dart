@@ -33,6 +33,7 @@ import 'story_catalog_screen.dart';
 import 'character_creation_screen.dart';
 import 'compendium_screen.dart';
 import 'shop_screen.dart';
+import '../widgets/remake_scene_sheet.dart';
 import '../../models/story.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -312,6 +313,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final session = ref.read(gameSessionProvider);
     final isPersian = session.isPersian;
 
+    final auth = ref.read(authProvider);
+    final requiredCredits = session.sceneCreditCost;
+    if (auth.isAuthenticated && (auth.user?.creditBalance ?? 0) < requiredCredits) {
+      ref.read(audioProvider.notifier).playSfx(SfxType.buttonClick);
+      ShopScreen.open(context);
+      AppToast.show(
+        context,
+        message: isPersian
+            ? 'اعتبار صحنه‌های شما کافی نیست (نیاز به ${PersianNumbers.toPersian(requiredCredits)} اعتبار).'
+            : 'Insufficient scene credits (requires $requiredCredits credits).',
+        type: ToastType.error,
+      );
+      return;
+    }
+
     if (!choice.requiresRoll) {
       // Routine dialogue, basic movement, or low-stakes action:
       // Directly advance the story with smooth page-turn feedback without a dice modal.
@@ -530,6 +546,61 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   onParticlesToggled: (p) => setState(() => _enableParticles = p),
                 );
               },
+            ),
+
+            // Engine Tier Pill
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: session.engineTier == 'advance'
+                    ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
+                    : session.engineTier == 'plus'
+                        ? const Color(0xFF6366F1).withValues(alpha: 0.2)
+                        : Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: session.engineTier == 'advance'
+                      ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
+                      : session.engineTier == 'plus'
+                          ? const Color(0xFF818CF8).withValues(alpha: 0.5)
+                          : Colors.white24,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.auto_awesome_rounded,
+                    color: session.engineTier == 'advance'
+                        ? const Color(0xFFF59E0B)
+                        : session.engineTier == 'plus'
+                            ? const Color(0xFFA5B4FC)
+                            : Colors.white70,
+                    size: 13,
+                  ),
+                  const SizedBox(width: 4),
+                  Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Text(
+                      session.engineTier == 'advance'
+                          ? (isPersian ? 'پیشرفته 5x' : 'Advance 5x')
+                          : session.engineTier == 'plus'
+                              ? (isPersian ? 'پلاس 2x' : 'Plus 2x')
+                              : (isPersian ? 'معمولی' : 'Normal'),
+                      style: GoogleFonts.vazirmatn(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: session.engineTier == 'advance'
+                            ? const Color(0xFFFDE68A)
+                            : session.engineTier == 'plus'
+                                ? const Color(0xFFE0E7FF)
+                                : Colors.white70,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
 
             // Credit Balance Pill & Shop Trigger
@@ -1197,6 +1268,98 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               ),
                             ),
                             const SizedBox(height: 24),
+
+                            // Scene Action Bar: Remake Scene
+                            if (!session.isLoading && session.currentNarrative.isNotEmpty && session.turnNumber > 1) ...[
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    InkWell(
+                                      borderRadius: BorderRadius.circular(10),
+                                      onTap: (session.remakeCount >= 1 || session.isRemaking)
+                                          ? null
+                                          : () async {
+                                              final success = await RemakeSceneSheet.show(
+                                                context,
+                                                isPersian: isPersian,
+                                                onRemake: (issueId, reason) async {
+                                                  return await ref.read(gameSessionProvider.notifier).remakeCurrentScene(reason);
+                                                },
+                                              );
+                                              if (success == true) {
+                                                if (!context.mounted) return;
+                                                AppToast.show(
+                                                  context,
+                                                  message: isPersian ? 'صحنه با موفقیت بازنویسی و اصلاح شد.' : 'Scene successfully remade.',
+                                                  type: ToastType.success,
+                                                );
+                                              }
+                                            },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: session.remakeCount >= 1
+                                              ? Colors.white.withValues(alpha: 0.04)
+                                              : const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(
+                                            color: session.remakeCount >= 1
+                                                ? Colors.white12
+                                                : const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.rotate_left_rounded,
+                                              size: 15,
+                                              color: session.remakeCount >= 1 ? Colors.white38 : const Color(0xFFF59E0B),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              isPersian ? 'بازسازی صحنه' : 'Remake Scene',
+                                              style: GoogleFonts.vazirmatn(
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.bold,
+                                                color: session.remakeCount >= 1 ? Colors.white38 : const Color(0xFFFDE68A),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: session.remakeCount >= 1
+                                                    ? Colors.white.withValues(alpha: 0.08)
+                                                    : const Color(0xFF10B981).withValues(alpha: 0.2),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: session.remakeCount >= 1
+                                                      ? Colors.white12
+                                                      : const Color(0xFF10B981).withValues(alpha: 0.5),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                session.remakeCount >= 1
+                                                    ? (isPersian ? 'استفاده‌شده' : 'Used')
+                                                    : (isPersian ? '۱ بار رایگان' : '1x Free'),
+                                                style: GoogleFonts.vazirmatn(
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: session.remakeCount >= 1 ? Colors.white38 : const Color(0xFF34D399),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
 
                             // Choices & Custom Action
                             if (!session.isLoading && session.choices.isNotEmpty) ...[

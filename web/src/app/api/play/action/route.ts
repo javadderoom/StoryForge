@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   const turnStartTime = Date.now();
   try {
     const body = await req.json();
-    const {
+    let {
       storyId,
       sessionId,
       playerActionText,
@@ -139,16 +139,17 @@ export async function POST(req: NextRequest) {
       /* non-fatal */
     }
 
+    const isRemake = body?.isRemake === true;
+
     // Engine tier resolution and credit metering.
-    // normal = 1 credit, advance = 5 credits.
-    const engineTier: EngineTier = story.engineTier === 'advance' ? 'advance' : 'normal';
-    const sceneCreditCost = ENGINE_TIER_COSTS[engineTier] ?? 1;
+    // normal = 1 credit, plus = 2 credits, advance = 5 credits.
+    const engineTier: EngineTier =
+      story.engineTier === 'advance' ? 'advance' : story.engineTier === 'plus' ? 'plus' : 'normal';
+    const sceneCreditCost = isRemake ? 0 : (ENGINE_TIER_COSTS[engineTier] ?? 1);
     const activeNarrativeAdapter = getNarrativeAdapter(engineTier);
 
-    // Credit metering. `if (auth && ...)` is intentional: guests play for free,
-    // authenticated players are metered. This is NOT an authorization gate —
-    // session ownership is enforced above via getSessionForUser.
-    if (auth && auth.user.creditBalance < sceneCreditCost) {
+    // Credit metering. Remakes are free (0 credits).
+    if (auth && sceneCreditCost > 0 && auth.user.creditBalance < sceneCreditCost) {
       return NextResponse.json(
         {
           success: false,
@@ -164,7 +165,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-            // 1. Guardrail Validation
+    // 1. Guardrail Validation
     // Presented (AI- or authored-generated) choices are trusted: they were built
     // from the player's own state at generation time, so re-validating them as
     // free text causes false secret-leak rejections. We match either on exact
@@ -175,8 +176,53 @@ export async function POST(req: NextRequest) {
         playerActionText?: string;
         narrativeProse?: string;
         presentedChoices?: any[];
+        remakeCount?: number;
       }>;
     const lastTurn = sessionTurns.length > 0 ? sessionTurns[sessionTurns.length - 1] : null;
+
+    if (isRemake) {
+      if (!session || sessionTurns.length === 0 || !lastTurn) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              story.language === 'fa'
+                ? 'صحنه‌ای برای بازسازی وجود ندارد.'
+                : 'No scene available to remake.',
+          },
+          { status: 400, headers: buildCorsHeaders(req) }
+        );
+      }
+      if (((lastTurn as any)?.remakeCount ?? 0) >= 1) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              story.language === 'fa'
+                ? 'این صحنه قبلاً یک‌بار بازسازی شده است. هر صحنه حداکثر ۱ بار امکان بازسازی رایگان دارد.'
+                : 'This scene has already been remade. Only 1 free remake is allowed per scene.',
+          },
+          { status: 400, headers: buildCorsHeaders(req) }
+        );
+      }
+      // Inherit the action text and turn number from the turn being remade
+      if (lastTurn.playerActionText) {
+        playerActionText = lastTurn.playerActionText;
+      }
+      if (typeof lastTurn.turnNumber === 'number') {
+        turnNumber = lastTurn.turnNumber;
+      }
+    }
+
+    const remakeReason =
+      typeof body.remakeReason === 'string' && body.remakeReason.trim().length > 0
+        ? body.remakeReason.trim()
+        : story.language === 'fa'
+          ? 'اصلاح پیوستگی و عدم انطباق روایی'
+          : 'Continuity and immersion fix';
+    const remakeDirective = isRemake
+      ? `[CONTINUITY CORRECTION REMAKE]: The player reported an immersion/continuity break in the previous generation: "${remakeReason}". You MUST strictly address and fix this issue in the new narrative. Do not repeat the same error. Keep established past canon solid.`
+      : undefined;
 
     // Plan 15 §2.3 (Phase 6): the previous turn's Snap choice-prediction was
     // logged when its choices rendered; this submission is its answer. A tap
@@ -745,6 +791,7 @@ export async function POST(req: NextRequest) {
         activeChapter,
         displacedLocationId,
         previousLocationId: preTurnLocationId,
+        remakeDirective,
       },
       activeNarrativeAdapter,
       (choices, currentProse) => {
@@ -985,12 +1032,13 @@ export async function POST(req: NextRequest) {
         memories: turnMemories,
         currentChapterId: matchedAuthoredBeat?.chapterId || activeChapter?.id,
         sagaLedger: nextLedger,
+        isRemake,
       });
     }
 
-    // 6. Deduct Scene Credit for Authenticated User (1 for normal, 5 for advance)
+    // 6. Deduct Scene Credit for Authenticated User (1 for normal, 2 for plus, 5 for advance, 0 for remake)
     let remainingCredits: number | null = null;
-    if (auth) {
+    if (auth && sceneCreditCost > 0) {
       const prisma = getPrisma();
       if (prisma) {
         try {
@@ -1006,7 +1054,12 @@ export async function POST(req: NextRequest) {
               userId: auth.user.id,
               amount: -sceneCreditCost,
               balanceAfter: updated.creditBalance,
-              reason: engineTier === 'advance' ? 'SCENE_PLAY_ADVANCE' : 'SCENE_PLAY',
+              reason:
+                engineTier === 'advance'
+                  ? 'SCENE_PLAY_ADVANCE'
+                  : engineTier === 'plus'
+                    ? 'SCENE_PLAY_PLUS'
+                    : 'SCENE_PLAY',
               metadata: { storyId, turnNumber, engineTier, cost: sceneCreditCost },
             },
           });
@@ -1014,6 +1067,8 @@ export async function POST(req: NextRequest) {
           console.error('Failed to deduct scene credit:', creditErr);
         }
       }
+    } else if (auth) {
+      remainingCredits = auth.user.creditBalance;
     }
 
     // Plan 15 §2.3 (Phase 6): Snap dwell compute, logged at render.
@@ -1080,6 +1135,8 @@ export async function POST(req: NextRequest) {
           locationChanged: !!displacedLocationId,
           displacedLocationId: displacedLocationId || undefined,
           activeTensionClocks: updatedPlayerState.activeTensionClocks ?? [],
+          remakeUsed: isRemake,
+          remakeCount: isRemake ? 1 : ((lastTurn as any)?.remakeCount ?? 0),
         },
       },
       { headers: buildCorsHeaders(req) }

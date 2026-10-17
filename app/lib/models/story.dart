@@ -130,6 +130,7 @@ class StorySummary {
   final int universalBaseValue;
   final Map<String, dynamic>? progressionConfig;
   final StoryUpdateNotice? updateNotice;
+  final String engineTier;
 
   StorySummary({
     required this.id,
@@ -148,7 +149,12 @@ class StorySummary {
     this.universalBaseValue = 10,
     this.progressionConfig,
     this.updateNotice,
+    this.engineTier = 'normal',
   });
+
+  int get sceneCreditCost => engineTier == 'advance' ? 5 : engineTier == 'plus' ? 2 : 1;
+  String get engineTierLabel => engineTier == 'advance' ? 'Advance 5x' : engineTier == 'plus' ? 'Plus 2x' : 'Normal';
+  String get engineTierLabelFa => engineTier == 'advance' ? 'فوق‌پیشرفته ۵x' : engineTier == 'plus' ? 'پیشرفته ۲x' : 'معمولی';
 
   factory StorySummary.fromJson(Map<String, dynamic> json) {
     List<String> parseList(dynamic val) {
@@ -189,6 +195,7 @@ class StorySummary {
       universalBaseValue: (json['universalBaseValue'] ?? json['rpgSystem']?['universalBaseValue'] as num?)?.toInt() ?? 10,
       progressionConfig: json['rpgSystem']?['progression'] as Map<String, dynamic>?,
       updateNotice: parsedNotice,
+      engineTier: json['engineTier'] as String? ?? 'normal',
     );
   }
 }

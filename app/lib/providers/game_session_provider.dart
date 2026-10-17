@@ -52,6 +52,12 @@ class GameSessionState {
   final StoryUpdateNotice? updateNotice;
   /// Active scene ID for the current beat.
   final String? currentSceneId;
+  /// Engine tier: 'normal', 'plus', or 'advance'.
+  final String engineTier;
+  /// Number of times the current scene has been remade (max 1 free remake).
+  final int remakeCount;
+  /// Whether a remake request is currently in flight.
+  final bool isRemaking;
 
   GameSessionState({
     this.isLoading = false,
@@ -85,7 +91,24 @@ class GameSessionState {
     this.initialSceneId,
     this.updateNotice,
     this.currentSceneId,
+    this.engineTier = 'normal',
+    this.remakeCount = 0,
+    this.isRemaking = false,
   });
+
+  int get sceneCreditCost {
+    switch (engineTier) {
+      case 'advance':
+        return 5;
+      case 'plus':
+        return 2;
+      case 'normal':
+      default:
+        return 1;
+    }
+  }
+
+  bool get canRemake => turnNumber > 1 && remakeCount == 0 && !isLoading && !isRemaking;
 
   bool get isPersian {
     if (language == 'en') return false;
@@ -126,6 +149,9 @@ class GameSessionState {
     String? initialSceneId,
     StoryUpdateNotice? updateNotice,
     String? currentSceneId,
+    String? engineTier,
+    int? remakeCount,
+    bool? isRemaking,
     bool clearSceneImage = false,
     bool clearPendingTurn = false,
     bool clearDisplacement = false,
@@ -173,6 +199,9 @@ class GameSessionState {
       initialSceneId: initialSceneId ?? this.initialSceneId,
       updateNotice: clearUpdateNotice ? null : (updateNotice ?? this.updateNotice),
       currentSceneId: currentSceneId ?? this.currentSceneId,
+      engineTier: engineTier ?? this.engineTier,
+      remakeCount: remakeCount ?? this.remakeCount,
+      isRemaking: isRemaking ?? this.isRemaking,
     );
   }
 
@@ -353,6 +382,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       final startDiscoveredJson = currentBeat['discoveredCreature'] as Map<String, dynamic>?;
       final startDiscovered = startDiscoveredJson != null ? DiscoveredCreature.fromJson(startDiscoveredJson) : null;
       final startNpcs = GameSessionState.parseDiscoveredNpcs(Map<String, dynamic>.from(currentBeat as Map));
+      final engineTier = (storyData?['engineTier'] as String?) ?? 'normal';
 
       state = state.copyWith(
         isLoading: false,
@@ -380,6 +410,9 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         clearDiscoveredNpcs: startNpcs.isEmpty,
         initialSceneId: storyData?['initialSceneId'] as String?,
         currentSceneId: currentBeat['sceneId'] as String?,
+        engineTier: engineTier,
+        remakeCount: 0,
+        isRemaking: false,
         updateNotice: storyData?['updateNotice'] is Map<String, dynamic> &&
                 (storyData!['updateNotice'] as Map<String, dynamic>)['enabled'] == true
             ? StoryUpdateNotice.fromJson(storyData['updateNotice'] as Map<String, dynamic>)
@@ -496,6 +529,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             lastActionText: choice.text,
             lastXpAward: xpAward,
             isCreditDepleted: false,
+            remakeCount: 0,
             lastDisplacement: GameSessionState.displacementName(result['data'], state.lore),
             clearDisplacement: GameSessionState.displacementName(result['data'], state.lore) == null,
           );
@@ -520,6 +554,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             lastStatusDelta: statusDelta,
             clearLastStatusDelta: statusDelta == null,
             turnNumber: state.turnNumber + 1,
+            remakeCount: 0,
             isCreditDepleted: false,
             clearPendingTurn: true,
             discoveredCreature: discovered,
@@ -604,6 +639,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       lastStatusDelta: statusDelta,
       clearLastStatusDelta: statusDelta == null,
       turnNumber: state.turnNumber + 1,
+      remakeCount: 0,
       isCreditDepleted: false,
       clearPendingTurn: true,
       discoveredCreature: discovered,
@@ -628,6 +664,76 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         }
       });
     } catch (_) {}
+  }
+
+  /// Remakes the current scene once for free with a continuity correction reason
+  Future<bool> remakeCurrentScene(String reason) async {
+    if (state.playerState == null || state.sessionId.isEmpty) return false;
+    if (state.remakeCount >= 1) return false;
+
+    state = state.copyWith(isRemaking: true, errorMessage: null);
+
+    try {
+      final result = await GameApiService.remakeScene(
+        storyId: state.storyId,
+        sessionId: state.sessionId,
+        playerState: state.playerState!,
+        turnNumber: state.turnNumber,
+        reason: reason,
+      );
+
+      if (result['success'] == true) {
+        final beatData = result['data']['beat'];
+        final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? beatData['choices'] as List<dynamic>? ?? [];
+        final sceneImg = beatData['imageUrl'] as String?;
+        final discoveredJson = beatData['discoveredCreature'] as Map<String, dynamic>?;
+        final discovered = discoveredJson != null ? DiscoveredCreature.fromJson(discoveredJson) : null;
+        final turnNpcs = GameSessionState.parseDiscoveredNpcs(Map<String, dynamic>.from(beatData as Map));
+
+        final rawPlayer = result['data']['updatedPlayerState'];
+        PlayerState updatedPlayer = state.playerState!;
+        if (rawPlayer != null && rawPlayer is Map) {
+          updatedPlayer = PlayerState.fromJson(Map<String, dynamic>.from(rawPlayer));
+        }
+
+        state = state.copyWith(
+          isRemaking: false,
+          isLoading: false,
+          currentNarrative: beatData['narrativeProse'] ?? beatData['narrative'] ?? '',
+          currentSceneImageUrl: sceneImg,
+          clearSceneImage: sceneImg == null,
+          choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
+          playerState: updatedPlayer,
+          remakeCount: (result['data']?['remakeCount'] as num?)?.toInt() ?? 1,
+          discoveredCreature: discovered,
+          clearDiscoveredCreature: discovered == null,
+          discoveredNpcs: turnNpcs,
+          clearDiscoveredNpcs: turnNpcs.isEmpty,
+          currentSceneId: beatData['sceneId'] as String? ?? state.currentSceneId,
+        );
+
+        ref.read(audioProvider.notifier).playSfx(SfxType.pageTurn);
+        return true;
+      } else {
+        state = state.copyWith(
+          isRemaking: false,
+          errorMessage: result['error'] ?? 'خطا در بازسازی صحنه',
+        );
+        return false;
+      }
+    } catch (e) {
+      final raw = e.toString();
+      final msg = raw.startsWith('ClientException: ')
+          ? raw.substring('ClientException: '.length)
+          : raw.startsWith('Exception: ')
+              ? raw.substring('Exception: '.length)
+              : raw;
+      state = state.copyWith(
+        isRemaking: false,
+        errorMessage: msg,
+      );
+      return false;
+    }
   }
 
   /// Resumes an existing playthrough session for the given storyId and optional sessionId
@@ -669,6 +775,10 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       final startDiscoveredJson = currentBeat['discoveredCreature'] as Map<String, dynamic>?;
       final startDiscovered = startDiscoveredJson != null ? DiscoveredCreature.fromJson(startDiscoveredJson) : null;
       final turnNum = (data['turnNumber'] as num?)?.toInt() ?? (sessionData?['turnCount'] as num?)?.toInt() ?? 1;
+      final engineTier = (storyData?['engineTier'] as String?) ?? 'normal';
+      final resolvedRemakeCount = (currentBeat['remakeCount'] as num?)?.toInt() ??
+          (data['remakeCount'] as num?)?.toInt() ??
+          0;
 
       state = state.copyWith(
         isLoading: false,
@@ -696,6 +806,9 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         initialSceneId: storyData?['initialSceneId'] as String?,
         currentSceneId: currentBeat['sceneId'] as String? ??
             (data['session'] as Map<String, dynamic>?)?['currentSceneId'] as String?,
+        engineTier: engineTier,
+        remakeCount: resolvedRemakeCount,
+        isRemaking: false,
         updateNotice: storyData?['updateNotice'] is Map<String, dynamic> &&
                 (storyData!['updateNotice'] as Map<String, dynamic>)['enabled'] == true
             ? StoryUpdateNotice.fromJson(storyData['updateNotice'] as Map<String, dynamic>)

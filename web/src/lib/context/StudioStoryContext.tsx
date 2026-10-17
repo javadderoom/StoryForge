@@ -326,7 +326,7 @@ export interface StoryListItem {
   author: string;
   version: string;
   published?: boolean;
-  engineTier?: 'normal' | 'advance';
+  engineTier?: 'normal' | 'plus' | 'advance';
   updatedAt?: string;
   /** Shared-world link (many stories per world). Absent = legacy solo story. */
   worldId?: string;
@@ -390,7 +390,7 @@ interface StudioStoryContextType {
   refreshWorlds: () => Promise<void>;
   // Updaters
   updateStoryMeta: (updates: Partial<Pick<StoryManifest, 'title' | 'tagline' | 'synopsis' | 'author' | 'version' | 'genres' | 'language' | 'coverImageUrl' | 'activeMilestoneGoal' | 'storyScale' | 'initialSceneId' | 'updateNotice' | 'engineTier'>>) => void;
-  setEngineTier: (tier: 'normal' | 'advance') => void;
+  setEngineTier: (tier: 'normal' | 'plus' | 'advance') => void;
   updateWorldBible: (updater: (prev: WorldBible) => WorldBible) => void;
   updateWorldMeta: (meta: Partial<Pick<WorldBible, 'worldName' | 'summary' | 'themeNotes' | 'aiSystemPrompt'>>) => void;
   // Laws CRUD
@@ -1104,7 +1104,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   );
 
   const setEngineTier = useCallback(
-    (tier: 'normal' | 'advance') => {
+    (tier: 'normal' | 'plus' | 'advance') => {
       updateStoryMeta({ engineTier: tier });
     },
     [updateStoryMeta]

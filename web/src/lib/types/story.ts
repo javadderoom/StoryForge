@@ -69,8 +69,8 @@ export interface StoryManifest {
   saga?: SagaManifest;
   /** Physical / canvas scale of the story */
   storyScale?: StoryScale;
-  /** Engine quality & credit tier: 'normal' (1 credit) or 'advance' (5 credits, 5x). Defaults to 'normal'. */
-  engineTier?: 'normal' | 'advance';
+  /** Engine quality & credit tier: 'normal' (1x), 'plus' (2x), or 'advance' (5x). Defaults to 'normal'. */
+  engineTier?: 'normal' | 'plus' | 'advance';
   /** Optional story-level NPC role overrides (keyed by npcId) */
   storyNpcOverrides?: Record<string, StoryNpcOverride>;
   /** Optional author-managed story revamp / update notice broadcast to players */
@@ -134,7 +134,7 @@ export const StoryManifestSchema = z.object({
   activeMilestoneGoal: z.string().optional(),
   saga: SagaManifestSchema.optional(),
   storyScale: StoryScaleSchema.optional().default('urban'),
-  engineTier: z.enum(['normal', 'advance']).optional().default('normal'),
+  engineTier: z.enum(['normal', 'plus', 'advance']).optional().default('normal'),
   storyNpcOverrides: z.record(z.string(), StoryNpcOverrideSchema).optional().default({}),
   updateNotice: StoryUpdateNoticeSchema.optional(),
   initialStoryBeats: z.array(z.any()).default([]),

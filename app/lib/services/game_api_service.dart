@@ -123,6 +123,8 @@ class GameApiService {
     int? forcedDiceRoll,
     String? targetSceneId,
     String? choiceId,
+    bool isRemake = false,
+    String? remakeReason,
   }) async {
     final response = await http
         .post(
@@ -141,6 +143,8 @@ class GameApiService {
             if (choiceId != null && choiceId.isNotEmpty) 'choiceId': choiceId,
             'playerState': playerState.toJson(),
             'turnNumber': turnNumber,
+            if (isRemake) 'isRemake': true,
+            if (remakeReason != null && remakeReason.isNotEmpty) 'remakeReason': remakeReason,
           }),
         )
         .timeout(
@@ -152,6 +156,27 @@ class GameApiService {
 
     final json = jsonDecode(response.body);
     return json;
+  }
+
+  /// Free 1-time remake of the current scene with continuity correction
+  static Future<Map<String, dynamic>> remakeScene({
+    required String storyId,
+    required String sessionId,
+    required PlayerState playerState,
+    required int turnNumber,
+    required String reason,
+  }) async {
+    return await sendAction(
+      storyId: storyId,
+      sessionId: sessionId,
+      actionText: 'remake',
+      actionStyle: 'free_text',
+      riskLevel: 'low',
+      playerState: playerState,
+      turnNumber: turnNumber,
+      isRemake: true,
+      remakeReason: reason,
+    );
   }
 
   /// Patches the server-side session with the current PlayerState

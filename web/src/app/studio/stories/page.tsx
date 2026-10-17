@@ -380,11 +380,13 @@ function StoryCard({
             className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 backdrop-blur-sm ${
               item.engineTier === 'advance'
                 ? 'bg-amber-500/80 text-zinc-950 border-amber-400 font-extrabold shadow-sm'
-                : 'bg-zinc-950/70 text-zinc-400 border-zinc-700/50'
+                : item.engineTier === 'plus'
+                  ? 'bg-sky-500/80 text-zinc-950 border-sky-400 font-extrabold shadow-sm'
+                  : 'bg-zinc-950/70 text-zinc-400 border-zinc-700/50'
             }`}
           >
-            <Zap className={`w-3 h-3 ${item.engineTier === 'advance' ? 'text-zinc-950' : 'text-amber-400'}`} />
-            {item.engineTier === 'advance' ? 'Advance (5x)' : 'Normal'}
+            <Zap className={`w-3 h-3 ${item.engineTier === 'advance' || item.engineTier === 'plus' ? 'text-zinc-950' : 'text-amber-400'}`} />
+            {item.engineTier === 'advance' ? 'Advance (5x)' : item.engineTier === 'plus' ? 'Plus (2x)' : 'Normal'}
           </span>
           <span className="text-[10px] font-mono bg-zinc-950/70 backdrop-blur-sm text-zinc-300 px-2 py-0.5 rounded-md border border-zinc-700/50 flex items-center gap-1">
             <Globe className="w-3 h-3" />

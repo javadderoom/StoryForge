@@ -324,7 +324,9 @@ export async function GET(req: NextRequest) {
             imageUrl:
               story.initialStoryBeats?.find((b) => b.sceneId === session.currentSceneId)?.imageUrl ??
               undefined,
+            remakeCount: (lastTurn as any)?.remakeCount ?? 0,
           },
+          remakeCount: (lastTurn as any)?.remakeCount ?? 0,
           turnNumber: session.turnCount ?? 1,
         },
       },
@@ -789,7 +791,9 @@ export async function POST(req: NextRequest) {
             imageUrl: initialBeat.imageUrl,
             discoveredNpc: (story.worldBible?.npcs || []).find((n: any) => initialRelationships[n.id]),
             discoveredNpcs: (story.worldBible?.npcs || []).filter((n: any) => initialRelationships[n.id]),
+            remakeCount: 0,
           },
+          remakeCount: 0,
         },
       },
       {

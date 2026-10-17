@@ -383,33 +383,92 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Language Badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.translate_rounded,
-                          size: 13,
-                          color: isStoryPersian ? const Color(0xFFF59E0B) : Colors.white70,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Language Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.white24),
                         ),
-                        const SizedBox(width: 5),
-                        Text(
-                          isStoryPersian ? 'فارسی' : 'English',
-                          style: GoogleFonts.vazirmatn(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.translate_rounded,
+                              size: 13,
+                              color: isStoryPersian ? const Color(0xFFF59E0B) : Colors.white70,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              isStoryPersian ? 'فارسی' : 'English',
+                              style: GoogleFonts.vazirmatn(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Engine Tier Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: story.engineTier == 'advance'
+                              ? const Color(0xFFF59E0B).withValues(alpha: 0.25)
+                              : story.engineTier == 'plus'
+                                  ? const Color(0xFF6366F1).withValues(alpha: 0.25)
+                                  : Colors.black.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: story.engineTier == 'advance'
+                                ? const Color(0xFFF59E0B).withValues(alpha: 0.6)
+                                : story.engineTier == 'plus'
+                                    ? const Color(0xFF818CF8).withValues(alpha: 0.6)
+                                    : Colors.white24,
                           ),
                         ),
-                      ],
-                    ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 13,
+                              color: story.engineTier == 'advance'
+                                  ? const Color(0xFFF59E0B)
+                                  : story.engineTier == 'plus'
+                                      ? const Color(0xFFA5B4FC)
+                                      : Colors.white70,
+                            ),
+                            const SizedBox(width: 5),
+                            Directionality(
+                              textDirection: TextDirection.ltr,
+                              child: Text(
+                                story.engineTier == 'advance'
+                                    ? (isPersian ? 'پیشرفته 5x' : 'Advance 5x')
+                                    : story.engineTier == 'plus'
+                                        ? (isPersian ? 'پلاس 2x' : 'Plus 2x')
+                                        : (isPersian ? 'معمولی 1x' : 'Normal 1x'),
+                                style: GoogleFonts.vazirmatn(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: story.engineTier == 'advance'
+                                      ? const Color(0xFFFDE68A)
+                                      : story.engineTier == 'plus'
+                                          ? const Color(0xFFE0E7FF)
+                                          : Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
 
                   // Active Badge

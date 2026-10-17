@@ -18,7 +18,7 @@ function StoryDetailsForm({
   const [tagline, setTagline] = useState(story.tagline);
   const [synopsis, setSynopsis] = useState(story.synopsis);
   const [storyScale, setStoryScale] = useState<StoryScale>(story.storyScale || 'urban');
-  const [engineTier, setEngineTierState] = useState<'normal' | 'advance'>(story.engineTier || 'normal');
+  const [engineTier, setEngineTierState] = useState<'normal' | 'plus' | 'advance'>(story.engineTier || 'normal');
   const [coverImageUrl, setCoverImageUrl] = useState(story.coverImageUrl || '');
   const [author, setAuthor] = useState(story.author);
   const [version, setVersion] = useState(story.version);
@@ -334,20 +334,26 @@ function StoryDetailsForm({
               className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                 engineTier === 'advance'
                   ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
-                  : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                  : engineTier === 'plus'
+                    ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
+                    : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
               }`}
             >
               {engineTier === 'advance'
                 ? isPersian
-                  ? 'پیشرفته ۵x • ۵ اعتبار'
+                  ? 'فوق‌پیشرفته ۵x • ۵ اعتبار'
                   : 'Advance 5x • 5 Credits'
-                : isPersian
-                  ? 'معمولی • ۱ اعتبار'
-                  : 'Normal • 1 Credit'}
+                : engineTier === 'plus'
+                  ? isPersian
+                    ? 'پیشرفته ۲x • ۲ اعتبار'
+                    : 'Plus 2x • 2 Credits'
+                  : isPersian
+                    ? 'معمولی • ۱ اعتبار'
+                    : 'Normal • 1 Credit'}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
             <button
               type="button"
               onClick={() => setEngineTierState('normal')}
@@ -376,6 +382,32 @@ function StoryDetailsForm({
 
             <button
               type="button"
+              onClick={() => setEngineTierState('plus')}
+              className={`p-3 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
+                engineTier === 'plus'
+                  ? 'bg-sky-500/10 border-sky-500/50 text-sky-200 shadow-md shadow-sky-950/30'
+                  : 'bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+              }`}
+            >
+              <div className="flex items-center justify-between w-full mb-1">
+                <span className="text-xs font-bold text-zinc-100 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-sky-400" />
+                  {isPersian ? 'Plus (پیشرفته ۲x)' : 'Plus 2x'}
+                </span>
+                {engineTier === 'plus' && <Check className="w-3.5 h-3.5 text-sky-400" />}
+              </div>
+              <p className="text-[11px] text-zinc-400 leading-relaxed mb-2">
+                {isPersian
+                  ? 'روایت غنی‌تر با جزئیات ادراکی و انتخاب‌های دراماتیک‌تر'
+                  : 'Richer scene prose, sensory depth & tactical variety'}
+              </p>
+              <div className="inline-block text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-zinc-800/80 text-sky-300 border border-sky-500/20 w-fit">
+                {isPersian ? '۲ اعتبار در هر صحنه (2x)' : '2 Credits per scene (2x)'}
+              </div>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setEngineTierState('advance')}
               className={`p-3 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
                 engineTier === 'advance'
@@ -386,13 +418,13 @@ function StoryDetailsForm({
               <div className="flex items-center justify-between w-full mb-1">
                 <span className="text-xs font-bold text-zinc-100 flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  {isPersian ? 'Advance (پیشرفته)' : 'Advance'}
+                  {isPersian ? 'Advance (فوق‌پیشرفته)' : 'Advance'}
                 </span>
                 {engineTier === 'advance' && <Check className="w-3.5 h-3.5 text-amber-400" />}
               </div>
               <p className="text-[11px] text-zinc-400 leading-relaxed mb-2">
                 {isPersian
-                  ? 'هوش مصنوعی عمیق با قدرت تحلیل تماتیک و نثر ارتقایافته'
+                  ? 'هوش مصنوعی عمیق با قدرت تحلیل تماتیک و استدلال روایی'
                   : 'Deep narrative reasoning and richer literary atmosphere'}
               </p>
               <div className="inline-block text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-zinc-800/80 text-amber-300 border border-amber-500/20 w-fit">
