@@ -26,6 +26,7 @@ export async function OPTIONS(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const turnStartTime = Date.now();
   try {
     const body = await req.json();
     const {
@@ -1034,6 +1035,18 @@ export async function POST(req: NextRequest) {
           aot: { story, caller },
         });
       });
+    }
+
+    // Plan 15: Minimum response latency floor (2000ms) to smooth perceived pacing.
+    // Prevents an abrupt contrast between instant Snap AOT hits (<50ms) and normal
+    // LLM generation misses (2-4s), preserving narrative immersion.
+    // Bypassed in test environments to keep automated suites fast.
+    if (process.env.NODE_ENV !== 'test') {
+      const elapsedMs = Date.now() - turnStartTime;
+      const MIN_DELAY_MS = 2000;
+      if (elapsedMs < MIN_DELAY_MS) {
+        await new Promise((resolve) => setTimeout(resolve, MIN_DELAY_MS - elapsedMs));
+      }
     }
 
     return NextResponse.json(

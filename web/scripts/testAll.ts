@@ -15,7 +15,7 @@ if (!tests.length) throw new Error('No test files discovered under src.');
 console.log(`Discovered ${tests.length} test files.`);
 const result = spawnSync(process.execPath, ['--import', 'tsx', '--test', ...tests], {
   stdio: 'inherit',
-  env: process.env,
+  env: { ...process.env, NODE_ENV: process.env.NODE_ENV || 'test' },
 });
 if (result.error) throw result.error;
 process.exitCode = result.status ?? 1;

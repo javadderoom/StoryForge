@@ -543,4 +543,9 @@ Authors and players can take an extraordinarily divergent playthrough in StoryFo
   - [`aotBranchEngine.test.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/aotBranchEngine.test.ts) (2 judge cases: disabled passthrough, active judge evaluation + finding merge).
   - **1021/1021 unit tests pass** across 192 suites (`npm test`). `npx tsc --noEmit` passes with 0 errors. All new files clean.
 
+#### H. Scene Prose Architecture & Latency Smoothing Floor (§7.6H) (Completed)
+- **Target Prose Expansion**: Updated system prompt instructions in [`PromptAssembler.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/PromptAssembler.ts) (both English and Persian directives) to target **450–700 words** structured across **4 to 5 distinct novelistic paragraphs** (Kinetic Execution $\rightarrow$ World Ripple $\rightarrow$ Sensory Evolution & Tactical Tension $\rightarrow$ Tactile Stakes & Looming Dilemma).
+- **Latency Smoothing Floor**: Implemented a **minimum 2000 ms response latency floor** in [`web/src/app/api/play/action/route.ts`](file:///g:/Code/StoryForge/web/src/app/api/play/action/route.ts). Smooths perceived action resolution to prevent stark UX disparity between instant Snap AOT cache hits (<50 ms) and standard LLM generation turns (2–4 s), preserving immersion and narrative weight. Bypassed when `process.env.NODE_ENV === 'test'` to keep automated test suites instantaneous.
+
+
 
