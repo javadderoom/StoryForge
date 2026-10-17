@@ -109,3 +109,33 @@ describe('ProseValidator — Persian script integrity', () => {
   });
 });
 
+describe('ProseValidator — minimum word count enforcement', () => {
+  it('flags prose under minimum word count as prose_length error', () => {
+    const shortProse = 'A brief sentence with only seven words.';
+    const result = validateProse(shortProse, { minWordCount: 50, language: 'en' });
+    assert.equal(result.ok, false);
+    const finding = result.findings.find((f) => f.category === 'prose_length');
+    assert.ok(finding);
+    assert.equal(finding?.severity, 'error');
+    assert.match(finding?.detail ?? '', /below the minimum required 50 words/);
+  });
+
+  it('passes prose meeting or exceeding minWordCount', () => {
+    const words = Array(55).fill('word').join(' ');
+    const result = validateProse(words, { minWordCount: 50, language: 'en' });
+    assert.equal(result.ok, true);
+    assert.equal(result.findings.some((f) => f.category === 'prose_length'), false);
+  });
+
+  it('generates Persian expansion guidance for Persian prose under minimum length', () => {
+    const shortPersian = 'این یک جمله بسیار کوتاه است.';
+    const result = validateProse(shortPersian, { minWordCount: 100, language: 'fa' });
+    assert.equal(result.ok, false);
+    const finding = result.findings.find((f) => f.category === 'prose_length');
+    assert.ok(finding);
+    assert.match(finding?.detail ?? '', /کمتر از حداقل مجاز/);
+    assert.match(finding?.detail ?? '', /۴۵۰ الی ۷۰۰ کلمه/);
+  });
+});
+
+

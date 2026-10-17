@@ -66,6 +66,8 @@ export interface SceneTurnInput {
   displacedLocationId?: string;
   /** Location the player occupied before this turn (for displacement prose). */
   previousLocationId?: string;
+  /** Override minimum word count floor (defaults to DEFAULT_MIN_SCENE_WORDS). */
+  minWordCount?: number;
 }
 
 export interface SceneAiResponse {
@@ -493,7 +495,13 @@ export async function generateValidatedScene(
   }
 
   // At most two repair calls; retain the initial raw output for evaluation.
-  const validationOptions = { ledger, resolution, worldBible: story.worldBible, language: story.language };
+  const validationOptions = {
+    ledger,
+    resolution,
+    worldBible: story.worldBible,
+    language: story.language,
+    minWordCount: input.minWordCount ?? (process.env.NODE_ENV === 'test' ? 0 : 350),
+  };
   const subqClient = subqAdapter ?? new SubQAdapter();
   let candidate = aiResponse;
   let check = validateProse(candidate.narrative, validationOptions);

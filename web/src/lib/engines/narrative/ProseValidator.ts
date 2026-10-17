@@ -3,7 +3,7 @@ import type { CheckResolution } from '@/lib/types/gameplay';
 
 export interface ProseFinding {
   severity: 'error' | 'warning';
-  category: 'resurrection' | 'new_entity' | 'outcome_mismatch' | 'lore_violation' | 'script_leak' | 'stalling';
+  category: 'resurrection' | 'new_entity' | 'outcome_mismatch' | 'lore_violation' | 'script_leak' | 'stalling' | 'prose_length';
   detail: string;
 }
 
@@ -34,8 +34,8 @@ export function unexpectedPersianScriptCharacters(text: string): string[] {
 
 /**
  * Deterministic post-generation prose validator (bilingual EN/FA).
- * Checks resurrected NPCs, smuggled entities, outcome mismatch, and
- * banned-creature/artifact lore violations. Pure and testable.
+ * Checks resurrected NPCs, smuggled entities, outcome mismatch,
+ * banned-creature/artifact lore violations, and minimum prose length. Pure and testable.
  */
 export function validateProse(
   prose: string,
@@ -45,6 +45,8 @@ export function validateProse(
     worldBible?: WorldBible | null;
     /** Explicit story language; omitted callers retain the existing behavior. */
     language?: string;
+    /** Minimum word count floor. Under this length, generates a 'prose_length' error to trigger expansion. */
+    minWordCount?: number;
   } = {}
 ): ProseValidationResult {
   const findings: ProseFinding[] = [];
@@ -172,6 +174,21 @@ export function validateProse(
           detail: `Extinct creature "${c.name}" appears in prose against immutable law.`,
         });
       }
+    }
+  }
+
+  // Minimum scene word count check: triggers automated expansion if prose is too sparse
+  if (typeof opts.minWordCount === 'number' && opts.minWordCount > 0 && text.trim().length > 0) {
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    if (words.length < opts.minWordCount) {
+      const isPersian = /^(fa(?:[-_].*)?|persian|farsi)$/i.test(opts.language?.trim() ?? '');
+      findings.push({
+        severity: 'error',
+        category: 'prose_length',
+        detail: isPersian
+          ? `طول متن صحنه (${words.length} کلمه) کمتر از حداقل مجاز (${opts.minWordCount} کلمه) است. صحنه را در ۴ الی ۵ پاراگرافِ غنی و توصیفی، با افزودن حداقل ۶ تا ۸ جمله به هر بند و شرح ملموسِ رویدادها، اصطکاک کلامی و محیط به محدوده ۴۵۰ الی ۷۰۰ کلمه گسترش بده.`
+          : `Scene prose length (${words.length} words) is below the minimum required ${opts.minWordCount} words. Expand the scene across 4 to 5 rich paragraphs by adding at least 6 to 8 descriptive sentences per paragraph to reach the 450-700 word target range.`,
+      });
     }
   }
 
