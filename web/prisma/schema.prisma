@@ -219,6 +219,7 @@ model PlaythroughSession {
   turns            TurnHistory[]
   memories         MemoryLog[]
   snapDecisions    SnapDecisionLog[]
+  snapAotBranches  SnapAotBranch[]
 
   @@index([userId])
   @@map("playthrough_sessions")
@@ -293,6 +294,42 @@ model SnapDecisionLog {
   @@index([sessionId, turnNumber])
   @@index([hit])
   @@map("snap_decision_logs")
+}
+
+/**
+ * Plan 15 §2.3 tier 4 (Snap-gated AOT pre-generation, shadow phase): the branch
+ * Gemini pre-wrote during the reader's dwell on `turnNumber`'s choices, for the
+ * choice Snap predicted they would tap. Serving it on a predicted tap remains
+ * gated on the measured hit rate over `snap_decision_logs`; until then every
+ * row here is analysis-only (`servedAt` stays null).
+ * status: generated | mock_unavailable | prose_invalid | failed
+ * resolution: the full pre-rolled CheckResolution (dice, outcome, state diff).
+ */
+model SnapAotBranch {
+  id                String   @id @default(uuid())
+  sessionId         String
+  storyId           String
+  turnNumber        Int
+  predictedChoiceId String
+  choiceText        String?
+  diceRoll          Int?
+  isDiceless        Boolean  @default(false)
+  outcome           String?
+  status            String   @default("generated")
+  model             String?
+  narrative         String?
+  choices           Json     @default("[]")
+  resolution        Json?
+  latencyMs         Int?
+  error             String?
+  createdAt         DateTime @default(now())
+  servedAt          DateTime?
+
+  session           PlaythroughSession @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
+
+  @@index([sessionId, turnNumber])
+  @@index([status])
+  @@map("snap_aot_branches")
 }
 
 model ActionCategory {

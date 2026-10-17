@@ -9,7 +9,13 @@ import {
   type SnapPrediction,
   type SnapPredictionHistoryTurn,
 } from '@/lib/engines/narrative/snapPredictor';
+import {
+  isSnapAotEnabled,
+  preGenerateSnapAotBranch,
+  type SnapAotDeps,
+} from '@/lib/play/snapAot';
 import { ChoiceOption, PlayerState } from '@/lib/types/gameplay';
+import type { StoryManifest } from '@/lib/types/story';
 
 /**
  * Plan 15 §2.3 (Phase 6): Snap choice-prediction persistence + cancellation.
@@ -25,8 +31,11 @@ import { ChoiceOption, PlayerState } from '@/lib/types/gameplay';
  *      row with what the reader actually did (`hit: true/false`); rows the
  *      reader never answered stay `null` (abandoned).
  *
- * The table is the measured gate for future Snap-gated AOT work — nothing in
- * this module pre-generates narrative or touches held dice.
+ * `scheduleSnapDwell` extends the same single-task lifecycle with tier 4
+ * (shadow): when `ENABLE_SNAP_AOT=true`, the predicted choice's branch is
+ * pre-rolled and pre-written (`snapAot.ts` → `snap_aot_branches`) under the
+ * SAME abort controller, so a tap cancels whichever phase is running. Serving
+ * stays gated on the measured hit rate over `snap_decision_logs`.
  */
 
 export interface SnapPredictionSchedule {
@@ -45,6 +54,24 @@ export interface SnapPredictionSchedule {
   history: SnapPredictionHistoryTurn[];
   /** Injectable for tests; defaults to a fresh `SubQAdapter`. */
   adapter?: SubQAdapter;
+}
+
+export interface SnapDwellSchedule extends SnapPredictionSchedule {
+  /**
+   * Plan 15 §2.3 tier 4 (shadow): context for pre-generating the predicted
+   * choice's branch. Only honored when `ENABLE_SNAP_AOT=true`.
+   */
+  aot?: {
+    /** Migrated story manifest (same object the route resolved). */
+    story: StoryManifest;
+    /** For the post-turn session refetch (ownership-scoped). */
+    caller: { id: string; role: string } | null;
+  };
+}
+
+/** Injectable AOT seams for tests (engine adapters, session load, store). */
+export interface SnapDwellDeps {
+  aot?: SnapAotDeps;
 }
 
 export interface SnapDecisionLogRow {
@@ -109,53 +136,126 @@ export function cancelSnapPrediction(sessionId: string): void {
 }
 
 /**
+ * Shared dwell guard: one task per session (a newer render supersedes the
+ * previous), a registered controller so the tap can cancel it, and a hard
+ * stop when the DB is disabled — a row could never be written or resolved.
+ * Returns null when the schedule is unusable.
+ */
+function beginDwellTask(ctx: SnapPredictionSchedule): AbortController | null {
+  if (!ctx.sessionId || !Number.isFinite(ctx.turnNumber) || ctx.turnNumber < 1) return null;
+  if (!Array.isArray(ctx.choices) || ctx.choices.length === 0) return null;
+  if (!getPrisma()) return null;
+
+  cancelSnapPrediction(ctx.sessionId);
+  const controller = new AbortController();
+  abortRegistry().set(ctx.sessionId, controller);
+  return controller;
+}
+
+function endDwellTask(sessionId: string, controller: AbortController | null): void {
+  if (!controller) return;
+  const registry = abortRegistry();
+  if (registry.get(sessionId) === controller) registry.delete(sessionId);
+}
+
+async function runSnapPrediction(
+  ctx: SnapPredictionSchedule,
+  signal: AbortSignal
+): Promise<SnapPrediction | undefined> {
+  const result = await predictSnapChoice(
+    {
+      storyTitle: ctx.storyTitle,
+      storyLanguage: ctx.storyLanguage,
+      npcIdToName: ctx.npcIdToName,
+      currentProse: ctx.currentProse,
+      choices: ctx.choices,
+      playerState: ctx.playerState,
+      history: ctx.history,
+    },
+    ctx.adapter,
+    { timeoutMs: SNAP_PREDICTION_TIMEOUT_MS, signal }
+  );
+
+  // Aborted (reader already acted) or failed (timeout / offline / unmapped).
+  if (signal.aborted || !result.ok || !result.prediction) return undefined;
+  return result.prediction;
+}
+
+/**
  * Fire-and-forget prediction + render-time logging. Call from `after()` so it
  * runs once the turn response (with its choices) has been sent. Never throws:
  * a failed, unmapped, or superseded prediction writes no row at all.
  */
 export async function scheduleSnapPrediction(ctx: SnapPredictionSchedule): Promise<void> {
-  let controller: AbortController | undefined;
+  let controller: AbortController | null = null;
   try {
-    if (!ctx.sessionId || !Number.isFinite(ctx.turnNumber) || ctx.turnNumber < 1) return;
-    if (!Array.isArray(ctx.choices) || ctx.choices.length === 0) return;
+    controller = beginDwellTask(ctx);
+    if (!controller) return;
 
-    // Without a database the row could never be written or resolved — don't
-    // spend a Snap call measuring into the void.
     const prisma = getPrisma();
     if (!prisma) return;
 
-    // At most one prediction in flight per session (a newer render supersedes).
-    cancelSnapPrediction(ctx.sessionId);
-    controller = new AbortController();
-    abortRegistry().set(ctx.sessionId, controller);
+    const prediction = await runSnapPrediction(ctx, controller.signal);
+    if (!prediction) return;
 
-    const result = await predictSnapChoice(
-      {
-        storyTitle: ctx.storyTitle,
-        storyLanguage: ctx.storyLanguage,
-        npcIdToName: ctx.npcIdToName,
-        currentProse: ctx.currentProse,
-        choices: ctx.choices,
-        playerState: ctx.playerState,
-        history: ctx.history,
-      },
-      ctx.adapter,
-      { timeoutMs: SNAP_PREDICTION_TIMEOUT_MS, signal: controller.signal }
-    );
-
-    // Aborted (reader already acted) or failed (timeout / offline / unmapped).
-    if (controller.signal.aborted || !result.ok || !result.prediction) return;
-
-    await prisma.snapDecisionLog.create({
-      data: buildSnapDecisionLogRow(ctx, result.prediction),
-    });
+    await prisma.snapDecisionLog.create({ data: buildSnapDecisionLogRow(ctx, prediction) });
   } catch (error) {
     console.warn('[snapDecisions] Snap prediction logging failed:', error);
   } finally {
-    if (controller) {
-      const registry = abortRegistry();
-      if (registry.get(ctx.sessionId) === controller) registry.delete(ctx.sessionId);
-    }
+    endDwellTask(ctx.sessionId, controller);
+  }
+}
+
+/**
+ * Full dwell compute: render-time prediction logging, then — when
+ * `ENABLE_SNAP_AOT=true` — pre-rolling and pre-writing the predicted choice's
+ * branch (`snapAot.ts`) under the SAME abort controller, so a tap cancels
+ * whichever phase is still running. This is the action route's entry point;
+ * `scheduleSnapPrediction` remains for prediction-only callers (session opener)
+ * and tests.
+ */
+export async function scheduleSnapDwell(
+  ctx: SnapDwellSchedule,
+  deps: SnapDwellDeps = {}
+): Promise<void> {
+  let controller: AbortController | null = null;
+  try {
+    controller = beginDwellTask(ctx);
+    if (!controller) return;
+
+    const prisma = getPrisma();
+    if (!prisma) return;
+
+    const prediction = await runSnapPrediction(ctx, controller.signal);
+    if (!prediction) return;
+
+    await prisma.snapDecisionLog.create({ data: buildSnapDecisionLogRow(ctx, prediction) });
+
+    // Tier 4 (shadow): only when opted in. `preGenerateSnapAotBranch` re-checks
+    // the signal and the post-turn turn history before spending a writer call
+    // or storing, so a raced tap never leaves a stale branch.
+    if (!ctx.aot || !isSnapAotEnabled()) return;
+    if (controller.signal.aborted) return;
+
+    const choice = ctx.choices.find((c) => c.id === prediction.predictedChoiceId);
+    if (!choice) return;
+
+    await preGenerateSnapAotBranch(
+      {
+        sessionId: ctx.sessionId,
+        storyId: ctx.storyId,
+        turnNumber: ctx.turnNumber,
+        story: ctx.aot.story,
+        choice,
+        caller: ctx.aot.caller,
+        signal: controller.signal,
+      },
+      deps.aot
+    );
+  } catch (error) {
+    console.warn('[snapDecisions] Snap dwell compute failed:', error);
+  } finally {
+    endDwellTask(ctx.sessionId, controller);
   }
 }
 

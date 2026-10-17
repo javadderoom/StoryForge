@@ -4,11 +4,14 @@ import {
   buildSnapDecisionLogRow,
   cancelSnapPrediction,
   resolveSnapDecision,
+  scheduleSnapDwell,
   scheduleSnapPrediction,
   type SnapPredictionSchedule,
 } from './snapDecisions';
 import { SubQAdapter } from '@/lib/providers/SubQAdapter';
+import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { SNAP_PREDICTION_MODEL } from '@/lib/engines/narrative/snapPredictor';
+import type { StoryManifest } from '@/lib/types/story';
 import { ChoiceOption, PlayerState } from '@/lib/types/gameplay';
 
 const CHOICES: ChoiceOption[] = [
@@ -106,6 +109,47 @@ describe('Plan 15 §2.3 — Snap decision persistence & cancellation', () => {
 
       await scheduleSnapPrediction(makeSchedule({ adapter: adapterStub }));
       assert.equal(evaluateCalls, 0);
+    });
+  });
+
+  it('dwell compute spends nothing when the database is disabled, even with AOT opted in', async () => {
+    await withDbDisabled(async () => {
+      const previousAot = process.env.ENABLE_SNAP_AOT;
+      process.env.ENABLE_SNAP_AOT = 'true';
+      try {
+        let evaluateCalls = 0;
+        let geminiCalls = 0;
+        const adapterStub = {
+          isConfigured: () => true,
+          evaluate: async () => {
+            evaluateCalls += 1;
+            return { success: true, answers: {}, model: SNAP_PREDICTION_MODEL };
+          },
+        } as unknown as SubQAdapter;
+        const geminiStub = {
+          generateSceneWithRaw: async () => {
+            geminiCalls += 1;
+            return {
+              response: { narrative: 'x', choices: [], extractedMemories: [], isMock: false },
+              raw: null,
+            };
+          },
+        } as unknown as GeminiAdapter;
+
+        await scheduleSnapDwell(
+          {
+            ...makeSchedule({ adapter: adapterStub }),
+            aot: { story: {} as StoryManifest, caller: null },
+          },
+          { aot: { geminiAdapter: geminiStub } }
+        );
+
+        assert.equal(evaluateCalls, 0);
+        assert.equal(geminiCalls, 0);
+      } finally {
+        if (previousAot === undefined) delete process.env.ENABLE_SNAP_AOT;
+        else process.env.ENABLE_SNAP_AOT = previousAot;
+      }
     });
   });
 

@@ -17,7 +17,7 @@ import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
 import { pruneInactiveZoneClocks } from '@/lib/engines/game/threatClock';
 import { resolveAccompanyingIds } from '@/lib/engines/narrative/worldContext';
 import { buildNpcIdToName } from '@/lib/engines/narrative/snapPredictor';
-import { cancelSnapPrediction, resolveSnapDecision, scheduleSnapPrediction } from '@/lib/play/snapDecisions';
+import { cancelSnapPrediction, resolveSnapDecision, scheduleSnapDwell } from '@/lib/play/snapDecisions';
 
 const geminiAdapter = new GeminiAdapter();
 
@@ -1006,14 +1006,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Plan 15 §2.3 (Phase 6): Snap dwell prediction, logged at render.
+    // Plan 15 §2.3 (Phase 6): Snap dwell compute, logged at render.
     // `after()` runs once this response is on the wire — the moment the reader
     // sees the new scene and its choices. Fire-and-forget: the adapter timeout
     // and the cancellation registry bound it; failures write no row. Stateless
     // calls (no session) have nothing to resolve against.
+    // Tier 4 (shadow): with `ENABLE_SNAP_AOT=true` the predicted choice's
+    // branch is pre-rolled and pre-written under the same controller; serving
+    // stays gated on the measured hit rate over `snap_decision_logs`.
     if (sessionId && session) {
       after(async () => {
-        await scheduleSnapPrediction({
+        await scheduleSnapDwell({
           sessionId,
           storyId,
           storyTitle: story.title,
@@ -1028,6 +1031,7 @@ export async function POST(req: NextRequest) {
             playerActionText: turn.playerActionText ?? '',
             narrativeProse: turn.narrativeProse ?? '',
           })),
+          aot: { story, caller },
         });
       });
     }

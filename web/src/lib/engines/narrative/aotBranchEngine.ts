@@ -1,0 +1,570 @@
+import { GameEngine } from '@/lib/engines/game/GameEngine';
+import { rollDice } from '@/lib/engines/game/actionCheckEngine';
+import { calculateActionXp, applyXpGain } from '@/lib/engines/game/progressionEngine';
+import { pruneInactiveZoneClocks } from '@/lib/engines/game/threatClock';
+import { reconcilePlayerResources, resolveHealthKey } from '@/lib/engines/game/resourcePools';
+import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
+import {
+  generateValidatedScene,
+  type SceneSessionMemory,
+  type SceneSessionTurn,
+} from '@/lib/engines/narrative/narrativeTurn';
+import { resolveAccompanyingIds } from '@/lib/engines/narrative/worldContext';
+import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
+import type { StoryManifest } from '@/lib/types/story';
+import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
+import { SubQAdapter } from '@/lib/providers/SubQAdapter';
+import {
+  CheckResolution,
+  ChoiceOption,
+  PlayerState,
+  StateMutationDiff,
+} from '@/lib/types/gameplay';
+import { WorldStateLedger, type NPCDossier } from '@/lib/types/world';
+
+/**
+ * Plan 15 §2.3 tier 4: Snap-gated AOT branch pre-generation (shadow phase).
+ *
+ * While the reader dwells on turn N's choices, `preGenerateAotBranch` takes the
+ * choice Snap predicted they will tap and pre-writes the branch exactly as the
+ * live `/api/play/action` would compute it: the check is PRE-ROLLED (the dice
+ * value is generated here and stored — "free RNG, stored, revealed on tap"),
+ * then the deterministic enrichment chain runs — pressure/social/party roster,
+ * sub-zone writer, secret discovery, state mutation, authored-movement-sync
+ * is skipped (no authored target), threat clocks, quest triggers/completions,
+ * hybrid defeat, Living World Ledger merge — and finally the shared narrative
+ * core (`generateValidatedScene`) writes the scene.
+ *
+ * Fidelity contract: every deterministic step below mirrors the route's
+ * corresponding block 1:1 (line references in comments). The route's
+ * auth/credit/guardrail glue and the authored-beat path are intentionally not
+ * mirrored — preset-choice taps are trusted, and authored branches are served
+ * verbatim with zero model calls (the orchestrator skips them upstream). Until
+ * the route's deterministic block is extracted into a shared module, any change
+ * to the route's block MUST be mirrored here; serving a stored branch is gated
+ * on the measured hit rate over `snap_decision_logs` and should not ship before
+ * that unification.
+ *
+ * Nothing here mutates session state; the result is a candidate branch only.
+ */
+
+export type AotBranchStatus = 'generated' | 'mock_unavailable' | 'prose_invalid' | 'failed';
+
+export interface AotBranchContext {
+  /** Migrated story manifest (same object the route resolves). */
+  story: StoryManifest;
+  /** Authoritative player state at dwell time (post turn N mutations). */
+  playerState: PlayerState;
+  /** The predicted choice from the rendered scene. */
+  choice: ChoiceOption;
+  /** Turn whose choices are on screen (N). The branch pre-writes turn N+1. */
+  turnNumber: number;
+  sagaLedger?: WorldStateLedger | null;
+  currentChapterId?: string | null;
+  /** Completed turns up to and including N, oldest → newest (refetched). */
+  sessionTurns: SceneSessionTurn[];
+  /** Memories up to and including N (refetched). */
+  sessionMemories: SceneSessionMemory[];
+  geminiAdapter: GeminiAdapter;
+  subqAdapter?: SubQAdapter;
+  /** Test-only: pin the pre-rolled check instead of drawing from the RNG. */
+  forcedDiceRoll?: number;
+}
+
+export interface AotBranchResult {
+  status: AotBranchStatus;
+  /** Pre-written prose — only present when `status === 'generated'`. */
+  narrative?: string;
+  /** Pre-written next choices — only present when `status === 'generated'`. */
+  choices?: ChoiceOption[];
+  /** The pre-rolled check value (revealed on tap when serving ships). */
+  diceRoll?: number;
+  isDiceless: boolean;
+  outcome?: CheckResolution['outcome'];
+  /** Full pre-rolled resolution (dice, outcome, state diff) for storage. */
+  resolution?: CheckResolution;
+  /** Model that wrote the branch, when the raw payload reports one. */
+  model?: string;
+  latencyMs: number;
+  error?: string;
+}
+
+export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBranchResult> {
+  const startedAt = Date.now();
+  const elapsed = () => Date.now() - startedAt;
+
+  const story = ctx.story;
+  const choice = ctx.choice;
+  // Route line 137: vitals are reconciled against studio resource pools first.
+  let playerState = ctx.playerState;
+  try {
+    playerState = reconcilePlayerResources(playerState, story.rpgSystem, story.worldBible).playerState;
+  } catch {
+    /* non-fatal, mirrors the route */
+  }
+
+  const playerActionText = choice.text;
+  const actionStyle = choice.style;
+  // Route lines 226-232: the branch turn is N+1; that number drives ability
+  // cooldown bookkeeping exactly as it would on tap.
+  const branchTurnNumber = ctx.turnNumber + 1;
+  const isDiceless = choice.targetDC === undefined && choice.requiredStatId === undefined;
+  const isPersianStory =
+    /[\u0600-\u06FF]/.test(playerActionText) ||
+    /[\u0600-\u06FF]/.test(story.title || '') ||
+    /[\u0600-\u06FF]/.test(playerState.characterName || '') ||
+    /[\u0600-\u06FF]/.test(playerState.backgroundName || '');
+
+  // ------------------------------------------------------------------
+  // Pre-roll (Plan 15 §2.3): the check is rolled NOW, during the dwell,
+  // and stored with the branch — "free RNG, revealed on tap". Diceless
+  // choices branch without a roll (Plan 12), exactly like the route.
+  // ------------------------------------------------------------------
+  const diceType: 'd20' | '2d6' | 'd100' = story.rpgSystem?.diceType || 'd20';
+  const preRoll = isDiceless
+    ? undefined
+    : typeof ctx.forcedDiceRoll === 'number'
+      ? ctx.forcedDiceRoll
+      : rollDice(diceType).roll;
+
+  let resolution: CheckResolution;
+
+  if (isDiceless) {
+    // Route lines 264-301: diceless choices resolve as an authored success.
+    const progConfig = story.rpgSystem?.progression ?? DEFAULT_PROGRESSION_CONFIG;
+    let progressionResult: CheckResolution['progression'] | undefined;
+    const stateDiff: StateMutationDiff = {};
+
+    if (progConfig.enabled !== false) {
+      const xpAward = calculateActionXp({ riskLevel: 'low', outcome: 'success' }, progConfig);
+      stateDiff.xpGained = xpAward.amount;
+      const advance = applyXpGain(playerState, xpAward.amount, progConfig, story.rpgSystem);
+      progressionResult = {
+        xpAwarded: xpAward.amount,
+        xpGained: xpAward.amount,
+        reasonEn: xpAward.reasonEn,
+        reasonFa: xpAward.reasonFa,
+        levelUpOccurred: advance.levelUpOccurred,
+        previousLevel: advance.previousLevel,
+        newLevel: advance.newLevel,
+        unspentStatPoints: advance.updatedPlayerState.unspentStatPoints || 0,
+        unspentAbilityPicks: advance.updatedPlayerState.unspentAbilityPicks || 0,
+      };
+    }
+
+    resolution = {
+      actionDescription: playerActionText,
+      statId: undefined,
+      statModifier: 0,
+      diceRoll: 20,
+      diceType: 'd20',
+      environmentalModifier: 0,
+      totalScore: 20,
+      difficultyClass: 0,
+      outcome: 'success' as const,
+      consequenceSummary: isPersianStory
+        ? 'پیشروی در مسیر داستان مطابق روایت نویسنده.'
+        : 'Progresses along the authored story path.',
+      stateDiff,
+      ...(progressionResult ? { progression: progressionResult } : {}),
+    };
+  } else {
+    // Route lines 302-336: live check path. Preset taps deliberately invoke no
+    // ability (the client never sends `abilityId` for a choice tap).
+    const currentLocation = story.worldBible.locations?.find(
+      (l) => l.id === playerState.currentLocationId
+    );
+    const feasibility = await GameEngine.assessActionFeasibility(playerActionText, {
+      characterName: playerState.characterName,
+      isPersian: isPersianStory,
+      currentLocationName: currentLocation?.name,
+      level: playerState.level || 1,
+    });
+
+    resolution = GameEngine.resolveActionCheck(playerActionText, playerState, story.rpgSystem, {
+      statId: choice.requiredStatId,
+      riskLevel: choice.riskLevel,
+      targetDC: choice.targetDC,
+      forcedDiceRoll: preRoll,
+      isPersian: isPersianStory,
+      worldBible: story.worldBible,
+      currentLocationId: playerState.currentLocationId,
+      activeClocks: playerState.activeTensionClocks,
+      actionStyle,
+      turnNumber: branchTurnNumber,
+      invokedAbilityId: undefined,
+      feasibility,
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // 2b. Pressure revelation (route lines 342-368).
+  // ------------------------------------------------------------------
+  const pressureTarget = GameEngine.detectPressureTarget(
+    playerActionText,
+    story.worldBible?.npcs ?? []
+  );
+  if (pressureTarget) {
+    const knownIds = playerState.relationships?.[pressureTarget.id]?.knownSecrets ?? [];
+    const pressure = GameEngine.applyPressureOutcome(
+      resolution.outcome,
+      pressureTarget,
+      knownIds,
+      playerActionText,
+      isPersianStory,
+      branchTurnNumber
+    );
+    const changes = resolution.stateDiff.relationshipChanges ?? {};
+    const existing = changes[pressureTarget.id] ?? { trustDelta: 0 };
+    changes[pressureTarget.id] = {
+      trustDelta: existing.trustDelta + pressure.trustDelta,
+      ...(pressure.revealedSecretId
+        ? { newSecret: pressure.revealedSecretId }
+        : existing.newSecret
+          ? { newSecret: existing.newSecret }
+          : {}),
+    };
+    resolution.stateDiff.relationshipChanges = changes;
+    resolution.consequenceSummary += ` ${pressure.note}`;
+  }
+
+  // ------------------------------------------------------------------
+  // 2b½. Positive social trust awards (route lines 370-391).
+  // ------------------------------------------------------------------
+  let activeNpcTarget = pressureTarget;
+  if (!pressureTarget) {
+    const socialTarget = GameEngine.detectSocialTarget(
+      playerActionText,
+      story.worldBible?.npcs ?? []
+    );
+    if (socialTarget) {
+      activeNpcTarget = socialTarget;
+      const social = GameEngine.applySocialOutcome(resolution.outcome, actionStyle, isPersianStory);
+      const changes = resolution.stateDiff.relationshipChanges ?? {};
+      const existing = changes[socialTarget.id] ?? { trustDelta: 0 };
+      changes[socialTarget.id] = {
+        trustDelta: existing.trustDelta + social.trustDelta,
+        ...(existing.newSecret ? { newSecret: existing.newSecret } : {}),
+      };
+      resolution.stateDiff.relationshipChanges = changes;
+      resolution.consequenceSummary += ` ${social.note}`;
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // 2b¾. Deterministic party roster writer (route lines 393-437).
+  // ------------------------------------------------------------------
+  const partyChange = GameEngine.detectPartyChange(
+    playerActionText,
+    story.worldBible?.npcs ?? []
+  );
+  if (partyChange) {
+    const effectiveRoster = resolveAccompanyingIds(playerState, ctx.sagaLedger ?? null);
+    const deadOrMissingIds = new Set(
+      (ctx.sagaLedger?.npcStatuses ?? [])
+        .filter((s) => s.status === 'dead' || s.status === 'missing' || s.status === 'imprisoned')
+        .map((s) => s.npcId)
+    );
+    const baseCompanionIds = Array.from(
+      new Set([
+        ...(ctx.sagaLedger?.npcStatuses ?? [])
+          .filter((s) => s.status === 'companion')
+          .map((s) => s.npcId),
+        ...((story.worldBible?.npcs ?? []) as Array<NPCDossier & { status?: string }>)
+          .filter((n) => n.status === 'companion' || n.role === 'companion')
+          .map((n) => n.id),
+      ])
+    ).filter((id) => !deadOrMissingIds.has(id));
+
+    const finalRoster = GameEngine.applyPartyChange(effectiveRoster, partyChange, baseCompanionIds);
+    resolution.stateDiff.accompanyingNpcIds = finalRoster;
+    const partyNote =
+      partyChange.kind === 'clear'
+        ? isPersianStory
+          ? 'قهرمان به‌تنهایی پیش می‌رود؛ همراهان در پس‌زمینه می‌مانند.'
+          : 'The protagonist moves on alone; companions stay in the background.'
+        : partyChange.kind === 'regroup'
+          ? isPersianStory
+            ? 'قهرمان به کاروان و همراهان بازگشت.'
+            : 'The protagonist regroups with the caravan companions.'
+          : partyChange.kind === 'join'
+            ? isPersianStory
+              ? `${partyChange.npc.name} به گروه همراه پیوست.`
+              : `${partyChange.npc.name} joins the travelling party.`
+            : isPersianStory
+              ? `${partyChange.npc.name} از گروه جدا شد و ماند.`
+              : `${partyChange.npc.name} stays behind.`;
+    resolution.consequenceSummary += ` ${partyNote}`;
+  }
+
+  // ------------------------------------------------------------------
+  // 2b¾½. Deterministic micro-location writer (route lines 439-471). The
+  // route skips this when an authored target beat moves the protagonist to
+  // another macro location; AOT branches have no authored target, so the
+  // sub-zone writer always evaluates.
+  // ------------------------------------------------------------------
+  {
+    const currentLocationForZones =
+      story.worldBible?.locations?.find((l) => l.id === playerState.currentLocationId) ?? null;
+    const subZoneChange = GameEngine.detectSubZoneChange(
+      playerActionText,
+      currentLocationForZones,
+      {
+        isPersian: isPersianStory,
+        currentSubZoneId: playerState.currentSubZoneId,
+      }
+    );
+    if (subZoneChange) {
+      resolution.stateDiff.currentSubZoneId =
+        subZoneChange.kind === 'enter' ? subZoneChange.subZoneId! : '';
+      resolution.consequenceSummary += ` ${subZoneChange.note}`;
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // 2c. Method-sourced secret discovery (route lines 473-505).
+  // ------------------------------------------------------------------
+  const completedIds = [
+    ...(playerState.completedQuestIds ?? []),
+    ...((resolution.stateDiff.questUpdates ?? [])
+      .filter((q) => q.status === 'completed')
+      .map((q) => q.questId)),
+  ];
+  const existingChanges = resolution.stateDiff.relationshipChanges ?? {};
+  const discoveredSecrets = GameEngine.discoverSecretsForTurn(
+    story.worldBible?.npcs ?? [],
+    playerState,
+    {
+      completedQuestIds: completedIds,
+      existingRelationshipChanges: existingChanges,
+    }
+  );
+  const relationshipChanges = { ...existingChanges };
+  for (const [npcId, grant] of Object.entries(discoveredSecrets)) {
+    const npc = (story.worldBible?.npcs ?? []).find((n) => n.id === npcId);
+    const priorTrustDelta = relationshipChanges[npcId]?.trustDelta ?? 0;
+    relationshipChanges[npcId] = {
+      trustDelta: priorTrustDelta,
+      newSecret: grant.newSecretId,
+    };
+    resolution.consequenceSummary += isPersianStory
+      ? ` ${npc?.name || npcId} رازی را آشکار کرد: «${grant.newSecretDescription}»`
+      : ` ${npc?.name || npcId} reveals a truth through ${grant.revealMethod}: "${grant.newSecretDescription}"`;
+  }
+  resolution.stateDiff.relationshipChanges = relationshipChanges;
+
+  // ------------------------------------------------------------------
+  // 3. Apply state mutation diff (route lines 507-512). Authored movement
+  // sync (§3½, route lines 514-547) is skipped: AOT branches never carry an
+  // authored `targetSceneId`; hazard displacement is already inside the diff.
+  // ------------------------------------------------------------------
+  let updatedPlayerState = GameEngine.applyStateMutation(
+    playerState,
+    resolution.stateDiff,
+    story.rpgSystem
+  );
+
+  // ------------------------------------------------------------------
+  // 3a½. Threat-clock metadata backfill + region pruning (route 549-586).
+  // ------------------------------------------------------------------
+  const preTurnLocationId = playerState.currentLocationId;
+  if (resolution.clockUpdate) {
+    if (!updatedPlayerState.activeTensionClocks) updatedPlayerState.activeTensionClocks = [];
+    const cu = resolution.clockUpdate;
+    const locForClock =
+      story.worldBible?.locations?.find((l) => `clock_${l.id}` === cu.clockId) ||
+      story.worldBible?.locations?.find((l) => l.id === preTurnLocationId);
+    const existing = updatedPlayerState.activeTensionClocks.find((c) => c.id === cu.clockId);
+    if (existing) {
+      existing.currentSegments = cu.newSegments;
+      existing.maxSegments = cu.maxSegments;
+      if (cu.isCrisis) existing.isTriggered = true;
+      if ((!existing.name || existing.name === existing.id) && locForClock?.threatClockDefault?.name) {
+        existing.name = locForClock.threatClockDefault.name;
+        existing.crisisDescription =
+          locForClock.threatClockDefault.crisisDescription || existing.crisisDescription;
+      }
+    } else {
+      updatedPlayerState.activeTensionClocks.push({
+        id: cu.clockId,
+        name: locForClock?.threatClockDefault?.name || cu.clockId,
+        currentSegments: cu.newSegments,
+        maxSegments: cu.maxSegments,
+        crisisDescription: locForClock?.threatClockDefault?.crisisDescription || '',
+        isTriggered: cu.isCrisis || undefined,
+      });
+    }
+  }
+
+  if (updatedPlayerState.activeTensionClocks && story.worldBible) {
+    updatedPlayerState.activeTensionClocks = pruneInactiveZoneClocks(
+      updatedPlayerState.activeTensionClocks,
+      updatedPlayerState.currentLocationId,
+      story.worldBible
+    );
+  }
+
+  const displacedLocationId =
+    resolution.displacedLocationId || resolution.stateDiff.displacedLocationId;
+
+  // ------------------------------------------------------------------
+  // 3a. Quest item triggers & active quest progress/completion (route 591-657).
+  // ------------------------------------------------------------------
+  const itemTriggerResult = GameEngine.evaluateQuestItemTriggers(
+    updatedPlayerState,
+    story.worldBible
+  );
+  if (itemTriggerResult) {
+    updatedPlayerState = GameEngine.applyStateMutation(
+      updatedPlayerState,
+      itemTriggerResult.diff,
+      story.rpgSystem
+    );
+    resolution.stateDiff.questUpdates = [
+      ...(resolution.stateDiff.questUpdates ?? []),
+      ...(itemTriggerResult.diff.questUpdates ?? []),
+    ];
+    const titles = itemTriggerResult.activatedQuests.map((q) => `"${q.title}"`).join(', ');
+    resolution.consequenceSummary += isPersianStory
+      ? ` [مأموریت فعال شد: ${titles}]`
+      : ` [Quest Activated: ${titles}]`;
+  }
+
+  const questEval = GameEngine.evaluateActiveQuests(updatedPlayerState, story.worldBible, {
+    targetNpcId: activeNpcTarget?.id,
+    actionText: playerActionText,
+    outcome: resolution.outcome,
+  });
+  for (const completedQ of questEval.readyToComplete) {
+    const completion = GameEngine.completeQuest(completedQ, updatedPlayerState, story.worldBible);
+    updatedPlayerState = GameEngine.applyStateMutation(
+      updatedPlayerState,
+      completion.diff,
+      story.rpgSystem
+    );
+    if (completion.diff.questUpdates) {
+      resolution.stateDiff.questUpdates = [
+        ...(resolution.stateDiff.questUpdates ?? []),
+        ...completion.diff.questUpdates,
+      ];
+    }
+    if (completion.diff.itemsRemovedIds) {
+      resolution.stateDiff.itemsRemovedIds = [
+        ...(resolution.stateDiff.itemsRemovedIds ?? []),
+        ...completion.diff.itemsRemovedIds,
+      ];
+    }
+    if (completion.diff.itemsAdded) {
+      resolution.stateDiff.itemsAdded = [
+        ...(resolution.stateDiff.itemsAdded ?? []),
+        ...completion.diff.itemsAdded,
+      ];
+    }
+    if (completion.diff.relationshipChanges) {
+      resolution.stateDiff.relationshipChanges = {
+        ...(resolution.stateDiff.relationshipChanges ?? {}),
+        ...completion.diff.relationshipChanges,
+      };
+    }
+    resolution.consequenceSummary += ` ${completion.narrativeSummary}`;
+  }
+
+  // ------------------------------------------------------------------
+  // 3b. Hybrid defeat system (route 659-680).
+  // ------------------------------------------------------------------
+  const healthKey = resolveHealthKey(story.rpgSystem);
+  const healthResource = story.rpgSystem?.resources?.find((r) => r.id === healthKey);
+  const hpAfterMutation = updatedPlayerState.resources?.[healthKey] ?? healthResource?.max ?? 100;
+  if (hpAfterMutation <= 0) {
+    const defeat = GameEngine.resolveDefeat(
+      updatedPlayerState,
+      story.rpgSystem,
+      resolution.statId ?? undefined
+    );
+    updatedPlayerState = GameEngine.applyStateMutation(
+      updatedPlayerState,
+      defeat.diff,
+      story.rpgSystem
+    );
+    updatedPlayerState.defeatCount = defeat.defeatCount;
+    resolution.consequenceSummary += ` ${defeat.narrativeHint}`;
+  }
+
+  // ------------------------------------------------------------------
+  // Living World State Ledger merge (route 686-690).
+  // ------------------------------------------------------------------
+  const ledgerPatch = GameEngine.deriveLedgerPatch(resolution.stateDiff, story.worldBible);
+  const nextLedger = GameEngine.mergeLedgerPatch(ctx.sagaLedger ?? null, ledgerPatch);
+
+  const activeChapter =
+    story.saga?.chapters?.find((c) => c.id === ctx.currentChapterId) || null;
+
+  // ------------------------------------------------------------------
+  // Model generation through the shared narrative core (route 699-763):
+  // envelope → prompt → model → prose validation → secret sanitization.
+  // ------------------------------------------------------------------
+  const sceneOutcome = await generateValidatedScene(
+    {
+      story,
+      playerState: updatedPlayerState,
+      resolution,
+      playerActionText,
+      ledger: nextLedger,
+      sessionTurns: ctx.sessionTurns,
+      sessionMemories: ctx.sessionMemories,
+      targetSceneId: undefined,
+      activeChapter,
+      displacedLocationId,
+      previousLocationId: preTurnLocationId,
+    },
+    ctx.geminiAdapter,
+    (choices, currentProse) => {
+      const priorSnippets = ctx.sessionTurns
+        .slice(-3)
+        .map((t) => t.narrativeProse)
+        .filter((p): p is string => typeof p === 'string' && p.length > 0);
+      const recentSceneSnippets =
+        priorSnippets.length > 0
+          ? priorSnippets
+          : [story.initialStoryBeats?.[0]?.narrativeText || ''];
+
+      return ActionValidator.sanitizeChoices(
+        choices,
+        updatedPlayerState,
+        story.worldBible,
+        story.storyNpcOverrides,
+        recentSceneSnippets,
+        currentProse
+      );
+    },
+    ctx.subqAdapter
+  );
+
+  if (sceneOutcome.status === 'ok') {
+    return {
+      status: 'generated',
+      narrative: sceneOutcome.aiResponse.narrative,
+      choices: sceneOutcome.aiResponse.choices,
+      diceRoll: preRoll,
+      isDiceless,
+      outcome: resolution.outcome,
+      resolution,
+      model: sceneOutcome.raw?.modelUsed,
+      latencyMs: elapsed(),
+    };
+  }
+
+  return {
+    status: sceneOutcome.status,
+    diceRoll: preRoll,
+    isDiceless,
+    outcome: resolution.outcome,
+    resolution,
+    model: sceneOutcome.raw?.modelUsed,
+    latencyMs: elapsed(),
+    error:
+      sceneOutcome.status === 'prose_invalid'
+        ? (sceneOutcome.proseInvalidReason ?? 'prose_invalid')
+        : 'model_unavailable',
+  };
+}

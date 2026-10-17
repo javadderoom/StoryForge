@@ -12,6 +12,7 @@
     "eval:record": "tsx scripts/evalNarrative.ts --live --record",
     "eval:simulate": "tsx scripts/evalSimulate.ts",
     "eval:story": "tsx scripts/evalStory.ts",
+    "aot:report": "tsx scripts/snapAotReport.ts",
     "migrate:abilities": "tsx scripts/backfillStructuredAbilities.ts",
     "bootstrap:admin": "tsx scripts/bootstrapAdmin.ts",
     "test:email": "tsx scripts/testEmail.ts",
