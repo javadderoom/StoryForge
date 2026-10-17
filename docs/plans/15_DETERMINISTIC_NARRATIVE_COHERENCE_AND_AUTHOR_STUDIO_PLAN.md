@@ -94,7 +94,7 @@ The 30–60s a player spends reading a scene is the only free compute in the loo
 3. **Context precompute (free, deterministic)** — build pruned world-context blocks for each choice's likely next location now; pure CPU off the next turn's critical path.
 4. **AOT narrative pre-generation, Snap-gated (expensive, gated)** — instead of generating all 2–4 continuations, Snap predicts the single most likely choice (session history + traits/relationships + presented choices; 384K context fits full history), the server pre-rolls that choice's check during reading (free RNG, stored, revealed on tap), and the writer pre-generates that exact branch. Predicted tap → instant render; anything else (including free text) → live path as today. Cost per turn: 1 Snap + at most 1 wasted writer call on a miss.
 
-**Constraints**: all background work cancels the moment the user acts (AbortController); the dice pre-roll is a design change — tap-time dice animation must reveal the stored value, not roll fresh; free-text actions always miss (unpredictable input); AOT ships only behind a measured-hit-rate gate — every prediction is logged to `snap_decision_logs` at render and resolved on tap (`hit`: true = predicted tap, false = wrong choice or free text, null = abandoned), and promotion to live AOT requires the measured hit rate over that table, not intuition.
+**Constraints**: all background work cancels the moment the user acts (AbortController); the dice pre-roll is a design change — tap-time dice animation must reveal the stored value, not roll fresh; free-text actions always miss (unpredictable input); AOT ships only behind a measured-hit-rate gate — every prediction is logged to `snap_decision_logs` at render and resolved on tap (`hit`: true = predicted tap, false = wrong choice or free text, null = abandoned), and promotion to live AOT requires the measured hit rate over that table, not intuition. Pre-written branches are **audited before any serving path exists** — deterministic checks (§7.6E) plus an optional SubQ LLM judge (§7.6G) — and a `rejected` branch is permanently disqualified from serving.
 
 ---
 
@@ -364,8 +364,11 @@ Authors and players can take an extraordinarily divergent playthrough in StoryFo
   +-----------------------------------------------------------------------------------+
   | PHASE 6: READER DWELL-TIME COMPUTE (§2.3)                                         |
   | 1. Asset prefetch + context precompute (no gate, pure win).                       |
-  | 2. Snap pre-judgments during reading, timeout+regex fallback (needs SUBQ key).     |
+  | 2. Snap pre-judgments during reading, timeout+regex fallback (needs SUBQ key).    |
   | 3. Log choice-prediction hit rate; promote Snap-gated AOT only behind data.       |
+  | 4. Shadow audit of pre-written branches (deterministic + SubQ judge); a rejected  |
+  |    branch is never serving-eligible.                                              |
+  | 5. SubQ LLM judge over shadow branches — semantic mistakes, planned (§7.6G).      |
   +-----------------------------------------------------------------------------------+
                                            |
                                            v
@@ -388,7 +391,7 @@ Authors and players can take an extraordinarily divergent playthrough in StoryFo
 5. **Emotional Continuity**: 100% of severe injuries acknowledged by present companions in subsequent narrative turns.
 6. **Latency Budget**: Maintained turn latency $\le 2.5\text{s}$ pinned to the `gemini-3.5-flash-lite` default. 0ms for pre-generated/cached nodes on hit.
 7. **Author Visibility**: Complete context envelope and entity exclusion rationale visible in `/studio/sandbox` in $< 1\text{s}$.
-8. **Dwell-Time Efficiency**: Snap pre-judgments cached before tap on measured turns; AOT pre-generation promotes from logging-only to live only behind the measured hit rate over `snap_decision_logs`.
+8. **Dwell-Time Efficiency**: Snap pre-judgments cached before tap on measured turns; AOT pre-generation promotes from logging-only to live only behind the measured hit rate over `snap_decision_logs`. The shadow audit (deterministic §7.6E + optional SubQ judge §7.6G) records a per-branch verdict, and a `rejected` branch is never serving-eligible.
 9. **Multiverse Isolation Verification**: Zero state bleed across distinct playthroughs of the same story; cataclysms and character deaths remain 100% contained within the session's ledger overlay.
 
 ---
@@ -444,7 +447,7 @@ Authors and players can take an extraordinarily divergent playthrough in StoryFo
   - Integrated into [`reader_screen.dart:815-827`](file:///g:/Code/StoryForge/app/lib/ui/screens/reader_screen.dart#L815-L827).
 - **Verification**: Analyzed cleanly via `dart analyze` and `npx tsc --noEmit`.
 
-### 7.6 Phase 2.5 (Movement & Micro-Location Writers) + Phase 4 (Envelope Telemetry & Studio Inspector) + Phase 6 (Snap Choice-Prediction Core & AOT Shadow Pre-Generation) - Verified Implementation Summary (October 2026)
+### 7.6 Phase 2.5 (Movement & Micro-Location Writers) + Phase 4 (Envelope Telemetry & Studio Inspector) + Phase 6 (Snap Choice-Prediction Core, AOT Shadow Pre-Generation & Shadow Branch Audit) - Implementation Status & Roadmap (October 2026)
 
 #### A. Phase 2.5: Deterministic Sub-Zone Writer & Authored Movement Sync (Completed — closes §7.3 `currentSubZoneId` gap)
 - **Sub-zone writer**: New [`movementEngine.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/game/movementEngine.ts) (`GameEngine.detectSubZoneChange`, exported on the [`GameEngine.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/game/GameEngine.ts) facade). Zero model calls — same philosophy as the roster writer:
@@ -499,5 +502,43 @@ Authors and players can take an extraordinarily divergent playthrough in StoryFo
 - **Deliberately not in this slice**: the optional SubQ LLM-judge pass (it will reuse `AotAuditFinding`), serving promotion, route/engine deterministic-block unification, opener-route AOT.
 - **Tests**: [`aotBranchAudit.test.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/aotBranchAudit.test.ts) (10 cases: clean, repaired + first-draft telemetry, surviving warning, secret echo → rejected, discovered secret allowed, choice hygiene, language mismatch, scene repetition, dice integrity, rejected-audit builder), [`aotBranchEngine.test.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/aotBranchEngine.test.ts) audit assertions (generated carries a verdict; `prose_invalid`/mock → rejected + reason), plus a [`snapAot.test.ts`](file:///g:/Code/StoryForge/web/src/lib/play/snapAot.test.ts) row-passthrough case.
 - **Verification**: **1011 unit tests** (`npm test`; 1000 prior + 11 new). One full-suite run tripped a pre-existing load-flaky perf assertion in `landSculptEngine.test.ts` (`simplifyPolyline` 5.18 ms vs <5 ms); it passes in isolation (2.4 ms) and is unrelated to this slice. `npx tsc --noEmit` — zero errors. New files `npx eslint`-clean; edited files add **zero new lint problems** versus HEAD (`narrativeTurn.ts` keeps its pre-existing 28 `any` errors — same count as HEAD). Audit data appears as dwells run with `ENABLE_SNAP_AOT=true`; `aot:report --flagged` is the review surface.
+
+#### F. Plan 15 — Status Snapshot: What Shipped, What Is Gated, What Comes Next (October 2026)
+**Shipped & verified** (details in A–E above; all commits local; nothing serves readers yet):
+- **Phase 2.5** — deterministic sub-zone writer + authored movement sync, live on the action route (§7.6A).
+- **Phase 4** — engine-side envelope telemetry + author-only Studio inspector `/studio/sandbox/envelope` (§7.6B).
+- **Phase 6 core** — Snap dwell prediction, render-time logging, tap resolution, server-side abort cancellation (§7.6C).
+- **Phase 6 AOT shadow** — pre-rolled check + pre-written branch stored per dwell; opt-in `ENABLE_SNAP_AOT=true` (default off) (§7.6D).
+- **Phase 6 shadow audit** — per-branch mistake telemetry + serving verdict (`clean | repaired | warned | rejected`), surfaced by `npm run aot:report` incl. `--flagged` / `--branch=<id>` (§7.6E).
+
+**Operational state today**: reader-facing behavior is unchanged — nothing renders from `snap_aot_branches` (`servedAt` stays `null`); the client still rolls dice locally and sends `forcedDiceRoll` on tap. The dwell toolchain is measurable end-to-end: prediction rows accumulate on every rendered choice panel; branch + audit rows accumulate when `ENABLE_SNAP_AOT=true`.
+
+**Gated**: serving a stored branch on a predicted tap requires, in order: (1) a measured hit rate over `snap_decision_logs` that justifies it; (2) the route/engine deterministic block unified into one shared module (the engine currently mirrors the route 1:1 with line references; serving before unification would double-apply quest/clock/item diffs); (3) the client revealing the stored roll instead of rolling fresh.
+
+**Remaining queue (priority order)**:
+1. **SubQ LLM-judge pass over shadow branches** (§7.6G below) — the semantic mistake layer.
+2. **Momentum guardrail request-shape 422** (pre-existing): the guardrail's SubQ call is rejected server-side and silently falls back to heuristics on the live route; fix it with the judge's live-verified request envelope.
+3. **Route/engine unified deterministic block** — the serving prerequisite.
+4. **Serving promotion** (still gated): behind a second flag; mark `servedAt`; the report then shows real savings.
+5. **Batch re-judge CLI** for stored branches (`aot:report --rejudge`) once judge prompts improve.
+6. **Opener-route AOT** — `/api/play/session` remains prediction-only.
+7. **Tier 1 asset prefetch + tier 2 bounded pre-judgments** (§2.3) — independent dwell wins.
+
+#### G. Phase 6 (Reader Dwell-Time Compute) — SubQ LLM-Judge Pass for Shadow Branches (§7.6E semantic layer) (PLANNED — spec)
+- **Why**: the §7.6E audit is deterministic — schema shape, canon regexes, id/substring secret echoes, language, dice integrity, choice hygiene. The mistakes that actually burn a reader are semantic: prose that contradicts the ledger, narrates a different outcome than the resolved dice, breaks character voice, leaks a secret in paraphrase, or offers choices that do not follow the scene. That class needs a judge, not a regex. This layer completes the pre-serve mistake trap: a branch the judge rejects can never serve once the AOT gate opens (§2.3).
+- **Placement**: inside the existing dwell task (`scheduleSnapDwell`) after the deterministic audit, so the stored `audit` carries both layers. Opt-in `SNAP_AOT_JUDGE=true` (default **off** — one extra SubQ call per dwell; flippable independently of `ENABLE_SNAP_AOT` so judge calibration does not re-spend writer calls). Timeout / unconfigured / failure skips silently: the judge ADDS findings but never throws into the dwell task, and `stats.judgeSkipped` records it — absence of judge findings is not a clean bill.
+- **Request**: one `SubQAdapter.evaluate` call (`subq-snap-preview`, 2–4 s budget, shared dwell abort signal) using the request envelope PROVEN live by `snapPredictor` (§7.6C) — never the momentum guardrail's shape, which currently 422s. Bounded state: story title/language; the scene on screen (truncated); chosen action + resolved outcome + `consequenceSummary`; ledger highlights (dead/missing/transformed NPCs, active threat clocks); present NPC names + `speechStyle`; undiscovered secret descriptions as a do-not-repeat list; the branch prose (truncated) + its choices.
+- **Questions → findings** (boolean + short reason per question, extracted with the tolerant `extractSubQScore`-style readers; each failing question becomes one finding with `source: 'judge'` and a `judge_*` category):
+  1. `state_consistent` — prose contradicts ledger/state (dead NPC acting, lost item in hand, impossible location/time).
+  2. `outcome_consistent` — narration contradicts the resolved outcome or omits the mixed-success cost (semantic counterpart of the regex check).
+  3. `coherent` — prose is coherent; causality intact; no nonsense.
+  4. `in_character` — NPC speech/behaviour respects dossiers; the protagonist stays in voice.
+  5. `choices_follow` — offered choices follow the scene and do not re-offer resolved obstacles.
+  6. `no_leak` — no paraphrase-level reveal of undiscovered secrets or hidden agendas.
+  7. `no_meta` — no AI tells, prompt/schema artefacts, or player-address narration.
+- **Verdict mapping**: failed `state_consistent` / `outcome_consistent` / `no_leak` → `severity: 'error'` (serving blocker → `rejected`); the rest → `warning` (`warned`); precedence unchanged (§7.6E). Judge latency/counters land in `audit.stats` (`judgeLatencyMs`, `judgeFindings`, `judgeSkipped`) — same `audit` JSON column, no migration.
+- **Tests**: request-builder shaping (bounded state, do-not-repeat list, question set); answer mapping (true/false, wrapped `{answer}`, ordinal `{index}`); verdict merge (judge error → rejected; judge warning → warned; judge off → byte-identical §7.6E verdict/findings); skip paths (unconfigured / timeout / HTTP failure / abort) add no findings and never throw; engine wiring with a stub judge adapter.
+- **Acceptance criteria**: (a) judge off ⇒ audit output byte-identical to §7.6E; (b) one live SubQ smoke recorded — request accepted (no 422) with latency inside the dwell budget; (c) `aot:report --flagged` / `--branch` label judge findings with their source; (d) fixtures: a ledger-contradicting branch and a clean branch classified correctly by the merged verdict.
+- **Deliberately not in this slice**: feeding judge findings back into the writer repair loop; serving promotion; route/engine unification; batch re-judge CLI (§7.6F item 5).
 
 
