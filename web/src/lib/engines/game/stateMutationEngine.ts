@@ -71,6 +71,13 @@ export function applyStateMutation(
     if (!updated.discoveredLocationIds.includes(effectiveLocation)) {
       updated.discoveredLocationIds.push(effectiveLocation);
     }
+    // Plan 15 (Pillar 4): a macro move invalidates the micro-location of the
+    // previous place — a stale sub-zone pointer would render an old ravine
+    // next to a new city in the vitality bar. An explicit diff-provided
+    // sub-zone (applied at §below) still wins over this reset.
+    if (diff.currentSubZoneId === undefined) {
+      updated.currentSubZoneId = undefined;
+    }
   }
 
   // 5b. Plan 13: Apply threat clock updates (spawn-or-update by id).

@@ -411,6 +411,40 @@ export async function POST(req: NextRequest) {
       resolution.consequenceSummary += ` ${partyNote}`;
     }
 
+    // 2b¾½. Plan 15 (Pillar 4 / §7.3): deterministic micro-location writer.
+    // "Step into the Salt Gallery / به سمت دهلیز نمک می‌روم" style actions flip
+    // the `currentSubZoneId` pointer with zero model calls — the writer LLM
+    // only narrates. Skipped on turns whose authored target beat moves the
+    // protagonist to a different macro location: cross-location movement is
+    // the beat's story decision (synced at §3½ below), not a zone transition.
+    const authoredMoveBeat =
+      typeof targetSceneId === 'string' && targetSceneId
+        ? story.initialStoryBeats?.find((b: any) => b.sceneId === targetSceneId)
+        : undefined;
+    const authoredMovesMacroLocation = Boolean(
+      typeof authoredMoveBeat?.locationId === 'string' &&
+        authoredMoveBeat.locationId &&
+        authoredMoveBeat.locationId !== playerState.currentLocationId
+    );
+    if (!authoredMovesMacroLocation) {
+      const currentLocationForZones =
+        story.worldBible.locations?.find((l: any) => l.id === playerState.currentLocationId) ?? null;
+      const subZoneChange = GameEngine.detectSubZoneChange(
+        playerActionText,
+        currentLocationForZones,
+        {
+          isPersian: isPersianStory,
+          currentSubZoneId: playerState.currentSubZoneId,
+        }
+      );
+      if (subZoneChange) {
+        // '' clears the pointer (stateMutationEngine treats '' as "unset").
+        resolution.stateDiff.currentSubZoneId =
+          subZoneChange.kind === 'enter' ? subZoneChange.subZoneId! : '';
+        resolution.consequenceSummary += ` ${subZoneChange.note}`;
+      }
+    }
+
         // 2c. Strict, method-sourced secret discovery (Plan 08 Phase 3): a secret
     //      is added to knownSecrets ONLY through a method the NPC's own
     //      revealMethods declare (trust threshold, possessed item, present
@@ -451,6 +485,41 @@ export async function POST(req: NextRequest) {
       resolution.stateDiff,
       story.rpgSystem
     );
+
+    // 3½. Plan 15 (§7.3 movement sync): authored-beat transitions are the
+    // canonical cross-location movement path — beats carry a `locationId`, but
+    // `currentLocationId` used to stay stale on the old location after moving,
+    // so the next turn's world envelope scoped to the wrong place and the
+    // vitality bar showed the wrong zone. Sync the pointer + discovery list
+    // here, BEFORE clock pruning / quest / defeat evaluation. Precedence:
+    // hazard displacement (already in this diff) and defeat relocation (§3b)
+    // override the authored beat; death turns also defer to defeat.
+    const displacementTarget =
+      resolution.displacedLocationId || resolution.stateDiff.displacedLocationId;
+    const authoredMoveTargetId =
+      !displacementTarget &&
+      authoredMovesMacroLocation &&
+      typeof authoredMoveBeat?.locationId === 'string'
+        ? authoredMoveBeat.locationId
+        : undefined;
+    if (authoredMoveTargetId) {
+      const healthKey = resolveHealthKey(story.rpgSystem);
+      const hpAfterMutation = updatedPlayerState.resources?.[healthKey] ?? 1;
+      const deathImminent = typeof hpAfterMutation === 'number' && hpAfterMutation <= 0;
+      if (!deathImminent && authoredMoveTargetId !== updatedPlayerState.currentLocationId) {
+        updatedPlayerState.currentLocationId = authoredMoveTargetId;
+        if (!updatedPlayerState.discoveredLocationIds.includes(authoredMoveTargetId)) {
+          updatedPlayerState.discoveredLocationIds.push(authoredMoveTargetId);
+        }
+        const moveNote = isPersianStory
+          ? `قهرمان به ${story.worldBible.locations.find((l) => l.id === authoredMoveTargetId)?.name || 'مقصد جدید'} رسید.`
+          : `The protagonist arrives at ${story.worldBible.locations.find((l) => l.id === authoredMoveTargetId)?.name || 'a new destination'}.`;
+        resolution.consequenceSummary += ` ${moveNote}`;
+        // Apply-mutation already cleared a stale sub-zone (location change);
+        // a fresh location starts micro-location-less.
+        resolution.stateDiff.locationChange = authoredMoveTargetId;
+      }
+    }
 
     // 3a½. Plan 13: backfill full threat-clock metadata for newly spawned
     // clocks (applyStateMutation only records deltas; names/max live here).

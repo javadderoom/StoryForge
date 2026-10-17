@@ -50,6 +50,7 @@ import {
   detectPartyChange,
   applyPartyChange,
 } from './socialEngine';
+import { detectSubZoneChange } from './movementEngine';
 import { resolveDefeat } from './defeatEngine';
 import {
   evaluateQuestItemTriggers,
@@ -90,6 +91,9 @@ export class GameEngine {
   public static applySocialOutcome = applySocialOutcome;
   public static detectPartyChange = detectPartyChange;
   public static applyPartyChange = applyPartyChange;
+
+  /** Plan 15 (Pillar 4): deterministic micro-location (sub-zone) writer. */
+  public static detectSubZoneChange = detectSubZoneChange;
 
   // Defeat resolution
   public static resolveDefeat = resolveDefeat;

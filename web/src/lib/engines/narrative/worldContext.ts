@@ -288,6 +288,12 @@ export interface ScopedContextOptions {
    * elsewhere. Callers resolve it via resolveAccompanyingIds().
    */
   accompanyingNpcIds?: string[];
+  /**
+   * Plan 15 Phase 4: optional telemetry collector. When provided, every scope
+   * decision (include/exclude/truncate) is recorded with an explicit reason;
+   * when omitted, behavior is identical and no records are produced.
+   */
+  telemetry?: ContextTelemetry;
   /** When true, bypasses scope-pruning and tight caps (for full Studio generation / chat / audits). */
   unconstrained?: boolean;
 }
@@ -334,20 +340,87 @@ const STUDIO_CAPS = {
 
 const cap = (arr: string[], max: number): string[] => (arr.length > max ? arr.slice(0, max) : arr);
 
+// ---------------------------------------------------------------------------
+// Plan 15 Phase 4 — Context Envelope Telemetry.
+// Pruning has always been silent: entities dropped by scope filters or token
+// caps simply vanished, leaving authors unable to see why a creature never
+// appears in a scene (Plan 15 Bug 1 was diagnosed by hand because of this).
+// A `ContextTelemetry` collector records included/excluded/truncated items
+// with a human-readable reason. It is strictly optional — callers that do not
+// pass one keep byte-identical behavior and zero overhead.
+// ---------------------------------------------------------------------------
+
+export type ContextEntityKind =
+  | 'npc'
+  | 'faction'
+  | 'location'
+  | 'bestiary'
+  | 'artifact'
+  | 'religion'
+  | 'dramaBond'
+  | 'factionRelation'
+  | 'timeline'
+  | 'law';
+
+export interface ContextEntityRecord {
+  kind: ContextEntityKind;
+  id?: string;
+  name?: string;
+  /** Rationale — always present on exclusions, absent on inclusions. */
+  reason?: string;
+}
+
+export interface ContextTelemetry {
+  included: ContextEntityRecord[];
+  excluded: ContextEntityRecord[];
+  /** Count-only truncation entries (token caps) keyed by entity kind. */
+  truncated: Array<{ kind: ContextEntityKind; withheld: number; cap: number }>;
+  recordIncluded(kind: ContextEntityKind, id?: string, name?: string): void;
+  recordExcluded(kind: ContextEntityKind, id: string | undefined, name: string | undefined, reason: string): void;
+  recordTruncation(kind: ContextEntityKind, withheld: number, caps: number): void;
+}
+
+export function createContextTelemetry(): ContextTelemetry {
+  const included: ContextEntityRecord[] = [];
+  const excluded: ContextEntityRecord[] = [];
+  const truncated: Array<{ kind: ContextEntityKind; withheld: number; cap: number }> = [];
+  return {
+    included,
+    excluded,
+    truncated,
+    recordIncluded(kind, id, name) {
+      included.push({ kind, id, name });
+    },
+    recordExcluded(kind, id, name, reason) {
+      excluded.push({ kind, id, name, reason });
+    },
+    recordTruncation(kind, withheld, capCount) {
+      truncated.push({ kind, withheld, cap: capCount });
+    },
+  };
+}
+
 /**
  * Relevance-ranked take: pinned ids first (active location/NPCs can never be
  * truncated out), then the rest in insertion order. Replaces blind slice.
+ * `onTruncate` (Plan 15 Phase 4) receives every dropped entity.
  */
 function takeRanked<T extends { id?: string }>(
   entities: T[],
   toLine: (e: T) => string,
   max: number,
-  pinIds: Set<string> = new Set()
+  pinIds: Set<string> = new Set(),
+  onTruncate?: (dropped: T[]) => void
 ): string[] {
   if (entities.length <= max) return entities.map(toLine);
   const pinned = entities.filter((e) => e.id && pinIds.has(e.id));
   const rest = entities.filter((e) => !e.id || !pinIds.has(e.id));
-  return [...pinned, ...rest].slice(0, max).map(toLine);
+  const kept = [...pinned, ...rest].slice(0, max);
+  if (onTruncate) {
+    const keptIds = new Set(kept.map((e) => e.id));
+    onTruncate(entities.filter((e) => !keptIds.has(e.id)));
+  }
+  return kept.map(toLine);
 }
 
 export function normalizeScopeTier(tier?: string | null): ScopeTier {
@@ -420,6 +493,19 @@ export function pruneWorldBibleToScope(
   const locationIds = options.locationIds ?? [];
   const npcIds = options.npcIds ?? [];
   const currentChapterNumber = options.currentChapterNumber;
+  /** Plan 15 Phase 4: optional decision recorder (byte-identical when absent). */
+  const telemetry = options.telemetry;
+  const emit = (
+    keep: boolean,
+    kind: ContextEntityKind,
+    reason: string,
+    id?: string,
+    name?: string
+  ): boolean => {
+    if (keep) telemetry?.recordIncluded(kind, id, name);
+    else telemetry?.recordExcluded(kind, id, name, reason);
+    return keep;
+  };
 
   // 1-hop neighborhood of the active locations (travel-adjacent context) + full ancestry hierarchy.
   const activeLocSet = new Set(locationIds);
@@ -435,17 +521,29 @@ export function pruneWorldBibleToScope(
   const accompanyingSet = new Set(options.accompanyingNpcIds ?? []);
 
   const keepNpcs = (wb.npcs ?? []).filter((n) => {
-    if (activeNpcSet.has(n.id)) return true;
-    if (accompanyingSet.has(n.id)) return true;
+    if (activeNpcSet.has(n.id)) {
+      return emit(true, 'npc', 'explicitly pinned for this scene', n.id, n.name);
+    }
+    if (accompanyingSet.has(n.id)) {
+      return emit(true, 'npc', 'travelling with the protagonist (accompanying roster)', n.id, n.name);
+    }
     if (currentChapterNumber !== undefined) {
       const ov = storyNpcOverrides?.[n.id];
       if (ov?.firstAppearanceChapter !== undefined && ov.firstAppearanceChapter > currentChapterNumber) {
-        return false;
+        return emit(
+          false,
+          'npc',
+          `first appears in Chapter ${ov.firstAppearanceChapter} (current chapter ${currentChapterNumber})`,
+          n.id,
+          n.name
+        );
       }
     }
-    if (activeLocSet.has(n.currentLocationId)) return true;
+    if (activeLocSet.has(n.currentLocationId)) {
+      return emit(true, 'npc', `resident of scene location ${n.currentLocationId}`, n.id, n.name);
+    }
     if (n.applicableLocationIds && n.applicableLocationIds.some((locId) => activeLocSet.has(locId))) {
-      return true;
+      return emit(true, 'npc', 'roams / applies to the active locations', n.id, n.name);
     }
     // Plan 15: caravan travelers count as present only when physically at a
     // scene location (their own currentLocationId). A route merely touching
@@ -458,38 +556,69 @@ export function pruneWorldBibleToScope(
       if (r.caravanMasterNpcId !== n.id && !(r.travelingNpcIds ?? []).includes(n.id)) return false;
       return locationIds.includes(n.currentLocationId);
     });
-    if (isCaravanTraveler) return true;
-    return false;
+    if (isCaravanTraveler) {
+      return emit(true, 'npc', 'caravan member physically present at the scene', n.id, n.name);
+    }
+    return emit(
+      false,
+      'npc',
+      `based elsewhere (${n.currentLocationId || 'unlisted'}) and not part of the scene party`,
+      n.id,
+      n.name
+    );
   });
   const keptNpcIds = new Set(keepNpcs.map((n) => n.id));
 
-  const keepFactions = (wb.factions ?? []).filter(
-    (f) =>
-      passesFactionTierGate(f.scope, scopeTier) &&
-      (f.territoryIds.some((t) => activeLocSet.has(t)) ||
-        keepNpcs.some((n) => n.factionId && n.factionId === f.id))
-  );
+  const isHighScope = scopeTier === 'continental' || scopeTier === 'mythic';
+  const keepFactions = (wb.factions ?? []).filter((f) => {
+    if (
+      !emit(
+        passesFactionTierGate(f.scope, scopeTier),
+        'faction',
+        `faction scope ${f.scope || 'unlisted'} escalates above the current chapter tier ${scopeTier}`,
+        f.id,
+        f.name
+      )
+    ) {
+      return false;
+    }
+    if (emit(isHighScope, 'faction', `${scopeTier}-tier scope widens the political aperture beyond the scene`, f.id, f.name)) {
+      return true;
+    }
+    const territoryHit = f.territoryIds.some((t) => activeLocSet.has(t));
+    const memberHit = keepNpcs.some((n) => n.factionId && n.factionId === f.id);
+    return emit(
+      territoryHit || memberHit,
+      'faction',
+      territoryHit
+        ? 'holds territory in the scene region'
+        : memberHit
+          ? 'has members present in the scene'
+          : 'no territory or members connected to the scene',
+      f.id,
+      f.name
+    );
+  });
   const keptFactionIds = new Set(keepFactions.map((f) => f.id));
 
-  // Continental/mythic scopes widen the aperture to kingdom-level politics,
-  // religions, and artifacts even if not directly anchored to the scene —
-  // but still respect faction scope gating (a mythic dominion stays hidden
-  // until the chapter reaches mythic tier).
-  const isHighScope = scopeTier === 'continental' || scopeTier === 'mythic';
-  if (isHighScope) {
-    const gatedAll = (wb.factions ?? []).filter((f) => passesFactionTierGate(f.scope, scopeTier));
-    keptFactionIds.clear();
-    gatedAll.forEach((f) => keptFactionIds.add(f.id));
-    keepFactions.length = 0;
-    keepFactions.push(...gatedAll);
-  }
-
-  const keepLocations =
-    scopeTier === 'mythic'
-      ? wb.locations ?? []
-      : (wb.locations ?? []).filter(
-          (l) => activeLocSet.has(l.id) || l.connectedLocationIds?.some((id) => activeLocSet.has(id))
-        );
+  const keepLocations = (wb.locations ?? []).filter((l) => {
+    if (scopeTier === 'mythic') {
+      return emit(true, 'location', 'mythic scope surfaces every location', l.id, l.name);
+    }
+    const directHit = activeLocSet.has(l.id);
+    const hopHit = l.connectedLocationIds?.some((id) => activeLocSet.has(id)) ?? false;
+    return emit(
+      directHit || hopHit,
+      'location',
+      directHit
+        ? 'scene location or ancestor'
+        : hopHit
+          ? 'one hop from the scene locations'
+          : 'outside the scene neighborhood',
+      l.id,
+      l.name
+    );
+  });
   const keptLocationIds = new Set(keepLocations.map((l) => l.id));
 
   // Plan 15 (Bug 1): Scene-location hierarchy (scene location + ancestors).
@@ -502,41 +631,122 @@ export function pruneWorldBibleToScope(
 
   const keepBestiary = (wb.bestiary ?? []).filter((c) => {
     // Empty habitat stays eligible in Phase 1 (zero-migration; strict exclusion deferred)
-    if (!c.habitatLocationIds || c.habitatLocationIds.length === 0) return true;
+    if (!c.habitatLocationIds || c.habitatLocationIds.length === 0) {
+      return emit(
+        true,
+        'bestiary',
+        'no habitats authored — eligible roaming fauna (Phase 1 zero-migration)',
+        c.id,
+        c.name
+      );
+    }
     // Specified habitats must match the active scene location hierarchy (or kept locations if no specific scene location is set)
     const matchTargets = sceneLocationIds.size > 0 ? sceneLocationIds : keptLocationIds;
-    return c.habitatLocationIds.some((h) => matchTargets.has(h));
+    const hit = c.habitatLocationIds.some((h) => matchTargets.has(h));
+    const habitatNames = c.habitatLocationIds
+      .map((h) => (wb.locations ?? []).find((l) => l.id === h)?.name || h)
+      .join(' / ');
+    // Plan 15 Bug 1: no ancestors/1-hop locations count as habitat for the scene.
+    return emit(
+      hit,
+      'bestiary',
+      hit
+        ? 'habitat matches the scene location hierarchy'
+        : `habitat outside the scene (authored habitats: ${habitatNames})`,
+      c.id,
+      c.name
+    );
   });
 
   const keepArtifacts = (wb.artifacts ?? []).filter((a) => {
     switch (a.currentHolderType) {
-      case 'npc':
-        return (
-          keptNpcIds.has(a.currentHolderId) ||
-          (isHighScope && (wb.npcs ?? []).some((n) => n.id === a.currentHolderId))
+      case 'npc': {
+        const hit =
+          keptNpcIds.has(a.currentHolderId) || (isHighScope && (wb.npcs ?? []).some((n) => n.id === a.currentHolderId));
+        return emit(
+          hit,
+          'artifact',
+          hit
+            ? `held by a scene-relevant NPC (${a.currentHolderId})`
+            : `held by an out-of-scene NPC (${a.currentHolderId})`,
+          a.id,
+          a.name
         );
+      }
       case 'location':
-        return keptLocationIds.has(a.currentHolderId);
+        return emit(
+          keptLocationIds.has(a.currentHolderId),
+          'artifact',
+          keptLocationIds.has(a.currentHolderId)
+            ? `kept inside a scene-relevant location (${a.currentHolderId})`
+            : `kept inside a location outside the scene (${a.currentHolderId})`,
+          a.id,
+          a.name
+        );
       case 'faction':
-        return keptFactionIds.has(a.currentHolderId);
+        return emit(
+          keptFactionIds.has(a.currentHolderId),
+          'artifact',
+          keptFactionIds.has(a.currentHolderId)
+            ? `held by a scene-relevant faction (${a.currentHolderId})`
+            : `held by a faction outside the scene (${a.currentHolderId})`,
+          a.id,
+          a.name
+        );
       default:
-        return isHighScope;
+        return emit(
+          isHighScope,
+          'artifact',
+          isHighScope
+            ? 'no holder on record; high scope surfaces it anyway'
+            : 'no holder on record; withheld below high scope',
+          a.id,
+          a.name
+        );
     }
   });
 
-  const keepReligions = (wb.religions ?? []).filter(
-    (d) =>
-      d.holyLocationIds.some((h) => keptLocationIds.has(h)) ||
-      d.affiliatedFactionIds.some((f) => keptFactionIds.has(f))
-  );
+  const keepReligions = (wb.religions ?? []).filter((d) => {
+    const holyHit = d.holyLocationIds.some((h) => keptLocationIds.has(h));
+    const faithHit = d.affiliatedFactionIds.some((f) => keptFactionIds.has(f));
+    return emit(
+      holyHit || faithHit,
+      'religion',
+      holyHit
+        ? 'worshipped at a scene-relevant holy place'
+        : faithHit
+          ? 'affiliated with a scene-relevant faction'
+          : 'no holy place or faction connected to the scene',
+      d.id,
+      d.name
+    );
+  });
 
-  const keepDramaBonds = (wb.dramaBonds ?? []).filter(
-    (b) => keptNpcIds.has(b.sourceNpcId) || keptNpcIds.has(b.targetNpcId)
-  );
+  const keepDramaBonds = (wb.dramaBonds ?? []).filter((b) => {
+    const hit = keptNpcIds.has(b.sourceNpcId) || keptNpcIds.has(b.targetNpcId);
+    return emit(
+      hit,
+      'dramaBond',
+      hit
+        ? 'anchors at least one scene-relevant NPC'
+        : `links two NPCs outside the scene (${b.sourceNpcId} ↔ ${b.targetNpcId})`,
+      b.id,
+      b.id
+    );
+  });
 
-  const keepFactionRelations = (wb.factionRelations ?? []).filter(
-    (r) => keptFactionIds.has(r.sourceFactionId) || keptFactionIds.has(r.targetFactionId)
-  );
+  const keepFactionRelations = (wb.factionRelations ?? []).filter((r) => {
+    const hit = keptFactionIds.has(r.sourceFactionId) || keptFactionIds.has(r.targetFactionId);
+    return emit(
+      hit,
+      'factionRelation',
+      hit
+        ? 'involves at least one scene-relevant faction'
+        : `both factions outside the scene (${r.sourceFactionId} ↔ ${r.targetFactionId})`,
+      r.sourceFactionId + '↔' + r.targetFactionId,
+      undefined
+    );
+  });
 
   return {
     ...wb,
@@ -604,6 +814,16 @@ export function buildWorldContextBlocks(
     wb = pruneWorldBibleToScope(wb, effectiveOptions, overrides);
   }
   const caps = isStudioMode ? STUDIO_CAPS : (SCOPE_CAPS[scopeTier] ?? SCOPE_CAPS.regional);
+  // Plan 15 Phase 4: token-cap truncation is an exclusion vector too — record
+  // withheld counts/ids so the Studio inspector can explain why an entity that
+  // passed scope-pruning still never reached the prompt.
+  const telemetry = options?.telemetry;
+  const capWith = <T,>(kind: ContextEntityKind, entities: T[], toLine: (e: T) => string, max: number): string[] => {
+    if (!telemetry) return cap(entities.map(toLine), max);
+    const withheld = Math.max(0, entities.length - max);
+    if (withheld > 0) telemetry.recordTruncation(kind, withheld, max);
+    return cap(entities.map(toLine), max);
+  };
   const pinLocs = new Set(options?.locationIds || []);
   const pinNpcs = new Set([...(options?.npcIds || []), ...centralNpcIds]);
   // Factions pinned when they hold a pinned territory or member NPC.
@@ -625,43 +845,59 @@ export function buildWorldContextBlocks(
         f.secretAgendas ? ` | Hidden agenda: ${f.secretAgendas}` : ''
       }`,
     caps.factions,
-    pinFactions
+    pinFactions,
+    telemetry
+      ? (dropped) => {
+          telemetry.recordTruncation('faction', dropped.length, caps.factions);
+          dropped.forEach((f) =>
+            telemetry.recordExcluded(
+              'faction',
+              f.id,
+              f.name,
+              `token cap: ${caps.factions} of ${(wb.factions ?? []).length} factions injected at ${scopeTier} tier`
+            )
+          );
+        }
+      : undefined
   );
 
   const facName = new Map<string, string>();
   for (const f of wb.factions ?? []) facName.set(f.id, f.name);
-  const factionRelations = cap(
-    (wb.factionRelations ?? []).map((r) => {
+  const factionRelations = capWith(
+    'factionRelation',
+    wb.factionRelations ?? [],
+    (r) => {
       const meta = FACTION_RELATION_META[r.value];
       const a = facName.get(r.sourceFactionId) ?? r.sourceFactionId;
       const b = facName.get(r.targetFactionId) ?? r.targetFactionId;
       return `${a} ↔ ${b}: ${r.value} (${meta?.labelFa || r.value})${r.note ? ` — ${r.note}` : ''}`;
-    }),
+    },
     caps.factionRelations
   );
 
-  const timeline = cap(
-    (wb.timeline ?? [])
-      .slice()
-      .sort((a, b) => {
-        const ar = a.eraCategory === 'recent' || a.eraCategory === 'present' ? 0 : 1;
-        const br = b.eraCategory === 'recent' || b.eraCategory === 'present' ? 0 : 1;
-        return ar - br;
-      })
-      .map((t) => `${t.yearOrEra}: ${t.title} — ${t.summary}${t.significance ? ` (${t.significance})` : ''}`),
+  const timeline = capWith(
+    'timeline',
+    (wb.timeline ?? []).slice().sort((a, b) => {
+      const ar = a.eraCategory === 'recent' || a.eraCategory === 'present' ? 0 : 1;
+      const br = b.eraCategory === 'recent' || b.eraCategory === 'present' ? 0 : 1;
+      return ar - br;
+    }),
+    (t) => `${t.yearOrEra}: ${t.title} — ${t.summary}${t.significance ? ` (${t.significance})` : ''}`,
     caps.timeline
   );
 
-  const artifacts = cap(
-    (wb.artifacts ?? []).map(
-      (a) =>
-        `${a.name} (${a.rarity}) — powers: ${a.powers.join(', ') || 'unknown'}; held by ${a.currentHolderType} ${a.currentHolderId}`
-    ),
+  const artifacts = capWith(
+    'artifact',
+    wb.artifacts ?? [],
+    (a) =>
+      `${a.name} (${a.rarity}) — powers: ${a.powers.join(', ') || 'unknown'}; held by ${a.currentHolderType} ${a.currentHolderId}`,
     caps.artifacts
   );
 
-  const bestiary = cap(
-    (wb.bestiary ?? []).map((c) => {
+  const bestiary = capWith(
+    'bestiary',
+    wb.bestiary ?? [],
+    (c) => {
       const descSnippet = c.loreDescription
         ? ` — Description: ${c.loreDescription.replace(/\s+/g, ' ').slice(0, 160)}...`
         : '';
@@ -669,28 +905,28 @@ export function buildWorldContextBlocks(
       return `${c.name}${idTag} (danger ${c.dangerLevel}, ${c.speciesCategory}${c.isDomesticated ? ', domesticated' : ''})${descSnippet} | habitat: ${
         c.habitatLocationIds?.join('/') || 'unknown'
       } | weakness: ${c.weaknesses?.join(', ') || 'unknown'}`;
-    }),
+    },
     caps.bestiary
   );
 
-  const religions = cap(
-    (wb.religions ?? []).map(
-      (d) =>
-        `${d.name}, ${d.title} — domain: ${d.domain}. Dogma: ${d.coreDogma}${
-          d.taboos?.length ? ` | Taboos: ${d.taboos.join(', ')}` : ''
-        }`
-    ),
+  const religions = capWith(
+    'religion',
+    wb.religions ?? [],
+    (d) =>
+      `${d.name}, ${d.title} — domain: ${d.domain}. Dogma: ${d.coreDogma}${
+        d.taboos?.length ? ` | Taboos: ${d.taboos.join(', ')}` : ''
+      }`,
     caps.religions
   );
 
-  const dramaBonds = cap(
-    (wb.dramaBonds ?? [])
-      .filter((b) => b.isPublic)
-      .map((b) => {
-        const src = npcName.get(b.sourceNpcId) ?? b.sourceNpcId;
-        const tgt = npcName.get(b.targetNpcId) ?? b.targetNpcId;
-        return `${src} ↔ ${tgt} (affinity ${b.affinity})`;
-      }),
+  const dramaBonds = capWith(
+    'dramaBond',
+    (wb.dramaBonds ?? []).filter((b) => b.isPublic),
+    (b) => {
+      const src = npcName.get(b.sourceNpcId) ?? b.sourceNpcId;
+      const tgt = npcName.get(b.targetNpcId) ?? b.targetNpcId;
+      return `${src} ↔ ${tgt} (affinity ${b.affinity})`;
+    },
     caps.dramaBonds
   );
 
@@ -706,7 +942,20 @@ export function buildWorldContextBlocks(
       }) — ${l.description}`;
     },
     caps.locations,
-    pinLocs
+    pinLocs,
+    telemetry
+      ? (dropped) => {
+          telemetry.recordTruncation('location', dropped.length, caps.locations);
+          dropped.forEach((l) =>
+            telemetry.recordExcluded(
+              'location',
+              l.id,
+              l.name,
+              `token cap: ${caps.locations} of ${(wb.locations ?? []).length} locations injected at ${scopeTier} tier`
+            )
+          );
+        }
+      : undefined
   );
 
   const npcs = takeRanked(
@@ -731,7 +980,20 @@ export function buildWorldContextBlocks(
       return `${kindPrefix}${n.name} [${roleStr}] — ${n.title || ''}${relStr}${goalStr}${secretStr}${chEntrance}${combatSuffix}${secretsSuffix}`;
     },
     caps.npcs,
-    pinNpcs
+    pinNpcs,
+    telemetry
+      ? (dropped) => {
+          telemetry.recordTruncation('npc', dropped.length, caps.npcs);
+          dropped.forEach((n) =>
+            telemetry.recordExcluded(
+              'npc',
+              n.id,
+              n.name,
+              `token cap: ${caps.npcs} of ${(wb.npcs ?? []).length} NPCs injected at ${scopeTier} tier`
+            )
+          );
+        }
+      : undefined
   );
 
   const laws = cap(
@@ -784,6 +1046,26 @@ export function buildWorldContextBlocks(
             .map((n) => n.id)
         )
       : undefined;
+  // Plan 15 Phase 4 (Bug 2 visibility): retinue names withheld from route lines
+  // are exclusions with a reason too. Names resolve against the ORIGINAL
+  // World Bible — the pruned copy has already dropped these NPCs, which is
+  // exactly why they vanish from the line.
+  if (telemetry && scopedPresent) {
+    const seenRetinue = new Set<string>();
+    for (const r of wb.tradeRoutes ?? []) {
+      for (const id of [r.caravanMasterNpcId, ...(r.travelingNpcIds ?? [])]) {
+        if (!id || scopedPresent.has(id) || seenRetinue.has(id)) continue;
+        seenRetinue.add(id);
+        const canonicalName = (story.worldBible?.npcs ?? []).find((n) => n.id === id)?.name;
+        telemetry.recordExcluded(
+          'npc',
+          id,
+          canonicalName,
+          `retinue of caravan "${r.name}" withheld — not physically at the scene location`
+        );
+      }
+    }
+  }
   const tradeRoutes = (wb.tradeRoutes ?? []).map((r) => formatTradeRouteLine(r, wb, scopedPresent));
 
   return {

@@ -327,6 +327,7 @@ Authors and players can take an extraordinarily divergent playthrough in StoryFo
                                           v
   +-----------------------------------------------------------------------------------+
   | PHASE 2: LIVING VITALITY BAR & MICRO-LOCATION CLIENT REWORK (COMPLETED)           |
+  | 0. Plan 15 §7.6: deterministic sub-zone writer + authored movement sync.          |
   | 1. Extend PlayerState in Flutter & web with currentSubZoneId.                     |
   | 2. Implement GameSessionState.locationWithSubZone resolution in provider.         |
   | 3. Completely rebuild ConditionChips into VitalityPresenceBar in Flutter app.     |
@@ -342,12 +343,17 @@ Authors and players can take an extraordinarily divergent playthrough in StoryFo
                                           |
                                           v
   +-----------------------------------------------------------------------------------+
-  | PHASE 4: STUDIO SANDBOX ENVELOPE INSPECTOR                                        |
-  | 1. Extend /studio/sandbox with an Envelope Inspector panel.                       |
-  | 2. Display included vs. excluded entities with explicit exclusion rationale.      |
+  | PHASE 4: STUDIO SANDBOX ENVELOPE INSPECTOR (COMPLETED)                            |
+  | 0. Engine-side ContextTelemetry: every scope decision (include/exclude/           |
+  |    token-cap truncate + caravan retinue withhold) recorded with a reason          |
+  |    in worldContext.ts / pruneWorldBibleToScope (§7.6).                            |
+  | 1. POST /api/studio/sandbox/envelope rebuilds the exact play-time envelope,       |
+  |    author-only (requireStudioWrite) — never exposed to reader clients.            |
+  | 2. Envelope Inspector panel in /studio/sandbox: included vs excluded with        |
+  |    rationale, token-cap summary, prompt block preview, build latency.            |
   +-----------------------------------------------------------------------------------+
-                                          |
-                                          v
+                                           |
+                                           v
   +-----------------------------------------------------------------------------------+
   | PHASE 5: STUDIO FOLDED GRAPH GENERATOR (OPTIONAL PRE-GENERATION)                  |
   | 1. Studio tool to generate a 15–25 node folded bottleneck graph for a chapter.    |
@@ -409,7 +415,7 @@ Authors and players can take an extraordinarily divergent playthrough in StoryFo
 
 ### 7.3 State Ownership
 - `accompanyingNpcIds`: Fully implemented & resolved. Home is `PlayerState.accompanyingNpcIds` (mirrored in Flutter `GameState.accompanyingNpcIds`). Written deterministically by `GameEngine.detectPartyChange` / `applyPartyChange` in `socialEngine.ts` and `action/route.ts` (§2b¾). Seeded at session initialization in `session/route.ts`. Cleared (`[]`) on explicit "scout alone / go alone" actions. Regroups with camp companions on "return to camp / caravan" actions.
-- `currentSubZoneId`: no writer exists today. Decide who sets it on movement and where it lives; the Flutter client parses zero subZones today, so `locationWithSubZone` is new model + provider work, not an extension of `locationName` (`game_session_provider.dart:195`).
+- `currentSubZoneId`: **Writer implemented (Plan 15 §7.6, October 2026)** — `movementEngine.ts` (`GameEngine.detectSubZoneChange`) rewrites the pointer deterministically from reader actions at `action/route.ts` (§2b¾½); authored-beat transitions sync the macro location + discovery list at route §3½; `stateMutationEngine` clears a stale pointer on any macro move. Flutter end already parsed `currentSubZoneId` (`game_state.dart`).
 - Wound tags (`'injury:bleeding:severe'` style strings on the protagonist's `conditions`) need no migration; per-NPC wounds are out of scope for Bug 4.
 
 ### 7.4 Phase 3 v1 Decisions (2026-10-16, implemented)
@@ -437,4 +443,29 @@ Authors and players can take an extraordinarily divergent playthrough in StoryFo
   - Dynamic baseline derivation from $HP$, Stamina, WaterClock, and condition tags guarantees **zero dead states**.
   - Integrated into [`reader_screen.dart:815-827`](file:///g:/Code/StoryForge/app/lib/ui/screens/reader_screen.dart#L815-L827).
 - **Verification**: Analyzed cleanly via `dart analyze` and `npx tsc --noEmit`.
+
+### 7.6 Phase 2.5 (Movement & Micro-Location Writers) + Phase 4 (Envelope Telemetry & Studio Inspector) — Verified Implementation Summary (October 2026)
+
+#### A. Phase 2.5: Deterministic Sub-Zone Writer & Authored Movement Sync (Completed — closes §7.3 `currentSubZoneId` gap)
+- **Sub-zone writer**: New [`movementEngine.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/game/movementEngine.ts) (`GameEngine.detectSubZoneChange`, exported on the [`GameEngine.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/game/GameEngine.ts) facade). Zero model calls — same philosophy as the roster writer:
+  - **Enter** requires an explicit sub-zone name match *and* a motion/entry verb (EN + FA). Persian matching normalizes ZWNJ, harakat (U+064B–U+0652), tatweel, and Yeh/Kaf look-alikes so authored names match prose («به سمت دهلیزِ نمک می‌روم» hits «دهلیز نمک»).
+  - **Leave** requires an active pointer and departure phrasing; naming the zone being left is allowed ("I climb back out of the Salt Gallery"). A *different* named destination in the same sentence defers to the entry pass.
+  - Short names never substring-match ("رود" won't fire inside "درود"); unknown zone names are never invented.
+- **Route wiring** ([`action/route.ts`](file:///g:/Code/StoryForge/web/src/app/api/play/action/route.ts)):
+  - §2b¾½ (after the roster writer): sub-zone detection writes `stateDiff.currentSubZoneId` (`''` = clear sentinel; a name match would otherwise flip the pointer to the destination location mid-move).
+  - §3½ (immediately after the initial `applyStateMutation`, before clock/quest/defeat): **authored-beat movement sync**. `currentLocationId` used to stay stale after moving via an authored beat whose target carries a different `locationId`, so the next turn's envelope scoped the wrong place and the vitality bar showed the wrong zone. The beat's location now sets the pointer + `discoveredLocationIds` (+ localized "arrives at …" consequence note). Precedence is explicit: hazard displacement (already in the diff) and defeat relocation (§3b) override the authored beat; post-mutation death defers to defeat.
+  - `preTurnLocationId` is captured from the pre-turn `playerState` (the sync mutates `updatedPlayerState` only), so displacement directives and clock metadata still see the true origin.
+- **Stale-pointer reset** ([`stateMutationEngine.ts:67-80`](file:///g:/Code/StoryForge/web/src/lib/engines/game/stateMutationEngine.ts#L67-L80)): any macro move (displacement, defeat, or authored sync) invalidates the previous place's micro-location unless the same diff explicitly sets a new sub-zone.
+- **Conversion notes**: `stateDiff.currentSubZoneId` empty string clears the pointer (`stateMutationEngine.ts` treats `''` as unset). Travel to a location with authored subZones renders `Macro • Micro` in the vitality bar with zero client changes.
+
+#### B. Phase 4: Context Envelope Telemetry & Studio Envelope Inspector (Completed)
+- **Engine-side telemetry** ([`worldContext.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/worldContext.ts)):
+  - New `ContextEntityKind`, `ContextEntityRecord`, `ContextTelemetry`, `createContextTelemetry()`; `ScopedContextOptions.telemetry?` is strictly optional — **without it the engine is byte-identical** (contract test asserts `JSON.stringify` equality of prune + block output, with and without a collector).
+  - `pruneWorldBibleToScope` records a decision with a human-readable reason at every terminal branch: NPCs (pinned / party companion / future-chapter gate / scene resident / roaming applicability / caravan presence), factions (tier gate / high-scope widening / territory or member anchor), locations (mythic / direct or 1-hop), bestiary (empty-habitat roaming vs habitat match — names the authored habitats on exclusion, Plan 15 Bug 1 visibility), artifacts (holder resolution incl. no-holder high-scope rule), religions, drama bonds, faction relations.
+  - **Token-cap truncation is recorded too**: `takeRanked` gained an `onTruncate` callback (factions/locations/npcs — per-entity exclusions plus aggregate `recordTruncation`), and section `cap(...)` sites became `capWith(kind, …)` (relations/timeline/artifacts/bestiary/religions/drama bonds). Cap truncation was the invisible second exclusion vector (§7.1) — now visible.
+  - **Caravan retinue withholding** (Plan 15 Bug 2 visibility): retired retinue/master names dropped from route lines are recorded as `npc` exclusions with the route name and the not-physically-at-scene rationale, resolving names against the *original* World Bible (the pruned copy has already dropped them — which is exactly why they vanished).
+- **Studio API**: New [`/api/studio/sandbox/envelope`](file:///g:/Code/StoryForge/web/src/app/api/studio/sandbox/envelope/route.ts) — `POST { storyId, locationId?, subZoneId?, scopeTier?, chapterNumber?, accompanyingNpcIds? }` → rebuilds the exact play-time envelope via the production `buildWorldContextBlocks` and returns `{ included[], excluded[], truncated[], counts, sectionCounts, prompt, elapsedMs }`. **Author-only via `requireStudioWrite`** — the envelope embeds undiscovered secrets/hidden agendas and is deliberately not wired into `/api/play/action` responses. Applies the same `migrateStoryManifestToUnifiedGraph` canonicalization as the play path, and resolves the party roster through the production `resolveAccompanyingIds`.
+- **Studio UI**: New [`EnvelopeInspectorPanel.tsx`](file:///g:/Code/StoryForge/web/src/app/studio/sandbox/EnvelopeInspectorPanel.tsx) embedded in [`/studio/sandbox`](file:///g:/Code/StoryForge/web/src/app/studio/sandbox/page.tsx) — location + scope tier + chapter + travelling-party selection, Included/Excluded record lists with kinds and reasons, token-cap chips, collapsible prompt block preview, and the envelope build latency (success metric §6.7: full envelope visible in < 1 s; the recompute is pure CPU on a pruned projection and finished in single-digit ms in tests).
+- **Tests**: [`movementEngine.test.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/game/movementEngine.test.ts) (10 cases) and [`worldContext.telemetry.test.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/worldContext.telemetry.test.ts) (5 cases: habitat exclusion naming "Marsh Hollow", NPC elsewhere exclusion, retinue withholding, zero-overhead byte-identity, street-tier token caps: 12 scene NPCs − 4 injected = 8 withheld).
+- **Verification**: **962/962 unit tests pass** (`npm test`; 947 prior + 15 new). `npx tsc --noEmit` — zero errors. `npx eslint` — all five new files clean (route, panel, engine, both test files).
 

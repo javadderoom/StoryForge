@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
+import EnvelopeInspectorPanel from './EnvelopeInspectorPanel';
 import {
   Sparkles,
   Dice5,
@@ -370,6 +371,9 @@ export default function AiSandboxPage() {
           </div>
         </div>
       </div>
+
+      {/* Plan 15 Phase 4: studio context envelope inspector (full-width below the simulator). */}
+      <EnvelopeInspectorPanel />
     </div>
   );
 }
