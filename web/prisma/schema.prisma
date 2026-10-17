@@ -236,6 +236,7 @@ model TurnHistory {
   presentedChoices Json     @default("[]")
   resolution       Json?
   chapterNumber    Int?
+  remakeCount      Int      @default(0)
   createdAt        DateTime @default(now())
 
   session          PlaythroughSession @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)

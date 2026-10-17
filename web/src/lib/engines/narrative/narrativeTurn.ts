@@ -68,6 +68,8 @@ export interface SceneTurnInput {
   previousLocationId?: string;
   /** Override minimum word count floor (defaults to DEFAULT_MIN_SCENE_WORDS). */
   minWordCount?: number;
+  /** Explicit continuity correction directive for scene remakes. */
+  remakeDirective?: string;
 }
 
 export interface SceneAiResponse {
@@ -478,6 +480,9 @@ export async function generateValidatedScene(
 
   // Model generation (single call; raw retained for evaluation).
   const promptPayload = PromptAssembler.buildNarrativePrompt(contextEnvelope);
+  if (input.remakeDirective) {
+    promptPayload.userPrompt = `${promptPayload.userPrompt}\n\n${input.remakeDirective}`;
+  }
   const { response: aiResponse, raw } = await adapter.generateSceneWithRaw(promptPayload);
 
   // Plan 08 Phase 1: NEVER persist mock/offline output as story canon.

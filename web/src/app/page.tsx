@@ -25,6 +25,7 @@ import {
   X,
   Heart,
   Users,
+  RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -35,6 +36,7 @@ import { StoryCatalogModal } from '@/components/StoryCatalogModal';
 import { StoryCharactersModal } from '@/components/StoryCharactersModal';
 import { CharacterCreationModal } from '@/components/play/CharacterCreationModal';
 import { LockEncounterModal } from '@/components/play/LockEncounterModal';
+import { RemakeSceneModal } from '@/components/play/RemakeSceneModal';
 import { GameLoadingScreen } from '@/components/play/GameLoadingScreen';
 
 import { Compendium } from '@/components/play/Compendium';
@@ -56,11 +58,13 @@ import {
   patchSession,
   resetSession,
   sendAction,
+  remakeScene,
   getCoverUrl,
   CharacterSetup,
   CatalogStory,
   StartSessionResult,
 } from '@/lib/play/api';
+import type { ContinuityIssueType } from '@/lib/engines/narrative/RemakeValidator';
 import {
   REALM_THEMES,
   RealmPreset,
@@ -170,6 +174,9 @@ export default function Home() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isShopModalOpen, setIsShopModalOpen] = useState(false);
   const [isLockEncounterOpen, setIsLockEncounterOpen] = useState(false);
+  const [isRemakeModalOpen, setIsRemakeModalOpen] = useState(false);
+  const [isRemakingScene, setIsRemakingScene] = useState(false);
+  const [currentRemakeCount, setCurrentRemakeCount] = useState<number>(0);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -528,6 +535,7 @@ export default function Home() {
 
         setPlayerState(json.data.updatedPlayerState);
         setTurnNumber(nextTurn);
+        setCurrentRemakeCount(0);
         showDisplacementBanner(json.data, lore.locations);
         syncBalance(json);
 
@@ -625,6 +633,7 @@ export default function Home() {
         });
         setPlayerState(json.data.updatedPlayerState);
         setTurnNumber(nextTurn);
+        setCurrentRemakeCount(0);
         showDisplacementBanner(json.data, lore.locations);
         if (json.data.updatedPlayerState?.currentLocationId) {
           audioService.playAmbient(ambientFromLocation(json.data.updatedPlayerState.currentLocationId));
@@ -697,6 +706,7 @@ export default function Home() {
     setPlayerState(pendingTurn.updatedPlayerState);
     showDisplacementBanner(pendingTurn, lore.locations);
     setTurnNumber((t) => t + 1);
+    setCurrentRemakeCount(0);
     if (pendingTurn.updatedPlayerState?.currentLocationId) {
       audioService.playAmbient(ambientFromLocation(pendingTurn.updatedPlayerState.currentLocationId));
     }
@@ -728,6 +738,36 @@ export default function Home() {
     e.preventDefault();
     if (!freeTextAction.trim()) return;
     onChoice({ text: freeTextAction, style: 'free_text', riskLevel: 'medium' });
+  };
+
+  const handleRemakeScene = async ({ issueType, reason }: { issueType: ContinuityIssueType; reason: string }) => {
+    if (!selectedStory || !sessionId || isRemakingScene) return;
+    setIsRemakingScene(true);
+    try {
+      const result = await remakeScene({
+        sessionId,
+        storyId: selectedStory.id,
+        turnNumber,
+        issueType,
+        reason,
+      });
+
+      setCurrentBeat((prev: any) => ({
+        ...prev,
+        narrative: result.beat.narrativeProse,
+        choices: result.beat.presentedChoices,
+        sceneId: result.beat.sceneId,
+      }));
+      setCurrentRemakeCount(result.remakeCount);
+      audioService.playSfx('pageTurn');
+      notify.success(isRtl ? 'صحنه با موفقیت بازنویسی و اصلاح شد.' : 'Scene successfully remade.');
+      setIsRemakeModalOpen(false);
+    } catch (err: any) {
+      notify.error(err.message || (isRtl ? 'خطا در بازنویسی صحنه' : 'Failed to remake scene'));
+      throw err;
+    } finally {
+      setIsRemakingScene(false);
+    }
   };
 
   const onInventoryChange = async (newState: any, toast?: { kind: 'success' | 'warning' | 'info'; text: string }) => {
@@ -1294,17 +1334,46 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Admin Encounter Lock Button */}
-              {user?.role === 'ADMIN' && currentBeat?.narrative && !loading && (
-                <div className="mb-4 flex items-center justify-end">
+              {/* Scene Action Bar: Remake Scene & Admin Encounter Lock */}
+              {currentBeat?.narrative && !loading && (
+                <div className="mb-4 flex items-center justify-between gap-2">
                   <button
-                    onClick={() => setIsLockEncounterOpen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-300 transition-all hover:border-amber-500 hover:bg-amber-500/20 hover:shadow-lg hover:shadow-amber-500/10"
-                    title={isRtl ? 'قفل این صحنه به عنوان رویداد پویا در جهان داستان' : 'Lock this scene as a modular world encounter'}
+                    onClick={() => setIsRemakeModalOpen(true)}
+                    disabled={currentRemakeCount >= 1 || loading || actionInFlight}
+                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all ${
+                      currentRemakeCount >= 1
+                        ? 'border-zinc-800/80 bg-zinc-900/30 text-zinc-500 cursor-not-allowed opacity-60'
+                        : 'border-zinc-800 bg-zinc-900/80 text-zinc-300 hover:border-amber-500/50 hover:bg-amber-500/10 hover:text-amber-300'
+                    }`}
+                    title={
+                      currentRemakeCount >= 1
+                        ? (isRtl ? 'این صحنه قبلاً یک بار بازسازی شده است' : 'This scene has already been remade once')
+                        : (isRtl ? 'بازسازی صحنه به دلیل ناهماهنگی روایی (۱ بار رایگان)' : 'Remake scene due to inconsistency (1x free)')
+                    }
                   >
-                    <Zap className="h-3.5 w-3.5 text-amber-400" />
-                    <span>{isRtl ? 'قفل به عنوان رویداد پویا' : 'Lock as World Encounter'}</span>
+                    <RotateCcw className="h-3.5 w-3.5 text-amber-400" />
+                    <span>{isRtl ? 'بازسازی صحنه' : 'Remake Scene'}</span>
+                    {currentRemakeCount < 1 ? (
+                      <span className="rounded bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 text-[9px] font-bold text-emerald-400">
+                        {isRtl ? '۱ بار رایگان' : '1x Free'}
+                      </span>
+                    ) : (
+                      <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[9px] font-medium text-zinc-400">
+                        {isRtl ? 'استفاده‌شده' : 'Used'}
+                      </span>
+                    )}
                   </button>
+
+                  {user?.role === 'ADMIN' && (
+                    <button
+                      onClick={() => setIsLockEncounterOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-300 transition-all hover:border-amber-500 hover:bg-amber-500/20 hover:shadow-lg hover:shadow-amber-500/10"
+                      title={isRtl ? 'قفل این صحنه به عنوان رویداد پویا در جهان داستان' : 'Lock this scene as a modular world encounter'}
+                    >
+                      <Zap className="h-3.5 w-3.5 text-amber-400" />
+                      <span>{isRtl ? 'قفل به عنوان رویداد پویا' : 'Lock as World Encounter'}</span>
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1970,6 +2039,15 @@ export default function Home() {
           token={token}
         />
       )}
+
+      <RemakeSceneModal
+        isOpen={isRemakeModalOpen}
+        onClose={() => setIsRemakeModalOpen(false)}
+        onSubmit={handleRemakeScene}
+        isPersian={isRtl}
+        isSubmitting={isRemakingScene}
+        turnNumber={turnNumber}
+      />
     </div>
 
   );

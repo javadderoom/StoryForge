@@ -168,6 +168,38 @@ export async function sendAction(payload: {
   return asJson(res);
 }
 
+export interface RemakeScenePayload {
+  sessionId: string;
+  storyId: string;
+  turnNumber: number;
+  issueType: string;
+  reason: string;
+}
+
+export interface RemakeSceneResult {
+  beat: {
+    sceneId: string;
+    narrativeProse: string;
+    presentedChoices: any[];
+  };
+  turnNumber: number;
+  remakeCount: number;
+  message?: string;
+}
+
+export async function remakeScene(payload: RemakeScenePayload): Promise<RemakeSceneResult> {
+  const res = await fetch('/api/play/remake', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const json = await asJson(res);
+  if (!json.success) {
+    throw new Error(json.rejectionReason || json.error || 'Failed to remake scene');
+  }
+  return json.data as RemakeSceneResult;
+}
+
 /** Cover image resolution: explicit remoteUrl/authored coverImageUrl first, else null. */
 export function getCoverUrl(storyId?: string | null, remoteUrl?: string | null): string | null {
   if (remoteUrl && remoteUrl.trim()) {
