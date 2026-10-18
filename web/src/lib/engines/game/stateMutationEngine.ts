@@ -3,17 +3,23 @@ import {
   StateMutationDiff,
 } from '@/lib/types/gameplay';
 import { RPGSystemSchema, DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
-import { resolveResourceMax, resolveResourceMin } from './resourcePools';
+import { resolveResourceMax, resolveResourceMin, resolveHealthKey, resolveStaminaKey } from './resourcePools';
 import { computeMaxResources, resolveScalingOptions } from './vitalScaling';
 import { applyXpGain } from './progressionEngine';
 
 /**
  * Applies state mutations cleanly to the PlayerState and returns an immutable updated state.
+ *
+ * Plan 17: `options.previousState` is the pre-turn snapshot used by the
+ * condition auto-derivation crossing guard — a wound is only auto-removed
+ * when the vitals crossed from the danger zone back to recovery in this
+ * turn, never because a heal landed on an already-healthy character.
  */
 export function applyStateMutation(
   currentState: PlayerState,
   diff: StateMutationDiff,
-  rpgSystem?: RPGSystemSchema
+  rpgSystem?: RPGSystemSchema,
+  options?: { previousState?: PlayerState }
 ): PlayerState {
   const updated: PlayerState = JSON.parse(JSON.stringify(currentState));
 
@@ -109,13 +115,15 @@ export function applyStateMutation(
   let activeConditions = Array.isArray(updated.conditions) ? [...updated.conditions] : [];
 
   // Direct overwrite if provided
-  if (Array.isArray(diff.conditions)) {
-    activeConditions = [...diff.conditions];
+  const hasConditionOverwrite = Array.isArray(diff.conditions);
+  if (hasConditionOverwrite) {
+    activeConditions = [...diff.conditions!];
   }
 
   // Apply explicit removals
-  if (Array.isArray(diff.conditionsRemoved) && diff.conditionsRemoved.length > 0) {
-    activeConditions = activeConditions.filter((c) => !diff.conditionsRemoved!.includes(c));
+  const explicitlyRemoved = new Set<string>((diff.conditionsRemoved ?? []).map((c) => c.trim()));
+  if (explicitlyRemoved.size > 0) {
+    activeConditions = activeConditions.filter((c) => !explicitlyRemoved.has(c.trim()));
   }
 
   // Apply explicit additions
@@ -128,38 +136,95 @@ export function applyStateMutation(
     }
   }
 
-  // Auto-derivation rules based on vitals & tension
-  const currentHp = updated.resources['hp'] ?? 100;
-  const maxHp = updated.maxResources?.['hp'] ?? 100;
-  const hpRatio = maxHp > 0 ? currentHp / maxHp : 1;
+  // Plan 17: auto-derivation now reads the story's real pools and never
+  // fights an explicit removal/overwrite from the same turn.
+  const prevForRatios = options?.previousState ?? currentState;
+  const healthKey = resolveHealthKey(rpgSystem);
+  const staminaKey = resolveStaminaKey(rpgSystem);
 
-  if (hpRatio <= 0.35 && !activeConditions.includes('زخمی')) {
+  const hasTag = (tag: string) => activeConditions.some((c) => c.trim() === tag || c.trim().startsWith(`${tag} `));
+  const wounds = () => activeConditions.filter((c) => c.trim().startsWith('زخمی'));
+  /** Auto-add is suppressed when this turn explicitly removed the kind or
+   * wrote a condition overwrite that no longer contains it. */
+  const autoAddSuppressed = (tag: string) =>
+    explicitlyRemoved.has(tag) || (hasConditionOverwrite && !activeConditions.includes(tag));
+
+  const resourceRatio = (state: PlayerState, key: string): number => {
+    const current = state.resources?.[key];
+    const max = state.maxResources?.[key] ?? resolveResourceMax(key, rpgSystem, state);
+    return typeof current === 'number' && max > 0 ? current / max : 1;
+  };
+
+  const hpRatio = resourceRatio(updated, healthKey);
+  const prevHpRatio = resourceRatio(prevForRatios, healthKey);
+
+  if (hpRatio <= 0.35 && !hasTag('زخمی') && !autoAddSuppressed('زخمی')) {
     activeConditions.push('زخمی');
-  } else if (hpRatio >= 0.70 && activeConditions.includes('زخمی') && !diff.conditionsAdded?.includes('زخمی')) {
-    activeConditions = activeConditions.filter((c) => c !== 'زخمی');
+  } else if (
+    wounds().length > 0 &&
+    !autoAddSuppressed('زخمی') &&
+    // Crossing guard: only auto-clear when the vitals actually recovered
+    // from the danger zone this turn. A generic heal on an already-stable
+    // character never erases a narrated wound (Plan 17 §3.5).
+    prevHpRatio <= 0.35 &&
+    hpRatio >= 0.70
+  ) {
+    activeConditions = activeConditions.filter((c) => !c.trim().startsWith('زخمی'));
   }
 
-  const currentStamina = updated.resources['stamina'] ?? 50;
-  const maxStamina = updated.maxResources?.['stamina'] ?? 50;
-  const staminaRatio = maxStamina > 0 ? currentStamina / maxStamina : 1;
+  const staminaRatio = resourceRatio(updated, staminaKey);
+  const prevStaminaRatio = resourceRatio(prevForRatios, staminaKey);
 
-  if (staminaRatio <= 0.20 && !activeConditions.includes('خسته')) {
+  if (staminaRatio <= 0.20 && !hasTag('خسته') && !autoAddSuppressed('خسته')) {
     activeConditions.push('خسته');
-  } else if (staminaRatio >= 0.75 && activeConditions.includes('خسته') && !diff.conditionsAdded?.includes('خسته')) {
-    activeConditions = activeConditions.filter((c) => c !== 'خسته');
+  } else if (
+    hasTag('خسته') &&
+    !autoAddSuppressed('خسته') &&
+    prevStaminaRatio <= 0.20 &&
+    staminaRatio >= 0.75
+  ) {
+    activeConditions = activeConditions.filter((c) => c.trim() !== 'خسته');
   }
 
-  // Desert water tension clock derivation
-  const waterClock = (updated.activeTensionClocks || []).find((c) => c.id.includes('mtpqnxvl_jdgi') || c.name.includes('آب'));
+  // Desert water tension clock derivation (Plan 17: identify by metadata,
+  // not the magic session id the old check hardcoded).
+  const waterClock = (updated.activeTensionClocks || []).find(
+    (c) =>
+      /آب|عطش|تشنه|water|thirst/i.test(c.name || '') ||
+      /water|thirst|عطش/i.test(c.id || '')
+  );
   if (waterClock) {
-    if (waterClock.currentSegments >= 2 && !activeConditions.includes('تشنه')) {
+    if (waterClock.currentSegments >= 2 && !hasTag('تشنه') && !autoAddSuppressed('تشنه')) {
       activeConditions.push('تشنه');
-    } else if (waterClock.currentSegments === 0 && activeConditions.includes('تشنه') && !diff.conditionsAdded?.includes('تشنه')) {
-      activeConditions = activeConditions.filter((c) => c !== 'تشنه');
+    } else if (
+      waterClock.currentSegments === 0 &&
+      hasTag('تشنه') &&
+      !autoAddSuppressed('تشنه')
+    ) {
+      activeConditions = activeConditions.filter((c) => c.trim() !== 'تشنه');
     }
   }
 
+  // Plan 17 invariant: the baseline "healthy" tag never coexists with any
+  // body condition (the reconciler re-seeds it when the body zone is clear).
+  const BODY_TAGS = ['زخمی', 'خونریزی', 'خسته', 'تشنه', 'مسموم'];
+  if (activeConditions.some((c) => BODY_TAGS.some((t) => c.trim().startsWith(t)))) {
+    activeConditions = activeConditions.filter((c) => c.trim() !== 'تندرست');
+  }
+
   updated.conditions = activeConditions;
+
+  // 5d. Plan 17: journey lifecycle (start / replace / cancel). `null` clears;
+  // `undefined` leaves the current journey untouched.
+  if (diff.travel !== undefined) {
+    updated.travel = diff.travel === null
+      ? null
+      : {
+          ...diff.travel,
+          waypointIds: [...(diff.travel.waypointIds ?? [])],
+          caravanNpcIds: [...(diff.travel.caravanNpcIds ?? [])],
+        };
+  }
 
   // Plan 15 (Bug 3): explicit roster overwrite (set when present, incl. []).
   if (Array.isArray(diff.accompanyingNpcIds)) {

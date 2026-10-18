@@ -79,11 +79,12 @@ describe('Character Conditions & Status System', () => {
     let state = createBaseState();
     assert.ok(!state.conditions?.includes('تشنه'));
 
-    // Desert water clock hits 2 segments
+    // Desert water clock hits 2 segments (metadata identifies it as water —
+    // Plan 17 dropped the old hardcoded session-id check).
     state = GameEngine.applyStateMutation(
       state,
       {
-        clockUpdates: [{ id: 'clock_loc_mtpqnxvl_jdgi', delta: 2, isCrisis: false }],
+        clockUpdates: [{ id: 'clock_water_demo', delta: 2, isCrisis: false }],
       },
       mockRpg
     );
@@ -93,7 +94,7 @@ describe('Character Conditions & Status System', () => {
     state = GameEngine.applyStateMutation(
       state,
       {
-        clockUpdates: [{ id: 'clock_loc_mtpqnxvl_jdgi', delta: -2, isCrisis: false }],
+        clockUpdates: [{ id: 'clock_water_demo', delta: -2, isCrisis: false }],
       },
       mockRpg
     );

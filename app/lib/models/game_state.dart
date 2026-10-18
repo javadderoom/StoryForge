@@ -473,6 +473,69 @@ class DiscoveredNpc {
   }
 }
 
+/// Plan 17: active inter-city journey. Progress derives from the session turn
+/// number (`departedTurn` + `totalTurns`) — this model carries no mutable
+/// countdown, keeping remakes/rewinds deterministic.
+class ActiveTravel {
+  final String originLocationId;
+  final String destinationLocationId;
+  final String? routeId;
+  final List<String> waypointIds;
+  final String mode; // 'foot' | 'mount' | 'caravan' | 'ship'
+  final int departedTurn;
+  final int totalTurns;
+  final List<String> caravanNpcIds;
+
+  const ActiveTravel({
+    required this.originLocationId,
+    required this.destinationLocationId,
+    this.routeId,
+    this.waypointIds = const [],
+    this.mode = 'foot',
+    required this.departedTurn,
+    required this.totalTurns,
+    this.caravanNpcIds = const [],
+  });
+
+  factory ActiveTravel.fromJson(Map<String, dynamic> json) {
+    final rawWaypoints = json['waypointIds'] as List<dynamic>? ?? [];
+    final rawCaravan = json['caravanNpcIds'] as List<dynamic>? ?? [];
+    return ActiveTravel(
+      originLocationId: json['originLocationId']?.toString() ?? '',
+      destinationLocationId: json['destinationLocationId']?.toString() ?? '',
+      routeId: json['routeId']?.toString(),
+      waypointIds: rawWaypoints.map((e) => e.toString()).toList(),
+      mode: json['mode']?.toString() ?? 'foot',
+      departedTurn: (json['departedTurn'] as num?)?.toInt() ?? 0,
+      totalTurns: (json['totalTurns'] as num?)?.toInt() ?? 2,
+      caravanNpcIds: rawCaravan.map((e) => e.toString()).toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'originLocationId': originLocationId,
+        'destinationLocationId': destinationLocationId,
+        if (routeId != null) 'routeId': routeId,
+        'waypointIds': waypointIds,
+        'mode': mode,
+        'departedTurn': departedTurn,
+        'totalTurns': totalTurns,
+        'caravanNpcIds': caravanNpcIds,
+      };
+
+  /// Pure derived progress. Returns 0 when the journey is complete.
+  int turnsRemaining(int currentTurn) {
+    final elapsed = (currentTurn - departedTurn).clamp(0, totalTurns);
+    return (totalTurns - elapsed).clamp(0, totalTurns);
+  }
+
+  /// Index into [origin, ...waypoints] for the active turn.
+  int currentStopIndex(int currentTurn) {
+    final elapsed = (currentTurn - departedTurn).clamp(0, totalTurns);
+    return elapsed < waypointIds.length ? elapsed : waypointIds.length;
+  }
+}
+
 class PlayerState {
   final String? characterName;
   final String? archetypeId;
@@ -505,6 +568,8 @@ class PlayerState {
   final Map<String, int> purse;
   /// Unlocked/known ability IDs.
   final List<String> abilities;
+  /// Plan 17: active inter-city journey; null = grounded at currentLocationId.
+  final ActiveTravel? travel;
   /// Progression & leveling fields
   final int level;
   final int currentXP;
@@ -537,6 +602,7 @@ class PlayerState {
     this.accompanyingNpcIds,
     this.purse = const {},
     this.abilities = const [],
+    this.travel,
     this.level = 1,
     this.currentXP = 0,
     this.nextLevelXP = 100,
@@ -593,6 +659,7 @@ class PlayerState {
     List<String>? accompanyingNpcIds,
     Map<String, int>? purse,
     List<String>? abilities,
+    ActiveTravel? travel,
     int? level,
     int? currentXP,
     int? nextLevelXP,
@@ -624,6 +691,7 @@ class PlayerState {
       accompanyingNpcIds: accompanyingNpcIds ?? this.accompanyingNpcIds,
       purse: purse ?? this.purse,
       abilities: abilities ?? this.abilities,
+      travel: travel ?? this.travel,
       level: level ?? this.level,
       currentXP: currentXP ?? this.currentXP,
       nextLevelXP: nextLevelXP ?? this.nextLevelXP,
@@ -650,6 +718,7 @@ class PlayerState {
     final rawConditions = json['conditions'] as List<dynamic>? ?? [];
     final rawAccompanying = json['accompanyingNpcIds'] as List<dynamic>?;
     final rawAbilities = json['abilities'] as List<dynamic>? ?? [];
+    final rawTravel = json['travel'] as Map<String, dynamic>?;
 
     return PlayerState(
       characterName: json['characterName'],
@@ -675,6 +744,7 @@ class PlayerState {
       accompanyingNpcIds: rawAccompanying?.map((e) => e.toString()).toList(),
       purse: rawPurse.map((k, v) => MapEntry(k, (v as num).toInt())),
       abilities: rawAbilities.map((e) => e.toString()).toList(),
+      travel: rawTravel != null ? ActiveTravel.fromJson(rawTravel) : null,
       level: (json['level'] as num?)?.toInt() ?? 1,
       currentXP: (json['currentXP'] as num?)?.toInt() ?? 0,
       nextLevelXP: (json['nextLevelXP'] as num?)?.toInt() ?? 100,
@@ -708,6 +778,7 @@ class PlayerState {
         if (accompanyingNpcIds != null) 'accompanyingNpcIds': accompanyingNpcIds,
         'purse': purse,
         'abilities': abilities,
+        if (travel != null) 'travel': travel!.toJson(),
         'level': level,
         'currentXP': currentXP,
         'nextLevelXP': nextLevelXP,

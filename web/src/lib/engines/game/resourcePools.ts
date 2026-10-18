@@ -11,6 +11,18 @@ export function resolveHealthKey(rpgSystem?: { resources?: ReadonlyArray<{ id: s
   return health?.id || 'health';
 }
 
+/**
+ * Plan 17: stamina-pool selection mirroring `resolveHealthKey`. Condition
+ * auto-derivation must read the story's actual pool (`stamina`, `energy`,
+ * `طاقت`…) instead of hardcoding `resources['stamina']`.
+ */
+export function resolveStaminaKey(rpgSystem?: { resources?: ReadonlyArray<{ id: string }> }): string {
+  const resources = rpgSystem?.resources ?? [];
+  const stamina = resources.find((r) => /^(stamina|energy|طاقت|توان)$/i.test(r.id))
+    ?? resources.find((r) => /stamina|energy|endurance/i.test(r.id));
+  return stamina?.id || 'stamina';
+}
+
 
 /**
  * Single source of truth for reading a resource pool maximum.

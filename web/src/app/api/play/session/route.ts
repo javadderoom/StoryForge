@@ -36,6 +36,20 @@ function buildPlayLore(story: any) {
       description: l.description || '',
       atmosphere: l.atmosphere || '',
       imageUrl: l.imageUrl || '',
+      // Plan 17: the vitality bar resolves "Macro • Micro" and travel
+      // waypoint names client-side, so the player-safe projection must
+      // carry the spatial hierarchy, not just the macro name.
+      region: l.region || undefined,
+      parentLocationId: l.parentLocationId || undefined,
+      subZones: (l.subZones ?? []).map((sz: any) => ({
+        id: sz.id,
+        name: sz.name,
+        subType: sz.subType || undefined,
+      })),
+      pointsOfInterest: (l.pointsOfInterest ?? []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+      })),
     })),
     npcs: (wb.npcs ?? []).map((n: any) => ({
       id: n.id,

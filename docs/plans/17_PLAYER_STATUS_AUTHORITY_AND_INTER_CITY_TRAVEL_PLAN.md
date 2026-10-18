@@ -517,9 +517,9 @@ Optionally fold the travel delta into `TurnStatusDeltaBanner` for turn-to-turn t
 ## 6. Implementation Phases
 
 ### Phase 0 — Prerequisites & shared types
-- [ ] Fix `buildPlayLore` (session route) to include `subZones`, `pointsOfInterest`, `parentLocationId`, `region`.
-- [ ] Add `ActiveTravel`, `PlayerState.travel`, `StateMutationDiff.travel` to `gameplay.ts`; add `travel` to the Dart `PlayerState` with round-trip tests.
-- [ ] Extend `applyStateMutation` signature with `options?: { previousState?: PlayerState }` and update all call sites (action route, AOT engine, session route, tests).
+- [x] Fix `buildPlayLore` (session route) to include `subZones`, `pointsOfInterest`, `parentLocationId`, `region`.
+- [x] Add `ActiveTravel`, `PlayerState.travel`, `StateMutationDiff.travel` to `gameplay.ts`; add `travel` to the Dart `PlayerState` with round-trip tests.
+- [x] Extend `applyStateMutation` signature with `options?: { previousState?: PlayerState }` and update all call sites (action route, AOT engine, session route, tests).
 
 ### Phase 1 — Condition catalog & writer contract
 - [ ] `conditionCatalog.ts` + `conditionCatalog.test.ts` (kinds, closures, treated, negation-safe patterns).
@@ -647,3 +647,26 @@ Baseline to preserve: `npm test` 1039/1039 green, clean typecheck, Flutter analy
 ---
 
 *Plan 17 completes the "Dead Status" remediation started in Plan 15 §1.2: the status bar stops being decoration and becomes the readable, authoritative surface of the player's actual condition — on the road, wounded, treated, thirsty, or home.*
+
+---
+
+## 12. Progress Log
+
+> Updated after each completed step (per the implementation request). Status values: ✅ done · 🔄 in progress · ⏳ pending.
+
+| Phase | Status | Date | Notes |
+| :--- | :--- | :--- | :--- |
+| Phase 0 — Prerequisites & shared types | ✅ done | 2026-10-18 | `buildPlayLore` now ships `subZones`/`pointsOfInterest`/`parentLocationId`/`region`; `ActiveTravel` + `PlayerState.travel` + `StateMutationDiff.travel` added (TS) and mirrored in Dart with round-trip + derived-progress tests; `applyStateMutation` accepts `options.previousState` (optional, back-compatible — chained call sites pass it in Phase 2); travel application + pool-aware condition guards landed in the engine ahead of schedule. `npx tsc --noEmit` clean; targeted web tests 97/97; `flutter test test/player_state_travel_test.dart` 3/3. |
+| Phase 1 — Condition catalog & writer contract | ⏳ pending | | |
+| Phase 2 — Reconciler & state guards | ⏳ pending | | Engine guards partially landed with Phase 0 (pool resolvers, crossing guard, water-clock metadata). Reconciler + route wiring remain. |
+| Phase 3 — Client truth rendering | ⏳ pending | | |
+| Phase 4 — Travel engine & lifecycle | ⏳ pending | | |
+| Phase 5 — Prompt & envelope | ⏳ pending | | |
+| Phase 6 — Travel UI & audio | ⏳ pending | | |
+| Phase 7 — Effects, telemetry, rollout | ⏳ pending | | |
+
+### Phase 0 checklist
+
+- [x] Fix `buildPlayLore` (session route) to include `subZones`, `pointsOfInterest`, `parentLocationId`, `region`.
+- [x] Add `ActiveTravel`, `PlayerState.travel`, `StateMutationDiff.travel` to `gameplay.ts`; add `travel` to the Dart `PlayerState` with round-trip tests.
+- [x] Extend `applyStateMutation` signature with `options?: { previousState?: PlayerState }` (back-compatible; chained call sites pass the pre-turn snapshot in Phase 2).

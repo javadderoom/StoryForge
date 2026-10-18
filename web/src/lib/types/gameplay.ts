@@ -47,6 +47,28 @@ export interface TensionClock {
   isTriggered?: boolean;
 }
 
+// Plan 17: Inter-city travel state. While present, the protagonist is on the
+// road between `originLocationId` and `destinationLocationId`; progress is a
+// pure function of (departedTurn, session turn number, totalTurns), so remakes
+// and rewinds never need to roll a countdown back.
+export type TravelMode = 'foot' | 'mount' | 'caravan' | 'ship';
+
+export interface ActiveTravel {
+  originLocationId: string;
+  destinationLocationId: string;
+  /** Trade route followed when the journey uses one (Plan 10 routes). */
+  routeId?: string;
+  /** Ordered intermediate location stops (excludes origin + destination). */
+  waypointIds?: string[];
+  mode: TravelMode;
+  /** Absolute session turn number when the journey began. */
+  departedTurn: number;
+  /** Total legs of the journey; clamped to 2..6 by the pacing rule. */
+  totalTurns: number;
+  /** Caravan / escort NPC ids travelling with the protagonist on this journey. */
+  caravanNpcIds?: string[];
+}
+
 export interface PlayerState {
   characterName?: string;
   archetypeId?: string;
@@ -97,6 +119,12 @@ export interface PlayerState {
   accompanyingNpcIds?: string[];
   /** Unlocked or learned ability IDs */
   abilities?: string[];
+  /**
+   * Plan 17: active inter-city journey. Absent/null = grounded at
+   * currentLocationId. Present = en route; progress derives from the
+   * session turn number (see `travelEngine.getTravelStatus`).
+   */
+  travel?: ActiveTravel | null;
   /**
    * Cooldown bookkeeping: ability id -> turn number it was last invoked on.
    * Storing the stamp (rather than a countdown) keeps this idempotent and safe
@@ -163,6 +191,8 @@ export interface StateMutationDiff {
   accompanyingNpcIds?: string[];
   /** Plan 15 (Pillar 4): micro-location / sub-zone transition within currentLocationId. */
   currentSubZoneId?: string;
+  /** Plan 17: journey start/replace; `null` cancels the journey at the current stop. */
+  travel?: ActiveTravel | null;
   /** Power system rank updates (schoolId -> newRank) */
   powerRankChanges?: Record<string, number>;
   /** Power mastery point updates (schoolId -> pointsDelta) */
