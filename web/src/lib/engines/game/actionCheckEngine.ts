@@ -24,6 +24,38 @@ import {
 import { calculateActionXp, applyXpGain } from './progressionEngine';
 import { FeasibilityAssessment } from './actionFeasibilityEngine';
 
+/**
+ * Styles/verbs that carry a real chance of bodily harm. Mixed success may only
+ * deduct HP when the action could plausibly hurt the protagonist; otherwise the
+ * narrator is forced to invent a wound (a bribe causing a stab wound, a lie
+ * causing a broken rib) to justify the numbers. Social/investigative actions
+ * still pay a cost — stamina, attention, time — but not phantom injuries.
+ */
+const PHYSICAL_ACTION_STYLES = new Set(['aggressive', 'defensive', 'agile', 'stealthy']);
+const SOCIAL_ACTION_STYLES = new Set(['diplomatic', 'inquisitive', 'tactical']);
+const PHYSICAL_ACTION_PATTERN =
+  /\b(strike|attack|punch|kick|shove|grapple|wrestle|tackle|climb|jump|leap|vault|swim|dive|dodge|block|parry|stab|slash|shoot|smash|choke|fall|trip|wound|injure)\b|(ضربه|حمله|مشت|لگد|هل|کشتی|گلاویز|تاخت|دوید|پرید|جهید|بالا رفت|شنا|شیرجه|جاخالی|غلت|سپر|چاقو|شمشیر|تیر|پرتاب|شکست|خرد کرد|افتاد|سقوط|زخم)/i;
+const PHYSICAL_STAT_PATTERN =
+  /^(might|strength|agility|dexterity|endurance|constitution|athletics|acrobatics|vitality|toughness|نیرو|قدرت|چابکی|استقامت|تن|ورزیدگی)/i;
+// Social styles need an unambiguous violent/athletic verb: "strike a deal"
+// or "block the bill" must not become a stab wound.
+const STRONG_PHYSICAL_ACTION_PATTERN =
+  /\b(attack|punch|kick|shove|grapple|wrestle|tackle|climb|jump|leap|vault|swim|dive|dodge|parry|stab|slash|shoot|smash|choke|fall|trip|wound|injure)\b|(حمله|مشت|لگد|هل|کشتی|گلاویز|تاخت|دوید|پرید|جهید|بالا رفت|شنا|شیرجه|جاخالی|غلت|چاقو|شمشیر|تیر|پرتاب|خرد کرد|افتاد|سقوط|زخم)/i;
+
+/** True when a mixed-success HP penalty can be justified by the action itself. */
+export function isBodilyRiskAction(
+  actionText: string,
+  actionStyle?: string,
+  statId?: string
+): boolean {
+  if (SOCIAL_ACTION_STYLES.has(actionStyle || '')) {
+    return STRONG_PHYSICAL_ACTION_PATTERN.test(actionText || '');
+  }
+  if (PHYSICAL_ACTION_STYLES.has(actionStyle || '')) return true;
+  if (PHYSICAL_ACTION_PATTERN.test(actionText || '')) return true;
+  return PHYSICAL_STAT_PATTERN.test(statId || '');
+}
+
 export interface RollOptions {
   statId?: string;
   skillId?: string;
@@ -481,10 +513,18 @@ export function resolveActionCheck(
       : 'Clear success: objective accomplished as intended.';
   } else if (totalScore >= baseDC - 3) {
     outcome = 'mixed_success';
-    consequenceSummary = isPersian
-      ? 'موفقیت نسبی: هدف حاصل شد، اما با پرداخت بها، جراحت جزئی یا جلب توجه.'
-      : 'Mixed success: goal achieved, but with cost, minor injury, or alert raised.';
-    const hpPenalty = options.riskLevel === 'low' ? 0 : -5;
+    const bodilyRisk = isBodilyRiskAction(actionText, options.actionStyle, effectiveStatId);
+    // The cost must be narratable from THIS action. A social or investigative
+    // mixed success costs composure, stamina, time, or attention — never an
+    // unexplained wound the writer has to invent an assailant for.
+    consequenceSummary = bodilyRisk
+      ? isPersian
+        ? 'موفقیت نسبی: هدف حاصل شد، اما با بهایی که از خودِ اقدام برمی‌آید — جراحت جزئی، خستگی یا جلب توجه.'
+        : 'Mixed success: goal achieved, but at a cost caused by the action itself — a minor injury, strain, or raised attention.'
+      : isPersian
+        ? 'موفقیت نسبی: هدف حاصل شد، اما با پیامدی که از خودِ اقدام برمی‌آید — جلب سوءظن، بدهی، خستگی یا از دست رفتن وقت.'
+        : 'Mixed success: goal achieved, but with a complication caused by the action itself — suspicion raised, a favor owed, fatigue, or lost time.';
+    const hpPenalty = options.riskLevel === 'low' || !bodilyRisk ? 0 : -5;
     stateDiff.resourceChanges = {
       ...(stateDiff.resourceChanges || {}),
       ...(hpPenalty < 0 ? { [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) + hpPenalty } : {}),

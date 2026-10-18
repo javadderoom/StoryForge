@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { GameEngine } from './GameEngine';
+import { isBodilyRiskAction } from './actionCheckEngine';
 import { PlayerState } from '../../types/gameplay';
 import { RPGSystemSchema } from '../../types/rpg';
 import { WorldBible, NPCDossier } from '../../types/world';
@@ -139,7 +140,7 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
       assert.equal(res.stateDiff.resourceChanges?.hp, undefined);
     });
 
-    it('resolves Mixed Success (with cost) when score is within 3 of DC', () => {
+    it('does not wound the player for a social mixed success', () => {
       const res = GameEngine.resolveActionCheck(
         'Bribe the guard',
         initialPlayerState,
@@ -147,7 +148,37 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
         { statId: 'cunning', forcedDiceRoll: 12, targetDC: 13 }
       );
       assert.equal(res.outcome, 'mixed_success');
-      assert.ok(res.stateDiff.resourceChanges?.hp !== undefined);
+      // A bribe cannot plausibly cause a physical wound; the cost is stamina
+      // and attention, not an injury the narrator has to invent a cause for.
+      assert.equal(res.stateDiff.resourceChanges?.hp, undefined);
+      assert.equal(res.stateDiff.resourceChanges?.stamina, -10);
+      assert.match(res.consequenceSummary, /suspicion|fatigue|lost time/i);
+    });
+
+    it('keeps a physical mixed success cost for a bodily-risk action', () => {
+      const res = GameEngine.resolveActionCheck(
+        'Force the gate open with your shoulder',
+        initialPlayerState,
+        sampleRpgSystem,
+        { statId: 'might', forcedDiceRoll: 10, targetDC: 13 }
+      );
+      assert.equal(res.outcome, 'mixed_success');
+      assert.equal(res.stateDiff.resourceChanges?.hp, -5);
+      assert.equal(res.stateDiff.resourceChanges?.stamina, -10);
+    });
+
+    it('does not misread a social phrase containing a violent word as bodily risk', () => {
+      assert.equal(
+        isBodilyRiskAction('Strike a deal with the merchant', 'diplomatic', 'cunning'),
+        false
+      );
+    });
+
+    it('still treats an explicit attack as bodily risk under a social style', () => {
+      assert.equal(
+        isBodilyRiskAction('Stab the guard mid-sentence', 'diplomatic', 'cunning'),
+        true
+      );
     });
 
     it('resolves Failure when score is significantly below DC', () => {

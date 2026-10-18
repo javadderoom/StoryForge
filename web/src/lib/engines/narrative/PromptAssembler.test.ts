@@ -274,6 +274,9 @@ describe('PromptAssembler - mixed_success cost directive', () => {
     assert.ok(userPrompt.includes('Certain cost this turn: health -5, stamina -10.'));
     assert.ok(userPrompt.includes('MIXED SUCCESS'));
     assert.ok(userPrompt.includes('FORBIDDEN'));
+    assert.ok(userPrompt.includes('CAUSAL COST RULE'));
+    assert.ok(userPrompt.includes('NEVER invent a new attacker'));
+    assert.ok(userPrompt.includes('never a wound from nowhere'));
   });
 
   it('renders cost line and directive in Persian (FA)', () => {
@@ -289,6 +292,8 @@ describe('PromptAssembler - mixed_success cost directive', () => {
     assert.ok(userPrompt.includes('MIXED_SUCCESS'));
     assert.ok(userPrompt.includes('هزینه قطعی این نوبت'));
     assert.ok(userPrompt.includes('موفقیت نسبی'));
+    assert.ok(userPrompt.includes('قاعده علت‌ومعلول هزینه'));
+    assert.ok(userPrompt.includes('هرگز برای توجیه هزینه، مهاجم تازه'));
   });
 
   it('omits the mixed directive for clean success', () => {

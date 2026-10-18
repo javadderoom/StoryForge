@@ -365,8 +365,8 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
         formatOutcomeCost(resolution, story.language === 'fa' ? 'fa' : 'en') ??
         (resolution.outcome === 'mixed_success'
           ? story.language === 'fa'
-            ? 'هزینه قطعی این نوبت: جراحت جزئی، خستگی و جلب توجه.'
-            : 'Certain cost this turn: minor injury, fatigue, and raised attention.'
+            ? 'هزینه قطعی این نوبت: خستگی، از دست رفتن تعادل یا جلب توجه — برخاسته از خودِ اقدام.'
+            : 'Certain cost this turn: strain, fatigue, lost footing, or raised attention — caused by the action itself.'
           : undefined),
     },
     recentSceneSnippets,

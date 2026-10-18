@@ -123,6 +123,7 @@ class GameApiService {
     int? forcedDiceRoll,
     String? targetSceneId,
     String? choiceId,
+    String? engineTier,
     bool isRemake = false,
     String? remakeReason,
   }) async {
@@ -141,6 +142,7 @@ class GameApiService {
             'forcedDiceRoll': forcedDiceRoll,
             if (targetSceneId != null && targetSceneId.isNotEmpty) 'targetSceneId': targetSceneId,
             if (choiceId != null && choiceId.isNotEmpty) 'choiceId': choiceId,
+            if (engineTier != null && engineTier.isNotEmpty) 'engineTier': engineTier,
             'playerState': playerState.toJson(),
             'turnNumber': turnNumber,
             if (isRemake) 'isRemake': true,
@@ -165,6 +167,7 @@ class GameApiService {
     required PlayerState playerState,
     required int turnNumber,
     required String reason,
+    String? engineTier,
   }) async {
     return await sendAction(
       storyId: storyId,
@@ -174,6 +177,7 @@ class GameApiService {
       riskLevel: 'low',
       playerState: playerState,
       turnNumber: turnNumber,
+      engineTier: engineTier,
       isRemake: true,
       remakeReason: reason,
     );

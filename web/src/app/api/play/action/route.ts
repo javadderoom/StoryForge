@@ -143,8 +143,20 @@ export async function POST(req: NextRequest) {
 
     // Engine tier resolution and credit metering.
     // normal = 1 credit, plus = 2 credits, advance = 5 credits.
+    // A signed-in reader may choose a tier for their playthrough (Flutter's
+    // reader dropdown sends it with each action); otherwise the author's story
+    // tier is the default. The requested tier pays its own price, so switching
+    // can never underpay for a higher model. Anonymous stateless calls keep the
+    // story default and cannot request an upgrade for free.
+    const requestedEngineTier = auth ? body?.engineTier : undefined;
     const engineTier: EngineTier =
-      story.engineTier === 'advance' ? 'advance' : story.engineTier === 'plus' ? 'plus' : 'normal';
+      requestedEngineTier === 'advance' || requestedEngineTier === 'plus' || requestedEngineTier === 'normal'
+        ? requestedEngineTier
+        : story.engineTier === 'advance'
+        ? 'advance'
+        : story.engineTier === 'plus'
+        ? 'plus'
+        : 'normal';
     const sceneCreditCost = isRemake ? 0 : (ENGINE_TIER_COSTS[engineTier] ?? 1);
     const activeNarrativeAdapter = getNarrativeAdapter(engineTier);
 

@@ -44,6 +44,7 @@ import {
   Route,
   FlaskConical,
   Compass,
+  Target,
 } from 'lucide-react';
 
 function StudioShell({ children }: { children: React.ReactNode }) {
@@ -212,6 +213,13 @@ function StudioShell({ children }: { children: React.ReactNode }) {
       isSpecial: true,
     },
     {
+      href: '/studio/snap',
+      label: isPersian ? 'تحلیل پیش‌بینی اسنپ' : 'Snap Prediction Analytics',
+      shortLabel: isPersian ? 'اسنپ' : 'Snap',
+      icon: Target,
+      isSpecial: true,
+    },
+    {
       href: '/studio/admin',
       label: isPersian ? 'مدیریت کاربران و مالی' : 'Admin & Finance',
       shortLabel: isPersian ? 'مدیریت' : 'Admin',
@@ -248,6 +256,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
     '/studio/sandbox': 'ai',
     '/studio/chat': 'ai',
     '/studio/diagnostics/ai': 'ai',
+    '/studio/snap': 'ai',
     '/studio/admin': 'admin',
   };
 

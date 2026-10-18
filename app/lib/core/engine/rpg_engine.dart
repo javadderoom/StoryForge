@@ -174,9 +174,11 @@ class RpgEngine {
           : 'Clear success: objective accomplished as intended.';
     } else if (totalScore >= baseDC - 3) {
       outcome = 'mixed_success';
+      // Client-side preview only; the server resolves the authoritative cost.
+      // Keep this neutral so a social check never implies a phantom wound.
       consequenceSummary = isPersian
-          ? 'موفقیت نسبی: هدف حاصل شد، اما با پرداخت بها، جراحت جزئی یا جلب توجه.'
-          : 'Mixed success: goal achieved, but with cost, minor injury, or alert raised.';
+          ? 'موفقیت نسبی: هدف حاصل شد، اما با پیامدی که از خودِ اقدام برمی‌آید.'
+          : 'Mixed success: goal achieved, but with a complication caused by the action itself.';
     } else {
       outcome = 'failure';
       consequenceSummary = isPersian

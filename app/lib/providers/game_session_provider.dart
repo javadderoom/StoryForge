@@ -344,6 +344,20 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
   @override
   GameSessionState build() => GameSessionState();
 
+  /// Changes the writer tier for the rest of this playthrough.
+  /// Persisted per story so a resume or app restart keeps the reader's choice.
+  Future<void> setEngineTier(String tier) async {
+    if (!const <String>{'normal', 'plus', 'advance'}.contains(tier)) return;
+    if (state.engineTier == tier) return;
+    state = state.copyWith(engineTier: tier);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('engine_tier_${state.storyId}', tier);
+    } catch (_) {
+      // Preference persistence is best-effort; the next action already uses it.
+    }
+  }
+
   Future<void> startStory(
     String storyId, {
     String? title,
@@ -382,7 +396,19 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       final startDiscoveredJson = currentBeat['discoveredCreature'] as Map<String, dynamic>?;
       final startDiscovered = startDiscoveredJson != null ? DiscoveredCreature.fromJson(startDiscoveredJson) : null;
       final startNpcs = GameSessionState.parseDiscoveredNpcs(Map<String, dynamic>.from(currentBeat as Map));
-      final engineTier = (storyData?['engineTier'] as String?) ?? 'normal';
+      SharedPreferences? prefs;
+      String? savedEngineTier;
+      try {
+        prefs = await SharedPreferences.getInstance();
+        savedEngineTier = prefs.getString('engine_tier_$storyId');
+      } catch (_) {
+        // Preference storage is optional; fall back to the authored tier.
+      }
+      // A saved reader choice wins over the author's default tier, so the
+      // dropdown survives app restarts and session resumes.
+      final engineTier = savedEngineTier ??
+          (storyData?['engineTier'] as String?) ??
+          'normal';
 
       state = state.copyWith(
         isLoading: false,
@@ -424,10 +450,11 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
 
       // Persist active session mapping
       try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('active_story_id', storyId);
-        if (resolvedSessionId.isNotEmpty) {
-          await prefs.setString('story_session_$storyId', resolvedSessionId);
+        if (prefs != null) {
+          await prefs.setString('active_story_id', storyId);
+          if (resolvedSessionId.isNotEmpty) {
+            await prefs.setString('story_session_$storyId', resolvedSessionId);
+          }
         }
       } catch (_) {}
     } catch (e) {
@@ -468,6 +495,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         forcedDiceRoll: forcedDiceRoll,
         targetSceneId: choice.targetSceneId,
         choiceId: choice.id,
+        engineTier: state.engineTier,
       );
 
       if (result['creditDepleted'] == true) {
@@ -680,6 +708,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         playerState: state.playerState!,
         turnNumber: state.turnNumber,
         reason: reason,
+        engineTier: state.engineTier,
       );
 
       if (result['success'] == true) {
@@ -775,7 +804,9 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       final startDiscoveredJson = currentBeat['discoveredCreature'] as Map<String, dynamic>?;
       final startDiscovered = startDiscoveredJson != null ? DiscoveredCreature.fromJson(startDiscoveredJson) : null;
       final turnNum = (data['turnNumber'] as num?)?.toInt() ?? (sessionData?['turnCount'] as num?)?.toInt() ?? 1;
-      final engineTier = (storyData?['engineTier'] as String?) ?? 'normal';
+      final engineTier = prefs.getString('engine_tier_$storyId') ??
+          (storyData?['engineTier'] as String?) ??
+          'normal';
       final resolvedRemakeCount = (currentBeat['remakeCount'] as num?)?.toInt() ??
           (data['remakeCount'] as num?)?.toInt() ??
           0;

@@ -150,6 +150,12 @@ class DiceRollOverlay extends StatelessWidget {
           'موفقیت آشکار: هدف دقیقاً مطابق انتظار محقق شد.',
       'Mixed success: goal achieved, but with cost, minor injury, or alert raised.':
           'موفقیت نسبی: هدف حاصل شد، اما با پرداخت بها، جراحت جزئی یا جلب توجه.',
+      'Mixed success: goal achieved, but at a cost caused by the action itself — a minor injury, strain, or raised attention.':
+          'موفقیت نسبی: هدف حاصل شد، اما با بهایی که از خودِ اقدام برمی‌آید — جراحت جزئی، خستگی یا جلب توجه.',
+      'Mixed success: goal achieved, but with a complication caused by the action itself — suspicion raised, a favor owed, fatigue, or lost time.':
+          'موفقیت نسبی: هدف حاصل شد، اما با پیامدی که از خودِ اقدام برمی‌آید — جلب سوءظن، بدهی، خستگی یا از دست رفتن وقت.',
+      'Mixed success: goal achieved, but with a complication caused by the action itself.':
+          'موفقیت نسبی: هدف حاصل شد، اما با پیامدی که از خودِ اقدام برمی‌آید.',
       'The attempt failed: unexpected obstacle arose or opportunity lost.':
           'تلاش ناموفق بود: مانعی غیرمنتظره پدیدار شد یا فرصت از دست رفت.',
       'Progresses along the authored story path.':
