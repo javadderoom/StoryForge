@@ -50,6 +50,68 @@ export function isSnapAotEnabled(env: Record<string, string | undefined> = proce
   return String(env[SNAP_AOT_ENABLE_ENV] ?? '').toLowerCase() === 'true';
 }
 
+/** Opt-in env flag: serve stored branches on matching predicted taps (default true when ENABLE_SNAP_AOT is true). */
+export const SNAP_AOT_SERVE_ENV = 'ENABLE_SNAP_AOT_SERVING';
+
+export function isSnapAotServingEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  const explicit = env[SNAP_AOT_SERVE_ENV];
+  if (explicit !== undefined && explicit !== '') {
+    return String(explicit).toLowerCase() === 'true';
+  }
+  return isSnapAotEnabled(env);
+}
+
+export interface ServableAotBranchQuery {
+  sessionId: string;
+  storyId: string;
+  turnNumber: number;
+  predictedChoiceId: string;
+}
+
+export async function findServableAotBranch(
+  query: ServableAotBranchQuery,
+  prisma = getPrisma(),
+  env: Record<string, string | undefined> = process.env
+) {
+  if (!prisma || !isSnapAotServingEnabled(env)) return null;
+
+  const branch = await prisma.snapAotBranch.findFirst({
+    where: {
+      sessionId: query.sessionId,
+      storyId: query.storyId,
+      turnNumber: query.turnNumber,
+      predictedChoiceId: query.predictedChoiceId,
+      status: 'generated',
+      servedAt: null,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (
+    !branch ||
+    !branch.narrative?.trim() ||
+    !Array.isArray(branch.choices) ||
+    branch.choices.length === 0
+  ) {
+    return null;
+  }
+
+  return branch;
+}
+
+export async function markAotBranchServed(branchId: string, prisma = getPrisma()): Promise<void> {
+  if (!prisma || !branchId) return;
+  try {
+    await prisma.snapAotBranch.update({
+      where: { id: branchId },
+      data: { servedAt: new Date() },
+    });
+  } catch (error) {
+    console.warn('[snapAot] Failed to mark branch as served:', error);
+  }
+}
+
+
 export interface SnapAotContext {
   sessionId: string;
   storyId: string;

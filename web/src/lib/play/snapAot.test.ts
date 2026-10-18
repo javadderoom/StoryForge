@@ -432,4 +432,83 @@ describe('Plan 15 §2.3 tier 4 — AOT pre-generation orchestration', () => {
     );
     assert.equal(storeCalls, 0);
   });
+
+  describe('AOT Live Serving', () => {
+    it('isSnapAotServingEnabled follows ENABLE_SNAP_AOT and explicit override', () => {
+      const { isSnapAotServingEnabled } = require('./snapAot');
+      assert.equal(isSnapAotServingEnabled({}), false);
+      assert.equal(isSnapAotServingEnabled({ ENABLE_SNAP_AOT: 'true' }), true);
+      assert.equal(isSnapAotServingEnabled({ ENABLE_SNAP_AOT: 'true', ENABLE_SNAP_AOT_SERVING: 'false' }), false);
+      assert.equal(isSnapAotServingEnabled({ ENABLE_SNAP_AOT: 'false', ENABLE_SNAP_AOT_SERVING: 'true' }), true);
+    });
+
+    it('findServableAotBranch returns valid branch matching criteria', async () => {
+      const { findServableAotBranch } = require('./snapAot');
+      const fakeBranch = {
+        id: 'branch_1',
+        sessionId: 'sess_1',
+        storyId: 'story_1',
+        turnNumber: 2,
+        predictedChoiceId: 'c_1',
+        status: 'generated',
+        servedAt: null,
+        narrative: 'Pre-written narrative text.',
+        choices: [{ id: 'c_next', text: 'Next choice' }],
+      };
+
+      const mockPrisma = {
+        snapAotBranch: {
+          findFirst: async ({ where }: any) => {
+            if (
+              where.sessionId === 'sess_1' &&
+              where.turnNumber === 2 &&
+              where.predictedChoiceId === 'c_1' &&
+              where.status === 'generated' &&
+              where.servedAt === null
+            ) {
+              return fakeBranch;
+            }
+            return null;
+          },
+        },
+      };
+
+      const result = await findServableAotBranch(
+        {
+          sessionId: 'sess_1',
+          storyId: 'story_1',
+          turnNumber: 2,
+          predictedChoiceId: 'c_1',
+        },
+        mockPrisma as any,
+        { ENABLE_SNAP_AOT: 'true' }
+      );
+
+      assert.ok(result);
+      assert.equal(result.id, 'branch_1');
+      assert.equal(result.narrative, 'Pre-written narrative text.');
+    });
+
+    it('findServableAotBranch returns null on choice mismatch or already served', async () => {
+      const { findServableAotBranch } = require('./snapAot');
+      const mockPrisma = {
+        snapAotBranch: {
+          findFirst: async () => null,
+        },
+      };
+
+      const result = await findServableAotBranch(
+        {
+          sessionId: 'sess_1',
+          storyId: 'story_1',
+          turnNumber: 2,
+          predictedChoiceId: 'c_wrong',
+        },
+        mockPrisma as any
+      );
+
+      assert.equal(result, null);
+    });
+  });
 });
+

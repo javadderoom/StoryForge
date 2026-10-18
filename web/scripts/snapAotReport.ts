@@ -144,6 +144,7 @@ async function main() {
   const statusCounts: Record<string, number> = {};
   for (const b of branches) statusCounts[b.status] = (statusCounts[b.status] ?? 0) + 1;
   const generated = branches.filter((b) => b.status === 'generated');
+  const servedCount = branches.filter((b) => b.servedAt !== null).length;
   const avgGenLatency = generated.length
     ? Math.round(generated.reduce((sum, b) => sum + (b.latencyMs ?? 0), 0) / generated.length)
     : null;
@@ -246,7 +247,8 @@ async function main() {
     .join(' | ');
   console.log(
     `AOT branches   (last ${limit}): ${branches.length} rows${statusLine ? ` | ${statusLine}` : ''}` +
-      (avgGenLatency !== null ? ` | avg generation ${avgGenLatency} ms` : '')
+      (avgGenLatency !== null ? ` | avg generation ${avgGenLatency} ms` : '') +
+      ` | ${GREEN}served ${servedCount}${RESET}`
   );
   if (generated.length) {
     const modelLine = Object.entries(models)

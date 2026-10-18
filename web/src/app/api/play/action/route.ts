@@ -3,9 +3,13 @@ import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { SessionRepository } from '@/lib/db/repositories/sessionRepository';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import { GameEngine } from '@/lib/engines/game/GameEngine';
-import { generateValidatedScene } from '@/lib/engines/narrative/narrativeTurn';
-import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
-import { PlayerState, ActionStyle, RiskLevel, TurnBeat, CheckResolution, StateMutationDiff } from '@/lib/types/gameplay';
+import {
+  generateValidatedScene,
+  type SceneGenerationOutcome,
+  type SceneAiResponse,
+} from '@/lib/engines/narrative/narrativeTurn';
+import type { ProseFinding } from '@/lib/engines/narrative/ProseValidator';
+import { PlayerState, ActionStyle, RiskLevel, TurnBeat, CheckResolution, StateMutationDiff, ChoiceOption } from '@/lib/types/gameplay';
 import { WorldStateLedger } from '@/lib/types/world';
 import { buildCorsHeaders, handleCorsPreflight } from '@/lib/cors';
 import { getAuthenticatedUser } from '@/lib/auth/getUser';
@@ -16,11 +20,13 @@ import { calculateActionXp, applyXpGain } from '@/lib/engines/game/progressionEn
 import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
 import { ensureClockForLocation, pruneInactiveZoneClocks } from '@/lib/engines/game/threatClock';
 import { resolveAccompanyingIds } from '@/lib/engines/narrative/worldContext';
-import { buildNpcIdToName } from '@/lib/engines/narrative/snapPredictor';
+import { buildNpcIdToName, deriveActualChoice } from '@/lib/engines/narrative/snapPredictor';
 import { cancelSnapPrediction, resolveSnapDecision, scheduleSnapDwell } from '@/lib/play/snapDecisions';
+import { findServableAotBranch, markAotBranchServed } from '@/lib/play/snapAot';
 import { getNarrativeAdapter, ENGINE_TIER_COSTS, type EngineTier } from '@/lib/providers/narrativeAdapterFactory';
 import { reconcileConditions } from '@/lib/engines/game/conditionReconciler';
 import { isBodilyRiskAction } from '@/lib/engines/game/actionCheckEngine';
+
 
 export async function OPTIONS(req: NextRequest) {
   return handleCorsPreflight(req);
@@ -242,15 +248,43 @@ export async function POST(req: NextRequest) {
     // logged when its choices rendered; this submission is its answer. A tap
     // of a different choice and any free-text action both resolve as a miss;
     // predictions on abandoned turns stay `null`. Never blocks or fails the turn.
+    const explicitChoiceId =
+      typeof body.choiceId === 'string' && body.choiceId.trim().length > 0
+        ? body.choiceId.trim()
+        : undefined;
+    const actualChoice = deriveActualChoice(
+      lastTurn?.presentedChoices,
+      explicitChoiceId,
+      playerActionText
+    );
+
     if (session && typeof lastTurn?.turnNumber === 'number') {
       await resolveSnapDecision({
         sessionId: session.sessionId,
         turnNumber: lastTurn.turnNumber,
         presentedChoices: lastTurn.presentedChoices,
-        explicitChoiceId: typeof body.choiceId === 'string' ? body.choiceId : undefined,
+        explicitChoiceId,
         actionText: playerActionText,
       });
     }
+
+    // Plan 15 §2.3 tier 4 / Live AOT Serving:
+    // If the reader tapped the choice Snap predicted during dwell on lastTurn's
+    // choices, look up the pre-rolled and pre-written candidate branch from the DB.
+    const aotBranch =
+      session &&
+      actualChoice.actualChoiceId &&
+      typeof lastTurn?.turnNumber === 'number' &&
+      !isRemake &&
+      !targetSceneId
+        ? await findServableAotBranch({
+            sessionId: session.sessionId,
+            storyId,
+            turnNumber: lastTurn.turnNumber,
+            predictedChoiceId: actualChoice.actualChoiceId,
+          })
+        : null;
+
 
     const isPresetChoice = Boolean(
       lastTurn?.presentedChoices?.some(
@@ -391,7 +425,12 @@ export async function POST(req: NextRequest) {
           statId,
           riskLevel,
           targetDC,
-          forcedDiceRoll: typeof forcedDiceRoll === 'number' ? forcedDiceRoll : undefined,
+          forcedDiceRoll:
+            typeof forcedDiceRoll === 'number'
+              ? forcedDiceRoll
+              : typeof aotBranch?.diceRoll === 'number'
+                ? aotBranch.diceRoll
+                : undefined,
           isPersian: isPersianStory,
           // Plan 13: world context for hazard displacement + threat clocks.
           worldBible: story.worldBible,
@@ -915,66 +954,99 @@ export async function POST(req: NextRequest) {
       ? story.initialStoryBeats?.find((b: any) => b.sceneId === targetSceneId)
       : undefined;
 
-    const sceneOutcome = await generateValidatedScene(
-      {
-        story,
-        playerState: updatedPlayerState,
-        resolution,
-        playerActionText,
-        ledger: nextLedger,
-        sessionTurns: ((session?.turns ?? []) as Array<{
-          turnNumber?: number;
-          sceneId?: string;
-          narrativeProse?: string;
-          playerActionText?: string;
-          actionStyle?: string;
-          presentedChoices?: any[];
-        }>).filter((t) => typeof t.turnNumber !== 'number' || t.turnNumber < turnNumber),
-        sessionMemories: ((session?.memories ?? []) as Array<{
-          category: string;
-          importance?: number;
-          summary: string;
-          detail?: string | null;
-          turnNumber?: number;
-          sceneId?: string | null;
-          entityIds?: string[];
-          tags?: string[];
-        }>).filter((m) => typeof m.turnNumber !== 'number' || m.turnNumber < turnNumber),
-        targetSceneId,
-        activeChapter,
-        displacedLocationId,
-        previousLocationId: preTurnLocationId,
-        // Plan 17 (§4.5): journey math derives from the absolute turn number;
-        // `travelArrival` marks the scene that entered the destination.
-        turnNumber,
-        travelArrival: travelArrived,
-        remakeDirective,
-      },
-      activeNarrativeAdapter,
-      (choices, currentProse) => {
-        const priorTurns = ((session?.turns ?? []) as Array<{
-          turnNumber?: number;
-          narrativeProse?: string;
-        }>).filter((t) => typeof t.turnNumber !== 'number' || t.turnNumber < turnNumber);
-        const priorSnippets = priorTurns
-          .slice(-3)
-          .map((t) => t.narrativeProse)
-          .filter((p): p is string => typeof p === 'string' && p.length > 0);
-        const recentSceneSnippets =
-          priorSnippets.length > 0
-            ? priorSnippets
-            : [story.initialStoryBeats?.[0]?.narrativeText || ''];
+    let sceneOutcome: SceneGenerationOutcome;
+    const canServeAot =
+      aotBranch?.narrative &&
+      Array.isArray(aotBranch.choices) &&
+      aotBranch.choices.length > 0 &&
+      (!aotBranch.outcome || aotBranch.outcome === resolution.outcome);
 
-        return ActionValidator.sanitizeChoices(
-          choices,
-          updatedPlayerState,
-          story.worldBible,
-          story.storyNpcOverrides,
-          recentSceneSnippets,
-          currentProse
-        );
-      }
-    );
+    if (canServeAot) {
+      console.info(
+        `[action] AOT Cache HIT! Serving pre-generated branch ${aotBranch.id} for session ${sessionId} turn ${turnNumber} choice ${actualChoice.actualChoiceId}`
+      );
+      const aiResponse: SceneAiResponse = {
+        narrative: aotBranch.narrative!,
+        choices: aotBranch.choices as unknown as ChoiceOption[],
+        extractedMemories: [],
+        encounteredCreatureId: undefined,
+        playerConditionChanges: undefined,
+        isMock: false,
+      };
+      sceneOutcome = {
+        status: 'ok',
+        aiResponse,
+        proseFindings: [] as ProseFinding[],
+        proseRepaired: (aotBranch.audit as any)?.stats?.proseRepaired ?? false,
+        firstPassFindings: [],
+        repairAttempts: 0,
+        usedAuthoredBeat: false,
+        raw: null,
+      };
+      await markAotBranchServed(aotBranch.id);
+    } else {
+      sceneOutcome = await generateValidatedScene(
+        {
+          story,
+          playerState: updatedPlayerState,
+          resolution,
+          playerActionText,
+          ledger: nextLedger,
+          sessionTurns: ((session?.turns ?? []) as Array<{
+            turnNumber?: number;
+            sceneId?: string;
+            narrativeProse?: string;
+            playerActionText?: string;
+            actionStyle?: string;
+            presentedChoices?: any[];
+          }>).filter((t) => typeof t.turnNumber !== 'number' || t.turnNumber < turnNumber),
+          sessionMemories: ((session?.memories ?? []) as Array<{
+            category: string;
+            importance?: number;
+            summary: string;
+            detail?: string | null;
+            turnNumber?: number;
+            sceneId?: string | null;
+            entityIds?: string[];
+            tags?: string[];
+          }>).filter((m) => typeof m.turnNumber !== 'number' || m.turnNumber < turnNumber),
+          targetSceneId,
+          activeChapter,
+          displacedLocationId,
+          previousLocationId: preTurnLocationId,
+          // Plan 17 (§4.5): journey math derives from the absolute turn number;
+          // `travelArrival` marks the scene that entered the destination.
+          turnNumber,
+          travelArrival: travelArrived,
+          remakeDirective,
+        },
+        activeNarrativeAdapter,
+        (choices, currentProse) => {
+          const priorTurns = ((session?.turns ?? []) as Array<{
+            turnNumber?: number;
+            narrativeProse?: string;
+          }>).filter((t) => typeof t.turnNumber !== 'number' || t.turnNumber < turnNumber);
+          const priorSnippets = priorTurns
+            .slice(-3)
+            .map((t) => t.narrativeProse)
+            .filter((p): p is string => typeof p === 'string' && p.length > 0);
+          const recentSceneSnippets =
+            priorSnippets.length > 0
+              ? priorSnippets
+              : [story.initialStoryBeats?.[0]?.narrativeText || ''];
+
+          return ActionValidator.sanitizeChoices(
+            choices,
+            updatedPlayerState,
+            story.worldBible,
+            story.storyNpcOverrides,
+            recentSceneSnippets,
+            currentProse
+          );
+        }
+      );
+    }
+
 
     // Plan 08 Phase 1: NEVER persist mock/offline output as story canon.
     if (sceneOutcome.status === 'mock_unavailable') {
