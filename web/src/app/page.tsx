@@ -47,6 +47,7 @@ import { CreatureDiscoveryCard } from '@/components/play/CreatureDiscoveryCard';
 import { NpcDiscoveryCard } from '@/components/play/NpcDiscoveryCard';
 import { ThreeDChoiceCard } from '@/components/play/ThreeDChoiceCard';
 import { TensionClockWidget } from '@/components/play/TensionClockWidget';
+import { StatusStrip } from '@/components/play/StatusStrip';
 import { CharacterConditionChips } from '@/components/play/CharacterConditionChips';
 import { TurnStatusDeltaBanner } from '@/components/play/TurnStatusDeltaBanner';
 import { computeTurnStatusDelta, StatusDeltaItem } from '@/lib/play/turnStatusDelta';
@@ -162,6 +163,8 @@ export default function Home() {
   const [isGeneratingBeat, setIsGeneratingBeat] = useState(false);
   // Plan 13: hazard displacement banner (location name resolved from lore list).
   const [displacementBanner, setDisplacementBanner] = useState<string | null>(null);
+  // Plan 17: travel arrival banner (destination resolved from response/lore).
+  const [travelArrivedBanner, setTravelArrivedBanner] = useState<string | null>(null);
   const isDiceModalOpenRef = useRef(false);
   useEffect(() => {
     isDiceModalOpenRef.current = isDiceModalOpen;
@@ -275,6 +278,18 @@ export default function Home() {
     const name = loreList?.find((l) => l.id === locId)?.name || locId || '';
     setDisplacementBanner(name);
     window.setTimeout(() => setDisplacementBanner(null), 8000);
+  }, []);
+
+  // Plan 17: surface travel arrival as an animated banner (auto-dismiss).
+  const showTravelArrivedBanner = useCallback((data: any, loreList: { id: string; name: string }[]) => {
+    if (!data?.travelArrived) return;
+    const name =
+      data.travelArrived.name ||
+      loreList?.find((l) => l.id === data.travelArrived.locationId)?.name ||
+      data.travelArrived.locationId ||
+      '';
+    setTravelArrivedBanner(name);
+    window.setTimeout(() => setTravelArrivedBanner(null), 8000);
   }, []);
 
   const startGame = useCallback(
@@ -533,6 +548,8 @@ export default function Home() {
             storyMeta?.rpgSystem?.currencySystem?.denominations ||
             selectedStory?.rpgSystem?.currencySystem?.denominations ||
             [],
+          travelArrived: json.data?.travelArrived,
+          loreLocations: lore?.locations,
         });
         if (deltas.length > 0) {
           setStatusDeltas(deltas);
@@ -542,6 +559,7 @@ export default function Home() {
         setTurnNumber(nextTurn);
         setCurrentRemakeCount(0);
         showDisplacementBanner(json.data, lore.locations);
+        showTravelArrivedBanner(json.data, lore.locations);
         syncBalance(json);
 
         // Progression XP & Level-Up triggers (Diceless actions)
@@ -640,6 +658,7 @@ export default function Home() {
         setTurnNumber(nextTurn);
         setCurrentRemakeCount(0);
         showDisplacementBanner(json.data, lore.locations);
+        showTravelArrivedBanner(json.data, lore.locations);
         if (json.data.updatedPlayerState?.currentLocationId) {
           audioService.playAmbient(ambientFromLocation(json.data.updatedPlayerState.currentLocationId));
         }
@@ -703,6 +722,8 @@ export default function Home() {
         storyMeta?.rpgSystem?.currencySystem?.denominations ||
         selectedStory?.rpgSystem?.currencySystem?.denominations ||
         [],
+      travelArrived: pendingTurn?.travelArrived,
+      loreLocations: lore?.locations,
     });
     if (deltas.length > 0) {
       setStatusDeltas(deltas);
@@ -710,6 +731,7 @@ export default function Home() {
 
     setPlayerState(pendingTurn.updatedPlayerState);
     showDisplacementBanner(pendingTurn, lore.locations);
+    showTravelArrivedBanner(pendingTurn, lore.locations);
     setTurnNumber((t) => t + 1);
     setCurrentRemakeCount(0);
     if (pendingTurn.updatedPlayerState?.currentLocationId) {
@@ -1267,8 +1289,25 @@ export default function Home() {
           <div className="space-y-6 md:col-span-8">
             {/* Plan 13: threat clocks + displacement banner */}
             <TensionClockWidget clocks={playerState?.activeTensionClocks || []} isRtl={isRtl} />
+            {/* Plan 17 Phase 6: Location & Travel Status Strip */}
+            <StatusStrip
+              playerState={playerState}
+              loreLocations={lore?.locations}
+              turnNumber={turnNumber}
+              isRtl={isRtl}
+            />
             {/* Dynamic Character Conditions / Status */}
             <CharacterConditionChips conditions={playerState?.conditions || []} isRtl={isRtl} />
+            {travelArrivedBanner && (
+              <div className="animate-fade-in rounded-2xl border border-emerald-500/50 bg-emerald-950/70 p-3 text-xs font-bold text-emerald-200 shadow-[0_0_18px_rgba(16,185,129,0.35)] flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                <span>
+                  {isRtl
+                    ? `پایان سفر — به «${travelArrivedBanner}» رسیدید.`
+                    : `Journey concluded — Arrived at “${travelArrivedBanner}”.`}
+                </span>
+              </div>
+            )}
             {displacementBanner && (
               <div className="animate-pulse rounded-2xl border border-red-500/50 bg-red-950/60 p-3 text-xs font-bold text-red-200 shadow-[0_0_18px_rgba(239,68,68,0.4)]">
                 {isRtl ? `سقوط مرگبار! به «${displacementBanner}» پرتاب شدید.` : `Catastrophic fall! Displaced into “${displacementBanner}”.`}

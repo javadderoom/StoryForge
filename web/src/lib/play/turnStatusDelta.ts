@@ -10,7 +10,9 @@ export interface StatusDeltaItem {
     | 'currencyGain'
     | 'currencyLoss'
     | 'itemAcquired'
-    | 'itemLost';
+    | 'itemLost'
+    | 'travelStart'
+    | 'travelArrived';
   label: string;
   delta?: number;
   subtitle?: string;
@@ -25,6 +27,8 @@ export function computeTurnStatusDelta(
     isPersian?: boolean;
     rpgResources?: any[];
     currencyDenominations?: any[];
+    travelArrived?: { locationId: string; name: string } | null;
+    loreLocations?: Array<{ id: string; name: string }>;
   } = {}
 ): StatusDeltaItem[] {
   if (!oldState || !newState) return [];
@@ -180,6 +184,31 @@ export function computeTurnStatusDelta(
         colorClass: 'border-zinc-700 bg-zinc-900/90 text-zinc-400 shadow-black/50',
       });
     }
+  }
+
+  // 4. Travel status deltas (Plan 17 Phase 6)
+  if (!oldState.travel && newState.travel) {
+    const destLoc = options.loreLocations?.find((l) => l.id === newState.travel?.destinationLocationId);
+    const destName = destLoc?.name || newState.travel.destinationLocationId;
+    changes.push({
+      id: `travel_start_${newState.travel.destinationLocationId}`,
+      type: 'travelStart',
+      label: isPersian ? 'سفر آغاز شد' : 'Journey Begun',
+      subtitle: isPersian ? `به سوی «${destName}»` : `Bound for “${destName}”`,
+      isNegative: false,
+      colorClass: 'border-amber-500/60 bg-amber-950/90 text-amber-200 shadow-amber-950/50',
+    });
+  }
+
+  if (options.travelArrived) {
+    changes.push({
+      id: `travel_arrived_${options.travelArrived.locationId}`,
+      type: 'travelArrived',
+      label: isPersian ? 'به مقصد رسیدید' : 'Arrived at Destination',
+      subtitle: options.travelArrived.name,
+      isNegative: false,
+      colorClass: 'border-emerald-500/60 bg-emerald-950/90 text-emerald-200 shadow-emerald-950/50',
+    });
   }
 
   return changes;

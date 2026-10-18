@@ -8,6 +8,8 @@ import {
   ZapOff,
   Coins,
   Package,
+  Navigation,
+  MapPin,
   X,
 } from 'lucide-react';
 import { StatusDeltaItem } from '@/lib/play/turnStatusDelta';
@@ -47,6 +49,8 @@ export function TurnStatusDeltaBanner({
           else if (item.type === 'resourceGain') IconComp = Zap;
           else if (item.type === 'currencyGain' || item.type === 'currencyLoss') IconComp = Coins;
           else if (item.type === 'itemAcquired' || item.type === 'itemLost') IconComp = Package;
+          else if (item.type === 'travelStart') IconComp = Navigation;
+          else if (item.type === 'travelArrived') IconComp = MapPin;
 
           const sign = item.delta != null ? (item.delta > 0 ? `+${item.delta}` : `${item.delta}`) : null;
 

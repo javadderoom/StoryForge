@@ -7,6 +7,7 @@ PlayerState _makePlayer({
   String locationId = 'loc_a',
   Map<String, int>? resources,
   List<String> conditions = const [],
+  ActiveTravel? travel,
 }) {
   return PlayerState(
     characterName: 'آرش',
@@ -16,6 +17,7 @@ PlayerState _makePlayer({
     inventory: const [],
     currentLocationId: locationId,
     conditions: conditions,
+    travel: travel,
   );
 }
 
@@ -23,7 +25,9 @@ Future<void> _pumpBar(
   WidgetTester tester, {
   List<String> conditions = const [],
   PlayerState? playerState,
+  Map<String, dynamic>? lore,
   String? locationName,
+  int? turnNumber,
   bool isPersian = true,
 }) async {
   await tester.pumpWidget(
@@ -34,7 +38,9 @@ Future<void> _pumpBar(
           child: VitalityPresenceBar(
             conditions: conditions,
             playerState: playerState,
+            lore: lore,
             locationName: locationName,
+            turnNumber: turnNumber,
             isPersian: isPersian,
           ),
         ),
@@ -94,6 +100,64 @@ void main() {
     testWidgets('bleeding renders with its canonical chip', (tester) async {
       await _pumpBar(tester, conditions: ['خون‌ریزی']);
       expect(find.text('خون‌ریزی'), findsOneWidget);
+    });
+
+    testWidgets('renders travel badge first before location and conditions', (tester) async {
+      final travel = ActiveTravel(
+        originLocationId: 'loc_a',
+        destinationLocationId: 'loc_citadel',
+        departedTurn: 1,
+        totalTurns: 3,
+      );
+      final player = _makePlayer(
+        conditions: ['هوشیار'],
+        travel: travel,
+      );
+      final lore = {
+        'locations': [
+          {'id': 'loc_a', 'name': 'دروازه سرخ'},
+          {'id': 'loc_citadel', 'name': 'ارگ سنگخورشید'},
+        ]
+      };
+
+      await _pumpBar(
+        tester,
+        playerState: player,
+        lore: lore,
+        locationName: 'دروازه سرخ',
+        turnNumber: 2,
+      );
+
+      // Travel badge rendered with destination and turns remaining (3 - (2-1) = 2 turns left)
+      expect(find.text('در راه «ارگ سنگخورشید» • 2 نوبت مانده'), findsOneWidget);
+      expect(find.text('دروازه سرخ'), findsOneWidget);
+      expect(find.text('هوشیار و مراقب'), findsOneWidget);
+    });
+
+    testWidgets('derives remaining turns accurately from turnNumber', (tester) async {
+      final travel = ActiveTravel(
+        originLocationId: 'loc_a',
+        destinationLocationId: 'loc_citadel',
+        departedTurn: 5,
+        totalTurns: 4,
+      );
+      final player = _makePlayer(travel: travel);
+      final lore = {
+        'locations': [
+          {'id': 'loc_citadel', 'name': 'Sunstone Citadel'},
+        ]
+      };
+
+      // At turn 8: elapsed = 3, remaining = 1
+      await _pumpBar(
+        tester,
+        playerState: player,
+        lore: lore,
+        turnNumber: 8,
+        isPersian: false,
+      );
+
+      expect(find.text('En route to "Sunstone Citadel" • 1 turns left'), findsOneWidget);
     });
   });
 }

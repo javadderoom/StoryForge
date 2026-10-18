@@ -156,6 +156,7 @@ class VitalityPresenceBar extends StatelessWidget {
   final List<String> conditions;
   final bool isPersian;
   final String? locationName;
+  final int? turnNumber;
 
   const VitalityPresenceBar({
     super.key,
@@ -164,6 +165,7 @@ class VitalityPresenceBar extends StatelessWidget {
     this.conditions = const [],
     this.isPersian = true,
     this.locationName,
+    this.turnNumber,
   });
 
   /// Plan 17: canonical treated markers are parsed off the tag and rendered
@@ -201,6 +203,88 @@ class VitalityPresenceBar extends StatelessWidget {
       backgroundColor: const Color(0xFF1E293B),
       tooltipFa: key,
       tooltipEn: key,
+    );
+  }
+
+  /// Plan 17 Phase 6: Active travel status badge, derived purely from
+  /// authoritative travel state + turnNumber.
+  Widget _buildTravelBadge(BuildContext context, ActiveTravel travel, int currentTurn) {
+    final turnsLeft = travel.turnsRemaining(currentTurn);
+    final destName = GameSessionState.locationName(lore, travel.destinationLocationId) ??
+        travel.destinationLocationId;
+    final originName = GameSessionState.locationName(lore, travel.originLocationId) ??
+        travel.originLocationId;
+
+    final label = isPersian
+        ? 'در راه «$destName» • $turnsLeft نوبت مانده'
+        : 'En route to "$destName" • $turnsLeft turns left';
+
+    final daysElapsed = (currentTurn - travel.departedTurn).clamp(0, travel.totalTurns) + 1;
+    final tooltip = isPersian
+        ? 'از «$originName» به «$destName» • روز $daysElapsed از ${travel.totalTurns + 1}'
+        : 'From "$originName" to "$destName" • Day $daysElapsed of ${travel.totalTurns + 1}';
+
+    final progress = travel.totalTurns > 0
+        ? ((travel.totalTurns - turnsLeft) / travel.totalTurns).clamp(0.0, 1.0)
+        : 1.0;
+
+    return Tooltip(
+      message: tooltip,
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: const Color(0xFF451A03).withValues(alpha: 0.75),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.6), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.18),
+              blurRadius: 6,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: IntrinsicWidth(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.explore_outlined, size: 13, color: Color(0xFFFBBF24)),
+                    const SizedBox(width: 5),
+                    Directionality(
+                      textDirection: isPersian ? TextDirection.rtl : TextDirection.ltr,
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFFEF3C7),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                height: 2,
+                color: const Color(0xFF78350F).withValues(alpha: 0.5),
+                alignment: isPersian ? Alignment.centerRight : Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: progress,
+                  child: Container(
+                    color: const Color(0xFFF59E0B),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -327,10 +411,15 @@ class VitalityPresenceBar extends StatelessWidget {
 
     final hasLocation = resolvedLocation != null && resolvedLocation.isNotEmpty;
 
+    // Plan 17 Phase 6: Active travel derivation
+    final travel = playerState?.travel;
+    final hasTravel = travel != null;
+    final effectiveTurn = turnNumber ?? 0;
+
     // Plan 17: render ONLY what the authoritative state contains. No derived
     // baselines, no heuristic chips — if the story says you are wounded, this
     // bar shows the wound the server recorded, and nothing else.
-    if (!hasLocation && rawConditions.isEmpty) return const SizedBox.shrink();
+    if (!hasLocation && !hasTravel && rawConditions.isEmpty) return const SizedBox.shrink();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -348,6 +437,7 @@ class VitalityPresenceBar extends StatelessWidget {
         runSpacing: 7,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
+          if (hasTravel) _buildTravelBadge(context, travel, effectiveTurn),
           if (hasLocation) _buildLocationBadge(context, resolvedLocation),
 
           ...rawConditions.map(
@@ -366,6 +456,7 @@ class ConditionChips extends StatelessWidget {
   final String? locationName;
   final PlayerState? playerState;
   final Map<String, dynamic>? lore;
+  final int? turnNumber;
 
   const ConditionChips({
     super.key,
@@ -374,6 +465,7 @@ class ConditionChips extends StatelessWidget {
     this.locationName,
     this.playerState,
     this.lore,
+    this.turnNumber,
   });
 
   @override
@@ -384,6 +476,7 @@ class ConditionChips extends StatelessWidget {
       conditions: conditions,
       isPersian: isPersian,
       locationName: locationName,
+      turnNumber: turnNumber,
     );
   }
 }

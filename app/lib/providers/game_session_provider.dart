@@ -36,6 +36,8 @@ class GameSessionState {
   final List<Map<String, dynamic>> currencyDenominations;
   /// Plan 13: display name of the hazard zone after a displacement turn.
   final String? lastDisplacement;
+  /// Plan 17: display name of the arrived destination after concluding a journey.
+  final String? lastTravelArrived;
   /// The player's most recent choice or custom action text that led to the current scene.
   final String? lastActionText;
   /// The newly discovered creature spotlight for the current turn beat (if any).
@@ -83,6 +85,7 @@ class GameSessionState {
     this.progressionConfig,
     this.currencyDenominations = const [],
     this.lastDisplacement,
+    this.lastTravelArrived,
     this.lastActionText,
     this.discoveredCreature,
     this.discoveredNpcs = const [],
@@ -141,6 +144,7 @@ class GameSessionState {
     Map<String, dynamic>? progressionConfig,
     List<Map<String, dynamic>>? currencyDenominations,
     String? lastDisplacement,
+    String? lastTravelArrived,
     String? lastActionText,
     DiscoveredCreature? discoveredCreature,
     List<DiscoveredNpc>? discoveredNpcs,
@@ -155,6 +159,7 @@ class GameSessionState {
     bool clearSceneImage = false,
     bool clearPendingTurn = false,
     bool clearDisplacement = false,
+    bool clearTravelArrived = false,
     bool clearLastAction = false,
     bool clearDiscoveredCreature = false,
     bool clearDiscoveredNpcs = false,
@@ -189,6 +194,7 @@ class GameSessionState {
           ? null
           : (currentSceneImageUrl ?? this.currentSceneImageUrl),
       lastDisplacement: clearDisplacement ? null : (lastDisplacement ?? this.lastDisplacement),
+      lastTravelArrived: clearTravelArrived ? null : (lastTravelArrived ?? this.lastTravelArrived),
       lastActionText: clearLastAction ? null : (lastActionText ?? this.lastActionText),
       discoveredCreature: clearDiscoveredCreature
           ? null
@@ -217,6 +223,17 @@ class GameSessionState {
       if (l is Map && l['id']?.toString() == id) return (l['name']?.toString().isNotEmpty == true) ? l['name'].toString() : id;
     }
     return id;
+  }
+
+  /// Plan 17: resolves travel arrival display name for arrival banners.
+  static String? travelArrivalName(Map<String, dynamic>? data, Map<String, dynamic>? lore) {
+    if (data == null) return null;
+    final arrival = data['travelArrived'] as Map<String, dynamic>?;
+    if (arrival == null) return null;
+    final rawName = arrival['name']?.toString().trim();
+    if (rawName != null && rawName.isNotEmpty) return rawName;
+    final locId = arrival['locationId']?.toString();
+    return locationName(lore, locId) ?? locId;
   }
 
   /// Resolves a location id to its display name via lore, falling back to the
@@ -560,6 +577,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             remakeCount: 0,
             lastDisplacement: GameSessionState.displacementName(result['data'], state.lore),
             clearDisplacement: GameSessionState.displacementName(result['data'], state.lore) == null,
+            lastTravelArrived: GameSessionState.travelArrivalName(result['data'], state.lore),
+            clearTravelArrived: GameSessionState.travelArrivalName(result['data'], state.lore) == null,
           );
         } else {
           final beatData = result['data']['beat'];
@@ -591,6 +610,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             clearDiscoveredNpcs: turnNpcs.isEmpty,
             lastDisplacement: GameSessionState.displacementName(result['data'], state.lore),
             clearDisplacement: GameSessionState.displacementName(result['data'], state.lore) == null,
+            lastTravelArrived: GameSessionState.travelArrivalName(result['data'], state.lore),
+            clearTravelArrived: GameSessionState.travelArrivalName(result['data'], state.lore) == null,
           );
           ref.read(audioProvider.notifier).updateLocationAmbient(updatedPlayer.currentLocationId);
         }
@@ -677,6 +698,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       currentSceneId: beatData['sceneId'] as String?,
       lastDisplacement: GameSessionState.displacementName(data, state.lore),
       clearDisplacement: GameSessionState.displacementName(data, state.lore) == null,
+      lastTravelArrived: GameSessionState.travelArrivalName(data, state.lore),
+      clearTravelArrived: GameSessionState.travelArrivalName(data, state.lore) == null,
     );
 
     // Audio feedback on turn progress

@@ -979,6 +979,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               isPersian: isPersian,
                               playerState: session.playerState,
                               lore: session.lore,
+                              turnNumber: session.turnNumber,
                               locationName: GameSessionState.locationWithSubZone(
                                 session.lore,
                                 session.playerState?.currentLocationId,
@@ -991,6 +992,38 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               clocks: session.playerState?.activeTensionClocks ?? const [],
                               isPersian: isPersian,
                             ),
+                            if (session.lastTravelArrived != null) ...[
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF064E3B).withValues(alpha: 0.8),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.7)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                                      blurRadius: 8,
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF34D399), size: 18),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        isPersian
+                                            ? 'پایان سفر — به «${session.lastTravelArrived}» رسیدید.'
+                                            : 'Journey concluded — Arrived at "${session.lastTravelArrived}".',
+                                        style: GoogleFonts.vazirmatn(
+                                            fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFFD1FAE5)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                             if (session.lastDisplacement != null) ...[
                               Container(
                                 margin: const EdgeInsets.only(bottom: 10),
