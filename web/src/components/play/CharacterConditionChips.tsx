@@ -11,6 +11,10 @@ import {
   Skull,
   AlertCircle,
   Activity,
+  Bandage,
+  Flame,
+  Zap,
+  HeartPulse,
   LucideIcon,
 } from 'lucide-react';
 
@@ -88,7 +92,50 @@ const CONDITION_REGISTRY: Record<string, ConditionMeta> = {
     tooltipFa: 'زیر ذره‌بین گزمه‌ها و مأموران تفتیش؛ هر حرکت مشکوک عواقب دارد.',
     tooltipEn: 'Under watch by inquisitors or guards; suspicious acts draw scrutiny.',
   },
+  // Plan 17: canonical tags that the reconciler can now write must render
+  // with the same styling language as the rest of the registry.
+  خونریزی: {
+    labelFa: 'خونریزی',
+    labelEn: 'Bleeding',
+    icon: HeartPulse,
+    classes: 'border-red-500/60 bg-red-950/60 text-red-200 shadow-[0_0_12px_rgba(239,68,68,0.3)] animate-pulse',
+    tooltipFa: 'خون‌ریزی فعال؛ تا پانسمان یا مداوا بند نمی‌آید.',
+    tooltipEn: 'Active blood loss; does not stop until treated.',
+  },
+  تندرست: {
+    labelFa: 'تندرست',
+    labelEn: 'Unencumbered',
+    icon: Activity,
+    classes: 'border-emerald-500/50 bg-emerald-950/50 text-emerald-200 shadow-[0_0_10px_rgba(16,185,129,0.25)]',
+    tooltipFa: 'تن سالم و توانمند؛ هیچ جراحت یا فرسودگی بازدارنده‌ای نیست.',
+    tooltipEn: 'Body in prime condition; no encumbrance from injury or fatigue.',
+  },
+  مصمم: {
+    labelFa: 'مصمم',
+    labelEn: 'Resolute',
+    icon: Flame,
+    classes: 'border-orange-500/50 bg-orange-950/50 text-orange-200 shadow-[0_0_10px_rgba(249,115,22,0.25)]',
+    tooltipFa: 'ارادهٔ پولادین؛ درد و ترس مهار شده‌اند، نه آنکه نباشند.',
+    tooltipEn: 'Steely resolve; pain and fear are mastered, not absent.',
+  },
+  شوک‌زده: {
+    labelFa: 'شوک‌زده',
+    labelEn: 'Shaken',
+    icon: Zap,
+    classes: 'border-purple-500/50 bg-purple-950/50 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.25)]',
+    tooltipFa: 'شوک روانی؛ دست‌ها می‌لرزند و وحشت تازه پشت پلک‌ها تکرار می‌شود.',
+    tooltipEn: 'Mental shock; hands shake, the recent horror replays behind the eyes.',
+  },
 };
+
+/**
+ * Plan 17: treated wounds/poisons carry a suffix marker and render as a muted,
+ * non-pulsing bandage chip instead of the alarming untreated styling.
+ */
+const TREATED_SUFFIX = /\s*\((پانسمان‌شده|درمان‌شده|پادزهرخورده)\)\s*$/;
+
+const TREATED_CLASSES =
+  'border-rose-400/40 bg-rose-950/30 text-rose-100/90 shadow-[0_0_8px_rgba(251,113,133,0.15)]';
 
 export function CharacterConditionChips({
   conditions,
@@ -109,13 +156,36 @@ export function CharacterConditionChips({
       </span>
       {conditions.map((rawCondition) => {
         const condKey = rawCondition.trim();
-        const meta = CONDITION_REGISTRY[condKey];
-        const IconComponent = meta?.icon || Activity;
-        const label = meta ? (isRtl ? meta.labelFa : meta.labelEn) : condKey;
-        const tooltip = meta ? (isRtl ? meta.tooltipFa : meta.tooltipEn) : condKey;
-        const colorClasses =
-          meta?.classes ||
-          'border-zinc-700/60 bg-zinc-900/70 text-zinc-300 shadow-[0_0_8px_rgba(161,161,170,0.15)]';
+        // Plan 17: parse the treated suffix — the chip shows the base
+        // condition with bandage styling and an honest tooltip.
+        const treatedMatch = condKey.match(TREATED_SUFFIX);
+        const baseKey = treatedMatch ? condKey.replace(TREATED_SUFFIX, '').trim() : condKey;
+        const baseMeta = CONDITION_REGISTRY[baseKey];
+        const isTreated = !!treatedMatch && !!baseMeta;
+        const meta = isTreated ? undefined : baseMeta;
+        const IconComponent = isTreated ? Bandage : meta?.icon || Activity;
+        const label = isTreated
+          ? isRtl
+            ? `${baseMeta!.labelFa} — پانسمان‌شده`
+            : `${baseMeta!.labelEn} (Treated)`
+          : meta
+            ? isRtl
+              ? meta.labelFa
+              : meta.labelEn
+            : condKey;
+        const tooltip = isTreated
+          ? isRtl
+            ? `${baseMeta!.tooltipFa} (پانسمان‌شده؛ فشار سنگین هنوز می‌سوزاند.)`
+            : `${baseMeta!.tooltipEn} (Bandaged; hard exertion still aches.)`
+          : meta
+            ? isRtl
+              ? meta.tooltipFa
+              : meta.tooltipEn
+            : condKey;
+        const colorClasses = isTreated
+          ? TREATED_CLASSES
+          : meta?.classes ||
+            'border-zinc-700/60 bg-zinc-900/70 text-zinc-300 shadow-[0_0_8px_rgba(161,161,170,0.15)]';
 
         return (
           <div

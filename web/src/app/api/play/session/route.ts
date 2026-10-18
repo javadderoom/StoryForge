@@ -281,7 +281,7 @@ export async function GET(req: NextRequest) {
       reconciledPlayerState = reconciled.playerState;
       let shouldPersist = reconciled.changed;
       if (!Array.isArray(reconciledPlayerState.conditions)) {
-        reconciledPlayerState.conditions = (story as any).manifest?.startingConditions || ['ناآشنا', 'هوشیار'];
+        reconciledPlayerState.conditions = (story as any).manifest?.startingConditions || ['تندرست', 'ناآشنا', 'هوشیار'];
         shouldPersist = true;
       }
       if (shouldPersist) {
@@ -289,7 +289,7 @@ export async function GET(req: NextRequest) {
       }
     } catch {
       if (reconciledPlayerState && !Array.isArray(reconciledPlayerState.conditions)) {
-        reconciledPlayerState.conditions = (story as any).manifest?.startingConditions || ['ناآشنا', 'هوشیار'];
+        reconciledPlayerState.conditions = (story as any).manifest?.startingConditions || ['تندرست', 'ناآشنا', 'هوشیار'];
       }
     }
 
@@ -686,7 +686,7 @@ export async function POST(req: NextRequest) {
       completedQuestIds: [],
       currentLocationId: initialBeat.locationId,
       accompanyingNpcIds: startingCompanionIds,
-      conditions: (story as any).manifest?.startingConditions || (story as any).startingConditions || ['ناآشنا', 'هوشیار'],
+      conditions: (story as any).manifest?.startingConditions || (story as any).startingConditions || ['تندرست', 'ناآشنا', 'هوشیار'],
     };
 
     const auth = await getAuthenticatedUser(req);

@@ -51,6 +51,15 @@ const Map<String, ConditionMeta> _conditionRegistry = {
     tooltipFa: 'جراحت بر تن؛ در صورت درگیری فیزیکی سنگین، توان بیشتری از دست می‌دهید.',
     tooltipEn: 'Severe wound; physical strain incurs extra stamina drain.',
   ),
+  'خونریزی': ConditionMeta(
+    labelFa: 'خون‌ریزی',
+    labelEn: 'Bleeding',
+    icon: Icons.bloodtype_outlined,
+    accentColor: Colors.redAccent,
+    backgroundColor: Color(0xFF4A0E17),
+    tooltipFa: 'خون‌ریزی فعال؛ تا پانسمان یا مداوا بند نمی‌آید.',
+    tooltipEn: 'Active blood loss; does not stop until treated.',
+  ),
   'مسموم': ConditionMeta(
     labelFa: 'مسموم',
     labelEn: 'Venomed',
@@ -136,10 +145,11 @@ const Map<String, ConditionMeta> _conditionRegistry = {
   ),
 };
 
-/// Plan 15 (Pillar 4): Living Vitality & Scene Presence Bar
-/// Replaces flat condition tags with an atmospheric, glassmorphic header directly
-/// above the narrative beat prose. Never empty: auto-derives dynamic baselines for
-/// physical Body and mental Mind whenever explicit conditions are absent.
+/// Plan 15 (Pillar 4) / Plan 17 (Player Status Authority): Living Vitality &
+/// Scene Presence Bar.
+/// Renders the server-authoritative `playerState.conditions` exactly — treated
+/// wounds as bandage chips, custom tags raw, and nothing at all the server did
+/// not send. The location badge resolves the macro • micro hierarchy from lore.
 class VitalityPresenceBar extends StatelessWidget {
   final PlayerState? playerState;
   final Map<String, dynamic>? lore;
@@ -156,130 +166,42 @@ class VitalityPresenceBar extends StatelessWidget {
     this.locationName,
   });
 
-  List<ConditionMeta> _deriveBodyConditions(List<String> rawConditions) {
-    final List<ConditionMeta> list = [];
-    const bodyKeywords = {'زخمی', 'خسته', 'تشنه', 'مسموم'};
-    final woundRegex = RegExp(
-      r'injury|wound|bleed|lesion|trauma|lacerat|زخم|جراحت|خونریزی|مجروح',
-      caseSensitive: false,
-    );
+  /// Plan 17: canonical treated markers are parsed off the tag and rendered
+  /// with bandage styling — never synthesized by the client.
+  static final RegExp _treatedSuffix =
+      RegExp(r'\s*\((پانسمان‌شده|درمان‌شده|پادزهرخورده)\)\s*$');
 
-    for (final cond in rawConditions) {
-      final key = cond.trim();
-      if (bodyKeywords.contains(key)) {
-        final meta = _conditionRegistry[key];
-        if (meta != null && !list.contains(meta)) list.add(meta);
-      } else if (woundRegex.hasMatch(key)) {
-        final woundMeta = ConditionMeta(
-          labelFa: 'جراحت تن',
-          labelEn: 'Wounded',
-          icon: Icons.heart_broken_rounded,
-          accentColor: Colors.redAccent,
-          backgroundColor: const Color(0xFF4A0E17),
-          tooltipFa: 'جراحت بر پیکر ($key)؛ نیازمند مداوا یا پانسمان.',
-          tooltipEn: 'Physical injury ($key); requires care.',
+  /// Resolves a server condition tag to its chip metadata. Custom tags fall
+  /// back to a neutral raw chip; the client never invents conditions.
+  ConditionMeta _metaForCondition(String raw) {
+    final key = raw.trim();
+    final treatedMatch = _treatedSuffix.firstMatch(key);
+    if (treatedMatch != null) {
+      final baseKey = key.substring(0, treatedMatch.start).trim();
+      final base = _conditionRegistry[baseKey];
+      if (base != null) {
+        return ConditionMeta(
+          labelFa: '${base.labelFa} — پانسمان‌شده',
+          labelEn: '${base.labelEn} (Treated)',
+          icon: Icons.healing_rounded,
+          accentColor: const Color(0xFFFDA4AF),
+          backgroundColor: const Color(0xFF4C0519),
+          tooltipFa: '${base.tooltipFa} (پانسمان‌شده؛ فشار سنگین هنوز می‌سوزاند.)',
+          tooltipEn: '${base.tooltipEn} (Bandaged; hard exertion still aches.)',
         );
-        if (!list.any((m) => m.accentColor == Colors.redAccent)) list.add(woundMeta);
       }
     }
-
-    if (list.isEmpty) {
-      final player = playerState;
-      if (player != null) {
-        final hp = player.resources['hp'] ?? player.stats['constitution'] ?? 100;
-        final maxHp = player.maxFor('hp', 100);
-        final hpRatio = maxHp > 0 ? hp / maxHp : 1.0;
-
-        final stamina = player.resources['stamina'] ?? 100;
-        final maxStamina = player.maxFor('stamina', 100);
-        final staminaRatio = maxStamina > 0 ? stamina / maxStamina : 1.0;
-
-        final hasWaterClock = player.activeTensionClocks.any(
-          (c) => c.id.toLowerCase().contains('water') && c.currentSegments >= 2,
-        );
-
-        if (hpRatio <= 0.35) {
-          list.add(_conditionRegistry['زخمی']!);
-        } else if (hasWaterClock) {
-          list.add(_conditionRegistry['تشنه']!);
-        } else if (staminaRatio <= 0.25) {
-          list.add(_conditionRegistry['خسته']!);
-        } else if (hpRatio >= 0.75 && staminaRatio >= 0.6) {
-          list.add(_conditionRegistry['تندرست']!);
-        } else {
-          list.add(_conditionRegistry['پایدار']!);
-        }
-      } else {
-        list.add(_conditionRegistry['پایدار']!);
-      }
-    }
-
-    return list;
-  }
-
-  List<ConditionMeta> _deriveMindConditions(List<String> rawConditions) {
-    final List<ConditionMeta> list = [];
-    const mindKeywords = {'هوشیار', 'شوک‌زده', 'گیج', 'ناآشنا', 'مصمم'};
-    final shockRegex = RegExp(
-      r'shock|dazed|terror|fear|panic|شوک|وحشت|ترس',
-      caseSensitive: false,
+    final meta = _conditionRegistry[key];
+    if (meta != null) return meta;
+    return ConditionMeta(
+      labelFa: key,
+      labelEn: key,
+      icon: Icons.tag_outlined,
+      accentColor: Colors.blueGrey.shade300,
+      backgroundColor: const Color(0xFF1E293B),
+      tooltipFa: key,
+      tooltipEn: key,
     );
-
-    for (final cond in rawConditions) {
-      final key = cond.trim();
-      if (mindKeywords.contains(key)) {
-        final meta = _conditionRegistry[key];
-        if (meta != null && !list.contains(meta)) list.add(meta);
-      } else if (shockRegex.hasMatch(key)) {
-        final shockMeta = ConditionMeta(
-          labelFa: 'شوک‌زده',
-          labelEn: 'Shaken',
-          icon: Icons.bolt_outlined,
-          accentColor: Colors.purpleAccent,
-          backgroundColor: const Color(0xFF3B104A),
-          tooltipFa: 'شوک و اضطراب ناشی از فشار رویدادها ($key).',
-          tooltipEn: 'Mental shock and elevated tension from recent trauma ($key).',
-        );
-        if (!list.any((m) => m.icon == Icons.bolt_outlined)) list.add(shockMeta);
-      }
-    }
-
-    if (list.isEmpty) {
-      final player = playerState;
-      if (player != null) {
-        final discoveredCount = player.discoveredLocationIds.length;
-        final hp = player.resources['hp'] ?? 100;
-        final maxHp = player.maxFor('hp', 100);
-        final hpRatio = maxHp > 0 ? hp / maxHp : 1.0;
-
-        if (discoveredCount <= 1) {
-          list.add(_conditionRegistry['ناآشنا']!);
-        } else if (hpRatio <= 0.3) {
-          list.add(_conditionRegistry['شوک‌زده']!);
-        } else {
-          list.add(_conditionRegistry['هوشیار']!);
-        }
-      } else {
-        list.add(_conditionRegistry['هوشیار']!);
-      }
-    }
-
-    return list;
-  }
-
-  List<String> _extractOtherConditions(List<String> rawConditions) {
-    const knownKeys = {
-      'تشنه', 'خسته', 'زخمی', 'مسموم', 'تندرست', 'پایدار',
-      'هوشیار', 'شوک‌زده', 'گیج', 'ناآشنا', 'مصمم',
-    };
-    final filterRegex = RegExp(
-      r'injury|wound|bleed|lesion|trauma|lacerat|زخم|جراحت|خونریزی|مجروح|shock|dazed|terror|fear|panic|شوک|وحشت|ترس',
-      caseSensitive: false,
-    );
-
-    return rawConditions
-        .where((c) => !knownKeys.contains(c.trim()) && !filterRegex.hasMatch(c))
-        .toList();
   }
 
   Widget _buildLocationBadge(BuildContext context, String locationText) {
@@ -393,9 +315,9 @@ class VitalityPresenceBar extends StatelessWidget {
     final rawConditions = {
       ...conditions,
       ...?playerState?.conditions,
-    }.toList();
+    }.where((c) => c.trim().isNotEmpty).toList();
 
-    // 1. Spatial Presence: Macro + Micro-Location
+    // Spatial Presence: Macro + Micro-Location (lore projection, Plan 17 Phase 0)
     final resolvedLocation = GameSessionState.locationWithSubZone(
           lore,
           playerState?.currentLocationId,
@@ -403,14 +325,12 @@ class VitalityPresenceBar extends StatelessWidget {
         ) ??
         locationName?.trim();
 
-    // 2. Physical Body Badges (Dynamic Baseline)
-    final bodyBadges = _deriveBodyConditions(rawConditions);
+    final hasLocation = resolvedLocation != null && resolvedLocation.isNotEmpty;
 
-    // 3. Mental Mind Badges (Dynamic Baseline)
-    final mindBadges = _deriveMindConditions(rawConditions);
-
-    // 4. Other Contextual / Stance Badges
-    final otherConditions = _extractOtherConditions(rawConditions);
+    // Plan 17: render ONLY what the authoritative state contains. No derived
+    // baselines, no heuristic chips — if the story says you are wounded, this
+    // bar shows the wound the server recorded, and nothing else.
+    if (!hasLocation && rawConditions.isEmpty) return const SizedBox.shrink();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -428,35 +348,11 @@ class VitalityPresenceBar extends StatelessWidget {
         runSpacing: 7,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          if (resolvedLocation != null && resolvedLocation.isNotEmpty)
-            _buildLocationBadge(context, resolvedLocation),
+          if (hasLocation) _buildLocationBadge(context, resolvedLocation),
 
-          // Body Zone
-          ...bodyBadges.map((meta) => _buildPresenceChip(context, meta)),
-
-          // Mind Zone
-          ...mindBadges.map((meta) => _buildPresenceChip(context, meta)),
-
-          // Other Contextual Tags
-          ...otherConditions.map((cond) {
-            final key = cond.trim();
-            final meta = _conditionRegistry[key];
-            if (meta != null) {
-              return _buildPresenceChip(context, meta);
-            }
-            return _buildPresenceChip(
-              context,
-              ConditionMeta(
-                labelFa: key,
-                labelEn: key,
-                icon: Icons.tag_outlined,
-                accentColor: Colors.blueGrey.shade300,
-                backgroundColor: const Color(0xFF1E293B),
-                tooltipFa: key,
-                tooltipEn: key,
-              ),
-            );
-          }),
+          ...rawConditions.map(
+            (cond) => _buildPresenceChip(context, _metaForCondition(cond)),
+          ),
         ],
       ),
     );
