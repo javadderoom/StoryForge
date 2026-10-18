@@ -2,6 +2,7 @@ import { PromptAssembler } from './PromptAssembler';
 import { validateProse, buildProseRepairInstruction, ProseFinding } from './ProseValidator';
 import { buildWorldContextBlocks, resolveAccompanyingIds, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatTraitsForContext, formatItemInteractionsCatalogForContext } from './worldContext';
 import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
+import { travelProgress, travelTimeline, type TravelProgress } from '@/lib/engines/game/travelEngine';
 import { MemoryEngine } from '@/lib/engines/memory/MemoryEngine';
 import { WorkingContextEnvelope, MemoryCategory, MemoryEntry } from '@/lib/types/memory';
 import { PlayerState, CheckResolution, PlayerConditionChanges } from '@/lib/types/gameplay';
@@ -72,6 +73,10 @@ export interface SceneTurnInput {
   remakeDirective?: string;
   /** Explicitly toggle choice-only regeneration (defaults to true in non-test env). */
   allowChoiceRepair?: boolean;
+  /** Plan 17: absolute turn number — journey math derives from it (never stored). */
+  turnNumber?: number;
+  /** Plan 17: the journey reached its destination this turn (arrival scene). */
+  travelArrival?: { locationId: string; name: string };
 }
 
 export interface SceneAiResponse {
@@ -200,16 +205,49 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
   }
   const activeNpcIds = activeNPCs.map((n) => n.id);
 
+  const activeTravel = playerState.travel ?? null;
+  const travelDerived: TravelProgress | null = activeTravel
+    ? typeof input.turnNumber === 'number'
+      ? travelProgress(activeTravel, input.turnNumber)
+      : {
+          legsElapsed: 0,
+          turnsRemaining: activeTravel.totalTurns,
+          nodeIndex: 0,
+          arrived: false,
+          arriving: false,
+          dayOnRoad: 1,
+        }
+    : null;
+
+  // Plan 17 (§4.5): while a journey is active, the scene corridor is the road —
+  // the current stop plus up to two stops ahead, with the destination pulled
+  // into scope only on the final leg. Memory retrieval stays anchored to the
+  // current node, and destination NPCs never become scene-present before
+  // arrival (presence still resolves from the current node below).
+  const corridorLocationIds: string[] = (() => {
+    if (!activeTravel || !travelDerived) return [currentLocationId];
+    const timeline = travelTimeline(activeTravel);
+    const nodeIndex = Math.min(travelDerived.nodeIndex, timeline.length - 1);
+    const corridor = [currentLocationId];
+    for (const id of timeline.slice(nodeIndex + 1, nodeIndex + 3)) {
+      if (!corridor.includes(id)) corridor.push(id);
+    }
+    if (travelDerived.arriving && !corridor.includes(activeTravel.destinationLocationId)) {
+      corridor.push(activeTravel.destinationLocationId);
+    }
+    return corridor;
+  })();
+
   const world = activeChapter
     ? buildWorldContextBlocks(story, {
         scopeTier: activeChapter.scopeTier,
-        locationIds: [currentLocationId],
+        locationIds: corridorLocationIds,
         npcIds: activeNpcIds,
         accompanyingNpcIds: accompanyingIds,
       })
     : buildWorldContextBlocks(story, {
         scopeTier: 'regional',
-        locationIds: [currentLocationId],
+        locationIds: corridorLocationIds,
         npcIds: activeNpcIds,
         accompanyingNpcIds: accompanyingIds,
       });
@@ -285,6 +323,55 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
   ]
     .filter(Boolean)
     .slice(0, 12);
+
+  // Plan 17 (§4.5): journey block for prompts — derived leg state only, never
+  // a stored countdown. The route line (envelope.tradeRoutes) already carries
+  // the journey's route via formatTradeRouteLine; here we add the leg itself.
+  const travelEnvelope: WorkingContextEnvelope['travel'] = (() => {
+    if (!activeTravel || !travelDerived) return undefined;
+    const timeline = travelTimeline(activeTravel);
+    const nodeIndex = Math.min(travelDerived.nodeIndex, timeline.length - 1);
+    const locName = (id?: string) =>
+      id ? story.worldBible.locations.find((l: any) => l.id === id)?.name || id : '';
+    const route = activeTravel.routeId
+      ? (story.worldBible.tradeRoutes ?? []).find((r: any) => r.id === activeTravel.routeId)
+      : undefined;
+    // Corridor companions: explicit roster when present, else the route's
+    // caravan roster (master + retinue) on caravan/ship passages.
+    const companionIds: string[] = activeTravel.caravanNpcIds?.length
+      ? activeTravel.caravanNpcIds
+      : activeTravel.mode === 'caravan' || activeTravel.mode === 'ship'
+        ? ([route?.caravanMasterNpcId, ...(route?.travelingNpcIds ?? [])].filter(Boolean) as string[])
+        : [];
+    const caravanNpcNames = companionIds
+      .map((id) => (story.worldBible.npcs ?? []).find((n: any) => n.id === id)?.name)
+      .filter((n: unknown): n is string => typeof n === 'string' && n.length > 0)
+      .slice(0, 5);
+    const factionName = (fid?: string) =>
+      fid ? story.worldBible.factions?.find((f: any) => f.id === fid)?.name || fid : '';
+    const roadParts: string[] = [];
+    if (route) {
+      roadParts.push(`Danger ${route.dangerLevel ?? 2}`);
+      roadParts.push(`status ${String(route.status ?? 'active').toUpperCase()}`);
+      if (route.rivalRaidingFactionId) roadParts.push(`raided by ${factionName(route.rivalRaidingFactionId)}`);
+      if (route.patrollingFactionId) roadParts.push(`patrolled by ${factionName(route.patrollingFactionId)}`);
+    }
+    const nextIndex = Math.min(nodeIndex + 1, timeline.length - 1);
+    return {
+      originName: locName(activeTravel.originLocationId),
+      destinationName: locName(activeTravel.destinationLocationId),
+      routeName: route?.name,
+      currentStopName: currentLocation.name || locName(timeline[nodeIndex]),
+      nextStopName: travelDerived.arrived ? undefined : locName(timeline[nextIndex]),
+      turnsRemaining: travelDerived.turnsRemaining,
+      totalTurns: activeTravel.totalTurns,
+      dayOnRoad: travelDerived.dayOnRoad,
+      mode: activeTravel.mode,
+      caravanNpcNames: caravanNpcNames.length ? caravanNpcNames : undefined,
+      roadNote: roadParts.length ? roadParts.join(' • ') : undefined,
+      arriving: travelDerived.arriving || undefined,
+    };
+  })();
 
   return {
     storyTitle: story.title,
@@ -410,6 +497,11 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
     // Plan 13: Director & Scribe runtime
     activeClocks: activeClockLines.length ? activeClockLines : undefined,
     displacementDirective,
+    // Plan 17 (§4.5): the road is real — journey leg block + arrival input.
+    travel: travelEnvelope,
+    travelArrival: input.travelArrival
+      ? { destinationName: input.travelArrival.name || input.travelArrival.locationId }
+      : undefined,
     inventoryTerms: inventoryTerms.length ? inventoryTerms : undefined,
     environmentInteractables: environmentInteractables.length ? environmentInteractables : undefined,
     activePowerRanks: (() => {

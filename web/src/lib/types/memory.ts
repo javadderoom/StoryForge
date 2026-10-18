@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { TravelMode } from './gameplay';
 
 export type MemoryCategory =
   | 'world'      // Static laws, faction goals, fixed history
@@ -123,6 +124,27 @@ export interface WorkingContextEnvelope {
     capabilities: string;
     scope?: string;
   }>;
+  /** Plan 17 (§4.5): active inter-city journey — the scene is the road. */
+  travel?: {
+    originName: string;
+    destinationName: string;
+    routeName?: string;
+    /** Timeline node the traveller is at on this turn. */
+    currentStopName: string;
+    nextStopName?: string;
+    turnsRemaining: number;
+    totalTurns: number;
+    /** 1-based day on the road (legsElapsed + 1). */
+    dayOnRoad: number;
+    mode: TravelMode;
+    caravanNpcNames?: string[];
+    /** Danger level + raider/patrol factions + route status. */
+    roadNote?: string;
+    /** True on the final leg — the destination appears on the horizon. */
+    arriving?: boolean;
+  };
+  /** Plan 17 (§4.5): the journey reached its destination this turn. */
+  travelArrival?: { destinationName: string };
 }
 
 export const MemoryEntrySchema = z.object({

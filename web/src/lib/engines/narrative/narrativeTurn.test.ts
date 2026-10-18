@@ -192,3 +192,235 @@ describe('Plan 15 Bug 3 — Party Roster Isolation in assembleSceneEnvelope', ()
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Plan 17 (§4.5): corridor scoping + journey envelope derivation.
+// ---------------------------------------------------------------------------
+
+describe('Plan 17 — journey envelope & corridor scoping', () => {
+  const travelWorldBible = {
+    worldId: 'world_travel_test',
+    worldName: 'Travel Test Realm',
+    summary: '',
+    themeNotes: '',
+    laws: [],
+    factions: [
+      { id: 'faction_raiders', name: 'Ashfang Raiders', description: '', goals: [], territoryIds: [] },
+      { id: 'faction_guard', name: 'Road Wardens', description: '', goals: [], territoryIds: [] },
+    ],
+    locations: [
+      {
+        id: 'loc_camp',
+        name: 'Caravan Camp',
+        region: 'Desert',
+        description: 'Tents around a blazing fire.',
+        atmosphere: '',
+        dangerLevel: 1,
+        connectedLocationIds: ['loc_ravine'],
+      },
+      {
+        id: 'loc_ravine',
+        name: 'Silent Ravine',
+        region: 'Desert',
+        description: 'Shadowy secluded rocks.',
+        atmosphere: '',
+        dangerLevel: 3,
+        connectedLocationIds: ['loc_camp', 'loc_harbor'],
+      },
+      {
+        id: 'loc_harbor',
+        name: 'Brine Harbor',
+        region: 'Coast',
+        description: 'Salt-stained docks.',
+        atmosphere: '',
+        dangerLevel: 2,
+        connectedLocationIds: ['loc_mine'],
+      },
+      {
+        id: 'loc_mine',
+        name: 'Salt Mine',
+        region: 'Badlands',
+        description: 'A gaping mine mouth.',
+        atmosphere: '',
+        dangerLevel: 3,
+        connectedLocationIds: [],
+      },
+    ],
+    timeline: [],
+    npcs: [
+      {
+        id: 'npc_borzou',
+        name: 'Borzou Sangtarash',
+        title: 'Caravan Master',
+        role: 'companion',
+        currentLocationId: 'loc_camp',
+        personalityTraits: [],
+        speechStyle: 'Gruff',
+        goals: [],
+        secrets: [],
+        initialTrust: 10,
+      },
+      {
+        id: 'npc_sohrab',
+        name: 'Sohrab Choob-Dast',
+        title: 'Caravan Guard',
+        role: 'companion',
+        currentLocationId: 'loc_harbor',
+        personalityTraits: [],
+        speechStyle: 'Quiet',
+        goals: [],
+        secrets: [],
+        initialTrust: 5,
+      },
+    ],
+    tradeRoutes: [
+      {
+        id: 'route_salt',
+        name: 'Salt Road',
+        originLocationId: 'loc_camp',
+        destinationLocationId: 'loc_mine',
+        intermediateLocationIds: ['loc_harbor'],
+        caravanMasterNpcId: 'npc_borzou',
+        travelingNpcIds: ['npc_sohrab'],
+        dangerLevel: 3,
+        status: 'active',
+        rivalRaidingFactionId: 'faction_raiders',
+        patrollingFactionId: 'faction_guard',
+      },
+    ],
+    bestiary: [],
+  } as unknown as WorldBible;
+
+  const travelStory = {
+    title: 'Test Journey',
+    language: 'en',
+    worldBible: travelWorldBible,
+    storyScale: 'local',
+    initialStoryBeats: [],
+  };
+
+  const baseLedger: any = {
+    factionReputations: [],
+    npcStatuses: [],
+    keyItems: [],
+    chapterSummaries: [],
+    openPlotThreads: [],
+  };
+
+  const baseResolution: any = {
+    outcome: 'success',
+    diceRoll: 15,
+    finalScore: 18,
+    appliedModifiers: [],
+    consequence: 'The caravan moves.',
+  };
+
+  function makeTravelingState(currentLocationId: string): PlayerState {
+    return {
+      characterName: 'Barzin',
+      currentLocationId,
+      stats: {},
+      resources: { hp: 30, stamina: 20 },
+      inventory: [],
+      equipment: {},
+      conditions: [],
+      relationships: {},
+      discoveredLocationIds: ['loc_camp', 'loc_harbor'],
+      activeQuestIds: [],
+      completedQuestIds: [],
+      travel: {
+        originLocationId: 'loc_camp',
+        destinationLocationId: 'loc_mine',
+        routeId: 'route_salt',
+        waypointIds: ['loc_harbor'],
+        mode: 'caravan',
+        departedTurn: 5,
+        totalTurns: 4,
+      },
+    };
+  }
+
+  it('derives the journey block from travel + absolute turn number', () => {
+    const envelope = assembleSceneEnvelope({
+      story: travelStory,
+      playerState: makeTravelingState('loc_harbor'),
+      resolution: baseResolution,
+      playerActionText: 'Ride on toward the mine.',
+      ledger: baseLedger,
+      turnNumber: 7, // departed 5 → 2 legs elapsed of 4
+    } as SceneTurnInput);
+
+    assert.ok(envelope.travel, 'envelope must carry the active journey');
+    assert.equal(envelope.travel!.originName, 'Caravan Camp');
+    assert.equal(envelope.travel!.destinationName, 'Salt Mine');
+    assert.equal(envelope.travel!.routeName, 'Salt Road');
+    assert.equal(envelope.travel!.currentStopName, 'Brine Harbor');
+    assert.equal(envelope.travel!.nextStopName, 'Salt Mine');
+    assert.equal(envelope.travel!.dayOnRoad, 3);
+    assert.equal(envelope.travel!.turnsRemaining, 2);
+    assert.equal(envelope.travel!.totalTurns, 4);
+    assert.equal(envelope.travel!.mode, 'caravan');
+    assert.equal(envelope.travel!.arriving, undefined);
+    // Caravan roster fallback (no explicit caravanNpcIds on the travel state).
+    assert.deepEqual(envelope.travel!.caravanNpcNames, ['Borzou Sangtarash', 'Sohrab Choob-Dast']);
+    assert.ok(envelope.travel!.roadNote?.includes('Danger 3'));
+    assert.ok(envelope.travel!.roadNote?.includes('Ashfang Raiders'));
+    assert.ok(envelope.travel!.roadNote?.includes('Road Wardens'));
+  });
+
+  it('scopes the world corridor to the stops ahead while traveling', () => {
+    const envelope = assembleSceneEnvelope({
+      story: travelStory,
+      playerState: makeTravelingState('loc_harbor'),
+      resolution: baseResolution,
+      playerActionText: 'Ride on.',
+      ledger: baseLedger,
+      turnNumber: 7,
+    } as SceneTurnInput);
+
+    const locationLines = (envelope.locations ?? []).join('\n');
+    assert.ok(locationLines.includes('Salt Mine'), 'destination must enter the corridor scope');
+    assert.ok(locationLines.includes('Brine Harbor'), 'current stop must stay in scope');
+
+    // Grounded control: at the camp only the camp + 1-hop ravine are in scope.
+    const grounded = assembleSceneEnvelope({
+      story: travelStory,
+      playerState: { ...makeTravelingState('loc_camp'), travel: null },
+      resolution: baseResolution,
+      playerActionText: 'Keep watch.',
+      ledger: baseLedger,
+      turnNumber: 7,
+    } as SceneTurnInput);
+    assert.equal(grounded.travel, undefined);
+    assert.ok(!(grounded.locations ?? []).join('\n').includes('Salt Mine'));
+  });
+
+  it('marks the final leg as arriving and keeps the destination in scope', () => {
+    const envelope = assembleSceneEnvelope({
+      story: travelStory,
+      playerState: makeTravelingState('loc_harbor'),
+      resolution: baseResolution,
+      playerActionText: 'The mine appears ahead.',
+      ledger: baseLedger,
+      turnNumber: 8, // departed 5 → 3 legs of 4: final leg
+    } as SceneTurnInput);
+
+    assert.equal(envelope.travel?.arriving, true);
+    assert.equal(envelope.travel?.turnsRemaining, 1);
+  });
+
+  it('maps the arrival input into the envelope and drops the journey block', () => {
+    const envelope = assembleSceneEnvelope({
+      story: travelStory,
+      playerState: { ...makeTravelingState('loc_mine'), travel: null },
+      resolution: baseResolution,
+      playerActionText: 'Step through the mine gates.',
+      ledger: baseLedger,
+      turnNumber: 9,
+      travelArrival: { locationId: 'loc_mine', name: 'Salt Mine' },
+    } as SceneTurnInput);
+
+    assert.equal(envelope.travel, undefined);
+    assert.deepEqual(envelope.travelArrival, { destinationName: 'Salt Mine' });
+  });
+});

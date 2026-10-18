@@ -445,4 +445,114 @@ describe('PromptAssembler - Plan 15 Bug 1 environmental guidance & bestiary grou
   });
 });
 
+// ---------------------------------------------------------------------------
+// Plan 17 (§4.5): journey prompt snapshots — departure / mid-journey / final
+// leg / arrival, with hard arrival discipline.
+// ---------------------------------------------------------------------------
+
+describe('PromptAssembler - Plan 17 journey blocks', () => {
+  const baseTravel = {
+    originName: 'Ashen Gate',
+    destinationName: 'Salt Mine',
+    routeName: 'Salt Road',
+    currentStopName: 'Ashen Gate',
+    nextStopName: 'Brine Harbor',
+    turnsRemaining: 4,
+    totalTurns: 5,
+    dayOnRoad: 1,
+    mode: 'caravan' as const,
+    caravanNpcNames: ['Farid the Caravan Master'],
+    roadNote: 'Danger 3 • status ACTIVE • raided by Ashfang Raiders',
+  };
+
+  it('renders the departure block with discipline + choice material (EN)', () => {
+    const { userPrompt } = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({ languageDirective: 'en', travel: baseTravel })
+    );
+    assert.ok(userPrompt.includes('[JOURNEY EN ROUTE'));
+    assert.ok(userPrompt.includes('DEPARTURE: the journey begins this turn'));
+    assert.ok(userPrompt.includes('from "Ashen Gate" to "Salt Mine"'));
+    assert.ok(userPrompt.includes('via the "Salt Road"'));
+    assert.ok(userPrompt.includes('ARRIVAL DISCIPLINE'));
+    assert.ok(userPrompt.includes('inside "Salt Mine"'));
+    assert.ok(userPrompt.includes('Farid the Caravan Master'));
+    assert.ok(userPrompt.includes('Ashfang Raiders'));
+    assert.ok(userPrompt.includes('CHOICE MATERIAL for the road'));
+    assert.ok(!userPrompt.includes('[JOURNEY ARRIVED'));
+  });
+
+  it('renders the mid-journey block (FA) without the departure or final-leg lines', () => {
+    const { userPrompt } = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'fa',
+        storyTitle: 'افسانه نمک',
+        travel: {
+          ...baseTravel,
+          currentStopName: 'Brine Harbor',
+          nextStopName: 'Way Station',
+          turnsRemaining: 2,
+          dayOnRoad: 3,
+        },
+      })
+    );
+    assert.ok(userPrompt.includes('سفر در راه'));
+    assert.ok(userPrompt.includes('روز 3 از 5'));
+    assert.ok(userPrompt.includes('ایستگاه بعدی: «Way Station»'));
+    assert.ok(userPrompt.includes('انضباط ورود'));
+    assert.ok(userPrompt.includes('همسفران راه: Farid the Caravan Master'));
+    assert.ok(!userPrompt.includes('آغاز سفر'));
+    assert.ok(!userPrompt.includes('• پایان راه:'));
+  });
+
+  it('renders the final-leg block with permission to end inside the gates (EN)', () => {
+    const { userPrompt } = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'en',
+        travel: {
+          ...baseTravel,
+          currentStopName: 'Way Station',
+          turnsRemaining: 1,
+          dayOnRoad: 5,
+          arriving: true,
+        },
+      })
+    );
+    assert.ok(userPrompt.includes('FINAL LEG'));
+    assert.ok(userPrompt.includes('the destination appears on the horizon'));
+    assert.ok(userPrompt.includes('end the scene inside them'));
+    assert.ok(!userPrompt.includes('ARRIVAL DISCIPLINE'));
+  });
+
+  it('renders the arrival block when the journey entered the destination this turn', () => {
+    const { userPrompt } = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'en',
+        travelArrival: { destinationName: 'Salt Mine' },
+      })
+    );
+    assert.ok(userPrompt.includes('[JOURNEY ARRIVED'));
+    assert.ok(userPrompt.includes('has entered "Salt Mine"'));
+    assert.ok(userPrompt.includes('new grounded setting'));
+    assert.ok(!userPrompt.includes('[JOURNEY EN ROUTE'));
+  });
+
+  it('renders the arrival block in Persian when the story is Persian', () => {
+    const { userPrompt } = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'fa',
+        storyTitle: 'افسانه نمک',
+        travelArrival: { destinationName: 'معدن نمک' },
+      })
+    );
+    assert.ok(userPrompt.includes('رسیدن به مقصد'));
+    assert.ok(userPrompt.includes('قهرمان به «معدن نمک» درآمده است'));
+  });
+
+  it('omits every journey block for grounded turns', () => {
+    const { userPrompt } = PromptAssembler.buildNarrativePrompt(makeEnvelope({}));
+    assert.ok(!userPrompt.includes('[JOURNEY EN ROUTE'));
+    assert.ok(!userPrompt.includes('[JOURNEY ARRIVED'));
+  });
+});
+
 

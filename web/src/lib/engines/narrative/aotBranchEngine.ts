@@ -538,6 +538,8 @@ export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBr
       activeChapter,
       displacedLocationId,
       previousLocationId: preTurnLocationId,
+      // Plan 17 (§4.5): journey math is derived from the absolute turn number.
+      turnNumber: branchTurnNumber,
     },
     ctx.geminiAdapter,
     (choices, currentProse) => {

@@ -944,6 +944,10 @@ export async function POST(req: NextRequest) {
         activeChapter,
         displacedLocationId,
         previousLocationId: preTurnLocationId,
+        // Plan 17 (§4.5): journey math derives from the absolute turn number;
+        // `travelArrival` marks the scene that entered the destination.
+        turnNumber,
+        travelArrival: travelArrived,
         remakeDirective,
       },
       activeNarrativeAdapter,
