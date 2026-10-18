@@ -1,8 +1,9 @@
 import { GameEngine } from '@/lib/engines/game/GameEngine';
-import { rollDice } from '@/lib/engines/game/actionCheckEngine';
+import { rollDice, isBodilyRiskAction } from '@/lib/engines/game/actionCheckEngine';
 import { calculateActionXp, applyXpGain } from '@/lib/engines/game/progressionEngine';
 import { pruneInactiveZoneClocks } from '@/lib/engines/game/threatClock';
 import { reconcilePlayerResources, resolveHealthKey } from '@/lib/engines/game/resourcePools';
+import { reconcileConditions } from '@/lib/engines/game/conditionReconciler';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import {
   generateValidatedScene,
@@ -564,6 +565,43 @@ export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBr
   );
 
   if (sceneOutcome.status === 'ok') {
+    // Plan 17 (§3.4 wire-in): AOT branches reconcile exactly like live turns —
+    // the pre-written branch's prose + its declared conditions are audited
+    // against the branch's final state, so a Snap-hit turn can never serve
+    // prose and a status bar that disagree.
+    const conditionReconciliation = reconcileConditions({
+      prose: sceneOutcome.aiResponse.narrative,
+      declared: sceneOutcome.aiResponse.playerConditionChanges ?? null,
+      previousConditions: (playerState.conditions ?? []).slice(),
+      playerState: updatedPlayerState,
+      resolution: {
+        outcome: resolution.outcome,
+        resourceChanges: resolution.stateDiff.resourceChanges ?? null,
+        bodilyRisk: isBodilyRiskAction(playerActionText, actionStyle, resolution.statId),
+      },
+      rpgSystem: story.rpgSystem,
+      language: story.language,
+    });
+    if (conditionReconciliation.findings.length > 0) {
+      resolution.conditionChanges = conditionReconciliation.findings;
+      const conflict = conditionReconciliation.findings.find((f) => f.type === 'conflict');
+      if (conflict) {
+        sceneOutcome.proseFindings.push({
+          severity: 'warning',
+          category: 'condition_conflict',
+          detail: conflict.detail,
+        });
+      }
+    }
+    if (Object.keys(conditionReconciliation.diff).length > 0) {
+      updatedPlayerState = GameEngine.applyStateMutation(
+        updatedPlayerState,
+        conditionReconciliation.diff,
+        story.rpgSystem,
+        { previousState: playerState }
+      );
+    }
+
     // §7.6E: audit the pre-written branch — first-draft mistakes, repairs,
     // surviving findings, secret echoes, choice hygiene, language, recycling —
     // so the shadow phase produces analyzable verdicts, not just prose.

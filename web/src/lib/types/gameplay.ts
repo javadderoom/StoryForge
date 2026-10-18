@@ -285,6 +285,16 @@ export interface CheckResolution {
     unspentStatPoints: number;
     unspentAbilityPicks?: number;
   };
+  /**
+   * Plan 17: condition reconciliation telemetry for this turn — what the
+   * reconciler inferred, treated, healed, or dropped (server audit trail;
+   * becomes part of the eval harness surface).
+   */
+  conditionChanges?: Array<{
+    type: string;
+    kind: string;
+    detail: string;
+  }>;
 }
 
 export interface TurnBeat {

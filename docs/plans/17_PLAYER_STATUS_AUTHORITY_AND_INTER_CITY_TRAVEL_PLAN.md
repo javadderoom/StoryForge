@@ -527,9 +527,9 @@ Optionally fold the travel delta into `TurnStatusDeltaBanner` for turn-to-turn t
 - [x] GeminiAdapter: `playerConditionChanges` typing + `normalizeConditionChanges`; `narrativeTurn` `SceneAiResponse` mirror.
 
 ### Phase 2 — Reconciler & state guards
-- [ ] `conditionReconciler.ts` + exhaustive `conditionReconciler.test.ts` (add/drop/undeclared/treated/healed/negation/custom, FA + EN prose fixtures, closure, baseline).
-- [ ] `stateMutationEngine` guards: `resolveHealthKey`/`resolveStaminaKey`, previous-state crossing rule, removal-suppresses-auto-add, water-clock metadata check.
-- [ ] Action route wiring: second `applyStateMutation` after generation; `resolution.conditionChanges` telemetry; AOT branch reconciliation parity.
+- [x] `conditionReconciler.ts` + exhaustive `conditionReconciler.test.ts` (add/drop/undeclared/treated/healed/negation/custom, FA + EN prose fixtures, closure, baseline).
+- [x] `stateMutationEngine` guards: `resolveHealthKey`/`resolveStaminaKey`, previous-state crossing rule, removal-suppresses-auto-add, water-clock metadata check.
+- [x] Action route wiring: second `applyStateMutation` after generation; `resolution.conditionChanges` telemetry; AOT branch reconciliation parity.
 
 ### Phase 3 — Client truth rendering (conditions)
 - [ ] Flutter: remove fallback synthesis; treated chip variant; custom raw chips; widget tests asserting server-truth-only.
@@ -658,7 +658,7 @@ Baseline to preserve: `npm test` 1039/1039 green, clean typecheck, Flutter analy
 | :--- | :--- | :--- | :--- |
 | Phase 0 — Prerequisites & shared types | ✅ done | 2026-10-18 | `buildPlayLore` now ships `subZones`/`pointsOfInterest`/`parentLocationId`/`region`; `ActiveTravel` + `PlayerState.travel` + `StateMutationDiff.travel` added (TS) and mirrored in Dart with round-trip + derived-progress tests; `applyStateMutation` accepts `options.previousState` (optional, back-compatible — chained call sites pass it in Phase 2); travel application + pool-aware condition guards landed in the engine ahead of schedule. `npx tsc --noEmit` clean; targeted web tests 97/97; `flutter test test/player_state_travel_test.dart` 3/3. |
 | Phase 1 — Condition catalog & writer contract | ✅ done | 2026-10-18 | `conditionCatalog.ts` (12 catalog kinds, aliases, closures, treated variants, bilingual prose patterns) + 11 tests; writer schema `playerConditionChanges` in EN/FA prompts with the mandatory evidence contract; treated wound continuity guard (bandaged wounds no longer trigger the bandage beat); `promptSilent` baseline (`تندرست`) excluded from prompt condition lines; `normalizeConditionChanges` adapter guardrail + tests; `SceneAiResponse` mirror. Full `tsc --noEmit` clean; targeted suites 48 + 11 + 15 green. |
-| Phase 2 — Reconciler & state guards | ⏳ pending | | Engine guards partially landed with Phase 0 (pool resolvers, crossing guard, water-clock metadata). Reconciler + route wiring remain. |
+| Phase 2 — Reconciler & state guards | ✅ done | 2026-10-18 | Engine guards landed with Phase 0 (pool resolvers, danger-zone crossing rule, explicit-removal suppression, metadata-based water clock — the hardcoded `mtpqnxvl_jdgi` id is gone). `conditionReconciler.ts`: negation-scoped evidence extraction, declaration merge table, undeclared-wound inference (mechanical cost / bodily-risk failure / explicit prose; weak markers stay narrative-only), treatment conversion, healing-gated removal, prose-first conflict repair, closure + baseline upkeep, minimal diff with removal-hardening overwrite. 16 reconciler tests (EN + FA fixtures). Route wiring: second `applyStateMutation` with `previousState` snapshot, `resolution.conditionChanges` telemetry, `condition_conflict` ProseValidator category (warning-only). AOT parity: same reconciler inside `aotBranchEngine` + parity test. Full web suite **1071/1071 green**. |
 | Phase 3 — Client truth rendering | ⏳ pending | | |
 | Phase 4 — Travel engine & lifecycle | ⏳ pending | | |
 | Phase 5 — Prompt & envelope | ⏳ pending | | |

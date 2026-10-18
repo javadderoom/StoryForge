@@ -19,6 +19,8 @@ import { resolveAccompanyingIds } from '@/lib/engines/narrative/worldContext';
 import { buildNpcIdToName } from '@/lib/engines/narrative/snapPredictor';
 import { cancelSnapPrediction, resolveSnapDecision, scheduleSnapDwell } from '@/lib/play/snapDecisions';
 import { getNarrativeAdapter, ENGINE_TIER_COSTS, type EngineTier } from '@/lib/providers/narrativeAdapterFactory';
+import { reconcileConditions } from '@/lib/engines/game/conditionReconciler';
+import { isBodilyRiskAction } from '@/lib/engines/game/actionCheckEngine';
 
 export async function OPTIONS(req: NextRequest) {
   return handleCorsPreflight(req);
@@ -863,6 +865,51 @@ export async function POST(req: NextRequest) {
     const aiResponse = sceneOutcome.aiResponse;
     const proseFindings = sceneOutcome.proseFindings;
     const proseRepaired = sceneOutcome.proseRepaired;
+
+    // Plan 17 (§3.7): reconcile the authoritative condition list with the prose
+    // the writer just produced. The writer's `playerConditionChanges` channel is
+    // evidence-gated; undeclared but clearly narrated injuries are inferred from
+    // mechanical cost or explicit prose. A second applyStateMutation carries the
+    // minimal diff (with a full overwrite whenever tags were removed, so the
+    // auto-derivation cannot silently re-add them).
+    const conditionReconciliation = reconcileConditions({
+      prose: aiResponse.narrative,
+      declared: aiResponse.playerConditionChanges ?? null,
+      previousConditions: (playerState.conditions ?? []).slice(),
+      playerState: updatedPlayerState,
+      resolution: {
+        outcome: resolution.outcome,
+        resourceChanges: resolution.stateDiff.resourceChanges ?? null,
+        bodilyRisk: isBodilyRiskAction(playerActionText, actionStyle, resolution.statId),
+      },
+      rpgSystem: story.rpgSystem,
+      language: story.language,
+    });
+    if (conditionReconciliation.findings.length > 0) {
+      resolution.conditionChanges = conditionReconciliation.findings;
+      // Plan 17: conflicts are telemetry only — the reconciler already resolved
+      // them prose-first, so no repair round-trip is triggered.
+      const conflict = conditionReconciliation.findings.find((f) => f.type === 'conflict');
+      if (conflict) {
+        proseFindings.push({
+          severity: 'warning',
+          category: 'condition_conflict',
+          detail: conflict.detail,
+        });
+      }
+      console.log(
+        `[Plan17] condition reconciliation (session ${sessionId}, turn ${turnNumber}):`,
+        conditionReconciliation.findings
+      );
+    }
+    if (Object.keys(conditionReconciliation.diff).length > 0) {
+      updatedPlayerState = GameEngine.applyStateMutation(
+        updatedPlayerState,
+        conditionReconciliation.diff,
+        story.rpgSystem,
+        { previousState: playerState }
+      );
+    }
 
     // Carry the real authored scene id when known; fixes stuck-currentSceneId
     const beatSceneId =

@@ -173,6 +173,24 @@ describe('Plan 15 §2.3 tier 4 — AOT branch engine', () => {
     });
   });
 
+  it('reconciles branch conditions with the prose (Plan 17 parity)', async () => {
+    await withTestEnv(async () => {
+      const narrative =
+        'The rusted gate jumps its track as you shoulder it wide; a jagged rivet sears a gash across your forearm.';
+      const { adapter } = makeGeminiStub({ narrative });
+      const result = await preGenerateAotBranch(
+        makeContext({ geminiAdapter: adapter, forcedDiceRoll: 20 })
+      );
+
+      assert.equal(result.status, 'generated');
+      const findings = result.resolution?.conditionChanges ?? [];
+      assert.ok(
+        findings.some((f) => f.type === 'undeclared_wound' && f.kind === 'wounded'),
+        `expected an inferred wound finding, got ${JSON.stringify(findings)}`
+      );
+    });
+  });
+
   it('keeps the deterministic audit unchanged and makes no judge call when disabled', async () => {
     await withTestEnv(async () => {
       let judgeCalls = 0;

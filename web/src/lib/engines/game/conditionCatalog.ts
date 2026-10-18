@@ -305,7 +305,7 @@ export const CONDITION_PROSE_PATTERNS: {
   negation: RegExp;
 } = {
   wound:
-    /\b(wound(?:ed|s)?|gash(?:ed)?|cut|slash(?:ed)?|stab(?:bed)?|lacerat(?:e|ed|ion)|bruis(?:e|ed)|sprain(?:ed)?|limp(?:ing|ed)?|injur(?:y|ies|ed))\b|(زخم|جراحت|زخمی|مجروح|بریدگ|شکاف|کبودی|پیچ‌خوردگ|لنگید|آسیب)/i,
+    /\b(wound(?:ed|s)?|gash(?:ed|es|ing)?|cut(?:s)?|slash(?:ed|es|ing)?|stab(?:bed|s|bing)?|lacerat(?:e|ed|es|ion|ing)|bruis(?:e|ed|es|ing)|sprain(?:ed|s|ing)?|limp(?:ing|ed|s)?|injur(?:y|ies|ed))\b|(زخم|جراحت|زخمی|مجروح|بریدگ|شکاف|کبودی|پیچ‌خوردگ|لنگید|آسیب)/i,
   bleeding:
     /\b(bleeding|bloodied|dripping blood|blood (?:runs|drips|oozes|spurts|seeps|soaks))\b|(خون‌ریزی|خون ?(?:از|بر|چکه|جاری)|خون‌آلود|خونی)/i,
   treatment:
