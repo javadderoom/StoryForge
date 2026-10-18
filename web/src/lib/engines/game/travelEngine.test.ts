@@ -20,6 +20,7 @@ import {
   travelTimeline,
   formatTravelLine,
   clampJourneyTurns,
+  isTravelStateEnabled,
 } from './travelEngine';
 
 // ---------------------------------------------------------------------------
@@ -383,4 +384,11 @@ describe('Plan 17 travel engine — per-turn lifecycle', () => {
     assert.match(line, /ایستگاه بعدی/);
     assert.ok(line.includes('Dune Keep'));
   });
+
+  it('respects ENABLE_TRAVEL_STATE feature flag', () => {
+    assert.equal(isTravelStateEnabled({ ENABLE_TRAVEL_STATE: 'false' }), false);
+    assert.equal(isTravelStateEnabled({ ENABLE_TRAVEL_STATE: 'true' }), true);
+    assert.equal(isTravelStateEnabled({}), true);
+  });
 });
+

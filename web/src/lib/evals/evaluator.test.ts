@@ -242,4 +242,43 @@ describe('Tier 3 Layer A — evaluateRawScene', () => {
     );
     assert.ok(abstractProse.findings.some((f) => f.rule === 'prose.lacks_sensory_detail'));
   });
+
+  it('FAILS wound-in-prose when prose claims protagonist escaped unscathed', () => {
+    const report = evaluateRawScene(
+      raw('You tumble across the stone floor completely unscathed and unharmed without a scratch.', [
+        { id: 'a', text: 'Rise quickly', style: 'agile', riskLevel: 'low' },
+        { id: 'b', text: 'Take cover', style: 'defensive', riskLevel: 'low' },
+      ]),
+      {
+        expectations: {
+          outcome: 'mixed_success',
+          forbiddenWords: ['unscathed', 'unharmed', 'without a scratch'],
+          requireConsequenceEcho: 'stone|block|gash|wound',
+        },
+        validStatIds: STATS,
+        isEnglish: true,
+      }
+    );
+    assert.equal(report.passed, false);
+    assert.ok(report.findings.some((f) => f.rule === 'prose.forbidden_word'));
+  });
+
+  it('FAILS travel road scene when prose prematurely teleports protagonist into destination city', () => {
+    const report = evaluateRawScene(
+      raw('کاروان در میان ماسه‌ها حرکت کرد و سرانجام وارد ارگ شد و در بازار بزرگ نشست.', [
+        { id: 'a', text: 'نگاه به اطراف', style: 'inquisitive', riskLevel: 'low' },
+        { id: 'b', text: 'خرید آب', style: 'diplomatic', riskLevel: 'low' },
+      ]),
+      {
+        expectations: {
+          forbiddenWords: ['وارد ارگ شد', 'درون ارگ'],
+        },
+        validStatIds: STATS,
+        isEnglish: false,
+      }
+    );
+    assert.equal(report.passed, false);
+    assert.ok(report.findings.some((f) => f.rule === 'prose.forbidden_word'));
+  });
 });
+

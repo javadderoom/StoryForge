@@ -569,7 +569,8 @@ export async function POST(req: NextRequest) {
     // skipped). Precedence: hazard displacement + authored beats (§3½) +
     // defeat relocation (§3b) override travel when they fire later this turn.
     const travelLang: 'fa' | 'en' = isPersianStory ? 'fa' : 'en';
-    const travelIntentActive = GameEngine.detectTravelIntent(playerActionText, isPersianStory);
+    const travelStateActive = GameEngine.isTravelStateEnabled();
+    const travelIntentActive = travelStateActive && GameEngine.detectTravelIntent(playerActionText, isPersianStory);
     const travelDestination =
       travelIntentActive && !authoredMovesMacroLocation
         ? GameEngine.resolveTravelDestination(
@@ -578,7 +579,7 @@ export async function POST(req: NextRequest) {
             playerState.currentLocationId
           )
         : null;
-    const activeTravel = playerState.travel ?? null;
+    const activeTravel = travelStateActive ? (playerState.travel ?? null) : null;
     let travelSkipSubZoneWriter = false;
 
     if (activeTravel && !authoredMovesMacroLocation) {
@@ -746,7 +747,7 @@ export async function POST(req: NextRequest) {
     if (displacementTarget || authoredMoveTargetId) {
       if (updatedPlayerState.travel) updatedPlayerState.travel = null;
     }
-    if (updatedPlayerState.travel) {
+    if (travelStateActive && updatedPlayerState.travel) {
       const advance = GameEngine.advanceTravel(updatedPlayerState, turnNumber, story.worldBible, {
         lang: travelLang,
       });
@@ -1086,44 +1087,46 @@ export async function POST(req: NextRequest) {
     // evidence-gated; undeclared but clearly narrated injuries are inferred from
     // mechanical cost or explicit prose. A second applyStateMutation carries the
     // minimal diff (with a full overwrite whenever tags were removed, so the
-    // auto-derivation cannot silently re-add them).
-    const conditionReconciliation = reconcileConditions({
-      prose: aiResponse.narrative,
-      declared: aiResponse.playerConditionChanges ?? null,
-      previousConditions: (playerState.conditions ?? []).slice(),
-      playerState: updatedPlayerState,
-      resolution: {
-        outcome: resolution.outcome,
-        resourceChanges: resolution.stateDiff.resourceChanges ?? null,
-        bodilyRisk: isBodilyRiskAction(playerActionText, actionStyle, resolution.statId),
-      },
-      rpgSystem: story.rpgSystem,
-      language: story.language,
-    });
-    if (conditionReconciliation.findings.length > 0) {
-      resolution.conditionChanges = conditionReconciliation.findings;
-      // Plan 17: conflicts are telemetry only — the reconciler already resolved
-      // them prose-first, so no repair round-trip is triggered.
-      const conflict = conditionReconciliation.findings.find((f) => f.type === 'conflict');
-      if (conflict) {
-        proseFindings.push({
-          severity: 'warning',
-          category: 'condition_conflict',
-          detail: conflict.detail,
-        });
+    // auto-derivation cannot silently re-add them). Gated by ENABLE_CONDITION_RECONCILER.
+    if (GameEngine.isConditionReconcilerEnabled()) {
+      const conditionReconciliation = reconcileConditions({
+        prose: aiResponse.narrative,
+        declared: aiResponse.playerConditionChanges ?? null,
+        previousConditions: (playerState.conditions ?? []).slice(),
+        playerState: updatedPlayerState,
+        resolution: {
+          outcome: resolution.outcome,
+          resourceChanges: resolution.stateDiff.resourceChanges ?? null,
+          bodilyRisk: isBodilyRiskAction(playerActionText, actionStyle, resolution.statId),
+        },
+        rpgSystem: story.rpgSystem,
+        language: story.language,
+      });
+      if (conditionReconciliation.findings.length > 0) {
+        resolution.conditionChanges = conditionReconciliation.findings;
+        // Plan 17: conflicts are telemetry only — the reconciler already resolved
+        // them prose-first, so no repair round-trip is triggered.
+        const conflict = conditionReconciliation.findings.find((f) => f.type === 'conflict');
+        if (conflict) {
+          proseFindings.push({
+            severity: 'warning',
+            category: 'condition_conflict',
+            detail: conflict.detail,
+          });
+        }
+        console.log(
+          `[Plan17] condition reconciliation (session ${sessionId}, turn ${turnNumber}):`,
+          conditionReconciliation.findings
+        );
       }
-      console.log(
-        `[Plan17] condition reconciliation (session ${sessionId}, turn ${turnNumber}):`,
-        conditionReconciliation.findings
-      );
-    }
-    if (Object.keys(conditionReconciliation.diff).length > 0) {
-      updatedPlayerState = GameEngine.applyStateMutation(
-        updatedPlayerState,
-        conditionReconciliation.diff,
-        story.rpgSystem,
-        { previousState: playerState }
-      );
+      if (Object.keys(conditionReconciliation.diff).length > 0) {
+        updatedPlayerState = GameEngine.applyStateMutation(
+          updatedPlayerState,
+          conditionReconciliation.diff,
+          story.rpgSystem,
+          { previousState: playerState }
+        );
+      }
     }
 
     // Carry the real authored scene id when known; fixes stuck-currentSceneId

@@ -11,6 +11,10 @@ import {
   promptVisibleConditions,
   resolveKind,
   tagForKind,
+  getConditionEffect,
+  computeActiveConditionEffects,
+  isConditionEffectsEnabled,
+  isConditionReconcilerEnabled,
 } from './conditionCatalog';
 
 describe('Plan 17 condition catalog', () => {
@@ -95,4 +99,49 @@ describe('Plan 17 condition catalog', () => {
     assert.equal(CONDITION_PROSE_PATTERNS.wound.test('You slice the bread and eat quietly.'), false);
     assert.equal(CONDITION_PROSE_PATTERNS.bleeding.test('The wine is blood-red.'), false);
   });
+
+  it('declares deterministic mechanical effects per Plan 17 table §3.9', () => {
+    // Untreated wound: +25% stamina cost
+    const woundEffect = getConditionEffect('زخمی');
+    assert.equal(woundEffect?.staminaCostMultiplier, 1.25);
+
+    // Treated wound: +10% stamina cost
+    const treatedWoundEffect = getConditionEffect('زخمی (پانسمان‌شده)');
+    assert.equal(treatedWoundEffect?.staminaCostMultiplier, 1.10);
+
+    // Exhausted: -1 to physical stat checks
+    const exhaustedEffect = getConditionEffect('خسته');
+    assert.equal(exhaustedEffect?.statModifierDelta, -1);
+
+    // Thirsty: +1 threat clock segment on desert travel
+    const thirstyEffect = getConditionEffect('تشنه');
+    assert.equal(thirstyEffect?.threatClockExtraTicks, 1);
+
+    // Baseline: no mechanical penalties
+    const baselineEffect = getConditionEffect('تندرست');
+    assert.equal(baselineEffect, undefined);
+
+    // Aggregated computeActiveConditionEffects
+    const active = computeActiveConditionEffects(['زخمی', 'خسته', 'تشنه'], {
+      isPhysicalStat: true,
+      isDesertOrHarsh: true,
+    });
+    assert.equal(active.staminaCostMultiplier, 1.25);
+    assert.equal(active.statModifierDelta, -1);
+    assert.equal(active.threatClockExtraTicks, 1);
+
+    // When stat is non-physical, statModifierDelta is 0
+    const mentalCheck = computeActiveConditionEffects(['خسته'], { isPhysicalStat: false });
+    assert.equal(mentalCheck.statModifierDelta, 0);
+
+    // Feature flags follow env
+    assert.equal(isConditionEffectsEnabled({ ENABLE_CONDITION_EFFECTS: 'false' }), false);
+    assert.equal(isConditionEffectsEnabled({ ENABLE_CONDITION_EFFECTS: 'true' }), true);
+    assert.equal(isConditionEffectsEnabled({}), true);
+
+    assert.equal(isConditionReconcilerEnabled({ ENABLE_CONDITION_RECONCILER: 'false' }), false);
+    assert.equal(isConditionReconcilerEnabled({ ENABLE_CONDITION_RECONCILER: 'true' }), true);
+    assert.equal(isConditionReconcilerEnabled({}), true);
+  });
 });
+

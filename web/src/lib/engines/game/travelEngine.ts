@@ -529,3 +529,14 @@ export function formatTravelLine(
   const via = route ? ` • route "${route.name}"` : '';
   return `En route "${from}" → "${to}"${timing}${next}${via}`;
 }
+
+/**
+ * Plan 17 Phase 7 feature flag: gates active inter-city travel state lifecycle.
+ * Defaults to true. Can be disabled via ENABLE_TRAVEL_STATE=false.
+ */
+export function isTravelStateEnabled(
+  env: Record<string, string | undefined> = process.env
+): boolean {
+  return env.ENABLE_TRAVEL_STATE !== 'false';
+}
+

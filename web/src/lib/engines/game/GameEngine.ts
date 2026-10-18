@@ -67,7 +67,12 @@ import {
   travelTimeline,
   formatTravelLine,
   clampJourneyTurns,
+  isTravelStateEnabled,
 } from './travelEngine';
+import {
+  isConditionEffectsEnabled,
+  isConditionReconcilerEnabled,
+} from './conditionCatalog';
 import { resolveDefeat } from './defeatEngine';
 import {
   evaluateQuestItemTriggers,
@@ -128,6 +133,11 @@ export class GameEngine {
   public static travelTimeline = travelTimeline;
   public static formatTravelLine = formatTravelLine;
   public static clampJourneyTurns = clampJourneyTurns;
+  public static isTravelStateEnabled = isTravelStateEnabled;
+
+  /** Plan 17 (Phase 7): deterministic condition effects and reconciler flags. */
+  public static isConditionEffectsEnabled = isConditionEffectsEnabled;
+  public static isConditionReconcilerEnabled = isConditionReconcilerEnabled;
 
   // Defeat resolution
   public static resolveDefeat = resolveDefeat;

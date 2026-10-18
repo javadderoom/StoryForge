@@ -25,6 +25,15 @@ export type ConditionKind =
 
 export type ConditionZone = 'body' | 'mind' | 'situational';
 
+export interface ConditionEffectDef {
+  /** Stamina cost multiplier on mixed-success bodily-risk actions (e.g. 1.25 for untreated wound, 1.10 for treated). */
+  staminaCostMultiplier?: number;
+  /** Penalty applied to physical-stat checks (e.g. -1 for exhausted). Clamped >= 0 at enforcement. */
+  statModifierDelta?: number;
+  /** Extra threat-clock segments on desert/harsh travel turns (e.g. 1 for thirsty). */
+  threatClockExtraTicks?: number;
+}
+
 export interface ConditionDef {
   kind: ConditionKind;
   /** Canonical tag persisted in PlayerState.conditions. */
@@ -39,6 +48,10 @@ export interface ConditionDef {
   /** Extra raw strings that resolve to this kind (writer drift tolerance). */
   aliases?: string[];
   narrativeGuidance: { en: string; fa: string };
+  /** Plan 17 (§3.9): Deterministic mechanical effects for untreated condition. */
+  effect?: ConditionEffectDef;
+  /** Plan 17 (§3.9): Deterministic mechanical effects for treated variant. */
+  treatedEffect?: ConditionEffectDef;
 }
 
 export const CONDITION_CATALOG: readonly ConditionDef[] = [
@@ -52,6 +65,8 @@ export const CONDITION_CATALOG: readonly ConditionDef[] = [
       en: 'An open wound; movement aches, strain reopens it. Bandaging converts it to a treated wound.',
       fa: 'زخم باز؛ حرکت دردناک است و فشار زیاد آن را دوباره می‌شکافد. پانسمان آن را به زخم پانسمان‌شده تبدیل می‌کند.',
     },
+    effect: { staminaCostMultiplier: 1.25 },
+    treatedEffect: { staminaCostMultiplier: 1.10 },
   },
   {
     kind: 'bleeding',
@@ -73,6 +88,7 @@ export const CONDITION_CATALOG: readonly ConditionDef[] = [
       en: 'Deep fatigue; breath is short, hands tremble, reactions slow.',
       fa: 'فرسودگی عمیق؛ نفس کوتاه، دست‌ها لرزان و واکنش‌ها کند است.',
     },
+    effect: { statModifierDelta: -1 },
   },
   {
     kind: 'thirsty',
@@ -83,6 +99,7 @@ export const CONDITION_CATALOG: readonly ConditionDef[] = [
       en: 'Parched throat, cracked lips, ringing head; water is an obsession.',
       fa: 'گلوی خشک، لب‌های ترک‌خورده و سرگیجه؛ آب به دغدغه‌ای دائمی بدل شده است.',
     },
+    effect: { threatClockExtraTicks: 1 },
   },
   {
     kind: 'poisoned',
@@ -94,6 +111,7 @@ export const CONDITION_CATALOG: readonly ConditionDef[] = [
       en: 'Venom or toxin in the blood; feverish chills and blurred focus until treated.',
       fa: 'زهر در خون؛ لرز و تب و تاری دید تا زمان پادزهر یا مداوا.',
     },
+    effect: {},
   },
   {
     kind: 'dazed',
@@ -326,3 +344,85 @@ export const CONDITION_PROSE_PATTERNS: {
 export function promptVisibleConditions(tags: string[] | undefined): string[] {
   return (tags ?? []).filter((tag) => !kindForTag(tag)?.promptSilent);
 }
+
+// ---------------------------------------------------------------------------
+// Plan 17 (§3.9): Deterministic condition effects & feature flags.
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolves the active deterministic mechanical effect for a persisted condition tag.
+ * Handles treated variants (e.g. `زخمی (پانسمان‌شده)` uses `treatedEffect`).
+ */
+export function getConditionEffect(tag: string): ConditionEffectDef | undefined {
+  const t = (tag || '').trim();
+  if (!t) return undefined;
+  const def = kindForTag(t);
+  if (!def) return undefined;
+  if (isTreated(t)) {
+    return def.treatedEffect ?? def.effect;
+  }
+  return def.effect;
+}
+
+export interface ActiveConditionEffects {
+  staminaCostMultiplier: number;
+  statModifierDelta: number;
+  threatClockExtraTicks: number;
+}
+
+/**
+ * Computes aggregated mechanical effects for a player's active conditions.
+ * Only applied when `ENABLE_CONDITION_EFFECTS` is enabled.
+ */
+export function computeActiveConditionEffects(
+  conditions: string[] | undefined,
+  options?: { isPhysicalStat?: boolean; isDesertOrHarsh?: boolean }
+): ActiveConditionEffects {
+  let staminaCostMultiplier = 1;
+  let statModifierDelta = 0;
+  let threatClockExtraTicks = 0;
+
+  for (const tag of conditions ?? []) {
+    const effect = getConditionEffect(tag);
+    if (!effect) continue;
+
+    if (effect.staminaCostMultiplier && effect.staminaCostMultiplier > staminaCostMultiplier) {
+      staminaCostMultiplier = effect.staminaCostMultiplier;
+    }
+
+    if (effect.statModifierDelta && options?.isPhysicalStat) {
+      statModifierDelta += effect.statModifierDelta;
+    }
+
+    if (effect.threatClockExtraTicks && options?.isDesertOrHarsh) {
+      threatClockExtraTicks += effect.threatClockExtraTicks;
+    }
+  }
+
+  return {
+    staminaCostMultiplier,
+    statModifierDelta,
+    threatClockExtraTicks,
+  };
+}
+
+/**
+ * Plan 17 Phase 7 feature flag: gates catalog-defined mechanical effects.
+ * Defaults to true (on for body zone per §3.9). Can be disabled via ENABLE_CONDITION_EFFECTS=false.
+ */
+export function isConditionEffectsEnabled(
+  env: Record<string, string | undefined> = process.env
+): boolean {
+  return env.ENABLE_CONDITION_EFFECTS !== 'false';
+}
+
+/**
+ * Plan 17 Phase 7 feature flag: gates condition reconciliation in action route.
+ * Defaults to true. Can be disabled via ENABLE_CONDITION_RECONCILER=false.
+ */
+export function isConditionReconcilerEnabled(
+  env: Record<string, string | undefined> = process.env
+): boolean {
+  return env.ENABLE_CONDITION_RECONCILER !== 'false';
+}
+

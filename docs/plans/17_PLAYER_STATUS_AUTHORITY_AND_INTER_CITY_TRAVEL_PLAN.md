@@ -552,9 +552,9 @@ Optionally fold the travel delta into `TurnStatusDeltaBanner` for turn-to-turn t
 - [x] Audio node-change hooks (`ambientFromLocation`) and Plan 16 travel-profile hook (optional).
 
 ### Phase 7 — Effects, telemetry, rollout
-- [ ] Catalog-flagged deterministic effects (§3.9) + tests; feature flags `ENABLE_TRAVEL_STATE`, `ENABLE_CONDITION_RECONCILER`, `ENABLE_CONDITION_EFFECTS`.
-- [ ] Eval-harness fixtures (Plan 14) for wound-in-prose and multi-turn journey scenarios.
-- [ ] Version bump to `1.0.8` + release notes (web + Flutter).
+- [x] Catalog-flagged deterministic effects (§3.9) + tests; feature flags `ENABLE_TRAVEL_STATE`, `ENABLE_CONDITION_RECONCILER`, `ENABLE_CONDITION_EFFECTS`.
+- [x] Eval-harness fixtures (Plan 14) for wound-in-prose and multi-turn journey scenarios.
+- [x] Version bump to `1.0.8` + release notes (web + Flutter).
 
 ---
 

@@ -23,6 +23,10 @@ import {
 } from './abilityEffects';
 import { calculateActionXp, applyXpGain } from './progressionEngine';
 import { FeasibilityAssessment } from './actionFeasibilityEngine';
+import {
+  computeActiveConditionEffects,
+  isConditionEffectsEnabled,
+} from './conditionCatalog';
 
 /**
  * Styles/verbs that carry a real chance of bodily harm. Mixed success may only
@@ -35,12 +39,38 @@ const PHYSICAL_ACTION_STYLES = new Set(['aggressive', 'defensive', 'agile', 'ste
 const SOCIAL_ACTION_STYLES = new Set(['diplomatic', 'inquisitive', 'tactical']);
 const PHYSICAL_ACTION_PATTERN =
   /\b(strike|attack|punch|kick|shove|grapple|wrestle|tackle|climb|jump|leap|vault|swim|dive|dodge|block|parry|stab|slash|shoot|smash|choke|fall|trip|wound|injure)\b|(ضربه|حمله|مشت|لگد|هل|کشتی|گلاویز|تاخت|دوید|پرید|جهید|بالا رفت|شنا|شیرجه|جاخالی|غلت|سپر|چاقو|شمشیر|تیر|پرتاب|شکست|خرد کرد|افتاد|سقوط|زخم)/i;
-const PHYSICAL_STAT_PATTERN =
+export const PHYSICAL_STAT_PATTERN =
   /^(might|strength|agility|dexterity|endurance|constitution|athletics|acrobatics|vitality|toughness|نیرو|قدرت|چابکی|استقامت|تن|ورزیدگی)/i;
 // Social styles need an unambiguous violent/athletic verb: "strike a deal"
 // or "block the bill" must not become a stab wound.
 const STRONG_PHYSICAL_ACTION_PATTERN =
   /\b(attack|punch|kick|shove|grapple|wrestle|tackle|climb|jump|leap|vault|swim|dive|dodge|parry|stab|slash|shoot|smash|choke|fall|trip|wound|injure)\b|(حمله|مشت|لگد|هل|کشتی|گلاویز|تاخت|دوید|پرید|جهید|بالا رفت|شنا|شیرجه|جاخالی|غلت|چاقو|شمشیر|تیر|پرتاب|خرد کرد|افتاد|سقوط|زخم)/i;
+
+const HARSH_ENVIRONMENT_PATTERN =
+  /desert|arid|wasteland|badlands|کویر|بیابان|صحرا|شوره‌زار|خشک/i;
+
+/** True when the player is on an active journey through harsh/desert terrain. */
+export function isDesertOrHarshEnvironment(
+  playerState: PlayerState,
+  worldBible?: WorldBible,
+  currentLocationId?: string,
+  activeClock?: TensionClock
+): boolean {
+  if (!playerState.travel) return false;
+  const locId = currentLocationId || playerState.currentLocationId;
+  const loc = worldBible?.locations?.find((l) => l.id === locId);
+  if (loc) {
+    if (loc.category && HARSH_ENVIRONMENT_PATTERN.test(loc.category)) return true;
+    if (loc.region && HARSH_ENVIRONMENT_PATTERN.test(loc.region)) return true;
+    if (loc.atmosphere && HARSH_ENVIRONMENT_PATTERN.test(loc.atmosphere)) return true;
+    if (HARSH_ENVIRONMENT_PATTERN.test(loc.name || '')) return true;
+    if (HARSH_ENVIRONMENT_PATTERN.test(loc.description || '')) return true;
+  }
+  if (activeClock && /آب|water|عطش|thirst/i.test(activeClock.name || '')) {
+    return true;
+  }
+  return false;
+}
 
 /** True when a mixed-success HP penalty can be justified by the action itself. */
 export function isBodilyRiskAction(
@@ -313,7 +343,29 @@ export function resolveActionCheck(
   const currentStatVal = playerState.stats[canonicalStatId] ?? playerState.stats[effectiveStatId];
   const baseStatVal = currentStatVal !== undefined ? currentStatVal : systemBaseValue;
   const effectiveStatVal = baseStatVal + equipmentModifier;
-  const statModifier = getStatModifier(effectiveStatVal, systemBaseValue);
+  let statModifier = getStatModifier(effectiveStatVal, systemBaseValue);
+
+  // Plan 17 (§3.9): Catalog-flagged deterministic condition effects (body zone)
+  const isEffectsActive = isConditionEffectsEnabled();
+  const isPhysicalStat =
+    PHYSICAL_STAT_PATTERN.test(canonicalStatId) ||
+    PHYSICAL_STAT_PATTERN.test(effectiveStatId || '');
+  const isDesertTravel = isDesertOrHarshEnvironment(
+    playerState,
+    options.worldBible,
+    options.currentLocationId
+  );
+  const conditionEffects = isEffectsActive
+    ? computeActiveConditionEffects(playerState.conditions, {
+        isPhysicalStat,
+        isDesertOrHarsh: isDesertTravel,
+      })
+    : { staminaCostMultiplier: 1, statModifierDelta: 0, threatClockExtraTicks: 0 };
+
+  // Apply condition penalty on physical stats (clamped >= 0 per §3.9)
+  if (conditionEffects.statModifierDelta < 0 && statModifier > 0) {
+    statModifier = Math.max(0, statModifier + conditionEffects.statModifierDelta);
+  }
 
   // Calculate skill / ability bonus
   let skillBonus = 0;
@@ -525,11 +577,15 @@ export function resolveActionCheck(
         ? 'موفقیت نسبی: هدف حاصل شد، اما با پیامدی که از خودِ اقدام برمی‌آید — جلب سوءظن، بدهی، خستگی یا از دست رفتن وقت.'
         : 'Mixed success: goal achieved, but with a complication caused by the action itself — suspicion raised, a favor owed, fatigue, or lost time.';
     const hpPenalty = options.riskLevel === 'low' || !bodilyRisk ? 0 : -5;
+    const baseStaminaCost = 10;
+    const staminaCost = bodilyRisk
+      ? Math.round(baseStaminaCost * conditionEffects.staminaCostMultiplier)
+      : baseStaminaCost;
     stateDiff.resourceChanges = {
       ...(stateDiff.resourceChanges || {}),
       ...(hpPenalty < 0 ? { [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) + hpPenalty } : {}),
       ...(staminaKey
-        ? { [staminaKey]: (stateDiff.resourceChanges?.[staminaKey] || 0) - 10 }
+        ? { [staminaKey]: (stateDiff.resourceChanges?.[staminaKey] || 0) - staminaCost }
         : {}),
     };
   } else {
@@ -566,11 +622,17 @@ export function resolveActionCheck(
       ) || ensureClockForLocation(options.activeClocks ?? playerState.activeTensionClocks, location, bible);
 
     if (activeClock) {
-      const { newSegments, isCrisis } = tickTensionClock(activeClock, outcome);
+      const extraTicks = isEffectsActive && isDesertOrHarshEnvironment(playerState, bible, locId, activeClock)
+        ? computeActiveConditionEffects(playerState.conditions, { isDesertOrHarsh: true }).threatClockExtraTicks
+        : 0;
+      const { newSegments: baseSegments, isCrisis: baseCrisis } = tickTensionClock(activeClock, outcome);
+      const maxSegments = Math.max(2, activeClock.maxSegments || 4);
+      const newSegments = Math.min(maxSegments, baseSegments + extraTicks);
+      const isCrisis = baseCrisis || newSegments >= maxSegments;
       clockUpdate = {
         clockId: activeClock.id,
         newSegments,
-        maxSegments: Math.max(2, activeClock.maxSegments || 4),
+        maxSegments,
         isCrisis,
       };
       stateDiff.clockUpdates = [{ id: activeClock.id, delta: newSegments - (activeClock.currentSegments || 0), isCrisis }];
