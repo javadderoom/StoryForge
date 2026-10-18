@@ -284,6 +284,31 @@ export async function GET(req: NextRequest) {
         reconciledPlayerState.conditions = (story as any).manifest?.startingConditions || ['تندرست', 'ناآشنا', 'هوشیار'];
         shouldPersist = true;
       }
+      // Plan 17 (§4.4): prune stale journeys — never resume with travel that
+      // references missing nodes, contradicts the location pointer, or should
+      // already have arrived (arrival is resolved in the action route; this is
+      // the defense-in-depth net for legacy / hand-edited sessions).
+      const persistedTravel = reconciledPlayerState?.travel;
+      if (persistedTravel) {
+        const locations = ((story as any).worldBible?.locations ?? []) as Array<{ id: string }>;
+        const timeline: string[] = [
+          persistedTravel.originLocationId,
+          ...(persistedTravel.waypointIds ?? []),
+          persistedTravel.destinationLocationId,
+        ];
+        const nodesExist = timeline.every((id) => locations.some((l) => l.id === id));
+        const onTimeline = timeline.includes(reconciledPlayerState.currentLocationId);
+        const lastTurnNumber = typeof lastTurn?.turnNumber === 'number' ? lastTurn.turnNumber : 0;
+        const expired = lastTurnNumber >= persistedTravel.departedTurn + persistedTravel.totalTurns;
+        if (!nodesExist || !onTimeline || expired) {
+          console.debug('[Plan17] pruning stale travel on resume', {
+            sessionId: session.sessionId,
+            reason: !nodesExist ? 'missing-nodes' : !onTimeline ? 'off-timeline' : 'expired',
+          });
+          reconciledPlayerState.travel = null;
+          shouldPersist = true;
+        }
+      }
       if (shouldPersist) {
         await SessionRepository.updatePlayerState(session.sessionId, reconciledPlayerState).catch(() => null);
       }

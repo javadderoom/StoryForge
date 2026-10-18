@@ -51,6 +51,23 @@ import {
   applyPartyChange,
 } from './socialEngine';
 import { detectSubZoneChange } from './movementEngine';
+import {
+  detectTravelIntent,
+  detectTravelAbortIntent,
+  detectTravelMode,
+  resolveDestinationName,
+  isDirectlyReachable,
+  routeBetween,
+  planJourney,
+  estimateTravelTurns,
+  startTravel,
+  advanceTravel,
+  cancelTravel,
+  travelProgress,
+  travelTimeline,
+  formatTravelLine,
+  clampJourneyTurns,
+} from './travelEngine';
 import { resolveDefeat } from './defeatEngine';
 import {
   evaluateQuestItemTriggers,
@@ -94,6 +111,23 @@ export class GameEngine {
 
   /** Plan 15 (Pillar 4): deterministic micro-location (sub-zone) writer. */
   public static detectSubZoneChange = detectSubZoneChange;
+
+  /** Plan 17 (§4): deterministic inter-city travel lifecycle. */
+  public static detectTravelIntent = detectTravelIntent;
+  public static detectTravelAbortIntent = detectTravelAbortIntent;
+  public static detectTravelMode = detectTravelMode;
+  public static resolveTravelDestination = resolveDestinationName;
+  public static isDirectlyReachable = isDirectlyReachable;
+  public static routeBetween = routeBetween;
+  public static planJourney = planJourney;
+  public static estimateTravelTurns = estimateTravelTurns;
+  public static startTravel = startTravel;
+  public static advanceTravel = advanceTravel;
+  public static cancelTravel = cancelTravel;
+  public static travelProgress = travelProgress;
+  public static travelTimeline = travelTimeline;
+  public static formatTravelLine = formatTravelLine;
+  public static clampJourneyTurns = clampJourneyTurns;
 
   // Defeat resolution
   public static resolveDefeat = resolveDefeat;

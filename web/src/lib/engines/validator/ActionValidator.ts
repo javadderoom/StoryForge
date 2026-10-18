@@ -1,6 +1,7 @@
 import { PlayerState } from '@/lib/types/gameplay';
 import { WorldBible } from '@/lib/types/world';
 import { RPGSystemSchema } from '@/lib/types/rpg';
+import { detectTravelIntent, isDirectlyReachable } from '@/lib/engines/game/travelEngine';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -197,10 +198,10 @@ export class ActionValidator {
     playerState: PlayerState,
     worldBible: WorldBible
   ): string | null {
-    const travelIntent =
-      /\b(go|travel|head|walk|run|sneak|sail|ride|journey|move|return)\s+(to|toward|towards|into|back to)?\b/.test(lowerAction) ||
-      /برو(یم|ید)?\s+به|سفر\s+(به|کن)|حرکت\s+به/.test(lowerAction);
-    if (!travelIntent) return null;
+    // Plan 17 (§4.3): the travel-intent regex is shared with the travel engine
+    // — single source of truth so the validator can never police a different
+    // vocabulary than the journey planner acts on.
+    if (!detectTravelIntent(lowerAction)) return null;
 
     const current = worldBible.locations.find((l) => l.id === playerState.currentLocationId);
 
@@ -209,18 +210,7 @@ export class ActionValidator {
       if (name.length < 4 || !lowerAction.includes(name) || loc.id === playerState.currentLocationId) {
         continue;
       }
-      const connected =
-        !!current &&
-        ((current.connectedLocationIds || []).includes(loc.id) ||
-          (loc.connectedLocationIds || []).includes(current.id) ||
-          current.parentLocationId === loc.id ||
-          loc.parentLocationId === current.id ||
-          (worldBible.tradeRoutes ?? []).some((r) => {
-            if (r.status === 'blockaded') return false;
-            const stops = [r.originLocationId, ...(r.intermediateLocationIds ?? []), r.destinationLocationId];
-            return stops.includes(current.id) && stops.includes(loc.id);
-          }));
-      if (!connected) {
+      if (!current || !isDirectlyReachable(current.id, loc.id, worldBible)) {
         return `"${loc.name}" is not directly reachable from ${
           current?.name ?? 'your current position'
         }. Travel through connected locations first.`;

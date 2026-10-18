@@ -14,7 +14,7 @@ import { reconcilePlayerResources, resolveHealthKey } from '@/lib/engines/game/r
 import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
 import { calculateActionXp, applyXpGain } from '@/lib/engines/game/progressionEngine';
 import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
-import { pruneInactiveZoneClocks } from '@/lib/engines/game/threatClock';
+import { ensureClockForLocation, pruneInactiveZoneClocks } from '@/lib/engines/game/threatClock';
 import { resolveAccompanyingIds } from '@/lib/engines/narrative/worldContext';
 import { buildNpcIdToName } from '@/lib/engines/narrative/snapPredictor';
 import { cancelSnapPrediction, resolveSnapDecision, scheduleSnapDwell } from '@/lib/play/snapDecisions';
@@ -521,7 +521,87 @@ export async function POST(req: NextRequest) {
         authoredMoveBeat.locationId &&
         authoredMoveBeat.locationId !== playerState.currentLocationId
     );
-    if (!authoredMovesMacroLocation) {
+
+    // 2b¾¾. Plan 17 (§4.4): deterministic inter-city travel writer —
+    // departures, retargeting, and aborts, zero model calls. Runs in the same
+    // slot as the sub-zone writer but one level up: while a journey is active
+    // the scene corridor is the road (the micro-location pointer stays put),
+    // and a fresh departure is the turn's story move (the sub-zone writer is
+    // skipped). Precedence: hazard displacement + authored beats (§3½) +
+    // defeat relocation (§3b) override travel when they fire later this turn.
+    const travelLang: 'fa' | 'en' = isPersianStory ? 'fa' : 'en';
+    const travelIntentActive = GameEngine.detectTravelIntent(playerActionText, isPersianStory);
+    const travelDestination =
+      travelIntentActive && !authoredMovesMacroLocation
+        ? GameEngine.resolveTravelDestination(
+            playerActionText,
+            story.worldBible,
+            playerState.currentLocationId
+          )
+        : null;
+    const activeTravel = playerState.travel ?? null;
+    let travelSkipSubZoneWriter = false;
+
+    if (activeTravel && !authoredMovesMacroLocation) {
+      if (GameEngine.detectTravelAbortIntent(playerActionText, isPersianStory)) {
+        const cancelled = GameEngine.cancelTravel(playerState, story.worldBible, {
+          lang: travelLang,
+        });
+        resolution.stateDiff.travel = null;
+        resolution.consequenceSummary += ` ${cancelled.note}`;
+        travelSkipSubZoneWriter = true;
+      } else if (travelDestination && travelDestination.id !== activeTravel.destinationLocationId) {
+        const plan = GameEngine.planJourney(
+          playerState.currentLocationId,
+          travelDestination.id,
+          story.worldBible,
+          GameEngine.detectTravelMode(playerActionText),
+          { lang: travelLang }
+        );
+        if (plan) {
+          resolution.stateDiff.travel = GameEngine.startTravel(
+            plan,
+            playerState.currentLocationId,
+            turnNumber
+          );
+          resolution.consequenceSummary += ` ${plan.note}`;
+          travelSkipSubZoneWriter = true;
+        }
+      } else {
+        // A road turn: the journey corridor is the scene scope.
+        travelSkipSubZoneWriter = true;
+      }
+    } else if (!activeTravel && travelDestination && !authoredMovesMacroLocation) {
+      const plan = GameEngine.planJourney(
+        playerState.currentLocationId,
+        travelDestination.id,
+        story.worldBible,
+        GameEngine.detectTravelMode(playerActionText),
+        { lang: travelLang }
+      );
+      if (plan) {
+        if (plan.immediateHop) {
+          // One-day hops resolve as immediate moves — existing behavior plus
+          // an explicit note (no travel state is created).
+          resolution.stateDiff.locationChange = plan.destinationLocationId;
+          resolution.stateDiff.travel = null;
+          const hopName = travelDestination.name || plan.destinationLocationId;
+          resolution.consequenceSummary += isPersianStory
+            ? ` سفر یک‌روزه بود؛ مستقیم به «${hopName}» رسیدی.`
+            : ` A one-day hop — you arrive directly at "${hopName}".`;
+        } else {
+          resolution.stateDiff.travel = GameEngine.startTravel(
+            plan,
+            playerState.currentLocationId,
+            turnNumber
+          );
+          resolution.consequenceSummary += ` ${plan.note}`;
+        }
+        travelSkipSubZoneWriter = true;
+      }
+    }
+
+    if (!authoredMovesMacroLocation && !travelSkipSubZoneWriter) {
       const currentLocationForZones =
         story.worldBible.locations?.find((l: any) => l.id === playerState.currentLocationId) ?? null;
       const subZoneChange = GameEngine.detectSubZoneChange(
@@ -613,6 +693,62 @@ export async function POST(req: NextRequest) {
         // Apply-mutation already cleared a stale sub-zone (location change);
         // a fresh location starts micro-location-less.
         resolution.stateDiff.locationChange = authoredMoveTargetId;
+      }
+    }
+
+    // 3¾. Plan 17 (§4.4): journey lifecycle after the deterministic mutation.
+    // Priority guard first: a higher-precedence macro move this turn
+    // (displacement or authored beat) grounds the traveller. Then the
+    // rewind-safe advance: arrival runs BEFORE generation — same slot as
+    // §3½ — so this turn's scene is scoped to the destination and carries the
+    // `travelArrived` flag; intermediate stops move the pointer to the current
+    // node; plain road turns leave everything to the derived timeline.
+    let travelArrived: { locationId: string; name: string } | undefined;
+    if (displacementTarget || authoredMoveTargetId) {
+      if (updatedPlayerState.travel) updatedPlayerState.travel = null;
+    }
+    if (updatedPlayerState.travel) {
+      const advance = GameEngine.advanceTravel(updatedPlayerState, turnNumber, story.worldBible, {
+        lang: travelLang,
+      });
+      if (advance.arrivedAt) {
+        travelArrived = {
+          locationId: advance.arrivedAt,
+          name: advance.arrivedAtName || advance.arrivedAt,
+        };
+        updatedPlayerState.travel = null;
+        if (updatedPlayerState.currentLocationId !== advance.arrivedAt) {
+          updatedPlayerState.currentLocationId = advance.arrivedAt;
+          if (!updatedPlayerState.discoveredLocationIds.includes(advance.arrivedAt)) {
+            updatedPlayerState.discoveredLocationIds.push(advance.arrivedAt);
+          }
+        }
+        updatedPlayerState.currentSubZoneId = undefined;
+        resolution.stateDiff.locationChange = advance.arrivedAt;
+        // Seed the destination's ambient threat clock, same as any entry.
+        const destForClock = story.worldBible.locations.find((l) => l.id === advance.arrivedAt);
+        const seededClock = ensureClockForLocation(
+          updatedPlayerState.activeTensionClocks,
+          destForClock,
+          story.worldBible
+        );
+        if (
+          seededClock &&
+          !(updatedPlayerState.activeTensionClocks ?? []).some((c) => c.id === seededClock.id)
+        ) {
+          if (!updatedPlayerState.activeTensionClocks) updatedPlayerState.activeTensionClocks = [];
+          updatedPlayerState.activeTensionClocks.push(seededClock);
+        }
+        if (advance.note) resolution.consequenceSummary += ` ${advance.note}`;
+      } else if (advance.movedTo) {
+        // Reached an intermediate stop: move the pointer, keep travelling.
+        updatedPlayerState.currentLocationId = advance.movedTo;
+        if (!updatedPlayerState.discoveredLocationIds.includes(advance.movedTo)) {
+          updatedPlayerState.discoveredLocationIds.push(advance.movedTo);
+        }
+        updatedPlayerState.currentSubZoneId = undefined;
+        resolution.stateDiff.locationChange = advance.movedTo;
+        if (advance.note) resolution.consequenceSummary += ` ${advance.note}`;
       }
     }
 
@@ -745,6 +881,9 @@ export async function POST(req: NextRequest) {
         story.rpgSystem
       );
       updatedPlayerState.defeatCount = defeat.defeatCount;
+      // Plan 17 §4.4: defeat relocation beats any journey — the protagonist
+      // wakes at the last safe location, not mid-road.
+      updatedPlayerState.travel = null;
       defeatNarrativeHint = defeat.narrativeHint;
       resolution.consequenceSummary += ` ${defeat.narrativeHint}`;
     }
@@ -1193,6 +1332,9 @@ export async function POST(req: NextRequest) {
           // Plan 13: lets readers shift audio + banners without diffing states.
           locationChanged: !!displacedLocationId,
           displacedLocationId: displacedLocationId || undefined,
+          // Plan 17: the journey resolved into the destination this turn —
+          // clients flip the status art + arrival audio on it.
+          travelArrived: travelArrived || undefined,
           activeTensionClocks: updatedPlayerState.activeTensionClocks ?? [],
           remakeUsed: isRemake,
           remakeCount: isRemake ? 1 : ((lastTurn as any)?.remakeCount ?? 0),
