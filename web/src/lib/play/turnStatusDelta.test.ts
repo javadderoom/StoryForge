@@ -10,6 +10,11 @@ describe('computeTurnStatusDelta — Plan 17 Phase 6 Travel & Vitals Deltas', ()
     maxResources: { hp: 100, stamina: 50 },
     stats: {},
     inventory: [],
+    equipment: {},
+    discoveredLocationIds: [],
+    relationships: {},
+    activeQuestIds: [],
+    completedQuestIds: [],
     conditions: ['تندرست'],
     currentLocationId: 'loc_start',
   };

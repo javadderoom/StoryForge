@@ -82,33 +82,23 @@ export function buildSubQMomentumRequest(
   input: MomentumEvaluationInput,
   modelId = 'subq-snap-preview'
 ): SubQDecisionRequest {
-  const state = [
-    `[STORY] ${input.storyTitle}`,
-    `[LANGUAGE] ${input.language ?? 'en'}`,
-    `[CURRENT TURN RESOLVED OUTCOME] ${input.resolution.outcome}`,
-    `[CURRENT TURN PLAYER ACTION] ${input.playerActionText}`,
-    input.resolution.consequenceSummary
-      ? `[MECHANICAL CONSEQUENCE] ${input.resolution.consequenceSummary}`
-      : '',
-    '',
-    `[RECENTLY COMPLETED ACTIONS IN PRIOR TURNS]`,
-    input.priorActions && input.priorActions.length > 0
-      ? input.priorActions.map((a, i) => `${i + 1}. ${a}`).join('\n')
-      : '(none - first turn)',
-    '',
-    `[PRIOR SCENE CONTEXT / STANDOFF]`,
-    input.priorScenes && input.priorScenes.length > 0
-      ? input.priorScenes.slice(-2).join('\n---\n')
-      : '(none - opening)',
-    '',
-    `[NEW CANDIDATE SCENE PROSE UNDER EVALUATION]`,
-    input.candidateNarrative,
-    '',
-    `[NEW CHOICES OFFERED TO PLAYER]`,
-    (input.candidateChoices || []).map((c, i) => `${i + 1}. ${c.text}`).join('\n'),
-  ]
-    .filter(Boolean)
-    .join('\n');
+  const state = {
+    task: 'evaluate_narrative_momentum',
+    story: {
+      title: input.storyTitle,
+      language: input.language ?? 'en',
+    },
+    resolved_outcome: input.resolution.outcome,
+    player_action: input.playerActionText,
+    mechanical_consequence: input.resolution.consequenceSummary || undefined,
+    prior_actions: input.priorActions && input.priorActions.length > 0 ? input.priorActions : undefined,
+    prior_scenes: input.priorScenes && input.priorScenes.length > 0 ? input.priorScenes.slice(-2) : undefined,
+    candidate_narrative: input.candidateNarrative,
+    candidate_choices: (input.candidateChoices || []).map((c) => ({
+      text: c.text,
+      style: c.style,
+    })),
+  };
 
   return {
     model: modelId,
@@ -117,18 +107,22 @@ export function buildSubQMomentumRequest(
       story_progressed: {
         type: 'noul',
         instructions:
-          "Did the new candidate scene prose advance the physical plot or resolve the bottleneck forward? Answer FALSE if the narrative keeps the characters frozen in the exact same standoff, obstacle, or conversational loop from previous turns without progressing.",
+          'Did the new candidate scene prose advance the physical plot or resolve the bottleneck forward? Answer FALSE if the narrative keeps the characters frozen in the exact same standoff, obstacle, or conversational loop from previous turns without progressing.',
       },
-      stalling_type: {
-        type: 'choice',
+      has_repetitive_standoff: {
+        type: 'noul',
         instructions:
-          'Categorize whether this new turn demonstrates forward momentum or stalls in repetition.',
-        criteria: [
-          'none: The scene advances naturally into a new situation, location, or emerging consequence.',
-          'repetitive_standoff: The scene repeats the exact same guard confrontation, dialogue deadlock, or gate obstacle from prior turns.',
-          'ignored_success: The player scored a success or dramatic victory, but the prose continues acting as if the action had no physical effect and the barrier remains unpassed.',
-          'choice_recycling: The newly offered choices re-attempt or re-offer actions already completed in prior turns.',
-        ],
+          'Does the scene repeat the exact same guard confrontation, dialogue deadlock, or physical gate obstacle from prior turns without moving forward?',
+      },
+      has_ignored_success: {
+        type: 'noul',
+        instructions:
+          'Did the player score a success or dramatic victory, yet the prose acts as if the action had no physical effect and the barrier or obstacle remains unpassed?',
+      },
+      has_choice_recycling: {
+        type: 'noul',
+        instructions:
+          'Do the newly offered choices re-attempt or re-offer actions already completed in prior turns?',
       },
     },
   };
@@ -241,7 +235,20 @@ export async function evaluateNarrativeMomentum(
 
   const ans = response.answers;
   const storyProgressed = extractSubQNoul(ans.story_progressed, true);
-  const stallingType = extractSubQChoice(ans.stalling_type, 'none');
+  const hasIgnoredSuccess = extractSubQNoul(ans.has_ignored_success, false);
+  const hasChoiceRecycling = extractSubQNoul(ans.has_choice_recycling, false);
+  const hasRepetitiveStandoff = extractSubQNoul(ans.has_repetitive_standoff, false);
+
+  let stallingType: StallingType = 'none';
+  if (hasIgnoredSuccess) {
+    stallingType = 'ignored_success';
+  } else if (hasChoiceRecycling) {
+    stallingType = 'choice_recycling';
+  } else if (hasRepetitiveStandoff) {
+    stallingType = 'repetitive_standoff';
+  } else if (ans.stalling_type) {
+    stallingType = extractSubQChoice(ans.stalling_type, 'none');
+  }
 
   const isStalled = !storyProgressed || stallingType !== 'none';
 

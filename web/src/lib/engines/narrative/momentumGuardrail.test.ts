@@ -40,13 +40,18 @@ describe('MomentumGuardrail — SubQ Snap Anti-Stalling & Story Momentum', () =>
     const req = buildSubQMomentumRequest(sampleInput);
 
     assert.equal(req.model, 'subq-snap-preview');
-    assert.ok(typeof req.state === 'string');
-    assert.ok(req.state.includes('خاکستر زروان'));
-    assert.ok(req.state.includes('dramatic_success'));
+    assert.equal(typeof req.state, 'object');
+    const state = req.state as Record<string, any>;
+    assert.equal(state.story.title, 'خاکستر زروان');
+    assert.equal(state.resolved_outcome, 'dramatic_success');
     assert.ok(req.questions.story_progressed);
     assert.equal(req.questions.story_progressed.type, 'noul');
-    assert.ok(req.questions.stalling_type);
-    assert.equal(req.questions.stalling_type.type, 'choice');
+    assert.ok(req.questions.has_ignored_success);
+    assert.equal(req.questions.has_ignored_success.type, 'noul');
+    assert.ok(req.questions.has_choice_recycling);
+    assert.equal(req.questions.has_choice_recycling.type, 'noul');
+    assert.ok(req.questions.has_repetitive_standoff);
+    assert.equal(req.questions.has_repetitive_standoff.type, 'noul');
   });
 
   it('extractSubQNoul parses various primitive and object answers safely', () => {
@@ -109,6 +114,51 @@ describe('MomentumGuardrail — SubQ Snap Anti-Stalling & Story Momentum', () =>
     assert.equal(res.ok, true);
     assert.equal(res.stallingType, 'none');
     assert.equal(res.storyProgressed, true);
+  });
+
+  it('evaluateNarrativeMomentum evaluates clean forward progress via new SubQ noul questions', async () => {
+    const mockAdapter = {
+      isConfigured: () => true,
+      evaluate: async (): Promise<SubQDecisionResponse> => ({
+        success: true,
+        answers: {
+          story_progressed: { noul: true },
+          has_ignored_success: { noul: false },
+          has_choice_recycling: { noul: false },
+          has_repetitive_standoff: { noul: false },
+        },
+        model: 'subq-snap-preview',
+        latencyMs: 110,
+      }),
+    } as unknown as SubQAdapter;
+
+    const res = await evaluateNarrativeMomentum(sampleInput, mockAdapter);
+    assert.equal(res.ok, true);
+    assert.equal(res.stallingType, 'none');
+    assert.equal(res.storyProgressed, true);
+  });
+
+  it('evaluateNarrativeMomentum flags choice_recycling via noul boolean answer', async () => {
+    const mockAdapter = {
+      isConfigured: () => true,
+      evaluate: async (): Promise<SubQDecisionResponse> => ({
+        success: true,
+        answers: {
+          story_progressed: { noul: false },
+          has_ignored_success: { noul: false },
+          has_choice_recycling: { noul: true },
+          has_repetitive_standoff: { noul: false },
+        },
+        model: 'subq-snap-preview',
+        latencyMs: 95,
+      }),
+    } as unknown as SubQAdapter;
+
+    const res = await evaluateNarrativeMomentum(sampleInput, mockAdapter);
+    assert.equal(res.ok, false);
+    assert.equal(res.stallingType, 'choice_recycling');
+    assert.equal(res.storyProgressed, false);
+    assert.ok(res.repairInstruction?.includes('گزینه‌های پیش‌رو باید کاملاً تازه'));
   });
 
   it('evaluateNarrativeMomentum flags ignored_success and provides corrective instruction', async () => {
