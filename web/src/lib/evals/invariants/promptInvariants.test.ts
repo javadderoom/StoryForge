@@ -60,6 +60,27 @@ describe('Tier 1 — PromptAssembler invariants (EN)', () => {
     );
     assert.deepEqual(playerStatIds, { might: 14, cunning: 11 });
   });
+
+  it('exposes the Plan 17 condition-change contract, hides the baseline, guards treated wounds', () => {
+    const { systemPrompt } = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        playerStatus: {
+          stats: {},
+          resources: {},
+          equippedItems: [],
+          conditions: ['تندرست', 'زخمی (پانسمان‌شده)'],
+        },
+      })
+    );
+    assert.ok(systemPrompt.includes('playerConditionChanges'));
+    assert.ok(systemPrompt.includes('[CONDITION CHANGE CONTRACT'));
+    // The prompt-silent baseline tag is never injected as a condition line…
+    assert.ok(!systemPrompt.includes('تندرست'));
+    assert.ok(systemPrompt.includes('زخمی (پانسمان‌شده)'));
+    // …while the treated wound keeps its continuity guard (and no bandage beat).
+    assert.ok(systemPrompt.includes('[TREATED WOUND CONTINUITY]'));
+    assert.ok(!systemPrompt.includes('[CRITICAL EMOTIONAL BEAT]'));
+  });
 });
 
 describe('Tier 1 — PromptAssembler invariants (FA parity)', () => {

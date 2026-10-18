@@ -69,6 +69,28 @@ export interface ActiveTravel {
   caravanNpcIds?: string[];
 }
 
+// Plan 17: the writer's condition-lifecycle contract. Entries mirror the
+// narrative prose one-to-one; the reconciler maps `kind` through the condition
+// catalog and enforces evidence rules before anything touches PlayerState.
+export interface ConditionChangeEntry {
+  /** Writer vocabulary kind (e.g. `wounded`, `bleeding`); mapped via catalog. */
+  kind?: string;
+  /** Narrative severity only, never mechanical: minor | moderate | severe. */
+  severity?: string;
+  /** The prose evidence: what in the story caused the condition. */
+  source?: string;
+  /** For `treat`: how the wound was treated (bandage, splint, healer…). */
+  method?: string;
+  /** For `remove`: why the condition ended (healing, antidote, rest…). */
+  reason?: string;
+}
+
+export interface PlayerConditionChanges {
+  add?: ConditionChangeEntry[];
+  treat?: ConditionChangeEntry[];
+  remove?: ConditionChangeEntry[];
+}
+
 export interface PlayerState {
   characterName?: string;
   archetypeId?: string;

@@ -522,9 +522,9 @@ Optionally fold the travel delta into `TurnStatusDeltaBanner` for turn-to-turn t
 - [x] Extend `applyStateMutation` signature with `options?: { previousState?: PlayerState }` and update all call sites (action route, AOT engine, session route, tests).
 
 ### Phase 1 — Condition catalog & writer contract
-- [ ] `conditionCatalog.ts` + `conditionCatalog.test.ts` (kinds, closures, treated, negation-safe patterns).
-- [ ] PromptAssembler: `playerConditionChanges` in both main schemas + evidence rules copy (EN/FA); treated-aware wound beat; `promptSilent` baseline skip.
-- [ ] GeminiAdapter: `playerConditionChanges` typing + `normalizeConditionChanges`; `narrativeTurn` `SceneAiResponse` mirror.
+- [x] `conditionCatalog.ts` + `conditionCatalog.test.ts` (kinds, closures, treated, negation-safe patterns).
+- [x] PromptAssembler: `playerConditionChanges` in both main schemas + evidence rules copy (EN/FA); treated-aware wound beat; `promptSilent` baseline skip.
+- [x] GeminiAdapter: `playerConditionChanges` typing + `normalizeConditionChanges`; `narrativeTurn` `SceneAiResponse` mirror.
 
 ### Phase 2 — Reconciler & state guards
 - [ ] `conditionReconciler.ts` + exhaustive `conditionReconciler.test.ts` (add/drop/undeclared/treated/healed/negation/custom, FA + EN prose fixtures, closure, baseline).
@@ -657,7 +657,7 @@ Baseline to preserve: `npm test` 1039/1039 green, clean typecheck, Flutter analy
 | Phase | Status | Date | Notes |
 | :--- | :--- | :--- | :--- |
 | Phase 0 — Prerequisites & shared types | ✅ done | 2026-10-18 | `buildPlayLore` now ships `subZones`/`pointsOfInterest`/`parentLocationId`/`region`; `ActiveTravel` + `PlayerState.travel` + `StateMutationDiff.travel` added (TS) and mirrored in Dart with round-trip + derived-progress tests; `applyStateMutation` accepts `options.previousState` (optional, back-compatible — chained call sites pass it in Phase 2); travel application + pool-aware condition guards landed in the engine ahead of schedule. `npx tsc --noEmit` clean; targeted web tests 97/97; `flutter test test/player_state_travel_test.dart` 3/3. |
-| Phase 1 — Condition catalog & writer contract | ⏳ pending | | |
+| Phase 1 — Condition catalog & writer contract | ✅ done | 2026-10-18 | `conditionCatalog.ts` (12 catalog kinds, aliases, closures, treated variants, bilingual prose patterns) + 11 tests; writer schema `playerConditionChanges` in EN/FA prompts with the mandatory evidence contract; treated wound continuity guard (bandaged wounds no longer trigger the bandage beat); `promptSilent` baseline (`تندرست`) excluded from prompt condition lines; `normalizeConditionChanges` adapter guardrail + tests; `SceneAiResponse` mirror. Full `tsc --noEmit` clean; targeted suites 48 + 11 + 15 green. |
 | Phase 2 — Reconciler & state guards | ⏳ pending | | Engine guards partially landed with Phase 0 (pool resolvers, crossing guard, water-clock metadata). Reconciler + route wiring remain. |
 | Phase 3 — Client truth rendering | ⏳ pending | | |
 | Phase 4 — Travel engine & lifecycle | ⏳ pending | | |

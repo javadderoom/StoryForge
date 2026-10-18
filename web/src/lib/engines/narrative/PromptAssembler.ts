@@ -1,4 +1,5 @@
 import { WorkingContextEnvelope } from '@/lib/types/memory';
+import { isTreated, kindForTag, promptVisibleConditions } from '@/lib/engines/game/conditionCatalog';
 
 export interface GenerationPromptPayload {
   systemPrompt: string;
@@ -270,6 +271,16 @@ IMPORTANT — NEVER assign a DC from the wrong band: medium-risk choices live at
       if (/treated|bandaged|healed|dressed|stitched|مداوا|پانسمان|بهبود|بخیه/.test(t)) return false;
       return /injury|wound|bleed|lesion|trauma|lacerat|زخم|جراحت|خونریزی|مجروح/.test(t);
     });
+    // Plan 17: treated wounds never trigger the bandage directive; they get a
+    // continuity guard instead so the dressing is not silently forgotten.
+    const treatedWoundTag = (context.playerStatus?.conditions ?? []).find(
+      (c) => isTreated(c) && kindForTag(c)?.kind === 'wounded'
+    );
+    const treatedWoundBeat = !woundTag && treatedWoundTag
+      ? isEnglish
+        ? `- [TREATED WOUND CONTINUITY]: The wound is bound and no longer bleeding (tag: "${treatedWoundTag}"). Do NOT re-bandage it or treat it as untreated; physical strain still aches and the dressing must be kept in mind during hard movement.`
+        : `- [تداوم زخمِ پانسمان‌شده]: زخم بسته شده و خون‌ریزی ندارد (نشان: «${treatedWoundTag}»). آن را دوباره پانسمان نکن و درمان‌نشده ننویس؛ اما فشار جسمی هنوز می‌سوزاند و در حرکات سنگین باید حواست به پانسمان باشد.`
+      : '';
     const woundBeat = woundTag
       ? isEnglish
         ? `- [CRITICAL EMOTIONAL BEAT]: The protagonist suffered an untreated injury last turn (active wound tag: "${woundTag}"). Present allies must acknowledge this (checking the wound, offering water, or bandaging) before advancing.`
@@ -296,7 +307,7 @@ ${bestiaryGrounding}
   * Asymmetric Combat (e.g. charging a military squad solo): A salvage roll represents miraculous narrow survival (parrying killing blows, scrambling back alive with wounds); a normal roll results in being battered down by numbers, disarmed, and pinned in the mud.
   * Physical Defiance (e.g. jumping vast chasms): Results in plunging down, broken bones, or fatal hazard.
   Never grant superhuman plot armor or treat absurd demands as successful real-world accomplishments.
-- Before returning JSON, check narrative and choices together for action scope, remaining opposition, witness knowledge, and supported premises. Revise contradictions without changing the authoritative game outcome.${woundBeat ? `\n${woundBeat}` : ''}`;
+- Before returning JSON, check narrative and choices together for action scope, remaining opposition, witness knowledge, and supported premises. Revise contradictions without changing the authoritative game outcome.${woundBeat ? `\n${woundBeat}` : treatedWoundBeat ? `\n${treatedWoundBeat}` : ''}`;
 
     const systemPrompt = isEnglish
       ? `[ROLE & PERSONA: LITERARY NOVELIST & RPG NARRATIVE DIRECTOR]
@@ -344,6 +355,12 @@ You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "Visceral, atmospheric next scene prose in English...",
   "encounteredCreatureId": null, // If and ONLY IF an active predator, monster, or wild beast from [BESTIARY & CREATURES] directly engages or is encountered in this turn, provide its ID or exact name; otherwise strictly null (never set for ambient plants, background livestock, or setting descriptions)
+  "playerConditionChanges": {
+    // ONLY conditions ACTUALLY DEPICTED in the narrative above. Empty arrays when nothing changed.
+    "add":    [ { "kind": "wounded", "severity": "moderate", "source": "the shard opened a gash on your left forearm" } ],
+    "treat":  [ { "kind": "wounded", "method": "you tear a strip of cloth and bind the gash" } ],
+    "remove": [ { "kind": "bleeding", "reason": "the pressure stops the bleeding" } ]
+  },
   "choices": [
     { "id": "choice_1", "text": "Carefully inspect the masonry around the threshold for a hidden lever or latch", "style": "inquisitive", "riskLevel": "low" },
     { "id": "choice_2", "text": "Quietly draw the dagger and step behind the granite pillar", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
@@ -352,6 +369,12 @@ You MUST respond with a valid JSON object matching this schema:
     { "category": "character", "importance": 7, "summary": "Key discovery about a character in English..." }
   ]
 }
+[CONDITION CHANGE CONTRACT — MANDATORY]
+- Every entry in playerConditionChanges.add / treat / remove MUST be visible in the narrative you just wrote. If the prose does not depict it, do NOT list it. If the prose depicts a wound, you MUST list it.
+- Bandaging, splinting, poultices, or a healer's care → "treat" (never "remove"). A wound is only "remove"d on genuine healing (magic, medicine, a long convalescent rest) explicitly narrated.
+- "bleeding" may accompany "wounded" when the prose shows active blood loss and is removed (via "treat") once the bleeding is stopped. Never remove "bleeding" without treatment prose.
+- "severity" is narrative only: "minor" | "moderate" | "severe". Never write mechanical numbers, HP values, or dice terms here.
+- Player conditions only — never NPC or party wounds. Leave arrays empty on quiet turns.
 `
       : `[ROLE & PERSONA: LITERARY NOVELIST & RPG NARRATIVE DIRECTOR]
 You are the narrative author for an interactive dark RPG novel titled "${context.storyTitle}".
@@ -404,6 +427,12 @@ You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "متن ادبی و فضاسازی صحنه بعدی...",
   "encounteredCreatureId": null, // فقط و تنها در صورت نبرد یا رویارویی مستقیم با درنده، هیولا یا جانوری فعال در این صحنه، شناسه یا نام دقیق آن را از فهرست موجودات قرار دهید؛ در غیر این صورت حتماً null (هرگز برای گیاهان، دام‌های پس‌زمینه یا توصیفات محیطی مقداردهی نشود)
+  "playerConditionChanges": {
+    // فقط حالت‌هایی که واقعاً در همین متن روایت شده‌اند. اگر چیزی تغییر نکرده، آرایه‌ها خالی بمانند.
+    "add":    [ { "kind": "wounded", "severity": "moderate", "source": "ترکش، شکافی بر ساعد چپت گشود" } ],
+    "treat":  [ { "kind": "wounded", "method": "تکه‌ای پارچه می‌دری و زخم را می‌بندی" } ],
+    "remove": [ { "kind": "bleeding", "reason": "فشار دست، خون‌ریزی را بند آورد" } ]
+  },
   "choices": [
     { "id": "choice_1", "text": "بررسی دقیق نقش‌ونگارهای روی سنگِ درگاه برای یافتن روزنه یا نشانه‌ای پنهان", "style": "inquisitive", "riskLevel": "low" },
     { "id": "choice_2", "text": "کشیدن بی‌صدای خنجر و پناه گرفتن پشت ستون سنگی", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
@@ -411,7 +440,14 @@ You MUST respond with a valid JSON object matching this schema:
   "extractedMemories": [
     { "category": "character", "importance": 7, "summary": "کشف رازی مهم در مورد شخصیت..." }
   ]
-}`;
+}
+[قرارداد تغییر حالت‌های قهرمان — اجباری]
+- هر مورد در playerConditionChanges (افزودن/مداوا/حذف) باید عیناً در همین متن روایت شده باشد. اگر در نثر نیامده، هرگز آن را ننویس. اگر در نثر زخمی رخ داده، حتماً آن را ثبت کن.
+- باندپیچی، آتل، مرهم یا مداوای درمانگر → «treat» (هرگز «remove»). یک زخم تنها با بهبود واقعی و روایت‌شده (جادو، دارو، استراحت طولانی) «remove» می‌شود.
+- «bleeding» فقط وقتی همراه «wounded» می‌آید که نثر خون‌ریزی فعال را نشان دهد و با «treat» (بند آمدن خون) حذف می‌شود. هرگز بدون نثرِ مداوا خون‌ریزی را حذف نکن.
+- «severity» فقط روایی است: minor | moderate | severe. هرگز عدد مکانیکی، مقدار سلامت یا اصطلاح تاس در این بخش نگذار.
+- فقط حالت‌های خودِ قهرمان — هرگز زخم شخصیت‌های دیگر یا یاران. در نوبت‌های آرام آرایه‌ها را خالی بگذار.
+`;
 
     // Build Protagonist Status & Capabilities block
     const playerStats = context.playerStatus?.stats || {};
@@ -478,7 +514,7 @@ You MUST respond with a valid JSON object matching this schema:
             ? `• Background Traits (these ALREADY altered this turn's roll — depict them as real):\n  ${traitsLineEn}`
             : '',
           context.playerStatus?.conditions?.length
-            ? `• Active Character Conditions (MANDATORY sensory reflection in prose & tone): ${context.playerStatus.conditions.join(', ')}`
+            ? `• Active Character Conditions (MANDATORY sensory reflection in prose & tone): ${promptVisibleConditions(context.playerStatus.conditions).join(', ')}`
             : '',
           powerRanksLineEn ? `\n[POWER SCHOOL RANKINGS & MASTERY]\n${powerRanksLineEn}` : '',
           context.playerStatus?.itemInteractionsCatalog ? `\n${context.playerStatus.itemInteractionsCatalog}` : '',
@@ -505,7 +541,7 @@ You MUST respond with a valid JSON object matching this schema:
             ? `• ویژگی‌های پیشینه (همین‌ها بر تاس این نوبت اثر گذاشته‌اند — آن‌ها را واقعی و ملموس روایت کن):\n  ${traitsLineFa}`
             : '',
           context.playerStatus?.conditions?.length
-            ? `• حالت‌ها و وضعیت‌های فعلی کاراکتر (بسیار مهم: حتماً این احوال، تنش و فرسودگی را در نثر، تنفس و توصیف حسی منعکس کن): ${context.playerStatus.conditions.join('، ')}`
+            ? `• حالت‌ها و وضعیت‌های فعلی کاراکتر (بسیار مهم: حتماً این احوال، تنش و فرسودگی را در نثر، تنفس و توصیف حسی منعکس کن): ${promptVisibleConditions(context.playerStatus.conditions).join('، ')}`
             : '',
           powerRanksLineFa ? `\n[مکاتب قدرت و درجات تسلط / POWER SYSTEM RANKINGS]\n${powerRanksLineFa}` : '',
           context.playerStatus?.itemInteractionsCatalog ? `\n${context.playerStatus.itemInteractionsCatalog}` : '',

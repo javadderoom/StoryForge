@@ -9,7 +9,7 @@ import {
   defaultSceneModelCall,
 } from '../engines/narrative/modelCall';
 import { STAT_CANONICAL_ALIASES } from '../engines/world/ActionNormalizer';
-import { ChoiceOption, ActionStyle, RiskLevel } from '../types/gameplay';
+import { ChoiceOption, ActionStyle, RiskLevel, PlayerConditionChanges, ConditionChangeEntry } from '../types/gameplay';
 import { MemoryCategory } from '../types/memory';
 
 export interface ExtractedMemory {
@@ -23,6 +23,12 @@ export interface GeneratedSceneResponse {
   choices: ChoiceOption[];
   extractedMemories: ExtractedMemory[];
   encounteredCreatureId?: string;
+  /**
+   * Plan 17: writer-declared condition lifecycle for THIS scene. Normalized
+   * (trimmed kinds, capped arrays) but not yet evidence-checked — the
+   * condition reconciler is the authority that applies it to PlayerState.
+   */
+  playerConditionChanges?: PlayerConditionChanges;
   /**
    * Plan 08: true when this response came from the offline mock generator
    * (no API key configured, or the API call failed). Mock prose must NEVER be
@@ -288,6 +294,53 @@ export function normalizeExtractedMemories(rawMemories: unknown): ExtractedMemor
   return out;
 }
 
+/**
+ * Plan 17 — deterministic normalization of the writer's condition-lifecycle
+ * channel. Keeps only well-formed entries (non-empty `kind`), caps list sizes,
+ * whitelists narrative severities, and trims evidence strings. The condition
+ * reconciler later cross-checks every entry against the actual prose before
+ * it touches PlayerState.
+ */
+export function normalizeConditionChanges(raw: unknown): PlayerConditionChanges | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const source = raw as Record<string, unknown>;
+
+  const normalizeList = (list: unknown): ConditionChangeEntry[] => {
+    if (!Array.isArray(list)) return [];
+    const out: ConditionChangeEntry[] = [];
+    for (const item of list) {
+      if (!item || typeof item !== 'object') continue;
+      const entry = item as Record<string, unknown>;
+      const kind = typeof entry.kind === 'string' ? entry.kind.trim().slice(0, 60) : '';
+      if (!kind) continue;
+      const severityRaw = typeof entry.severity === 'string' ? entry.severity.trim().toLowerCase() : '';
+      const clean: ConditionChangeEntry = {
+        kind,
+        ...(severityRaw === 'minor' || severityRaw === 'moderate' || severityRaw === 'severe'
+          ? { severity: severityRaw }
+          : {}),
+      };
+      const sourceText = typeof entry.source === 'string' ? entry.source.trim().slice(0, 200) : '';
+      const methodText = typeof entry.method === 'string' ? entry.method.trim().slice(0, 200) : '';
+      const reasonText = typeof entry.reason === 'string' ? entry.reason.trim().slice(0, 200) : '';
+      if (sourceText) clean.source = sourceText;
+      if (methodText) clean.method = methodText;
+      if (reasonText) clean.reason = reasonText;
+      out.push(clean);
+      if (out.length >= 6) break; // a single turn never rewrites the whole body
+    }
+    return out;
+  };
+
+  const changes: PlayerConditionChanges = {
+    add: normalizeList(source.add),
+    treat: normalizeList(source.treat),
+    remove: normalizeList(source.remove),
+  };
+  if (!changes.add!.length && !changes.treat!.length && !changes.remove!.length) return undefined;
+  return changes;
+}
+
 export interface GeminiAdapterOptions {
   /**
    * Plan 14 — injectable model seam. When provided, scene generation sources its
@@ -415,6 +468,7 @@ export class GeminiAdapter {
           typeof parsed.encounteredCreatureId === 'string'
             ? parsed.encounteredCreatureId.trim()
             : undefined,
+        playerConditionChanges: normalizeConditionChanges(parsed.playerConditionChanges),
         isMock: false,
       },
     };

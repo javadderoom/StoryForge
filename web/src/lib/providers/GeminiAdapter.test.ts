@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   normalizeChoices,
   normalizeExtractedMemories,
+  normalizeConditionChanges,
   cleanChoiceText,
   GeminiAdapter,
 } from './GeminiAdapter';
@@ -194,6 +195,44 @@ describe('Plan 08 - AI Output Normalization (choice & memory guardrails)', () =>
         cleanChoiceText('گزینه ۲: پرش از روی شکاف [آزمون چابکی]'),
         'پرش از روی شکاف'
       );
+    });
+  });
+
+  describe('normalizeConditionChanges (Plan 17 writer contract)', () => {
+    it('keeps well-formed entries and trims evidence text', () => {
+      const out = normalizeConditionChanges({
+        add: [{ kind: '  wounded  ', severity: 'Moderate', source: '  the shard opened a gash  ' }],
+        treat: [{ kind: 'wounded', method: 'bound the gash' }],
+        remove: [{ kind: 'bleeding', reason: 'pressure stopped it' }],
+      });
+      assert.ok(out);
+      assert.deepEqual(out!.add, [
+        { kind: 'wounded', severity: 'moderate', source: 'the shard opened a gash' },
+      ]);
+      assert.equal(out!.treat![0].method, 'bound the gash');
+      assert.equal(out!.remove![0].reason, 'pressure stopped it');
+    });
+
+    it('drops entries without a kind, rejects unknown severities, caps lists at 6', () => {
+      const many = Array.from({ length: 9 }, (_, i) => ({ kind: `cond_${i}` }));
+      const out = normalizeConditionChanges({
+        add: [{ severity: 'severe' }, ...many],
+        treat: 'not-an-array',
+        remove: null,
+      });
+      assert.ok(out);
+      assert.equal(out!.add!.length, 6);
+      assert.equal(out!.add![0].kind, 'cond_0');
+      assert.equal(out!.treat!.length, 0);
+      assert.equal(out!.remove!.length, 0);
+    });
+
+    it('returns undefined when nothing meaningful changed or input is malformed', () => {
+      assert.equal(normalizeConditionChanges(undefined), undefined);
+      assert.equal(normalizeConditionChanges(null), undefined);
+      assert.equal(normalizeConditionChanges('wounded'), undefined);
+      assert.equal(normalizeConditionChanges({ add: [], treat: [], remove: [] }), undefined);
+      assert.equal(normalizeConditionChanges({ add: [{ severity: 'minor' }] }), undefined);
     });
   });
 

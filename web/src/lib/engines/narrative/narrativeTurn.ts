@@ -4,7 +4,7 @@ import { buildWorldContextBlocks, resolveAccompanyingIds, formatNpcCombatSummary
 import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
 import { MemoryEngine } from '@/lib/engines/memory/MemoryEngine';
 import { WorkingContextEnvelope, MemoryCategory, MemoryEntry } from '@/lib/types/memory';
-import { PlayerState, CheckResolution } from '@/lib/types/gameplay';
+import { PlayerState, CheckResolution, PlayerConditionChanges } from '@/lib/types/gameplay';
 import { WorldStateLedger } from '@/lib/types/world';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { RawSceneResult } from './modelCall';
@@ -79,6 +79,8 @@ export interface SceneAiResponse {
   choices: any[];
   extractedMemories: any[];
   encounteredCreatureId?: string;
+  /** Plan 17: writer-declared condition lifecycle, normalized (evidence-checked downstream). */
+  playerConditionChanges?: PlayerConditionChanges;
   isMock?: boolean;
 }
 
