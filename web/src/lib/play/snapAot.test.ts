@@ -7,6 +7,8 @@ import {
   preGenerateSnapAotBranch,
   shouldPreGenerateBranch,
   SNAP_AOT_ENABLE_ENV,
+  rejudgeSnapAotBranch,
+  rejudgeSnapAotBranches,
   type SnapAotBranchRow,
   type SnapAotDeps,
 } from './snapAot';
@@ -126,12 +128,17 @@ function makeSubqStub(): SubQAdapter {
 }
 
 async function withTestEnv(run: () => Promise<void>): Promise<void> {
-  const previousSubq = process.env.SUBQ_API_KEY;
-  delete process.env.SUBQ_API_KEY;
+  const env = process.env as Record<string, string | undefined>;
+  const previousSubq = env.SUBQ_API_KEY;
+  const previousNodeEnv = env.NODE_ENV;
+  env.NODE_ENV = 'test';
+  delete env.SUBQ_API_KEY;
   try {
     await run();
   } finally {
-    if (previousSubq !== undefined) process.env.SUBQ_API_KEY = previousSubq;
+    if (previousSubq !== undefined) env.SUBQ_API_KEY = previousSubq;
+    if (previousNodeEnv !== undefined) env.NODE_ENV = previousNodeEnv;
+    else delete env.NODE_ENV;
   }
 }
 
@@ -508,6 +515,163 @@ describe('Plan 15 §2.3 tier 4 — AOT pre-generation orchestration', () => {
       );
 
       assert.equal(result, null);
+    });
+  });
+
+  describe('rejudgeSnapAotBranch & rejudgeSnapAotBranches (§7.6F item 4)', () => {
+    it('re-evaluates an existing generated branch and updates verdict in prisma', async () => {
+      const storedBranch = {
+        id: 'branch_to_rejudge',
+        sessionId: 'sess_1',
+        storyId: 'story_1',
+        turnNumber: 2,
+        choiceText: 'Attack the guard',
+        outcome: 'success',
+        status: 'generated',
+        narrative: 'The blade strikes true and the guard collapses.',
+        choices: [{ id: 'c_after', text: 'Search the body' }],
+        verdict: 'clean',
+        audit: { verdict: 'clean', findings: [], stats: {} },
+      };
+
+      let updatedData: any = null;
+      const mockPrisma = {
+        snapAotBranch: {
+          findUnique: async () => storedBranch,
+          update: async ({ data }: any) => {
+            updatedData = data;
+            return { ...storedBranch, ...data };
+          },
+        },
+      };
+
+      const mockSubQ = {
+        isConfigured: () => true,
+        evaluate: async () => ({
+          success: true,
+          model: 'subq-snap-preview',
+          latencyMs: 150,
+          answers: {
+            state_consistent: true,
+            outcome_consistent: true,
+            coherent: true,
+            in_character: true,
+            choices_follow: true,
+            no_leak: true,
+            no_meta: true,
+          },
+        }),
+      } as unknown as SubQAdapter;
+
+      const mockStory = {
+        id: 'story_1',
+        title: 'Story 1',
+        language: 'en',
+        worldBible: { npcs: [], locations: [] },
+      } as any;
+
+      const mockSession = {
+        turns: [{ turnNumber: 2, narrativeProse: 'The battle begins.' }],
+        playerState: { hp: 10 },
+      } as any;
+
+      const result = await rejudgeSnapAotBranch('branch_to_rejudge', {
+        prisma: mockPrisma as any,
+        subqAdapter: mockSubQ,
+        story: mockStory,
+        session: mockSession,
+      });
+
+      assert.equal(result.ok, true);
+      assert.equal(result.branchId, 'branch_to_rejudge');
+      assert.equal(result.newVerdict, 'clean');
+      assert.equal(result.judgeFindings, 0);
+      assert.ok(updatedData);
+      assert.equal(updatedData.verdict, 'clean');
+    });
+
+    it('returns error when branch is not found or not in generated status', async () => {
+      const mockPrisma = {
+        snapAotBranch: {
+          findUnique: async () => null,
+        },
+      };
+
+      const result = await rejudgeSnapAotBranch('branch_missing', { prisma: mockPrisma as any });
+      assert.equal(result.ok, false);
+      assert.equal(result.error, 'branch_not_found');
+
+      const nonGeneratedPrisma = {
+        snapAotBranch: {
+          findUnique: async () => ({ id: 'b_failed', status: 'failed' }),
+        },
+      };
+      const nonGenResult = await rejudgeSnapAotBranch('b_failed', { prisma: nonGeneratedPrisma as any });
+      assert.equal(nonGenResult.ok, false);
+      assert.equal(nonGenResult.error, 'branch_status_failed');
+    });
+
+    it('rejudgeSnapAotBranches runs batch rejudging over multiple branches', async () => {
+      const branches = [
+        {
+          id: 'b_1',
+          sessionId: 's_1',
+          storyId: 'story_1',
+          turnNumber: 1,
+          status: 'generated',
+          narrative: 'Scene one prose.',
+          choices: [],
+          verdict: 'clean',
+        },
+        {
+          id: 'b_2',
+          sessionId: 's_1',
+          storyId: 'story_1',
+          turnNumber: 2,
+          status: 'generated',
+          narrative: 'Scene two prose.',
+          choices: [],
+          verdict: 'clean',
+        },
+      ];
+
+      const mockPrisma = {
+        snapAotBranch: {
+          findMany: async () => branches,
+          findUnique: async ({ where }: any) => branches.find((b) => b.id === where.id),
+          update: async ({ data }: any) => data,
+        },
+      };
+
+      const mockSubQ = {
+        isConfigured: () => true,
+        evaluate: async () => ({
+          success: true,
+          model: 'subq-snap-preview',
+          latencyMs: 120,
+          answers: {
+            state_consistent: true,
+            outcome_consistent: true,
+            coherent: true,
+            in_character: true,
+            choices_follow: true,
+            no_leak: true,
+            no_meta: true,
+          },
+        }),
+      } as unknown as SubQAdapter;
+
+      const mockStory = { id: 'story_1', title: 'Story', language: 'en', worldBible: {} } as any;
+
+      const results = await rejudgeSnapAotBranches({
+        sessionId: 's_1',
+        prisma: mockPrisma as any,
+        subqAdapter: mockSubQ,
+      });
+
+      assert.equal(results.length, 2);
+      assert.equal(results[0].branchId, 'b_1');
+      assert.equal(results[1].branchId, 'b_2');
     });
   });
 });

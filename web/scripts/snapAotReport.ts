@@ -16,6 +16,8 @@
  *   npm run aot:report -- --session=<sessionId>
  *   npm run aot:report -- --flagged            (warned/rejected branches + top findings)
  *   npm run aot:report -- --branch=<branchId>  (full dump: prose, choices, audit, resolution)
+ *   npm run aot:report -- --rejudge            (batch re-evaluate stored branches with SubQ judge)
+ *   npm run aot:report -- --rejudge --branch=<branchId>
  *   npm run aot:report -- --json
  */
 
@@ -28,6 +30,7 @@ try {
 }
 import { getPrisma } from '@/lib/db/client';
 import type { AotBranchAudit } from '@/lib/engines/narrative/aotBranchAudit';
+import { rejudgeSnapAotBranch, rejudgeSnapAotBranches } from '@/lib/play/snapAot';
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -50,11 +53,70 @@ async function main() {
   const asJson = flag('json');
   const branchId = arg('branch');
   const flagged = flag('flagged');
+  const shouldRejudge = flag('rejudge');
 
   const prisma = getPrisma();
   if (!prisma) {
     console.error(`${RED}ENABLE_DB is not "true" — nothing to analyze.${RESET}`);
     process.exit(1);
+  }
+
+  // Plan 15 §7.6F item 4 — Batch re-judge stored branches using SubQ LLM judge
+  if (shouldRejudge) {
+    console.log(`\n${DIM}Plan 15 §7.6F item 4 — Re-judging stored branches with SubQ Snap Judge...${RESET}`);
+    if (branchId) {
+      const res = await rejudgeSnapAotBranch(branchId, { prisma });
+      if (!res.ok) {
+        console.error(`${RED}Failed to rejudge branch ${branchId}: ${res.error}${RESET}`);
+      } else {
+        const vColor = res.newVerdict === 'rejected' ? RED : res.newVerdict === 'warned' ? YELLOW : GREEN;
+        console.log(
+          `Branch ${res.branchId} (turn ${res.turnNumber}): ` +
+            `verdict ${res.previousVerdict ?? 'none'} -> ${vColor}${res.newVerdict}${RESET} ` +
+            `(${res.judgeLatencyMs ?? 0}ms, ${res.judgeFindings ?? 0} judge findings` +
+            (res.judgeSkipped ? `, skipped: ${res.judgeError}` : '') +
+            `)`
+        );
+      }
+    } else {
+      const results = await rejudgeSnapAotBranches({ sessionId: sessionFilter, limit, prisma });
+      console.log(`Re-judged ${results.length} branches:`);
+      let upgraded = 0;
+      let downgraded = 0;
+      let unchanged = 0;
+      let errors = 0;
+      for (const res of results) {
+        if (!res.ok) {
+          errors += 1;
+          console.log(`  ${RED}error${RESET} branch ${res.branchId}: ${res.error}`);
+          continue;
+        }
+        if (res.previousVerdict !== res.newVerdict) {
+          if (res.newVerdict === 'rejected' || (res.newVerdict === 'warned' && res.previousVerdict === 'clean')) {
+            downgraded += 1;
+          } else {
+            upgraded += 1;
+          }
+        } else {
+          unchanged += 1;
+        }
+        const vColor = res.newVerdict === 'rejected' ? RED : res.newVerdict === 'warned' ? YELLOW : GREEN;
+        console.log(
+          `  branch ${res.branchId} (turn ${res.turnNumber}): ` +
+            `${res.previousVerdict ?? 'none'} -> ${vColor}${res.newVerdict}${RESET} ` +
+            `(${res.judgeLatencyMs ?? 0}ms, ${res.judgeFindings ?? 0} judge findings` +
+            (res.judgeSkipped ? `, skipped: ${res.judgeError}` : '') +
+            `)`
+        );
+      }
+      console.log(
+        `\nSummary: ${results.length} total | ${unchanged} unchanged | ` +
+          `${YELLOW}${downgraded} escalated/downgraded${RESET} | ` +
+          `${GREEN}${upgraded} improved/upgraded${RESET} | ${RED}${errors} errors${RESET}\n`
+      );
+    }
+    await prisma.$disconnect();
+    return;
   }
 
   // Single-branch inspector: full dump (prose, choices, audit, resolution).

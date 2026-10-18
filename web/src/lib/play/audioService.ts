@@ -21,7 +21,7 @@ const SFX_PATHS: Record<SfxType, string> = {
 
 export type AmbientTrack = 'citadelWind' | 'dungeonDrips' | 'cryptDrone' | 'none';
 
-const AMBIENT_PATHS: Record<Exclude<AmbientTrack, 'none'>, string> = {
+export const AMBIENT_PATHS: Record<Exclude<AmbientTrack, 'none'>, string> = {
   citadelWind: '/audio/ambient/ambient_citadel_wind.wav',
   dungeonDrips: '/audio/ambient/ambient_dungeon_drips.wav',
   cryptDrone: '/audio/ambient/ambient_crypt_drone.wav',

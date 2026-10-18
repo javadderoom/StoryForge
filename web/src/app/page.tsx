@@ -52,6 +52,7 @@ import { CharacterConditionChips } from '@/components/play/CharacterConditionChi
 import { TurnStatusDeltaBanner } from '@/components/play/TurnStatusDeltaBanner';
 import { computeTurnStatusDelta, StatusDeltaItem } from '@/lib/play/turnStatusDelta';
 import { preloadD20 } from '@/lib/play/diceAssetCache';
+import { deriveDwellPrefetchAssets, prefetchDwellAssets } from '@/lib/play/assetPrefetch';
 import {
   fetchCatalog,
   startSession,
@@ -270,6 +271,20 @@ export default function Home() {
   useEffect(() => {
     preloadD20().catch(() => {});
   }, []);
+
+  // Plan 15 §2.3 Tier 1: Reader dwell-time asset prefetch (locations, NPCs, audio)
+  useEffect(() => {
+    if (!currentBeat) return;
+    const plan = deriveDwellPrefetchAssets({
+      currentNarrative: currentBeat.narrative,
+      choices: currentBeat.choices,
+      discoveredNpcs: currentBeat.discoveredNpcs,
+      discoveredCreature: currentBeat.discoveredCreature,
+      currentLocationId: playerState?.currentLocationId,
+      lore: lore as any,
+    });
+    prefetchDwellAssets(plan);
+  }, [currentBeat, lore, playerState?.currentLocationId]);
 
   // Plan 13: surface hazard displacement as an animated banner (auto-dismiss).
   const showDisplacementBanner = useCallback((data: any, loreList: { id: string; name: string }[]) => {

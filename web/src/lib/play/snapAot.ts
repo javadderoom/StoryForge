@@ -15,6 +15,15 @@ import type { StoryManifest } from '@/lib/types/story';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { getNarrativeAdapter } from '@/lib/providers/narrativeAdapterFactory';
 import { SubQAdapter } from '@/lib/providers/SubQAdapter';
+import { StoryRepository } from '@/lib/db/repositories/storyRepository';
+import {
+  runAotBranchJudge,
+  mergeAotJudgeIntoAudit,
+  type AotJudgeInput,
+  SNAP_AOT_JUDGE_TIMEOUT_MS,
+} from '@/lib/engines/narrative/aotBranchJudge';
+import type { CheckResolution } from '@/lib/types/gameplay';
+import type { AotBranchAudit } from '@/lib/engines/narrative/aotBranchAudit';
 
 /**
  * Plan 15 §2.3 tier 4 (shadow phase): Snap-gated AOT branch pre-generation
@@ -328,3 +337,208 @@ export async function preGenerateSnapAotBranch(
     console.warn('[snapAot] AOT branch pre-generation failed:', error);
   }
 }
+
+export interface RejudgeBranchResult {
+  ok: boolean;
+  branchId: string;
+  sessionId?: string;
+  turnNumber?: number;
+  previousVerdict?: string | null;
+  newVerdict?: string;
+  judgeSkipped?: boolean;
+  judgeFindings?: number;
+  judgeLatencyMs?: number;
+  judgeError?: string;
+  error?: string;
+}
+
+/**
+ * Re-evaluates an existing stored branch using the SubQ LLM judge (§7.6F item 4),
+ * merges the findings into its audit, and updates its verdict and audit in the database.
+ */
+export async function rejudgeSnapAotBranch(
+  branchId: string,
+  options?: {
+    prisma?: ReturnType<typeof getPrisma>;
+    subqAdapter?: SubQAdapter;
+    timeoutMs?: number;
+    story?: StoryManifest | null;
+    session?: AotLoadedSession | null;
+  }
+): Promise<RejudgeBranchResult> {
+  const prisma = options?.prisma !== undefined ? options.prisma : getPrisma();
+  if (!prisma) {
+    return { ok: false, branchId, error: 'database_unavailable' };
+  }
+
+  const branch = await prisma.snapAotBranch.findUnique({ where: { id: branchId } });
+  if (!branch) {
+    return { ok: false, branchId, error: 'branch_not_found' };
+  }
+
+  if (branch.status !== 'generated' || !branch.narrative?.trim()) {
+    return {
+      ok: false,
+      branchId,
+      sessionId: branch.sessionId,
+      turnNumber: branch.turnNumber,
+      error: `branch_status_${branch.status}`,
+    };
+  }
+
+  let story: StoryManifest | null | undefined = options?.story;
+  if (!story) {
+    story = (await StoryRepository.getStoryById(branch.storyId)) as unknown as StoryManifest | null;
+  }
+  if (!story) {
+    return {
+      ok: false,
+      branchId,
+      sessionId: branch.sessionId,
+      turnNumber: branch.turnNumber,
+      error: 'story_not_found',
+    };
+  }
+
+  let session: AotLoadedSession | null | undefined = options?.session;
+  if (!session) {
+    session = (await SessionRepository.getSessionForUser(branch.sessionId, null)) as AotLoadedSession | null;
+  }
+
+  const turnOnScreen = (session?.turns ?? []).find((t) => t.turnNumber === branch.turnNumber);
+  const currentScene = turnOnScreen?.narrativeProse;
+
+  const resolution: CheckResolution = (branch.resolution as CheckResolution | null) ?? {
+    actionDescription: branch.choiceText || '',
+    statModifier: 0,
+    diceRoll: branch.diceRoll ?? 10,
+    diceType: 'd20',
+    environmentalModifier: 0,
+    totalScore: branch.diceRoll ?? 10,
+    difficultyClass: 10,
+    outcome: (branch.outcome as any) || 'success',
+    consequenceSummary: '',
+    stateDiff: {},
+  };
+
+  const playerState: PlayerState = (session?.playerState as PlayerState | undefined) ?? {
+    stats: {},
+    resources: {},
+    inventory: [],
+    equipment: {},
+    discoveredLocationIds: [],
+    relationships: {},
+    activeQuestIds: [],
+    completedQuestIds: [],
+    currentLocationId: '',
+  };
+
+  const ledger =
+    (session?.sagaLedger as WorldStateLedger | undefined) ??
+    (story.saga?.ledger as WorldStateLedger | undefined) ??
+    null;
+  const choices = (branch.choices as ChoiceOption[] | null) ?? [];
+
+  const judgeInput: AotJudgeInput = {
+    storyTitle: story.title || '',
+    language: story.language,
+    currentScene,
+    playerActionText: branch.choiceText || '',
+    resolution,
+    isDiceless: Boolean(branch.isDiceless),
+    playerState,
+    worldBible: story.worldBible,
+    storyNpcOverrides: story.storyNpcOverrides,
+    ledger,
+    narrative: branch.narrative,
+    choices,
+  };
+
+  const judgeResult = await runAotBranchJudge(judgeInput, {
+    adapter: options?.subqAdapter,
+    timeoutMs: options?.timeoutMs ?? SNAP_AOT_JUDGE_TIMEOUT_MS,
+  });
+
+  const existingAudit = branch.audit as unknown as AotBranchAudit | null;
+  const baseStats = {
+    narrativeChars: existingAudit?.stats?.narrativeChars ?? branch.narrative?.length ?? 0,
+    choiceCount: existingAudit?.stats?.choiceCount ?? choices.length,
+    choicesDroppedBySanitizer: existingAudit?.stats?.choicesDroppedBySanitizer ?? 0,
+    firstPassErrors: existingAudit?.stats?.firstPassErrors ?? 0,
+    firstPassWarnings: existingAudit?.stats?.firstPassWarnings ?? 0,
+    repairAttempts: existingAudit?.stats?.repairAttempts ?? 0,
+    proseRepaired: existingAudit?.stats?.proseRepaired ?? false,
+    leftoverFindings: existingAudit?.stats?.leftoverFindings ?? 0,
+    ...existingAudit?.stats,
+  };
+
+  // Strip previous judge findings so fresh judgment does not pile up duplicates
+  const strippedFindings = (existingAudit?.findings || []).filter((f) => f.source !== 'judge');
+  const baseAudit: AotBranchAudit = {
+    verdict: existingAudit?.verdict ?? ((branch.verdict as any) || 'clean'),
+    findings: strippedFindings,
+    stats: baseStats,
+  };
+
+  const updatedAudit = mergeAotJudgeIntoAudit(baseAudit, judgeResult);
+
+  await prisma.snapAotBranch.update({
+    where: { id: branch.id },
+    data: {
+      verdict: updatedAudit.verdict,
+      audit: asJson(updatedAudit),
+    },
+  });
+
+  return {
+    ok: true,
+    branchId: branch.id,
+    sessionId: branch.sessionId,
+    turnNumber: branch.turnNumber,
+    previousVerdict: branch.verdict,
+    newVerdict: updatedAudit.verdict,
+    judgeSkipped: judgeResult.stats.judgeSkipped ?? false,
+    judgeFindings: judgeResult.findings.length,
+    judgeLatencyMs: judgeResult.stats.judgeLatencyMs,
+    judgeError: judgeResult.stats.judgeError,
+  };
+}
+
+/**
+ * Batch re-judges stored branches matching the optional session filter up to the limit.
+ */
+export async function rejudgeSnapAotBranches(options?: {
+  sessionId?: string;
+  limit?: number;
+  prisma?: ReturnType<typeof getPrisma>;
+  subqAdapter?: SubQAdapter;
+  timeoutMs?: number;
+}): Promise<RejudgeBranchResult[]> {
+  const prisma = options?.prisma !== undefined ? options.prisma : getPrisma();
+  if (!prisma) return [];
+
+  const limit = options?.limit ?? 50;
+  const where = {
+    status: 'generated',
+    ...(options?.sessionId ? { sessionId: options.sessionId } : {}),
+  };
+
+  const branches = await prisma.snapAotBranch.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  });
+
+  const results: RejudgeBranchResult[] = [];
+  for (const branch of branches) {
+    const res = await rejudgeSnapAotBranch(branch.id, {
+      prisma,
+      subqAdapter: options?.subqAdapter,
+      timeoutMs: options?.timeoutMs,
+    });
+    results.push(res);
+  }
+
+  return results;
+}
+

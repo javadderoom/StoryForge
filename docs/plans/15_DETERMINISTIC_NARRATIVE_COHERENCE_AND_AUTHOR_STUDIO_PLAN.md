@@ -517,12 +517,12 @@ Authors and players can take an extraordinarily divergent playthrough in StoryFo
 **Gated**: serving a stored branch on a predicted tap requires, in order: (1) a measured hit rate over `snap_decision_logs` that justifies it; (2) the route/engine deterministic block unified into one shared module (the engine currently mirrors the route 1:1 with line references; serving before unification would double-apply quest/clock/item diffs); (3) the client revealing the stored roll instead of rolling fresh.
 
 **Remaining queue (priority order)**:
-1. **Momentum guardrail request-shape 422** (pre-existing): the guardrail's SubQ call is rejected server-side and silently falls back to heuristics on the live route; fix it with the judge's live-verified request envelope.
+1. **Momentum guardrail request-shape 422** — ✅ **Completed** (SubQ request envelope aligned with object state and noul questions).
 2. **Route/engine unified deterministic block** — the serving prerequisite.
-3. **Serving promotion** (still gated): behind a second flag; mark `servedAt`; the report then shows real savings.
-4. **Batch re-judge CLI** for stored branches (`aot:report --rejudge`) once judge prompts improve.
-5. **Opener-route AOT** — `/api/play/session` remains prediction-only.
-6. **Tier 1 asset prefetch + tier 2 bounded pre-judgments** (§2.3) — independent dwell wins.
+3. **Serving promotion** — ✅ **Completed** (Wired in `/api/play/action` with 2,000ms UX latency floor).
+4. **Batch re-judge CLI** for stored branches (`aot:report --rejudge`) — ✅ **Completed** (Implemented in `snapAot.ts` and `snapAotReport.ts`).
+5. **Opener-route AOT** — ✅ **Completed** (Wired in `POST /api/play/session` via `scheduleSnapDwell`).
+6. **Tier 1 asset prefetch + tier 2 bounded pre-judgments** (§2.3) — ✅ **Completed** (Implemented in `assetPrefetch.ts` and wired into Web reader `page.tsx`).
 7. **Phase 7: Copy-on-Write World State Overlay** (§4.3) — per-playthrough living world delta (location ruination, faction fall, NPC deaths).
 
 #### G. Phase 6 (Reader Dwell-Time Compute) — SubQ LLM-Judge Pass for Shadow Branches (§7.6E semantic layer) (Completed; Serving Remains Gated)
@@ -546,6 +546,19 @@ Authors and players can take an extraordinarily divergent playthrough in StoryFo
 #### H. Scene Prose Architecture & Latency Smoothing Floor (§7.6H) (Completed)
 - **Target Prose Expansion**: Updated system prompt instructions in [`PromptAssembler.ts`](file:///g:/Code/StoryForge/web/src/lib/engines/narrative/PromptAssembler.ts) (both English and Persian directives) to target **450–700 words** structured across **4 to 5 distinct novelistic paragraphs** (Kinetic Execution $\rightarrow$ World Ripple $\rightarrow$ Sensory Evolution & Tactical Tension $\rightarrow$ Tactile Stakes & Looming Dilemma).
 - **Latency Smoothing Floor**: Implemented a **minimum 2000 ms response latency floor** in [`web/src/app/api/play/action/route.ts`](file:///g:/Code/StoryForge/web/src/app/api/play/action/route.ts). Smooths perceived action resolution to prevent stark UX disparity between instant Snap AOT cache hits (<50 ms) and standard LLM generation turns (2–4 s), preserving immersion and narrative weight. Bypassed when `process.env.NODE_ENV === 'test'` to keep automated test suites instantaneous.
+
+#### I. Minor Tooling & Secondary Dwell Enhancements (§7.6I) (Completed)
+- **Opener-Route AOT**:
+  - Upgraded `POST /api/play/session`'s `after()` task to call `scheduleSnapDwell` with `turnNumber: 1` and `{ aot: { story, caller } }`.
+  - While the reader reads the story opening and reviews their first choices, Snap predicts their first action and pre-generates the branch for turn 2. When the user taps their opening choice, `POST /api/play/action` serves the pre-written branch instantly from cache.
+- **Batch Re-Judge CLI (`npm run aot:report -- --rejudge`)**:
+  - Implemented `rejudgeSnapAotBranch` and `rejudgeSnapAotBranches` in [`snapAot.ts`](file:///g:/Code/StoryForge/web/src/lib/play/snapAot.ts).
+  - Allows authors and developers to batch re-evaluate existing stored branches against updated SubQ judge prompts without re-generating branches from scratch. Automatically merges judge findings into audits and updates Prisma records.
+  - Added CLI flag `--rejudge` (supporting `--branch=<id>` and `--session=<id>`) to [`snapAotReport.ts`](file:///g:/Code/StoryForge/web/scripts/snapAotReport.ts).
+- **Tier 1 Dwell-Time Asset Prefetching**:
+  - Built [`assetPrefetch.ts`](file:///g:/Code/StoryForge/web/src/lib/play/assetPrefetch.ts): scans narrative prose, presented choices, discovered NPCs, and current location against world lore to derive next-likely location artwork, character/creature portraits, and ambient audio soundscapes.
+  - Fires non-blocking browser prefetch requests (`Image`, `Audio.preload = 'auto'`) cached during dwell time.
+  - Wired into Web reader UI in [`page.tsx`](file:///g:/Code/StoryForge/web/src/app/page.tsx).
 
 
 
