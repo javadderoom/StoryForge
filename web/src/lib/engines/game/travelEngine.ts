@@ -20,7 +20,7 @@
 // the validator would reject.
 // ---------------------------------------------------------------------------
 
-import { WorldBible, WorldLocation, WorldTradeRoute } from '@/lib/types/world';
+import { WorldBible, WorldLocation, WorldTradeRoute, getLocationAncestry } from '@/lib/types/world';
 import { ActiveTravel, TravelMode } from '@/lib/types/gameplay';
 import {
   calculateCaravanTravelDays,
@@ -33,10 +33,11 @@ import {
 
 /** EN travel-intent regex — extracted verbatim from ActionValidator.checkMovementPlausibility. */
 export const TRAVEL_INTENT_EN =
-  /\b(go|travel|head|walk|run|sneak|sail|ride|journey|move|return)\s+(to|toward|towards|into|back to)?\b/;
+  /\b(go|travel|head|walk|run|sneak|sail|ride|journey|move|return|march|depart|set off|push on|ride on)\s+(to|toward|towards|into|back to)?\b/i;
 
 /** FA travel-intent regex — extracted verbatim from ActionValidator.checkMovementPlausibility. */
-export const TRAVEL_INTENT_FA = /برو(یم|ید)?\s+به|سفر\s+(به|کن)|حرکت\s+به/;
+export const TRAVEL_INTENT_FA =
+  /برو(یم|ید)?\s+(به|سوی|سمت)|سفر\s+(به|کن)|حرکت\s+(به|سوی|سمت)|(به\s*(سوی|سمت)|عازم|راهی|پیش\s*راندن.*به\s*(سوی|سمت)|رسیدن\s*به|رهسپار)/;
 
 /**
  * Shared travel-intent detector. Language-agnostic on purpose: both regexes
@@ -463,6 +464,27 @@ export function advanceTravel(
       movedToName: name,
       note: lang === 'fa' ? `کاروان به «${name}» رسید.` : `The caravan reached "${name}".`,
     };
+  }
+
+  // If we are on the road (not yet arrived) and player is still located at a sub-settlement origin,
+  // transition their location pointer to the parent region/wilderness so they are technically in the open road.
+  if (progress.legsElapsed > 0 && playerState.currentLocationId === travel.originLocationId) {
+    const originLoc = (wb.locations ?? []).find((l) => l.id === travel.originLocationId);
+    if (originLoc?.parentLocationId) {
+      const parentLoc = (wb.locations ?? []).find((l) => l.id === originLoc.parentLocationId);
+      if (parentLoc && parentLoc.id !== travel.destinationLocationId) {
+        const parentName = locName(wb, parentLoc.id);
+        return {
+          travel,
+          movedTo: parentLoc.id,
+          movedToName: parentName,
+          note:
+            lang === 'fa'
+              ? `کاروان از «${locName(wb, travel.originLocationId)}» خارج شد و وارد «${parentName}» گردید.`
+              : `The caravan departed "${locName(wb, travel.originLocationId)}" into "${parentName}".`,
+        };
+      }
+    }
   }
 
   // A road turn at the current stop: the journey continues untouched.

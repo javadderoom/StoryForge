@@ -369,6 +369,20 @@ describe('Plan 17 travel engine — per-turn lifecycle', () => {
     assert.deepEqual(out.travel, broken);
   });
 
+  it('moves player into parent region when departing a child settlement on the road', () => {
+    const childTrip: ActiveTravel = {
+      originLocationId: 'child_h', // child of city_a
+      destinationLocationId: 'city_c',
+      waypointIds: [],
+      mode: 'foot',
+      departedTurn: 5,
+      totalTurns: 3,
+    };
+    const out = advanceTravel({ travel: childTrip, currentLocationId: 'child_h' }, 6, makeWb(), { lang: 'en' });
+    assert.equal(out.movedTo, 'city_a');
+    assert.match(out.note ?? '', /departed "Hidden Vale" into "Ashen Gate"/);
+  });
+
   it('cancels a journey at the current stop (abort precedence)', () => {
     const out = cancelTravel({ travel: trip, currentLocationId: 'way_w1' }, makeWb(), { lang: 'fa' });
     assert.equal(out.travel, null);
