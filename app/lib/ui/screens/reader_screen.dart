@@ -159,6 +159,84 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
   }
 
+  PopupMenuItem<String> _buildTierMenuItem(
+    String value,
+    String labelFa,
+    String labelEn,
+    String multiplier,
+    int creditCost,
+    bool isPersian,
+    String currentTier,
+  ) {
+    final selected = value == currentTier;
+    final accent = value == 'advance'
+        ? const Color(0xFFF59E0B)
+        : value == 'plus'
+            ? const Color(0xFF818CF8)
+            : Colors.white70;
+    final icon = value == 'advance'
+        ? Icons.auto_awesome_rounded
+        : value == 'plus'
+            ? Icons.auto_awesome_outlined
+            : Icons.circle_outlined;
+    return PopupMenuItem<String>(
+      value: value,
+      height: 52,
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      isPersian ? labelFa : labelEn,
+                      style: GoogleFonts.vazirmatn(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          multiplier,
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                            color: accent,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  isPersian
+                      ? '$creditCost اعتبار برای هر صحنه'
+                      : '$creditCost credit${creditCost == 1 ? '' : 's'} per scene',
+                  style: GoogleFonts.vazirmatn(fontSize: 10, color: Colors.white54),
+                ),
+              ],
+            ),
+          ),
+          if (selected) Icon(Icons.check_circle_rounded, size: 16, color: accent),
+        ],
+      ),
+    );
+  }
+
   Widget _buildUpdateNoticeBanner(
     BuildContext context,
     bool isPersian,
@@ -532,70 +610,97 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             ),
           ),
           actions: [
-            // Audio Mute/Unmute Quick Action (Compact 34x34)
-            Consumer(
-              builder: (context, ref, _) {
-                final audioState = ref.watch(audioProvider);
-                final isMuted = audioState.isAmbientMuted;
-                return IconButton(
-                  icon: Icon(
-                    isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    color: isMuted ? Colors.white38 : theme.primaryAccent,
-                    size: 19,
+            // AI Narrative Engine Tier Selector (Compact)
+            PopupMenuButton<String>(
+              tooltip: isPersian ? 'تغییر موتور روایت' : 'Change writer tier',
+              onSelected: (tier) async {
+                ref.read(audioProvider.notifier).playSfx(SfxType.buttonClick);
+                await ref.read(gameSessionProvider.notifier).setEngineTier(tier);
+                if (!context.mounted) return;
+                final label = tier == 'advance'
+                    ? (isPersian ? 'پیشرفته 5x' : 'Advance 5x')
+                    : tier == 'plus'
+                        ? (isPersian ? 'پلاس 2x' : 'Plus 2x')
+                        : (isPersian ? 'معمولی 1x' : 'Normal 1x');
+                final cost = tier == 'advance' ? 5 : tier == 'plus' ? 2 : 1;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    duration: const Duration(milliseconds: 1800),
+                    backgroundColor: const Color(0xFF171923),
+                    content: Text(
+                      isPersian
+                          ? 'موتور روایت به «$label» تغییر کرد — هر صحنه $cost اعتبار.'
+                          : 'Writer tier set to $label — $cost credit${cost == 1 ? '' : 's'} per scene.',
+                      style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white),
+                    ),
                   ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(width: 34, height: 34),
-                  tooltip: isPersian ? 'صدا و موسیقی اتمسفر' : 'Audio & Soundscapes',
-                  onPressed: () {
-                    ref.read(audioProvider.notifier).toggleAmbientMute();
-                  },
                 );
               },
-            ),
-
-            // Atmosphere, Audio & Writer Engine Settings
-            IconButton(
-              icon: const Icon(Icons.tune_rounded, color: Colors.white70, size: 19),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 34, height: 34),
-              tooltip: isPersian ? 'تنظیمات روایی، صدا و ظاهر' : 'Atmosphere, Audio & Settings',
-              onPressed: () {
-                ReaderSettingsSheet.show(
-                  context,
-                  currentRealm: theme.preset,
-                  fontSize: _fontSize,
-                  lineHeight: _lineHeight,
-                  enableParticles: _enableParticles,
-                  currentEngineTier: session.engineTier,
-                  isPersian: isPersian,
-                  onRealmChanged: (preset) => setState(() => _customRealmPreset = preset),
-                  onFontSizeChanged: (s) => setState(() => _fontSize = s),
-                  onLineHeightChanged: (lh) => setState(() => _lineHeight = lh),
-                  onParticlesToggled: (p) => setState(() => _enableParticles = p),
-                  onEngineTierChanged: (tier) async {
-                    await ref.read(gameSessionProvider.notifier).setEngineTier(tier);
-                    if (!context.mounted) return;
-                    final label = tier == 'advance'
-                        ? (isPersian ? 'پیشرفته 5x' : 'Advance 5x')
-                        : tier == 'plus'
-                            ? (isPersian ? 'پلاس 2x' : 'Plus 2x')
-                            : (isPersian ? 'معمولی 1x' : 'Normal 1x');
-                    final cost = tier == 'advance' ? 5 : tier == 'plus' ? 2 : 1;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        duration: const Duration(milliseconds: 1800),
-                        backgroundColor: const Color(0xFF171923),
-                        content: Text(
-                          isPersian
-                              ? 'موتور روایت به «$label» تغییر کرد — هر صحنه $cost اعتبار.'
-                              : 'Writer tier set to $label — $cost credit${cost == 1 ? '' : 's'} per scene.',
-                          style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white),
+              color: const Color(0xFF171923),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: const BorderSide(color: Color(0xFF27272A)),
+              ),
+              itemBuilder: (context) => [
+                _buildTierMenuItem('advance', 'پیشرفته', 'Advance', '5x', 5, isPersian, session.engineTier),
+                _buildTierMenuItem('plus', 'پلاس', 'Plus', '2x', 2, isPersian, session.engineTier),
+                _buildTierMenuItem('normal', 'معمولی', 'Normal', '1x', 1, isPersian, session.engineTier),
+              ],
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: BoxDecoration(
+                  color: session.engineTier == 'advance'
+                      ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
+                      : session.engineTier == 'plus'
+                          ? const Color(0xFF6366F1).withValues(alpha: 0.2)
+                          : Colors.white.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: session.engineTier == 'advance'
+                        ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
+                        : session.engineTier == 'plus'
+                            ? const Color(0xFF818CF8).withValues(alpha: 0.5)
+                            : Colors.white24,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.auto_awesome_rounded,
+                      color: session.engineTier == 'advance'
+                          ? const Color(0xFFF59E0B)
+                          : session.engineTier == 'plus'
+                              ? const Color(0xFFA5B4FC)
+                              : Colors.white70,
+                      size: 12,
+                    ),
+                    const SizedBox(width: 3),
+                    Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: Text(
+                        session.engineTier == 'advance'
+                            ? (isPersian ? 'پیشرفته 5x' : 'Advance 5x')
+                            : session.engineTier == 'plus'
+                                ? (isPersian ? 'پلاس 2x' : 'Plus 2x')
+                                : (isPersian ? 'معمولی 1x' : 'Normal 1x'),
+                        style: GoogleFonts.vazirmatn(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.bold,
+                          color: session.engineTier == 'advance'
+                              ? const Color(0xFFFDE68A)
+                              : session.engineTier == 'plus'
+                                  ? const Color(0xFFE0E7FF)
+                                  : Colors.white70,
                         ),
                       ),
-                    );
-                  },
-                );
-              },
+                    ),
+                    const SizedBox(width: 1),
+                    const Icon(Icons.arrow_drop_down_rounded, color: Colors.white54, size: 14),
+                  ],
+                ),
+              ),
             ),
 
             // Credit Balance Pill & Shop Trigger
@@ -636,83 +741,73 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               },
             ),
 
-            // Player Level Pill & Level-Up Button
-            Consumer(
-              builder: (context, ref, child) {
-                final player = ref.watch(gameSessionProvider.select((s) => s.playerState));
-                if (player == null) return const SizedBox.shrink();
-                final unspent = player.unspentStatPoints;
-
-                return GestureDetector(
-                  onTap: () {
-                    if (unspent > 0) {
-                      LevelUpDialog.show(context, playerState: player, isPersian: isPersian);
-                    } else {
-                      _scaffoldKey.currentState?.openEndDrawer();
-                    }
+            // Atmosphere, Typography & Audio Settings
+            IconButton(
+              icon: const Icon(Icons.tune_rounded, color: Colors.white70, size: 19),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+              tooltip: isPersian ? 'تنظیمات روایی، صدا و ظاهر' : 'Atmosphere, Audio & Settings',
+              onPressed: () {
+                ReaderSettingsSheet.show(
+                  context,
+                  currentRealm: theme.preset,
+                  fontSize: _fontSize,
+                  lineHeight: _lineHeight,
+                  enableParticles: _enableParticles,
+                  currentEngineTier: session.engineTier,
+                  isPersian: isPersian,
+                  onRealmChanged: (preset) => setState(() => _customRealmPreset = preset),
+                  onFontSizeChanged: (s) => setState(() => _fontSize = s),
+                  onLineHeightChanged: (lh) => setState(() => _lineHeight = lh),
+                  onParticlesToggled: (p) => setState(() => _enableParticles = p),
+                  onEngineTierChanged: (tier) async {
+                    await ref.read(gameSessionProvider.notifier).setEngineTier(tier);
                   },
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: unspent > 0
-                          ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
-                          : const Color(0xFF10B981).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: unspent > 0
-                            ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
-                            : const Color(0xFF10B981).withValues(alpha: 0.35),
-                      ),
+                );
+              },
+            ),
+
+            // Single Unified Compendium (Character, Inventory, Lore & Codex)
+            Consumer(
+              builder: (context, ref, _) {
+                final unspent = ref.watch(gameSessionProvider.select((s) => s.playerState?.unspentStatPoints ?? 0));
+                return Stack(
+                  alignment: Alignment.topRight,
+                  children: [
+                    RealmRelicBadge(
+                      theme: theme,
+                      onTap: () {
+                        ref.read(audioProvider.notifier).playSfx(SfxType.pageTurn);
+                        CompendiumScreen.open(context);
+                      },
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          unspent > 0 ? Icons.auto_awesome_rounded : Icons.shield_rounded,
-                          color: unspent > 0 ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
-                          size: 12,
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          isPersian ? 'سطح ${toPersianDigits(player.level)}' : 'Lvl ${player.level}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: unspent > 0 ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
-                          ),
-                        ),
-                        if (unspent > 0) ...[
-                          const SizedBox(width: 3),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                    if (unspent > 0)
+                      Positioned(
+                        top: 6,
+                        right: 4,
+                        child: IgnorePointer(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF59E0B),
-                              borderRadius: BorderRadius.circular(5),
+                              borderRadius: BorderRadius.circular(6),
+                              boxShadow: const [
+                                BoxShadow(color: Colors.black54, blurRadius: 4),
+                              ],
                             ),
                             child: Text(
                               toPersianDigits(unspent),
                               style: const TextStyle(
-                                fontSize: 9,
+                                fontSize: 8.5,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black,
                               ),
                             ),
                           ),
-                        ],
-                      ],
-                    ),
-                  ),
+                        ),
+                      ),
+                  ],
                 );
-              },
-            ),
-
-            // 3D Animated Realm Relic Badge (Tapping opens Full Compendium)
-            RealmRelicBadge(
-              theme: theme,
-              onTap: () {
-                ref.read(audioProvider.notifier).playSfx(SfxType.pageTurn);
-                CompendiumScreen.open(context);
               },
             ),
             const SizedBox(width: 4),
