@@ -8,7 +8,8 @@ enum SfxType {
   diceSuccess('assets/audio/sfx/dice_settle_success.wav'),
   diceFail('assets/audio/sfx/dice_settle_fail.wav'),
   potionDrink('assets/audio/sfx/potion_drink.wav'),
-  equipGear('assets/audio/sfx/equip_gear.wav');
+  equipGear('assets/audio/sfx/equip_gear.wav'),
+  caravanBell('assets/audio/sfx/caravan_bell.wav');
 
   final String assetPath;
   const SfxType(this.assetPath);
@@ -16,6 +17,8 @@ enum SfxType {
 
 enum AmbientTrack {
   citadelWind('assets/audio/ambient/ambient_citadel_wind.wav'),
+  desertWind('assets/audio/ambient/ambient_desert_wind.wav'),
+  caravanserai('assets/audio/ambient/ambient_caravanserai.wav'),
   dungeonDrips('assets/audio/ambient/ambient_dungeon_drips.wav'),
   cryptDrone('assets/audio/ambient/ambient_crypt_drone.wav'),
   none('');
@@ -24,15 +27,52 @@ enum AmbientTrack {
   const AmbientTrack(this.assetPath);
 
   static AmbientTrack fromLocation(String? locationId) {
-    if (locationId == null || locationId.isEmpty) return AmbientTrack.citadelWind;
+    if (locationId == null || locationId.isEmpty) return AmbientTrack.desertWind;
     final loc = locationId.toLowerCase();
-    if (loc.contains('dungeon') || loc.contains('cell') || loc.contains('catacomb') || loc.contains('prison')) {
+
+    // Caravanserai, stables, outposts, and sanctuaries
+    if (loc.contains('caravanserai') ||
+        loc.contains('robat') ||
+        loc.contains('outpost') ||
+        loc.contains('stable') ||
+        loc.contains('inn') ||
+        loc.contains('taverna') ||
+        loc.contains('post')) {
+      return AmbientTrack.caravanserai;
+    }
+
+    // Arid desert, plains, badlands, and caravan highways
+    if (loc.contains('hiram') ||
+        loc.contains('plains') ||
+        loc.contains('desert') ||
+        loc.contains('waste') ||
+        loc.contains('dune') ||
+        loc.contains('chah') ||
+        loc.contains('sand') ||
+        loc.contains('road') ||
+        loc.contains('pass')) {
+      return AmbientTrack.desertWind;
+    }
+
+    // Underground, prisons, cells, cisterns
+    if (loc.contains('dungeon') ||
+        loc.contains('cell') ||
+        loc.contains('catacomb') ||
+        loc.contains('prison') ||
+        loc.contains('cistern')) {
       return AmbientTrack.dungeonDrips;
     }
-    if (loc.contains('crypt') || loc.contains('altar') || loc.contains('vault') || loc.contains('arcane')) {
+
+    // Crypts, vaults, ruins, shrines
+    if (loc.contains('crypt') ||
+        loc.contains('altar') ||
+        loc.contains('vault') ||
+        loc.contains('arcane') ||
+        loc.contains('ruin')) {
       return AmbientTrack.cryptDrone;
     }
-    return AmbientTrack.citadelWind;
+
+    return AmbientTrack.desertWind;
   }
 }
 
