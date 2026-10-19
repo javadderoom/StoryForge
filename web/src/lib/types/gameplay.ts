@@ -300,6 +300,18 @@ export interface CheckResolution {
    * evidence-gated `npcTrustChanges` channel this turn. Server audit trail.
    */
   npcTrustChanges?: Array<{ npcId: string; npcName: string; trustDelta: number }>;
+  /**
+   * Plan 13 follow-up: writer-declared threat-clock movement applied this turn
+   * (dice complications remain recorded separately in `clockUpdate`).
+   */
+  clockChanges?: Array<{
+    clockId: string;
+    clockName: string;
+    delta: number;
+    newSegments: number;
+    maxSegments: number;
+    isCrisis: boolean;
+  }>;
 }
 
 export interface TurnBeat {

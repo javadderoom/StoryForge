@@ -18,6 +18,7 @@ import { scheduleSnapDwell } from '@/lib/play/snapDecisions';
 import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
 import { GeminiAdapter, normalizeChoices } from '@/lib/providers/GeminiAdapter';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
+import { seedAmbientClock } from '@/lib/engines/game/threatClock';
 import { WorkingContextEnvelope } from '@/lib/types/memory';
 
 export const dynamic = 'force-dynamic';
@@ -308,6 +309,19 @@ export async function GET(req: NextRequest) {
           reconciledPlayerState.travel = null;
           shouldPersist = true;
         }
+      }
+      // Plan 13 follow-up: backfill the current zone's ambient clock for
+      // sessions created before entry seeding existed (and for hand-edited
+      // saves). Idempotent — existing clocks are never reset.
+      const clocksBefore = reconciledPlayerState.activeTensionClocks ?? [];
+      const clocksAfter = seedAmbientClock(
+        clocksBefore,
+        reconciledPlayerState.currentLocationId,
+        (story as any).worldBible
+      );
+      if (clocksAfter.length !== clocksBefore.length) {
+        reconciledPlayerState.activeTensionClocks = clocksAfter;
+        shouldPersist = true;
       }
       if (shouldPersist) {
         await SessionRepository.updatePlayerState(session.sessionId, reconciledPlayerState).catch(() => null);
@@ -712,6 +726,10 @@ export async function POST(req: NextRequest) {
       currentLocationId: initialBeat.locationId,
       accompanyingNpcIds: startingCompanionIds,
       conditions: (story as any).manifest?.startingConditions || (story as any).startingConditions || ['تندرست', 'ناآشنا', 'هوشیار'],
+      // Plan 13 follow-up: ambient clocks must exist before the first turn, not
+      // only after a dice complication. The reader sees the zone's danger meter
+      // from the opening scene.
+      activeTensionClocks: seedAmbientClock([], initialBeat.locationId, story.worldBible),
     };
 
     const auth = await getAuthenticatedUser(req);

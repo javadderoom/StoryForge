@@ -6,6 +6,10 @@ import {
   resolveDisplacement,
   clockIdForLocation,
   pruneInactiveZoneClocks,
+  seedAmbientClock,
+  normalizeClockChanges,
+  resolveDeclaredClockChanges,
+  MAX_CLOCK_DELTA_PER_TURN,
 } from './threatClock';
 import { GameEngine } from './GameEngine';
 import { PlayerState } from '../../types/gameplay';
@@ -229,5 +233,182 @@ describe('Plan 13: hazard displacement', () => {
     const clock = (updated.activeTensionClocks ?? []).find((c) => c.id === 'clock_loc_battlements');
     assert.ok(clock);
     assert.equal(clock!.currentSegments, 2); // crit_fail ticks +2 from 0
+  });
+});
+
+describe('Plan 13 follow-up: ambient seeding & writer clock authority', () => {
+  it('seeds the ambient clock at 0/max on entry and is idempotent', () => {
+    const seeded = seedAmbientClock([], 'loc_battlements', bible);
+    assert.equal(seeded.length, 1);
+    assert.equal(seeded[0].id, 'clock_loc_battlements');
+    assert.equal(seeded[0].currentSegments, 0);
+    assert.equal(seeded[0].maxSegments, 4);
+    assert.equal(seeded[0].name, 'City Watch Alert');
+
+    const again = seedAmbientClock(seeded, 'loc_battlements', bible);
+    assert.equal(again, seeded, 'existing clock is never reset or duplicated');
+  });
+
+  it('seeds the regional ancestor clock for a child location and skips clockless zones', () => {
+    const regionalBible: WorldBible = {
+      ...bible,
+      locations: [
+        {
+          id: 'loc_region_desert',
+          name: 'The Great Desert',
+          description: 'Vast expanse',
+          region: 'Wilderness',
+          dangerLevel: 4,
+          connectedLocationIds: [],
+          atmosphere: 'Scorching',
+          threatClockDefault: { name: 'ذخیره آب کاروان', maxSegments: 6, crisisDescription: 'آب تمام می‌شود' },
+        },
+        {
+          id: 'loc_desert_dune',
+          name: 'Shifting Dunes',
+          description: 'Dry sand',
+          region: 'Wilderness',
+          parentLocationId: 'loc_region_desert',
+          dangerLevel: 3,
+          connectedLocationIds: [],
+          atmosphere: 'Windy',
+        },
+      ],
+    };
+
+    const seeded = seedAmbientClock([], 'loc_desert_dune', regionalBible);
+    assert.equal(seeded.length, 1);
+    assert.equal(seeded[0].id, 'clock_loc_region_desert');
+    assert.equal(seeded[0].name, 'ذخیره آب کاروان');
+
+    assert.equal(seedAmbientClock([], 'loc_moat', bible).length, 0);
+  });
+
+  it('normalizes writer clock payload aliases and clamps raw deltas', () => {
+    const normalized = normalizeClockChanges([
+      { name: 'City Watch Alert', delta: 9, evidence: 'the alarm bell rings' },
+      { clockId: 'clock_loc_battlements', delta: -5, reason: 'you bribe the watch' },
+      { clockName: 'Zero', delta: 0 },
+      { delta: 1 },
+    ]);
+    assert.equal(normalized.length, 2);
+    assert.equal(normalized[0].clockName, 'City Watch Alert');
+    assert.equal(normalized[0].delta, MAX_CLOCK_DELTA_PER_TURN);
+    assert.equal(normalized[1].delta, -MAX_CLOCK_DELTA_PER_TURN);
+  });
+
+  it('resolves by id and by ZWNJ-insensitive clock name', () => {
+    const clocks = seedAmbientClock([], 'loc_battlements', bible);
+    const byName = resolveDeclaredClockChanges({
+      declared: [{ clockName: 'city watch  alert', delta: 1, reason: 'the patrol spots you' }],
+      activeClocks: clocks,
+      locationId: 'loc_battlements',
+      worldBible: bible,
+    });
+    assert.equal(byName.applied.length, 1);
+    assert.equal(byName.applied[0].clockId, 'clock_loc_battlements');
+    assert.equal(byName.applied[0].newSegments, 1);
+
+    const byId = resolveDeclaredClockChanges({
+      declared: [{ clockId: 'clock_loc_battlements', delta: 2, reason: 'a fight breaks out' }],
+      activeClocks: clocks,
+      locationId: 'loc_battlements',
+      worldBible: bible,
+    });
+    assert.equal(byId.applied[0].newSegments, 2);
+  });
+
+  it('seeds a missing ambient clock before applying the writer delta', () => {
+    const res = resolveDeclaredClockChanges({
+      declared: [{ clockName: 'City Watch Alert', delta: 1, reason: 'the gates slam shut' }],
+      activeClocks: [],
+      locationId: 'loc_battlements',
+      worldBible: bible,
+    });
+    assert.equal(res.clocks.length, 1);
+    assert.equal(res.applied[0].previousSegments, 0);
+    assert.equal(res.applied[0].newSegments, 1);
+  });
+
+  it('requires a prose reason and rejects unknown or spent clocks', () => {
+    const clocks = seedAmbientClock([], 'loc_battlements', bible);
+    const noReason = resolveDeclaredClockChanges({
+      declared: [{ clockName: 'City Watch Alert', delta: 1 }],
+      activeClocks: clocks,
+      locationId: 'loc_battlements',
+      worldBible: bible,
+    });
+    assert.equal(noReason.applied.length, 0);
+    assert.equal(noReason.clocks[0].currentSegments, 0, 'rejected change never moves the clock');
+
+    const unknown = resolveDeclaredClockChanges({
+      declared: [{ clockName: 'Moon Phase', delta: 1, reason: 'the moon rises' }],
+      activeClocks: clocks,
+      locationId: 'loc_battlements',
+      worldBible: bible,
+    });
+    assert.equal(unknown.applied.length, 0);
+
+    const triggered = [{ ...clocks[0], currentSegments: 4, isTriggered: true }];
+    const spent = resolveDeclaredClockChanges({
+      declared: [{ clockName: 'City Watch Alert', delta: 1, reason: 'more guards arrive' }],
+      activeClocks: triggered,
+      locationId: 'loc_battlements',
+      worldBible: bible,
+    });
+    assert.equal(spent.applied.length, 0);
+  });
+
+  it('clamps merges, fills to crisis exactly once, and can relieve to zero', () => {
+    const clocks = [{ ...seedAmbientClock([], 'loc_battlements', bible)[0], currentSegments: 3 }];
+    const crisis = resolveDeclaredClockChanges({
+      declared: [
+        { clockName: 'City Watch Alert', delta: 2, reason: 'the alarm sounds' },
+        { clockName: 'City Watch Alert', delta: 2, reason: 'reinforcements arrive' },
+      ],
+      activeClocks: clocks,
+      locationId: 'loc_battlements',
+      worldBible: bible,
+    });
+    assert.equal(crisis.applied.length, 1);
+    assert.equal(crisis.applied[0].delta, 1, 'effective movement saturates at max');
+    assert.equal(crisis.applied[0].newSegments, 4);
+    assert.equal(crisis.applied[0].isCrisis, true);
+    assert.equal(crisis.applied[0].crisisDescription, 'Guards breach the doors');
+    assert.equal(crisis.clocks[0].isTriggered, true);
+
+    const relief = resolveDeclaredClockChanges({
+      declared: [{ clockName: 'City Watch Alert', delta: -2, reason: 'you douse the alarm' }],
+      activeClocks: [{ ...clocks[0], currentSegments: 2 }],
+      locationId: 'loc_battlements',
+      worldBible: bible,
+    });
+    assert.equal(relief.applied[0].newSegments, 0);
+    assert.equal(relief.applied[0].isCrisis, false);
+    assert.equal(relief.clocks[0].isTriggered, false);
+  });
+
+  it('skips a clock the dice engine already advanced this turn', () => {
+    const clocks = seedAmbientClock([], 'loc_battlements', bible);
+    const res = resolveDeclaredClockChanges({
+      declared: [{ clockId: 'clock_loc_battlements', delta: 1, reason: 'same complication' }],
+      activeClocks: clocks,
+      locationId: 'loc_battlements',
+      worldBible: bible,
+      skipClockIds: ['clock_loc_battlements'],
+    });
+    assert.equal(res.applied.length, 0);
+    assert.equal(res.clocks[0].currentSegments, 0);
+  });
+
+  it('does not report a crisis for a clock that was already full and triggered', () => {
+    const clocks = [{ ...seedAmbientClock([], 'loc_battlements', bible)[0], currentSegments: 4, isTriggered: true }];
+    const res = resolveDeclaredClockChanges({
+      declared: [{ clockName: 'City Watch Alert', delta: -1, reason: 'the watch stands down' }],
+      activeClocks: clocks,
+      locationId: 'loc_battlements',
+      worldBible: bible,
+    });
+    assert.equal(res.applied.length, 0);
   });
 });

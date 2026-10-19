@@ -165,3 +165,21 @@ export interface CheckResolution {
    * Player location switches to the hazard fallback zone.
    * Ambient audio shifts to match the new location.
    * Prose dramatizes the catastrophic arrival and survival dilemma.
+
+---
+
+## 6. Post-implementation fix — clocks that never appeared or moved (2026-10-19)
+
+**Symptom.** Authored zones (e.g. the Hiram water-reserve clock) showed no meter at all, and even dice play could go whole sessions without a clock moving. Diceless/authored stories could never move one.
+
+**Root cause.**
+- Ambient clocks were only materialised inside `resolveActionCheck`, and the state mutation skipped zero deltas — so the first sight of a clock depended on a complication. Session start, resume, and authored location changes never seeded one.
+- There was no writer channel: `[ACTIVE THREAT CLOCKS]` told the model to reflect rising tension, but `clockChanges` did not exist, so narration could never move the meter.
+
+**Fix.**
+- `seedAmbientClock(activeClocks, locationId, worldBible)` seeds the location's (or ancestor's) `threatClockDefault` at 0/max. Wired into session creation, session resume (backfills legacy saves), every action location change (authored movement, displacement, hops, travel arrival), and the AOT branch state before prompt assembly.
+- Writer channel `clockChanges: [{ clockName|clockId, delta, reason }]` in EN/FA prompt schemas + `[TENSION CLOCK CONTRACT]`: only active clocks, prose evidence required, delta clamped to ±2, at most 2 clocks per scene, spent clocks frozen, crisis fires exactly once when the bar fills.
+- Dice complications stay deterministic; `skipClockIds` prevents the writer from double-counting a clock the dice already moved that turn.
+- Crises append the localized crisis description to the turn result; `resolution.clockChanges` is the audit trail. AOT applies the identical channel.
+
+**Verification.** `threatClock.test.ts` 19/19 (seeding, inheritance, idempotence, normalization, name/ZWNJ resolution, evidence gate, unknown/spent rejection, clamping/merging, crisis-once, relief-to-zero, dice de-dup); prompt invariants assert the contract in both languages; full web suite **1157/1157**; `tsc --noEmit` clean.

@@ -449,6 +449,10 @@ You MUST respond with a valid JSON object matching this schema:
     // ONLY meaningful interpersonal shifts ACTUALLY DEPICTED in the narrative above. Empty array when nothing changed.
     { "npcName": "Exact NPC name from the active dossiers", "trustDelta": 8, "reason": "you sealed the salt contract and split the profit fairly" }
   ],
+  "clockChanges": [
+    // ONLY clocks listed under [ACTIVE THREAT CLOCKS], and ONLY when the narrative depicts the shift. Empty array when nothing moved.
+    { "clockName": "Exact clock name from the active clocks list", "delta": 1, "reason": "you push the caravan through the night instead of making camp" }
+  ],
   "choices": [
     { "id": "choice_1", "text": "Carefully inspect the masonry around the threshold for a hidden lever or latch", "style": "inquisitive", "riskLevel": "low" },
     { "id": "choice_2", "text": "Quietly draw the dagger and step behind the granite pillar", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
@@ -469,6 +473,13 @@ You MUST respond with a valid JSON object matching this schema:
 - Declare a change ONLY when the narrative itself depicts the interpersonal shift: a deal struck or accepted, a bargain sealed, a promise kept or broken, aid given, a kindness, an insult, a threat, or a betrayal. If nothing shifted, use [].
 - "trustDelta" is an integer between -20 and +20: small gestures ±2..5, meaningful events ±8..15, betrayal or rescue up to ±20. Put the NPC's exact name in "npcName" and cite the prose evidence in "reason".
 - Trust is disposition toward the protagonist — never quest state or secret discovery. NEVER write the number or any mechanical term inside the narrative prose.
+
+[TENSION CLOCK CONTRACT — MANDATORY]
+- Only clocks listed in [ACTIVE THREAT CLOCKS] may change. Never invent a clock, a segment count, or a danger meter.
+- Declare a change ONLY when the narrative itself depicts the pressure shift: delay, a lost trail, a failed or costly task, violence that draws attention, an alarm — or, in the other direction, rest, water, shelter, a bribe, or a clean success that removes the threat.
+- "delta" is an integer from -2 to +2. Most scenes move a clock by 1; a severe setback may add 2. NEVER write clock numbers or mechanics inside the prose.
+- If your declared delta fills the clock, the conversation's prose MUST already depict that clock's crisis event in this same scene. Never fill a clock and leave its crisis undescribed.
+- A clock marked CRISIS TRIGGERED has already paid out — do not advance it again.
 `
       : `[ROLE & PERSONA: LITERARY NOVELIST & RPG NARRATIVE DIRECTOR]
 You are the narrative author for an interactive dark RPG novel titled "${context.storyTitle}".
@@ -531,6 +542,10 @@ You MUST respond with a valid JSON object matching this schema:
     // فقط دگرگونی‌های معنادار رابطه که عیناً در همین متن روایت شده‌اند. اگر چیزی تغییر نکرده، آرایه خالی بماند.
     { "npcName": "نام دقیق شخصیت از فهرست حاضر در صحنه", "trustDelta": 8, "reason": "پیمان نمک را بستی و سود را منصفانه تقسیم کردی" }
   ],
+  "clockChanges": [
+    // فقط ساعت‌هایی که در فهرست [ساعت‌های تهدید فعال] آمده‌اند، و فقط وقتی روایت تغییر فشار را نشان می‌دهد. اگر چیزی حرکت نکرده، آرایه خالی بماند.
+    { "clockName": "نام دقیق ساعت از فهرست ساعت‌های فعال", "delta": 1, "reason": "کاروان را شبانه پیش می‌بری و اردو نمی‌زنی" }
+  ],
   "choices": [
     { "id": "choice_1", "text": "بررسی دقیق نقش‌ونگارهای روی سنگِ درگاه برای یافتن روزنه یا نشانه‌ای پنهان", "style": "inquisitive", "riskLevel": "low" },
     { "id": "choice_2", "text": "کشیدن بی‌صدای خنجر و پناه گرفتن پشت ستون سنگی", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
@@ -551,6 +566,13 @@ You MUST respond with a valid JSON object matching this schema:
 - تغییر را فقط وقتی ثبت کن که خودِ روایت دگرگونی رابطه را نشان دهد: بستن یا پذیرفتن قرارداد، معامله، وعدهٔ انجام‌شده یا شکسته، یاری و لطف، توهین، تهدید یا خیانت. اگر چیزی تغییر نکرده، آرایه را خالی بگذار ([]).
 - «trustDelta» عددی صحیح بین ۲۰- تا ۲۰+ است: حرکت‌های کوچک ۲ تا ۵، رخدادهای معنادار ۸ تا ۱۵، خیانت یا نجات تا ۲۰. نام دقیق شخصیت را در «npcName» و شاهد روایی را در «reason» بنویس.
 - اعتماد یعنی نگرش شخصیت نسبت به قهرمان — نه وضعیت مأموریت و نه کشف راز. هرگز عدد یا اصطلاح مکانیکی را داخل متن روایت ننویس.
+
+[قرارداد ساعت تنش — اجباری]
+- فقط ساعت‌هایی که در [ساعت‌های تهدید فعال] آمده‌اند می‌توانند تغییر کنند. هرگز ساعتی از خود نساز و بخش یا عدد خطر جعل نکن.
+- تغییر را فقط وقتی ثبت کن که خودِ روایت تغییر فشار را نشان دهد: تعلل، گم کردن مسیر، شکست یا هزینهٔ سنگین، خشونتی که توجه جلب می‌کند، به صدا درآمدن هشدار — یا در سوی دیگر، استراحت، آب، پناه، رشوه، یا موفقیتی پاک که تهدید را برمی‌دارد.
+- «delta» عددی صحیح بین ۲- تا ۲+ است. بیشتر صحنه‌ها ساعت را ۱ واحد جابه‌جا می‌کنند؛ یک عقب‌گرد شدید می‌تواند ۲ واحد باشد. هرگز عدد یا مکانیک ساعت را داخل متن روایت ننویس.
+- اگر تغییر اعلام‌شده ساعت را پر می‌کند، متن همین صحنه باید پیش‌تر بحران آن ساعت را روایت کرده باشد. هرگز ساعتی را پر نکن و بحرانش را نانوشته رها نکن.
+- ساعتی که «بحران!» خورده دیگر پرداخت شده است — دوباره پیش نبرش.
 `;
 
     // Build Protagonist Status & Capabilities block
@@ -762,7 +784,7 @@ You MUST respond with a valid JSON object matching this schema:
       // Plan 13: threat clocks, displacement, contextual choice material.
       if (context.activeClocks?.length) {
         parts.push(
-          `[ACTIVE THREAT CLOCKS]\n${context.activeClocks.map((x) => `• ${x}`).join('\n')}\nReflect rising tension in the prose; when a clock hits its maximum, unleash its crisis event NOW, then stand the clock down.`
+          `[ACTIVE THREAT CLOCKS]\n${context.activeClocks.map((x) => `• ${x}`).join('\n')}\nReflect rising tension in the prose; declare every movement in "clockChanges" (see the TENSION CLOCK CONTRACT). When a clock hits its maximum, unleash its crisis event NOW in the prose, then stand the clock down.`
         );
       }
       if (context.displacementDirective) {
@@ -878,7 +900,7 @@ You MUST respond with a valid JSON object matching this schema:
       // Plan 13: threat clocks, displacement, contextual choice material.
       if (context.activeClocks?.length) {
         parts.push(
-          `[ساعت‌های تهدید فعال / ACTIVE THREAT CLOCKS]\n${context.activeClocks.map((x) => `• ${x}`).join('\n')}\nتنش فزاینده را در نثر منعکس کن؛ وقتی ساعتی به سقف رسید، بحرانش را همین حالا آزاد کن و سپس آن را بخوابان.`
+          `[ساعت‌های تهدید فعال / ACTIVE THREAT CLOCKS]\n${context.activeClocks.map((x) => `• ${x}`).join('\n')}\nتنش فزاینده را در نثر منعکس کن؛ هر جابه‌جایی را در «clockChanges» اعلام کن (قرارداد ساعت تنش را ببین). وقتی ساعتی به سقف رسید، بحرانش را همین حالا در نثر آزاد کن و سپس آن را بخوابان.`
         );
       }
       if (context.displacementDirective) {

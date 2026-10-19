@@ -127,6 +127,232 @@ export function resolveDisplacement(
 }
 
 /**
+ * Ensures the zone's ambient clock is present in the active list. Unlike
+ * `ensureClockForLocation` — which is called from the dice tick and therefore
+ * only ever ran when a check produced a clock delta — this is the entry-path
+ * seeder: session start, resume, and every location change. It makes authored
+ * clocks visible at 0/max before any complication happens.
+ */
+export function seedAmbientClock(
+  activeClocks: TensionClock[] | undefined,
+  locationId: string | undefined,
+  worldBible?: WorldBible
+): TensionClock[] {
+  const clocks = activeClocks ?? [];
+  if (!locationId || !worldBible?.locations) return clocks;
+  const location = worldBible.locations.find((l) => l.id === locationId);
+  if (!location) return clocks;
+  const id = clockIdForLocation(locationId, worldBible);
+  if (clocks.some((c) => c.id === id)) return clocks;
+  const seeded = ensureClockForLocation(clocks, location, worldBible);
+  return seeded ? [...clocks, seeded] : clocks;
+}
+
+// ---------------------------------------------------------------------------
+// Writer-declared clock movement (Plan 13 follow-up — narrative tension authority)
+//
+// Dice outcomes are the only deterministic clock source, which meant diceless /
+// authored play could never move a clock, and a clean success at a clock zone
+// never even materialised one. The writer now declares evidence-gated movement
+// in `clockChanges` (see the prompt contract); this is its server-side gate.
+// ---------------------------------------------------------------------------
+
+/** Per-turn bound for writer-declared clock movement (per clock). */
+export const MAX_CLOCK_DELTA_PER_TURN = 2;
+/** At most this many distinct clocks may move in one scene. */
+export const MAX_CLOCK_CHANGES_PER_TURN = 2;
+
+export interface DeclaredClockChange {
+  clockId?: string;
+  clockName?: string;
+  delta: number;
+  reason?: string;
+}
+
+export interface AppliedClockChange {
+  clockId: string;
+  clockName: string;
+  delta: number;
+  reason: string;
+  previousSegments: number;
+  newSegments: number;
+  maxSegments: number;
+  isCrisis: boolean;
+  crisisDescription?: string;
+}
+
+export interface ClockChangeResolutionInput {
+  declared: DeclaredClockChange[];
+  activeClocks?: TensionClock[];
+  locationId?: string;
+  worldBible?: WorldBible;
+  /**
+   * Clocks already advanced deterministically by this turn's dice check.
+   * They are skipped so the same complication is never counted twice.
+   */
+  skipClockIds?: string[];
+}
+
+function clampClockDelta(delta: number): number {
+  const rounded = Math.round(delta);
+  return Math.sign(rounded) * Math.min(MAX_CLOCK_DELTA_PER_TURN, Math.abs(rounded));
+}
+
+function normalizeClockMatchText(text: string): string {
+  return (text || '')
+    .replace(/[\u200c\u200b\u200d\u00ad]/g, ' ')
+    .replace(/ي/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/[\u064B-\u065F\u0670]/g, '')
+    .replace(/[«»"'`.,،؟!؛:()\[\]{}_\-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+/** Adapter-side normalization; resolution below is the authority. */
+export function normalizeClockChanges(raw: unknown): DeclaredClockChange[] {
+  if (!Array.isArray(raw)) return [];
+  const out: DeclaredClockChange[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const entry = item as Record<string, unknown>;
+    const clockId =
+      typeof entry.clockId === 'string'
+        ? entry.clockId.trim().slice(0, 80)
+        : typeof entry.id === 'string'
+          ? entry.id.trim().slice(0, 80)
+          : '';
+    const clockName =
+      typeof entry.clockName === 'string'
+        ? entry.clockName.trim().slice(0, 120)
+        : typeof entry.name === 'string'
+          ? entry.name.trim().slice(0, 120)
+          : '';
+    const rawDelta =
+      typeof entry.delta === 'number' ? entry.delta : Number(entry.delta);
+    if (!Number.isFinite(rawDelta) || rawDelta === 0) continue;
+    if (!clockId && !clockName) continue;
+    const reasonSource =
+      typeof entry.reason === 'string'
+        ? entry.reason
+        : typeof entry.evidence === 'string'
+          ? entry.evidence
+          : '';
+    const reason = reasonSource.trim().slice(0, 240);
+    out.push({
+      ...(clockId ? { clockId } : {}),
+      ...(clockName ? { clockName } : {}),
+      delta: clampClockDelta(rawDelta),
+      ...(reason ? { reason } : {}),
+    });
+    if (out.length >= MAX_CLOCK_CHANGES_PER_TURN) break;
+  }
+  return out;
+}
+
+function resolveClockIndex(
+  entry: DeclaredClockChange,
+  clocks: TensionClock[]
+): number {
+  const id = entry.clockId?.trim();
+  if (id) {
+    const byId = clocks.findIndex((clock) => clock.id === id);
+    if (byId >= 0) return byId;
+  }
+  const wanted = normalizeClockMatchText(entry.clockName || '');
+  if (!wanted) return -1;
+  const exact = clocks.findIndex(
+    (clock) => normalizeClockMatchText(clock.name) === wanted
+  );
+  if (exact >= 0) return exact;
+  const contained = clocks
+    .map((clock, index) => ({ name: normalizeClockMatchText(clock.name), index }))
+    .filter(({ name }) => Boolean(name) && (name.includes(wanted) || wanted.includes(name)));
+  return contained.length === 1 ? contained[0].index : -1;
+}
+
+/**
+ * Evidence-gated resolution of the writer's `clockChanges`:
+ *  - seed the current zone's ambient clock first (so a fresh session can move it),
+ *  - only active clocks may move (id or normalized name),
+ *  - every change needs a prose reason,
+ *  - triggered clocks are spent and never move again,
+ *  - deltas clamp to ±2 per clock, merged per clock, at most 2 clocks per turn,
+ *  - filling the clock sets `isTriggered` and reports the crisis exactly once.
+ */
+export function resolveDeclaredClockChanges(
+  input: ClockChangeResolutionInput
+): { clocks: TensionClock[]; applied: AppliedClockChange[] } {
+  const seeded = seedAmbientClock(input.activeClocks, input.locationId, input.worldBible);
+  const declared = input.declared ?? [];
+  if (declared.length === 0) return { clocks: seeded, applied: [] };
+
+  const clocks = seeded.map((clock) => ({ ...clock }));
+  const skipped = new Set(input.skipClockIds ?? []);
+  const pending = new Map<
+    string,
+    { index: number; delta: number; reason: string }
+  >();
+
+  for (const entry of declared) {
+    if (!entry || typeof entry.delta !== 'number' || !Number.isFinite(entry.delta)) {
+      continue;
+    }
+    if (entry.delta === 0) continue;
+    const reason = (entry.reason ?? '').trim();
+    if (!reason) continue; // evidence gate
+
+    const index = resolveClockIndex(entry, clocks);
+    if (index < 0) continue;
+    const clock = clocks[index];
+    if (clock.isTriggered) continue; // crisis already paid out
+    if (skipped.has(clock.id)) continue; // deterministic tick already moved it this turn
+
+    const delta = clampClockDelta(entry.delta);
+    if (delta === 0) continue;
+
+    const prior = pending.get(clock.id);
+    if (prior) {
+      prior.delta = clampClockDelta(prior.delta + delta);
+      if (prior.delta === 0) pending.delete(clock.id);
+    } else {
+      pending.set(clock.id, { index, delta, reason: reason.slice(0, 240) });
+      if (pending.size >= MAX_CLOCK_CHANGES_PER_TURN) break;
+    }
+  }
+
+  const applied: AppliedClockChange[] = [];
+  for (const [clockId, change] of pending) {
+    const clock = clocks[change.index];
+    const maxSegments = Math.max(2, clock.maxSegments || 4);
+    const previousSegments = Math.max(0, clock.currentSegments || 0);
+    const newSegments = Math.min(maxSegments, Math.max(0, previousSegments + change.delta));
+    const effectiveDelta = newSegments - previousSegments;
+    if (effectiveDelta === 0) continue;
+
+    const isCrisis = !clock.isTriggered && newSegments >= maxSegments;
+    clock.currentSegments = newSegments;
+    clock.maxSegments = maxSegments;
+    if (isCrisis) clock.isTriggered = true;
+
+    applied.push({
+      clockId,
+      clockName: clock.name,
+      delta: effectiveDelta,
+      reason: change.reason,
+      previousSegments,
+      newSegments,
+      maxSegments,
+      isCrisis,
+      ...(clock.crisisDescription ? { crisisDescription: clock.crisisDescription } : {}),
+    });
+  }
+
+  return { clocks, applied };
+}
+
+/**
  * Prunes location/regional threat clocks when the player leaves their region or reaches
  * a destination city/safe zone that does not belong to that threat region.
  */

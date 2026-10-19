@@ -4,6 +4,7 @@ import { buildWorldContextBlocks, resolveAccompanyingIds, formatNpcCombatSummary
 import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
 import { travelProgress, travelTimeline, type TravelProgress } from '@/lib/engines/game/travelEngine';
 import type { DeclaredNpcTrustChange } from '@/lib/engines/game/npcTrustEngine';
+import type { DeclaredClockChange } from '@/lib/engines/game/threatClock';
 import { MemoryEngine } from '@/lib/engines/memory/MemoryEngine';
 import { WorkingContextEnvelope, MemoryCategory, MemoryEntry } from '@/lib/types/memory';
 import { PlayerState, CheckResolution, PlayerConditionChanges } from '@/lib/types/gameplay';
@@ -89,6 +90,8 @@ export interface SceneAiResponse {
   playerConditionChanges?: PlayerConditionChanges;
   /** Plan 17: writer-declared NPC stance shifts, normalized (evidence-checked downstream). */
   npcTrustChanges?: DeclaredNpcTrustChange[];
+  /** Plan 13 follow-up: writer-declared tension-clock movement, normalized. */
+  clockChanges?: DeclaredClockChange[];
   isMock?: boolean;
 }
 

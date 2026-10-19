@@ -14,6 +14,10 @@ import {
   normalizeNpcTrustChanges,
   type DeclaredNpcTrustChange,
 } from '../engines/game/npcTrustEngine';
+import {
+  normalizeClockChanges,
+  type DeclaredClockChange,
+} from '../engines/game/threatClock';
 import { MemoryCategory } from '../types/memory';
 
 export interface ExtractedMemory {
@@ -39,6 +43,12 @@ export interface GeneratedSceneResponse {
    * evidence/presence gate is applied before any state mutation.
    */
   npcTrustChanges?: DeclaredNpcTrustChange[];
+  /**
+   * Plan 13 follow-up: writer-declared tension-clock movement for the active
+   * zone. Normalized and bounded here; the server evidence gate is applied
+   * before any state mutation.
+   */
+  clockChanges?: DeclaredClockChange[];
   /**
    * Plan 08: true when this response came from the offline mock generator
    * (no API key configured, or the API call failed). Mock prose must NEVER be
@@ -480,6 +490,7 @@ export class GeminiAdapter {
             : undefined,
         playerConditionChanges: normalizeConditionChanges(parsed.playerConditionChanges),
         npcTrustChanges: normalizeNpcTrustChanges(parsed.npcTrustChanges),
+        clockChanges: normalizeClockChanges(parsed.clockChanges),
         isMock: false,
       },
     };

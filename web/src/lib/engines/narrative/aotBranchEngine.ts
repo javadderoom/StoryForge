@@ -1,7 +1,7 @@
 import { GameEngine } from '@/lib/engines/game/GameEngine';
 import { rollDice, isBodilyRiskAction } from '@/lib/engines/game/actionCheckEngine';
 import { calculateActionXp, applyXpGain } from '@/lib/engines/game/progressionEngine';
-import { pruneInactiveZoneClocks } from '@/lib/engines/game/threatClock';
+import { pruneInactiveZoneClocks, resolveDeclaredClockChanges, seedAmbientClock } from '@/lib/engines/game/threatClock';
 import { reconcilePlayerResources, resolveHealthKey } from '@/lib/engines/game/resourcePools';
 import { reconcileConditions } from '@/lib/engines/game/conditionReconciler';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
@@ -424,6 +424,14 @@ export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBr
     );
   }
 
+  // Plan 13 follow-up: the branch prompt must see the destination/local zone's
+  // ambient clock, same as the live route.
+  updatedPlayerState.activeTensionClocks = seedAmbientClock(
+    updatedPlayerState.activeTensionClocks,
+    updatedPlayerState.currentLocationId,
+    story.worldBible
+  );
+
   const displacedLocationId =
     resolution.displacedLocationId || resolution.stateDiff.displacedLocationId;
 
@@ -654,6 +662,42 @@ export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBr
             change,
             isPersianStory
           )}`;
+        }
+      }
+    }
+
+    // Plan 13 follow-up: writer-declared threat-clock movement, identical to
+    // the live route so a Snap branch can never hold a different danger meter.
+    const declaredClockChanges = sceneOutcome.aiResponse.clockChanges ?? [];
+    if (declaredClockChanges.length > 0) {
+      const clockResolution = resolveDeclaredClockChanges({
+        declared: declaredClockChanges,
+        activeClocks: updatedPlayerState.activeTensionClocks,
+        locationId: updatedPlayerState.currentLocationId,
+        worldBible: story.worldBible,
+        skipClockIds: (resolution.stateDiff.clockUpdates ?? [])
+          .filter((update) => update.delta !== 0)
+          .map((update) => update.id),
+      });
+      updatedPlayerState.activeTensionClocks = clockResolution.clocks;
+      if (clockResolution.applied.length > 0) {
+        resolution.clockChanges = clockResolution.applied.map((change) => ({
+          clockId: change.clockId,
+          clockName: change.clockName,
+          delta: change.delta,
+          newSegments: change.newSegments,
+          maxSegments: change.maxSegments,
+          isCrisis: change.isCrisis,
+        }));
+        for (const change of clockResolution.applied) {
+          if (!change.isCrisis) continue;
+          resolution.consequenceSummary += isPersianStory
+            ? ` ساعت «${change.clockName}» به اوج رسید — ${
+                change.crisisDescription || 'بحران آغاز شد!'
+              }`
+            : ` ${change.clockName} reaches its crisis — ${
+                change.crisisDescription || 'crisis erupts!'
+              }`;
         }
       }
     }

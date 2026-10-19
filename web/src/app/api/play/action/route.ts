@@ -18,7 +18,7 @@ import { reconcilePlayerResources, resolveHealthKey } from '@/lib/engines/game/r
 import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
 import { calculateActionXp, applyXpGain } from '@/lib/engines/game/progressionEngine';
 import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
-import { ensureClockForLocation, pruneInactiveZoneClocks } from '@/lib/engines/game/threatClock';
+import { ensureClockForLocation, pruneInactiveZoneClocks, resolveDeclaredClockChanges, seedAmbientClock } from '@/lib/engines/game/threatClock';
 import { resolveAccompanyingIds } from '@/lib/engines/narrative/worldContext';
 import { buildNpcIdToName, deriveActualChoice } from '@/lib/engines/narrative/snapPredictor';
 import { cancelSnapPrediction, resolveSnapDecision, scheduleSnapDwell } from '@/lib/play/snapDecisions';
@@ -838,6 +838,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Plan 13 follow-up: seed the destination/local zone's ambient clock before
+    // the prompt is built. This covers every entry path (authored movement,
+    // displacement, immediate hops — travel arrival already seeded above), so a
+    // zone that declares a threatClockDefault always surfaces its meter at
+    // 0/max instead of waiting for the first failed dice roll.
+    updatedPlayerState.activeTensionClocks = seedAmbientClock(
+      updatedPlayerState.activeTensionClocks,
+      updatedPlayerState.currentLocationId,
+      story.worldBible
+    );
+
     const displacedLocationId = resolution.displacedLocationId || resolution.stateDiff.displacedLocationId;
     const previousLocation = story.worldBible.locations.find((l) => l.id === preTurnLocationId);
 
@@ -1340,6 +1351,54 @@ export async function POST(req: NextRequest) {
         console.log(
           `[Plan17] npc trust changes (session ${sessionId}, turn ${turnNumber}):`,
           appliedTrust.map((c) => `${c.npcName} ${c.trustDelta > 0 ? '+' : ''}${c.trustDelta}`)
+        );
+      }
+    }
+
+    // Plan 13 follow-up (tension authority): the writer can move the zone's
+    // threat clock when the prose depicts the pressure shift. Dice outcomes
+    // remain the deterministic source; this closes the diceless/authored-play
+    // gap and the "clean success = invisible clock" gap.
+    const declaredClockChanges = aiResponse.clockChanges ?? [];
+    if (declaredClockChanges.length > 0) {
+      const clockResolution = resolveDeclaredClockChanges({
+        declared: declaredClockChanges,
+        activeClocks: updatedPlayerState.activeTensionClocks,
+        locationId: updatedPlayerState.currentLocationId,
+        worldBible: story.worldBible,
+        // The dice engine already priced this turn's complication on that clock.
+        skipClockIds: (resolution.stateDiff.clockUpdates ?? [])
+          .filter((update) => update.delta !== 0)
+          .map((update) => update.id),
+      });
+      updatedPlayerState.activeTensionClocks = clockResolution.clocks;
+      if (clockResolution.applied.length > 0) {
+        resolution.clockChanges = clockResolution.applied.map((change) => ({
+          clockId: change.clockId,
+          clockName: change.clockName,
+          delta: change.delta,
+          newSegments: change.newSegments,
+          maxSegments: change.maxSegments,
+          isCrisis: change.isCrisis,
+        }));
+        for (const change of clockResolution.applied) {
+          if (!change.isCrisis) continue;
+          resolution.consequenceSummary += isPersianStory
+            ? ` ساعت «${change.clockName}» به اوج رسید — ${
+                change.crisisDescription || 'بحران آغاز شد!'
+              }`
+            : ` ${change.clockName} reaches its crisis — ${
+                change.crisisDescription || 'crisis erupts!'
+              }`;
+        }
+        console.log(
+          `[Plan13] threat clock changes (session ${sessionId}, turn ${turnNumber}):`,
+          clockResolution.applied.map(
+            (change) =>
+              `${change.clockName} ${change.delta > 0 ? '+' : ''}${change.delta} (${change.newSegments}/${change.maxSegments})${
+                change.isCrisis ? ' CRISIS' : ''
+              }`
+          )
         );
       }
     }

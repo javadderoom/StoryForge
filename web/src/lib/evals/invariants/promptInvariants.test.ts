@@ -74,8 +74,10 @@ describe('Tier 1 — PromptAssembler invariants (EN)', () => {
     );
     assert.ok(systemPrompt.includes('playerConditionChanges'));
     assert.ok(systemPrompt.includes('npcTrustChanges'));
+    assert.ok(systemPrompt.includes('clockChanges'));
     assert.ok(systemPrompt.includes('[CONDITION CHANGE CONTRACT'));
     assert.ok(systemPrompt.includes('[NPC TRUST CONTRACT'));
+    assert.ok(systemPrompt.includes('[TENSION CLOCK CONTRACT'));
     // The prompt-silent baseline tag is never injected as a condition line…
     assert.ok(!systemPrompt.includes('تندرست'));
     assert.ok(systemPrompt.includes('زخمی (پانسمان‌شده)'));
@@ -108,7 +110,9 @@ describe('Tier 1 — PromptAssembler invariants (FA parity)', () => {
     assert.ok(all.includes('جادو ممنوع است و کیفر آن مرگ است.'));
     assert.ok(all.includes('[ساعت‌های تهدید فعال / ACTIVE THREAT CLOCKS]'));
     assert.ok(systemPrompt.includes('npcTrustChanges'));
+    assert.ok(systemPrompt.includes('clockChanges'));
     assert.ok(systemPrompt.includes('[قرارداد اعتماد شخصیت‌ها'));
+    assert.ok(systemPrompt.includes('[قرارداد ساعت تنش'));
     assert.ok(systemPrompt.includes('[SCENE CONTINUITY & CHOICE PREMISES]'));
   });
 });
