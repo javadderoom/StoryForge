@@ -265,6 +265,31 @@ describe('Plan 15 §2.3 tier 4 — AOT branch engine', () => {
       assert.equal(result.status, 'generated');
       assert.equal(result.diceRoll, 1);
       assert.equal(result.outcome, 'critical_failure');
+      // Plan 18 parity: the branch resolution carries the deterministic failure
+      // plan and the 3d6 cost, not just the outcome.
+      assert.equal(result.resolution?.failureMode, 'escalation');
+      assert.equal(result.resolution?.failureSecondaryMode, 'cost');
+      assert.equal(result.resolution?.stuckAllowed, false);
+    });
+  });
+
+  it('a critical failure on an authored gate hard-stops with the requirement hint', async () => {
+    await withTestEnv(async () => {
+      const result = await preGenerateAotBranch(
+        makeContext({
+          choice: {
+            ...CHECK_CHOICE,
+            failureMode: 'hard_stop',
+            failureHint: 'The bronze seal is required.',
+          },
+          forcedDiceRoll: 1,
+        })
+      );
+      assert.equal(result.status, 'generated');
+      assert.equal(result.outcome, 'critical_failure');
+      assert.equal(result.resolution?.failureMode, 'hard_stop');
+      assert.equal(result.resolution?.stuckAllowed, true);
+      assert.equal(result.resolution?.failureRequirementHint, 'The bronze seal is required.');
     });
   });
 

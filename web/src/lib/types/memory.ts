@@ -75,6 +75,18 @@ export interface WorkingContextEnvelope {
     consequence: string;
     /** Deterministic mechanical cost line (e.g. "HP -5, stamina -10") — narrator MUST depict it. */
     costLine?: string;
+    /** Plan 18: deterministic Fail Forward mode (present only on failure). */
+    failureMode?: string;
+    failureSecondaryMode?: string;
+    /** Localized binding directive for this failure. */
+    failureDirective?: string;
+    /** True only for authored gates and exhausted retries. */
+    stuckAllowed?: boolean;
+    stuckReason?: string;
+    /** What the scene requires, for an authored hard stop. */
+    failureRequirementHint?: string;
+    /** The engine moved the protagonist this turn (authored beat / travel / displacement). */
+    locationChanged?: boolean;
   };
   recentSceneSnippets: string[];
   /** Recently executed player actions from prior turns (to enforce forward momentum & prevent choice recycling) */

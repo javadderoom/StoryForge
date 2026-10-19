@@ -21,6 +21,39 @@ export type DiceOutcome =
   | 'success'
   | 'critical_success';
 
+/**
+ * Plan 18: deterministic Fail Forward modes. A failed check denies the player's
+ * intent but must still move the situation. The engine assigns one primary mode
+ * (and sometimes a secondary) so the writer never has to invent a way forward.
+ *
+ * - cost:         the intent fails and the protagonist pays a concrete price.
+ * - complication: the intent fails and an established element gets worse.
+ * - reveal:       the intent fails but exposes a fact/clue/weakness/alternative.
+ * - reposition:   the intent fails and forces a change of physical position.
+ * - escalation:   the intent fails and the danger/time pressure advances.
+ * - hard_stop:    the method cannot work here; only authored gates and
+ *                 exhausted retries may use this. Must reveal why + options.
+ */
+export type FailureMode =
+  | 'cost'
+  | 'complication'
+  | 'reveal'
+  | 'reposition'
+  | 'escalation'
+  | 'hard_stop';
+
+export type FailureActionKind =
+  | 'investigative'
+  | 'social'
+  | 'physical'
+  | 'travel'
+  | 'other';
+
+export interface FailureDirective {
+  en: string;
+  fa: string;
+}
+
 export interface ChoiceOption {
   id: string;
   text: string;
@@ -28,6 +61,12 @@ export interface ChoiceOption {
   riskLevel: RiskLevel;
   requiredStatId?: string;
   targetDC?: number; // Difficulty Class (if mechanical check is needed)
+  /**
+   * Plan 18: authored gate policy for this specific choice. AI-generated
+   * choices leave this undefined; authored beats may mark one as a hard stop.
+   */
+  failureMode?: FailureMode;
+  failureHint?: string;
 }
 
 export interface PlayerEquipment {
@@ -312,6 +351,22 @@ export interface CheckResolution {
     maxSegments: number;
     isCrisis: boolean;
   }>;
+  /**
+   * Plan 18: deterministic Fail Forward classification. Present only on
+   * failure/critical_failure. The writer must follow the directive; the
+   * server and clients can surface the mode for telemetry.
+   */
+  failureMode?: FailureMode;
+  failureSecondaryMode?: FailureMode;
+  failureActionKind?: FailureActionKind;
+  failureDirective?: FailureDirective;
+  /** True only for authored gates and exhausted retries. */
+  stuckAllowed?: boolean;
+  stuckReason?: string;
+  /** For hard stops: what the scene actually requires, if authored. */
+  failureRequirementHint?: string;
+  /** Count of consecutive identical failed attempts before this one. */
+  previousFailedAttempts?: number;
 }
 
 export interface TurnBeat {
@@ -365,4 +420,8 @@ export const ChoiceOptionSchema = z.object({
   riskLevel: z.enum(['low', 'medium', 'high']),
   requiredStatId: z.string().optional(),
   targetDC: z.number().int().optional(),
+  failureMode: z
+    .enum(['cost', 'complication', 'reveal', 'reposition', 'escalation', 'hard_stop'])
+    .optional(),
+  failureHint: z.string().max(240).optional(),
 });

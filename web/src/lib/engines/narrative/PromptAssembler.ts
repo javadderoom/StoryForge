@@ -126,6 +126,68 @@ export class PromptAssembler {
   }
 
   /**
+   * Plan 18: renders the deterministic failure mode as a binding prompt block.
+   * The system-level FAILURE FORWARD CONTRACT states the general rule; this block
+   * names the exact movement the scene must make this turn.
+   */
+  private static failureForwardBlock(
+    outcome: NonNullable<WorkingContextEnvelope['resolvedGameOutcome']>,
+    isEnglish: boolean
+  ): string {
+    if (outcome.outcome !== 'failure' && outcome.outcome !== 'critical_failure') return '';
+    if (!outcome.failureMode) return '';
+
+    const isHardStop = outcome.failureMode === 'hard_stop';
+    if (isEnglish) {
+      const parts = [
+        `[FAILURE FORWARD — PRE-RESOLVED MODE]`,
+        `• Failure Mode: ${outcome.failureMode.toUpperCase()}${
+          outcome.failureSecondaryMode
+            ? ` + ${outcome.failureSecondaryMode.toUpperCase()} (secondary)`
+            : ''
+        }`,
+        outcome.failureDirective
+          ? `• Binding directive: ${outcome.failureDirective}`
+          : '',
+        isHardStop
+          ? `• Stuck permitted: YES — ${
+              outcome.stuckReason || 'this method is genuinely blocked.'
+            }`
+          : `• Stuck permitted: NO — the failure must produce at least one concrete change, and at least two choices must pursue a new approach.`,
+        isHardStop && outcome.failureRequirementHint
+          ? `• Requirement to reveal: ${outcome.failureRequirementHint}`
+          : '',
+        outcome.locationChanged
+          ? `• ENGINE MOVEMENT: the protagonist has already been moved to the current location this turn. The failure is the price of arrival — depict the new place and the cost of entering it. Do NOT narrate them still stuck at the old threshold.`
+          : '',
+      ];
+      return parts.filter(Boolean).join('\n');
+    }
+
+    const parts = [
+      `[شکستِ پیش‌برنده — حالت محاسباتی]`,
+      `• حالت شکست: ${outcome.failureMode.toUpperCase()}${
+        outcome.failureSecondaryMode
+          ? ` + ${outcome.failureSecondaryMode.toUpperCase()} (ثانویه)`
+          : ''
+      }`,
+      outcome.failureDirective ? `• دستور الزام‌آور: ${outcome.failureDirective}` : '',
+      isHardStop
+        ? `• توقف کامل مجاز است: بله — ${
+            outcome.stuckReason || 'این روش واقعاً بسته است.'
+          }`
+        : `• توقف کامل مجاز است: نه — شکست باید دست‌کم یک تغییر عینی بیاورد و دست‌کم دو گزینه رویکردی تازه را دنبال کنند.`,
+      isHardStop && outcome.failureRequirementHint
+        ? `• شرطی که باید آشکار شود: ${outcome.failureRequirementHint}`
+        : '',
+      outcome.locationChanged
+        ? `• جابه‌جایی موتور: قهرمان همین نوبت به مکان فعلی منتقل شده است. شکست بهای رسیدن است — مکان تازه و بهای ورود را نشان بده. او را همچنان پشت آستانهٔ قبلی نگه ندار.`
+        : '',
+    ];
+    return parts.filter(Boolean).join('\n');
+  }
+
+  /**
    * Plan 17 (§4.5): journey leg / arrival blocks — the road is real. Rendered
    * whenever the envelope carries an active journey or an arrival this turn,
    * with hard arrival discipline so prose can never teleport the protagonist
@@ -462,6 +524,15 @@ You MUST respond with a valid JSON object matching this schema:
     { "category": "character", "importance": 7, "summary": "Key discovery about a character in English..." }
   ]
 }
+[FAILURE FORWARD CONTRACT — MANDATORY]
+- Failure denies the INTENT, never the story. The player's stated goal must NOT be granted, and a failed check must never be narrated as a disguised success.
+- When [PRE-RESOLVED GAME ENGINE OUTCOME] names a Failure Mode and directive, that is BINDING. Depict the primary movement (cost / complication / reveal / reposition / escalation) and any secondary movement it names.
+- Every failure must change the situation concretely: a price paid, a new complication, a revealed fact, a forced change of position, or an advancing threat. The same obstacle may not remain exactly as it was with no new information, pressure, price, or opportunity.
+- Costs must be causal and proportional. HP only for bodily risk. Social/investigative failures cost time, attention, stamina, composure, leverage, or information. NEVER invent a wound, rescuer, hazard, or retroactive fact to justify a cost.
+- At least two offered choices must pursue a genuinely different approach. A static "try again" or a rephrasing of the failed action as the only path is FORBIDDEN.
+- A hard stop is permitted ONLY when the engine marks it as authorized (authored gate or exhausted retries). Then show exactly why the method cannot work, reveal what is required, and offer at least two genuinely different alternatives. Otherwise the protagonist must not remain stuck.
+- If the engine moved the protagonist to a new location this turn, the failure is the price of arrival. Depict the new place and the cost of entering it; do not narrate them still stuck at the old threshold.
+
 [CONDITION CHANGE CONTRACT — MANDATORY]
 - Every entry in playerConditionChanges.add / treat / remove MUST be visible in the narrative you just wrote. If the prose does not depict it, do NOT list it. If the prose depicts a wound, you MUST list it.
 - Bandaging, splinting, poultices, or a healer's care → "treat" (never "remove"). A wound is only "remove"d on genuine healing (magic, medicine, a long convalescent rest) explicitly narrated.
@@ -556,6 +627,15 @@ You MUST respond with a valid JSON object matching this schema:
     { "category": "character", "importance": 7, "summary": "کشف رازی مهم در مورد شخصیت..." }
   ]
 }
+[قرارداد شکستِ پیش‌برنده — اجباری]
+- شکست، «قصد» را رد می‌کند، نه داستان را. هدف اعلام‌شدهٔ بازیکن هرگز محقق نمی‌شود و شکست هرگز نباید به‌شکل موفقیت پنهان روایت شود.
+- وقتی [نتیجه محاسباتی موتور بازی] «حالت شکست» و دستور آن را مشخص می‌کند، همان الزام‌آور است. حرکت اصلی (هزینه / پیچیدگی / افشا / جابه‌جایی / تشدید) و هر حرکت ثانویه را در نثر نشان بده.
+- هر شکست باید وضعیت را عینی تغییر دهد: بهای پرداخت‌شده، پیچیدگی تازه، حقیقت آشکارشده، تغییر اجباری موقعیت، یا پیشروی تهدید. همان مانع نمی‌تواند بدون هیچ اطلاعات، فشار، بها یا فرصت تازه‌ای دقیقاً سر جایش بماند.
+- هزینه باید علت‌ومعلول و متناسب باشد. کاهش سلامت فقط برای خطر جسمی. شکست اجتماعی/تحقیقی به‌صورت زمان، توجه، استقامت، عزم، اهرم یا اطلاعات هزینه می‌شود. هرگز برای توجیه هزینه، زخم، نجات‌دهنده، خطر یا واقعیتِ از پیش‌وجودنیامده اختراع نکن.
+- دست‌کم دو گزینه باید رویکردی واقعاً متفاوت را دنبال کنند. «دوباره تلاش کن» ثابت یا بازنویسی همان اقدام شکست‌خورده به‌عنوان تنها مسیر ممنوع است.
+- توقف کامل فقط وقتی مجاز است که موتور آن را مجاز اعلام کند (دروازهٔ نویسنده یا تلاش‌های تکراری تمام‌شده). در آن صورت دقیقاً نشان بده چرا این روش کار نمی‌کند، چه چیزی لازم است و دست‌کم دو جایگزین واقعاً متفاوت پیشنهاد بده. در غیر این صورت قهرمان نباید درجا بزند.
+- اگر قهرمان این نوبت به مکان تازه‌ای منتقل شده، شکست بهای رسیدن است. مکان تازه و بهای ورود را نشان بده؛ او را همچنان پشت آستانهٔ قبلی نگه ندار.
+
 [قرارداد تغییر حالت‌های قهرمان — اجباری]
 - هر مورد در playerConditionChanges (افزودن/مداوا/حذف) باید عیناً در همین متن روایت شده باشد. اگر در نثر نیامده، هرگز آن را ننویس. اگر در نثر زخمی رخ داده، حتماً آن را ثبت کن.
 - باندپیچی، آتل، مرهم یا مداوای درمانگر → «treat» (هرگز «remove»). یک زخم تنها با بهبود واقعی و روایت‌شده (جادو، دارو، استراحت طولانی) «remove» می‌شود.
@@ -734,6 +814,7 @@ You MUST respond with a valid JSON object matching this schema:
 
       if (context.resolvedGameOutcome) {
         const mixedDirective = PromptAssembler.outcomeDirective(context.resolvedGameOutcome.outcome, true);
+        const failureBlock = PromptAssembler.failureForwardBlock(context.resolvedGameOutcome, true);
         parts.push(
           `[PRE-RESOLVED GAME ENGINE OUTCOME]\n` +
           `• Player Action: "${context.resolvedGameOutcome.actionText}"\n` +
@@ -741,6 +822,7 @@ You MUST respond with a valid JSON object matching this schema:
           `• Consequence: ${context.resolvedGameOutcome.consequence}\n` +
           (context.resolvedGameOutcome.costLine ? `• Cost (MANDATORY — depict in prose): ${context.resolvedGameOutcome.costLine}\n` : '') +
           (mixedDirective ? `${mixedDirective}\n` : '') +
+          (failureBlock ? `${failureBlock}\n` : '') +
           `• DIRECTIVE: Immediately open with the protagonist performing this exact action and depict the direct, personal reaction of the target NPC or environment! Respond to the exact target addressed, not an off-scene commander. If speaking or asking a question, use direct dialogue.`
         );
       }
@@ -850,6 +932,7 @@ You MUST respond with a valid JSON object matching this schema:
 
       if (context.resolvedGameOutcome) {
         const mixedDirectiveFa = PromptAssembler.outcomeDirective(context.resolvedGameOutcome.outcome, false);
+        const failureBlockFa = PromptAssembler.failureForwardBlock(context.resolvedGameOutcome, false);
         parts.push(
           `[نتیجه محاسباتی موتور بازی / PRE-RESOLVED OUTCOME]\n` +
           `• عمل انجام شده توسط بازیکن: "${context.resolvedGameOutcome.actionText}"\n` +
@@ -857,6 +940,7 @@ You MUST respond with a valid JSON object matching this schema:
           `• پیامد: ${context.resolvedGameOutcome.consequence}\n` +
           (context.resolvedGameOutcome.costLine ? `• هزینه (اجباری — حتماً در متن نشان بده): ${context.resolvedGameOutcome.costLine}\n` : '') +
           (mixedDirectiveFa ? `${mixedDirectiveFa}\n` : '') +
+          (failureBlockFa ? `${failureBlockFa}\n` : '') +
           `• دستور مؤکد روایی: روایت را بلافاصله با انجام همین اقدام توسط قهرمان داستان آغاز کن و واکنش مستقیم، شخصی و عینیِ شخصیت یا مانع مورد اقدام (نه یک فرمانده غایب) را با دیالوگ مستقیم («...») نشان بده! از ابداع موانع فیزیکیِ ذکرنشده (مثل بارهای انباشته) بپرهیز و هرگز صحنه را با توصیفات منفعل پس‌زمینه که این اقدام در آن گم شود پر نکن.`
         );
       }

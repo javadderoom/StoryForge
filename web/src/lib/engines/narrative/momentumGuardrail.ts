@@ -1,7 +1,14 @@
 import { SubQAdapter, SubQDecisionRequest } from '@/lib/providers/SubQAdapter';
 import type { CheckResolution } from '@/lib/types/gameplay';
+import { actionsAreSimilar } from '@/lib/engines/game/failForwardEngine';
 
-export type StallingType = 'none' | 'repetitive_standoff' | 'ignored_success' | 'choice_recycling';
+export type StallingType =
+  | 'none'
+  | 'repetitive_standoff'
+  | 'ignored_success'
+  | 'choice_recycling'
+  /** Plan 18: a failed check left the same obstacle unchanged (no cost/reveal/etc.). */
+  | 'failure_stall';
 
 export interface MomentumEvaluationInput {
   storyTitle: string;
@@ -57,6 +64,7 @@ export function extractSubQChoice(rawAnswer: any, fallback: StallingType = 'none
       'repetitive_standoff',
       'ignored_success',
       'choice_recycling',
+      'failure_stall',
     ];
     return categories[rawAnswer.index] ?? fallback;
   }
@@ -65,6 +73,15 @@ export function extractSubQChoice(rawAnswer: any, fallback: StallingType = 'none
   const normalized = str.trim().toLowerCase();
   if (normalized.includes('ignored_success') || normalized.includes('ignored')) {
     return 'ignored_success';
+  }
+  // Plan 18: check the failure-specific label before generic "repetitive" /
+  // "standoff" matches so "failure_stall" never collapses into a generic stall.
+  if (
+    normalized.includes('failure_stall') ||
+    normalized.includes('failure') ||
+    normalized.includes('failed')
+  ) {
+    return 'failure_stall';
   }
   if (normalized.includes('choice_recycling') || normalized.includes('recycling')) {
     return 'choice_recycling';
@@ -89,6 +106,11 @@ export function buildSubQMomentumRequest(
       language: input.language ?? 'en',
     },
     resolved_outcome: input.resolution.outcome,
+    failure_mode: input.resolution.failureMode,
+    failure_directive:
+      input.language === 'fa'
+        ? input.resolution.failureDirective?.fa
+        : input.resolution.failureDirective?.en,
     player_action: input.playerActionText,
     mechanical_consequence: input.resolution.consequenceSummary || undefined,
     prior_actions: input.priorActions && input.priorActions.length > 0 ? input.priorActions : undefined,
@@ -124,6 +146,11 @@ export function buildSubQMomentumRequest(
         instructions:
           'Do the newly offered choices re-attempt or re-offer actions already completed in prior turns?',
       },
+      has_failure_stall: {
+        type: 'noul',
+        instructions:
+          'Only when resolved_outcome is failure or critical_failure: did the prose leave the same failed obstacle exactly in place with no new cost, complication, reveal, reposition, or escalation — and no new information, pressure, price, or opportunity? Answer TRUE for that static failure. Answer FALSE if the failure changed the situation, or if it was an authorized hard stop that revealed why the method is blocked and offered real alternatives.',
+      },
     },
   };
 }
@@ -141,6 +168,8 @@ export function buildMomentumRepairInstruction(
         return `پیروزی یا موفقیت قاطع بازیکن (${outcome}) در عبور از مانع در متن صحنه متوقف مانده است! فوراً داستان را به جلو ببر: گذر کامل قهرمان و کاروان از معبر/دهانه و ورود به فضای جدید (مانند بازارچه، گذرگاه یا پیامد بعدی) را تصویر کن و در بن‌بست نگهبانان توقف نکن.`;
       case 'choice_recycling':
         return `گزینه‌های ارائه‌شده تکرار تصمیماتی هستند که در نوبت‌های قبل حل و فصل شده‌اند. گزینه‌های پیش‌رو باید کاملاً تازه، روبه‌جلو و متناسب با چالش جدید پس از عبور از مانع باشند.`;
+      case 'failure_stall':
+        return `شکست، داستان را جلو نبرد: همان مانع شکست‌خورده بدون هیچ هزینه، پیچیدگی، افشا، جابه‌جایی یا تشدید تازه‌ای سر جایش مانده است. صحنه را بازنویسی کن تا شکست قصد بازیکن را رد کند اما وضعیت را عینی تغییر دهد. هدف را محقق نکن، نجات‌دهنده یا خطر اختراع نکن، و همان تلاش را تنها مسیر قرار نده؛ دست‌کم دو گزینه باید رویکردی واقعاً متفاوت را دنبال کنند. اگر موتور توقف کامل را مجاز اعلام کرده، نشان بده چرا این روش کار نمی‌کند و چه چیزی لازم است.`;
       case 'repetitive_standoff':
       default:
         return `صحنه در همان بن‌بست یا گفتگوی تکراری نوبت قبل درجا می‌زند. پیشروی فیزیکی و تغییر موقعیت شخصیت‌ها را با توجه به نتیجه عمل (${outcome}) محقق کن.`;
@@ -152,6 +181,8 @@ export function buildMomentumRepairInstruction(
       return `The player's decisive outcome (${outcome}) was ignored in the narrative! Immediately advance the plot: describe the protagonist successfully passing through the barrier/gate into the new environment. Do not linger in the resolved standoff.`;
     case 'choice_recycling':
       return `The offered choices repeat actions already completed in prior turns. Provide 3 completely fresh tactical choices relevant to the newly emerged situation.`;
+    case 'failure_stall':
+      return `The failed action did not move the story: the same obstacle is still in place with no new cost, complication, reveal, reposition, or escalation. Rewrite the scene so the failure denies the intent but changes the situation. Do not grant the goal, do not invent a rescuer or hazard, and do not offer the same attempt as the only path; at least two choices must pursue a genuinely new approach. If the engine authorized a hard stop, show why the method cannot work and what is required.`;
     case 'repetitive_standoff':
     default:
       return `The scene is frozen in a repetitive stalemate from prior turns. Advance the physical coordinates and transition the characters into the next dramatic beat or emerging consequence (${outcome}).`;
@@ -169,6 +200,42 @@ export function evaluateMomentumHeuristics(
   const priorActions = (input.priorActions || []).map((a) => a.toLowerCase().trim());
 
   const tokenize = (s: string) => new Set(s.split(/[\s،,.:;!؟?]+/).filter((w) => w.length > 1));
+
+  // Plan 18: on a failed check, the most damaging loop is offering the same
+  // failed attempt again. Check this BEFORE generic prior-action recycling so
+  // the repair instruction targets the actual problem.
+  const isFailureOutcome =
+    input.resolution.outcome === 'failure' ||
+    input.resolution.outcome === 'critical_failure';
+  if (isFailureOutcome) {
+    const failedText = (input.playerActionText || '').trim();
+    if (failedText.length > 0) {
+      // Count genuinely new approaches, not retries: the contract requires at
+      // least two new paths (or every offered choice when fewer than two exist).
+      const newApproachChoices = candidateTexts.filter(
+        (choice) => choice.length < 6 || !actionsAreSimilar(failedText, choice)
+      ).length;
+      const requiredNewApproaches = Math.min(2, candidateTexts.length);
+      if (
+        candidateTexts.length > 0 &&
+        newApproachChoices < requiredNewApproaches
+      ) {
+        return {
+          ok: false,
+          stallingType: 'failure_stall',
+          storyProgressed: false,
+          confidence: 0.85,
+          repairInstruction: buildMomentumRepairInstruction(
+            'failure_stall',
+            input.resolution.outcome,
+            input.language
+          ),
+          notes: `Heuristic: only ${newApproachChoices}/${candidateTexts.length} choices pursue a new approach (need ${requiredNewApproaches}); the failure did not open enough new paths.`,
+          skipped: false,
+        };
+      }
+    }
+  }
 
   // Check choice recycling: if any candidate choice overlaps >= 60% with any completed action
   for (const choice of candidateTexts) {
@@ -238,10 +305,16 @@ export async function evaluateNarrativeMomentum(
   const hasIgnoredSuccess = extractSubQNoul(ans.has_ignored_success, false);
   const hasChoiceRecycling = extractSubQNoul(ans.has_choice_recycling, false);
   const hasRepetitiveStandoff = extractSubQNoul(ans.has_repetitive_standoff, false);
+  const hasFailureStall = extractSubQNoul(ans.has_failure_stall, false);
+  const isFailureOutcome =
+    input.resolution.outcome === 'failure' ||
+    input.resolution.outcome === 'critical_failure';
 
   let stallingType: StallingType = 'none';
   if (hasIgnoredSuccess) {
     stallingType = 'ignored_success';
+  } else if (isFailureOutcome && hasFailureStall) {
+    stallingType = 'failure_stall';
   } else if (hasChoiceRecycling) {
     stallingType = 'choice_recycling';
   } else if (hasRepetitiveStandoff) {
@@ -262,7 +335,12 @@ export async function evaluateNarrativeMomentum(
     };
   }
 
-  const resolvedStallingType = stallingType !== 'none' ? stallingType : 'repetitive_standoff';
+  const resolvedStallingType =
+    stallingType !== 'none'
+      ? stallingType
+      : isFailureOutcome
+        ? 'failure_stall'
+        : 'repetitive_standoff';
   const repairInstruction = buildMomentumRepairInstruction(
     resolvedStallingType,
     input.resolution.outcome,

@@ -555,4 +555,91 @@ describe('PromptAssembler - Plan 17 journey blocks', () => {
   });
 });
 
+describe('PromptAssembler - Plan 18 Fail Forward contract', () => {
+  it('renders the binding failure block and system contract (EN)', () => {
+    const { systemPrompt, userPrompt } = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        resolvedGameOutcome: {
+          actionText: 'Search the archive for the missing ledger',
+          outcome: 'failure',
+          consequence: 'The attempt fails, but reveals a fresh clue.',
+          failureMode: 'reveal',
+          failureSecondaryMode: 'complication',
+          failureDirective:
+            'The intent FAILS, but the attempt exposes a new fact. At least two of the offered choices must pursue a genuinely different approach.',
+          stuckAllowed: false,
+        },
+      })
+    );
+    assert.ok(systemPrompt.includes('[FAILURE FORWARD CONTRACT — MANDATORY]'));
+    assert.ok(systemPrompt.includes('Failure denies the INTENT, never the story.'));
+    assert.ok(userPrompt.includes('[FAILURE FORWARD — PRE-RESOLVED MODE]'));
+    assert.ok(userPrompt.includes('REVEAL + COMPLICATION (secondary)'));
+    assert.ok(userPrompt.includes('Binding directive: The intent FAILS'));
+    assert.ok(userPrompt.includes('Stuck permitted: NO'));
+    assert.ok(userPrompt.includes('at least two choices must pursue a new approach'));
+  });
+
+  it('renders the Persian failure block and contract (FA)', () => {
+    const { systemPrompt, userPrompt } = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'fa',
+        storyTitle: 'افسانه نمک',
+        resolvedGameOutcome: {
+          actionText: 'جستجوی بایگانی برای دفترچهٔ گم‌شده',
+          outcome: 'critical_failure',
+          consequence: 'تلاش شکست خورد و خطر پیش رفت.',
+          failureMode: 'escalation',
+          failureSecondaryMode: 'cost',
+          failureDirective:
+            'قصد بازیکن شکست می‌خورد و خطر پیش می‌رود. دست‌کم دو گزینه باید رویکردی واقعاً متفاوت را دنبال کنند.',
+          stuckAllowed: false,
+        },
+      })
+    );
+    assert.ok(systemPrompt.includes('[قرارداد شکستِ پیش‌برنده — اجباری]'));
+    assert.ok(systemPrompt.includes('شکست، «قصد» را رد می‌کند، نه داستان را.'));
+    assert.ok(userPrompt.includes('[شکستِ پیش‌برنده — حالت محاسباتی]'));
+    assert.ok(userPrompt.includes('ESCALATION + COST (ثانویه)'));
+    assert.ok(userPrompt.includes('توقف کامل مجاز است: نه'));
+    assert.ok(userPrompt.includes('دست‌کم دو گزینه'));
+  });
+
+  it('renders an authorized hard stop with its reason, requirement, and engine movement', () => {
+    const { userPrompt } = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        resolvedGameOutcome: {
+          actionText: 'Force the sealed gate',
+          outcome: 'failure',
+          consequence: 'The gate will not yield to brute force.',
+          failureMode: 'hard_stop',
+          failureDirective: 'This method cannot work here. Reveal the requirement and at least two alternatives.',
+          stuckAllowed: true,
+          stuckReason: 'Repeating the same approach has exhausted its possibilities.',
+          failureRequirementHint: 'The bronze seal is required.',
+          locationChanged: true,
+        },
+      })
+    );
+    assert.ok(userPrompt.includes('Stuck permitted: YES'));
+    assert.ok(userPrompt.includes('Repeating the same approach has exhausted its possibilities.'));
+    assert.ok(userPrompt.includes('Requirement to reveal: The bronze seal is required.'));
+    assert.ok(userPrompt.includes('ENGINE MOVEMENT'));
+    assert.ok(userPrompt.includes('Do NOT narrate them still stuck at the old threshold.'));
+  });
+
+  it('omits the failure block for clean success', () => {
+    const { userPrompt } = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        resolvedGameOutcome: {
+          actionText: 'Open the gate',
+          outcome: 'success',
+          consequence: 'The gate opens.',
+        },
+      })
+    );
+    assert.ok(!userPrompt.includes('[FAILURE FORWARD — PRE-RESOLVED MODE]'));
+  });
+});
+
 

@@ -362,4 +362,45 @@ export const EVAL_SCENARIOS: EvalScenario[] = [
       forbiddenWords: ['وارد ارگ شد', 'درون ارگ', 'دروازهٔ ارگ را پشت سر گذاشت', 'به مقصد رسید'],
     },
   },
+  {
+    id: 'eval_fail_forward_reveal',
+    title: 'A failed investigation reveals and moves instead of freezing',
+    invariant:
+      'Failure denies the stated goal but changes the situation with a reveal; it never becomes a disguised success or a static retry-only beat.',
+    language: 'en',
+    envelope: env({
+      storyTitle: 'The Ledger of Ashes',
+      languageDirective: 'en',
+      currentLocationName: "Smuggler's Room",
+      currentLocationDescription:
+        'A cramped room above a tannery, its floorboards tacky with old brine and its shutters barred from inside.',
+      playerStatus: {
+        stats: STANDARD_STATS,
+        resources: { health: 30, stamina: 18, resolve: 12 },
+        equippedItems: ['Iron Dagger', 'Hooded Lantern'],
+      },
+      recentSceneSnippets: [
+        'The smuggler swore the ledger never left this room, then fled down the tannery stairs.',
+      ],
+      resolvedGameOutcome: {
+        actionText: "Search the smuggler's room for the missing ledger",
+        outcome: 'failure',
+        consequence:
+          'The search fails to find the ledger, but pries loose a hidden floorboard: a fresh wax seal and a tally mark pointing to the river gate.',
+        failureMode: 'reveal',
+        failureSecondaryMode: 'complication',
+        failureDirective:
+          'The intent FAILS, but the attempt exposes a new fact, clue, weakness, requirement, or alternative grounded in the scene. The goal is still not achieved; the reveal changes what the next decision can be. At least two offered choices must pursue a genuinely different approach.',
+        stuckAllowed: false,
+      },
+    }),
+    expectations: {
+      outcome: 'failure',
+      forbiddenWords: ['you find the ledger', 'the ledger is yours', 'unscathed', 'without a scratch'],
+      requireConsequenceEcho: 'floorboard|wax|seal|tally|river gate|clue',
+      requireDivergentChoices: true,
+      minWords: 30,
+      maxWords: 450,
+    },
+  },
 ];

@@ -2,6 +2,7 @@ import {
   PlayerState,
   CheckResolution,
   DiceOutcome,
+  FailureMode,
   RiskLevel,
   StateMutationDiff,
   TensionClock,
@@ -27,6 +28,7 @@ import {
   computeActiveConditionEffects,
   isConditionEffectsEnabled,
 } from './conditionCatalog';
+import { resolveFailureForward } from './failForwardEngine';
 
 /**
  * Styles/verbs that carry a real chance of bodily harm. Mixed success may only
@@ -108,6 +110,17 @@ export interface RollOptions {
   actionCategories?: string[];
   /** Universal Action Feasibility assessment (SubQ Snap or heuristic fallback) */
   feasibility?: FeasibilityAssessment;
+  /**
+   * Plan 18: consecutive identical failed attempts before this turn. The first
+   * repeat escalates; the second unchanged repeat becomes an authorized hard stop.
+   */
+  previousFailedAttempts?: number;
+  /** Authored Fail Forward policy attached to the selected choice. */
+  authoredFailureMode?: FailureMode;
+  authoredFailureHint?: string;
+  /** Authored scene gate (location-level). Only gate/entry actions are affected. */
+  authoredGate?: boolean;
+  authoredGateHint?: string;
 }
 
 /**
@@ -441,6 +454,18 @@ export function resolveActionCheck(
   );
   const staminaKey = staminaRes ? staminaRes.id : undefined;
 
+  // Plan 18: non-bodily failures cost composure when the system defines it
+  // (the generated StoryForge system ships `resolve`; authored systems may use
+  // `composure`, `willpower`, or `morale`).
+  const resolveRes = rpgSystem.resources?.find((r) =>
+    /^(resolve|composure|willpower|morale|عزم|اراده|روحیه)$/i.test(r.id)
+  );
+  const resolveKey = resolveRes ? resolveRes.id : undefined;
+
+  // One classification drives both mixed-success and failure costs, so a social
+  // action can never be charged a phantom wound by either branch.
+  const bodilyRisk = isBodilyRiskAction(actionText, options.actionStyle, effectiveStatId);
+
   // Healing potion / tincture trigger
   if (/drink|potion|tincture|معجون|نوشیدن|درمان/.test(lowerAction)) {
     const potionItem = playerState.inventory.find(
@@ -542,12 +567,10 @@ export function resolveActionCheck(
   } else if (isNatMin) {
     outcome = 'critical_failure';
     consequenceSummary = isPersian
-      ? 'فاجعه رخ داد: شکست کامل همراه با آسیب سنگین یا عواقب ناگوار.'
-      : 'Disaster strikes: complete failure with severe complications or damage.';
-    stateDiff.resourceChanges = {
-      ...(stateDiff.resourceChanges || {}),
-      [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) - 15,
-    };
+      ? 'فاجعه: تلاش به‌طور کامل شکست خورد.'
+      : 'Disaster: the attempt fails catastrophically.';
+    // Plan 18: the failure engine below applies an action-appropriate cost.
+    // A natural 1 on a social/investigative action must not become a wound.
   } else if (isNatMax) {
     outcome = 'critical_success';
     consequenceSummary = isPersian
@@ -565,7 +588,6 @@ export function resolveActionCheck(
       : 'Clear success: objective accomplished as intended.';
   } else if (totalScore >= baseDC - 3) {
     outcome = 'mixed_success';
-    const bodilyRisk = isBodilyRiskAction(actionText, options.actionStyle, effectiveStatId);
     // The cost must be narratable from THIS action. A social or investigative
     // mixed success costs composure, stamina, time, or attention — never an
     // unexplained wound the writer has to invent an assailant for.
@@ -591,12 +613,9 @@ export function resolveActionCheck(
   } else {
     outcome = 'failure';
     consequenceSummary = isPersian
-      ? 'تلاش ناموفق بود: مانعی غیرمنتظره پدیدار شد یا فرصت از دست رفت.'
-      : 'The attempt failed: unexpected obstacle arose or opportunity lost.';
-    stateDiff.resourceChanges = {
-      ...(stateDiff.resourceChanges || {}),
-      [healthKey]: (stateDiff.resourceChanges?.[healthKey] || 0) - 10,
-    };
+      ? 'قصد اعلام‌شده محقق نشد.'
+      : 'The stated intent was not achieved.';
+    // Plan 18: the failure engine below applies an action-appropriate cost.
   }
 
   // Bulletproof safeguard: Success and Critical Success NEVER take bodily health damage
@@ -659,6 +678,43 @@ export function resolveActionCheck(
     }
   } catch {
     /* non-fatal: clock/displacement must never break the core roll */
+  }
+
+  // ------------------------------------------------------------------
+  // Plan 18: Fail Forward. A failed intent still changes the situation.
+  // The mode/directive is deterministic; the writer only dramatizes it.
+  // ------------------------------------------------------------------
+  let failureForward: ReturnType<typeof resolveFailureForward> | undefined;
+  if (outcome === 'failure' || outcome === 'critical_failure') {
+    const existingHealthPenalty = (stateDiff.resourceChanges?.[healthKey] ?? 0) < 0;
+    failureForward = resolveFailureForward({
+      outcome,
+      actionText,
+      actionStyle: options.actionStyle,
+      statId: effectiveStatId,
+      isPersian,
+      isTraveling: Boolean(playerState.travel),
+      bodilyRisk,
+      authoredMode: options.authoredFailureMode,
+      authoredHint: options.authoredFailureHint,
+      authoredGate: options.authoredGate,
+      authoredGateHint: options.authoredGateHint,
+      previousFailedAttempts: options.previousFailedAttempts,
+      healthKey,
+      staminaKey,
+      resolveKey,
+      availableResourceIds: Object.keys(playerState.resources || {}),
+      hasExistingHealthPenalty: existingHealthPenalty,
+    });
+    if (Object.keys(failureForward.resourceChanges).length > 0) {
+      stateDiff.resourceChanges = {
+        ...(stateDiff.resourceChanges || {}),
+        ...failureForward.resourceChanges,
+      };
+    }
+    consequenceSummary += ` ${
+      isPersian ? failureForward.consequenceSummary.fa : failureForward.consequenceSummary.en
+    }`;
   }
 
   if (passiveResult.appliedPassives.length > 0) {
@@ -749,6 +805,22 @@ export function resolveActionCheck(
       : {}),
     ...(displacedLocationId ? { displacedLocationId } : {}),
     ...(clockUpdate ? { clockUpdate } : {}),
+    ...(failureForward
+      ? {
+          failureMode: failureForward.mode,
+          ...(failureForward.secondaryMode
+            ? { failureSecondaryMode: failureForward.secondaryMode }
+            : {}),
+          failureActionKind: failureForward.actionKind,
+          failureDirective: failureForward.directive,
+          stuckAllowed: failureForward.stuckAllowed,
+          ...(failureForward.stuckReason ? { stuckReason: failureForward.stuckReason } : {}),
+          ...(failureForward.requirementHint
+            ? { failureRequirementHint: failureForward.requirementHint }
+            : {}),
+          previousFailedAttempts: failureForward.previousFailedAttempts,
+        }
+      : {}),
     ...(progressionResult ? { progression: progressionResult } : {}),
     ...(options.feasibility
       ? {

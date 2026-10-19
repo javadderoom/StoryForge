@@ -191,6 +191,94 @@ describe('GameEngine - Deterministic Mechanics & Math', () => {
       assert.equal(res.outcome, 'failure');
     });
 
+    it('charges a non-bodily failure in stamina and assigns a forward mode', () => {
+      const res = GameEngine.resolveActionCheck(
+        'Bribe the guard',
+        initialPlayerState,
+        sampleRpgSystem,
+        { statId: 'cunning', forcedDiceRoll: 5, targetDC: 12 }
+      );
+      assert.equal(res.outcome, 'failure');
+      // A failed bribe must not manufacture a wound.
+      assert.equal(res.stateDiff.resourceChanges?.hp, undefined);
+      assert.equal(res.stateDiff.resourceChanges?.stamina, -10);
+      assert.equal(res.failureMode, 'complication');
+      assert.equal(res.failureSecondaryMode, 'reveal');
+      assert.equal(res.stuckAllowed, false);
+      assert.match(res.failureDirective?.en || '', /two of the offered choices/i);
+      assert.match(res.consequenceSummary, /complication/i);
+    });
+
+    it('makes a critical social failure escalate without a phantom wound', () => {
+      const res = GameEngine.resolveActionCheck(
+        'Bribe the guard',
+        initialPlayerState,
+        sampleRpgSystem,
+        { statId: 'cunning', forcedDiceRoll: 1, targetDC: 12 }
+      );
+      assert.equal(res.outcome, 'critical_failure');
+      assert.equal(res.failureMode, 'escalation');
+      assert.equal(res.failureSecondaryMode, 'cost');
+      assert.equal(res.stateDiff.resourceChanges?.hp, undefined);
+      assert.equal(res.stateDiff.resourceChanges?.stamina, -15);
+      assert.equal(res.stuckAllowed, false);
+    });
+
+    it('escalates the first repeat and hard-stops the second unchanged repeat', () => {
+      const firstRepeat = GameEngine.resolveActionCheck(
+        'Bribe the guard',
+        initialPlayerState,
+        sampleRpgSystem,
+        {
+          statId: 'cunning',
+          forcedDiceRoll: 5,
+          targetDC: 12,
+          previousFailedAttempts: 1,
+        }
+      );
+      assert.equal(firstRepeat.outcome, 'failure');
+      assert.equal(firstRepeat.failureMode, 'escalation');
+      assert.equal(firstRepeat.stuckAllowed, false);
+
+      const exhausted = GameEngine.resolveActionCheck(
+        'Bribe the guard',
+        initialPlayerState,
+        sampleRpgSystem,
+        {
+          statId: 'cunning',
+          forcedDiceRoll: 5,
+          targetDC: 12,
+          previousFailedAttempts: 2,
+        }
+      );
+      assert.equal(exhausted.outcome, 'failure');
+      assert.equal(exhausted.failureMode, 'hard_stop');
+      assert.equal(exhausted.stuckAllowed, true);
+      assert.equal(exhausted.stateDiff.resourceChanges?.stamina, undefined);
+      assert.match(exhausted.stuckReason || '', /exhausted/i);
+    });
+
+    it('honors an authored gate hard stop and exposes the requirement', () => {
+      const res = GameEngine.resolveActionCheck(
+        'Force the gate open',
+        initialPlayerState,
+        sampleRpgSystem,
+        {
+          statId: 'might',
+          forcedDiceRoll: 5,
+          targetDC: 18,
+          authoredGate: true,
+          authoredGateHint: 'The bronze seal is required.',
+        }
+      );
+      assert.equal(res.outcome, 'failure');
+      assert.equal(res.failureMode, 'hard_stop');
+      assert.equal(res.stuckAllowed, true);
+      assert.equal(res.failureRequirementHint, 'The bronze seal is required.');
+      assert.match(res.failureDirective?.en || '', /at least two genuinely different alternatives/i);
+      assert.equal(res.stateDiff.resourceChanges?.hp, undefined);
+    });
+
     it('correctly includes skill bonuses in total calculation', () => {
       const res = GameEngine.resolveActionCheck(
         'Engage in sword duel',

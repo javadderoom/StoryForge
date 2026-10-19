@@ -186,6 +186,13 @@ export interface WorldLocation {
   hazardFallbackLocationId?: string;
   /** Plan 13: default threat clock spawned when entering this zone without an active clock. */
   threatClockDefault?: ThreatClockDefault;
+  /**
+   * Plan 18: authored gate. When true, a failed attempt to enter/bypass this
+   * location's gate is an authorized hard stop (reveal the requirement + at
+   * least two alternatives). Other actions at the location are normal.
+   */
+  hardGate?: boolean;
+  hardGateHint?: string;
   imageUrl?: string;
   /** Cartographer: coordinates on world map (normalized or pixel canvas coordinates) */
   coordinates?: { x: number; y: number };
@@ -1129,6 +1136,13 @@ export const WorldLocationSchema = z.object({
   pointsOfInterest: z.array(LocationPointOfInterestSchema).optional(),
   hazardFallbackLocationId: z.string().min(1).optional(),
   threatClockDefault: ThreatClockDefaultSchema.optional(),
+  /**
+   * Plan 18: authored gate. When true, a failed attempt to enter/bypass this
+   * location's gate is an authorized hard stop (it must reveal the requirement
+   * and at least two alternatives). Other actions at the location are normal.
+   */
+  hardGate: z.boolean().optional(),
+  hardGateHint: z.string().max(240).optional(),
   imageUrl: z.string().optional(),
   coordinates: z.object({ x: z.number(), y: z.number() }).optional(),
   mapIcon: z.string().optional(),
@@ -1674,6 +1688,11 @@ export const StoryBeatChoiceSchema = z.object({
   targetDC: z.number().optional(),
   requiredStatId: z.string().optional(),
   targetSceneId: z.string().optional(),
+  /** Plan 18: authored Fail Forward policy for this choice. */
+  failureMode: z
+    .enum(['cost', 'complication', 'reveal', 'reposition', 'escalation', 'hard_stop'])
+    .optional(),
+  failureHint: z.string().max(240).optional(),
 });
 
 export const ArcStageSchema = z.object({

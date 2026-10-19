@@ -177,6 +177,9 @@ async function run() {
       statId: selectedChoice ? selectedChoice.requiredStatId : customAction.requiredStatId,
       targetDC: selectedChoice ? selectedChoice.targetDC : customAction.targetDC,
       choiceId: selectedChoice ? selectedChoice.id : undefined,
+      // Plan 18: forward the authored scene transition. The server now derives
+      // this from choiceId too, but the harness should send it explicitly.
+      targetSceneId: selectedChoice ? selectedChoice.targetSceneId : undefined,
       engineTier: 'plus', // 2x Tier
       playerState,
       turnNumber,

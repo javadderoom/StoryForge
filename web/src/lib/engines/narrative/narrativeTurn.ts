@@ -463,6 +463,32 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
             ? 'هزینه قطعی این نوبت: خستگی، از دست رفتن تعادل یا جلب توجه — برخاسته از خودِ اقدام.'
             : 'Certain cost this turn: strain, fatigue, lost footing, or raised attention — caused by the action itself.'
           : undefined),
+      ...(resolution.failureMode
+        ? {
+            failureMode: resolution.failureMode,
+            ...(resolution.failureSecondaryMode
+              ? { failureSecondaryMode: resolution.failureSecondaryMode }
+              : {}),
+            ...(resolution.failureDirective
+              ? {
+                  failureDirective:
+                    story.language === 'fa'
+                      ? resolution.failureDirective.fa
+                      : resolution.failureDirective.en,
+                }
+              : {}),
+            stuckAllowed: Boolean(resolution.stuckAllowed),
+            ...(resolution.stuckReason ? { stuckReason: resolution.stuckReason } : {}),
+            ...(resolution.failureRequirementHint
+              ? { failureRequirementHint: resolution.failureRequirementHint }
+              : {}),
+          }
+        : {}),
+      locationChanged: Boolean(
+        resolution.stateDiff?.locationChange ||
+          resolution.displacedLocationId ||
+          input.travelArrival
+      ),
     },
     recentSceneSnippets,
     recentCompletedActions: recentCompletedActions.length > 0 ? recentCompletedActions : undefined,
@@ -564,6 +590,8 @@ export async function generateValidatedScene(
       targetDC: c.targetDC,
       requiredStatId: c.requiredStatId,
       targetSceneId: c.targetSceneId,
+      failureMode: c.failureMode,
+      failureHint: c.failureHint,
     }));
     return {
       status: 'ok',

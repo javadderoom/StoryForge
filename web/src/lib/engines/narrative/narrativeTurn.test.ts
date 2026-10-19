@@ -191,6 +191,72 @@ describe('Plan 15 Bug 3 — Party Roster Isolation in assembleSceneEnvelope', ()
       'Directly targeted companion becomes present to address the action'
     );
   });
+
+  it('carries the Plan 18 failure plan and localization into the writer envelope', () => {
+    const input: SceneTurnInput = {
+      story: baseStory,
+      playerState: basePlayerState,
+      resolution: {
+        ...baseResolution,
+        outcome: 'failure',
+        failureMode: 'reveal',
+        failureSecondaryMode: 'complication',
+        failureActionKind: 'investigative',
+        failureDirective: {
+          en: 'Expose a new fact, but do not grant the goal.',
+          fa: 'حقیقتی تازه را آشکار کن، اما هدف را محقق نکن.',
+        },
+        stuckAllowed: false,
+        previousFailedAttempts: 0,
+        stateDiff: { locationChange: 'loc_ravine' },
+      },
+      playerActionText: 'Search the ravine for tracks.',
+      ledger: baseLedger,
+      sessionTurns: [],
+    };
+
+    const envelope = assembleSceneEnvelope(input);
+    assert.equal(envelope.resolvedGameOutcome?.failureMode, 'reveal');
+    assert.equal(envelope.resolvedGameOutcome?.failureSecondaryMode, 'complication');
+    assert.equal(
+      envelope.resolvedGameOutcome?.failureDirective,
+      'Expose a new fact, but do not grant the goal.'
+    );
+    assert.equal(envelope.resolvedGameOutcome?.stuckAllowed, false);
+    assert.equal(envelope.resolvedGameOutcome?.locationChanged, true);
+  });
+
+  it('localizes the failure directive for Persian stories', () => {
+    const input: SceneTurnInput = {
+      story: { ...baseStory, language: 'fa' },
+      playerState: basePlayerState,
+      resolution: {
+        ...baseResolution,
+        outcome: 'failure',
+        failureMode: 'escalation',
+        failureDirective: {
+          en: 'Advance the danger.',
+          fa: 'خطر را پیش ببر.',
+        },
+        stuckAllowed: true,
+        stuckReason: 'این روش بسته است.',
+        failureRequirementHint: 'مهر برنزی لازم است.',
+        stateDiff: {},
+      },
+      playerActionText: 'جستجوی دره',
+      ledger: baseLedger,
+      sessionTurns: [],
+    };
+
+    const envelope = assembleSceneEnvelope(input);
+    assert.equal(envelope.resolvedGameOutcome?.failureDirective, 'خطر را پیش ببر.');
+    assert.equal(envelope.resolvedGameOutcome?.stuckAllowed, true);
+    assert.equal(envelope.resolvedGameOutcome?.stuckReason, 'این روش بسته است.');
+    assert.equal(
+      envelope.resolvedGameOutcome?.failureRequirementHint,
+      'مهر برنزی لازم است.'
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

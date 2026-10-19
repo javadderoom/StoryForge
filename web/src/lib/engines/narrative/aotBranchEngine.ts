@@ -1,5 +1,6 @@
 import { GameEngine } from '@/lib/engines/game/GameEngine';
 import { rollDice, isBodilyRiskAction } from '@/lib/engines/game/actionCheckEngine';
+import { countConsecutiveFailedAttempts } from '@/lib/engines/game/failForwardEngine';
 import { calculateActionXp, applyXpGain } from '@/lib/engines/game/progressionEngine';
 import { pruneInactiveZoneClocks, resolveDeclaredClockChanges, seedAmbientClock } from '@/lib/engines/game/threatClock';
 import { reconcilePlayerResources, resolveHealthKey } from '@/lib/engines/game/resourcePools';
@@ -214,6 +215,17 @@ export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBr
       turnNumber: branchTurnNumber,
       invokedAbilityId: undefined,
       feasibility,
+      // Plan 18 parity: the pre-written branch obeys the same retry budget and
+      // authored gate as the live route.
+      previousFailedAttempts: countConsecutiveFailedAttempts(
+        ctx.sessionTurns,
+        playerActionText,
+        playerState.currentLocationId
+      ),
+      authoredFailureMode: choice.failureMode,
+      authoredFailureHint: choice.failureHint,
+      authoredGate: Boolean(currentLocation?.hardGate),
+      authoredGateHint: currentLocation?.hardGateHint,
     });
   }
 

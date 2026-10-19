@@ -26,6 +26,9 @@ import { findServableAotBranch, markAotBranchServed } from '@/lib/play/snapAot';
 import { getNarrativeAdapter, ENGINE_TIER_COSTS, type EngineTier } from '@/lib/providers/narrativeAdapterFactory';
 import { reconcileConditions } from '@/lib/engines/game/conditionReconciler';
 import { isBodilyRiskAction } from '@/lib/engines/game/actionCheckEngine';
+import {
+  countConsecutiveFailedAttempts,
+} from '@/lib/engines/game/failForwardEngine';
 
 
 export async function OPTIONS(req: NextRequest) {
@@ -54,7 +57,7 @@ export async function POST(req: NextRequest) {
       sceneId: requestedSceneId,
     } = body;
 
-    const targetSceneId =
+    let targetSceneId =
       (typeof body.targetSceneId === 'string' && body.targetSceneId) ||
       (typeof body.destinationSceneId === 'string' && body.destinationSceneId) ||
       (typeof body.leadToSceneId === 'string' && body.leadToSceneId) ||
@@ -197,6 +200,8 @@ export async function POST(req: NextRequest) {
         narrativeProse?: string;
         presentedChoices?: any[];
         remakeCount?: number;
+        resolution?: CheckResolution;
+        locationId?: string;
       }>;
     const lastTurn = sessionTurns.length > 0 ? sessionTurns[sessionTurns.length - 1] : null;
 
@@ -256,6 +261,45 @@ export async function POST(req: NextRequest) {
       lastTurn?.presentedChoices,
       explicitChoiceId,
       playerActionText
+    );
+
+    // Plan 18: authored Fail Forward policy and retry budget. The selected
+    // choice may live on the rendered turn (AI or authored) or directly in the
+    // story's authored beats; both are checked by id first, then by exact text.
+    const selectedChoiceId = explicitChoiceId ?? actualChoice.actualChoiceId;
+    const chosenChoice = (() => {
+      const candidates: any[] = [
+        ...(lastTurn?.presentedChoices ?? []),
+        ...((story.initialStoryBeats ?? []) as any[]).flatMap((b: any) => b.choices ?? []),
+      ];
+      if (selectedChoiceId) {
+        return candidates.find((c) => c?.id === selectedChoiceId);
+      }
+      const trimmed = playerActionText.trim();
+      return candidates.find(
+        (c) => typeof c?.text === 'string' && c.text.trim() === trimmed
+      );
+    })();
+
+    // Plan 18 hygiene: authored transitions must not depend on the client
+    // forwarding `targetSceneId`. The playtest harness (and older readers) send
+    // only `choiceId`/text; derive the target from the selected authored choice
+    // so the engine can actually move the protagonist instead of retrying the
+    // same obstacle forever.
+    if (!targetSceneId && typeof (chosenChoice as any)?.targetSceneId === 'string') {
+      const derivedTarget = (chosenChoice as any).targetSceneId.trim();
+      if (derivedTarget) targetSceneId = derivedTarget;
+    }
+
+    const previousFailedAttempts = isRemake
+      ? 0
+      : countConsecutiveFailedAttempts(
+          sessionTurns,
+          playerActionText,
+          playerState.currentLocationId
+        );
+    const currentLocationDefinition = story.worldBible.locations?.find(
+      (l: any) => l.id === playerState.currentLocationId
     );
 
     if (session && typeof lastTurn?.turnNumber === 'number') {
@@ -441,6 +485,12 @@ export async function POST(req: NextRequest) {
           turnNumber,
           invokedAbilityId,
           feasibility,
+          // Plan 18: deterministic retry budget + authored gate policy.
+          previousFailedAttempts,
+          authoredFailureMode: chosenChoice?.failureMode,
+          authoredFailureHint: chosenChoice?.failureHint,
+          authoredGate: Boolean(currentLocationDefinition?.hardGate),
+          authoredGateHint: currentLocationDefinition?.hardGateHint,
         }
       );
     }

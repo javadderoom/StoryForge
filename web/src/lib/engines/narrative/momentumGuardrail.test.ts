@@ -181,4 +181,167 @@ describe('MomentumGuardrail — SubQ Snap Anti-Stalling & Story Momentum', () =>
     assert.equal(res.storyProgressed, false);
     assert.ok(res.repairInstruction?.includes('پیروزی'));
   });
+
+  it('asks the failure-specific stall question and carries the failure mode', () => {
+    const req = buildSubQMomentumRequest({
+      ...sampleInput,
+      resolution: {
+        outcome: 'failure',
+        failureMode: 'reveal',
+        failureDirective: { en: 'Expose a new fact.', fa: 'حقیقتی تازه را آشکار کن.' },
+        consequenceSummary: 'The attempt fails, but reveals a clue.',
+      } as any,
+    });
+    const state = req.state as Record<string, any>;
+    assert.equal(state.resolved_outcome, 'failure');
+    assert.equal(state.failure_mode, 'reveal');
+    assert.equal(state.failure_directive, 'حقیقتی تازه را آشکار کن.');
+    assert.ok(req.questions.has_failure_stall);
+    assert.match(req.questions.has_failure_stall.instructions, /same failed obstacle/i);
+  });
+
+  it('extracts the failure_stall category by index and label', () => {
+    assert.equal(extractSubQChoice({ index: 4 }), 'failure_stall');
+    assert.equal(extractSubQChoice({ choice: 'failure_stall' }), 'failure_stall');
+    assert.equal(extractSubQChoice('failure — same obstacle unchanged'), 'failure_stall');
+  });
+
+  it('formats a failure-specific repair instruction in both languages', () => {
+    const en = buildMomentumRepairInstruction('failure_stall', 'failure', 'en');
+    assert.match(en, /failed action did not move the story/i);
+    assert.match(en, /at least two choices/i);
+
+    const fa = buildMomentumRepairInstruction('failure_stall', 'failure', 'fa');
+    assert.match(fa, /همان مانع شکست‌خورده/);
+    assert.match(fa, /دست‌کم دو گزینه/);
+  });
+
+  it('heuristic flags a failed check whose choices only re-attempt the same approach', () => {
+    const input: MomentumEvaluationInput = {
+      ...sampleInput,
+      language: 'en',
+      priorActions: [],
+      playerActionText: 'Search the guardhouse for a hidden ledger',
+      resolution: {
+        outcome: 'failure',
+        failureMode: 'reveal',
+        consequenceSummary: 'The attempt fails, but reveals a clue.',
+      } as any,
+      candidateChoices: [
+        { id: 'c1', text: 'Search the guardhouse for the hidden ledger again' },
+        { id: 'c2', text: 'Search the guardhouse once more for the ledger' },
+        { id: 'c3', text: 'Ask the gate captain about the ledger' },
+      ],
+    };
+    const res = evaluateMomentumHeuristics(input);
+    assert.equal(res.ok, false);
+    assert.equal(res.stallingType, 'failure_stall');
+    assert.match(res.repairInstruction || '', /failed action did not move the story/i);
+  });
+
+  it('heuristic accepts a failure that opens genuinely new approaches', () => {
+    const input: MomentumEvaluationInput = {
+      ...sampleInput,
+      language: 'en',
+      priorActions: [],
+      playerActionText: 'Search the guardhouse for a hidden ledger',
+      resolution: {
+        outcome: 'failure',
+        failureMode: 'reveal',
+        consequenceSummary: 'The attempt fails, but reveals a clue.',
+      } as any,
+      candidateChoices: [
+        { id: 'c1', text: 'Ask the gate captain about the ledger' },
+        { id: 'c2', text: 'Bribe the archivist for a copy' },
+        { id: 'c3', text: 'Follow the clerk to the river gate' },
+      ],
+    };
+    const res = evaluateMomentumHeuristics(input);
+    assert.equal(res.ok, true);
+    assert.equal(res.stallingType, 'none');
+  });
+
+  it('heuristic accepts two retries when two other choices open new approaches', () => {
+    const input: MomentumEvaluationInput = {
+      ...sampleInput,
+      language: 'en',
+      priorActions: [],
+      playerActionText: 'Search the guardhouse for a hidden ledger',
+      resolution: {
+        outcome: 'failure',
+        failureMode: 'reveal',
+        consequenceSummary: 'The attempt fails, but reveals a clue.',
+      } as any,
+      candidateChoices: [
+        { id: 'c1', text: 'Search the guardhouse for the hidden ledger again' },
+        { id: 'c2', text: 'Search the guardhouse once more for the ledger' },
+        { id: 'c3', text: 'Ask the gate captain about the ledger' },
+        { id: 'c4', text: 'Follow the clerk to the river gate' },
+      ],
+    };
+    const res = evaluateMomentumHeuristics(input);
+    assert.equal(res.ok, true);
+    assert.equal(res.stallingType, 'none');
+  });
+
+  it('evaluateNarrativeMomentum flags failure_stall via SubQ', async () => {
+    const failureInput: MomentumEvaluationInput = {
+      ...sampleInput,
+      language: 'en',
+      playerActionText: 'Search the guardhouse for a hidden ledger',
+      resolution: {
+        outcome: 'failure',
+        failureMode: 'reveal',
+        consequenceSummary: 'The attempt fails.',
+      } as any,
+    };
+    const mockAdapter = {
+      isConfigured: () => true,
+      evaluate: async (): Promise<SubQDecisionResponse> => ({
+        success: true,
+        answers: {
+          story_progressed: { noul: false },
+          has_ignored_success: { noul: false },
+          has_choice_recycling: { noul: false },
+          has_repetitive_standoff: { noul: false },
+          has_failure_stall: { noul: true },
+        },
+        model: 'subq-snap-preview',
+        latencyMs: 90,
+      }),
+    } as unknown as SubQAdapter;
+
+    const res = await evaluateNarrativeMomentum(failureInput, mockAdapter);
+    assert.equal(res.ok, false);
+    assert.equal(res.stallingType, 'failure_stall');
+    assert.match(res.repairInstruction || '', /failed action did not move the story/i);
+  });
+
+  it('falls back to failure_stall when a failed turn made no progress and no specific flag fired', async () => {
+    const failureInput: MomentumEvaluationInput = {
+      ...sampleInput,
+      language: 'en',
+      resolution: { outcome: 'critical_failure', consequenceSummary: 'Disaster.' } as any,
+    };
+    const mockAdapter = {
+      isConfigured: () => true,
+      evaluate: async (): Promise<SubQDecisionResponse> => ({
+        success: true,
+        answers: {
+          story_progressed: { noul: false },
+          has_ignored_success: { noul: false },
+          has_choice_recycling: { noul: false },
+          has_repetitive_standoff: { noul: false },
+          has_failure_stall: { noul: false },
+        },
+        model: 'subq-snap-preview',
+        latencyMs: 80,
+      }),
+    } as unknown as SubQAdapter;
+
+    const res = await evaluateNarrativeMomentum(failureInput, mockAdapter);
+    assert.equal(res.ok, false);
+    assert.equal(res.stallingType, 'failure_stall');
+    assert.match(res.repairInstruction || '', /failed action did not move the story/i);
+  });
 });
