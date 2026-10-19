@@ -116,6 +116,7 @@ export default function LocationsStudioPage() {
   const [locThreatName, setLocThreatName] = useState('');
   const [locThreatMax, setLocThreatMax] = useState<number>(4);
   const [locThreatCrisis, setLocThreatCrisis] = useState('');
+  const [locSuppressThreatClock, setLocSuppressThreatClock] = useState<boolean>(false);
 
   // Directory controls: text search + category facet + focus-location
   // (connections & children) + sort + grouping.
@@ -316,6 +317,7 @@ export default function LocationsStudioPage() {
     setLocThreatName('');
     setLocThreatMax(4);
     setLocThreatCrisis('');
+    setLocSuppressThreatClock(false);
     setModalView('form');
     setShowAddModal(true);
   };
@@ -337,6 +339,7 @@ export default function LocationsStudioPage() {
     setLocThreatName(loc.threatClockDefault?.name || '');
     setLocThreatMax(loc.threatClockDefault?.maxSegments || 4);
     setLocThreatCrisis(loc.threatClockDefault?.crisisDescription || '');
+    setLocSuppressThreatClock(Boolean(loc.suppressThreatClock));
     setModalView('form');
     setShowAddModal(true);
   };
@@ -364,6 +367,7 @@ export default function LocationsStudioPage() {
       subZones: existingLoc?.subZones,
       pointsOfInterest: existingLoc?.pointsOfInterest,
       hazardFallbackLocationId: locHazardFallbackId || undefined,
+      suppressThreatClock: locSuppressThreatClock || undefined,
       threatClockDefault: locThreatName.trim()
         ? {
             name: locThreatName.trim(),
@@ -385,6 +389,7 @@ export default function LocationsStudioPage() {
     locConnectedIds,
     locSpecialRules,
     locHazardFallbackId,
+    locSuppressThreatClock,
     locThreatName,
     locThreatMax,
     locThreatCrisis,
@@ -417,6 +422,9 @@ export default function LocationsStudioPage() {
     }
     if (parsed.hazardFallbackLocationId !== undefined) {
       setLocHazardFallbackId(String(parsed.hazardFallbackLocationId || ''));
+    }
+    if (parsed.suppressThreatClock !== undefined) {
+      setLocSuppressThreatClock(Boolean(parsed.suppressThreatClock));
     }
     if (parsed.threatClockDefault && typeof parsed.threatClockDefault === 'object') {
       if (parsed.threatClockDefault.name !== undefined) setLocThreatName(String(parsed.threatClockDefault.name || ''));
@@ -465,6 +473,7 @@ export default function LocationsStudioPage() {
       subZones: existingLoc?.subZones,
       pointsOfInterest: existingLoc?.pointsOfInterest,
       hazardFallbackLocationId: (locHazardFallbackId || '').trim() || undefined,
+      suppressThreatClock: locSuppressThreatClock ? true : undefined,
       threatClockDefault: (locThreatName || '').trim()
         ? {
             name: (locThreatName || '').trim(),
@@ -581,6 +590,21 @@ export default function LocationsStudioPage() {
       editLocation(loc.id, { subZones: next });
       notify.info(isPersian ? 'زیربخش حذف شد' : 'Sub-zone removed');
     }
+  };
+
+  const handleToggleSubZoneSuppressClock = (loc: WorldLocation, subZoneId: string) => {
+    const updatedSubZones = (loc.subZones || []).map((sz) => {
+      if (sz.id === subZoneId) {
+        return { ...sz, suppressThreatClock: !sz.suppressThreatClock };
+      }
+      return sz;
+    });
+    editLocation(loc.id, { subZones: updatedSubZones });
+    notify.success(
+      isPersian
+        ? 'وضعیت مهار ساعت تهدید در زیربخش به‌روزرسانی شد'
+        : 'Sub-zone threat clock suppression updated'
+    );
   };
 
   // --- Populate Micro-Ecosystem Macro ---
@@ -1179,6 +1203,23 @@ export default function LocationsStudioPage() {
                                         <span className={`px-2 py-0.5 rounded-lg text-[10px] border ${subTypeMeta.color}`}>
                                           {isPersian ? subTypeMeta.fa : subTypeMeta.en}
                                         </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleToggleSubZoneSuppressClock(loc, sz.id)}
+                                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-colors flex items-center gap-1 cursor-pointer ${
+                                            sz.suppressThreatClock || sz.subType === 'sanctuary'
+                                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                              : 'bg-zinc-900 text-zinc-500 border-zinc-800 hover:text-zinc-300'
+                                          }`}
+                                          title={isPersian ? 'مهار ساعت تهدید در این زیربخش' : 'Suppress Threat Clock in this Sub-Zone'}
+                                        >
+                                          <ShieldAlert className="w-2.5 h-2.5" />
+                                          <span>
+                                            {sz.suppressThreatClock || sz.subType === 'sanctuary'
+                                              ? (isPersian ? 'مهار ساعت' : 'Clock Suppressed')
+                                              : (isPersian ? 'مهار ساعت؟' : 'Suppress Clock?')}
+                                          </span>
+                                        </button>
                                       </div>
                                       <button
                                         onClick={() => handleDeleteSubZone(loc, sz.id)}
@@ -1667,10 +1708,39 @@ export default function LocationsStudioPage() {
                 })()}
               </div>
 
-              <div className="border border-red-500/25 bg-red-500/5 rounded-2xl p-3 space-y-2">
-                <label className="text-xs font-bold text-red-300 block">
-                  {isPersian ? 'سقوط خطرناک و ساعت تهدید (Plan 13):' : 'Hazard Fallback & Threat Clock (Plan 13):'}
+              <div className="border border-red-500/25 bg-red-500/5 rounded-2xl p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-red-300 block">
+                    {isPersian ? 'سقوط خطرناک و ساعت تهدید (Plan 13):' : 'Hazard Fallback & Threat Clock (Plan 13):'}
+                  </label>
+                  {locSuppressThreatClock && (
+                    <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                      <ShieldAlert className="w-3 h-3 text-emerald-400" />
+                      {isPersian ? 'ساعت مهارشده (پناهگاه)' : 'Clock Suppressed'}
+                    </span>
+                  )}
+                </div>
+
+                <label className="flex items-center justify-between p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 cursor-pointer select-none transition-all hover:bg-emerald-500/15">
+                  <div className="space-y-0.5 pr-2">
+                    <div className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                      <ShieldAlert className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{isPersian ? 'مهار و توقف ساعت تهدید در این مکان (Sanctuary / Suppress Clock)' : 'Suppress Threat Clock in this Location (Sanctuary)'}</span>
+                    </div>
+                    <p className="text-[10.5px] text-zinc-400">
+                      {isPersian
+                        ? 'ساعت‌های تهدید منطقه (مانند تشنگی، گرما، آسیب یا گشت ارگ) هنگام حضور در این مکان یا پناهگاه متوقف و مهار می‌شوند.'
+                        : 'Suspends and suppresses regional or parent threat clocks while the player is inside this location.'}
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={locSuppressThreatClock}
+                    onChange={(e) => setLocSuppressThreatClock(e.target.checked)}
+                    className="w-4 h-4 accent-emerald-500 rounded cursor-pointer shrink-0"
+                  />
                 </label>
+
                 <select
                   value={locHazardFallbackId}
                   onChange={(e) => setLocHazardFallbackId(e.target.value)}
@@ -1775,6 +1845,20 @@ export default function LocationsStudioPage() {
                         <span className={`px-2 py-0.5 rounded-lg text-[10.5px] border ${subTypeMeta.color}`}>
                           {isPersian ? subTypeMeta.fa : subTypeMeta.en}
                         </span>
+                        <label className="flex items-center gap-1 cursor-pointer text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-lg font-bold">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(sz.suppressThreatClock || sz.subType === 'sanctuary')}
+                            onChange={(e) => {
+                              const updated = subZonesPreview.subZones.map((s, sIdx) =>
+                                sIdx === idx ? { ...s, suppressThreatClock: e.target.checked } : s
+                              );
+                              setSubZonesPreview({ ...subZonesPreview, subZones: updated });
+                            }}
+                            className="w-3 h-3 accent-emerald-500 rounded cursor-pointer"
+                          />
+                          <span>{isPersian ? 'مهار ساعت تهدید' : 'Suppress Clock'}</span>
+                        </label>
                       </div>
                       <span className="px-2 py-0.5 rounded-lg bg-zinc-800 text-zinc-400 font-mono text-[10px]">
                         {isPersian ? 'خطر:' : 'Danger:'} {sz.dangerLevel}/5
