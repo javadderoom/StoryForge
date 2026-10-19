@@ -144,14 +144,14 @@ export class RemakeValidator {
 قوانین الزامی بازنویسی:
 ۱. نقص و ناهماهنگی گزارش‌شده را کاملاً برطرف کن و شخصیت‌ها، رویدادها یا دیالوگ‌های تکراری/ناممکن را از صحنه حذف نما.
 ۲. نتیجه و پیامد مکانیکی اقدام (${outcomeText}) و تغییرات ایجادشده را کاملاً حفظ کن؛ بازنویسی نباید نتیجه را از شکست به پیروزی یا بالعکس تغییر دهد.
-۳. روایت جدید باید دست‌کم ۴۵۰ تا ۷۰۰ کلمه و در ۴ تا ۵ بند با عمق فضاسازی بازآفرینی شود.`
+۳. روایت جدید باید بین ۲۵۰ تا ۵۰۰ کلمه و در ۴ بند مشخص، زنده و پرکشش بازآفرینی شود.`
       : `[CONTINUITY DISPUTE REWRITE DIRECTIVE]
 Issue Category: ${catLabel}
 Reader Finding: "${rawReason}"
 CRITICAL REWRITE RULES:
 1. Completely resolve the reported continuity defect, eliminating any impossible characters, repeated beats, or contradictions.
 2. STRICTLY preserve the mechanical outcome (${outcomeText}) and state changes; do not invert success or failure.
-3. Generate rich, immersive narrative prose of 450-700 words across 4-5 well-developed paragraphs.`;
+3. Generate rich, immersive narrative prose of 250-500 words across 4 well-developed paragraphs.`;
 
     return {
       isValid: true,

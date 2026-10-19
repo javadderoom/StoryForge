@@ -606,7 +606,7 @@ export async function generateValidatedScene(
     resolution,
     worldBible: story.worldBible,
     language: story.language,
-    minWordCount: input.minWordCount ?? (process.env.NODE_ENV === 'test' ? 0 : 350),
+    minWordCount: input.minWordCount ?? (process.env.NODE_ENV === 'test' ? 0 : 220),
   };
   const subqClient = subqAdapter ?? new SubQAdapter();
   let candidate = aiResponse;

@@ -186,8 +186,8 @@ export function validateProse(
         severity: 'error',
         category: 'prose_length',
         detail: isPersian
-          ? `طول متن صحنه (${words.length} کلمه) کمتر از حداقل مجاز (${opts.minWordCount} کلمه) است. صحنه را در ۴ الی ۵ پاراگرافِ غنی و توصیفی، با افزودن حداقل ۶ تا ۸ جمله به هر بند و شرح ملموسِ رویدادها، اصطکاک کلامی و محیط به محدوده ۴۵۰ الی ۷۰۰ کلمه گسترش بده.`
-          : `Scene prose length (${words.length} words) is below the minimum required ${opts.minWordCount} words. Expand the scene across 4 to 5 rich paragraphs by adding at least 6 to 8 descriptive sentences per paragraph to reach the 450-700 word target range.`,
+          ? `طول متن صحنه (${words.length} کلمه) کمتر از حداقل مجاز (${opts.minWordCount} کلمه) است. صحنه را در ۴ بندِ مشخص و توصیفی با شرح ملموسِ رویدادها، اصطکاک کلامی و محیط به محدوده ۲۵۰ الی ۵۰۰ کلمه گسترش بده.`
+          : `Scene prose length (${words.length} words) is below the minimum required ${opts.minWordCount} words. Expand the scene across 4 distinct descriptive paragraphs to reach the 250-500 word target range.`,
       });
     }
   }

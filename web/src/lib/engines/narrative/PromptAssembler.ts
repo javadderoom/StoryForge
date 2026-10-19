@@ -403,12 +403,12 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 1. All game mechanics (dice rolls, stats, and consequences) are ALREADY pre-resolved deterministically.
 2. You MUST strictly depict the pre-calculated outcome. Do NOT contradict or alter the mechanical result.
 3. LITERARY MULTI-PARAGRAPH NOVELISTIC ARCHITECTURE:
-   - Target Length: Deliver rich, immersive literary prose between 450 and 700 words across 4 to 5 distinct paragraphs. NEVER condense the turn into a single brief paragraph or rushed summary!
+   - Target Length: Deliver rich, atmospheric literary prose between 250 and 500 words across 4 distinct paragraphs. Keep the pacing focused, kinetic, and punchy—never condense into a single brief paragraph, nor bloat into rambling scenic filler!
    - Paragraph 1 (Kinetic Execution & Immediate Sensory Impact): Open directly with the physical execution of the player's action, the clash of metal, wood, or muscle, and tactile sensory immersion (the smell of cold river mist, spray of wet silt, reverberation in your arm, the sting of sudden pain or momentum).
    - Paragraph 2 (World Ripple & Living Environment/NPC Counter-Play): Expand the lens to show how the surrounding world and present entities react (the shifting stance of adversaries, the glint of torchlight, animals muttering in their harnesses, or a companion/bystander reacting with dialogue or movement).
    - Paragraph 3 (Sensory Evolution & Tactical Tension): Broaden the atmosphere and sensory depth, capturing shifting environmental details, psychological stakes, or the escalating tactical situation.
    - Paragraph 4 (Tactile Stakes, Aftermath & The Looming Dilemma): Bring focus back to the protagonist's physical state (breathing, pulse, bleeding wounds, or strain on your shield/blade) and firmly establish the new tactile dilemma and tension that seamlessly sets up the choices.
-   - PARAGRAPH DELIMITATION & SENTENCE DENSITY: Separate the paragraphs with a blank line (\n\n). Each of the 4 to 5 paragraphs MUST contain at least 6 to 8 full, immersive, descriptive sentences (roughly 100 to 140 words per paragraph). Never output sparse, rushed, or brief paragraphs (under 5 sentences)!
+   - PARAGRAPH DELIMITATION & SENTENCE DENSITY: Separate the 4 paragraphs with a blank line (\n\n). Each paragraph should contain roughly 3 to 5 full, descriptive, and purposeful sentences (approximately 60 to 110 words per paragraph), ensuring the full scene lands naturally within the 250 to 500 word range.
    - SENSORY MICRO-OBSERVATIONS: Weave at least two tactile, auditory, or olfactory details into the prose (e.g. the cold bite of night air through a split in the leather, the weight of the bronze hilt, or the sucking drag of black mud).
    - DIALOGUE FRICTION & ECHO: If the player or an adversary speaks, greets, or shouts, dramatize both the spoken dialogue ("...") and the audible response, counter-threat, or stunned silence.
 [CAUSE & EFFECT PRIORITY — IMMEDIATE ACTION RESPONSIVENESS]
@@ -479,12 +479,12 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 1. All game mechanics (dice rolls, stats, and consequences) are ALREADY pre-resolved deterministically.
 2. You MUST strictly depict the pre-calculated outcome. Do NOT contradict or alter the mechanical result.
 3. عمق ادبی، گستردگی داستان و ساختار چندبندی رمان (LITERARY MULTI-PARAGRAPH ARCHITECTURE):
-   - حجم و طول متن: نثری شیوا، غنی و رمان‌گونه بین ۴۵۰ تا ۷۰۰ کلمه در قالب ۴ الی ۵ پاراگراف متمایز ارائه بده. هرگز تمام صحنه را در یک بندِ کوتاه و فشرده (زیر ۲۰۰ کلمه) خلاصه نکن!
+   - حجم و طول متن: نثری شیوا، غنی و رمان‌گونه بین ۲۵۰ تا ۵۰۰ کلمه در قالب ۴ بند (پاراگراف) مشخص و خوش‌خوان ارائه بده. ریتم روایت باید پرشتاب، زنده و تأثیرگذار باشد—هرگز تمام صحنه را در یک بندِ کوتاه خلاصه نکن، و در عین حال از اطناب و کش دادن بی‌دلیل پرهیز کن!
    - بند اول (کنش جنبشی و ضربهٔ حسیِ بلافاصله): صحنه را مستقیماً با خودِ عمل بازیکن، درگیری فیزیکی، طنین برخورد تیغه یا سپر، پاشیدن گل‌ولای یا بوی نم و غبار، و پیامد ملموس مکانیکی آغاز کن.
    - بند دوم (بازتاب محیطی و کنش‌وپاسخ شخصیت‌ها / درندگان): زاویه را بازتر کن و نشان بده محیط زنده و افراد حاضر چگونه واکنش نشان می‌دهند (چرخش یا موضع‌گیری گزمه‌ها یا درنده، بازتاب نور مشعل‌ها بر لجن، بی‌قراری شترها و ستوران، یا عکس‌العمل و کلام اطرافیان).
    - بند سوم (توسعهٔ اتمسفر و تنش روانی/محیطی): به جزئیات فضاسازی، سایه‌روشن‌ها، بوی محیط و بار روانی و تاکتیکی موقعیت عمق ببخش.
    - بند چهارم (پیامد جسمانی، ایستایی صحنه و تنگنای پیش‌رو): دوباره بر وضعیت ملموس تن، نفس‌ها، درد یا کوفتگی عضلات، چنگ زدن دست بر قبضه، و موقعیت دشوار و تعلیقی که بازیکن پیش از تصمیم بعدی در آن گرفتار شده تمرکز کن تا گزینه‌ها کاملاً طبیعی بر بستر این تعلیق بنشینند.
-   - تفکیک بندها با خط خالی و چگالی جملات: بندهای صحنه را با خط خالی (\n\n) از هم جدا کن. هر کدام از بندها حتماً باید حاوی حداقل ۶ تا ۸ جملهٔ کامل، فضاساز، پرجزئیات و بلند باشد (دست‌کم ۱۰۰ الی ۱۴۰ کلمه برای هر بند). هرگز بندهای کوتاه، خلاصه یا کم‌جمله (زیر ۵ جمله) ننویس تا حجم کل صحنه به سقف مطلوب ۴۵۰ تا ۷۰۰ کلمه برسد!
+   - تفکیک بندها با خط خالی و چگالی جملات: دقیقاً ۴ بند را با خط خالی (\n\n) از هم جدا کن. هر بند حاوی ۳ الی ۵ جملهٔ کامل، فضاساز و سنجیده باشد (حدود ۶۰ الی ۱۱۰ کلمه برای هر بند) تا حجم کل صحنه به شکل طبیعی در محدوده مطلوب ۲۵۰ تا ۵۰۰ کلمه قرار گیرد.
    - ریزمشاهدات حسی (Sensory Micro-Observations): حداقل دو جزئیات ملموس حسی (سرمای گزندهٔ بادِ آب بر عرق تن، سنگینی انتهای شمشیر در کف دست، صدای خرد شدن نی‌های خشک زیر چکمه) را در تاروپود متن بگنجان.
    - طنین گفتار و دیالوگ: اگر بازیکن یا شخصیتی سخن گفت، حتماً دیالوگ مستقیم با علامت «...» را با پاسخ کلامی، تشر، یا سکوت تهدیدآمیز طرف مقابل بازتاب بده.
 [اولویت علت و معلول — پاسخگویی مستقیم به اقدام بازیکن / CAUSE & EFFECT PRIORITY]
