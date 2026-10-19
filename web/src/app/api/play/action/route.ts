@@ -879,12 +879,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Prune location/regional clocks if the player moved outside their region or entered a safe city
+    // Prune location/regional clocks if the player moved outside their region or entered a safe city/sanctuary
     if (updatedPlayerState.activeTensionClocks && story.worldBible) {
       updatedPlayerState.activeTensionClocks = pruneInactiveZoneClocks(
         updatedPlayerState.activeTensionClocks,
         updatedPlayerState.currentLocationId,
-        story.worldBible
+        story.worldBible,
+        updatedPlayerState.currentSubZoneId
       );
     }
 
@@ -896,7 +897,8 @@ export async function POST(req: NextRequest) {
     updatedPlayerState.activeTensionClocks = seedAmbientClock(
       updatedPlayerState.activeTensionClocks,
       updatedPlayerState.currentLocationId,
-      story.worldBible
+      story.worldBible,
+      updatedPlayerState.currentSubZoneId
     );
 
     const displacedLocationId = resolution.displacedLocationId || resolution.stateDiff.displacedLocationId;

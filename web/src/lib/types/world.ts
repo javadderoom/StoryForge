@@ -161,6 +161,8 @@ export interface LocationSubZone {
   atmosphere: string;
   explorationHooks: string[];
   pointsOfInterest: LocationPointOfInterest[];
+  /** When true, entering this sub-zone suppresses/prunes active regional threat clocks without adding a replacement. */
+  suppressThreatClock?: boolean;
 }
 
 export interface ThreatClockDefault {
@@ -186,6 +188,8 @@ export interface WorldLocation {
   hazardFallbackLocationId?: string;
   /** Plan 13: default threat clock spawned when entering this zone without an active clock. */
   threatClockDefault?: ThreatClockDefault;
+  /** When true, this location suppresses inheriting any ancestor threat clocks without needing a replacement. */
+  suppressThreatClock?: boolean;
   /**
    * Plan 18: authored gate. When true, a failed attempt to enter/bypass this
    * location's gate is an authorized hard stop (reveal the requirement + at
@@ -1108,6 +1112,7 @@ export const LocationSubZoneSchema = z.object({
   atmosphere: z.string(),
   explorationHooks: z.array(z.string()).default([]),
   pointsOfInterest: z.array(LocationPointOfInterestSchema).default([]),
+  suppressThreatClock: z.boolean().optional(),
 });
 
 export const LocationSubZonesEnvelopeSchema = z.object({
@@ -1136,6 +1141,7 @@ export const WorldLocationSchema = z.object({
   pointsOfInterest: z.array(LocationPointOfInterestSchema).optional(),
   hazardFallbackLocationId: z.string().min(1).optional(),
   threatClockDefault: ThreatClockDefaultSchema.optional(),
+  suppressThreatClock: z.boolean().optional(),
   /**
    * Plan 18: authored gate. When true, a failed attempt to enter/bypass this
    * location's gate is an authorized hard stop (it must reveal the requirement

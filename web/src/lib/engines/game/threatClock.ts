@@ -35,13 +35,31 @@ export function tickTensionClock(
 /**
  * Resolves the effective location declaring a threat clock for the given location,
  * traversing up the ancestry chain (parentLocationId) if the current location has no clock.
+ * If the location or its active sub-zone declares `suppressThreatClock: true` (or is a sanctuary),
+ * it returns null, silencing any inherited parent threat clocks.
  */
 export function resolveLocationWithThreatClock(
   location: WorldLocation | undefined,
-  worldBible?: WorldBible
+  worldBible?: WorldBible,
+  currentSubZoneId?: string
 ): WorldLocation | null {
   if (!location) return null;
+
+  // 1. Check if the active sub-zone suppresses clocks
+  if (currentSubZoneId && location.subZones) {
+    const subZone = location.subZones.find((sz) => sz.id === currentSubZoneId);
+    if (subZone && (subZone.suppressThreatClock || subZone.subType === 'sanctuary')) {
+      return null;
+    }
+  }
+
+  // 2. Check if the location itself explicitly suppresses clocks
+  if (location.suppressThreatClock) return null;
+
+  // 3. Direct clock declaration
   if (location.threatClockDefault?.name) return location;
+
+  // 4. Ancestor inheritance (parentLocationId)
   if (!location.parentLocationId || !worldBible?.locations) return null;
 
   const visited = new Set<string>([location.id]);
@@ -52,6 +70,7 @@ export function resolveLocationWithThreatClock(
     visited.add(currentParentId);
     const parentLoc = worldBible.locations.find((l) => l.id === currentParentId);
     if (!parentLoc) break;
+    if (parentLoc.suppressThreatClock) return null;
     if (parentLoc.threatClockDefault?.name) {
       return parentLoc;
     }
@@ -61,12 +80,22 @@ export function resolveLocationWithThreatClock(
 }
 
 /** Clock id convention: one active clock per zone (or shared regional ancestor). */
-export function clockIdForLocation(locationId: string, worldBible?: WorldBible): string {
+export function clockIdForLocation(
+  locationId: string,
+  worldBible?: WorldBible,
+  currentSubZoneId?: string
+): string | null {
   if (worldBible?.locations) {
     const loc = worldBible.locations.find((l) => l.id === locationId);
-    const effectiveLoc = resolveLocationWithThreatClock(loc, worldBible);
+    const effectiveLoc = resolveLocationWithThreatClock(loc, worldBible, currentSubZoneId);
     if (effectiveLoc) {
       return `clock_${effectiveLoc.id}`;
+    }
+    // If the location or active sub-zone explicitly suppressed the clock, return null
+    if (loc?.suppressThreatClock) return null;
+    if (currentSubZoneId && loc?.subZones) {
+      const sz = loc.subZones.find((s) => s.id === currentSubZoneId);
+      if (sz && (sz.suppressThreatClock || sz.subType === 'sanctuary')) return null;
     }
   }
   return `clock_${locationId}`;
@@ -75,15 +104,17 @@ export function clockIdForLocation(locationId: string, worldBible?: WorldBible):
 /**
  * Ensures an active clock exists for the zone when the location (or its regional ancestor)
  * declares a threatClockDefault. Returns the clock to use (existing or freshly spawned),
- * or null when neither exists.
+ * or null when neither exists or when suppressed.
  */
 export function ensureClockForLocation(
   activeClocks: TensionClock[] | undefined,
   location: WorldLocation | undefined,
-  worldBible?: WorldBible
+  worldBible?: WorldBible,
+  currentSubZoneId?: string
 ): TensionClock | null {
   if (!location) return null;
-  const effectiveLoc = resolveLocationWithThreatClock(location, worldBible) || location;
+  const effectiveLoc = resolveLocationWithThreatClock(location, worldBible, currentSubZoneId);
+  if (!effectiveLoc) return null;
   const id = `clock_${effectiveLoc.id}`;
   const existing = (activeClocks ?? []).find((c) => c.id === id);
   if (existing) return existing;
@@ -136,15 +167,20 @@ export function resolveDisplacement(
 export function seedAmbientClock(
   activeClocks: TensionClock[] | undefined,
   locationId: string | undefined,
-  worldBible?: WorldBible
+  worldBible?: WorldBible,
+  currentSubZoneId?: string
 ): TensionClock[] {
   const clocks = activeClocks ?? [];
   if (!locationId || !worldBible?.locations) return clocks;
   const location = worldBible.locations.find((l) => l.id === locationId);
   if (!location) return clocks;
-  const id = clockIdForLocation(locationId, worldBible);
+  const id = clockIdForLocation(locationId, worldBible, currentSubZoneId);
+  if (!id) {
+    // Clock is suppressed for this location or sub-zone
+    return clocks;
+  }
   if (clocks.some((c) => c.id === id)) return clocks;
-  const seeded = ensureClockForLocation(clocks, location, worldBible);
+  const seeded = ensureClockForLocation(clocks, location, worldBible, currentSubZoneId);
   return seeded ? [...clocks, seeded] : clocks;
 }
 
@@ -359,13 +395,14 @@ export function resolveDeclaredClockChanges(
 export function pruneInactiveZoneClocks(
   activeClocks: TensionClock[] | undefined,
   currentLocationId: string | undefined,
-  worldBible?: WorldBible
+  worldBible?: WorldBible,
+  currentSubZoneId?: string
 ): TensionClock[] {
   if (!activeClocks || activeClocks.length === 0) return [];
   if (!currentLocationId || !worldBible?.locations) return activeClocks;
 
   const currentLoc = worldBible.locations.find((l) => l.id === currentLocationId);
-  const activeZoneWithClock = resolveLocationWithThreatClock(currentLoc, worldBible);
+  const activeZoneWithClock = resolveLocationWithThreatClock(currentLoc, worldBible, currentSubZoneId);
   const activeZoneClockId = activeZoneWithClock ? `clock_${activeZoneWithClock.id}` : null;
 
   return activeClocks.filter((clock) => {

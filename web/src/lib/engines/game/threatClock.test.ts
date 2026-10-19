@@ -190,6 +190,112 @@ describe('Plan 13: threat clocks', () => {
     assert.equal(inCity.length, 1);
     assert.equal(inCity[0].id, 'quest_clock_timer');
   });
+
+  it('suppresses threat clocks when sub-zone has suppressThreatClock or is sanctuary', () => {
+    const sanctuaryBible: WorldBible = {
+      ...bible,
+      locations: [
+        {
+          id: 'loc_desert_post',
+          name: 'Desert Outpost',
+          description: 'Dry fortress',
+          region: 'Desert',
+          dangerLevel: 3,
+          connectedLocationIds: [],
+          atmosphere: 'Dry',
+          threatClockDefault: { name: 'Water', maxSegments: 7, crisisDescription: 'Thirst' },
+          subZones: [
+            {
+              id: 'sz_cistern',
+              name: 'Ancient Cistern',
+              subType: 'sanctuary',
+              dangerLevel: 1,
+              atmosphere: 'Cool water',
+              explorationHooks: [],
+              pointsOfInterest: [],
+            },
+            {
+              id: 'sz_resting_hall',
+              name: 'Resting Hall',
+              subType: 'vault',
+              dangerLevel: 1,
+              atmosphere: 'Quiet',
+              explorationHooks: [],
+              pointsOfInterest: [],
+              suppressThreatClock: true,
+            },
+            {
+              id: 'sz_ramparts',
+              name: 'Sunny Ramparts',
+              subType: 'hazard_zone',
+              dangerLevel: 3,
+              atmosphere: 'Hot stone',
+              explorationHooks: [],
+              pointsOfInterest: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    const activeClocks = [
+      { id: 'clock_loc_desert_post', name: 'Water', currentSegments: 3, maxSegments: 7, crisisDescription: 'Thirst' },
+    ];
+
+    // Inside normal ramparts: clock stays
+    const inRamparts = pruneInactiveZoneClocks(activeClocks, 'loc_desert_post', sanctuaryBible, 'sz_ramparts');
+    assert.equal(inRamparts.length, 1);
+
+    // Inside sanctuary sub-zone: clock is suppressed and pruned
+    const inCistern = pruneInactiveZoneClocks(activeClocks, 'loc_desert_post', sanctuaryBible, 'sz_cistern');
+    assert.equal(inCistern.length, 0);
+
+    // Inside explicit suppressThreatClock sub-zone: clock is suppressed and pruned
+    const inRestingHall = pruneInactiveZoneClocks(activeClocks, 'loc_desert_post', sanctuaryBible, 'sz_resting_hall');
+    assert.equal(inRestingHall.length, 0);
+
+    // Ambient seeding respects sanctuary sub-zone: no clock seeded
+    const seeded = seedAmbientClock([], 'loc_desert_post', sanctuaryBible, 'sz_cistern');
+    assert.equal(seeded.length, 0);
+  });
+
+  it('stops ancestor clock inheritance when child location has suppressThreatClock: true', () => {
+    const parentBible: WorldBible = {
+      ...bible,
+      locations: [
+        {
+          id: 'loc_desert_parent',
+          name: 'The Great Desert',
+          description: 'Dry desert',
+          region: 'Desert',
+          dangerLevel: 4,
+          connectedLocationIds: [],
+          atmosphere: 'Burning',
+          threatClockDefault: { name: 'Water', maxSegments: 7, crisisDescription: 'Thirst' },
+        },
+        {
+          id: 'loc_oasis_station',
+          name: 'Safe Oasis Station',
+          description: 'A protected post',
+          region: 'Desert',
+          parentLocationId: 'loc_desert_parent',
+          dangerLevel: 1,
+          connectedLocationIds: [],
+          atmosphere: 'Peaceful',
+          suppressThreatClock: true,
+        },
+      ],
+    };
+
+    // Does not inherit parent clock
+    const clock = ensureClockForLocation([], parentBible.locations[1], parentBible);
+    assert.equal(clock, null);
+
+    // Prunes parent clock upon entering the safe station
+    const active = [{ id: 'clock_loc_desert_parent', name: 'Water', currentSegments: 2, maxSegments: 7, crisisDescription: '' }];
+    const pruned = pruneInactiveZoneClocks(active, 'loc_oasis_station', parentBible);
+    assert.equal(pruned.length, 0);
+  });
 });
 
 describe('Plan 13: hazard displacement', () => {
