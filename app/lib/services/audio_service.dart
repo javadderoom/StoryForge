@@ -1,5 +1,6 @@
 import 'dart:developer' as developer;
 import 'package:audioplayers/audioplayers.dart';
+import 'reader_preferences_service.dart';
 
 enum SfxType {
   buttonClick('assets/audio/sfx/button_click.wav'),
@@ -98,6 +99,12 @@ class AudioService {
 
   Future<void> init() async {
     try {
+      final prefs = await ReaderPreferencesService.load();
+      _isAmbientMuted = prefs.isAmbientMuted;
+      _isSfxMuted = prefs.isSfxMuted;
+      _ambientVolume = prefs.ambientVolume;
+      _sfxVolume = prefs.sfxVolume;
+
       await _ambientPlayer.setReleaseMode(ReleaseMode.loop);
       await _ambientPlayer.setVolume(_isAmbientMuted ? 0.0 : _ambientVolume);
       await _sfxPlayer.setVolume(_isSfxMuted ? 0.0 : _sfxVolume);
@@ -150,6 +157,7 @@ class AudioService {
     _isSfxMuted = !_isSfxMuted;
     try {
       await _sfxPlayer.setVolume(_isSfxMuted ? 0.0 : _sfxVolume);
+      await ReaderPreferencesService.saveSfxMuted(_isSfxMuted);
     } catch (_) {}
   }
 
@@ -164,6 +172,7 @@ class AudioService {
           await playAmbient(_currentAmbient);
         }
       }
+      await ReaderPreferencesService.saveAmbientMuted(_isAmbientMuted);
     } catch (_) {}
   }
 
@@ -174,6 +183,7 @@ class AudioService {
         await _ambientPlayer.setVolume(_ambientVolume);
       } catch (_) {}
     }
+    await ReaderPreferencesService.saveAmbientVolume(_ambientVolume);
   }
 
   Future<void> setSfxVolume(double volume) async {
@@ -183,6 +193,7 @@ class AudioService {
         await _sfxPlayer.setVolume(_sfxVolume);
       } catch (_) {}
     }
+    await ReaderPreferencesService.saveSfxVolume(_sfxVolume);
   }
 
   void dispose() {
