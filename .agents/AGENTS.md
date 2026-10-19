@@ -45,3 +45,9 @@
 - Always use `SearchableCombobox` (for single selection) or `MultiSearchableCombobox` (for multi-selection) from `@/components/studio/SearchableCombobox`.
 - These ensure consistent UX with live suggestion search, real-time typing filters, keyboard navigation (`ArrowUp`/`ArrowDown`/`Enter`/`Escape`), metadata badges, and clean chip management.
 
+## Solution Engineering & Proactiveness (Never Be Lazy)
+- **Never be lazy in offering solutions**: When presenting technical solutions, architectural decisions, or game mechanics, NEVER give superficial, lazy, or hand-waving suggestions (e.g. leaving all implementation work as an exercise for the user or only describing theoretical possibilities).
+- **Comprehensive & Concrete**: Always provide deep, production-grade, end-to-end solutions that cover all layers—database schemas, engine logic, validator constraints, UI representation, and edge cases.
+- **Provide Actionable Implementation Steps**: Lay out exact mechanics, data structures, and code-level architectural plans, highlighting tradeoffs and concrete implementations rather than high-level generalizations.
+
+
