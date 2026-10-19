@@ -235,7 +235,10 @@ export function applyXpGain(
       updated.maxResources = nextMax;
       for (const [resId, maxVal] of Object.entries(nextMax)) {
         if (config.healOnLevelUp !== false) {
-          updated.resources[resId] = maxVal;
+          // Cap level-up recovery to a heroic surge of at most 10% of maximum pool
+          const currentVal = updated.resources[resId] ?? maxVal;
+          const surgeBonus = Math.max(1, Math.round(maxVal * 0.10));
+          updated.resources[resId] = Math.min(maxVal, currentVal + surgeBonus);
         } else if (updated.resources[resId] !== undefined) {
           updated.resources[resId] = Math.min(updated.resources[resId], maxVal);
         }
