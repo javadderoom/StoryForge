@@ -10,6 +10,10 @@ import {
 } from '../engines/narrative/modelCall';
 import { STAT_CANONICAL_ALIASES } from '../engines/world/ActionNormalizer';
 import { ChoiceOption, ActionStyle, RiskLevel, PlayerConditionChanges, ConditionChangeEntry } from '../types/gameplay';
+import {
+  normalizeNpcTrustChanges,
+  type DeclaredNpcTrustChange,
+} from '../engines/game/npcTrustEngine';
 import { MemoryCategory } from '../types/memory';
 
 export interface ExtractedMemory {
@@ -29,6 +33,12 @@ export interface GeneratedSceneResponse {
    * condition reconciler is the authority that applies it to PlayerState.
    */
   playerConditionChanges?: PlayerConditionChanges;
+  /**
+   * Plan 17 (NPC stance authority): writer-declared trust movement for NPCs it
+   * actually wrote into this scene. Normalized and bounded here; the server
+   * evidence/presence gate is applied before any state mutation.
+   */
+  npcTrustChanges?: DeclaredNpcTrustChange[];
   /**
    * Plan 08: true when this response came from the offline mock generator
    * (no API key configured, or the API call failed). Mock prose must NEVER be
@@ -469,6 +479,7 @@ export class GeminiAdapter {
             ? parsed.encounteredCreatureId.trim()
             : undefined,
         playerConditionChanges: normalizeConditionChanges(parsed.playerConditionChanges),
+        npcTrustChanges: normalizeNpcTrustChanges(parsed.npcTrustChanges),
         isMock: false,
       },
     };

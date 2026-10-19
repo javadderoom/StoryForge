@@ -3,6 +3,7 @@ import { validateProse, buildProseRepairInstruction, ProseFinding } from './Pros
 import { buildWorldContextBlocks, resolveAccompanyingIds, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatTraitsForContext, formatItemInteractionsCatalogForContext } from './worldContext';
 import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
 import { travelProgress, travelTimeline, type TravelProgress } from '@/lib/engines/game/travelEngine';
+import type { DeclaredNpcTrustChange } from '@/lib/engines/game/npcTrustEngine';
 import { MemoryEngine } from '@/lib/engines/memory/MemoryEngine';
 import { WorkingContextEnvelope, MemoryCategory, MemoryEntry } from '@/lib/types/memory';
 import { PlayerState, CheckResolution, PlayerConditionChanges } from '@/lib/types/gameplay';
@@ -86,6 +87,8 @@ export interface SceneAiResponse {
   encounteredCreatureId?: string;
   /** Plan 17: writer-declared condition lifecycle, normalized (evidence-checked downstream). */
   playerConditionChanges?: PlayerConditionChanges;
+  /** Plan 17: writer-declared NPC stance shifts, normalized (evidence-checked downstream). */
+  npcTrustChanges?: DeclaredNpcTrustChange[];
   isMock?: boolean;
 }
 

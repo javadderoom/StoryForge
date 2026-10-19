@@ -604,6 +604,60 @@ export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBr
       );
     }
 
+    // Plan 17 (NPC stance authority): same evidence-gated trust channel as the
+    // live route — a Snap branch must never hold a state the live turn wouldn't.
+    const declaredTrustChanges = sceneOutcome.aiResponse.npcTrustChanges ?? [];
+    if (declaredTrustChanges.length > 0) {
+      const travelRosterIds: string[] = [];
+      if (updatedPlayerState.travel?.routeId) {
+        const activeRoute = story.worldBible.tradeRoutes?.find(
+          (r: any) => r.id === updatedPlayerState.travel!.routeId
+        );
+        if (activeRoute) {
+          travelRosterIds.push(
+            ...[activeRoute.caravanMasterNpcId, ...(activeRoute.travelingNpcIds ?? [])].filter(
+              (id: unknown): id is string => typeof id === 'string' && id.length > 0
+            )
+          );
+        }
+      }
+      const appliedTrust = GameEngine.resolveDeclaredNpcTrustChanges({
+        declared: declaredTrustChanges,
+        npcs: story.worldBible.npcs ?? [],
+        currentLocationId: updatedPlayerState.currentLocationId,
+        accompanyingNpcIds: updatedPlayerState.accompanyingNpcIds,
+        extraPresentNpcIds: travelRosterIds,
+      });
+      if (appliedTrust.length > 0) {
+        updatedPlayerState.relationships = GameEngine.seedTrustRelationships(
+          updatedPlayerState.relationships,
+          appliedTrust,
+          story.worldBible.npcs ?? []
+        );
+        updatedPlayerState = GameEngine.applyStateMutation(
+          updatedPlayerState,
+          {
+            relationshipChanges: Object.fromEntries(
+              appliedTrust.map((change) => [change.npcId, { trustDelta: change.trustDelta }])
+            ),
+          },
+          story.rpgSystem,
+          { previousState: playerState }
+        );
+        resolution.npcTrustChanges = appliedTrust.map(({ npcId, npcName, trustDelta }) => ({
+          npcId,
+          npcName,
+          trustDelta,
+        }));
+        for (const change of appliedTrust) {
+          resolution.consequenceSummary += ` ${GameEngine.describeTrustChange(
+            change,
+            isPersianStory
+          )}`;
+        }
+      }
+    }
+
     // §7.6E: audit the pre-written branch — first-draft mistakes, repairs,
     // surviving findings, secret echoes, choice hygiene, language, recycling —
     // so the shadow phase produces analyzable verdicts, not just prose.

@@ -295,6 +295,11 @@ export interface CheckResolution {
     kind: string;
     detail: string;
   }>;
+  /**
+   * Plan 17 (NPC stance authority): trust shifts applied from the writer's
+   * evidence-gated `npcTrustChanges` channel this turn. Server audit trail.
+   */
+  npcTrustChanges?: Array<{ npcId: string; npcName: string; trustDelta: number }>;
 }
 
 export interface TurnBeat {

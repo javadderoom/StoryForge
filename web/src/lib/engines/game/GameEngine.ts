@@ -14,6 +14,7 @@
 
 export * from './actionCheckEngine';
 export * from './socialEngine';
+export * from './npcTrustEngine';
 export * from './defeatEngine';
 export * from './questEngine';
 export * from './stateMutationEngine';
@@ -46,6 +47,7 @@ import {
   applyPressureOutcome,
   isSocialAction,
   detectSocialTarget,
+  resolveUniquePresentNpc,
   applySocialOutcome,
   detectPartyChange,
   applyPartyChange,
@@ -73,6 +75,12 @@ import {
   isConditionEffectsEnabled,
   isConditionReconcilerEnabled,
 } from './conditionCatalog';
+import {
+  normalizeNpcTrustChanges,
+  resolveDeclaredNpcTrustChanges,
+  describeTrustChange,
+  seedTrustRelationships,
+} from './npcTrustEngine';
 import { resolveDefeat } from './defeatEngine';
 import {
   evaluateQuestItemTriggers,
@@ -110,9 +118,16 @@ export class GameEngine {
   public static applyPressureOutcome = applyPressureOutcome;
   public static isSocialAction = isSocialAction;
   public static detectSocialTarget = detectSocialTarget;
+  public static resolveUniquePresentNpc = resolveUniquePresentNpc;
   public static applySocialOutcome = applySocialOutcome;
   public static detectPartyChange = detectPartyChange;
   public static applyPartyChange = applyPartyChange;
+
+  // NPC stance authority (Plan 17 follow-up)
+  public static normalizeNpcTrustChanges = normalizeNpcTrustChanges;
+  public static resolveDeclaredNpcTrustChanges = resolveDeclaredNpcTrustChanges;
+  public static seedTrustRelationships = seedTrustRelationships;
+  public static describeTrustChange = describeTrustChange;
 
   /** Plan 15 (Pillar 4): deterministic micro-location (sub-zone) writer. */
   public static detectSubZoneChange = detectSubZoneChange;

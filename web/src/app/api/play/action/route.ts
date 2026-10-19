@@ -448,10 +448,14 @@ export async function POST(req: NextRequest) {
     // 2b. Deterministic pressure revelation: coercion vs breaking point.
     // A cracked secret lands in knownSecrets (so the anti-leak validator
     // permits acting on it next turn) and always costs trust.
-    const pressureTarget = GameEngine.detectPressureTarget(
-      playerActionText,
-      story.worldBible.npcs ?? []
-    );
+    const pressureTarget =
+      GameEngine.detectPressureTarget(playerActionText, story.worldBible.npcs ?? []) ??
+      // Plan 17 (NPC stance authority): a coercion choice often names no NPC
+      // ("I squeeze him for answers"). With exactly one NPC in the scene the
+      // deterministic outcome still lands instead of silently doing nothing.
+      (GameEngine.isPressureAction(playerActionText)
+        ? GameEngine.resolveUniquePresentNpc(playerState, story.worldBible.npcs ?? [])
+        : null);
     if (pressureTarget) {
       const knownIds = playerState.relationships?.[pressureTarget.id]?.knownSecrets ?? [];
       const pressure = GameEngine.applyPressureOutcome(
@@ -481,10 +485,13 @@ export async function POST(req: NextRequest) {
     // a named NPC, they earn trust proportional to the dice outcome.
     let activeNpcTarget = pressureTarget;
     if (!pressureTarget) {
-      const socialTarget = GameEngine.detectSocialTarget(
-        playerActionText,
-        story.worldBible.npcs ?? []
-      );
+      const socialTarget =
+        GameEngine.detectSocialTarget(playerActionText, story.worldBible.npcs ?? []) ??
+        // Plan 17: name-less deal/accept choices ("پیشنهادش را می‌پذیرم") still
+        // earn trust when only one NPC is physically present.
+        (GameEngine.isSocialAction(playerActionText)
+          ? GameEngine.resolveUniquePresentNpc(playerState, story.worldBible.npcs ?? [])
+          : null);
       if (socialTarget) {
         activeNpcTarget = socialTarget;
         const social = GameEngine.applySocialOutcome(resolution.outcome, actionStyle, isPersianStory);
@@ -1268,6 +1275,73 @@ export async function POST(req: NextRequest) {
     }
     if (newlyMetNpcs.length > 0) {
       console.info('[action] newly met NPCs:', newlyMetNpcs.map((n) => n.id));
+    }
+
+    // Plan 17 (NPC stance authority): the writer may declare trust movement for
+    // the NPCs it actually wrote into this scene — the prose is the evidence.
+    // This closes the gap where a deal sealed through dialogue moved nothing:
+    // the deterministic pressure/social lane (§2b) needs a social keyword AND
+    // the NPC's name in the action text, which generated choices rarely carry.
+    // Applied AFTER newly-met seeding so a first meeting starts from
+    // initialTrust and moves by the narrated delta.
+    const declaredTrustChanges = aiResponse.npcTrustChanges ?? [];
+    if (declaredTrustChanges.length > 0) {
+      const travelRosterIds: string[] = [];
+      if (activeTravel?.routeId) {
+        const activeRoute = story.worldBible.tradeRoutes?.find(
+          (r: any) => r.id === activeTravel.routeId
+        );
+        if (activeRoute) {
+          travelRosterIds.push(
+            ...[activeRoute.caravanMasterNpcId, ...(activeRoute.travelingNpcIds ?? [])].filter(
+              (id: unknown): id is string => typeof id === 'string' && id.length > 0
+            )
+          );
+        }
+      }
+      const appliedTrust = GameEngine.resolveDeclaredNpcTrustChanges({
+        declared: declaredTrustChanges,
+        npcs: story.worldBible.npcs ?? [],
+        currentLocationId: updatedPlayerState.currentLocationId,
+        accompanyingNpcIds: updatedPlayerState.accompanyingNpcIds,
+        extraPresentNpcIds: travelRosterIds,
+      });
+      if (appliedTrust.length > 0) {
+        // Present-but-unmet NPCs may not have a relationship entry yet. Seed the
+        // authored baseline first so the writer's delta lands on initialTrust,
+        // not on an accidental zero.
+        updatedPlayerState.relationships = GameEngine.seedTrustRelationships(
+          updatedPlayerState.relationships,
+          appliedTrust,
+          story.worldBible.npcs ?? []
+        );
+        const trustDiff: StateMutationDiff = {
+          relationshipChanges: Object.fromEntries(
+            appliedTrust.map((change) => [change.npcId, { trustDelta: change.trustDelta }])
+          ),
+        };
+        updatedPlayerState = GameEngine.applyStateMutation(
+          updatedPlayerState,
+          trustDiff,
+          story.rpgSystem,
+          { previousState: playerState }
+        );
+        resolution.npcTrustChanges = appliedTrust.map(({ npcId, npcName, trustDelta }) => ({
+          npcId,
+          npcName,
+          trustDelta,
+        }));
+        for (const change of appliedTrust) {
+          resolution.consequenceSummary += ` ${GameEngine.describeTrustChange(
+            change,
+            isPersianStory
+          )}`;
+        }
+        console.log(
+          `[Plan17] npc trust changes (session ${sessionId}, turn ${turnNumber}):`,
+          appliedTrust.map((c) => `${c.npcName} ${c.trustDelta > 0 ? '+' : ''}${c.trustDelta}`)
+        );
+      }
     }
 
     const newBeat: TurnBeat = {

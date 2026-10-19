@@ -1,4 +1,4 @@
-import { DiceOutcome } from '@/lib/types/gameplay';
+import { DiceOutcome, PlayerState } from '@/lib/types/gameplay';
 import { NPCDossier, SecretRevealMethod } from '@/lib/types/world';
 
 export interface RevealCheckContext {
@@ -70,9 +70,14 @@ export function isInformationExtractionAction(actionText: string): boolean {
   return INFORMATION_EXTRACTION_KEYWORDS.test(actionText.toLowerCase());
 }
 
-/** Keywords marking an action as a positive social interaction (EN + FA). */
+/**
+ * Keywords marking an action as a positive social interaction (EN + FA).
+ * Plan 17 (NPC stance authority): includes deal-making vocabulary — sealing a
+ * bargain is the single most common trust milestone and used to fall through
+ * (`deal`, `pact`, `accept`, `قرارداد`, `توافق`, `می‌پذیرم`).
+ */
 export const SOCIAL_KEYWORDS =
-  /greet|thank|compliment|praise|help|assist|gift|offer|share|comfort|encourage|befriend|ally|barter|trade|negotiate|persuade|charm|flatter|sing|play.*for|treat|heal|defend|protect|rescue|accompany|apologise|apologize|سلام|تشکر|تعریف|کمک|هدیه|پیشنهاد|تسلی|دلگرم|دوست|همراه|مداوا|حمایت|معامله|مذاکره/;
+  /greet|thank|compliment|praise|help|assist|gift|offer|share|comfort|encourage|befriend|ally|barter|trade|negotiate|persuade|charm|flatter|sing|play.*for|treat|heal|defend|protect|rescue|accompany|apologise|apologize|bargain|pact|treaty|agreement|agree|accept|contract|handshake|shake hands|strike a deal|struck a deal|seal the deal|seal a deal|accept the deal|take the deal|our deal|the deal|سلام|تشکر|تعریف|کمک|هدیه|پیشنهاد|تسلی|دلگرم|دوست|همراه|مداوا|حمایت|معامله|مذاکره|قرارداد|توافق|پیمان|قبول|می‌پذیرم|می‌پذیرد|بپذیر|چانه‌زنی|دست‌دادن|دست می‌دهم/;
 
 /**
  * True when the action text reads as coercion, intimidation, or interrogation.
@@ -591,6 +596,26 @@ export function detectSocialTarget(
     })) return npc;
   }
   return null;
+}
+
+/**
+ * Plan 17 (NPC stance authority): when a social or pressure action names no
+ * NPC (typical of generated choices such as "I accept his offer"), fall back
+ * to the only NPC physically present in the scene. Ambiguity yields null —
+ * the writer's `npcTrustChanges` channel covers multi-NPC scenes.
+ */
+export function resolveUniquePresentNpc(
+  playerState: Pick<PlayerState, 'currentLocationId' | 'accompanyingNpcIds'>,
+  npcs: NPCDossier[]
+): NPCDossier | null {
+  const party = new Set(playerState.accompanyingNpcIds ?? []);
+  const present = (npcs ?? []).filter(
+    (npc) =>
+      party.has(npc.id) ||
+      (Boolean(playerState.currentLocationId) &&
+        npc.currentLocationId === playerState.currentLocationId)
+  );
+  return present.length === 1 ? present[0] : null;
 }
 
 /**

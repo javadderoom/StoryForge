@@ -445,6 +445,10 @@ You MUST respond with a valid JSON object matching this schema:
     "treat":  [ { "kind": "wounded", "method": "you tear a strip of cloth and bind the gash" } ],
     "remove": [ { "kind": "bleeding", "reason": "the pressure stops the bleeding" } ]
   },
+  "npcTrustChanges": [
+    // ONLY meaningful interpersonal shifts ACTUALLY DEPICTED in the narrative above. Empty array when nothing changed.
+    { "npcName": "Exact NPC name from the active dossiers", "trustDelta": 8, "reason": "you sealed the salt contract and split the profit fairly" }
+  ],
   "choices": [
     { "id": "choice_1", "text": "Carefully inspect the masonry around the threshold for a hidden lever or latch", "style": "inquisitive", "riskLevel": "low" },
     { "id": "choice_2", "text": "Quietly draw the dagger and step behind the granite pillar", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
@@ -459,6 +463,12 @@ You MUST respond with a valid JSON object matching this schema:
 - "bleeding" may accompany "wounded" when the prose shows active blood loss and is removed (via "treat") once the bleeding is stopped. Never remove "bleeding" without treatment prose.
 - "severity" is narrative only: "minor" | "moderate" | "severe". Never write mechanical numbers, HP values, or dice terms here.
 - Player conditions only — never NPC or party wounds. Leave arrays empty on quiet turns.
+
+[NPC TRUST CONTRACT — MANDATORY]
+- Only NPCs PRESENT in this scene (the [ACTIVE NPC DOSSIERS] and party blocks above) may gain or lose trust. Never off-screen characters, distant rulers, or faceless groups.
+- Declare a change ONLY when the narrative itself depicts the interpersonal shift: a deal struck or accepted, a bargain sealed, a promise kept or broken, aid given, a kindness, an insult, a threat, or a betrayal. If nothing shifted, use [].
+- "trustDelta" is an integer between -20 and +20: small gestures ±2..5, meaningful events ±8..15, betrayal or rescue up to ±20. Put the NPC's exact name in "npcName" and cite the prose evidence in "reason".
+- Trust is disposition toward the protagonist — never quest state or secret discovery. NEVER write the number or any mechanical term inside the narrative prose.
 `
       : `[ROLE & PERSONA: LITERARY NOVELIST & RPG NARRATIVE DIRECTOR]
 You are the narrative author for an interactive dark RPG novel titled "${context.storyTitle}".
@@ -517,6 +527,10 @@ You MUST respond with a valid JSON object matching this schema:
     "treat":  [ { "kind": "wounded", "method": "تکه‌ای پارچه می‌دری و زخم را می‌بندی" } ],
     "remove": [ { "kind": "bleeding", "reason": "فشار دست، خون‌ریزی را بند آورد" } ]
   },
+  "npcTrustChanges": [
+    // فقط دگرگونی‌های معنادار رابطه که عیناً در همین متن روایت شده‌اند. اگر چیزی تغییر نکرده، آرایه خالی بماند.
+    { "npcName": "نام دقیق شخصیت از فهرست حاضر در صحنه", "trustDelta": 8, "reason": "پیمان نمک را بستی و سود را منصفانه تقسیم کردی" }
+  ],
   "choices": [
     { "id": "choice_1", "text": "بررسی دقیق نقش‌ونگارهای روی سنگِ درگاه برای یافتن روزنه یا نشانه‌ای پنهان", "style": "inquisitive", "riskLevel": "low" },
     { "id": "choice_2", "text": "کشیدن بی‌صدای خنجر و پناه گرفتن پشت ستون سنگی", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
@@ -531,6 +545,12 @@ You MUST respond with a valid JSON object matching this schema:
 - «bleeding» فقط وقتی همراه «wounded» می‌آید که نثر خون‌ریزی فعال را نشان دهد و با «treat» (بند آمدن خون) حذف می‌شود. هرگز بدون نثرِ مداوا خون‌ریزی را حذف نکن.
 - «severity» فقط روایی است: minor | moderate | severe. هرگز عدد مکانیکی، مقدار سلامت یا اصطلاح تاس در این بخش نگذار.
 - فقط حالت‌های خودِ قهرمان — هرگز زخم شخصیت‌های دیگر یا یاران. در نوبت‌های آرام آرایه‌ها را خالی بگذار.
+
+[قرارداد اعتماد شخصیت‌ها — اجباری]
+- فقط شخصیت‌هایی که در همین صحنه حاضرند (بخش دوسیه‌های فعال و یاران) می‌توانند اعتمادشان تغییر کند. هرگز شخصیت‌های غایب، بزرگان دور یا گروه‌های بی‌نام.
+- تغییر را فقط وقتی ثبت کن که خودِ روایت دگرگونی رابطه را نشان دهد: بستن یا پذیرفتن قرارداد، معامله، وعدهٔ انجام‌شده یا شکسته، یاری و لطف، توهین، تهدید یا خیانت. اگر چیزی تغییر نکرده، آرایه را خالی بگذار ([]).
+- «trustDelta» عددی صحیح بین ۲۰- تا ۲۰+ است: حرکت‌های کوچک ۲ تا ۵، رخدادهای معنادار ۸ تا ۱۵، خیانت یا نجات تا ۲۰. نام دقیق شخصیت را در «npcName» و شاهد روایی را در «reason» بنویس.
+- اعتماد یعنی نگرش شخصیت نسبت به قهرمان — نه وضعیت مأموریت و نه کشف راز. هرگز عدد یا اصطلاح مکانیکی را داخل متن روایت ننویس.
 `;
 
     // Build Protagonist Status & Capabilities block
