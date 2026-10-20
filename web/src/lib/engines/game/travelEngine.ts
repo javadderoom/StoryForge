@@ -94,8 +94,9 @@ export function detectTravelMode(actionText: string): TravelMode {
 // Name + graph matching (same rules as the sub-zone writer).
 // ---------------------------------------------------------------------------
 
-/** Normalizes Latin + Persian text for robust name matching. */
-function normalizeForMatch(s: string): string {
+/** Normalizes Latin + Persian text for robust name matching. Shared with the
+ * Plan 19 map solver whose directional constraints resolve location names. */
+export function normalizeForMatch(s: string): string {
   return s
     .toLowerCase()
     .replace(/\u200C/g, '')
@@ -105,8 +106,9 @@ function normalizeForMatch(s: string): string {
 }
 
 /** Single-token names must match an exact token; multi-token names use containment
- * (with a ZWNJ/space-squashed fallback so "دروازه نمک" matches "دروازه‌نمک"). */
-function matchesZoneName(normalizedText: string, zoneName: string): boolean {
+ * (with a ZWNJ/space-squashed fallback so "دروازه نمک" matches "دروازه‌نمک").
+ * Exported for the Plan 19 map solver, which reuses the validator's name rules. */
+export function matchesZoneName(normalizedText: string, zoneName: string): boolean {
   const name = normalizeForMatch(zoneName).trim();
   if (name.length < 2) return false;
   if (/\s/.test(name)) {
@@ -208,24 +210,29 @@ export interface EtaOptions {
   route?: WorldTradeRoute;
   /** Graph hops between the endpoints when coordinates are unavailable. */
   hops?: number;
+  /** Plan 19: canvas spatial units per km (WorldMapSettings.kmPerSpatialUnit).
+   * Default 1 reproduces legacy pixel-as-km behavior exactly. */
+  kmPerSpatialUnit?: number;
 }
 
 /**
  * Raw ETA in turns (pre-clamp): coordinates on both ends → caravan days from
- * map distance; otherwise 2 × graph hops. `raided` routes add one turn.
- * A raw value of 1 is a one-day hop — the caller resolves it as an immediate
- * `locationChange` with no travel state (existing behavior).
+ * map distance scaled by `kmPerSpatialUnit` (Plan 19, default 1); otherwise 2 ×
+ * graph hops. `raided` routes add one turn. A raw value of 1 is a one-day hop —
+ * the caller resolves it as an immediate `locationChange` with no travel state
+ * (existing behavior).
  */
 export function estimateTravelTurns(
   origin: WorldLocation,
   dest: WorldLocation,
   opts: EtaOptions = {}
 ): number {
+  const kmScale = opts.kmPerSpatialUnit ?? 1;
   const dangerLevel =
     opts.route?.dangerLevel ?? Math.max(origin.dangerLevel ?? 2, dest.dangerLevel ?? 2);
   let turns: number;
   if (origin.coordinates && dest.coordinates) {
-    const km = calculateMapDistance(origin.coordinates, dest.coordinates);
+    const km = calculateMapDistance(origin.coordinates, dest.coordinates) * kmScale;
     turns = calculateCaravanTravelDays(km, dangerLevel);
   } else {
     turns = 2 * Math.max(1, opts.hops ?? 1);
@@ -246,9 +253,7 @@ export interface JourneyPlan {
   immediateHop: boolean;
   /** Prose-ready summary line (localized). */
   note: string;
-}
-
-/** BFS shortest path over connected + parent/child + non-blockaded route edges. */
+}/** BFS shortest path over connected + parent/child + non-blockaded route edges. */
 function shortestPath(originId: string, destId: string, wb: WorldBible): string[] | null {
   const adj = new Map<string, Set<string>>();
   const addEdge = (a?: string, b?: string) => {
@@ -334,7 +339,14 @@ export function planJourney(
 
   const dangerLevel =
     route?.dangerLevel ?? Math.max(origin.dangerLevel ?? 2, dest.dangerLevel ?? 2);
-  const rawEta = estimateTravelTurns(origin, dest, { route, hops });
+  // Plan 19: honor a per-world distance scale when map settings define one
+  // (Cartographer-authored `kmPerSpatialUnit`, default 1 = legacy pixel-as-km).
+  const kmPerSpatialUnit =
+    wb.mapData?.settings?.kmPerSpatialUnit ??
+    (wb.ontology as { mapData?: { settings?: { kmPerSpatialUnit?: number } } } | undefined)
+      ?.mapData?.settings?.kmPerSpatialUnit ??
+    1;
+  const rawEta = estimateTravelTurns(origin, dest, { route, hops, kmPerSpatialUnit });
   const totalTurns = clampJourneyTurns(rawEta);
   const immediateHop = rawEta <= 1 && waypointIds.length === 0;
 

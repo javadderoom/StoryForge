@@ -496,7 +496,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       const hasMoved = active.startPoint.x !== finalPos.x || active.startPoint.y !== finalPos.y;
       if (hasMoved) {
         if (active.type === 'location') {
-          onUpdateLocation(active.id, { coordinates: finalPos });
+          // Plan 19: manual drags are the author's authority — stamp provenance
+          // so the auto-fit solver treats this pin as a hard anchor forever.
+          onUpdateLocation(active.id, { coordinates: finalPos, coordinatesSource: 'manual' });
         } else if (active.type === 'waypoint' && active.routeId && active.index !== undefined) {
           const route = tradeRoutesRef.current.find((r) => r.id === active.routeId);
           if (route && route.waypoints) {

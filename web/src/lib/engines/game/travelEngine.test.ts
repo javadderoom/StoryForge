@@ -208,6 +208,40 @@ describe('Plan 17 travel engine — ETA & journey planning', () => {
     assert.equal(plan?.totalTurns, 6); // 9 + 1 would be 10 — the cap holds
   });
 
+  it('honors a per-world kmPerSpatialUnit scale (Plan 19) with default 1', () => {
+    // Default (no setting) reproduces legacy numbers exactly.
+    assert.equal(estimateTravelTurns(CITY_A, CITY_B), 5);
+    assert.equal(estimateTravelTurns(CITY_A, CITY_B, { kmPerSpatialUnit: 1 }), 5);
+    // 180 * 0.5 = 90 km at danger 2 → 2.25 → round 2... days = max(1, round(90/45*1.15)) = max(1, round(2.3)) = 2
+    assert.equal(estimateTravelTurns(CITY_A, CITY_B, { kmPerSpatialUnit: 0.5 }), 2);
+    // planJourney reads the scale from worldBible.mapData.settings.
+    const scaledWb = {
+      ...makeWb(),
+      mapData: {
+        version: 1,
+        settings: {
+          width: 2400,
+          height: 1600,
+          theme: 'parchment',
+          gridType: 'none',
+          gridSize: 40,
+          showGridCoordinates: false,
+          visibleLayers: {},
+          kmPerSpatialUnit: 0.5,
+        },
+        terrainFeatures: [],
+      },
+    } as unknown as WorldBible;
+    const scaledPlan = planJourney('city_a', 'city_c', scaledWb, 'caravan');
+    assert.ok(scaledPlan);
+    // 360*0.5=180km danger 3 → round(180/45 * 1.3)=round(5.2)=5 raw → NOT an immediate hop.
+    assert.equal(scaledPlan!.immediateHop, false);
+    assert.equal(scaledPlan!.totalTurns, 5);
+    // Same world without the setting keeps the legacy raw ETA (10, clamp 6).
+    const legacyPlan = planJourney('city_a', 'city_c', makeWb(), 'caravan');
+    assert.equal(legacyPlan!.totalTurns, 6);
+  });
+
   it('plans a route journey with its intermediate stops as waypoints', () => {
     const plan = planJourney('city_a', 'city_c', makeWb(), 'caravan', { lang: 'fa' });
     assert.ok(plan);

@@ -24,6 +24,8 @@ import {
   Users,
   Eye,
   SlidersHorizontal,
+  Wand2,
+  Undo2,
 } from 'lucide-react';
 import { WorldMapSettings, MapStyleTheme } from '@/lib/types';
 
@@ -62,6 +64,10 @@ interface CartographerHeaderProps {
   hasUnsavedChanges: boolean;
   onSave: () => void;
   onOpenAiOracle: () => void;
+  /** Plan 19: derive coordinates from lore/topology (auto-fit, undoable). */
+  onAutoFit: () => Promise<void> | void;
+  canUndoAutoFit: boolean;
+  onUndoAutoFit: () => void;
   onToggleLayerPanel: () => void;
   isLayerPanelOpen: boolean;
   onTogglePalette: () => void;
@@ -97,6 +103,9 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
   hasUnsavedChanges,
   onSave,
   onOpenAiOracle,
+  onAutoFit,
+  canUndoAutoFit,
+  onUndoAutoFit,
   onToggleLayerPanel,
   isLayerPanelOpen,
   onTogglePalette,
@@ -222,6 +231,30 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
 
       {/* Right: AI Oracle, Zoom HUD, Save & Fullscreen */}
       <div className="flex items-center gap-2">
+        {/* Plan 19: deterministic coordinate auto-fit + undo */}
+        <button
+          onClick={onAutoFit}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600/30 to-teal-600/30 border border-emerald-500/40 text-emerald-200 hover:text-white hover:border-emerald-400 transition-all text-xs font-medium shadow-md shadow-emerald-950/40"
+          title={
+            isPersian
+              ? 'استخراج مختصات از گراف جهان (فقط نشان‌های قدیمی/ناقص)'
+              : 'Derive coordinates from lore & topology (legacy/missing pins only)'
+          }
+        >
+          <Wand2 className="w-3.5 h-3.5 text-emerald-400" />
+          <span className="hidden sm:inline">{isPersian ? 'چیدمان خودکار' : 'Auto-fit'}</span>
+        </button>
+        {canUndoAutoFit && (
+          <button
+            onClick={onUndoAutoFit}
+            className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-amber-300 hover:border-amber-500/40 transition-all text-xs"
+            title={isPersian ? 'بازگردانی مختصات قبلی' : 'Undo last auto-fit'}
+          >
+            <Undo2 className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">{isPersian ? 'بازگردانی' : 'Undo'}</span>
+          </button>
+        )}
+
         {/* AI Cartographer Oracle */}
         <button
           onClick={onOpenAiOracle}

@@ -200,6 +200,11 @@ export interface WorldLocation {
   imageUrl?: string;
   /** Cartographer: coordinates on world map (normalized or pixel canvas coordinates) */
   coordinates?: { x: number; y: number };
+  /** Plan 19: who decided this pin's position. 'manual' = dragged in the
+   * Cartographer (the refit solver never moves it); 'solver' = Plan 19 refit
+   * output; 'legacy_auto' = remnant of the pre-Plan-19 auto allocation
+   * (exactly the set a Plan 19 refit is allowed to move). */
+  coordinatesSource?: 'manual' | 'solver' | 'legacy_auto';
   mapIcon?: string;
   elevation?: number;
 }
@@ -745,6 +750,10 @@ export interface WorldMapSettings {
   gridType: 'none' | 'square' | 'hex';
   gridSize: number;
   showGridCoordinates: boolean;
+  /** Plan 19: canvas spatial units per km for travel math. Default 1 (legacy
+   * behavior: 1 canvas unit ≙ 1 km). Tune per world once Plan 19 refit pins
+   * are meaningful (typical 0.3–0.6 for a regional map). */
+  kmPerSpatialUnit?: number;
   visibleLayers: {
     terrain: boolean;
     water: boolean;
@@ -1151,6 +1160,7 @@ export const WorldLocationSchema = z.object({
   hardGateHint: z.string().max(240).optional(),
   imageUrl: z.string().optional(),
   coordinates: z.object({ x: z.number(), y: z.number() }).optional(),
+  coordinatesSource: z.enum(['manual', 'solver', 'legacy_auto']).optional(),
   mapIcon: z.string().optional(),
   elevation: z.number().optional(),
 });
@@ -1547,6 +1557,7 @@ export const WorldMapSettingsSchema = z.object({
   gridType: z.enum(['none', 'square', 'hex']).default('none'),
   gridSize: z.number().default(40),
   showGridCoordinates: z.boolean().default(false),
+  kmPerSpatialUnit: z.number().positive().max(1000).optional(),
   visibleLayers: z.record(z.boolean()).default({}),
 });
 

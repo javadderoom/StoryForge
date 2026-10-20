@@ -25,6 +25,8 @@ import { CartographerEntityPalette } from '@/components/cartographer/Cartographe
 import { CartographerInspector, SelectedMapItem } from '@/components/cartographer/CartographerInspector';
 import { CartographerAiOracleModal } from '@/components/cartographer/CartographerAiOracleModal';
 import { notify } from '@/lib/notify';
+import { auditWorldMapLayout } from '@/lib/engines/world/mapLayoutAuditor';
+import { solveMapLayout, stableSeedFromString } from '@/lib/engines/world/mapLayoutSolver';
 
 export default function CartographerPage() {
   const {
@@ -193,6 +195,109 @@ export default function CartographerPage() {
     }
   };
 
+  // -----------------------------------------------------------------------
+  // Plan 19: coordinate auto-fit — derive legacy/missing pins from lore &
+  // topology. Manual pins are hard anchors; the apply path is undoable until
+  // the user saves (a save makes the refit canon).
+  // -----------------------------------------------------------------------
+  interface AutoFitSnapshotEntry {
+    locationId: string;
+    coordinates: { x: number; y: number } | undefined;
+    coordinatesSource: WorldLocation['coordinatesSource'];
+  }
+
+  const [autoFitSnapshot, setAutoFitSnapshot] = useState<AutoFitSnapshotEntry[] | null>(null);
+
+  const handleAutoFit = async () => {
+    const wb = story.worldBible;
+    const mapData =
+      wb.mapData ?? (wb.ontology as { mapData?: WorldMapData } | undefined)?.mapData ?? null;
+    const audit = auditWorldMapLayout(wb, mapData);
+    if (audit.counts.legacy_auto === 0 && audit.counts.unplaced === 0) {
+      notify.info(
+        isPersian
+          ? 'همهٔ مکان‌ها مختصات معتبر دارند؛ بازماندهٔ قدیمی برای بازچینی نیست.'
+          : 'All locations already carry coordinates; no legacy remnants to refit.'
+      );
+      return;
+    }
+
+    const issueLines = audit.issues
+      .slice(0, 4)
+      .map((i) => (isPersian ? `• ${i.fa}` : `• ${i.en}`))
+      .join('\n');
+    const issueBlock = issueLines ? `\n${issueLines}` : '';
+    const ok = await notify.confirm({
+      title: isPersian ? 'چیدمان خودکار مختصات' : 'Auto-fit coordinates',
+      message:
+        (isPersian
+          ? `${audit.counts.legacy_auto} بازماندهٔ قدیمی و ${audit.counts.unplaced} مکان فاقد مختصات شناسایی شد؛ ${audit.counts.manual} نشان دستی دست‌نخورده می‌ماند.\nموقعیت‌ها از گراف جهان، مسیرهای تجاری، متن روایت و زمینِ نقشه استخراج می‌شود و پس از اعمال قابل بازگردانی است.`
+          : `${audit.counts.legacy_auto} legacy remnant(s) and ${audit.counts.unplaced} unplaced location(s) detected; ${audit.counts.manual} manual pin(s) will stay untouched.\nPositions derive from the world graph, trade routes, lore text and terrain, and can be undone after apply.`) +
+        issueBlock,
+      confirmText: isPersian ? 'بازچینی' : 'Refit',
+      cancelText: isPersian ? 'انصراف' : 'Cancel',
+    });
+    if (!ok) return;
+
+    const seed = stableSeedFromString(
+      selectedWorldId || story.worldId || story.worldBible.worldName || 'storyforge-world'
+    );
+    const result = solveMapLayout({
+      locations: wb.locations,
+      tradeRoutes: wb.tradeRoutes,
+      mapData,
+      mode: 'legacy',
+      seed,
+    });
+    if (!result.placements.length) {
+      notify.info(isPersian ? 'چیزی برای جابجایی نبود.' : 'Nothing to move.');
+      return;
+    }
+
+    const touchedIds = new Set(result.diffs.map((d) => d.locationId));
+    setAutoFitSnapshot(
+      wb.locations
+        .filter((l) => touchedIds.has(l.id))
+        .map((l) => ({
+          locationId: l.id,
+          coordinates: l.coordinates,
+          coordinatesSource: l.coordinatesSource,
+        }))
+    );
+
+    updateWorldBible((prev) => ({
+      ...prev,
+      locations: (prev.locations || []).map((l) => {
+        const placement = result.placements.find((p) => p.locationId === l.id);
+        if (!placement) return l;
+        return { ...l, coordinates: placement.position, coordinatesSource: 'solver' as const };
+      }),
+    }));
+    notify.success(
+      isPersian
+        ? `${result.summaryText} — برای ذخیرهٔ نهایی روی ذخیره بزنید.`
+        : `${result.summaryText} — hit Save to persist.`
+    );
+  };
+
+  const handleUndoAutoFit = () => {
+    const snapshot = autoFitSnapshot;
+    if (!snapshot || snapshot.length === 0) return;
+    updateWorldBible((prev) => ({
+      ...prev,
+      locations: (prev.locations || []).map((l) => {
+        const entry = snapshot.find((s) => s.locationId === l.id);
+        if (!entry) return l;
+        const restored: WorldLocation = { ...l, coordinates: entry.coordinates, coordinatesSource: entry.coordinatesSource };
+        if (!entry.coordinates) delete restored.coordinates;
+        if (!entry.coordinatesSource) delete restored.coordinatesSource;
+        return restored;
+      }),
+    }));
+    setAutoFitSnapshot(null);
+    notify.info(isPersian ? 'مختصات قبلی بازگردانی شد.' : 'Previous coordinates restored.');
+  };
+
   // Trade Route Handlers
   const handleAddTradeRoute = (route: WorldTradeRoute) => {
     addTradeRoute(route);
@@ -308,6 +413,9 @@ export default function CartographerPage() {
         hasUnsavedChanges={hasLocalDraft}
         onSave={saveToServer}
         onOpenAiOracle={() => setIsAiOracleOpen(true)}
+        onAutoFit={handleAutoFit}
+        canUndoAutoFit={!!autoFitSnapshot && autoFitSnapshot.length > 0}
+        onUndoAutoFit={handleUndoAutoFit}
         onToggleLayerPanel={() => {
           setIsLayerPanelOpen((v) => !v);
           setIsPaletteOpen(false);

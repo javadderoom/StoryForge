@@ -377,23 +377,30 @@ export function createSeedTerrainFeatures(isPersian: boolean): MapTerrainFeature
 /**
  * Ensures all World Locations have coordinates on the map.
  * If some locations have no coordinates, allocates them evenly in thematic zones.
+ *
+ * Plan 19: the anchor list is exported for remnant detection — coordinates that
+ * exactly match one of these points (or its orbital-offset signature) are
+ * classified `legacy_auto` by `mapLayoutAuditor.ts`, making them safe to refit.
+ * Newly allocated positions are also stamped `coordinatesSource: 'legacy_auto'`.
  */
+export const LEGACY_AUTO_ANCHORS: ReadonlyArray<MapPoint> = [
+  { x: 1220, y: 740 }, // Imperial Capital by lake
+  { x: 720, y: 380 },  // Northern Forest Citadel
+  { x: 1540, y: 640 }, // Mountain Fortress / Pass
+  { x: 880, y: 1020 }, // Desert Oasis Hub
+  { x: 1590, y: 1240 },// Southern Coastal Trade Port
+  { x: 1720, y: 920 }, // Canyon Stronghold
+  { x: 420, y: 720 },  // Western Border Outpost
+  { x: 1980, y: 480 }, // Eastern Mystic Citadel
+  { x: 260, y: 1380 }, // Simurgh Island Sanctuary
+  { x: 1040, y: 450 }, // Ashen Peak Monastery
+];
+
 export function ensureLocationCoordinates(
   locations: WorldLocation[],
   existingCoordinates: Map<string, MapPoint>
 ): WorldLocation[] {
-  const predefinedAnchors: MapPoint[] = [
-    { x: 1220, y: 740 }, // Imperial Capital by lake
-    { x: 720, y: 380 },  // Northern Forest Citadel
-    { x: 1540, y: 640 }, // Mountain Fortress / Pass
-    { x: 880, y: 1020 }, // Desert Oasis Hub
-    { x: 1590, y: 1240 },// Southern Coastal Trade Port
-    { x: 1720, y: 920 }, // Canyon Stronghold
-    { x: 420, y: 720 },  // Western Border Outpost
-    { x: 1980, y: 480 }, // Eastern Mystic Citadel
-    { x: 260, y: 1380 }, // Simurgh Island Sanctuary
-    { x: 1040, y: 450 }, // Ashen Peak Monastery
-  ];
+  const predefinedAnchors = LEGACY_AUTO_ANCHORS;
 
   return locations.map((loc, idx) => {
     if (loc.coordinates && loc.coordinates.x > 0 && loc.coordinates.y > 0) {
@@ -416,6 +423,7 @@ export function ensureLocationCoordinates(
     return {
       ...loc,
       coordinates: point,
+      coordinatesSource: 'legacy_auto',
       elevation: loc.elevation ?? (loc.category === 'stronghold' ? 1200 : loc.category === 'dungeon' ? -150 : 350),
     };
   });
