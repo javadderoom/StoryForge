@@ -9,6 +9,8 @@ import {
   seedAmbientClock,
   normalizeClockChanges,
   resolveDeclaredClockChanges,
+  resolveClockZoneLocationId,
+  refreshZoneThreatClocks,
   MAX_CLOCK_DELTA_PER_TURN,
 } from './threatClock';
 import { GameEngine } from './GameEngine';
@@ -516,5 +518,121 @@ describe('Plan 13 follow-up: ambient seeding & writer clock authority', () => {
       worldBible: bible,
     });
     assert.equal(res.applied.length, 0);
+  });
+});
+
+describe('Plan 13 follow-up: journey-aware clock zone', () => {
+  // Mirrors the production shape: a zone that owns a threat clock, a sanctuary
+  // child that suppresses the inherited clock, and a plain child that inherits.
+  const journeyBible: WorldBible = {
+    ...bible,
+    locations: [
+      {
+        id: 'loc_hiram',
+        name: 'Hiram Plains',
+        description: 'Open desert',
+        region: 'Desert',
+        dangerLevel: 4,
+        connectedLocationIds: [],
+        atmosphere: 'Scorching',
+        threatClockDefault: { name: 'Water', maxSegments: 5, crisisDescription: 'The caravan runs dry' },
+      },
+      {
+        id: 'loc_rabat',
+        name: 'Red Rabat',
+        description: 'Fortified shelter',
+        region: 'Desert',
+        parentLocationId: 'loc_hiram',
+        dangerLevel: 1,
+        connectedLocationIds: [],
+        atmosphere: 'Calm',
+        suppressThreatClock: true,
+      },
+      {
+        id: 'loc_ridges',
+        name: 'Western Ridges',
+        description: 'Rocky ridges',
+        region: 'Desert',
+        parentLocationId: 'loc_hiram',
+        dangerLevel: 3,
+        connectedLocationIds: [],
+        atmosphere: 'Windy',
+      },
+    ],
+  };
+
+  it('uses the current location as the clock zone while the player is at rest', () => {
+    assert.equal(resolveClockZoneLocationId({ currentLocationId: 'loc_rabat' }, journeyBible), 'loc_rabat');
+    assert.equal(resolveClockZoneLocationId({ currentLocationId: 'loc_hiram' }, journeyBible), 'loc_hiram');
+  });
+
+  it('hands the clock zone to the destination while travelling into a clock zone', () => {
+    const state = { currentLocationId: 'loc_rabat', travel: { destinationLocationId: 'loc_hiram' } };
+    assert.equal(resolveClockZoneLocationId(state, journeyBible), 'loc_hiram');
+  });
+
+  it('keeps the origin zone while travelling toward a sanctuary destination', () => {
+    const state = { currentLocationId: 'loc_hiram', travel: { destinationLocationId: 'loc_rabat' } };
+    assert.equal(resolveClockZoneLocationId(state, journeyBible), 'loc_hiram');
+  });
+
+  it('shows the destination clock while travelling out of a sanctuary', () => {
+    const state = { currentLocationId: 'loc_rabat', travel: { destinationLocationId: 'loc_hiram' } };
+    const clocks = refreshZoneThreatClocks([], state, journeyBible);
+    assert.equal(clocks.length, 1);
+    assert.equal(clocks[0].id, 'clock_loc_hiram');
+    assert.equal(clocks[0].name, 'Water');
+    assert.equal(clocks[0].currentSegments, 0);
+    assert.equal(clocks[0].maxSegments, 5);
+  });
+
+  it('shows the inherited zone clock while travelling into a child of the clock zone', () => {
+    const state = { currentLocationId: 'loc_rabat', travel: { destinationLocationId: 'loc_ridges' } };
+    const clocks = refreshZoneThreatClocks([], state, journeyBible);
+    assert.equal(clocks.length, 1);
+    assert.equal(clocks[0].id, 'clock_loc_hiram');
+  });
+
+  it('shows no clock while resting inside the sanctuary', () => {
+    const clocks = refreshZoneThreatClocks([], { currentLocationId: 'loc_rabat' }, journeyBible);
+    assert.equal(clocks.length, 0);
+  });
+
+  it('drops the zone clock once the caravan arrives inside the sanctuary', () => {
+    const active = [
+      { id: 'clock_loc_hiram', name: 'Water', currentSegments: 2, maxSegments: 5, crisisDescription: '' },
+    ];
+    const clocks = refreshZoneThreatClocks(active, { currentLocationId: 'loc_rabat' }, journeyBible);
+    assert.equal(clocks.length, 0);
+  });
+
+  it('keeps the zone clock running (and its progress) while travelling toward a sanctuary', () => {
+    const active = [
+      { id: 'clock_loc_hiram', name: 'Water', currentSegments: 2, maxSegments: 5, crisisDescription: '' },
+    ];
+    const clocks = refreshZoneThreatClocks(active, {
+      currentLocationId: 'loc_hiram',
+      travel: { destinationLocationId: 'loc_rabat' },
+    }, journeyBible);
+    assert.equal(clocks.length, 1);
+    assert.equal(clocks[0].currentSegments, 2, 'segment progress survives the journey');
+  });
+
+  it('never resets clock progress when the zone is refreshed', () => {
+    const active = [
+      { id: 'clock_loc_hiram', name: 'Water', currentSegments: 3, maxSegments: 5, crisisDescription: '' },
+    ];
+    const clocks = refreshZoneThreatClocks(active, { currentLocationId: 'loc_hiram' }, journeyBible);
+    assert.equal(clocks.length, 1);
+    assert.equal(clocks[0].currentSegments, 3);
+  });
+
+  it('leaves non-location clocks untouched while pruning', () => {
+    const active = [
+      { id: 'clock_story_arc', name: 'Arc tension', currentSegments: 1, maxSegments: 4, crisisDescription: '' },
+    ];
+    const clocks = refreshZoneThreatClocks(active, { currentLocationId: 'loc_rabat' }, journeyBible);
+    assert.equal(clocks.length, 1);
+    assert.equal(clocks[0].id, 'clock_story_arc');
   });
 });

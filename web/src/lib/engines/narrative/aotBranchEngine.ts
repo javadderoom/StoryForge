@@ -2,7 +2,7 @@ import { GameEngine } from '@/lib/engines/game/GameEngine';
 import { rollDice, isBodilyRiskAction } from '@/lib/engines/game/actionCheckEngine';
 import { countConsecutiveFailedAttempts } from '@/lib/engines/game/failForwardEngine';
 import { calculateActionXp, applyXpGain } from '@/lib/engines/game/progressionEngine';
-import { pruneInactiveZoneClocks, resolveDeclaredClockChanges, seedAmbientClock } from '@/lib/engines/game/threatClock';
+import { refreshZoneThreatClocks, resolveDeclaredClockChanges } from '@/lib/engines/game/threatClock';
 import { reconcilePlayerResources, resolveHealthKey } from '@/lib/engines/game/resourcePools';
 import { reconcileConditions } from '@/lib/engines/game/conditionReconciler';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
@@ -428,19 +428,13 @@ export async function preGenerateAotBranch(ctx: AotBranchContext): Promise<AotBr
     }
   }
 
-  if (updatedPlayerState.activeTensionClocks && story.worldBible) {
-    updatedPlayerState.activeTensionClocks = pruneInactiveZoneClocks(
-      updatedPlayerState.activeTensionClocks,
-      updatedPlayerState.currentLocationId,
-      story.worldBible
-    );
-  }
-
-  // Plan 13 follow-up: the branch prompt must see the destination/local zone's
-  // ambient clock, same as the live route.
-  updatedPlayerState.activeTensionClocks = seedAmbientClock(
+  // Plan 13 follow-up: the branch prompt must see the ambient clock of the
+  // zone the player is subject to, same as the live route — and the same
+  // journey-aware zone resolution (a sanctuary on the road must not hide the
+  // clock of the place the caravan is heading into).
+  updatedPlayerState.activeTensionClocks = refreshZoneThreatClocks(
     updatedPlayerState.activeTensionClocks,
-    updatedPlayerState.currentLocationId,
+    updatedPlayerState,
     story.worldBible
   );
 

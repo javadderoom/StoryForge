@@ -18,7 +18,7 @@ import { scheduleSnapDwell } from '@/lib/play/snapDecisions';
 import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
 import { GeminiAdapter, normalizeChoices } from '@/lib/providers/GeminiAdapter';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
-import { seedAmbientClock } from '@/lib/engines/game/threatClock';
+import { refreshZoneThreatClocks, seedAmbientClock } from '@/lib/engines/game/threatClock';
 import { WorkingContextEnvelope } from '@/lib/types/memory';
 
 export const dynamic = 'force-dynamic';
@@ -312,14 +312,15 @@ export async function GET(req: NextRequest) {
       }
       // Plan 13 follow-up: backfill the current zone's ambient clock for
       // sessions created before entry seeding existed (and for hand-edited
-      // saves). Idempotent — existing clocks are never reset.
+      // saves). Idempotent — existing clocks are never reset. Journey-aware:
+      // a session resumed mid-road is governed by the destination's zone.
       const clocksBefore = reconciledPlayerState.activeTensionClocks ?? [];
-      const clocksAfter = seedAmbientClock(
+      const clocksAfter = refreshZoneThreatClocks(
         clocksBefore,
-        reconciledPlayerState.currentLocationId,
+        reconciledPlayerState,
         (story as any).worldBible
       );
-      if (clocksAfter.length !== clocksBefore.length) {
+      if (JSON.stringify(clocksAfter) !== JSON.stringify(clocksBefore)) {
         reconciledPlayerState.activeTensionClocks = clocksAfter;
         shouldPersist = true;
       }

@@ -411,3 +411,67 @@ export function pruneInactiveZoneClocks(
     return clock.id === activeZoneClockId;
   });
 }
+
+// ---------------------------------------------------------------------------
+// Journey-aware clock zone (Plan 13 follow-up)
+//
+// Clock visibility was derived from `playerState.currentLocationId` alone. During
+// an inter-city journey that pointer still names the node the caravan LEFT (or
+// the last waypoint reached), so a sanctuary on the route silently hid the
+// clock of the zone being travelled into — the meter vanished for the whole
+// journey even though the destination declared one. The governing zone is now
+// resolved from the journey itself.
+// ---------------------------------------------------------------------------
+
+/** Minimal shape needed to resolve the governing clock zone. */
+export interface ClockZoneCarrier {
+  currentLocationId?: string;
+  currentSubZoneId?: string;
+  travel?: { destinationLocationId?: string } | null;
+}
+
+/**
+ * Resolves the location id whose zone governs the player's threat pressure now.
+ *
+ * - At rest: the player's current location.
+ * - While travelling: the destination's zone — the caravan is on the road, and
+ *   a sanctuary at the origin must not hide the pressure of the place being
+ *   entered. If the destination resolves to no clock zone (it is itself a
+ *   sanctuary), the pressure of the place being left keeps running until the
+ *   caravan actually arrives.
+ */
+export function resolveClockZoneLocationId(
+  playerState: ClockZoneCarrier | null | undefined,
+  worldBible?: WorldBible
+): string | undefined {
+  const currentId = playerState?.currentLocationId;
+  const destinationId = playerState?.travel?.destinationLocationId;
+  if (!destinationId || destinationId === currentId) return currentId;
+  if (!worldBible?.locations) return currentId;
+  const destLoc = worldBible.locations.find((l) => l.id === destinationId);
+  if (!destLoc) return currentId;
+  const destZone = resolveLocationWithThreatClock(destLoc, worldBible, undefined);
+  return destZone ? destinationId : currentId;
+}
+
+/**
+ * Refreshes the active threat clocks for the zone the player is subject to
+ * right now: prunes clocks that no longer apply, then seeds the ambient clock
+ * of the governing zone. Journey-aware (see `resolveClockZoneLocationId`).
+ *
+ * Sub-zone scoping only applies while the player is standing in a location —
+ * on the road there is no sub-zone to be inside.
+ */
+export function refreshZoneThreatClocks(
+  activeClocks: TensionClock[] | undefined,
+  playerState: ClockZoneCarrier | null | undefined,
+  worldBible?: WorldBible
+): TensionClock[] {
+  if (!worldBible?.locations) return activeClocks ?? [];
+  const travelling = !!playerState?.travel?.destinationLocationId;
+  const zoneId = resolveClockZoneLocationId(playerState, worldBible);
+  const subZoneId = travelling ? undefined : playerState?.currentSubZoneId;
+  let clocks = pruneInactiveZoneClocks(activeClocks, zoneId, worldBible, subZoneId);
+  clocks = seedAmbientClock(clocks, zoneId, worldBible, subZoneId);
+  return clocks;
+}

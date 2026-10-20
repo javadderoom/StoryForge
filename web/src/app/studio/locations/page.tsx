@@ -29,6 +29,7 @@ import {
   FileText,
   Link2,
   Search,
+  TriangleAlert,
 } from 'lucide-react';
 import {
   WorldLocation,
@@ -299,6 +300,27 @@ export default function LocationsStudioPage() {
     ]);
     return locations.filter((l) => !invalidIds.has(l.id));
   }, [locations, editingLocationId]);
+
+  // The sanctuary toggle also silences any clock the location INHERITS from an
+  // ancestor zone (the ancestor's clock is the parent's `threatClockDefault`).
+  // Surface that, so a shelter that silently mutes a whole region's clock is
+  // never a surprise — the meter just vanishes for the author and the reader.
+  const inheritedClockUnderSuppression = React.useMemo(() => {
+    if (!locSuppressThreatClock) return null;
+    const editing = locations.find((l) => l.id === editingLocationId);
+    let parentId = locParentLocationId || editing?.parentLocationId || '';
+    const visited = new Set<string>();
+    while (parentId && !visited.has(parentId)) {
+      visited.add(parentId);
+      const parent = locations.find((l) => l.id === parentId);
+      if (!parent) break;
+      if (parent.threatClockDefault?.name) {
+        return { locationName: parent.name, clockName: parent.threatClockDefault.name };
+      }
+      parentId = parent.parentLocationId || '';
+    }
+    return null;
+  }, [locSuppressThreatClock, locParentLocationId, editingLocationId, locations]);
 
   const handleOpenAddModal = () => {
     setEditingLocationId(null);
@@ -1732,6 +1754,16 @@ export default function LocationsStudioPage() {
                         ? 'ساعت‌های تهدید منطقه (مانند تشنگی، گرما، آسیب یا گشت ارگ) هنگام حضور در این مکان یا پناهگاه متوقف و مهار می‌شوند.'
                         : 'Suspends and suppresses regional or parent threat clocks while the player is inside this location.'}
                     </p>
+                    {inheritedClockUnderSuppression && (
+                      <p className="text-[10.5px] text-amber-300/90 mt-1 flex items-start gap-1">
+                        <TriangleAlert className="w-3 h-3 mt-0.5 shrink-0" />
+                        <span>
+                          {isPersian
+                            ? `این مکان ساعت «${inheritedClockUnderSuppression.clockName}» را از «${inheritedClockUnderSuppression.locationName}» به ارث می‌برد؛ با فعال بودن مهار، آن ساعت هم در این مکان خاموش می‌شود.`
+                            : `This location inherits the "${inheritedClockUnderSuppression.clockName}" clock from "${inheritedClockUnderSuppression.locationName}" — while suppression is on, that clock stays silent here too.`}
+                        </span>
+                      </p>
+                    )}
                   </div>
                   <input
                     type="checkbox"

@@ -18,7 +18,7 @@ import { reconcilePlayerResources, resolveHealthKey } from '@/lib/engines/game/r
 import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
 import { calculateActionXp, applyXpGain } from '@/lib/engines/game/progressionEngine';
 import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
-import { ensureClockForLocation, pruneInactiveZoneClocks, resolveDeclaredClockChanges, seedAmbientClock } from '@/lib/engines/game/threatClock';
+import { ensureClockForLocation, refreshZoneThreatClocks, resolveDeclaredClockChanges } from '@/lib/engines/game/threatClock';
 import { resolveAccompanyingIds } from '@/lib/engines/narrative/worldContext';
 import { buildNpcIdToName, deriveActualChoice } from '@/lib/engines/narrative/snapPredictor';
 import { cancelSnapPrediction, resolveSnapDecision, scheduleSnapDwell } from '@/lib/play/snapDecisions';
@@ -879,26 +879,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Prune location/regional clocks if the player moved outside their region or entered a safe city/sanctuary
-    if (updatedPlayerState.activeTensionClocks && story.worldBible) {
-      updatedPlayerState.activeTensionClocks = pruneInactiveZoneClocks(
-        updatedPlayerState.activeTensionClocks,
-        updatedPlayerState.currentLocationId,
-        story.worldBible,
-        updatedPlayerState.currentSubZoneId
-      );
-    }
-
-    // Plan 13 follow-up: seed the destination/local zone's ambient clock before
-    // the prompt is built. This covers every entry path (authored movement,
-    // displacement, immediate hops — travel arrival already seeded above), so a
-    // zone that declares a threatClockDefault always surfaces its meter at
-    // 0/max instead of waiting for the first failed dice roll.
-    updatedPlayerState.activeTensionClocks = seedAmbientClock(
+    // Plan 13 follow-up: refresh the zone clocks for the zone the player is
+    // subject to right now — prunes the clocks of zones they left (or entered
+    // a sanctuary in) and seeds the ambient clock of the governing zone, so a
+    // zone that declares a threatClockDefault surfaces its meter at 0/max
+    // instead of waiting for the first failed dice roll.
+    //
+    // Journey-aware: while the caravan is on the road the destination's zone
+    // governs, so a sanctuary along the route can no longer hide the clock of
+    // the place being entered (Plan 13 follow-up).
+    updatedPlayerState.activeTensionClocks = refreshZoneThreatClocks(
       updatedPlayerState.activeTensionClocks,
-      updatedPlayerState.currentLocationId,
-      story.worldBible,
-      updatedPlayerState.currentSubZoneId
+      updatedPlayerState,
+      story.worldBible
     );
 
     const displacedLocationId = resolution.displacedLocationId || resolution.stateDiff.displacedLocationId;
