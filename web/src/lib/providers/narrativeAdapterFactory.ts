@@ -2,6 +2,14 @@ import { GeminiAdapter } from './GeminiAdapter';
 import type { SceneModelCall, RawSceneData, RawSceneResult } from '../engines/narrative/modelCall';
 import { defaultSceneModelCall } from '../engines/narrative/modelCall';
 import { extractJsonPayload } from '../ai/geminiClient';
+import {
+  AIPRIME_ENDPOINT,
+  DEFAULT_NARRATOR_TIER_CONFIGS,
+  SINOX_ENDPOINT,
+  getNarratorTierConfig,
+  type NarratorTierConfig,
+  type NarratorProvider,
+} from './narratorModelRegistry';
 
 export type EngineTier = 'normal' | 'plus' | 'advance';
 
@@ -11,44 +19,66 @@ export const ENGINE_TIER_COSTS: Record<EngineTier, number> = {
   advance: 5,
 };
 
-const SINOX_ENDPOINT = 'https://sinoxapi.com/v1/chat/completions';
-const SINOX_ADVANCE_MODEL = 't-gemini-4-argon';
+/** Environment variable holding each provider's API key (never persisted). */
+const PROVIDER_API_KEY_ENV: Record<NarratorProvider, string> = {
+  gemini: 'GEMINI_API_KEY',
+  aiprime: 'AIPRIME_API_KEY',
+  sinox: 'SINOX_API_KEY',
+};
 
-const AIPRIME_ENDPOINT = 'https://api.aiprime.shop/v1/chat/completions';
-const AIPRIME_PRIMARY_MODEL = 'gemini-3.8-flash';
-const AIPRIME_FALLBACK_MODEL = 'gemini-2.5-flash';
+/** True when the provider's API key is configured in this deployment. */
+export function isProviderConfigured(provider: NarratorProvider): boolean {
+  const key = process.env[PROVIDER_API_KEY_ENV[provider]];
+  return Boolean(key && key.trim().length > 0);
+}
 
 /**
- * Creates a SceneModelCall seam routing narrative generation to AI Prime
- * for the 2x Plus tier (2 credits per scene).
- * Tries gemini-3.8-flash with fallback to gemini-2.5-flash and the default queue.
+ * Creates a SceneModelCall seam routing narrative generation to an
+ * OpenAI-compatible provider (AI Prime for the 2x Plus tier by default).
+ *
+ * The model, its fallback and the endpoint all come from the narrator model
+ * registry, so an operator can repoint the tier from the Studio. When the
+ * provider's API key is missing the seam falls back to the default cascading
+ * queue — the reader always gets a scene.
  */
-export function createAiPrimePlusModelCall(): SceneModelCall {
+export function createOpenAiCompatibleModelCall(
+  provider: NarratorProvider,
+  config: NarratorTierConfig
+): SceneModelCall {
   return async (prompt, options = {}): Promise<RawSceneResult | null> => {
-    const apiKey = process.env.AIPRIME_API_KEY;
+    const apiKey = process.env[PROVIDER_API_KEY_ENV[provider]];
     if (!apiKey) {
-      console.warn('[narrativeAdapterFactory] AIPRIME_API_KEY is not set. Falling back to default cascading queue.');
+      console.warn(
+        `[narrativeAdapterFactory] ${PROVIDER_API_KEY_ENV[provider]} is not set. Falling back to default cascading queue.`
+      );
       return defaultSceneModelCall(prompt, options);
     }
 
+    const endpoint = config.endpoint || (provider === 'sinox' ? SINOX_ENDPOINT : AIPRIME_ENDPOINT);
     const t0 = Date.now();
     const messages = [
       { role: 'system', content: prompt.systemPrompt },
       { role: 'user', content: prompt.userPrompt },
     ];
 
-    const modelsToTry = [AIPRIME_PRIMARY_MODEL, AIPRIME_FALLBACK_MODEL];
+    const modelsToTry = [config.model, config.fallbackModel].filter(
+      (m): m is string => Boolean(m && m.trim().length > 0)
+    );
 
     for (const model of modelsToTry) {
-      const payload = {
+      const payload: Record<string, unknown> = {
         model,
         messages,
-        temperature: options.temperature ?? 0.75,
+        temperature: options.temperature ?? config.temperature ?? 0.75,
         response_format: { type: 'json_object' },
       };
+      if (config.reasoningEffort) payload.reasoning_effort = config.reasoningEffort;
+      if (typeof config.thinkingBudgetTokens === 'number' && config.thinkingBudgetTokens > 0) {
+        payload.thinking = { type: 'enabled', budget_tokens: config.thinkingBudgetTokens };
+      }
 
       try {
-        const res = await fetch(AIPRIME_ENDPOINT, {
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -61,7 +91,7 @@ export function createAiPrimePlusModelCall(): SceneModelCall {
         if (!res.ok) {
           const errorText = await res.text().catch(() => '');
           console.warn(
-            `[narrativeAdapterFactory] AI Prime ${model} HTTP ${res.status} in ${durationMs}ms: ${errorText}. Trying next route...`
+            `[narrativeAdapterFactory] ${provider} ${model} HTTP ${res.status} in ${durationMs}ms: ${errorText}. Trying next route...`
           );
           continue;
         }
@@ -69,7 +99,7 @@ export function createAiPrimePlusModelCall(): SceneModelCall {
         const json = (await res.json()) as any;
         const rawText = json?.choices?.[0]?.message?.content || '';
         if (!rawText) {
-          console.warn(`[narrativeAdapterFactory] AI Prime ${model} returned empty content.`);
+          console.warn(`[narrativeAdapterFactory] ${provider} ${model} returned empty content.`);
           continue;
         }
 
@@ -78,102 +108,66 @@ export function createAiPrimePlusModelCall(): SceneModelCall {
         return {
           data: parsed,
           rawText,
-          modelUsed: `aiprime/${model}`,
+          modelUsed: `${provider}/${model}`,
         };
       } catch (err) {
-        console.warn(`[narrativeAdapterFactory] AI Prime ${model} request error:`, err);
+        console.warn(`[narrativeAdapterFactory] ${provider} ${model} request error:`, err);
       }
     }
 
-    console.warn('[narrativeAdapterFactory] AI Prime models exhausted. Falling back to default queue...');
+    console.warn(
+      `[narrativeAdapterFactory] ${provider} models exhausted. Falling back to default queue...`
+    );
     return defaultSceneModelCall(prompt, options);
   };
 }
 
 /**
- * Creates a SceneModelCall seam routing narrative generation to Sinox t-gemini-4-argon
- * with calibrated 1,024 reasoning budget tokens for speed and consistency.
- * Falls back to defaultSceneModelCall if Sinox API key is missing or fails.
+ * Creates the AI Prime seam for the 2x Plus tier.
+ * Kept as a named export for callers that want the provider explicitly.
  */
-export function createSinoxAdvanceModelCall(): SceneModelCall {
-  return async (prompt, options = {}): Promise<RawSceneResult | null> => {
-    const apiKey = process.env.SINOX_API_KEY;
-    if (!apiKey) {
-      console.warn('[narrativeAdapterFactory] SINOX_API_KEY is not set. Falling back to default cascading queue.');
-      return defaultSceneModelCall(prompt, options);
-    }
+export function createAiPrimePlusModelCall(config?: NarratorTierConfig): SceneModelCall {
+  return createOpenAiCompatibleModelCall(
+    'aiprime',
+    config ?? DEFAULT_NARRATOR_TIER_CONFIGS.plus
+  );
+}
 
-    const t0 = Date.now();
-    const messages = [
-      { role: 'system', content: prompt.systemPrompt },
-      { role: 'user', content: prompt.userPrompt },
-    ];
-
-    const payload = {
-      model: SINOX_ADVANCE_MODEL,
-      messages,
-      temperature: options.temperature ?? 0.75,
-      response_format: { type: 'json_object' },
-      reasoning_effort: 'low',
-      thinking: { type: 'enabled', budget_tokens: 1024 },
-    };
-
-    try {
-      const res = await fetch(SINOX_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const durationMs = Date.now() - t0;
-      if (!res.ok) {
-        const errorText = await res.text().catch(() => '');
-        console.warn(
-          `[narrativeAdapterFactory] Sinox Advance API HTTP ${res.status} in ${durationMs}ms: ${errorText}. Falling back to default queue...`
-        );
-        return defaultSceneModelCall(prompt, options);
-      }
-
-      const json = (await res.json()) as any;
-      const rawText = json?.choices?.[0]?.message?.content || '';
-      if (!rawText) {
-        console.warn('[narrativeAdapterFactory] Sinox returned empty content. Falling back to default queue...');
-        return defaultSceneModelCall(prompt, options);
-      }
-
-      const cleaned = extractJsonPayload(rawText);
-      const parsed = JSON.parse(cleaned) as RawSceneData;
-      return {
-        data: parsed,
-        rawText,
-        modelUsed: `sinox/${SINOX_ADVANCE_MODEL}`,
-      };
-    } catch (err) {
-      console.warn('[narrativeAdapterFactory] Sinox Advance generation error, falling back to default queue:', err);
-      return defaultSceneModelCall(prompt, options);
-    }
-  };
+/**
+ * Creates the Sinox seam for the 5x Advance tier (reasoning-budget tuned).
+ */
+export function createSinoxAdvanceModelCall(config?: NarratorTierConfig): SceneModelCall {
+  return createOpenAiCompatibleModelCall(
+    'sinox',
+    config ?? DEFAULT_NARRATOR_TIER_CONFIGS.advance
+  );
 }
 
 /**
  * Returns a configured GeminiAdapter for the requested engine tier.
- * - 'normal': Standard 1x cost (1 credit), uses gemini-3.5-flash-lite cascading queue.
- * - 'plus': 2x cost (2 credits), uses AI Prime.
- * - 'advance': 5x cost (5 credits), uses Sinox t-gemini-4-argon with fast reasoning effort.
+ * - 'normal': Standard 1x cost (1 credit), Gemini cascading queue.
+ * - 'plus': 2x cost (2 credits), AI Prime.
+ * - 'advance': 5x cost (5 credits), Sinox with a calibrated reasoning budget.
+ *
+ * The provider/model per tier comes from the narrator model registry (Studio
+ * managed), falling back to the code defaults. When the tier routes to a
+ * provider with no API key configured, the adapter falls back to the default
+ * Gemini cascade so a reader turn is never lost to a missing key.
  */
-export function getNarrativeAdapter(tier?: EngineTier): GeminiAdapter {
-  if (tier === 'advance') {
-    return new GeminiAdapter(undefined, SINOX_ADVANCE_MODEL, {
-      modelCall: createSinoxAdvanceModelCall(),
+export async function getNarrativeAdapter(tier?: EngineTier): Promise<GeminiAdapter> {
+  const config = await getNarratorTierConfig(tier as EngineTier | undefined);
+
+  if (config.provider === 'aiprime') {
+    return new GeminiAdapter(undefined, config.model, {
+      modelCall: createOpenAiCompatibleModelCall('aiprime', config),
     });
   }
-  if (tier === 'plus') {
-    return new GeminiAdapter(undefined, AIPRIME_PRIMARY_MODEL, {
-      modelCall: createAiPrimePlusModelCall(),
+  if (config.provider === 'sinox') {
+    return new GeminiAdapter(undefined, config.model, {
+      modelCall: createOpenAiCompatibleModelCall('sinox', config),
     });
   }
-  return new GeminiAdapter(undefined, 'gemini-3.5-flash-lite');
+  // Gemini (direct): the configured model is preferred inside the cascading
+  // queue (so a rate-limited model still cascades to the next one).
+  return new GeminiAdapter(undefined, config.model, { preferredModel: config.model });
 }

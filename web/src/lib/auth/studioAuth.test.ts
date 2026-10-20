@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { NextRequest } from 'next/server';
-import { decideStudioWrite, hasRole } from './studioAuth';
+import { decideStudioAdmin, decideStudioWrite, hasRole } from './studioAuth';
 import { AuthenticatedUser } from './getUser';
 import { signJwt } from './jwt';
 
@@ -143,9 +143,28 @@ describe('decideStudioWrite', () => {
   });
 });
 
+describe('decideStudioAdmin', () => {
+  it('returns 403 for anonymous', () => {
+    const decision = decideStudioAdmin(null);
+    assert.equal(decision.ok, false);
+    if (!decision.ok) assert.equal(decision.status, 403);
+  });
+
+  it('allows ADMIN only — platform routing is not an author decision', () => {
+    assert.equal(decideStudioAdmin(user('ADMIN')).ok, true);
+    assert.equal(decideStudioAdmin(user('AUTHOR')).ok, false);
+  });
+
+  it('is case sensitive and rejects look-alike roles', () => {
+    for (const role of ['admin', 'Admin', 'ADMIN ', 'SUPERUSER', '']) {
+      const decision = decideStudioAdmin(user(role));
+      assert.equal(decision.ok, false, `role "${role}" must not grant platform access`);
+    }
+  });
+});
+
 describe('hasRole', () => {
-  it('is false for null regardless of the role list', () => {
-    assert.equal(hasRole(null, ['ADMIN']), false);
+  it('is false for null regardless of the role list', () => {    assert.equal(hasRole(null, ['ADMIN']), false);
     assert.equal(hasRole(null, []), false);
   });
 

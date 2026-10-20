@@ -359,6 +359,37 @@ model ActionCategory {
   @@map("action_categories")
 }
 
+/// Studio-managed routing for the AI narrator's engine tiers.
+///
+/// The tier -> provider/model mapping is a deployment-level setting: it decides
+/// which model answers a reader turn in each credit tier. Rows are optional —
+/// a missing tier falls back to the code defaults, so a fresh deployment (or a
+/// database without these rows) keeps working exactly as before.
+model NarratorModelTier {
+  id                    String   @id @default(uuid())
+  /// Engine tier key: 'normal' | 'plus' | 'advance'.
+  tier                  String   @unique
+  /// Provider key: 'gemini' | 'aiprime' | 'sinox'.
+  provider              String
+  /// Primary model id handed to the provider.
+  model                 String
+  /// Optional fallback model id (used when the primary route fails).
+  fallbackModel         String?
+  /// Optional endpoint override for the provider (OpenAI-compatible routes).
+  endpoint              String?
+  /// Optional sampling temperature override.
+  temperature           Float?
+  /// Optional reasoning effort for thinking-capable providers.
+  reasoningEffort       String?
+  /// Optional thinking/reasoning token budget for thinking-capable providers.
+  thinkingBudgetTokens  Int?
+  updatedBy             String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("narrator_model_tiers")
+}
+
 model DiscountCode {
   id              String    @id @default(uuid())
   code            String    @unique

@@ -45,6 +45,7 @@ import {
   FlaskConical,
   Compass,
   Target,
+  Cpu,
 } from 'lucide-react';
 
 function StudioShell({ children }: { children: React.ReactNode }) {
@@ -220,6 +221,13 @@ function StudioShell({ children }: { children: React.ReactNode }) {
       isSpecial: true,
     },
     {
+      href: '/studio/narrator-models',
+      label: isPersian ? 'مدل‌های روایت‌گر' : 'Narrator Models',
+      shortLabel: isPersian ? 'مدل‌ها' : 'Models',
+      icon: Cpu,
+      isSpecial: true,
+    },
+    {
       href: '/studio/admin',
       label: isPersian ? 'مدیریت کاربران و مالی' : 'Admin & Finance',
       shortLabel: isPersian ? 'مدیریت' : 'Admin',
@@ -257,6 +265,7 @@ function StudioShell({ children }: { children: React.ReactNode }) {
     '/studio/chat': 'ai',
     '/studio/diagnostics/ai': 'ai',
     '/studio/snap': 'ai',
+    '/studio/narrator-models': 'ai',
     '/studio/admin': 'admin',
   };
 

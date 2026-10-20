@@ -305,7 +305,7 @@ export async function preGenerateSnapAotBranch(
         currentChapterId: session.currentChapterId ?? null,
         sessionTurns: session.turns ?? [],
         sessionMemories: session.memories ?? [],
-        geminiAdapter: deps.geminiAdapter ?? getNarrativeAdapter(ctx.story.engineTier),
+        geminiAdapter: deps.geminiAdapter ?? (await getNarrativeAdapter(ctx.story.engineTier)),
         subqAdapter: deps.subqAdapter,
         signal: ctx.signal,
       });

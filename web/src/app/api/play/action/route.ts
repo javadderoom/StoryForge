@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
         ? 'plus'
         : 'normal';
     const sceneCreditCost = isRemake ? 0 : (ENGINE_TIER_COSTS[engineTier] ?? 1);
-    const activeNarrativeAdapter = getNarrativeAdapter(engineTier);
+    const activeNarrativeAdapter = await getNarrativeAdapter(engineTier);
 
     // Credit metering. Remakes are free (0 credits).
     if (auth && sceneCreditCost > 0 && auth.user.creditBalance < sceneCreditCost) {

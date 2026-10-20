@@ -369,6 +369,12 @@ export interface GeminiAdapterOptions {
    * An injected seam that yields nothing never falls through to the network.
    */
   modelCall?: SceneModelCall;
+  /**
+   * Model tried first inside the cascading queue (Studio-managed narrator
+   * tier routing). The queue still cascades to the remaining models when the
+   * preferred one is rate-limited or unavailable.
+   */
+  preferredModel?: string;
 }
 
 export class GeminiAdapter {
@@ -376,6 +382,7 @@ export class GeminiAdapter {
   private modelName: string;
   private modelCall: SceneModelCall;
   private hasCustomModelCall: boolean;
+  private preferredModel?: string;
 
   constructor(
     apiKey?: string,
@@ -389,6 +396,7 @@ export class GeminiAdapter {
     this.modelName = modelName;
     this.hasCustomModelCall = Boolean(options.modelCall);
     this.modelCall = options.modelCall ?? defaultSceneModelCall;
+    this.preferredModel = options.preferredModel;
   }
 
   /**
@@ -401,7 +409,12 @@ export class GeminiAdapter {
     options: SceneModelOptions = {}
   ): Promise<RawSceneResult | null> {
     try {
-      const viaSeam = await this.modelCall(prompt, options);
+      // The Studio-configured model is tried first inside the cascade; the
+      // queue still cascades to the remaining models if it is unavailable.
+      const seamOptions: SceneModelOptions = this.preferredModel
+        ? { ...options, preferredModel: options.preferredModel ?? this.preferredModel }
+        : options;
+      const viaSeam = await this.modelCall(prompt, seamOptions);
       if (viaSeam && viaSeam.data) return viaSeam;
     } catch (seamErr) {
       console.warn('[GeminiAdapter] Scene model seam error:', seamErr);

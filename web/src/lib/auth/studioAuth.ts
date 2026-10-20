@@ -45,6 +45,38 @@ export function decideStudioWrite(auth: AuthenticatedUser | null): AuthzDecision
   return { ok: true, user: auth };
 }
 
+/**
+ * Pure authorization decision for a platform-level Studio write.
+ *
+ * Some Studio surfaces configure the deployment rather than a single story
+ * (e.g. which model answers a reader turn in each narrator tier). Those stay
+ * with ADMINs — an AUTHOR may shape a story, not the platform's routing.
+ */
+export function decideStudioAdmin(auth: AuthenticatedUser | null): AuthzDecision {
+  if (!auth) {
+    return { ok: false, status: 403, error: 'Unauthorized. Admin permissions required.' };
+  }
+  if (auth.role !== 'ADMIN') {
+    return { ok: false, status: 403, error: 'Unauthorized. Admin permissions required.' };
+  }
+  return { ok: true, user: auth };
+}
+
+/**
+ * Route-handler wrapper for ADMIN-only Studio writes. Same contract as
+ * `requireStudioWrite`: call it as the FIRST statement inside `try`.
+ */
+export async function requireStudioAdmin(req: Request): Promise<
+  { ok: true; user: AuthenticatedUser; response?: never } | { ok: false; response: NextResponse }
+> {
+  const auth = await getAuthenticatedUser(req);
+  const decision = decideStudioAdmin(auth?.user ?? null);
+  if (!decision.ok) {
+    return { ok: false, response: NextResponse.json({ success: false, error: decision.error }, { status: decision.status }) };
+  }
+  return { ok: true, user: decision.user };
+}
+
 /** True when the user holds one of the given roles. */
 export function hasRole(user: AuthenticatedUser | null, roles: readonly string[]): boolean {
   if (!user) return false;
