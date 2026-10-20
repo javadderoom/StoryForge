@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { StoryManifest } from '@/lib/types';
+import { StoryBeat } from '@/lib/types/world';
 import { canPublish } from '@/lib/engines/world/publishGate';
 import { requireStudioWrite } from '@/lib/auth/studioAuth';
 
@@ -28,7 +29,13 @@ export async function POST(req: NextRequest) {
       publishGateResult = canPublish(
         manifest.worldBible as unknown as Parameters<typeof canPublish>[0],
         (manifest as { saga?: Parameters<typeof canPublish>[1] }).saga ?? null,
-        statIds
+        statIds,
+        {
+          // The unified graph keeps scenes in `initialStoryBeats`; without them
+          // the saga audit reports every chapter as empty.
+          initialStoryBeats: (manifest as { initialStoryBeats?: StoryBeat[] }).initialStoryBeats,
+          initialSceneId: (manifest as { initialSceneId?: string }).initialSceneId,
+        }
       );
       // If consistency check fails, downgrade published to false so the user's hard work is NEVER lost
       if (!publishGateResult.ok) {

@@ -15,7 +15,7 @@ import {
 } from '@/lib/engines/world/GenesisSchemas';
 import { LoreAuditor } from '@/lib/engines/world/LoreAuditor';
 import { normalizeEntity } from '@/lib/engines/world/ActionNormalizer';
-import { WorldBible, SagaManifest } from '@/lib/types/world';
+import { WorldBible, SagaManifest, StoryBeat } from '@/lib/types/world';
 import { StoryManifest } from '@/lib/types';
 import { buildWorldContextString } from '@/lib/engines/narrative/worldContext';
 import {
@@ -78,6 +78,11 @@ interface GenerateRequest {
   anchor?: string;
   // Plan 08: optional saga payload for deterministic saga-graph auditing
   saga?: SagaManifest;
+  // The unified story graph keeps scenes in `initialStoryBeats` (chapters carry
+  // an empty `scenes` array) — the saga audit needs them to see real scenes.
+  initialStoryBeats?: StoryBeat[];
+  // The story's opening scene (its choices are synthesized at play time).
+  initialSceneId?: string;
   // Valid RPG stat ids for saga choice validation (sent by Studio beats page)
   rpgStatIds?: string[];
   // Plan 12: Weaver parameters
@@ -264,12 +269,21 @@ export async function POST(req: NextRequest) {
       const deterministic = LoreAuditor.audit(wb);
 
       // Plan 08: union deterministic saga-graph findings when a saga is sent.
-      const sagaAudit = body.saga ? LoreAuditor.auditSaga(body.saga as SagaManifest) : null;
+      // The unified graph keeps scenes in `initialStoryBeats` (chapters carry an
+      // empty `scenes` array) — without the beat list every chapter would be
+      // reported as empty.
+      const storyBeats = Array.isArray(body.initialStoryBeats) ? body.initialStoryBeats : undefined;
+      const openingSceneId = body.initialSceneId;
+      const sagaAudit = body.saga ? LoreAuditor.auditSaga(body.saga as SagaManifest, storyBeats) : null;
       if (sagaAudit) {
         const statIds = Array.isArray(body.rpgStatIds)
           ? body.rpgStatIds.filter((s): s is string => typeof s === 'string')
           : [];
-        sagaAudit.findings.push(...LoreAuditor.auditSagaStats(body.saga as SagaManifest, statIds));
+        sagaAudit.findings.push(
+          ...LoreAuditor.auditSagaStats(body.saga as SagaManifest, statIds, storyBeats, {
+            openingSceneId,
+          })
+        );
         sagaAudit.score = Math.max(
           0,
           sagaAudit.score - sagaAudit.findings.filter((f) => f.severity === 'error').length * 10

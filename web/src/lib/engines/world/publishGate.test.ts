@@ -4,6 +4,7 @@ import { canPublish } from './publishGate';
 import { hasPlaceholders } from './GenesisSchemas';
 import { LoreAuditor } from './LoreAuditor';
 import { getEmptyStoryManifest } from '@/lib/storyFactory';
+import type { StoryBeat } from '@/lib/types/world';
 
 describe('Publish gate + placeholder + saga-stat checks', () => {
   it('detects placeholder genesis entities', () => {
@@ -91,5 +92,98 @@ describe('Publish gate + placeholder + saga-stat checks', () => {
     assert.equal(gate.ok, true);
     assert.equal(gate.errors.length, 0);
     assert.ok(gate.score >= 85);
+  });
+
+  // The unified story graph keeps every scene in `initialStoryBeats` and leaves
+  // `chapter.scenes` empty. Auditing without the beat list made every chapter
+  // look empty ("Empty chapter") — a false positive on stories that do have
+  // their opening beat.
+  describe('saga audit against the unified beat list', () => {
+    const saga = {
+      chapters: [
+        {
+          id: 'act_1',
+          chapterNumber: 1,
+          title: 'Act 1: The Caravan',
+          scopeTier: 'regional',
+          narrativeGoal: 'Cross the desert.',
+          prerequisiteFlags: [],
+          completionSummaryPrompt: '',
+          scenes: [],
+          stages: [],
+        },
+      ],
+    } as never;
+
+    const openingBeat: StoryBeat = {
+      sceneId: 'scene_opening',
+      chapterId: 'act_1',
+      locationId: 'loc_1',
+      narrativeText: 'The caravan wakes before dawn.',
+      choices: [],
+    };
+
+    it('does not report an empty chapter when the chapter scenes live in initialStoryBeats', () => {
+      const m = getEmptyStoryManifest('en');
+      const gate = canPublish(m.worldBible, saga, [], {
+        initialStoryBeats: [openingBeat],
+        initialSceneId: 'scene_opening',
+      });
+      assert.equal(
+        gate.warnings.some((w) => w.startsWith('Empty chapter')),
+        false,
+        'a chapter whose beats live in initialStoryBeats is not empty'
+      );
+    });
+
+    it('still reports an empty chapter when the chapter truly has no scenes', () => {
+      const m = getEmptyStoryManifest('en');
+      const gate = canPublish(m.worldBible, saga, [], {
+        initialStoryBeats: [],
+        initialSceneId: 'scene_opening',
+      });
+      assert.ok(
+        gate.warnings.some((w) => w.startsWith('Empty chapter')),
+        'a chapter with no beats at all is still reported'
+      );
+    });
+
+    it('runs the choice/stat checks against the unified beats', () => {
+      const m = getEmptyStoryManifest('en');
+      const gate = canPublish(m.worldBible, saga, ['might'], {
+        initialStoryBeats: [
+          {
+            ...openingBeat,
+            choices: [
+              { id: 'c1', text: 'Go', style: 'inquisitive', riskLevel: 'medium', requiredStatId: 'hacking' },
+            ],
+          },
+        ],
+        initialSceneId: 'scene_opening',
+      });
+      assert.ok(
+        gate.errors.some((e) => e.includes('unknown stat')),
+        'an invalid stat in a unified beat is reported'
+      );
+    });
+
+    it('does not flag the opening scene for missing choices (they are synthesized at play time)', () => {
+      const m = getEmptyStoryManifest('en');
+      const withOpening = canPublish(m.worldBible, saga, [], {
+        initialStoryBeats: [openingBeat],
+        initialSceneId: 'scene_opening',
+      });
+      assert.equal(
+        withOpening.warnings.some((w) => w.includes('offers no player choices')),
+        false
+      );
+
+      // The same scene that is NOT the opening scene is a real defect.
+      const asLaterScene = canPublish(m.worldBible, saga, [], {
+        initialStoryBeats: [openingBeat],
+        initialSceneId: 'scene_elsewhere',
+      });
+      assert.ok(asLaterScene.warnings.some((w) => w.includes('offers no player choices')));
+    });
   });
 });

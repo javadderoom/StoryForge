@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { StoryRepository } from '@/lib/db/repositories/storyRepository';
 import { buildCorsHeaders, handleCorsPreflight } from '@/lib/cors';
 import { StoryManifest } from '@/lib/types';
+import { StoryBeat } from '@/lib/types/world';
 import { canPublish } from '@/lib/engines/world/publishGate';
 import { requireStudioWrite } from '@/lib/auth/studioAuth';
 
@@ -55,7 +56,13 @@ export async function POST(req: NextRequest) {
       publishGateResult = canPublish(
         (body as StoryManifest).worldBible as unknown as Parameters<typeof canPublish>[0],
         ((body as StoryManifest) as { saga?: Parameters<typeof canPublish>[1] }).saga ?? null,
-        statIds
+        statIds,
+        {
+          // The unified graph keeps scenes in `initialStoryBeats`; without them
+          // the saga audit reports every chapter as empty.
+          initialStoryBeats: (body as { initialStoryBeats?: StoryBeat[] }).initialStoryBeats,
+          initialSceneId: (body as { initialSceneId?: string }).initialSceneId,
+        }
       );
       if (!publishGateResult.ok) {
         (body as StoryManifest).published = false;

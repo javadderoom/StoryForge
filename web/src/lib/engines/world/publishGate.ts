@@ -1,6 +1,6 @@
 import { LoreAuditor } from './LoreAuditor';
 import { hasPlaceholders, GenesisWorldData } from './GenesisSchemas';
-import type { WorldBible, SagaManifest } from '@/lib/types/world';
+import type { WorldBible, SagaManifest, StoryBeat } from '@/lib/types/world';
 
 export const PUBLISH_MIN_SCORE = 85;
 
@@ -13,21 +13,41 @@ export interface PublishGateResult {
 }
 
 /**
+ * The story-level context the gate needs to audit the saga graph correctly.
+ *
+ * The unified story graph keeps every scene in `initialStoryBeats` and leaves
+ * `chapter.scenes` empty — so auditing a saga without the beat list makes every
+ * chapter look empty ("Empty chapter"), a false positive. `initialSceneId`
+ * marks the opening scene, whose choices are synthesized at play time and are
+ * therefore not a missing-choice defect.
+ */
+export interface PublishGateStoryContext {
+  initialStoryBeats?: StoryBeat[];
+  initialSceneId?: string;
+}
+
+/**
  * Single blocking publish gate: deterministic audit + saga stats + placeholder
  * scan. Pure and framework-free so it runs in API routes and node:test.
  */
 export function canPublish(
   worldBible: WorldBible,
   saga?: SagaManifest | null,
-  rpgStatIds: string[] = []
+  rpgStatIds: string[] = [],
+  story?: PublishGateStoryContext | null
 ): PublishGateResult {
   const audit = LoreAuditor.audit(worldBible);
   const findings = [...audit.findings];
 
   if (saga) {
-    const sagaAudit = LoreAuditor.auditSaga(saga);
+    const beats = story?.initialStoryBeats;
+    const sagaAudit = LoreAuditor.auditSaga(saga, beats);
     findings.push(...sagaAudit.findings);
-    findings.push(...LoreAuditor.auditSagaStats(saga, rpgStatIds));
+    findings.push(
+      ...LoreAuditor.auditSagaStats(saga, rpgStatIds, beats, {
+        openingSceneId: story?.initialSceneId,
+      })
+    );
   }
 
   // Genesis-shaped bibles (fresh worlds) also get placeholder scan.

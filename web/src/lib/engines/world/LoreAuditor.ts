@@ -838,7 +838,8 @@ export class LoreAuditor {
   public static auditSagaStats(
     saga: SagaManifest,
     validStatIds: string[],
-    initialStoryBeats?: StoryBeat[]
+    initialStoryBeats?: StoryBeat[],
+    options?: { openingSceneId?: string }
   ): ContradictionFinding[] {
     const out: ContradictionFinding[] = [];
     const stats = new Set(validStatIds.map((s) => s.toLowerCase()));
@@ -849,6 +850,10 @@ export class LoreAuditor {
           : (initialStoryBeats || []).filter((b) => b.chapterId === ch.id);
       for (const sc of scenes) {
         if (!sc.choices || sc.choices.length === 0) {
+          // The story's opening scene may legitimately ship without authored
+          // choices: the play layer synthesizes the opening decision panel
+          // (`/api/play/session`). Flagging it would be a false alarm.
+          if (options?.openingSceneId && sc.sceneId === options.openingSceneId) continue;
           out.push({
             id: `saga_empty_choices_${sc.sceneId}`,
             severity: 'warning',

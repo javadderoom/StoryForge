@@ -672,6 +672,13 @@ export default function WorldBiblePage() {
         body: JSON.stringify({
           type: 'audit_world',
           worldBible: story.worldBible,
+          // Saga graph + the unified beat list, so dangling edges and
+          // choice/stat defects are audited against the real scene list
+          // (chapters keep `scenes` empty in the unified graph).
+          saga: story.saga,
+          initialStoryBeats: story.initialStoryBeats,
+          initialSceneId: story.initialSceneId,
+          rpgStatIds: (story.rpgSystem?.stats || []).map((s) => s.id),
           isPersian,
         }),
       });
