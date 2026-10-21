@@ -167,7 +167,18 @@ export function matchesLegacyAnchorSignature(p, anchors?): boolean;
 - `waterMasks` — `polygon` of `ocean` / `sea` / `lake`.
 Places must not rest inside water, and must not rest outside every landmass when one is painted. Exception — `prefersWaterRegion(loc)`: sea/ocean/lake/gulf-style locations **modeled as locations** (a common pattern: the sea itself is a travel node, e.g. «دریای باختر») invert the rule and steer **into** water polygons. Detection is name-based in FA + EN (deterministic, no schema change), shared by the solver (`waterLegal`) and the auditor (symmetric violation reporting). All arithmetic uses ray-cast point-in-polygon with degenerate/zero-area guards.
 
-**Hierarchy**: nodes with `parentLocationId` (resolved inside the world) are **excluded from global layout**; they orbit their parent deterministically: 8 children per ring, ring radius `80 + 24 * ring` (keeps adjacent siblings ≥ ~60px apart), golden-angle distribution. Children keep manual positions if present. Orbit bases **chain**: a parent that is itself somebody's child uses its own *new* orbit position (multi-pass resolution, ≤ depth passes) so nested hierarchies (continent → region → bridge → shops) never orbit a stale pre-refit pin.
+**Hierarchy — two scales, not one.** A deep hierarchy (continent → region → city → quarter) cannot be laid out by placing only the roots: the leaves would collapse into one hub and the map would be unreadable. The solver therefore splits the world by *scale*:
+
+- **Global pins** — a location is laid out globally when it is a **root** (a continent, a sea) or when it **owns places of its own** (a region with cities, a city with quarters). Global pins get real springs and carry the map's shape.
+- **Orbiting leaves** — everything else (a quarter under a city, a shop under a quarter, a dungeon under a keep) orbits its parent and never enters the global layout.
+
+Orbits are deterministic: 8 children per ring, ring radius `110 + 72 · ring` (the step stays above the 56px pin separation so a ring and the one outside it cannot touch), golden-angle distribution. Children keep manual positions if present. Orbit bases **chain**: a parent that is itself somebody's child uses its own *new* orbit position (multi-pass resolution, ≤ depth passes) so nested hierarchies never orbit a stale pre-refit pin.
+
+**Hierarchy springs**: a global pin and its global parent are held at ~520px (weight 0.9). Without this the regions of a continent have no signal at all (they are not connected to each other) and would scatter arbitrarily.
+
+**Terrain clearance**: a parent must keep the halo its children orbit in on the legal side of the mask. A parent that is itself on land but too close to the shore would place half of its children in the water; the clearance radius (the outermost ring its orbiting children need, capped at 320px) makes such a position illegal, so the solver pushes it inland. When a child still lands illegally, its orbit slot is **rotated** around the parent (15° steps, keeping its radius so the family stays spread) before it is pulled inward.
+
+**Pin separation**: after the orbits are computed, a projection pass separates the orbiting pins that still collide — the straight push first, then a slide **around** the parent along its ring when the push is blocked. A child may never drift further from its parent than its ring, so the hierarchy survives the separation.
 
 ### 4.3 The solver
 
@@ -175,18 +186,19 @@ Seeded Fruchterman–Reingold with annealed temperature + projection passes:
 
 1. **Init** (per restart r): sunflower spiral `(r = c·√i, θ = i·goldenAngle + restartOffset)`, clipped to the canvas inset; nodes with manual/legacy-stable coordinates irrelevant (they are anchors, outside the free set). Restarts: 6, offsets from a seeded per-restart PRNG.
 2. **400 iterations ×** (deterministic order):
-   - spring forces per edge family,
+   - spring forces per edge family (connection, route, region kinship, hierarchy),
    - local repulsion (range-bounded, magnitude capped by temperature),
    - directional clamp force when projection < 240,
    - weak global cohesion toward the live centroid (keeps sparse/vacuum constraint sets centered on the canvas instead of hugging borders; rate 0.01, comparator weight 2·10⁻⁵),
-   - water/land steering toward the legal side of the mask (`waterLegal`, compass-sampled),
+   - water/land steering toward the legal side of the mask (`waterLegal`, compass-sampled, clearance-aware),
    - per-axis displacement clamp to `T`,
    - boundary clamp inside `[inset, size − inset]`,
    - temperature decay `T = 30 → 2` linear.
 3. **Collision projection**: 60 passes pushing each violating sorted pair apart by 60% of overlap (mass-weighted), clamping bounds after each pass.
 4. **Water projection**: repeat ≤ 20 passes — pins on the illegal side of the mask teleport to the nearest legal sampled position; a short 6-pass repair runs again after the final collision projection.
 5. **Select** lowest final energy of the 6 restarts (springs + overlaps + directional deficits + cohesion), round to integer px.
-6. Compute `diffs` with classification tags (`solver`, `legacy_auto`, `was_unplaced`, `topology`, `directional`, `water`, `child_orbit`).
+6. **Orbit + separation**: the leaves are placed around their (already solved) parents, then separated from every other pin.
+7. Compute `diffs` with classification tags (`solver`, `legacy_auto`, `was_unplaced`, `topology`, `directional`, `water`, `child_orbit`).
 
 **Complexity**: O(iterations × N² + restarts × N²). For the expected N ≤ 120 top-level locations this is well under ~50ms; no worker needed.
 
@@ -214,6 +226,7 @@ export interface MapAuditReport {
 - **Remnant signature finding (validated against the real database)**: the allocator never emits a position exactly ON an anchor — with `offset = floor(idx / 10)`, the allocated point is `anchor + (k·70 − 35, k·50 − 25)` for the same integer `k ≥ 0`. The raw anchor coordinate is therefore *not* a remnant (classification `unknown`, safe default). Detection rule: `(Δx + 35) % 70 === 0 && (Δy + 25) % 50 === 0` relative to any anchor with the SAME shared quotient `k ≥ 0`.
 - `legacyDetected`: any `legacy_auto` or `unplaced` count exists.
 - `informative`: `connectedMean < unconnectedMedian × 0.9` (only when both are computable) — the headline "this map carries topological information" metric.
+- **Containment is scale-aware**: a leaf must stay within 320px of its parent, but a **hub** (a place that owns places of its own — a region of a continent) is laid out globally and legitimately sits up to 900px away. One flat radius produced false "too far from parent" reports on every deep hierarchy.
 - Water checks are symmetric with the solver: land-bearing pins on water are violations, and `prefersWaterRegion` pins (seas modeled as locations) on dry land are violations too.
 - The same report surfaces in the Cartographer auto-fit confirm dialog and the CLI.
 
@@ -285,10 +298,36 @@ npx tsx scripts/refitWorldMapCoordinates.ts --worldId=<uuid> --mode=full --seed=
   - directional satisfaction/violation counts including inverted-perspective prose; parent-flung detection
 - `travelEngine.test.ts` (extension)
   - `kmPerSpatialUnit = 1` → unchanged ETAs; `0.5` → halves distance-derived days (still clamped); missing settings → default 1
+- `mapLayoutSolver.test.ts` (multi-level additions)
+  - a hub (a place that owns places) is laid out globally while its leaves orbit it
+  - the pins stay separated: no two closer than the minimum spacing, even for a 12-child family
+  - a coastal parent keeps its children on land (clearance halo)
 
 ---
 
-## 9. Acceptance Criteria
+## 8.5 Production Refit (2026-10-21) — the story that proved the model
+
+The Faravand story (`story_mt4ofllt`) was refit in production after the solver was upgraded. Its hierarchy is four levels deep (continent → 19 regions → cities → quarters), which is exactly the shape the first solver version got wrong.
+
+| Metric | Before | After |
+| :--- | :--- | :--- |
+| Topological information | **false** (connected 779px vs unconnected 743px) | **true** (connected 376px vs unconnected 582px) |
+| Sub-locations flung from their parent | 39 | 2 |
+| Pins resting on painted water | 18 | 6 |
+| Overlapping pin pairs | 0 | 4 |
+| Provenance | 43 legacy remnants, 0 solver | 44 solver, 0 legacy remnants |
+
+What the first attempt got wrong, and what the upgrade fixed:
+
+1. **Only the roots were placed globally** — the 19 regions collapsed onto the continent's pin (83 overlapping pairs, an uninformative topology). Fixed by placing *hubs* (places that own places) globally too, and giving parent-child a real spring (520px).
+2. **The orbit rings were 24px apart** — below the 56px separation, so a ring and the next nearly touched. The step is now 72px with a 110px base.
+3. **A coastal parent placed its children in the sea** — the clearance halo (the outermost ring its children need) is now part of the parent's legality.
+4. **A child that had to move for terrain was pulled inward**, crowding the family; it now rotates around its parent first, keeping its radius.
+5. **The separation pass could not resolve a blocked push** — it now slides the child around its ring, and the slide is terrain-aware.
+
+The refit was applied through `POST /api/studio/story` (the same endpoint the Studio's Save button uses), with the manifest backed up beforehand. The live session survived the canon bump: location, resources, scene and the sanctuary's clock suppression were unchanged.
+
+---
 
 1. `npm run test` passes with the new suites green.
 2. Same-seed refit of an unchanged world produces byte-identical coordinates.
