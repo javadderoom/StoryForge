@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react';
 import {
   StoryManifest,
   WorldBible,
@@ -36,6 +36,12 @@ import { mergeFactionRelations, syncLegacyFactionLinks } from '@/lib/engines/wor
 import type { WorldActionChange } from '@/lib/engines/world/oracleActions';
 import { getEmptyStoryInWorld } from '@/lib/storyFactory';
 import { notify } from '@/lib/notify';
+import {
+  STUDIO_AUTOSAVE_IDLE_MS,
+  STUDIO_AUTOSAVE_MAX_WAIT_MS,
+  createIdleAutosave,
+  type IdleAutosaveController,
+} from '@/lib/utils/idleAutosave';
 import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
 
 // Resolve a reference (entity id OR human-readable name) to the canonical
@@ -564,6 +570,18 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   const [customStories, setCustomStories] = useState<StoryListItem[]>([]);
   const [worldsList, setWorldsList] = useState<WorldListItem[]>([]);
 
+  // -----------------------------------------------------------------------
+  // Idle autosave: the Studio used to POST the whole manifest for EVERY
+  // change (one keystroke, one pin nudge, one layer toggle = one request).
+  // Changes now accumulate and are persisted once the author has paused
+  // (5 seconds), with a 60-second cap so a continuous session still saves.
+  // -----------------------------------------------------------------------
+  const autosaveRef = useRef<IdleAutosaveController<StoryManifest> | null>(null);
+  /** Always points at the latest save implementation (see `saveToServerRaw`). */
+  const saveToServerRef = useRef<
+    (manifestToSave?: StoryManifest, showToast?: boolean) => Promise<boolean>
+  >(async () => false);
+
   const refreshWorlds = useCallback(async () => {
     try {
       const res = await fetch('/api/studio/worlds', { cache: 'no-store' });
@@ -653,6 +671,11 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     let cancelled = false;
+
+    // Switching stories: persist the previous story's pending edits before
+    // the pointer moves on (the local draft would survive, but the server
+    // copy should not lag behind).
+    void autosaveRef.current?.flush();
 
     // No story selected → show the empty placeholder (friendly empty state).
     if (!selectedStoryId) {
@@ -945,8 +968,10 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     [isPersian, selectedStoryId, refreshWorlds]
   );
 
-  // Direct backend sync helper
-  const saveToServer = useCallback(
+  // Direct backend sync helper — the actual network write, with no autosave
+  // bookkeeping. The autosave controller and the explicit Save button both
+  // funnel through here.
+  const saveToServerRaw = useCallback(
     async (manifestToSave?: StoryManifest, showToast = false) => {
       const target = manifestToSave || story;
       if (!target || !target.id) return false;
@@ -962,8 +987,16 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
           setLastServerSynced(new Date());
           try {
             const key = getStorageKey(target.id);
-            localStorage.removeItem(key);
-            setHasLocalDraft(false);
+            // Only clear the local draft when it still matches what we just
+            // saved. A change that landed WHILE the request was in flight has
+            // already rewritten the draft — deleting it here would lose it.
+            const stored = localStorage.getItem(key);
+            const draftMatchesSaved =
+              !stored || JSON.stringify(JSON.parse(stored)) === JSON.stringify(target);
+            if (draftMatchesSaved) {
+              localStorage.removeItem(key);
+              setHasLocalDraft(false);
+            }
           } catch {
             // Ignore storage cleanup errors
           }
@@ -1017,6 +1050,45 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     [story, isPersian]
   );
 
+  // The autosave controller always calls the current save implementation.
+  useEffect(() => {
+    saveToServerRef.current = saveToServerRaw;
+  }, [saveToServerRaw]);
+
+  // -----------------------------------------------------------------------
+  // Idle autosave controller (created once; the save target is a ref so it
+  // always calls the current implementation).
+  // -----------------------------------------------------------------------
+  if (!autosaveRef.current) {
+    autosaveRef.current = createIdleAutosave<StoryManifest>({
+      idleMs: STUDIO_AUTOSAVE_IDLE_MS,
+      maxWaitMs: STUDIO_AUTOSAVE_MAX_WAIT_MS,
+      save: async (manifest) => {
+        await saveToServerRef.current(manifest, false);
+      },
+      onError: (err) => {
+        console.error('[studio] idle autosave failed:', err);
+        notify.error(
+          isPersian
+            ? 'ذخیرهٔ خودکار ناموفق بود؛ تغییرات شما در حافظهٔ محلی نگه داشته شد.'
+            : 'Autosave failed — your changes are still held in the local draft.'
+        );
+      },
+    });
+  }
+
+  /**
+   * Explicit save (the header's Save button, publishing): supersedes any
+   * scheduled autosave and writes immediately.
+   */
+  const saveToServer = useCallback(
+    async (manifestToSave?: StoryManifest, showToast = false) => {
+      autosaveRef.current?.cancel();
+      return saveToServerRaw(manifestToSave, showToast);
+    },
+    [saveToServerRaw]
+  );
+
   const setStoryPublished = useCallback(
     (id: string, published: boolean) => {
       // Keep the in-memory list in sync immediately.
@@ -1057,7 +1129,9 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     [saveToServer]
   );
 
-  // Persist helper (writes to localStorage and syncs with server API)
+  // Persist helper: the local draft is written IMMEDIATELY (so a crash or a
+  // closed tab never loses work), while the network write is deferred to the
+  // idle autosave — one request once the author pauses, not one per change.
   const persistToStorage = useCallback(
     (newStory: StoryManifest) => {
       try {
@@ -1065,13 +1139,12 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(key, JSON.stringify(newStory));
         setHasLocalDraft(true);
         setLastSaved(new Date());
-        // Fire network request to backend API
-        saveToServer(newStory);
+        autosaveRef.current?.schedule(newStory);
       } catch (e) {
         console.error('Failed to auto-save story draft', e);
       }
     },
-    [selectedStoryId, saveToServer]
+    [selectedStoryId]
   );
 
   const toggleLanguage = () => {
