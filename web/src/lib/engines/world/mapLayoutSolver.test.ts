@@ -223,8 +223,7 @@ describe('mapLayoutSolver', () => {
   // Water masks.
   // -----------------------------------------------------------------------
 
-  it('pins avoid water and land on dry polygons when masks exist', () => {
-    const world = makeFixtureWorld();
+  it('pins avoid water and land on dry polygons when masks exist', () => {    const world = makeFixtureWorld();
     const mapData: WorldMapData = {
       version: 1,
       settings: { width: 2400, height: 1600, theme: 'parchment', gridType: 'none', gridSize: 40, showGridCoordinates: false, visibleLayers: {} },
@@ -267,6 +266,88 @@ describe('mapLayoutSolver', () => {
         p.position.y <= 1100,
         `${p.locationId} landed on water/sea at y=${p.position.y}`
       );
+    }
+  });
+
+  it('keeps a family together: a hub is laid out globally, its leaves orbit it', () => {
+    const world = makeFixtureWorld();
+    // A region (a hub) with two leaves of its own, and a leaf under the hub.
+    world.locations = [
+      ...world.locations,
+      loc('region_x', 'Region X', { parentLocationId: 'city_a' }),
+      loc('town_x1', 'Town X1', { parentLocationId: 'region_x' }),
+      loc('town_x2', 'Town X2', { parentLocationId: 'region_x' }),
+    ];
+
+    const run = solveMapLayout({ ...world, mode: 'full', seed: SEED });
+    const pos = new Map(run.placements.map((p) => [p.locationId, p.position]));
+
+    // The hub owns places → it is laid out globally (it gets its own pin).
+    assert.ok(pos.has('region_x'), 'a hub is placed by the global layout');
+    // Its leaves orbit it.
+    for (const leaf of ['town_x1', 'town_x2']) {
+      assert.ok(pos.has(leaf), `${leaf} is placed`);
+      const hub = pos.get('region_x')!;
+      const p = pos.get(leaf)!;
+      const d = Math.hypot(p.x - hub.x, p.y - hub.y);
+      assert.ok(d <= 320, `${leaf} orbits its region (d=${Math.round(d)})`);
+      assert.ok(d >= 56, `${leaf} does not sit on its region's pin`);
+    }
+  });
+
+  it('separates the pins: no two of them end up closer than the minimum spacing', () => {
+    const world = makeFixtureWorld();
+    // A crowded family: many leaves under one hub.
+    const crowd = Array.from({ length: 12 }, (_, i) =>
+      loc(`crowd_${i}`, `Crowd ${i}`, { parentLocationId: 'city_b' })
+    );
+    world.locations = [...world.locations, ...crowd];
+
+    const run = solveMapLayout({ ...world, mode: 'full', seed: SEED });
+    const pos = run.placements.map((p) => p.position);
+    let worst = Infinity;
+    for (let i = 0; i < pos.length; i += 1) {
+      for (let j = i + 1; j < pos.length; j += 1) {
+        worst = Math.min(worst, Math.hypot(pos[i].x - pos[j].x, pos[i].y - pos[j].y));
+      }
+    }
+    assert.ok(worst >= 50, `closest pair is ${Math.round(worst)}px apart`);
+  });
+
+  it('keeps a coastal parent far enough inland for its children to stay on land', () => {
+    const world = makeFixtureWorld();
+    // A coastal hub whose children would otherwise orbit into the sea.
+    world.locations = [
+      ...world.locations,
+      loc('port_p', 'Port', { parentLocationId: 'city_a' }),
+      loc('dock_1', 'Dock 1', { parentLocationId: 'port_p' }),
+      loc('dock_2', 'Dock 2', { parentLocationId: 'port_p' }),
+    ];
+    const mapData: WorldMapData = {
+      version: 1,
+      settings: { width: 2400, height: 1600, theme: 'parchment', gridType: 'none', gridSize: 40, showGridCoordinates: false, visibleLayers: {} },
+      terrainFeatures: [
+        {
+          id: 't_land',
+          name: 'Main Continent',
+          type: 'continent',
+          polygon: [
+            { x: 40, y: 40 },
+            { x: 1200, y: 40 },
+            { x: 1200, y: 1100 },
+            { x: 40, y: 1100 },
+          ],
+        },
+      ],
+    } as unknown as WorldMapData;
+    const masks = buildMapMasks(mapData);
+
+    const run = solveMapLayout({ ...world, mapData, mode: 'full', seed: SEED });
+    const pos = new Map(run.placements.map((p) => [p.locationId, p.position]));
+    for (const id of ['port_p', 'dock_1', 'dock_2']) {
+      const p = pos.get(id);
+      assert.ok(p, `${id} placed`);
+      assert.equal(isWaterPoint(masks, p!), false, `${id} must not rest on water`);
     }
   });
 

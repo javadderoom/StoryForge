@@ -97,7 +97,7 @@ const dist = (a: MapPoint, b: MapPoint): number => {
 export function auditWorldMapLayout(
   wb: Pick<WorldBible, 'locations' | 'tradeRoutes'>,
   mapData?: WorldMapData | null,
-  options: { minSeparation?: number; flungRadius?: number } = {}
+  options: { minSeparation?: number; flungRadius?: number; hubFlungRadius?: number } = {}
 ): MapAuditReport {
   const minSeparation = options.minSeparation ?? 56;
   const flungRadius = options.flungRadius ?? 320;
@@ -127,12 +127,25 @@ export function auditWorldMapLayout(
   minSeparationViolations.sort((x, y) => x.distance - y.distance);
 
   // Parent containment (children must stay near their parent's pin).
+  //
+  // The tolerance depends on the child's own scale: a region of a continent is
+  // laid out globally and legitimately sits a long way from the continent's
+  // pin, while a quarter of a city must stay on its doorstep. A child that
+  // owns places of its own is a hub → wide tolerance; a leaf → the tight one.
   const byId = new Map(locations.map((l) => [l.id, l]));
+  const childCounts = new Map<string, number>();
+  for (const loc of locations) {
+    if (!loc.parentLocationId || !byId.has(loc.parentLocationId)) continue;
+    childCounts.set(loc.parentLocationId, (childCounts.get(loc.parentLocationId) ?? 0) + 1);
+  }
+  const hubFlungRadius = options.hubFlungRadius ?? 900;
   const parentFlungIds: string[] = [];
   for (const loc of placed) {
     const parent = loc.parentLocationId ? byId.get(loc.parentLocationId) : undefined;
     if (!parent?.coordinates) continue;
-    if (dist(loc.coordinates!, parent.coordinates) > flungRadius) parentFlungIds.push(loc.id);
+    const isHub = (childCounts.get(loc.id) ?? 0) > 0;
+    const limit = isHub ? hubFlungRadius : flungRadius;
+    if (dist(loc.coordinates!, parent.coordinates) > limit) parentFlungIds.push(loc.id);
   }
 
   // Water violations — sea/ocean-style locations want water, everything else

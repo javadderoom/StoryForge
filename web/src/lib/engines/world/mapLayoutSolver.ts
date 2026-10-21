@@ -121,10 +121,33 @@ export const SOLVER_DEFAULTS = {
    * centered on the canvas instead of splaying anneal noise to the borders. */
   COHESION_RATE: 0.01,
   COHESION_ENERGY: 0.00002,
-  /** Ring base keeps adjacent siblings ≥ ~60px apart on ring 0 (8 per ring). */
-  CHILD_RING_BASE: 80,
-  CHILD_RING_STEP: 24,
-  CHILD_MIN_GAP: 48,
+  /** Ring base keeps adjacent siblings ≥ ~80px apart on ring 0 (8 per ring). */
+  CHILD_RING_BASE: 110,
+  /**
+   * Radial distance between rings. It must stay above the minimum pin
+   * separation, otherwise a ring and the one outside it nearly touch.
+   */
+  CHILD_RING_STEP: 72,
+  /**
+   * Closest a child may sit to its parent. It must not be smaller than the
+   * auditor's minimum separation, or every parent/child pair would be
+   * reported as an overlap.
+   */
+  CHILD_MIN_GAP: 56,
+  /** How many children share one orbit ring. */
+  CHILDREN_PER_RING: 8,
+  /** Cap on the halo a parent must keep clear of the wrong side of the mask. */
+  CLEARANCE_MAX: 320,
+  /**
+   * How many levels below a root are laid out globally. 0 = only the roots
+   * (everything else orbits them), 1 = roots AND their direct children (the
+   * regions of a continent), so a deep hierarchy is not crushed into a single
+   * hub with dozens of pins stacked on top of each other.
+   */
+  GLOBAL_LAYOUT_DEPTH: 1,
+  /** Ideal distance between a place and its parent on the same map scale. */
+  EDGE_IDEAL_HIERARCHY: 520,
+  EDGE_WEIGHT_HIERARCHY: 0.9,
   SETTLEMENT_MASS: 1.4,
   DEFAULT_MASS: 1.0,
 } as const;
@@ -377,7 +400,7 @@ export function extractDirectionalConstraints(
 interface PinEdge {
   a: string;
   b: string;
-  kind: 'route' | 'connection' | 'region';
+  kind: 'route' | 'connection' | 'region' | 'hierarchy';
   weight: number;
   ideal: number;
 }
@@ -391,6 +414,12 @@ interface LayoutNode {
   free: boolean;
   /** Sea/ocean-style regions modeled as locations WANT water polygons. */
   wantsWater: boolean;
+  /**
+   * Radius that must ALSO rest on the legal side of the mask — the halo a
+   * parent's children orbit in. Without it a coastal parent lands legally but
+   * its children spill into the sea.
+   */
+  clearanceRadius: number;
   waterHits: number;
   dirHits: number;
   edgeHits: number;
@@ -438,6 +467,21 @@ function buildEdges(
       }
     }
   }
+
+  // Hierarchy springs: a place and its parent sit on the same map scale when
+  // both are laid out globally — without this the regions of a continent have
+  // no signal at all and would scatter arbitrarily.
+  for (const loc of topLocations) {
+    const parentId = loc.parentLocationId;
+    if (!parentId || !relevantIds.has(loc.id) || !relevantIds.has(parentId)) continue;
+    put({
+      a: parentId,
+      b: loc.id,
+      kind: 'hierarchy',
+      weight: SOLVER_DEFAULTS.EDGE_WEIGHT_HIERARCHY,
+      ideal: SOLVER_DEFAULTS.EDGE_IDEAL_HIERARCHY,
+    });
+  }
   for (const route of tradeRoutes ?? []) {
     const stops = [
       route.originLocationId,
@@ -457,7 +501,6 @@ function buildEdges(
     }
   }
   for (const edge of best.values()) edges.push(edge);
-
   // Region kinship: weak star attraction to the first member of each group.
   const grouped = new Map<string, WorldLocation>();
   for (const loc of topLocations) {
@@ -511,16 +554,36 @@ function initPositions(
   });
 }
 
-/** True when this pin is legally resting at `p` given its water preference. */
+/**
+ * True when this pin is legally resting at `p` given its water preference.
+ *
+ * A parent pin must also keep its children's orbit halo on the legal side of
+ * the mask: a coastal parent that is itself on land but too close to the shore
+ * would place half of its children in the water.
+ */
 function waterLegal(masks: MapMasks, node: LayoutNode, p: MapPoint): boolean {
   if (!masks.hasAnyMask) return true;
-  if (node.wantsWater) {
-    if (masks.waterPolygons.length > 0) return isWaterPoint(masks, p);
-    // No explicit water painted, no land either → anything goes.
-    if (masks.landPolygons.length === 0) return true;
-    return !masks.landPolygons.some((poly) => pointInPolygon(p, poly));
+  const legal = (q: MapPoint): boolean => {
+    if (node.wantsWater) {
+      if (masks.waterPolygons.length > 0) return isWaterPoint(masks, q);
+      // No explicit water painted, no land either → anything goes.
+      if (masks.landPolygons.length === 0) return true;
+      return !masks.landPolygons.some((poly) => pointInPolygon(q, poly));
+    }
+    return !isWaterPoint(masks, q);
+  };
+  if (!legal(p)) return false;
+  if (node.clearanceRadius > 0) {
+    for (let d = 0; d < 8; d += 1) {
+      const angle = (d / 8) * Math.PI * 2;
+      const q = {
+        x: p.x + Math.cos(angle) * node.clearanceRadius,
+        y: p.y + Math.sin(angle) * node.clearanceRadius,
+      };
+      if (!legal(q)) return false;
+    }
   }
-  return !isWaterPoint(masks, p);
+  return true;
 }
 
 /** Water/land steering: sample 16 compass directions toward a legal position. */
@@ -795,12 +858,171 @@ interface ChildOrbit {
   locationId: string;
   parentLocationId: string;
   position: MapPoint;
+  /** The orbit radius this child was placed on (its reach around the parent). */
+  radius: number;
+  /** The parent's resolved position (the centre of the orbit). */
+  parentPosition: MapPoint;
+}
+
+/**
+ * Keeps the orbiting pins from stacking on top of each other.
+ *
+ * The global pins are authoritative (they carry the springs), so only the
+ * orbiting children move — and a child may never drift further from its
+ * parent than the ring it was placed on, otherwise the hierarchy would break.
+ */
+function separateChildOrbits(
+  orbits: ChildOrbit[],
+  globalPins: Map<string, MapPoint>,
+  minSeparation: number,
+  bounds: { width: number; height: number; inset: number },
+  masks: MapMasks,
+  wantsWaterOf: (locationId: string) => boolean
+): void {
+  if (orbits.length === 0) return;
+  const positions = new Map<string, MapPoint>();
+  for (const [id, p] of globalPins) positions.set(id, { x: p.x, y: p.y });
+  for (const o of orbits) positions.set(o.locationId, { x: o.position.x, y: o.position.y });
+
+  const orbitById = new Map(orbits.map((o) => [o.locationId, o]));
+  const ids = [...positions.keys()];
+
+  /** A position is usable when it is clear of every pin AND on the legal
+   *  side of the terrain mask for that child. */
+  const isUsable = (
+    candidate: MapPoint,
+    selfId: string,
+    otherId: string,
+    wantsWater: boolean
+  ): boolean => {
+    for (const [oid, op] of positions) {
+      if (oid === selfId || oid === otherId) continue;
+      if (Math.hypot(op.x - candidate.x, op.y - candidate.y) < minSeparation) return false;
+    }
+    if (!masks.hasAnyMask) return true;
+    if (wantsWater) {
+      if (masks.waterPolygons.length > 0) return isWaterPoint(masks, candidate);
+      if (masks.landPolygons.length === 0) return true;
+      return !masks.landPolygons.some((poly) => pointInPolygon(candidate, poly));
+    }
+    return !isWaterPoint(masks, candidate);
+  };
+
+  const clampToRing = (orbit: ChildOrbit, point: MapPoint): MapPoint => {
+    const dx = point.x - orbit.parentPosition.x;
+    const dy = point.y - orbit.parentPosition.y;
+    const d = Math.hypot(dx, dy);
+    if (d === 0) return point;
+    const maxR = Math.max(orbit.radius, SOLVER_DEFAULTS.CHILD_MIN_GAP);
+    const minR = SOLVER_DEFAULTS.CHILD_MIN_GAP;
+    let r = d;
+    if (r > maxR) r = maxR;
+    if (r < minR) r = minR;
+    return {
+      x: orbit.parentPosition.x + (dx / d) * r,
+      y: orbit.parentPosition.y + (dy / d) * r,
+    };
+  };
+
+  /**
+   * Slides a child along its ring (rotating around the parent) until it finds
+   * a spot that is clear of every other pin and on the legal side of the mask.
+   * Used when the straight push is blocked by a neighbour.
+   */
+  const slideAroundParent = (
+    orbit: ChildOrbit,
+    blocked: MapPoint,
+    isFree: (p: MapPoint) => boolean
+  ): MapPoint | null => {
+    const dx = blocked.x - orbit.parentPosition.x;
+    const dy = blocked.y - orbit.parentPosition.y;
+    const base = Math.atan2(dy, dx);
+    const radius = Math.max(orbit.radius, SOLVER_DEFAULTS.CHILD_MIN_GAP);
+    for (const step of [1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 8, -8, 10, -10]) {
+      const a = base + (step * Math.PI) / 12;
+      const candidate = {
+        x: orbit.parentPosition.x + Math.cos(a) * radius,
+        y: orbit.parentPosition.y + Math.sin(a) * radius,
+      };
+      if (isFree(candidate)) return candidate;
+    }
+    return null;
+  };
+
+  for (let pass = 0; pass < 48; pass += 1) {
+    let moved = false;
+    for (let i = 0; i < ids.length; i += 1) {
+      for (let j = i + 1; j < ids.length; j += 1) {
+        const idA = ids[i];
+        const idB = ids[j];
+        const a = positions.get(idA)!;
+        const b = positions.get(idB)!;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const d = Math.hypot(dx, dy);
+        if (d >= minSeparation) continue;
+        const orbitA = orbitById.get(idA);
+        const orbitB = orbitById.get(idB);
+        if (!orbitA && !orbitB) continue; // two global pins: handled by the global projection
+        const ux = d > 0.001 ? dx / d : 1;
+        const uy = d > 0.001 ? dy / d : 0;
+        const deficit = minSeparation - d;
+
+        const isFree = (p: MapPoint): boolean =>
+          isUsable(p, idA, idB, wantsWaterOf(idA));
+
+        if (orbitA && orbitB) {
+          const half = deficit / 2;
+          const nextA = clampToRing(orbitA, { x: a.x - ux * half, y: a.y - uy * half });
+          const nextB = clampToRing(orbitB, { x: b.x + ux * half, y: b.y + uy * half });
+          positions.set(idA, nextA);
+          positions.set(idB, nextB);
+          // If the straight push did not clear the pair, slide one of them
+          // around its parent instead.
+          const stillClose =
+            Math.hypot(nextB.x - nextA.x, nextB.y - nextA.y) < minSeparation;
+          if (stillClose) {
+            const slid = slideAroundParent(orbitA, nextA, (p) => isUsable(p, idA, idB, wantsWaterOf(idA)));
+            if (slid) positions.set(idA, slid);
+          }
+        } else if (orbitA) {
+          const next = clampToRing(orbitA, { x: a.x - ux * deficit, y: a.y - uy * deficit });
+          positions.set(idA, next);
+          if (Math.hypot(next.x - b.x, next.y - b.y) < minSeparation) {
+            const slid = slideAroundParent(orbitA, next, isFree);
+            if (slid) positions.set(idA, slid);
+          }
+        } else if (orbitB) {
+          const next = clampToRing(orbitB, { x: b.x + ux * deficit, y: b.y + uy * deficit });
+          positions.set(idB, next);
+          if (Math.hypot(next.x - a.x, next.y - a.y) < minSeparation) {
+            const slid = slideAroundParent(orbitB, next, (p) =>
+              isUsable(p, idB, idA, wantsWaterOf(idB))
+            );
+            if (slid) positions.set(idB, slid);
+          }
+        }
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+
+  for (const o of orbits) {
+    const p = positions.get(o.locationId)!;
+    o.position = {
+      x: Math.round(Math.min(bounds.width - bounds.inset, Math.max(bounds.inset, p.x))),
+      y: Math.round(Math.min(bounds.height - bounds.inset, Math.max(bounds.inset, p.y))),
+    };
+  }
 }
 
 function computeChildOrbits(
   locations: WorldLocation[],
   resolvedTopPositions: Map<string, MapPoint>,
-  ctx: Pick<LayoutContext, 'width' | 'height' | 'inset'>
+  ctx: Pick<LayoutContext, 'width' | 'height' | 'inset'>,
+  masks: MapMasks,
+  globallyPlacedIds: Set<string>
 ): ChildOrbit[] {
   const byId = new Map(locations.map((l) => [l.id, l]));
   const groups = new Map<string, WorldLocation[]>();
@@ -843,7 +1065,15 @@ function computeChildOrbits(
           basePositions.set(child.id, { x: finite(child.coordinates.x), y: finite(child.coordinates.y) });
           return;
         }
-        const ring = Math.floor(i / 8);
+        if (globallyPlacedIds.has(child.id)) {
+          // This child is laid out globally (it is a region of a continent, not
+          // a sub-place) — it keeps its solved position and only acts as an
+          // orbit base for its own children.
+          const solved = basePositions.get(child.id);
+          if (solved) basePositions.set(child.id, solved);
+          return;
+        }
+        const ring = Math.floor(i / SOLVER_DEFAULTS.CHILDREN_PER_RING);
         const radius = SOLVER_DEFAULTS.CHILD_RING_BASE + ring * SOLVER_DEFAULTS.CHILD_RING_STEP;
         const angle = i * GOLDEN_ANGLE;
         let px = finite(parentPos.x + Math.cos(angle) * radius);
@@ -857,10 +1087,70 @@ function computeChildOrbits(
           px = finite(parentPos.x + ddx * scale);
           py = finite(parentPos.y + ddy * scale);
         }
+
+        // Terrain-aware orbit: if the ring position lands on the wrong side of
+        // the mask, rotate the child's slot around the parent (keeping its
+        // radius, so the family stays spread out) before shrinking it.
+        if (masks.hasAnyMask) {
+          const wantsWater = prefersWaterRegion(child);
+          const legalHere = (qx: number, qy: number): boolean =>
+            wantsWater
+              ? masks.waterPolygons.length > 0
+                ? isWaterPoint(masks, { x: qx, y: qy })
+                : masks.landPolygons.length === 0 ||
+                  !masks.landPolygons.some((poly) => pointInPolygon({ x: qx, y: qy }, poly))
+              : !isWaterPoint(masks, { x: qx, y: qy });
+          if (!legalHere(px, py)) {
+            const dirX = ddx / d;
+            const dirY = ddy / d;
+            let settled = false;
+            // 1) Rotate the slot around the parent (15° steps, both ways).
+            for (const turn of [1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6]) {
+              const a = angle + (turn * Math.PI) / 12;
+              const tx = parentPos.x + Math.cos(a) * radius;
+              const ty = parentPos.y + Math.sin(a) * radius;
+              if (legalHere(tx, ty)) {
+                px = tx;
+                py = ty;
+                settled = true;
+                break;
+              }
+            }
+            // 2) Still illegal — pull the child in toward its parent.
+            if (!settled) {
+              for (const scale of [0.8, 0.62, 0.48, 0.36, 0.26]) {
+                const r = Math.max(SOLVER_DEFAULTS.CHILD_MIN_GAP, radius * scale);
+                const tx = parentPos.x + dirX * r;
+                const ty = parentPos.y + dirY * r;
+                if (legalHere(tx, ty)) {
+                  px = tx;
+                  py = ty;
+                  settled = true;
+                  break;
+                }
+              }
+              if (!settled) {
+                // Nothing along the spoke is legal — hug the parent instead of
+                // floating in the sea.
+                px = parentPos.x + dirX * SOLVER_DEFAULTS.CHILD_MIN_GAP;
+                py = parentPos.y + dirY * SOLVER_DEFAULTS.CHILD_MIN_GAP;
+              }
+            }
+          }
+        }
+
         px = Math.min(ctx.width - ctx.inset, Math.max(ctx.inset, px));
         py = Math.min(ctx.height - ctx.inset, Math.max(ctx.inset, py));
         const position = { x: Math.round(px), y: Math.round(py) };
-        orbits.push({ locationId: child.id, parentLocationId: parentId, position });
+        orbits.push({
+          locationId: child.id,
+          parentLocationId: parentId,
+          position,
+          // The INTENDED ring radius, not the distance the child ended up at:
+          // the separation pass may push it back out to this reach.
+          radius,
+          parentPosition: { x: parentPos.x, y: parentPos.y },
+        });
         basePositions.set(child.id, position);
       });
       pending.delete(parentId);
@@ -902,7 +1192,50 @@ export function solveMapLayout(request: SolveRequest): SolveResult {
   const byId = new Map(locations.map((l) => [l.id, l]));
   const isTopLevel = (l: WorldLocation) =>
     !l.parentLocationId || !byId.has(l.parentLocationId);
-  const topLocations = locations.filter(isTopLevel);
+  const rootLocations = locations.filter(isTopLevel);
+
+  /**
+   * Depth below a root: 0 = root, 1 = a region of that root, 2+ = a city,
+   * a quarter, a shop.
+   */
+  const depthOf = (l: WorldLocation): number => {
+    let depth = 0;
+    let current = l;
+    const seen = new Set<string>([l.id]);
+    while (current.parentLocationId && byId.has(current.parentLocationId) && !seen.has(current.parentLocationId)) {
+      seen.add(current.parentLocationId);
+      current = byId.get(current.parentLocationId)!;
+      depth += 1;
+      if (depth > 8) break; // cycle guard
+    }
+    return depth;
+  };
+
+  // Children per location — the count decides whether a place is a hub (a
+  // region that owns cities) or a leaf (a quarter, a shop, a dungeon).
+  const allChildCounts = new Map<string, number>();
+  for (const loc of locations) {
+    if (!loc.parentLocationId || !byId.has(loc.parentLocationId)) continue;
+    allChildCounts.set(loc.parentLocationId, (allChildCounts.get(loc.parentLocationId) ?? 0) + 1);
+  }
+
+  /**
+   * Which places are laid out globally (they get real springs) and which
+   * orbit a parent.
+   *
+   * - A ROOT is always global (the continent, the seas).
+   * - A place that OWNS places of its own is a hub (a region with cities, a
+   *   city with quarters): global too, otherwise every level of a deep
+   *   hierarchy would collapse onto one pin and the map would be unreadable.
+   * - Everything else is a leaf and orbits its parent (a quarter under a
+   *   city, a dungeon under a keep, a shop under a quarter).
+   */
+  const isGlobal = (l: WorldLocation): boolean => {
+    if (isTopLevel(l)) return true;
+    return (allChildCounts.get(l.id) ?? 0) > 0;
+  };
+  const globallyPlaced = locations.filter(isGlobal);
+  const globallyPlacedIds = new Set(globallyPlaced.map((l) => l.id));
 
   const needsPlacement = (l: WorldLocation): boolean => {
     if (l.coordinatesSource === 'manual') return false;
@@ -912,18 +1245,37 @@ export function solveMapLayout(request: SolveRequest): SolveResult {
     return matchesLegacyAnchorSignature(l.coordinates);
   };
 
-  const freeIds = new Set(topLocations.filter(needsPlacement).map((l) => l.id));
+  const freeIds = new Set(globallyPlaced.filter(needsPlacement).map((l) => l.id));
   const anchorIds = new Set(
-    topLocations.filter((l) => !freeIds.has(l.id) && l.coordinates).map((l) => l.id)
+    globallyPlaced.filter((l) => !freeIds.has(l.id) && l.coordinates).map((l) => l.id)
   );
   const relevantIds = new Set([...freeIds, ...anchorIds]);
 
-  const edges = buildEdges(topLocations, tradeRoutes, relevantIds);
+  const edges = buildEdges(globallyPlaced, tradeRoutes, relevantIds);
   const directional = extractDirectionalConstraints(locations).filter(
     (c) => relevantIds.has(c.sourceId) && relevantIds.has(c.targetId)
   );
 
-  const nodes: LayoutNode[] = topLocations
+  // A parent's children orbit in a halo around it — the halo must fit on the
+  // legal side of the mask, so the parent's clearance is the outermost ring
+  // its ORBITING children need. Children that are laid out globally (the
+  // regions of a continent) do not orbit and do not consume clearance.
+  const childCounts = new Map<string, number>();
+  for (const loc of locations) {
+    if (!loc.parentLocationId || !byId.has(loc.parentLocationId)) continue;
+    if (globallyPlacedIds.has(loc.id)) continue;
+    childCounts.set(loc.parentLocationId, (childCounts.get(loc.parentLocationId) ?? 0) + 1);
+  }
+  const clearanceFor = (id: string): number => {
+    const count = childCounts.get(id) ?? 0;
+    if (count <= 0) return 0;
+    const rings = Math.ceil(count / SOLVER_DEFAULTS.CHILDREN_PER_RING);
+    const radius =
+      SOLVER_DEFAULTS.CHILD_RING_BASE + (rings - 1) * SOLVER_DEFAULTS.CHILD_RING_STEP;
+    return Math.min(radius, SOLVER_DEFAULTS.CLEARANCE_MAX);
+  };
+
+  const nodes: LayoutNode[] = globallyPlaced
     .filter((l) => relevantIds.has(l.id))
     .sort((a, b) => a.id.localeCompare(b.id))
     .map((l) => ({
@@ -933,6 +1285,7 @@ export function solveMapLayout(request: SolveRequest): SolveResult {
       mass: massBonus(l),
       free: freeIds.has(l.id),
       wantsWater: prefersWaterRegion(l),
+      clearanceRadius: clearanceFor(l.id),
       waterHits: 0,
       dirHits: 0,
       edgeHits: 0,
@@ -1017,7 +1370,7 @@ export function solveMapLayout(request: SolveRequest): SolveResult {
   const parentTags = bestTags;
   const placements: SolveResult['placements'] = [];
   const diffs: SolveDiff[] = [];
-  const freeSorted = topLocations
+  const freeSorted = globallyPlaced
     .filter((l) => freeIds.has(l.id))
     .sort((a, b) => a.id.localeCompare(b.id));
   for (const loc of freeSorted) {
@@ -1045,7 +1398,26 @@ export function solveMapLayout(request: SolveRequest): SolveResult {
   }
 
   // Children orbit their parents (manual children are preserved outright).
-  const orbits = computeChildOrbits(locations, resolvedTop, { width, height, inset });
+  const orbits = computeChildOrbits(
+    locations,
+    resolvedTop,
+    { width, height, inset },
+    masks,
+    globallyPlacedIds
+  );
+  // Orbits are geometric, so they can still land on top of each other (two
+  // families whose parents sit close, a ring that folds onto its neighbour).
+  separateChildOrbits(
+    orbits,
+    resolvedTop,
+    minSeparation,
+    { width, height, inset },
+    masks,
+    (id) => {
+      const loc = byId.get(id);
+      return loc ? prefersWaterRegion(loc) : false;
+    }
+  );
   for (const orbit of orbits) {
     const child = byId.get(orbit.locationId)!;
     const before = child.coordinates
