@@ -224,8 +224,26 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     [pan, zoom]
   );
 
+  /**
+   * True when the event happened on the map surface itself.
+   *
+   * The floating overlays (brush HUD, coordinate readout, engine badge) live
+   * INSIDE the canvas container, so their events bubble into the container's
+   * handlers. Without this guard, dragging the brush-size slider painted land
+   * and clicking the HUD started a sculpt stroke.
+   */
+  const isCanvasSurface = useCallback((e: React.MouseEvent | React.WheelEvent): boolean => {
+    return e.target === canvasRef.current;
+  }, []);
+
+  /** Stops an overlay's mouse events from reaching the canvas handlers. */
+  const stopOverlayMouse = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
   // Mouse wheel zoom centered at cursor
   const handleWheel = (e: React.WheelEvent) => {
+    if (!isCanvasSurface(e)) return;
     e.preventDefault();
     const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
     const newZoom = clampZoom(zoom * zoomFactor);
@@ -243,6 +261,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
   // Mouse Down handler
   const handleMouseDown = (e: React.MouseEvent) => {
+    // Overlays (brush HUD, HUD badges) are children of this container — a click
+    // on them must never start a stroke, a drag, or a pan.
+    if (!isCanvasSurface(e)) return;
     const worldPoint = clientToWorld(e.clientX, e.clientY);
 
     // Pan with middle mouse or Alt
@@ -408,6 +429,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
   // Mouse Move handler (silky 60fps local buffering)
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isCanvasSurface(e)) return;
     const worldPoint = clientToWorld(e.clientX, e.clientY);
     setHoveredCoord(worldPoint);
 
@@ -542,7 +564,6 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   // Double click to finish drafting terrain feature
   const handleDoubleClick = () => {
     if (draftPoints.length < 2) return;
-
     if (activeTool === 'terrain_continent' || activeTool === 'terrain_biome') {
       const isBiome = activeTool === 'terrain_biome';
       const newFeature: MapTerrainFeature = {
@@ -628,7 +649,12 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
       {/* Land Sculpt Brush Floating HUD */}
       {activeTool === 'land_brush' && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 rounded-2xl bg-zinc-950/90 backdrop-blur-md border border-amber-800/50 shadow-2xl text-xs select-none">
+        <div
+          onMouseDown={stopOverlayMouse}
+          onMouseMove={stopOverlayMouse}
+          onMouseUp={stopOverlayMouse}
+          className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 rounded-2xl bg-zinc-950/90 backdrop-blur-md border border-amber-800/50 shadow-2xl text-xs select-none"
+        >
           {/* Mode Toggle */}
           <div className="flex items-center gap-1 bg-zinc-900/90 p-1 rounded-xl border border-zinc-800">
             <button
@@ -724,7 +750,12 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       )}
 
       {/* Floating Viewport Status Badge */}
-      <div className="absolute top-4 left-4 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-900/80 backdrop-blur-md border border-amber-800/40 text-stone-200 text-xs shadow-lg">
+      <div
+        onMouseDown={stopOverlayMouse}
+        onMouseMove={stopOverlayMouse}
+        onMouseUp={stopOverlayMouse}
+        className="absolute top-4 left-4 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-900/80 backdrop-blur-md border border-amber-800/40 text-stone-200 text-xs shadow-lg"
+      >
         <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
         <span className="font-serif font-medium tracking-wide">
           {isPersian ? 'موتور شتاب‌یافته WebGL • سبک چرمینه کلاسیک' : 'PixiJS WebGL • Vintage Parchment Engine'}
@@ -736,7 +767,12 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
       {/* Coordinate HUD */}
       {hoveredCoord && (
-        <div className="absolute bottom-4 left-4 z-20 flex items-center gap-2 px-3 py-1 rounded bg-stone-900/80 backdrop-blur-sm border border-stone-800 text-[11px] font-mono text-stone-400">
+        <div
+          onMouseDown={stopOverlayMouse}
+          onMouseMove={stopOverlayMouse}
+          onMouseUp={stopOverlayMouse}
+          className="absolute bottom-4 left-4 z-20 flex items-center gap-2 px-3 py-1 rounded bg-stone-900/80 backdrop-blur-sm border border-stone-800 text-[11px] font-mono text-stone-400"
+        >
           <Navigation className="w-3 h-3 text-stone-500" />
           <span>
             X: {hoveredCoord.x} | Y: {hoveredCoord.y}
