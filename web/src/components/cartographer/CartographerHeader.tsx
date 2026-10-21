@@ -26,6 +26,7 @@ import {
   SlidersHorizontal,
   Wand2,
   Undo2,
+  Redo2,
 } from 'lucide-react';
 import { WorldMapSettings, MapStyleTheme } from '@/lib/types';
 
@@ -68,6 +69,14 @@ interface CartographerHeaderProps {
   onAutoFit: () => Promise<void> | void;
   canUndoAutoFit: boolean;
   onUndoAutoFit: () => void;
+  /** Undo/redo across every authoring action on the map (Ctrl+Z / Ctrl+Shift+Z). */
+  canUndo: boolean;
+  onUndo: () => void;
+  canRedo: boolean;
+  onRedo: () => void;
+  /** Labels of the next undo/redo action, for the tooltips. */
+  undoLabel?: string | null;
+  redoLabel?: string | null;
   onToggleLayerPanel: () => void;
   isLayerPanelOpen: boolean;
   onTogglePalette: () => void;
@@ -106,6 +115,12 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
   onAutoFit,
   canUndoAutoFit,
   onUndoAutoFit,
+  canUndo,
+  onUndo,
+  canRedo,
+  onRedo,
+  undoLabel,
+  redoLabel,
   onToggleLayerPanel,
   isLayerPanelOpen,
   onTogglePalette,
@@ -254,6 +269,42 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
             <span className="hidden md:inline">{isPersian ? 'بازگردانی' : 'Undo'}</span>
           </button>
         )}
+
+        {/* Undo / redo — every authoring action on the map (Ctrl+Z / Ctrl+Shift+Z) */}
+        <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-xl p-0.5">
+          <button
+            onClick={onUndo}
+            disabled={!canUndo}
+            className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            title={
+              canUndo && undoLabel
+                ? isPersian
+                  ? `بازگردانی: ${undoLabel}`
+                  : `Undo: ${undoLabel}`
+                : isPersian
+                  ? 'چیزی برای بازگردانی نیست'
+                  : 'Nothing to undo'
+            }
+          >
+            <Undo2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={onRedo}
+            disabled={!canRedo}
+            className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            title={
+              canRedo && redoLabel
+                ? isPersian
+                  ? `تکرار: ${redoLabel}`
+                  : `Redo: ${redoLabel}`
+                : isPersian
+                  ? 'چیزی برای تکرار نیست'
+                  : 'Nothing to redo'
+            }
+          >
+            <Redo2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
 
         {/* AI Cartographer Oracle */}
         <button

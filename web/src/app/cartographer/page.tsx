@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useStudioStory } from '@/lib/context/StudioStoryContext';
+import { useStudioStory, getDefaultOntology } from '@/lib/context/StudioStoryContext';
 import {
   WorldMapData,
   WorldMapSettings,
@@ -27,6 +27,18 @@ import { CartographerAiOracleModal } from '@/components/cartographer/Cartographe
 import { notify } from '@/lib/notify';
 import { auditWorldMapLayout } from '@/lib/engines/world/mapLayoutAuditor';
 import { solveMapLayout, stableSeedFromString } from '@/lib/engines/world/mapLayoutSolver';
+import {
+  CARTOGRAPHER_COALESCE_MS,
+  createCartographerHistory,
+  mergeCartographerSnapshot,
+  peekRedoLabel,
+  peekUndoLabel,
+  pushCartographerHistory,
+  redoCartographerHistory,
+  undoCartographerHistory,
+  type CartographerHistory,
+  type CartographerSnapshot,
+} from '@/lib/engines/world/cartographerHistory';
 
 export default function CartographerPage() {
   const {
@@ -64,6 +76,111 @@ export default function CartographerPage() {
   // Viewport Transform State
   const [zoom, setZoom] = useState(0.85);
   const [pan, setPan] = useState({ x: 80, y: 40 });
+
+  // -----------------------------------------------------------------------
+  // Undo / redo — every authoring action pushes a pre-state snapshot, so
+  // Ctrl+Z / Ctrl+Shift+Z work across terrain, pins, routes, NPC stationing
+  // and the Plan 19 refit.
+  // -----------------------------------------------------------------------
+  const [history, setHistory] = useState<CartographerHistory>(createCartographerHistory());
+
+  const captureSnapshot = useCallback((): CartographerSnapshot => {
+    const wb = story.worldBible;
+    return {
+      locations: structuredClone(wb.locations ?? []),
+      tradeRoutes: structuredClone(wb.tradeRoutes ?? []),
+      npcStations: (wb.npcs ?? []).map((n) => ({
+        id: n.id,
+        currentLocationId: n.currentLocationId,
+      })),
+      mapData: wb.mapData ? structuredClone(wb.mapData) : undefined,
+    };
+  }, [story.worldBible]);
+
+  const restoreSnapshot = useCallback(
+    (snapshot: CartographerSnapshot) => {
+      const merged = mergeCartographerSnapshot(captureSnapshot(), snapshot);
+      updateWorldBible((prev) => ({
+        ...prev,
+        locations: merged.locations,
+        tradeRoutes: merged.tradeRoutes,
+        npcs: (prev.npcs ?? []).map((n) => {
+          const station = merged.npcStations.find((s) => s.id === n.id);
+          if (!station) return n;
+          if (station.currentLocationId === undefined) {
+            const { currentLocationId: _dropped, ...rest } = n as any;
+            return rest;
+          }
+          return { ...n, currentLocationId: station.currentLocationId } as typeof n;
+        }),
+        mapData: merged.mapData,
+        ontology: { ...(prev.ontology || getDefaultOntology(isPersian)), mapData: merged.mapData },
+      }));
+    },
+    [captureSnapshot, updateWorldBible, isPersian]
+  );
+
+  /** Records an authoring action so it can be undone. */
+  const commit = useCallback(
+    (label: string, apply: () => void) => {
+      const before = captureSnapshot();
+      // The inspector writes on every keystroke: a burst of the same action is
+      // folded into one entry so a single undo reverts the whole edit.
+      const coalesceMs = label.startsWith('Edit ') ? CARTOGRAPHER_COALESCE_MS : 0;
+      setHistory((h) => pushCartographerHistory(h, label, before, { coalesceMs }));
+      apply();
+    },
+    [captureSnapshot]
+  );
+
+  const handleUndo = useCallback(() => {
+    const result = undoCartographerHistory(history, captureSnapshot());
+    if (!result) {
+      notify.info(isPersian ? 'عملی برای بازگردانی وجود ندارد.' : 'Nothing to undo.');
+      return;
+    }
+    restoreSnapshot(result.restored);
+    setHistory(result.history);
+    notify.info(isPersian ? `بازگردانی: ${result.label}` : `Undone: ${result.label}`);
+  }, [history, captureSnapshot, restoreSnapshot, isPersian]);
+
+  const handleRedo = useCallback(() => {
+    const result = redoCartographerHistory(history);
+    if (!result) {
+      notify.info(isPersian ? 'عملی برای تکرار وجود ندارد.' : 'Nothing to redo.');
+      return;
+    }
+    restoreSnapshot(result.restored);
+    setHistory(result.history);
+    notify.info(isPersian ? `تکرار: ${result.label}` : `Redone: ${result.label}`);
+  }, [history, restoreSnapshot, isPersian]);
+
+  // Ctrl+Z / Ctrl+Shift+Z (Cmd on macOS) — ignored while typing in a field.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleUndo, handleRedo]);
 
   // Ensure map data exists
   const mapData: WorldMapData = useMemo(() => {
@@ -130,69 +247,84 @@ export default function CartographerPage() {
 
   // Terrain CRUD
   const handleAddTerrain = (feature: MapTerrainFeature) => {
-    updateMapData((prev) => {
-      const current = prev || mapData;
-      return {
-        ...current,
-        terrainFeatures: [...current.terrainFeatures, feature],
-      };
+    commit('Add terrain', () => {
+      updateMapData((prev) => {
+        const current = prev || mapData;
+        return {
+          ...current,
+          terrainFeatures: [...current.terrainFeatures, feature],
+        };
+      });
     });
     notify.success(isPersian ? 'عارضه طبیعی به نقشه افزوده شد' : 'Terrain feature added');
   };
 
   const handleUpdateTerrain = (id: string, updated: Partial<MapTerrainFeature>) => {
-    updateMapData((prev) => {
-      const current = prev || mapData;
-      return {
-        ...current,
-        terrainFeatures: current.terrainFeatures.map((f) => (f.id === id ? { ...f, ...updated } : f)),
-      };
+    commit('Edit terrain', () => {
+      updateMapData((prev) => {
+        const current = prev || mapData;
+        return {
+          ...current,
+          terrainFeatures: current.terrainFeatures.map((f) => (f.id === id ? { ...f, ...updated } : f)),
+        };
+      });
     });
   };
 
   const handleDeleteTerrain = (id: string) => {
-    updateMapData((prev) => {
-      const current = prev || mapData;
-      return {
-        ...current,
-        terrainFeatures: current.terrainFeatures.filter((f) => f.id !== id),
-      };
+    commit('Delete terrain', () => {
+      updateMapData((prev) => {
+        const current = prev || mapData;
+        return {
+          ...current,
+          terrainFeatures: current.terrainFeatures.filter((f) => f.id !== id),
+        };
+      });
+      if (selectedItem?.type === 'terrain' && selectedItem.data.id === id) {
+        setSelectedItem(null);
+      }
     });
-    if (selectedItem?.type === 'terrain' && selectedItem.data.id === id) {
-      setSelectedItem(null);
-    }
     notify.info(isPersian ? 'عارضه طبیعی حذف شد' : 'Terrain feature deleted');
   };
 
-  const handleReplaceTerrain = useCallback((features: MapTerrainFeature[]) => {
-    updateMapData((prev) => {
-      const current = prev || mapData;
-      return {
-        ...current,
-        terrainFeatures: features,
-      };
-    });
-  }, [mapData, updateMapData]);
+  const handleReplaceTerrain = useCallback(
+    (features: MapTerrainFeature[]) => {
+      commit('Sculpt terrain', () => {
+        updateMapData((prev) => {
+          const current = prev || mapData;
+          return {
+            ...current,
+            terrainFeatures: features,
+          };
+        });
+      });
+    },
+    [commit, mapData, updateMapData]
+  );
 
   // Location Handlers
   const handleAddLocation = (loc: WorldLocation) => {
-    addLocation(loc);
+    commit('Add location', () => addLocation(loc));
   };
 
   const handleUpdateLocation = (id: string, updated: Partial<WorldLocation>) => {
-    editLocation(id, updated);
-    setSelectedItem((prev) =>
-      prev?.type === 'location' && prev.data.id === id
-        ? { type: 'location', data: { ...prev.data, ...updated } }
-        : prev
-    );
+    commit(updated.coordinates ? 'Move pin' : 'Edit location', () => {
+      editLocation(id, updated);
+      setSelectedItem((prev) =>
+        prev?.type === 'location' && prev.data.id === id
+          ? { type: 'location', data: { ...prev.data, ...updated } }
+          : prev
+      );
+    });
   };
 
   const handleDeleteLocation = (id: string) => {
-    deleteLocation(id);
-    if (selectedItem?.type === 'location' && selectedItem.data.id === id) {
-      setSelectedItem(null);
-    }
+    commit('Delete location', () => {
+      deleteLocation(id);
+      if (selectedItem?.type === 'location' && selectedItem.data.id === id) {
+        setSelectedItem(null);
+      }
+    });
   };
 
   // -----------------------------------------------------------------------
@@ -265,14 +397,16 @@ export default function CartographerPage() {
         }))
     );
 
-    updateWorldBible((prev) => ({
-      ...prev,
-      locations: (prev.locations || []).map((l) => {
-        const placement = result.placements.find((p) => p.locationId === l.id);
-        if (!placement) return l;
-        return { ...l, coordinates: placement.position, coordinatesSource: 'solver' as const };
-      }),
-    }));
+    commit('Auto-fit coordinates', () => {
+      updateWorldBible((prev) => ({
+        ...prev,
+        locations: (prev.locations || []).map((l) => {
+          const placement = result.placements.find((p) => p.locationId === l.id);
+          if (!placement) return l;
+          return { ...l, coordinates: placement.position, coordinatesSource: 'solver' as const };
+        }),
+      }));
+    });
     notify.success(
       isPersian
         ? `${result.summaryText} — برای ذخیرهٔ نهایی روی ذخیره بزنید.`
@@ -300,53 +434,63 @@ export default function CartographerPage() {
 
   // Trade Route Handlers
   const handleAddTradeRoute = (route: WorldTradeRoute) => {
-    addTradeRoute(route);
+    commit('Add trade route', () => addTradeRoute(route));
   };
 
   const handleUpdateTradeRoute = (id: string, updated: Partial<WorldTradeRoute>) => {
-    editTradeRoute(id, updated);
-    setSelectedItem((prev) =>
-      prev?.type === 'trade_route' && prev.data.id === id
-        ? { type: 'trade_route', data: { ...prev.data, ...updated } }
-        : prev
-    );
+    commit(updated.waypoints ? 'Move waypoint' : 'Edit trade route', () => {
+      editTradeRoute(id, updated);
+      setSelectedItem((prev) =>
+        prev?.type === 'trade_route' && prev.data.id === id
+          ? { type: 'trade_route', data: { ...prev.data, ...updated } }
+          : prev
+      );
+    });
   };
 
   const handleDeleteTradeRoute = (id: string) => {
-    deleteTradeRoute(id);
-    if (selectedItem?.type === 'trade_route' && selectedItem.data.id === id) {
-      setSelectedItem(null);
-    }
+    commit('Delete trade route', () => {
+      deleteTradeRoute(id);
+      if (selectedItem?.type === 'trade_route' && selectedItem.data.id === id) {
+        setSelectedItem(null);
+      }
+    });
   };
 
   // Placements Handlers
   const handleAddPlacement = (placement: MapEntityPlacement) => {
-    updateMapData((prev) => {
-      const current = prev || mapData;
-      return {
-        ...current,
-        placements: [...current.placements, placement],
-      };
+    commit('Pin entity', () => {
+      updateMapData((prev) => {
+        const current = prev || mapData;
+        return {
+          ...current,
+          placements: [...current.placements, placement],
+        };
+      });
     });
     notify.success(isPersian ? 'سنجاق روی نقشه ثبت شد' : 'Entity pinned to map');
   };
 
   const handleDeletePlacement = (id: string) => {
-    updateMapData((prev) => {
-      const current = prev || mapData;
-      return {
-        ...current,
-        placements: current.placements.filter((p) => p.id !== id),
-      };
+    commit('Remove pin', () => {
+      updateMapData((prev) => {
+        const current = prev || mapData;
+        return {
+          ...current,
+          placements: current.placements.filter((p) => p.id !== id),
+        };
+      });
+      if (selectedItem?.type === 'placement' && selectedItem.data.id === id) {
+        setSelectedItem(null);
+      }
     });
-    if (selectedItem?.type === 'placement' && selectedItem.data.id === id) {
-      setSelectedItem(null);
-    }
   };
 
   // Station NPC at location
   const handleStationNpc = (npcId: string, locationId: string) => {
-    editNpc(npcId, { currentLocationId: locationId });
+    commit('Station NPC', () => {
+      editNpc(npcId, { currentLocationId: locationId });
+    });
     notify.success(isPersian ? 'شخصیت در این شهر مستقر شد' : 'NPC stationed at location');
   };
 
@@ -416,6 +560,12 @@ export default function CartographerPage() {
         onAutoFit={handleAutoFit}
         canUndoAutoFit={!!autoFitSnapshot && autoFitSnapshot.length > 0}
         onUndoAutoFit={handleUndoAutoFit}
+        canUndo={history.past.length > 0}
+        onUndo={handleUndo}
+        canRedo={history.future.length > 0}
+        onRedo={handleRedo}
+        undoLabel={peekUndoLabel(history)}
+        redoLabel={peekRedoLabel(history)}
         onToggleLayerPanel={() => {
           setIsLayerPanelOpen((v) => !v);
           setIsPaletteOpen(false);

@@ -91,3 +91,11 @@ This document outlines the upcoming feature roadmap and planned capabilities for
   * Implement positive `trustDelta` awards for social and diplomatic successes.
   * Populate Zarrin Pol (`story_mt4ofllt`) Archetypes, Backgrounds, and character-driven Prologue starting scenes.
 
+### 10. 🗺️ World Cartographer Truth Audit & Remediation
+* 📖 **[World Cartographer Truth Audit](CARTOGRAPHER_TRUTH_AUDIT.md)**
+* **Core Fixes**:
+  * Make the "AI Cartographer Oracle" a real generation route (or relabel it — it currently fakes AI with `Math.random()` and claims otherwise).
+  * Render every terrain type the tools create (`valley`, `peak`, `canyon`, `oasis`) and delete the dead layer toggles (`valleys`, `timeline`, `factionBorders`).
+  * Wire `settings.theme` to the renderer, give the travel ruler a distance/days readout, and render the seed terrain on open.
+  * ✅ **Delivered:** undo/redo for every Cartographer action (`Ctrl+Z` / `Ctrl+Shift+Z`, plus header buttons) with field-level merge semantics.
+
