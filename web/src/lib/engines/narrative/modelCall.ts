@@ -24,6 +24,12 @@ export interface RawSceneResult {
 export interface SceneModelOptions {
   temperature?: number;
   preferredModel?: string;
+  /**
+   * Thinking (reasoning) token budget for the models that support it. Gemini
+   * takes its native `thinkingConfig.thinkingBudget`; the OpenAI-compatible
+   * gateways take `thinking.budget_tokens`.
+   */
+  thinkingBudgetTokens?: number;
 }
 
 /**
@@ -51,6 +57,9 @@ export async function defaultSceneModelCall(
       taskType: 'scene',
       temperature: options.temperature ?? 0.75,
       ...(options.preferredModel ? { preferredModel: options.preferredModel as never } : {}),
+      ...(options.thinkingBudgetTokens
+        ? { thinkingBudgetTokens: options.thinkingBudgetTokens }
+        : {}),
     }
   );
   if (!result) return null;

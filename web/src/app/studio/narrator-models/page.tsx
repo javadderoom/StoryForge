@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import { notify } from '@/lib/notify';
+import { NARRATOR_PROVIDER_CAPABILITIES } from '@/lib/providers/narratorModelConfig';
+import { isThinkingSupported } from '@/lib/ai/modelCapabilities';
 import {
   Cpu,
   Save,
@@ -146,15 +148,16 @@ export default function NarratorModelsPage() {
     setDraft((prev) => {
       if (!prev) return prev;
       const next = { ...prev, [tier]: { ...prev[tier], ...patch } } as Record<Tier, TierConfig>;
-      // Provider-specific fields only make sense for OpenAI-compatible routes.
-      if (patch.provider && patch.provider !== 'aiprime' && patch.provider !== 'sinox') {
-        next[tier] = {
-          ...next[tier],
-          endpoint: undefined,
-          fallbackModel: undefined,
-          reasoningEffort: undefined,
-          thinkingBudgetTokens: undefined,
-        };
+      // Provider-specific knobs only apply to the provider that supports them:
+      // a provider switch must not leave a stale endpoint or reasoning mode.
+      if (patch.provider) {
+        const caps = NARRATOR_PROVIDER_CAPABILITIES[patch.provider];
+        const cleaned: TierConfig = { ...next[tier] };
+        if (!caps.endpoint) cleaned.endpoint = undefined;
+        if (!caps.fallback) cleaned.fallbackModel = undefined;
+        if (!caps.reasoning) cleaned.reasoningEffort = undefined;
+        if (!caps.thinking) cleaned.thinkingBudgetTokens = undefined;
+        next[tier] = cleaned;
       }
       return next;
     });
@@ -328,7 +331,13 @@ export default function NarratorModelsPage() {
           const cfg = draft[tier];
           const meta = payload.tiers.find((x) => x.tier === tier);
           const isOpenAi = cfg.provider === 'aiprime' || cfg.provider === 'sinox';
-          const supportsThinking = cfg.provider === 'sinox';
+          const caps = NARRATOR_PROVIDER_CAPABILITIES[cfg.provider];
+          const supportsReasoning = caps.reasoning;
+          const supportsThinking = caps.thinking;
+          const modelIgnoresThinking =
+            supportsThinking &&
+            cfg.provider === 'gemini' &&
+            !isThinkingSupported(cfg.model);
           const errs = fieldErrors[tier] ?? {};
           const status = providerStatus(cfg.provider);
           return (
@@ -486,50 +495,66 @@ export default function NarratorModelsPage() {
                   )}
                 </label>
 
+                {supportsReasoning && (
+                  <label className="block">
+                    <span className="text-[11px] font-bold text-zinc-400">{t.reasoning}</span>
+                    <select
+                      value={cfg.reasoningEffort ?? ''}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        patchTier(tier, {
+                          reasoningEffort: (e.target.value || undefined) as
+                            | 'low'
+                            | 'medium'
+                            | 'high'
+                            | undefined,
+                        })
+                      }
+                      className="mt-1 w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-sky-500 disabled:opacity-50"
+                    >
+                      <option value="">{isPersian ? 'پیش‌فرض' : 'default'}</option>
+                      <option value="low">low</option>
+                      <option value="medium">medium</option>
+                      <option value="high">high</option>
+                    </select>
+                    {errs.reasoningEffort && (
+                      <span className="mt-1 block text-[10.5px] text-rose-300">{errs.reasoningEffort}</span>
+                    )}
+                  </label>
+                )}
+
                 {supportsThinking && (
-                  <>
-                    <label className="block">
-                      <span className="text-[11px] font-bold text-zinc-400">{t.reasoning}</span>
-                      <select
-                        value={cfg.reasoningEffort ?? ''}
-                        disabled={!canEdit}
-                        onChange={(e) =>
-                          patchTier(tier, {
-                            reasoningEffort: (e.target.value || undefined) as
-                              | 'low'
-                              | 'medium'
-                              | 'high'
-                              | undefined,
-                          })
-                        }
-                        className="mt-1 w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-sky-500 disabled:opacity-50"
-                      >
-                        <option value="">{isPersian ? 'پیش‌فرض' : 'default'}</option>
-                        <option value="low">low</option>
-                        <option value="medium">medium</option>
-                        <option value="high">high</option>
-                      </select>
-                    </label>
-                    <label className="block">
-                      <span className="text-[11px] font-bold text-zinc-400">{t.budget}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="32768"
-                        step="256"
-                        value={cfg.thinkingBudgetTokens ?? ''}
-                        disabled={!canEdit}
-                        onChange={(e) =>
-                          patchTier(tier, {
-                            thinkingBudgetTokens:
-                              e.target.value === '' ? undefined : Number(e.target.value),
-                          })
-                        }
-                        placeholder="1024"
-                        className="mt-1 w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 font-mono focus:outline-none focus:border-sky-500 disabled:opacity-50"
-                      />
-                    </label>
-                  </>
+                  <label className="block">
+                    <span className="text-[11px] font-bold text-zinc-400">{t.budget}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="32768"
+                      step="256"
+                      value={cfg.thinkingBudgetTokens ?? ''}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        patchTier(tier, {
+                          thinkingBudgetTokens:
+                            e.target.value === '' ? undefined : Number(e.target.value),
+                        })
+                      }
+                      placeholder="1024"
+                      className="mt-1 w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 font-mono focus:outline-none focus:border-sky-500 disabled:opacity-50"
+                    />
+                    {modelIgnoresThinking && (
+                      <span className="mt-1 block text-[10.5px] text-amber-300">
+                        {isPersian
+                          ? 'این خانوادهٔ مدل از بودجهٔ تفکر پشتیبانی نمی‌کند و آن را نادیده می‌گیرد.'
+                          : 'This model family ignores thinking budgets (it does not support thinking).'}
+                      </span>
+                    )}
+                    {errs.thinkingBudgetTokens && (
+                      <span className="mt-1 block text-[10.5px] text-rose-300">
+                        {errs.thinkingBudgetTokens}
+                      </span>
+                    )}
+                  </label>
                 )}
               </div>
 

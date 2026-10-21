@@ -225,15 +225,27 @@ async function probeTierProvider(
 
   if (config.provider === 'gemini') {
     const { getGeminiEndpoint } = await import('@/lib/ai/geminiClient');
+    const { isThinkingSupported } = await import('@/lib/ai/modelCapabilities');
     const endpoint = getGeminiEndpoint(config.model);
+    const thinkingBudget =
+      config.thinkingBudgetTokens &&
+      config.thinkingBudgetTokens > 0 &&
+      isThinkingSupported(config.model)
+        ? config.thinkingBudgetTokens
+        : 0;
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: 'ping' }] }],
-        generationConfig: { responseMimeType: 'text/plain', maxOutputTokens: 8, temperature: 0 },
+        generationConfig: {
+          responseMimeType: 'text/plain',
+          maxOutputTokens: 64,
+          temperature: 0,
+          ...(thinkingBudget > 0 ? { thinkingConfig: { thinkingBudget } } : {}),
+        },
       }),
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(30000),
     } as any);
     if (!res.ok) {
       const text = await res.text().catch(() => '');

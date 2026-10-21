@@ -268,4 +268,42 @@ describe('Plan 08 - AI Output Normalization (choice & memory guardrails)', () =>
       assert.equal(mockWithStats.isMock, true);
     });
   });
+
+  describe('narrator tier routing (preferred model + thinking budget)', () => {
+    const prompt: GenerationPromptPayload = {
+      systemPrompt: 'test',
+      userPrompt: 'test',
+      isEnglish: true,
+      playerStatIds: { might: 12, cunning: 10 },
+    };
+
+    it('forwards the tier\'s preferred model and thinking budget to the seam', async () => {
+      let seen: Record<string, unknown> | null = null;
+      const adapter = new GeminiAdapter(undefined, 'gemini-3.8-flash', {
+        preferredModel: 'gemini-3.8-flash',
+        thinkingBudgetTokens: 2048,
+        modelCall: async (_prompt, options) => {
+          seen = { ...(options ?? {}) };
+          return { data: { narrative: 'x', choices: [] }, rawText: '{}', modelUsed: 'stub' };
+        },
+      });
+      await adapter.generateSceneRaw(prompt);
+      assert.equal(seen!.preferredModel, 'gemini-3.8-flash');
+      assert.equal(seen!.thinkingBudgetTokens, 2048);
+    });
+
+    it('lets an explicit call option win over the adapter default', async () => {
+      let seen: Record<string, unknown> | null = null;
+      const adapter = new GeminiAdapter(undefined, 'gemini-3.8-flash', {
+        preferredModel: 'gemini-3.8-flash',
+        thinkingBudgetTokens: 2048,
+        modelCall: async (_prompt, options) => {
+          seen = { ...(options ?? {}) };
+          return { data: { narrative: 'x', choices: [] }, rawText: '{}', modelUsed: 'stub' };
+        },
+      });
+      await adapter.generateSceneRaw(prompt, { preferredModel: 'gemini-3.7-flash' });
+      assert.equal(seen!.preferredModel, 'gemini-3.7-flash');
+    });
+  });
 });

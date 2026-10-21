@@ -133,7 +133,35 @@ describe('narrator model registry', () => {
       });
       assert.equal(config.endpoint, undefined, 'an AI Prime endpoint on a Gemini tier would break the request');
       assert.equal(config.fallbackModel, undefined);
+      assert.equal(config.reasoningEffort, undefined, 'Gemini has no reasoning_effort knob');
+    });
+
+    it('keeps the thinking budget on Gemini (its native thinkingConfig) but not reasoning effort', () => {
+      const { config, repaired } = repairNarratorTierConfig({
+        tier: 'normal',
+        provider: 'gemini',
+        model: 'gemini-3.8-flash',
+        thinkingBudgetTokens: 2048,
+      });
+      assert.equal(repaired, false);
+      assert.equal(config.thinkingBudgetTokens, 2048);
       assert.equal(config.reasoningEffort, undefined);
+    });
+
+    it('keeps reasoning effort and thinking budget on the OpenAI-compatible gateways', () => {
+      const { config, repaired } = repairNarratorTierConfig({
+        tier: 'plus',
+        provider: 'aiprime',
+        model: 'gemini-3.8-flash',
+        fallbackModel: 'gemini-2.5-flash',
+        endpoint: 'https://api.aiprime.shop/v1/chat/completions',
+        reasoningEffort: 'medium',
+        thinkingBudgetTokens: 4096,
+      });
+      assert.equal(repaired, false);
+      assert.equal(config.reasoningEffort, 'medium');
+      assert.equal(config.thinkingBudgetTokens, 4096);
+      assert.equal(config.fallbackModel, 'gemini-2.5-flash');
     });
   });
 

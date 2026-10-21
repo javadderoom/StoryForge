@@ -168,6 +168,10 @@ export async function getNarrativeAdapter(tier?: EngineTier): Promise<GeminiAdap
     });
   }
   // Gemini (direct): the configured model is preferred inside the cascading
-  // queue (so a rate-limited model still cascades to the next one).
-  return new GeminiAdapter(undefined, config.model, { preferredModel: config.model });
+  // queue (so a rate-limited model still cascades to the next one), and the
+  // tier's thinking budget is passed as Gemini's native thinkingConfig.
+  return new GeminiAdapter(undefined, config.model, {
+    preferredModel: config.model,
+    thinkingBudgetTokens: config.thinkingBudgetTokens,
+  });
 }

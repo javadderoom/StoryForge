@@ -4,6 +4,7 @@
  */
 
 import { getGeminiProxyAgent, initLocalGeminiProxy, isLocalEnvironment, getLocalGeminiProxyUrl } from './geminiProxy';
+import { isThinkingSupported } from './modelCapabilities';
 export { isLocalEnvironment, getLocalGeminiProxyUrl } from './geminiProxy';
 
 // Auto-initialize local proxy if in local environment
@@ -49,6 +50,12 @@ export interface GenerateOptions {
   preferredModel?: SupportedModel;
   taskType?: 'world' | 'scene' | 'default';
   timeoutMs?: number;
+  /**
+   * Thinking (reasoning) token budget for models that support it. 0 (the
+   * default) keeps thinking switched off, which is what every scene turn has
+   * used so far. The narrator tier routing can raise it per tier.
+   */
+  thinkingBudgetTokens?: number;
 }
 
 export interface GenerationResult<T = any> {
@@ -81,14 +88,11 @@ export function getGeminiEndpoint(modelName: string): string {
  * Determines whether a model supports Gemini thinking configuration.
  * Lite models (e.g. gemini-3.5-flash-lite, gemini-3.1-flash-lite) and Gemma models
  * do not have thinking capabilities and will fail with HTTP 400 if thinkingConfig is supplied.
+ *
+ * The rule itself lives in `modelCapabilities` so the Studio UI can warn about
+ * a thinking budget on a model that would reject it.
  */
-export function isThinkingSupported(model: string): boolean {
-  const m = model.toLowerCase();
-  if (m.includes('lite') || m.startsWith('gemma')) {
-    return false;
-  }
-  return true;
-}
+export { isThinkingSupported } from './modelCapabilities';
 
 function getBaseQueueForTask(taskType?: 'world' | 'scene' | 'default'): readonly string[] {
   const envModel = process.env.GEMINI_MODEL?.trim();
@@ -156,8 +160,13 @@ export async function generateStructuredJson<T = unknown>(
       };
 
       if (isThinkingSupported(model)) {
+        // Thinking is off by default (budget 0). A narrator tier may raise it
+        // so a tier can buy reasoning depth with latency.
         generationConfig.thinkingConfig = {
-          thinkingBudget: 0,
+          thinkingBudget:
+            options.thinkingBudgetTokens && options.thinkingBudgetTokens > 0
+              ? options.thinkingBudgetTokens
+              : 0,
         };
       }
 

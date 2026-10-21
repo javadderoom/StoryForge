@@ -375,6 +375,11 @@ export interface GeminiAdapterOptions {
    * preferred one is rate-limited or unavailable.
    */
   preferredModel?: string;
+  /**
+   * Thinking (reasoning) token budget for models that support it. Gemini
+   * takes its native `thinkingConfig.thinkingBudget`.
+   */
+  thinkingBudgetTokens?: number;
 }
 
 export class GeminiAdapter {
@@ -383,6 +388,7 @@ export class GeminiAdapter {
   private modelCall: SceneModelCall;
   private hasCustomModelCall: boolean;
   private preferredModel?: string;
+  private thinkingBudgetTokens?: number;
 
   constructor(
     apiKey?: string,
@@ -397,6 +403,7 @@ export class GeminiAdapter {
     this.hasCustomModelCall = Boolean(options.modelCall);
     this.modelCall = options.modelCall ?? defaultSceneModelCall;
     this.preferredModel = options.preferredModel;
+    this.thinkingBudgetTokens = options.thinkingBudgetTokens;
   }
 
   /**
@@ -411,9 +418,15 @@ export class GeminiAdapter {
     try {
       // The Studio-configured model is tried first inside the cascade; the
       // queue still cascades to the remaining models if it is unavailable.
-      const seamOptions: SceneModelOptions = this.preferredModel
-        ? { ...options, preferredModel: options.preferredModel ?? this.preferredModel }
-        : options;
+      const seamOptions: SceneModelOptions = {
+        ...options,
+        ...(this.preferredModel && !options.preferredModel
+          ? { preferredModel: this.preferredModel }
+          : {}),
+        ...(this.thinkingBudgetTokens && !options.thinkingBudgetTokens
+          ? { thinkingBudgetTokens: this.thinkingBudgetTokens }
+          : {}),
+      };
       const viaSeam = await this.modelCall(prompt, seamOptions);
       if (viaSeam && viaSeam.data) return viaSeam;
     } catch (seamErr) {
