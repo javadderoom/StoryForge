@@ -38,6 +38,7 @@ import {
   Eraser,
   Waves,
   Trash2,
+  MousePointer,
 } from 'lucide-react';
 
 interface PixiCartographerCanvasProps {
@@ -570,8 +571,8 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     };
   }, [commitDragEnd]);
 
-  // Double click to finish drafting terrain feature
-  const handleDoubleClick = () => {
+  // Double click finishes the draft (Enter does the same — see the key handler).
+  const handleDoubleClick = useCallback(() => {
     if (draftPoints.length < 2) return;
     if (activeTool === 'terrain_continent' || activeTool === 'terrain_biome') {
       const isBiome = activeTool === 'terrain_biome';
@@ -627,19 +628,22 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     }
 
     setDraftPoints([]);
-  };
+  }, [draftPoints, activeTool, isPersian, onAddTerrain, onSelectItem]);
 
-  // Cancel drafting on Escape key
+  // Escape cancels the draft, Enter commits it.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setDraftPoints([]);
         setRulerPoints([]);
+      } else if (e.key === 'Enter' && draftPoints.length >= 2) {
+        e.preventDefault();
+        handleDoubleClick();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [handleDoubleClick, draftPoints.length]);
 
   return (
     <div
@@ -788,6 +792,23 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           </span>
           <span className="text-stone-600">|</span>
           <span>Zoom: {Math.round(zoom * 100)}%</span>
+        </div>
+      )}
+
+      {/* Draft hint — the preview alone never says how to finish a shape */}
+      {draftPoints.length > 0 && (
+        <div
+          onMouseDown={stopOverlayMouse}
+          onMouseMove={stopOverlayMouse}
+          onMouseUp={stopOverlayMouse}
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-sky-950/85 backdrop-blur-sm border border-sky-800/60 text-[11px] text-sky-100 shadow-lg"
+        >
+          <MousePointer className="w-3 h-3 text-sky-400" />
+          <span>
+            {isPersian
+              ? `${draftPoints.length} نقطه — برای ثبت دوبار کلیک کنید یا Enter بزنید · Esc برای لغو`
+              : `${draftPoints.length} point${draftPoints.length === 1 ? '' : 's'} — double-click or press Enter to commit · Esc to cancel`}
+          </span>
         </div>
       )}
     </div>
