@@ -131,6 +131,15 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     }
   }, [activeTool]);
 
+  // A draft belongs to the tool that started it. Switching tools drops the
+  // in-progress preview (the blue line and its vertex dots) so a stray click
+  // never leaves a stray line on the map — and one tool's vertices can never
+  // leak into the next tool's shape.
+  useEffect(() => {
+    setDraftPoints([]);
+    setRulerPoints([]);
+  }, [activeTool]);
+
   // Initialize Pixi Engine on mount
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
