@@ -280,11 +280,15 @@ function StudioShell({ children }: { children: React.ReactNode }) {
   const isMoreActive = !PRIMARY_MOBILE_HREFS.some((h) => isCurrentActive(h));
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  // The sidebar is an accordion: every category starts collapsed, and opening
+  // one closes whichever was open. The category that contains the current page
+  // is tinted amber so the author still knows where they are without it being
+  // forced open.
+  const [openSection, setOpenSection] = useState<string | null>(null);
   // Plan responsiveness: mobile "More" sheet exposes all studio pages.
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const toggleSection = (key: string) =>
-    setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+    setOpenSection((prev) => (prev === key ? null : key));
 
   if (isLoading) {
     return (
@@ -506,21 +510,32 @@ function StudioShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* Navigation Links (grouped) */}
-          <div className="mt-5 space-y-4">
+          {/* Navigation Links (grouped, single-open accordion) */}
+          <div className="mt-5 space-y-1">
             {NAV_SECTIONS.map((section) => {
               const items = navItems.filter((it) => SECTION_OF[it.href] === section.key);
               if (!items.length) return null;
               const hasActive = items.some((it) => isCurrentActive(it.href));
-              const open = hasActive || !collapsedSections[section.key];
+              const open = openSection === section.key;
               return (
                 <div key={section.key}>
                   <button
                     type="button"
                     onClick={() => toggleSection(section.key)}
-                    className="w-full flex items-center justify-between px-3 py-1.5 mb-1 text-[10px] font-bold text-zinc-500 uppercase tracking-wider hover:text-zinc-300 transition-colors"
+                    aria-expanded={open}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 mb-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                      hasActive
+                        ? 'text-amber-400/90 hover:text-amber-300'
+                        : 'text-zinc-500 hover:text-zinc-300'
+                    }`}
                   >
-                    <span>{section.label}</span>
+                    <span className="flex items-center gap-1.5">
+                      {section.label}
+                      {/* Where am I, even with the category closed. */}
+                      {hasActive && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+                      )}
+                    </span>
                     <ChevronRight
                       className={`w-3 h-3 transition-transform ${open ? 'rotate-90' : ''}`}
                     />
