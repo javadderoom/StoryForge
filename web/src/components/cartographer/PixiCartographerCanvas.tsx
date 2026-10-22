@@ -25,6 +25,7 @@ import {
 import {
   screenToWorld,
   calculateZoomPan,
+  calculateZoomToRect,
   clampZoom,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
@@ -113,6 +114,22 @@ interface SelectionDragState {
 /** Screen-space distance before a press becomes a drag. */
 const SELECTION_DRAG_THRESHOLD_PX = 3;
 
+/**
+ * An Alt + left-drag zoom box, in container-relative screen pixels.
+ *
+ * Released below the threshold it is a no-op: the gesture is navigation, so it
+ * must never be mistaken for a selection click.
+ */
+interface ZoomRectState {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/** Both axes must clear this before a zoom box is worth applying. */
+const ZOOM_RECT_THRESHOLD_PX = 8;
+
 export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   worldBible,
   settings,
@@ -159,6 +176,35 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   const setSelectionDragState = useCallback((next: SelectionDragState | null) => {
     selectionDragRef.current = next;
     setSelectionDrag(next);
+  }, []);
+
+  // Alt + left-drag zoom box. The ref mirror lets mouseup read the final
+  // rectangle without rebinding the global listener on every pixel.
+  const [zoomRect, setZoomRect] = useState<ZoomRectState | null>(null);
+  const zoomRectRef = useRef<ZoomRectState | null>(null);
+  const setZoomRectState = useCallback((next: ZoomRectState | null) => {
+    zoomRectRef.current = next;
+    setZoomRect(next);
+  }, []);
+
+  // Show the zoom cursor while Alt is held, even before the drag starts.
+  const [isAltHeld, setIsAltHeld] = useState(false);
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') setIsAltHeld(true);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Alt') setIsAltHeld(false);
+    };
+    const onBlur = () => setIsAltHeld(false);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
+    };
   }, []);
 
   // Creation & tool drafting state
@@ -360,11 +406,23 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     if (!isCanvasSurface(e)) return;
     const worldPoint = clientToWorld(e.clientX, e.clientY);
 
-    // Pan with the middle button, the right button, or Alt + drag. Suppressing
-    // the browser menu hands the secondary button to the map, and right-drag to
-    // pan is the map-editor convention — it also means the gesture a user
-    // reaches for first works, instead of silently doing nothing.
-    if (e.button === 1 || e.button === 2 || e.altKey) {
+    // Alt + left-drag is the design-tool zoom box. It runs before every tool,
+    // so holding Alt can never drop a vertex or start a sculpt stroke.
+    if (e.button === 0 && e.altKey) {
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      setZoomRectState({ x0: x, y0: y, x1: x, y1: y });
+      return;
+    }
+
+    // Pan with the middle or right button. Suppressing the browser menu hands
+    // the secondary button to the map, and right-drag to pan is the map-editor
+    // convention — it also means the gesture a user reaches for first works,
+    // instead of silently doing nothing.
+    if (e.button === 1 || e.button === 2) {
       // Also stops Chrome's middle-click autoscroll and any native drag.
       e.preventDefault();
       setIsPanning(true);
@@ -492,8 +550,8 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     //
     // Plan 23: Shift/Ctrl-click toggles one object in the selection, and a
     // drag that starts on empty parchment draws a rubber band. Panning is on
-    // the middle/right button or Alt, so the primary button is free for the
-    // design-tool gesture authors expect.
+    // the middle/right button, and Alt + left-drag is the zoom box, so the
+    // primary button is free for the design-tool gestures authors expect.
     if (activeTool === 'select' && engineRef.current) {
       const hit = engineRef.current.pickAt(worldPoint);
       const additive = e.shiftKey || e.ctrlKey || e.metaKey;
@@ -585,9 +643,30 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     // A pan or rubber band in progress owns the pointer: keep tracking it even
     // when the drag crosses a floating overlay, otherwise the map (or the
     // band) freezes for as long as the cursor is over the badge.
-    if (!isPanning && !marqueeRef.current && !selectionDragRef.current && !isCanvasSurface(e)) return;
+    if (
+      !isPanning &&
+      !marqueeRef.current &&
+      !selectionDragRef.current &&
+      !zoomRectRef.current &&
+      !isCanvasSurface(e)
+    ) {
+      return;
+    }
     const worldPoint = clientToWorld(e.clientX, e.clientY);
     setHoveredCoord(worldPoint);
+
+    // Zoom box in progress: track it even when the pointer crosses an overlay.
+    if (zoomRectRef.current) {
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      setZoomRectState({
+        ...zoomRectRef.current,
+        x1: e.clientX - rect.left,
+        y1: e.clientY - rect.top,
+      });
+      return;
+    }
 
     if (marqueeRef.current) {
       const container = containerRef.current;
@@ -669,6 +748,34 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
   // Commit drag on mouse release
   const commitDragEnd = useCallback(() => {
+    // Finish an Alt-drag zoom box: fit that area into the viewport. A box that
+    // never cleared the threshold is a click, not a zoom, and leaves the view
+    // untouched.
+    const box = zoomRectRef.current;
+    if (box) {
+      setZoomRectState(null);
+      const container = containerRef.current;
+      const boxWidth = Math.abs(box.x1 - box.x0);
+      const boxHeight = Math.abs(box.y1 - box.y0);
+      if (
+        container &&
+        boxWidth >= ZOOM_RECT_THRESHOLD_PX &&
+        boxHeight >= ZOOM_RECT_THRESHOLD_PX
+      ) {
+        const rect = container.getBoundingClientRect();
+        const view = calculateZoomToRect(
+          box,
+          { width: rect.width, height: rect.height },
+          pan,
+          zoom
+        );
+        if (view) {
+          setZoom(view.zoom);
+          setPan(view.pan);
+        }
+      }
+    }
+
     // Finish a group move: one translation for the whole selection, committed
     // once (the page turns it into a single undo step).
     const move = selectionDragRef.current;
@@ -778,6 +885,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     onSelectionChange,
     setMarqueeState,
     setSelectionDragState,
+    setZoomRectState,
+    setZoom,
+    setPan,
     worldBible.tradeRoutes,
     worldBible.mapData?.terrainFeatures,
     settings,
@@ -803,7 +913,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   }, [commitDragEnd]);
 
   // Double click finishes the draft (Enter does the same — see the key handler).
-  const handleDoubleClick = useCallback(() => {
+  const handleDoubleClick = useCallback((e?: React.MouseEvent) => {
+    // Alt is navigation: an Alt-double-click must not finish a draft.
+    if (e?.altKey) return;
     if (draftPoints.length < 2) return;
     if (activeTool === 'terrain_continent' || activeTool === 'terrain_biome') {
       const isBiome = activeTool === 'terrain_biome';
@@ -867,6 +979,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       if (e.key === 'Escape') {
         setDraftPoints([]);
         setRulerPoints([]);
+        setZoomRectState(null);
       } else if (e.key === 'Enter' && draftPoints.length >= 2) {
         e.preventDefault();
         handleDoubleClick();
@@ -874,7 +987,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleDoubleClick, draftPoints.length]);
+  }, [handleDoubleClick, draftPoints.length, setZoomRectState]);
 
   return (
     <div
@@ -887,7 +1000,11 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
       className={`relative w-full h-full overflow-hidden select-none ${
-        isPanning || selectionDrag ? 'cursor-grabbing' : 'cursor-crosshair'
+        isPanning || selectionDrag
+          ? 'cursor-grabbing'
+          : zoomRect || isAltHeld
+          ? 'cursor-zoom-in'
+          : 'cursor-crosshair'
       }`}
       style={{ backgroundColor: VINTAGE_PARCHMENT.bgParchmentHex }}
     >
@@ -907,6 +1024,23 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
               top: Math.min(marquee.y0, marquee.y1),
               width: Math.abs(marquee.x1 - marquee.x0),
               height: Math.abs(marquee.y1 - marquee.y0),
+            }}
+          />
+        )}
+
+      {/* Alt-drag zoom box. Dashed so it reads as a navigation gesture, not
+          another selection band. Screen-space, like the marquee. */}
+      {zoomRect &&
+        Math.abs(zoomRect.x1 - zoomRect.x0) >= ZOOM_RECT_THRESHOLD_PX &&
+        Math.abs(zoomRect.y1 - zoomRect.y0) >= ZOOM_RECT_THRESHOLD_PX && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute z-30 border-2 border-dashed border-amber-700/90 bg-amber-300/10 shadow-[0_0_0_1px_rgba(255,247,226,0.6)]"
+            style={{
+              left: Math.min(zoomRect.x0, zoomRect.x1),
+              top: Math.min(zoomRect.y0, zoomRect.y1),
+              width: Math.abs(zoomRect.x1 - zoomRect.x0),
+              height: Math.abs(zoomRect.y1 - zoomRect.y0),
             }}
           />
         )}
@@ -1056,7 +1190,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           <span>Zoom: {Math.round(zoom * 100)}%</span>
           <span className="text-stone-600">|</span>
           <span className="text-stone-500">
-            {isPersian ? 'کشیدن: انتخاب · راست: جابجایی' : 'Drag: select · Right-drag: pan'}
+            {isPersian
+              ? 'کشیدن: انتخاب · راست: جابجایی · Alt: بزرگنمایی'
+              : 'Drag: select · Right-drag: pan · Alt-drag: zoom'}
           </span>
         </div>
       )}

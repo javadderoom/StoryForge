@@ -72,6 +72,77 @@ export function clampZoom(zoom: number, min = MIN_ZOOM, max = MAX_ZOOM): number 
   return Math.min(max, Math.max(min, zoom));
 }
 
+/** A drag rectangle in container-relative screen pixels. */
+export interface ZoomRect {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/**
+ * Fits the world area under a screen-space rectangle into the whole viewport.
+ *
+ * The result keeps the rectangle's centre at the viewport centre and uses the
+ * tighter of the horizontal/vertical fits, so no part of the chosen area is
+ * cropped. Zoom is clamped like every other map zoom; when the clamp stops the
+ * fit, the rectangle is still centred instead of drifting to a corner.
+ *
+ * Returns null for degenerate input (a click without a drag, an unmeasured
+ * container) so callers can leave the view untouched.
+ */
+export function calculateZoomToRect(
+  rect: ZoomRect,
+  viewport: { width: number; height: number },
+  pan: { x: number; y: number },
+  zoom: number,
+  min = MIN_ZOOM,
+  max = MAX_ZOOM
+): { zoom: number; pan: { x: number; y: number } } | null {
+  if (
+    !Number.isFinite(rect.x0) ||
+    !Number.isFinite(rect.y0) ||
+    !Number.isFinite(rect.x1) ||
+    !Number.isFinite(rect.y1) ||
+    !Number.isFinite(viewport.width) ||
+    !Number.isFinite(viewport.height) ||
+    !Number.isFinite(pan.x) ||
+    !Number.isFinite(pan.y) ||
+    !Number.isFinite(zoom)
+  ) {
+    return null;
+  }
+  if (viewport.width <= 0 || viewport.height <= 0) return null;
+  if (zoom <= 0) return null;
+
+  const left = Math.min(rect.x0, rect.x1);
+  const top = Math.min(rect.y0, rect.y1);
+  const right = Math.max(rect.x0, rect.x1);
+  const bottom = Math.max(rect.y0, rect.y1);
+
+  const screenWidth = right - left;
+  const screenHeight = bottom - top;
+  if (screenWidth <= 0 || screenHeight <= 0) return null;
+
+  // The rectangle is dragged in screen space; convert it to world space with
+  // the transform that is on screen right now.
+  const worldWidth = screenWidth / zoom;
+  const worldHeight = screenHeight / zoom;
+  const worldCenterX = ((left + right) / 2 - pan.x) / zoom;
+  const worldCenterY = ((top + bottom) / 2 - pan.y) / zoom;
+
+  const fitted = Math.min(viewport.width / worldWidth, viewport.height / worldHeight);
+  const nextZoom = clampZoom(fitted, min, max);
+
+  return {
+    zoom: nextZoom,
+    pan: {
+      x: viewport.width / 2 - worldCenterX * nextZoom,
+      y: viewport.height / 2 - worldCenterY * nextZoom,
+    },
+  };
+}
+
 /**
  * Calculates vertices of a pointy-topped or flat-topped hexagon
  */

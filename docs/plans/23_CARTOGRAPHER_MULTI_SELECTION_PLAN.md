@@ -54,11 +54,13 @@ bookkeeping, marquee geometry, selectability, clipboard snapshot/clone.
 | Ctrl/Cmd + D | Duplicates the selection immediately (offset 24). |
 | Delete | Bulk delete after ONE confirmation, as ONE undo step. |
 | Escape | Clears the selection. |
-| Middle/right drag, Alt + drag | Pan (unchanged; left-drag is no longer a pan). |
+| Alt + left-drag | Draws a zoom box; on release the view fits that area. |
+| Middle/right drag | Pan (unchanged; left-drag is no longer a pan). |
 
 Panning deliberately moved off the primary button: a design-tool marquee and a
-left-drag pan cannot share the same gesture. The HUD hint now reads
-`Drag: select · Right-drag: pan`.
+left-drag pan cannot share the same gesture. Alt + left-drag is the zoom box
+instead. The HUD hint now reads
+`Drag: select · Right-drag: pan · Alt-drag: zoom`.
 
 ## Marquee geometry
 
@@ -97,6 +99,19 @@ Paste clones with:
 - `coordinatesSource: 'manual'` for a duplicated settlement.
 
 The paste is one `commit()`, so a single Ctrl+Z removes the whole batch.
+
+## Zoom box
+
+Alt + left-drag is a navigation gesture available in every tool: it takes
+precedence over drawing, sculpting, selection and group move, so holding Alt
+can never drop a vertex. The box is screen-space and dashed (the marquee stays
+solid amber), and Escape cancels it.
+
+On release `calculateZoomToRect` converts the box to world space with the
+transform currently on screen, fits its world width/height into the viewport
+using the tighter axis (so nothing inside the box is cropped), centres it, and
+clamps to the normal zoom range. A box under 8 px on either axis is discarded:
+an Alt-click must never move the view or clear the selection.
 
 ## Group move
 
@@ -162,6 +177,8 @@ selected, because they are editing affordances, not selection decoration.
   clipboard offsets, id remapping inside a batch, dropping external edges,
   clipboard immutability, and translation of terrain geometry / pins /
   settlements / route waypoints while unselected objects keep their identity.
-- Full suite — 1395/1395 passing.
+- `pixiMath.test.ts` — zoom-box fit, centring, reversed drags, zoom clamping
+  and degenerate-input rejection.
+- Full suite — 1402/1402 passing.
 - `npx tsc --noEmit` — clean.
 - `npx next build --webpack` — clean.

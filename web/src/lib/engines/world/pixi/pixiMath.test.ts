@@ -4,6 +4,7 @@ import {
   screenToWorld,
   worldToScreen,
   calculateZoomPan,
+  calculateZoomToRect,
   clampZoom,
   calculateHexVertices,
   generateOrganicParchmentContours,
@@ -68,6 +69,110 @@ test('Pixi Cartographer Math - Zoom & Anchor Preservation', async (t) => {
     assert.equal(clampZoom(0.01), MIN_ZOOM);
     assert.equal(clampZoom(10.0), MAX_ZOOM);
     assert.equal(clampZoom(1.25), 1.25);
+  });
+});
+
+test('Pixi Cartographer Math - Zoom to Rectangle', async (t) => {
+  await t.test('fits the rectangle into the viewport and centres it', () => {
+    const result = calculateZoomToRect(
+      { x0: 100, y0: 50, x1: 300, y1: 250 },
+      { width: 1000, height: 600 },
+      { x: 0, y: 0 },
+      1
+    );
+
+    assert.ok(result);
+    // 200x200 world units: the tighter fit is 1000/200 = 5 horizontally,
+    // 600/200 = 3 vertically, so the rect fits at 3x.
+    assert.equal(result.zoom, 3);
+    assert.deepEqual(result.pan, { x: -100, y: -150 });
+  });
+
+  await t.test('respects the current pan and zoom', () => {
+    const result = calculateZoomToRect(
+      { x0: 200, y0: 100, x1: 600, y1: 300 },
+      { width: 800, height: 500 },
+      { x: 40, y: -20 },
+      2
+    );
+
+    assert.ok(result);
+    assert.equal(result.zoom, 4);
+    assert.deepEqual(result.pan, { x: -320, y: -190 });
+  });
+
+  await t.test('accepts a reversed drag direction', () => {
+    const forward = calculateZoomToRect(
+      { x0: 100, y0: 50, x1: 300, y1: 250 },
+      { width: 1000, height: 600 },
+      { x: 0, y: 0 },
+      1
+    );
+    const reversed = calculateZoomToRect(
+      { x0: 300, y0: 250, x1: 100, y1: 50 },
+      { width: 1000, height: 600 },
+      { x: 0, y: 0 },
+      1
+    );
+    assert.deepEqual(reversed, forward);
+  });
+
+  await t.test('clamps a tiny rectangle to MAX_ZOOM around its centre', () => {
+    const result = calculateZoomToRect(
+      { x0: 400, y0: 300, x1: 410, y1: 310 },
+      { width: 800, height: 600 },
+      { x: 0, y: 0 },
+      1
+    );
+
+    assert.ok(result);
+    assert.equal(result.zoom, MAX_ZOOM);
+    assert.deepEqual(result.pan, {
+      x: 400 - 405 * MAX_ZOOM,
+      y: 300 - 305 * MAX_ZOOM,
+    });
+  });
+
+  await t.test('clamps a huge rectangle to MIN_ZOOM around its centre', () => {
+    const result = calculateZoomToRect(
+      { x0: 0, y0: 0, x1: 5000, y1: 5000 },
+      { width: 100, height: 100 },
+      { x: 0, y: 0 },
+      1
+    );
+
+    assert.ok(result);
+    assert.equal(result.zoom, MIN_ZOOM);
+    assert.deepEqual(result.pan, {
+      x: 50 - 2500 * MIN_ZOOM,
+      y: 50 - 2500 * MIN_ZOOM,
+    });
+  });
+
+  await t.test('rejects degenerate rectangles and unmeasured viewports', () => {
+    const viewport = { width: 800, height: 600 };
+    const origin = { x: 0, y: 0 };
+    assert.equal(
+      calculateZoomToRect({ x0: 10, y0: 10, x1: 10, y1: 50 }, viewport, origin, 1),
+      null
+    );
+    assert.equal(
+      calculateZoomToRect({ x0: 10, y0: 10, x1: 50, y1: 50 }, { width: 0, height: 600 }, origin, 1),
+      null
+    );
+    assert.equal(
+      calculateZoomToRect({ x0: 10, y0: 10, x1: 50, y1: 50 }, viewport, origin, 0),
+      null
+    );
+    assert.equal(
+      calculateZoomToRect(
+        { x0: Number.NaN, y0: 10, x1: 50, y1: 50 },
+        { width: 800, height: 600 },
+        { x: 0, y: 0 },
+        1
+      ),
+      null
+    );
   });
 });
 
