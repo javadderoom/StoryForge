@@ -19,6 +19,7 @@ import type {
   MapPoint,
   MapTerrainFeature,
   WorldLocation,
+  WorldMapSettings,
   WorldTradeRoute,
 } from '@/lib/types/world';
 
@@ -68,6 +69,29 @@ function route(over: Partial<WorldTradeRoute> = {}): WorldTradeRoute {
     waypoints: [],
     ...over,
   } as WorldTradeRoute;
+}
+
+function layers(
+  over: Partial<WorldMapSettings['visibleLayers']> = {}
+): WorldMapSettings['visibleLayers'] {
+  return {
+    terrain: true,
+    water: true,
+    mountains: true,
+    valleys: true,
+    biomes: true,
+    settlements: true,
+    caravanRoutes: true,
+    npcs: true,
+    bestiary: true,
+    relics: true,
+    deities: true,
+    timeline: true,
+    factionBorders: true,
+    labels: true,
+    grid: true,
+    ...over,
+  };
 }
 
 describe('mapHitTest — geometry primitives', () => {
@@ -222,12 +246,12 @@ describe('mapHitTest — priority', () => {
   it('prefers a waypoint over the route stroke it sits on', () => {
     const candidates = buildMapHitCandidates({
       locations: [
-        location({ id: 'loc_a', coordinates: { x: 0, y: 0 } }),
-        location({ id: 'loc_b', coordinates: { x: 200, y: 0 } }),
+        location({ id: 'loc_a', coordinates: { x: 10, y: 0 } }),
+        location({ id: 'loc_b', coordinates: { x: 210, y: 0 } }),
       ],
-      tradeRoutes: [route({ waypoints: [{ x: 100, y: 0 }] })],
+      tradeRoutes: [route({ waypoints: [{ x: 110, y: 0 }] })],
     });
-    const hit = hitTestMapObjects({ x: 100, y: 0 }, candidates);
+    const hit = hitTestMapObjects({ x: 110, y: 0 }, candidates);
     assert.ok(hit);
     assert.equal(hit.kind, 'waypoint');
   });
@@ -235,12 +259,12 @@ describe('mapHitTest — priority', () => {
   it('picks a route stroke away from its waypoints', () => {
     const candidates = buildMapHitCandidates({
       locations: [
-        location({ id: 'loc_a', coordinates: { x: 0, y: 0 } }),
-        location({ id: 'loc_b', coordinates: { x: 200, y: 0 } }),
+        location({ id: 'loc_a', coordinates: { x: 10, y: 0 } }),
+        location({ id: 'loc_b', coordinates: { x: 210, y: 0 } }),
       ],
       tradeRoutes: [route()],
     });
-    const hit = hitTestMapObjects({ x: 100, y: 0 }, candidates);
+    const hit = hitTestMapObjects({ x: 110, y: 0 }, candidates);
     assert.ok(hit);
     assert.equal(hit.kind, 'trade_route');
   });
@@ -293,14 +317,124 @@ describe('mapHitTest — hidden and locked objects', () => {
   });
 });
 
+describe('mapHitTest — layer visibility', () => {
+  it('never picks a settlement from a hidden settlements layer', () => {
+    const input = { locations: [location()] };
+    assert.ok(hitTestMapObjectsIn({ x: 50, y: 50 }, input, { visibleLayers: layers() }));
+    assert.equal(
+      hitTestMapObjectsIn({ x: 50, y: 50 }, input, {
+        visibleLayers: layers({ settlements: false }),
+      }),
+      null
+    );
+  });
+
+  it('never picks a route stroke or waypoint from a hidden caravan-routes layer', () => {
+    const input = {
+      locations: [
+        location({ id: 'loc_a', coordinates: { x: 10, y: 50 } }),
+        location({ id: 'loc_b', coordinates: { x: 210, y: 50 } }),
+      ],
+      tradeRoutes: [route({ waypoints: [{ x: 110, y: 50 }] })],
+    };
+
+    // Both the waypoint dot and the stroke disappear with the layer.
+    assert.equal(
+      hitTestMapObjectsIn({ x: 110, y: 50 }, input, {
+        visibleLayers: layers({ caravanRoutes: false }),
+      }),
+      null
+    );
+    assert.equal(
+      hitTestMapObjectsIn({ x: 150, y: 50 }, input, {
+        visibleLayers: layers({ caravanRoutes: false }),
+      }),
+      null
+    );
+
+    // Hiding only the settlements keeps the route pickable.
+    assert.equal(
+      hitTestMapObjectsIn({ x: 110, y: 50 }, input, {
+        visibleLayers: layers({ settlements: false }),
+      })?.kind,
+      'waypoint'
+    );
+  });
+
+  it('never picks terrain from a hidden category layer', () => {
+    const input = { terrainFeatures: [terrain()] };
+    assert.equal(
+      hitTestMapObjectsIn({ x: 50, y: 50 }, input, {
+        visibleLayers: layers({ terrain: false }),
+      }),
+      null
+    );
+    // The wrong category switch must not hide it.
+    assert.ok(
+      hitTestMapObjectsIn({ x: 50, y: 50 }, input, {
+        visibleLayers: layers({ water: false }),
+      })
+    );
+
+    const river = terrain({
+      id: 'terr_river',
+      name: 'River',
+      type: 'river',
+      polygon: undefined,
+      points: [
+        { x: 0, y: 200 },
+        { x: 200, y: 200 },
+      ],
+    });
+    assert.equal(
+      hitTestMapObjectsIn({ x: 100, y: 200 }, { terrainFeatures: [river] }, {
+        visibleLayers: layers({ water: false }),
+      }),
+      null
+    );
+  });
+
+  it('never picks a pin from a hidden pin layer', () => {
+    assert.equal(
+      hitTestMapObjectsIn({ x: 50, y: 50 }, { placements: [placement()] }, {
+        visibleLayers: layers({ npcs: false }),
+      }),
+      null
+    );
+  });
+
+  it('still picks a visible object when a hidden layer covers it', () => {
+    const input = {
+      locations: [location()],
+      terrainFeatures: [terrain()],
+      placements: [placement()],
+    };
+    // Hiding settlements removes the top pin; the visible lore pin below it
+    // wins instead of the click falling through to nothing.
+    assert.equal(
+      hitTestMapObjectsIn({ x: 50, y: 50 }, input, {
+        visibleLayers: layers({ settlements: false }),
+      })?.kind,
+      'placement'
+    );
+    // With pins hidden too, the visible continent is still pickable.
+    assert.equal(
+      hitTestMapObjectsIn({ x: 50, y: 50 }, input, {
+        visibleLayers: layers({ settlements: false, npcs: false }),
+      })?.kind,
+      'terrain'
+    );
+  });
+});
+
 describe('mapHitTest — candidate construction', () => {
   it('builds candidates for every pickable kind', () => {
     const candidates = buildMapHitCandidates({
       locations: [
-        location({ id: 'loc_a', coordinates: { x: 0, y: 0 } }),
-        location({ id: 'loc_b', coordinates: { x: 200, y: 0 } }),
+        location({ id: 'loc_a', coordinates: { x: 10, y: 0 } }),
+        location({ id: 'loc_b', coordinates: { x: 210, y: 0 } }),
       ],
-      tradeRoutes: [route({ waypoints: [{ x: 100, y: 0 }] })],
+      tradeRoutes: [route({ waypoints: [{ x: 110, y: 0 }] })],
       terrainFeatures: [terrain()],
       placements: [placement()],
     });
@@ -312,9 +446,12 @@ describe('mapHitTest — candidate construction', () => {
     assert.equal(kinds.filter((k) => k === 'placement').length, 1);
   });
 
-  it('skips locations that have no coordinates', () => {
+  it('skips locations without coordinates and the unplaced sentinel', () => {
     const candidates = buildMapHitCandidates({
-      locations: [location({ id: 'loc_none', coordinates: undefined })],
+      locations: [
+        location({ id: 'loc_none', coordinates: undefined }),
+        location({ id: 'loc_unplaced', coordinates: { x: 0, y: 50 } }),
+      ],
     });
     assert.equal(candidates.length, 0);
   });
@@ -323,6 +460,16 @@ describe('mapHitTest — candidate construction', () => {
     const candidates = buildMapHitCandidates({
       tradeRoutes: [route()],
     });
+    assert.equal(candidates.filter((c) => c.kind === 'trade_route').length, 0);
+  });
+
+  it('does not index waypoints of a route the renderer never draws', () => {
+    const candidates = buildMapHitCandidates({
+      locations: [location({ id: 'loc_a', coordinates: { x: 10, y: 10 } })],
+      // loc_b does not exist, so the renderer skips the whole route.
+      tradeRoutes: [route({ waypoints: [{ x: 100, y: 100 }] })],
+    });
+    assert.equal(candidates.filter((c) => c.kind === 'waypoint').length, 0);
     assert.equal(candidates.filter((c) => c.kind === 'trade_route').length, 0);
   });
 });

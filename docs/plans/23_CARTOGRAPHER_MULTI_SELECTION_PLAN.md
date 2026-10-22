@@ -79,6 +79,18 @@ Intersection, not bounding-box containment:
 `mapObjectOrder.ts`; the renderer and the selection now read the same mapping,
 so Ctrl+A can never select something that is not on screen.
 
+Click picking reads those rules too. The engine's `pickAt` receives the live
+`visibleLayers`, so a layer that is switched off disables its settlements,
+routes, terrain categories and pins for clicks as well as for drawing. Hiding
+an element therefore leaves empty parchment behind: clicking its old spot
+selects nothing. Per-object `visible: false` / `locked: true` on terrain and
+pins is already checked in the same hit test.
+
+Candidate construction mirrors the renderer as well: unplaced settlements
+(`coordinates.x <= 0`) and routes missing an endpoint are not indexed at all.
+The renderer never draws them, so indexing their waypoint dots would make
+invisible handles clickable.
+
 ## Clipboard rules
 
 Copy snapshots a detached payload (`structuredClone`), so editing or deleting
@@ -179,6 +191,9 @@ selected, because they are editing affordances, not selection decoration.
   settlements / route waypoints while unselected objects keep their identity.
 - `pixiMath.test.ts` — zoom-box fit, centring, reversed drags, zoom clamping
   and degenerate-input rejection.
-- Full suite — 1402/1402 passing.
+- `mapHitTest.test.ts` — 31 tests, including layer-switch picking (settlements,
+  caravan routes, terrain categories, pins), hidden route waypoints, and
+  candidate construction that skips unplaced settlements and undrawn routes.
+- Full suite — 1408/1408 passing.
 - `npx tsc --noEmit` — clean.
 - `npx next build --webpack` — clean.

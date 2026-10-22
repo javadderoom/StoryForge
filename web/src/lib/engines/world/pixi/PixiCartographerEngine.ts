@@ -420,8 +420,15 @@ export class PixiCartographerEngine {
    * The spatial index narrows the world down to the few objects whose bounds
    * are near the click; the exact geometry test (point-in-polygon, distance to
    * a segment) then decides which of them was really hit.
+   *
+   * `visibleLayers` is the live layer-panel state. Passing it makes a hidden
+   * layer unpickable, so clicking the empty parchment where a hidden town or
+   * road used to be selects nothing instead of an invisible object.
    */
-  public pickAt(point: MapPoint): MapHit | null {
+  public pickAt(
+    point: MapPoint,
+    visibleLayers: WorldMapSettings['visibleLayers']
+  ): MapHit | null {
     const PAD = 40;
     const rough = this.spatialIndex.searchBBox(
       point.x - PAD,
@@ -430,7 +437,7 @@ export class PixiCartographerEngine {
       point.y + PAD
     );
     const candidates = rough.map((item) => item.data as MapHitCandidate);
-    return hitTestMapObjects(point, candidates);
+    return hitTestMapObjects(point, candidates, { visibleLayers });
   }
 
   /**

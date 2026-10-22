@@ -553,7 +553,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     // the middle/right button, and Alt + left-drag is the zoom box, so the
     // primary button is free for the design-tool gestures authors expect.
     if (activeTool === 'select' && engineRef.current) {
-      const hit = engineRef.current.pickAt(worldPoint);
+      // Layer switches hide objects visually; they must hide them from the
+      // picker too, otherwise clicking their empty spot still selects them.
+      const hit = engineRef.current.pickAt(worldPoint, settings.visibleLayers);
       const additive = e.shiftKey || e.ctrlKey || e.metaKey;
 
       if (hit) {

@@ -25,6 +25,8 @@
  *    sits in).
  *  - Hidden and locked objects are never picked. A locked object is unlocked
  *    from the object list, exactly like a locked layer in a design tool.
+ *  - Objects on a layer the author switched off are never picked, so a hidden
+ *    settlement or road leaves genuine empty parchment behind.
  *
  * Pure module: no React, no Pixi, no DOM — so the behaviour is unit-testable
  * without a browser.
@@ -35,9 +37,16 @@ import type {
   MapPoint,
   MapTerrainFeature,
   WorldLocation,
+  WorldMapSettings,
   WorldTradeRoute,
 } from '@/lib/types/world';
-import { effectiveTerrainZIndex, isObjectLocked, isObjectVisible } from './mapObjectOrder';
+import {
+  effectiveTerrainZIndex,
+  isObjectLocked,
+  isObjectVisible,
+  isPlacementVisibleInLayers,
+  isTerrainVisibleInLayers,
+} from './mapObjectOrder';
 
 /** Pick priority tiers — lower wins. */
 export const HIT_TIER = {
@@ -87,6 +96,12 @@ export interface MapHitTestOptions {
   grabRadius?: number;
   /** Extra tolerance around a polygon edge. */
   edgeTolerance?: number;
+  /**
+   * The layer switches currently on screen. When provided, objects whose
+   * layer is switched off are not pickable — hiding a layer must disable its
+   * objects for clicking, exactly as it disables them for drawing.
+   */
+  visibleLayers?: WorldMapSettings['visibleLayers'];
 }
 
 export const DEFAULT_GRAB_RADIUS = 14;
@@ -184,6 +199,10 @@ export interface MapHitCandidateInput {
  * Flattens the world into a list of pickable objects. The route polyline is
  * resolved here (origin → waypoints → destination) so a click on the stroke
  * of a road can be picked, not only its waypoint dots.
+ *
+ * Only objects the renderer can actually draw are indexed: a location at the
+ * unplaced `x <= 0` sentinel and a route with a missing endpoint have no ink on
+ * the map, so indexing them would create invisible click targets.
  */
 export function buildMapHitCandidates(input: MapHitCandidateInput): MapHitCandidate[] {
   const candidates: MapHitCandidate[] = [];
@@ -191,7 +210,9 @@ export function buildMapHitCandidates(input: MapHitCandidateInput): MapHitCandid
   const routes = input.tradeRoutes ?? [];
 
   for (const loc of locations) {
-    if (loc.coordinates) {
+    // x <= 0 is the "not placed on the map" sentinel; the renderer skips those
+    // settlements, so they must not be pickable at the left edge either.
+    if (loc.coordinates && loc.coordinates.x > 0) {
       candidates.push({ kind: 'location', id: loc.id, location: loc });
     }
   }
@@ -199,17 +220,21 @@ export function buildMapHitCandidates(input: MapHitCandidateInput): MapHitCandid
   for (const route of routes) {
     const origin = locations.find((l) => l.id === route.originLocationId);
     const dest = locations.find((l) => l.id === route.destinationLocationId);
+    // A route without both endpoint coordinates is not drawn. Its waypoint
+    // dots are not drawn either, so indexing them would make invisible
+    // handles clickable.
+    if (!origin?.coordinates || !dest?.coordinates) continue;
+
     const waypoints = route.waypoints ?? [];
     waypoints.forEach((point, index) => {
       candidates.push({ kind: 'waypoint', id: `wp_${route.id}_${index}`, routeId: route.id, index, point });
     });
-    const stroke: MapPoint[] = [];
-    if (origin?.coordinates) stroke.push(origin.coordinates);
-    stroke.push(...waypoints);
-    if (dest?.coordinates) stroke.push(dest.coordinates);
-    if (stroke.length > 1) {
-      candidates.push({ kind: 'trade_route', id: route.id, route, points: stroke });
-    }
+    candidates.push({
+      kind: 'trade_route',
+      id: route.id,
+      route,
+      points: [origin.coordinates, ...waypoints, dest.coordinates],
+    });
   }
 
   for (const feature of input.terrainFeatures ?? []) {
@@ -302,10 +327,12 @@ function hitFor(
   candidate: MapHitCandidate,
   point: MapPoint,
   grab: number,
-  edge: number
+  edge: number,
+  layers?: WorldMapSettings['visibleLayers']
 ): MapHit | null {
   switch (candidate.kind) {
     case 'location': {
+      if (layers && !layers.settlements) return null;
       const c = candidate.location.coordinates!;
       const distance = Math.hypot(point.x - c.x, point.y - c.y);
       if (distance > grab + 12) return null;
@@ -321,6 +348,7 @@ function hitFor(
     }
 
     case 'waypoint': {
+      if (layers && !layers.caravanRoutes) return null;
       const distance = Math.hypot(point.x - candidate.point.x, point.y - candidate.point.y);
       if (distance > grab) return null;
       return {
@@ -337,6 +365,7 @@ function hitFor(
     case 'placement': {
       const placement = candidate.placement;
       if (!isObjectVisible(placement) || isObjectLocked(placement)) return null;
+      if (layers && !isPlacementVisibleInLayers(placement.entityType, layers)) return null;
       const distance = Math.hypot(point.x - placement.x, point.y - placement.y);
       if (distance > grab) return null;
       return {
@@ -351,6 +380,7 @@ function hitFor(
     }
 
     case 'trade_route': {
+      if (layers && !layers.caravanRoutes) return null;
       const distance = distanceToPolyline(point, candidate.points);
       if (distance > grab) return null;
       return {
@@ -365,7 +395,7 @@ function hitFor(
     }
 
     case 'terrain':
-      return hitTerrain(candidate, point, grab, edge);
+      return hitTerrain(candidate, point, grab, edge, layers);
   }
 }
 
@@ -373,10 +403,12 @@ function hitTerrain(
   candidate: Extract<MapHitCandidate, { kind: 'terrain' }>,
   point: MapPoint,
   grab: number,
-  edge: number
+  edge: number,
+  layers?: WorldMapSettings['visibleLayers']
 ): MapHit | null {
   const feature = candidate.feature;
   if (!isObjectVisible(feature) || isObjectLocked(feature)) return null;
+  if (layers && !isTerrainVisibleInLayers(feature.type, layers)) return null;
 
   const zIndex = effectiveTerrainZIndex(feature, 0);
 
@@ -469,10 +501,11 @@ export function hitTestMapObjects(
 ): MapHit | null {
   const grab = options?.grabRadius ?? DEFAULT_GRAB_RADIUS;
   const edge = options?.edgeTolerance ?? DEFAULT_EDGE_TOLERANCE;
+  const layers = options?.visibleLayers;
 
   let best: MapHit | null = null;
   for (const candidate of candidates) {
-    const hit = hitFor(candidate, point, grab, edge);
+    const hit = hitFor(candidate, point, grab, edge, layers);
     if (!hit) continue;
     if (!best || compareMapHits(hit, best) < 0) best = hit;
   }
