@@ -90,13 +90,16 @@ class _AfsanehSazAppState extends ConsumerState<AfsanehSazApp> {
     // Feed the dice overlay the SERVER's authoritative resolution as soon as
     // the turn resolves, or report errors if the turn fails.
     ref.listen<GameSessionState>(gameSessionProvider, (prev, next) {
-      if (next.errorMessage != null && next.errorMessage != prev?.errorMessage) {
-        ref.read(diceOverlayProvider.notifier).reportError(next.errorMessage!);
-      }
-      final resolution = next.lastResolution;
-      if (resolution == null) return;
-      if (prev != null && identical(prev.lastResolution, resolution)) return;
-      ref.read(diceOverlayProvider.notifier).applyServerResolution(resolution);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (next.errorMessage != null && next.errorMessage != prev?.errorMessage) {
+          ref.read(diceOverlayProvider.notifier).reportError(next.errorMessage!);
+        }
+        final resolution = next.lastResolution;
+        if (resolution == null) return;
+        if (prev != null && identical(prev.lastResolution, resolution)) return;
+        ref.read(diceOverlayProvider.notifier).applyServerResolution(resolution);
+      });
     });
 
     return MaterialApp(

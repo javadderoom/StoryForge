@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -23,18 +24,29 @@ class ThreeD20DiceView extends StatefulWidget {
 }
 
 class ThreeD20DiceViewState extends State<ThreeD20DiceView> {
-  late final WebViewController? _controller;
+  WebViewController? _controller;
   bool _isModelLoaded = false;
 
   void roll(int targetNum) {
+    if (_controller == null) {
+      Future.delayed(const Duration(milliseconds: 1200), () {
+        if (mounted) widget.onRollComplete?.call();
+      });
+      return;
+    }
     _controller?.runJavaScript('if (window.rollDice) window.rollDice($targetNum);');
   }
 
   @override
   void initState() {
     super.initState();
-    if (WebViewPlatform.instance == null) {
+    if (kIsWeb || WebViewPlatform.instance == null) {
       _controller = null;
+      if (widget.isRolling) {
+        Future.delayed(const Duration(milliseconds: 1200), () {
+          if (mounted) widget.onRollComplete?.call();
+        });
+      }
       return;
     }
     _controller = WebViewController()
@@ -74,6 +86,14 @@ class ThreeD20DiceViewState extends State<ThreeD20DiceView> {
   @override
   void didUpdateWidget(covariant ThreeD20DiceView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (_controller == null) {
+      if (widget.isRolling && !oldWidget.isRolling) {
+        Future.delayed(const Duration(milliseconds: 1200), () {
+          if (mounted) widget.onRollComplete?.call();
+        });
+      }
+      return;
+    }
     if (widget.isRolling && (!oldWidget.isRolling || widget.resultNumber != oldWidget.resultNumber)) {
       _triggerRoll(widget.resultNumber);
     } else if (!widget.isRolling && widget.resultNumber != oldWidget.resultNumber) {
@@ -103,7 +123,7 @@ class ThreeD20DiceViewState extends State<ThreeD20DiceView> {
               opacity: _isModelLoaded ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 150),
               child: _controller != null
-                  ? WebViewWidget(controller: _controller)
+                  ? WebViewWidget(controller: _controller!)
                   : const SizedBox.shrink(),
             ),
           ),

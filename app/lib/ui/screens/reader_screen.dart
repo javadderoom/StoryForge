@@ -518,8 +518,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
       // Reset turn status delta notification dismissal on new turn changes
       if (next.lastStatusDelta != null && next.lastStatusDelta != prev?.lastStatusDelta) {
-        setState(() {
-          _isStatusDeltaDismissed = false;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _isStatusDeltaDismissed = false;
+            });
+          }
         });
       }
 

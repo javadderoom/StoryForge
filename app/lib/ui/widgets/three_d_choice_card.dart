@@ -148,13 +148,13 @@ class _ThreeDChoiceCardState extends State<ThreeDChoiceCard>
         HapticFeedback.selectionClick();
         setState(() => _isPressed = true);
         final renderBox = context.findRenderObject() as RenderBox?;
-        if (renderBox != null) {
+        if (renderBox != null && renderBox.hasSize) {
           _handlePanUpdate(details.localPosition, renderBox.size);
         }
       },
       onPanUpdate: (details) {
         final renderBox = context.findRenderObject() as RenderBox?;
-        if (renderBox != null) {
+        if (renderBox != null && renderBox.hasSize) {
           _handlePanUpdate(details.localPosition, renderBox.size);
         }
       },
