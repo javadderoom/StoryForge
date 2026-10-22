@@ -512,7 +512,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     // narrative arrives with an incremented turnNumber — scroll back to the
     // top so the player reads the new prose instead of stale choices.
     ref.listen<GameSessionState>(gameSessionProvider, (prev, next) {
-      if (prev != null && next.turnNumber != prev.turnNumber) {
+      if (prev != null && (next.turnNumber != prev.turnNumber || (prev.currentNarrative.isNotEmpty && next.currentNarrative.isEmpty))) {
         _scrollToTop();
       }
 
@@ -1381,6 +1381,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                   if (session.isLoading) ...[
                                     const SizedBox(height: 20),
                                     _buildNarrativeScribeLoader(theme, isPersian),
+                                  ] else if (session.isStreamingNarrative) ...[
+                                    const SizedBox(height: 12),
+                                    _buildStreamingIndicator(theme, isPersian),
                                   ],
                                 ],
                               ),
@@ -1388,7 +1391,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                             const SizedBox(height: 24),
 
                             // Scene Action Bar: Remake Scene
-                            if (!session.isLoading && session.currentNarrative.isNotEmpty && session.turnNumber > 1) ...[
+                            if (!session.isLoading && !session.isStreamingNarrative && session.currentNarrative.isNotEmpty && session.turnNumber > 1) ...[
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 16),
                                 child: Row(
@@ -1739,6 +1742,39 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
               color: Colors.white70,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStreamingIndicator(RealmTheme theme, bool isPersian) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.primaryAccent.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.primaryAccent.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 10,
+            height: 10,
+            child: CircularProgressIndicator(
+              color: theme.primaryAccent,
+              strokeWidth: 1.8,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            isPersian ? 'در حال نگارش ماجرا...' : 'The ink continues to flow...',
+            style: GoogleFonts.vazirmatn(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: theme.primaryAccent,
             ),
           ),
         ],

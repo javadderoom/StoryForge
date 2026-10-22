@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import '@/lib/ai/geminiProxy';
+import { StreamingJsonNarrativeExtractor } from '../engines/narrative/streamingExtractor';
 import { GenerationPromptPayload } from '../engines/narrative/PromptAssembler';
 import {
   SceneModelCall,
@@ -440,6 +441,33 @@ export class GeminiAdapter {
     // Legacy direct-SDK fallback (the cascading queue returned nothing).
     if (!this.client) return null;
     try {
+      if (typeof options.onTextDelta === 'function') {
+        const responseStream = await (this.client.models as any).generateContentStream({
+          model: this.modelName,
+          contents: [
+            { role: 'system', parts: [{ text: prompt.systemPrompt }] },
+            { role: 'user', parts: [{ text: prompt.userPrompt }] },
+          ],
+          config: {
+            responseMimeType: 'application/json',
+            temperature: options.temperature ?? 0.75,
+          },
+        });
+        const extractor = new StreamingJsonNarrativeExtractor();
+        for await (const chunk of responseStream) {
+          const chunkText = chunk.text || '';
+          if (chunkText) {
+            extractor.pushChunk(chunkText, (delta) => options.onTextDelta?.(delta));
+          }
+        }
+        const text = extractor.getFullRawText() || '{}';
+        return {
+          data: JSON.parse(text) as RawSceneData,
+          rawText: text,
+          modelUsed: this.modelName,
+        };
+      }
+
       const response = await this.client.models.generateContent({
         model: this.modelName,
         contents: [

@@ -79,6 +79,8 @@ export interface SceneTurnInput {
   turnNumber?: number;
   /** Plan 17: the journey reached its destination this turn (arrival scene). */
   travelArrival?: { locationId: string; name: string };
+  /** Real-time callback invoked with narrative token deltas as they stream from the LLM. */
+  onTextDelta?: (delta: string) => void;
 }
 
 export interface SceneAiResponse {
@@ -615,7 +617,9 @@ export async function generateValidatedScene(
   if (input.remakeDirective) {
     promptPayload.userPrompt = `${promptPayload.userPrompt}\n\n${input.remakeDirective}`;
   }
-  const { response: aiResponse, raw } = await adapter.generateSceneWithRaw(promptPayload);
+  const { response: aiResponse, raw } = await adapter.generateSceneWithRaw(promptPayload, {
+    onTextDelta: input.onTextDelta,
+  });
 
   // Plan 08 Phase 1: NEVER persist mock/offline output as story canon.
   if (aiResponse.isMock) {

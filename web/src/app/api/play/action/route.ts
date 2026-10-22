@@ -35,10 +35,106 @@ export async function OPTIONS(req: NextRequest) {
   return handleCorsPreflight(req);
 }
 
+export interface StreamWriter {
+  sendEvent: (event: string, data: any) => Promise<void>;
+  close: () => Promise<void>;
+}
+
 export async function POST(req: NextRequest) {
   const turnStartTime = Date.now();
+  let body: any;
   try {
-    const body = await req.json();
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { success: false, error: 'Invalid JSON body' },
+      { status: 400, headers: buildCorsHeaders(req) }
+    );
+  }
+
+  const isStreamRequested =
+    body?.stream === true ||
+    Boolean(req.headers.get('accept')?.includes('text/event-stream'));
+
+  if (isStreamRequested) {
+    const responseStream = new TransformStream();
+    const writer = responseStream.writable.getWriter();
+    const encoder = new TextEncoder();
+
+    const streamWriter: StreamWriter = {
+      sendEvent: async (event, data) => {
+        try {
+          await writer.write(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        } catch {
+          /* client disconnected */
+        }
+      },
+      close: async () => {
+        try {
+          await writer.close();
+        } catch {
+          /* already closed */
+        }
+      },
+    };
+
+    (async () => {
+      try {
+        await processTurnAction(req, body, turnStartTime, streamWriter);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Turn action failed';
+        await streamWriter.sendEvent('error', { error: msg });
+      } finally {
+        await streamWriter.close();
+      }
+    })();
+
+    return new Response(responseStream.readable, {
+      headers: {
+        ...buildCorsHeaders(req),
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      },
+    });
+  }
+
+  try {
+    const res = await processTurnAction(req, body, turnStartTime);
+    return res!;
+  } catch (error) {
+    console.error('Turn action processing error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to process turn';
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500, headers: buildCorsHeaders(req) }
+    );
+  }
+}
+
+async function processTurnAction(
+  req: NextRequest,
+  body: any,
+  turnStartTime: number,
+  streamWriter?: StreamWriter
+): Promise<NextResponse | null> {
+  const respond = (payload: any, status = 200): NextResponse | null => {
+    if (streamWriter) {
+      const eventName = payload.creditDepleted
+        ? 'credit_depleted'
+        : payload.isGuardrailViolation
+        ? 'guardrail_violation'
+        : payload.success === false
+        ? 'error'
+        : 'complete';
+      streamWriter.sendEvent(eventName, payload.data ?? payload);
+      return null;
+    }
+    return NextResponse.json(payload, { status, headers: buildCorsHeaders(req) });
+  };
+
+  try {
     let {
       storyId,
       sessionId,
@@ -64,19 +160,13 @@ export async function POST(req: NextRequest) {
       undefined;
 
     if (!storyId) {
-      return NextResponse.json(
-        { success: false, error: 'storyId is required' },
-        { status: 400, headers: buildCorsHeaders(req) }
-      );
+      return respond({ success: false, error: 'storyId is required' }, 400);
     }
 
     const rawStory = await StoryRepository.getStoryById(storyId);
 
     if (!rawStory && !body?.draftManifest) {
-      return NextResponse.json(
-        { success: false, error: 'Story not found' },
-        { status: 404, headers: buildCorsHeaders(req) }
-      );
+      return respond({ success: false, error: 'Story not found' }, 404);
     }
 
     const baseStory = rawStory || (body.draftManifest as any);
@@ -93,10 +183,7 @@ export async function POST(req: NextRequest) {
     const story = migrateStoryManifestToUnifiedGraph(storyToMigrate);
 
     if (!playerActionText || typeof playerActionText !== 'string') {
-      return NextResponse.json(
-        { success: false, error: 'playerActionText is required' },
-        { status: 400, headers: buildCorsHeaders(req) }
-      );
+      return respond({ success: false, error: 'playerActionText is required' }, 400);
     }
 
     // Resolve the caller BEFORE loading the session so ownership can be checked.
@@ -117,10 +204,7 @@ export async function POST(req: NextRequest) {
       : null;
 
     if (sessionId && !session) {
-      return NextResponse.json(
-        { success: false, error: 'Session not found' },
-        { status: 404, headers: buildCorsHeaders(req) }
-      );
+      return respond({ success: false, error: 'Session not found' }, 404);
     }
 
     // Plan 15 §2.3 (Phase 6): the reader just acted — abort any Snap dwell
@@ -137,10 +221,7 @@ export async function POST(req: NextRequest) {
     let playerState: PlayerState = (session?.playerState as PlayerState | undefined) ?? incomingPlayerState;
 
     if (!playerState || !playerState.stats) {
-      return NextResponse.json(
-        { success: false, error: 'playerState is required when no sessionId is provided' },
-        { status: 400, headers: buildCorsHeaders(req) }
-      );
+      return respond({ success: false, error: 'playerState is required when no sessionId is provided' }, 400);
     }
 
     // Reconcile vitals against current studio Resource Pools before resolving.
@@ -173,7 +254,7 @@ export async function POST(req: NextRequest) {
 
     // Credit metering. Remakes are free (0 credits).
     if (auth && sceneCreditCost > 0 && auth.user.creditBalance < sceneCreditCost) {
-      return NextResponse.json(
+      return respond(
         {
           success: false,
           creditDepleted: true,
@@ -184,7 +265,7 @@ export async function POST(req: NextRequest) {
           remainingCredits: auth.user.creditBalance,
           requiredCredits: sceneCreditCost,
         },
-        { status: 402, headers: buildCorsHeaders(req) }
+        402
       );
     }
 
@@ -238,29 +319,26 @@ export async function POST(req: NextRequest) {
             : Date.now(),
       };
 
-      return NextResponse.json(
-        {
-          success: true,
-          data: {
-            beat: existingBeat,
-            resolution: lastTurn.resolution,
-            progression: (lastTurn.resolution as any)?.progression,
-            updatedPlayerState: session.playerState,
-            sagaLedger: (session as any).sagaLedger,
-            activeChapterId: (session as any).currentChapterId ?? null,
-            remainingCredits: auth?.user?.creditBalance ?? null,
-            remakeUsed: false,
-            remakeCount: (lastTurn as any).remakeCount ?? 0,
-            activeTensionClocks: (session.playerState as any)?.activeTensionClocks ?? [],
-          },
+      return respond({
+        success: true,
+        data: {
+          beat: existingBeat,
+          resolution: lastTurn.resolution,
+          progression: (lastTurn.resolution as any)?.progression,
+          updatedPlayerState: session.playerState,
+          sagaLedger: (session as any).sagaLedger,
+          activeChapterId: session.currentChapterId ?? null,
+          remainingCredits: auth?.user?.creditBalance ?? null,
+          remakeUsed: false,
+          remakeCount: (lastTurn as any).remakeCount ?? 0,
+          activeTensionClocks: (session.playerState as any)?.activeTensionClocks ?? [],
         },
-        { headers: buildCorsHeaders(req) }
-      );
+      });
     }
 
     if (isRemake) {
       if (!session || sessionTurns.length === 0 || !lastTurn) {
-        return NextResponse.json(
+        return respond(
           {
             success: false,
             error:
@@ -268,11 +346,11 @@ export async function POST(req: NextRequest) {
                 ? 'صحنه‌ای برای بازسازی وجود ندارد.'
                 : 'No scene available to remake.',
           },
-          { status: 400, headers: buildCorsHeaders(req) }
+          400
         );
       }
       if (((lastTurn as any)?.remakeCount ?? 0) >= 1) {
-        return NextResponse.json(
+        return respond(
           {
             success: false,
             error:
@@ -280,7 +358,7 @@ export async function POST(req: NextRequest) {
                 ? 'این صحنه قبلاً یک‌بار بازسازی شده است. هر صحنه حداکثر ۱ بار امکان بازسازی رایگان دارد.'
                 : 'This scene has already been remade. Only 1 free remake is allowed per scene.',
           },
-          { status: 400, headers: buildCorsHeaders(req) }
+          400
         );
       }
       // Inherit the action text and turn number from the turn being remade
@@ -411,15 +489,12 @@ export async function POST(req: NextRequest) {
     );
 
     if (!validation.isValid) {
-      return NextResponse.json(
-        {
-          success: false,
-          rejectionReason: validation.rejectionReason,
-          suggestedAction: validation.suggestedAction,
-          isGuardrailViolation: true,
-        },
-        { headers: buildCorsHeaders(req) }
-      );
+      return respond({
+        success: false,
+        rejectionReason: validation.rejectionReason,
+        suggestedAction: validation.suggestedAction,
+        isGuardrailViolation: true,
+      });
     }
 
     // 2. Deterministic Game Engine Check Resolution
@@ -448,14 +523,14 @@ export async function POST(req: NextRequest) {
         turnNumber
       );
       if (!abilityCheck.ok) {
-        return NextResponse.json(
+        return respond(
           {
             success: false,
             rejectionReason: isPersianStory ? abilityCheck.reasonFa : abilityCheck.reasonEn,
             isAbilityRejection: true,
             abilityBlockCode: abilityCheck.code,
           },
-          { headers: buildCorsHeaders(req) }
+          400
         );
       }
     }
@@ -1071,6 +1146,19 @@ export async function POST(req: NextRequest) {
       ? story.initialStoryBeats?.find((b: any) => b.sceneId === targetSceneId)
       : undefined;
 
+    // Emit resolution immediately over stream so dice animations / banners fire with zero lag
+    if (streamWriter) {
+      await streamWriter.sendEvent('resolution', {
+        outcome: resolution.outcome,
+        diceRoll: resolution.diceRoll,
+        targetDC: resolution.difficultyClass,
+        difficultyClass: resolution.difficultyClass,
+        statId: resolution.statId,
+        consequenceSummary: resolution.consequenceSummary,
+        activeClocks: updatedPlayerState.activeTensionClocks ?? [],
+      });
+    }
+
     let sceneOutcome: SceneGenerationOutcome;
     const canServeAot =
       aotBranch?.narrative &&
@@ -1101,6 +1189,10 @@ export async function POST(req: NextRequest) {
         raw: null,
       };
       await markAotBranchServed(aotBranch.id);
+      if (streamWriter) {
+        await streamWriter.sendEvent('prose_delta', { delta: aotBranch.narrative });
+        await streamWriter.sendEvent('choices', { choices: aotBranch.choices });
+      }
     } else {
       sceneOutcome = await generateValidatedScene(
         {
@@ -1136,6 +1228,11 @@ export async function POST(req: NextRequest) {
           turnNumber,
           travelArrival: travelArrived,
           remakeDirective,
+          onTextDelta: streamWriter
+            ? (delta: string) => {
+                streamWriter.sendEvent('prose_delta', { delta });
+              }
+            : undefined,
         },
         activeNarrativeAdapter,
         (choices, currentProse) => {
@@ -1164,24 +1261,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-
     // Plan 08 Phase 1: NEVER persist mock/offline output as story canon.
     if (sceneOutcome.status === 'mock_unavailable') {
-      return NextResponse.json(
+      return respond(
         {
           success: false,
           error:
             'AI narration is unavailable right now (offline or API failure). The turn was NOT recorded to protect story consistency. Please retry.',
           isMock: true,
         },
-        { status: 503, headers: buildCorsHeaders(req) }
+        503
       );
     }
 
     // Prose failed validation and could not be repaired.
     if (sceneOutcome.status === 'prose_invalid') {
       const repairUnavailable = sceneOutcome.proseInvalidReason === 'repair_unavailable';
-      return NextResponse.json(
+      return respond(
         {
           success: false,
           error: repairUnavailable
@@ -1190,13 +1286,17 @@ export async function POST(req: NextRequest) {
           proseInvalid: true,
           proseFindings: sceneOutcome.proseFindings,
         },
-        { status: 503, headers: buildCorsHeaders(req) }
+        503
       );
     }
 
     const aiResponse = sceneOutcome.aiResponse;
     const proseFindings = sceneOutcome.proseFindings;
     const proseRepaired = sceneOutcome.proseRepaired;
+
+    if (streamWriter && !canServeAot) {
+      await streamWriter.sendEvent('choices', { choices: aiResponse.choices });
+    }
 
     // Plan 17 (§3.7): reconcile the authoritative condition list with the prose
     // the writer just produced. The writer's `playerConditionChanges` channel is
@@ -1613,7 +1713,7 @@ export async function POST(req: NextRequest) {
     // Prevents an abrupt contrast between instant Snap AOT hits (<50ms) and normal
     // LLM generation misses (2-4s), preserving narrative immersion.
     // Bypassed in test environments to keep automated suites fast.
-    if (process.env.NODE_ENV !== 'test') {
+    if (process.env.NODE_ENV !== 'test' && !streamWriter) {
       const elapsedMs = Date.now() - turnStartTime;
       const MIN_DELAY_MS = 2000;
       if (elapsedMs < MIN_DELAY_MS) {
@@ -1621,43 +1721,40 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: {
-          beat: newBeat,
-          resolution: {
-            ...resolution,
-            proseFindings: proseFindings.length ? proseFindings : undefined,
-            proseRepaired: proseRepaired || undefined,
-          },
-          progression: resolution.progression || undefined,
-          updatedPlayerState,
-          sagaLedger: nextLedger,
-          activeChapterId: activeChapter?.id ?? null,
-          remainingCredits,
-          proseRepaired,
-          isDefeat: !!defeatNarrativeHint,
-          defeatCount: updatedPlayerState.defeatCount ?? 0,
-          // Plan 13: lets readers shift audio + banners without diffing states.
-          locationChanged: !!displacedLocationId,
-          displacedLocationId: displacedLocationId || undefined,
-          // Plan 17: the journey resolved into the destination this turn —
-          // clients flip the status art + arrival audio on it.
-          travelArrived: travelArrived || undefined,
-          activeTensionClocks: updatedPlayerState.activeTensionClocks ?? [],
-          remakeUsed: isRemake,
-          remakeCount: isRemake ? 1 : ((lastTurn as any)?.remakeCount ?? 0),
+    return respond({
+      success: true,
+      data: {
+        beat: newBeat,
+        resolution: {
+          ...resolution,
+          proseFindings: proseFindings.length ? proseFindings : undefined,
+          proseRepaired: proseRepaired || undefined,
         },
+        progression: resolution.progression || undefined,
+        updatedPlayerState,
+        sagaLedger: nextLedger,
+        activeChapterId: activeChapter?.id ?? null,
+        remainingCredits,
+        proseRepaired,
+        isDefeat: !!defeatNarrativeHint,
+        defeatCount: updatedPlayerState.defeatCount ?? 0,
+        // Plan 13: lets readers shift audio + banners without diffing states.
+        locationChanged: !!displacedLocationId,
+        displacedLocationId: displacedLocationId || undefined,
+        // Plan 17: the journey resolved into the destination this turn —
+        // clients flip the status art + arrival audio on it.
+        travelArrived: travelArrived || undefined,
+        activeTensionClocks: updatedPlayerState.activeTensionClocks ?? [],
+        remakeUsed: isRemake,
+        remakeCount: isRemake ? 1 : ((lastTurn as any)?.remakeCount ?? 0),
       },
-      { headers: buildCorsHeaders(req) }
-    );
+    });
   } catch (error) {
     console.error('Turn action processing error:', error);
     const message = error instanceof Error ? error.message : 'Failed to process turn';
-    return NextResponse.json(
+    return respond(
       { success: false, error: message },
-      { status: 500, headers: buildCorsHeaders(req) }
+      500
     );
   }
 }

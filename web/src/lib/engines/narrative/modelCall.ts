@@ -30,6 +30,12 @@ export interface SceneModelOptions {
    * gateways take `thinking.budget_tokens`.
    */
   thinkingBudgetTokens?: number;
+  /**
+   * Optional callback for real-time narrative streaming. When supplied, the
+   * underlying model call streams tokens and invokes this with decoded narrative
+   * text deltas as they are generated.
+   */
+  onTextDelta?: (delta: string) => void;
 }
 
 /**

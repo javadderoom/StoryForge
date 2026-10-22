@@ -60,6 +60,8 @@ class GameSessionState {
   final int remakeCount;
   /// Whether a remake request is currently in flight.
   final bool isRemaking;
+  /// Whether narrative prose is actively streaming chunk-by-chunk.
+  final bool isStreamingNarrative;
 
   GameSessionState({
     this.isLoading = false,
@@ -97,6 +99,7 @@ class GameSessionState {
     this.engineTier = 'normal',
     this.remakeCount = 0,
     this.isRemaking = false,
+    this.isStreamingNarrative = false,
   });
 
   int get sceneCreditCost {
@@ -156,6 +159,7 @@ class GameSessionState {
     String? engineTier,
     int? remakeCount,
     bool? isRemaking,
+    bool? isStreamingNarrative,
     bool clearSceneImage = false,
     bool clearPendingTurn = false,
     bool clearDisplacement = false,
@@ -208,6 +212,7 @@ class GameSessionState {
       engineTier: engineTier ?? this.engineTier,
       remakeCount: remakeCount ?? this.remakeCount,
       isRemaking: isRemaking ?? this.isRemaking,
+      isStreamingNarrative: isStreamingNarrative ?? this.isStreamingNarrative,
     );
   }
 
@@ -358,6 +363,10 @@ class GameSessionState {
 }
 
 class GameSessionNotifier extends Notifier<GameSessionState> {
+  bool _isHoldingNarrative = false;
+  String _streamingProseBuffer = '';
+  List<ChoiceOption> _streamingChoicesBuffer = const [];
+
   @override
   GameSessionState build() => GameSessionState();
 
@@ -492,14 +501,32 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
   }) async {
     if (state.playerState == null) return null;
 
+    _isHoldingNarrative = holdNarrativeUpdate;
+    _streamingProseBuffer = '';
+    _streamingChoicesBuffer = const [];
+
     if (!holdNarrativeUpdate) {
-      state = state.copyWith(isLoading: true, errorMessage: null, clearLastResolution: true);
+      state = state.copyWith(
+        isLoading: true,
+        isStreamingNarrative: false,
+        errorMessage: null,
+        clearLastResolution: true,
+        currentNarrative: '',
+        choices: const [],
+        lastActionText: choice.text,
+      );
     } else {
-      state = state.copyWith(errorMessage: null, clearLastResolution: true);
+      state = state.copyWith(
+        errorMessage: null,
+        clearLastResolution: true,
+        lastActionText: choice.text,
+      );
     }
 
+    CheckResolution? finalResolution;
+
     try {
-    final result = await GameApiService.sendAction(
+      final stream = GameApiService.sendActionStream(
         storyId: state.storyId,
         sessionId: state.sessionId.isNotEmpty ? state.sessionId : null,
         actionText: choice.text,
@@ -515,114 +542,163 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         engineTier: state.engineTier,
       );
 
-      if (result['creditDepleted'] == true) {
-        state = state.copyWith(
-          isLoading: false,
-          isCreditDepleted: true,
-          errorMessage: result['error'] ?? 'اعتبار صحنه‌های شما به پایان رسیده است.',
-        );
-        return null;
-      }
+      await for (final event in stream) {
+        final eventType = event['type'] as String?;
 
-      if (result['isGuardrailViolation'] == true) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: result['rejectionReason'] ?? 'Action blocked by World Laws',
-        );
-        return null;
-      }
-
-      if (result['success'] == true) {
-        final resData = result['data']['resolution'];
-        final resolution = resData != null ? CheckResolution.fromJson(resData) : null;
-        final rawProgression = result['data']['progression'] ?? resData?['progression'];
-        final xpAward = rawProgression != null ? ProgressionAward.fromJson(Map<String, dynamic>.from(rawProgression as Map)) : null;
-
-        // Update remaining credits in authProvider if provided
-        final remainingCredits = result['data']['remainingCredits'];
-        if (remainingCredits != null && remainingCredits is num) {
-          ref.read(authProvider.notifier).updateCreditBalance(remainingCredits.toInt());
-        }
-
-        final oldPlayer = state.playerState;
-        final rawPlayer = result['data']['updatedPlayerState'];
-        var updatedPlayer = PlayerState.fromJson(rawPlayer);
-        if ((rawPlayer['equipment'] == null || updatedPlayer.equipment.allEquippedIds.isEmpty) &&
-            state.playerState != null &&
-            state.playerState!.equipment.allEquippedIds.isNotEmpty) {
-          updatedPlayer = updatedPlayer.copyWith(equipment: state.playerState!.equipment);
-        }
-
-        final statusDelta = TurnStatusDelta.compute(
-          oldState: oldPlayer,
-          newState: updatedPlayer,
-          isPersian: state.isPersian,
-          rpgResources: state.rpgResources,
-          currencyDenominations: state.currencyDenominations,
-          xpAward: xpAward,
-        );
-
-        if (holdNarrativeUpdate) {
-          final pendingData = Map<String, dynamic>.from(result['data'] as Map);
-          if (statusDelta != null) {
-            pendingData['_computedStatusDelta'] = statusDelta;
+        if (eventType == 'error' || event['creditDepleted'] == true || event['isGuardrailViolation'] == true) {
+          if (event['creditDepleted'] == true) {
+            state = state.copyWith(
+              isLoading: false,
+              isStreamingNarrative: false,
+              isCreditDepleted: true,
+              errorMessage: event['error'] ?? 'اعتبار صحنه‌های شما به پایان رسیده است.',
+            );
+            return null;
           }
-          // Store in pending data so the background screen doesn't reveal the next scene
+          if (event['isGuardrailViolation'] == true) {
+            state = state.copyWith(
+              isLoading: false,
+              isStreamingNarrative: false,
+              errorMessage: event['rejectionReason'] ?? 'Action blocked by World Laws',
+            );
+            return null;
+          }
           state = state.copyWith(
-            pendingTurnData: pendingData,
-            lastResolution: resolution,
-            lastActionText: choice.text,
-            lastXpAward: xpAward,
-            isCreditDepleted: false,
-            remakeCount: 0,
-            lastDisplacement: GameSessionState.displacementName(result['data'], state.lore),
-            clearDisplacement: GameSessionState.displacementName(result['data'], state.lore) == null,
-            lastTravelArrived: GameSessionState.travelArrivalName(result['data'], state.lore),
-            clearTravelArrived: GameSessionState.travelArrivalName(result['data'], state.lore) == null,
+            isLoading: false,
+            isStreamingNarrative: false,
+            errorMessage: event['error'] ?? 'Turn failed',
           );
-        } else {
-          final beatData = result['data']['beat'];
-          final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? [];
+          return null;
+        }
+
+        if (eventType == 'resolution') {
+          final resData = event['resolution'];
+          final resolution = resData != null ? CheckResolution.fromJson(resData) : null;
+          finalResolution = resolution;
+          state = state.copyWith(lastResolution: resolution);
+          continue;
+        }
+
+        if (eventType == 'prose_delta') {
+          final delta = event['delta'] as String? ?? '';
+          _streamingProseBuffer += delta;
+
+          if (!_isHoldingNarrative) {
+            state = state.copyWith(
+              isLoading: false,
+              isStreamingNarrative: true,
+              currentNarrative: _streamingProseBuffer,
+            );
+          }
+          continue;
+        }
+
+        if (eventType == 'choices') {
+          final rawChoices = event['choices'] as List<dynamic>? ?? [];
+          _streamingChoicesBuffer = rawChoices.map((c) => ChoiceOption.fromJson(c)).toList();
+
+          if (!_isHoldingNarrative) {
+            state = state.copyWith(
+              choices: _streamingChoicesBuffer,
+            );
+          }
+          continue;
+        }
+
+        if (eventType == 'complete') {
+          final data = Map<String, dynamic>.from(event);
+          final resData = data['resolution'];
+          final resolution = resData != null ? CheckResolution.fromJson(resData) : finalResolution;
+          final rawProgression = data['progression'] ?? resData?['progression'];
+          final xpAward = rawProgression != null
+              ? ProgressionAward.fromJson(Map<String, dynamic>.from(rawProgression as Map))
+              : null;
+
+          final remainingCredits = data['remainingCredits'];
+          if (remainingCredits != null && remainingCredits is num) {
+            ref.read(authProvider.notifier).updateCreditBalance(remainingCredits.toInt());
+          }
+
+          final oldPlayer = state.playerState;
+          final rawPlayer = data['updatedPlayerState'];
+          var updatedPlayer = PlayerState.fromJson(rawPlayer);
+          if ((rawPlayer['equipment'] == null || updatedPlayer.equipment.allEquippedIds.isEmpty) &&
+              state.playerState != null &&
+              state.playerState!.equipment.allEquippedIds.isNotEmpty) {
+            updatedPlayer = updatedPlayer.copyWith(equipment: state.playerState!.equipment);
+          }
+
+          final statusDelta = TurnStatusDelta.compute(
+            oldState: oldPlayer,
+            newState: updatedPlayer,
+            isPersian: state.isPersian,
+            rpgResources: state.rpgResources,
+            currencyDenominations: state.currencyDenominations,
+            xpAward: xpAward,
+          );
+
+          final beatData = data['beat'] as Map<String, dynamic>? ?? {};
           final sceneImg = beatData['imageUrl'] as String?;
           final discoveredJson = beatData['discoveredCreature'] as Map<String, dynamic>?;
           final discovered = discoveredJson != null ? DiscoveredCreature.fromJson(discoveredJson) : null;
-          final turnNpcs = GameSessionState.parseDiscoveredNpcs(Map<String, dynamic>.from(beatData as Map));
+          final turnNpcs = GameSessionState.parseDiscoveredNpcs(beatData);
 
-          state = state.copyWith(
-            isLoading: false,
-            currentNarrative: beatData['narrativeProse'] ?? '',
-            currentSceneImageUrl: sceneImg,
-            clearSceneImage: sceneImg == null,
-            choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
-            playerState: updatedPlayer,
-            lastResolution: resolution,
-            lastActionText: choice.text,
-            lastXpAward: xpAward,
-            lastStatusDelta: statusDelta,
-            clearLastStatusDelta: statusDelta == null,
-            turnNumber: state.turnNumber + 1,
-            remakeCount: 0,
-            isCreditDepleted: false,
-            clearPendingTurn: true,
-            discoveredCreature: discovered,
-            clearDiscoveredCreature: discovered == null,
-            discoveredNpcs: turnNpcs,
-            clearDiscoveredNpcs: turnNpcs.isEmpty,
-            lastDisplacement: GameSessionState.displacementName(result['data'], state.lore),
-            clearDisplacement: GameSessionState.displacementName(result['data'], state.lore) == null,
-            lastTravelArrived: GameSessionState.travelArrivalName(result['data'], state.lore),
-            clearTravelArrived: GameSessionState.travelArrivalName(result['data'], state.lore) == null,
-          );
-          ref.read(audioProvider.notifier).updateLocationAmbient(updatedPlayer.currentLocationId);
+          if (_isHoldingNarrative && state.pendingTurnData == null) {
+            final pendingData = Map<String, dynamic>.from(data);
+            if (statusDelta != null) {
+              pendingData['_computedStatusDelta'] = statusDelta;
+            }
+            state = state.copyWith(
+              pendingTurnData: pendingData,
+              lastResolution: resolution,
+              lastActionText: choice.text,
+              lastXpAward: xpAward,
+              isCreditDepleted: false,
+              remakeCount: 0,
+              lastDisplacement: GameSessionState.displacementName(data, state.lore),
+              clearDisplacement: GameSessionState.displacementName(data, state.lore) == null,
+              lastTravelArrived: GameSessionState.travelArrivalName(data, state.lore),
+              clearTravelArrived: GameSessionState.travelArrivalName(data, state.lore) == null,
+            );
+          } else {
+            state = state.copyWith(
+              isLoading: false,
+              isStreamingNarrative: false,
+              currentNarrative: _streamingProseBuffer.isNotEmpty
+                  ? _streamingProseBuffer
+                  : (beatData['narrativeProse'] ?? ''),
+              currentSceneImageUrl: sceneImg,
+              clearSceneImage: sceneImg == null,
+              choices: _streamingChoicesBuffer.isNotEmpty
+                  ? _streamingChoicesBuffer
+                  : (beatData['presentedChoices'] as List<dynamic>? ?? [])
+                      .map((c) => ChoiceOption.fromJson(c))
+                      .toList(),
+              playerState: updatedPlayer,
+              lastResolution: resolution,
+              lastActionText: choice.text,
+              lastXpAward: xpAward,
+              lastStatusDelta: statusDelta,
+              clearLastStatusDelta: statusDelta == null,
+              turnNumber: state.turnNumber + 1,
+              remakeCount: 0,
+              isCreditDepleted: false,
+              clearPendingTurn: true,
+              discoveredCreature: discovered,
+              clearDiscoveredCreature: discovered == null,
+              discoveredNpcs: turnNpcs,
+              clearDiscoveredNpcs: turnNpcs.isEmpty,
+              lastDisplacement: GameSessionState.displacementName(data, state.lore),
+              clearDisplacement: GameSessionState.displacementName(data, state.lore) == null,
+              lastTravelArrived: GameSessionState.travelArrivalName(data, state.lore),
+              clearTravelArrived: GameSessionState.travelArrivalName(data, state.lore) == null,
+            );
+            ref.read(audioProvider.notifier).updateLocationAmbient(updatedPlayer.currentLocationId);
+          }
         }
-        return resolution;
-      } else {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: result['error'] ?? 'Turn failed',
-        );
-        return null;
       }
+
+      return finalResolution;
     } catch (e) {
       final raw = e.toString();
       final msg = raw.startsWith('ClientException: ')
@@ -632,6 +708,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
               : raw;
       state = state.copyWith(
         isLoading: false,
+        isStreamingNarrative: false,
         errorMessage: msg,
       );
       return null;
@@ -640,7 +717,17 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
 
   /// Reveals the pending scene once the dice roll is complete and the user continues.
   void applyPendingTurn() {
-    if (state.pendingTurnData == null) return;
+    _isHoldingNarrative = false;
+
+    if (state.pendingTurnData == null) {
+      state = state.copyWith(
+        currentNarrative: _streamingProseBuffer,
+        choices: _streamingChoicesBuffer,
+        isLoading: _streamingProseBuffer.isEmpty,
+        isStreamingNarrative: _streamingProseBuffer.isNotEmpty,
+      );
+      return;
+    }
 
     final data = state.pendingTurnData!;
     final beatData = data['beat'];
@@ -679,10 +766,11 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
 
     state = state.copyWith(
       isLoading: false,
-      currentNarrative: beatData['narrativeProse'] ?? '',
+      isStreamingNarrative: false,
+      currentNarrative: _streamingProseBuffer.isNotEmpty ? _streamingProseBuffer : (beatData['narrativeProse'] ?? ''),
       currentSceneImageUrl: sceneImg,
       clearSceneImage: sceneImg == null,
-      choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
+      choices: _streamingChoicesBuffer.isNotEmpty ? _streamingChoicesBuffer : rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
       playerState: updatedPlayer,
       lastXpAward: xpAward,
       lastStatusDelta: statusDelta,
@@ -722,10 +810,20 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     if (state.playerState == null || state.sessionId.isEmpty) return false;
     if (state.remakeCount >= 1) return false;
 
-    state = state.copyWith(isRemaking: true, errorMessage: null);
+    state = state.copyWith(
+      isRemaking: true,
+      isLoading: true,
+      isStreamingNarrative: false,
+      errorMessage: null,
+      currentNarrative: '',
+      choices: const [],
+    );
+
+    var accumulatedProse = '';
+    List<ChoiceOption> streamedChoices = const [];
 
     try {
-      final result = await GameApiService.remakeScene(
+      final stream = GameApiService.remakeSceneStream(
         storyId: state.storyId,
         sessionId: state.sessionId,
         playerState: state.playerState!,
@@ -734,45 +832,80 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         engineTier: state.engineTier,
       );
 
-      if (result['success'] == true) {
-        final beatData = result['data']['beat'];
-        final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? beatData['choices'] as List<dynamic>? ?? [];
-        final sceneImg = beatData['imageUrl'] as String?;
-        final discoveredJson = beatData['discoveredCreature'] as Map<String, dynamic>?;
-        final discovered = discoveredJson != null ? DiscoveredCreature.fromJson(discoveredJson) : null;
-        final turnNpcs = GameSessionState.parseDiscoveredNpcs(Map<String, dynamic>.from(beatData as Map));
+      await for (final event in stream) {
+        final eventType = event['type'] as String?;
 
-        final rawPlayer = result['data']['updatedPlayerState'];
-        PlayerState updatedPlayer = state.playerState!;
-        if (rawPlayer != null && rawPlayer is Map) {
-          updatedPlayer = PlayerState.fromJson(Map<String, dynamic>.from(rawPlayer));
+        if (eventType == 'error' || event['creditDepleted'] == true || event['isGuardrailViolation'] == true) {
+          state = state.copyWith(
+            isRemaking: false,
+            isLoading: false,
+            isStreamingNarrative: false,
+            errorMessage: event['error'] ?? 'خطا در بازسازی صحنه',
+          );
+          return false;
         }
 
-        state = state.copyWith(
-          isRemaking: false,
-          isLoading: false,
-          currentNarrative: beatData['narrativeProse'] ?? beatData['narrative'] ?? '',
-          currentSceneImageUrl: sceneImg,
-          clearSceneImage: sceneImg == null,
-          choices: rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
-          playerState: updatedPlayer,
-          remakeCount: (result['data']?['remakeCount'] as num?)?.toInt() ?? 1,
-          discoveredCreature: discovered,
-          clearDiscoveredCreature: discovered == null,
-          discoveredNpcs: turnNpcs,
-          clearDiscoveredNpcs: turnNpcs.isEmpty,
-          currentSceneId: beatData['sceneId'] as String? ?? state.currentSceneId,
-        );
+        if (eventType == 'prose_delta') {
+          accumulatedProse += (event['delta'] as String? ?? '');
+          state = state.copyWith(
+            isLoading: false,
+            isStreamingNarrative: true,
+            currentNarrative: accumulatedProse,
+          );
+          continue;
+        }
 
-        ref.read(audioProvider.notifier).playSfx(SfxType.pageTurn);
-        return true;
-      } else {
-        state = state.copyWith(
-          isRemaking: false,
-          errorMessage: result['error'] ?? 'خطا در بازسازی صحنه',
-        );
-        return false;
+        if (eventType == 'choices') {
+          final rawChoices = event['choices'] as List<dynamic>? ?? [];
+          streamedChoices = rawChoices.map((c) => ChoiceOption.fromJson(c)).toList();
+          state = state.copyWith(
+            choices: streamedChoices,
+          );
+          continue;
+        }
+
+        if (eventType == 'complete') {
+          final data = Map<String, dynamic>.from(event);
+          final beatData = data['beat'] as Map<String, dynamic>? ?? {};
+          final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? beatData['choices'] as List<dynamic>? ?? [];
+          final sceneImg = beatData['imageUrl'] as String?;
+          final discoveredJson = beatData['discoveredCreature'] as Map<String, dynamic>?;
+          final discovered = discoveredJson != null ? DiscoveredCreature.fromJson(discoveredJson) : null;
+          final turnNpcs = GameSessionState.parseDiscoveredNpcs(beatData);
+
+          final rawPlayer = data['updatedPlayerState'];
+          PlayerState updatedPlayer = state.playerState!;
+          if (rawPlayer != null && rawPlayer is Map) {
+            updatedPlayer = PlayerState.fromJson(Map<String, dynamic>.from(rawPlayer));
+          }
+
+          state = state.copyWith(
+            isRemaking: false,
+            isLoading: false,
+            isStreamingNarrative: false,
+            currentNarrative: accumulatedProse.isNotEmpty
+                ? accumulatedProse
+                : (beatData['narrativeProse'] ?? beatData['narrative'] ?? ''),
+            currentSceneImageUrl: sceneImg,
+            clearSceneImage: sceneImg == null,
+            choices: streamedChoices.isNotEmpty
+                ? streamedChoices
+                : rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
+            playerState: updatedPlayer,
+            remakeCount: (data['remakeCount'] as num?)?.toInt() ?? 1,
+            discoveredCreature: discovered,
+            clearDiscoveredCreature: discovered == null,
+            discoveredNpcs: turnNpcs,
+            clearDiscoveredNpcs: turnNpcs.isEmpty,
+            currentSceneId: beatData['sceneId'] as String? ?? state.currentSceneId,
+          );
+
+          ref.read(audioProvider.notifier).playSfx(SfxType.pageTurn);
+          return true;
+        }
       }
+
+      return true;
     } catch (e) {
       final raw = e.toString();
       final msg = raw.startsWith('ClientException: ')
@@ -782,6 +915,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
               : raw;
       state = state.copyWith(
         isRemaking: false,
+        isLoading: false,
+        isStreamingNarrative: false,
         errorMessage: msg,
       );
       return false;

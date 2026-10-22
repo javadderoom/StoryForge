@@ -2,6 +2,7 @@ import { GeminiAdapter } from './GeminiAdapter';
 import type { SceneModelCall, RawSceneData, RawSceneResult } from '../engines/narrative/modelCall';
 import { defaultSceneModelCall } from '../engines/narrative/modelCall';
 import { extractJsonPayload } from '../ai/geminiClient';
+import { StreamingJsonNarrativeExtractor } from '../engines/narrative/streamingExtractor';
 import {
   AIPRIME_ENDPOINT,
   DEFAULT_NARRATOR_TIER_CONFIGS,
@@ -76,6 +77,9 @@ export function createOpenAiCompatibleModelCall(
       if (typeof config.thinkingBudgetTokens === 'number' && config.thinkingBudgetTokens > 0) {
         payload.thinking = { type: 'enabled', budget_tokens: config.thinkingBudgetTokens };
       }
+      if (typeof options.onTextDelta === 'function') {
+        payload.stream = true;
+      }
 
       try {
         const res = await fetch(endpoint, {
@@ -94,6 +98,57 @@ export function createOpenAiCompatibleModelCall(
             `[narrativeAdapterFactory] ${provider} ${model} HTTP ${res.status} in ${durationMs}ms: ${errorText}. Trying next route...`
           );
           continue;
+        }
+
+        // Real-time streaming response when onTextDelta is active
+        if (typeof options.onTextDelta === 'function') {
+          const reader = res.body?.getReader();
+          if (reader) {
+            const decoder = new TextDecoder();
+            const extractor = new StreamingJsonNarrativeExtractor();
+            let sseBuffer = '';
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              sseBuffer += decoder.decode(value, { stream: true });
+              const lines = sseBuffer.split('\n');
+              sseBuffer = lines.pop() ?? '';
+
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed || trimmed.startsWith(':')) continue;
+                if (trimmed === 'data: [DONE]') continue;
+                if (trimmed.startsWith('data: ')) {
+                  try {
+                    const chunk = JSON.parse(trimmed.slice(6));
+                    const deltaContent = chunk?.choices?.[0]?.delta?.content ?? '';
+                    if (deltaContent) {
+                      extractor.pushChunk(deltaContent, (delta) => {
+                        options.onTextDelta?.(delta);
+                      });
+                    }
+                  } catch {
+                    /* ignore chunk parse error */
+                  }
+                }
+              }
+            }
+
+            const rawText = extractor.getFullRawText();
+            const cleaned = extractJsonPayload(rawText);
+            let parsed: RawSceneData;
+            try {
+              parsed = JSON.parse(cleaned) as RawSceneData;
+            } catch {
+              parsed = { narrative: extractor.getNarrativeText() };
+            }
+            return {
+              data: parsed,
+              rawText,
+              modelUsed: `${provider}/${model}`,
+            };
+          }
         }
 
         const json = (await res.json()) as any;
