@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../models/game_state.dart';
 import '../../services/game_api_service.dart';
 import 'full_screen_image_viewer.dart';
 
-/// An atmospheric RPG introduction card shown when an NPC appears for the
-/// first time: portrait image with gradient overlay, name, title/role badge,
-/// and a short description.
+/// An atmospheric RPG portrait card shown when an NPC appears for the
+/// first time: image-only portrait framed in a stylish container with
+/// expanded height, with no text overlays or descriptions.
 class NpcDiscoveryCard extends StatelessWidget {
   final DiscoveredNpc npc;
   final bool isPersian;
@@ -25,20 +24,12 @@ class NpcDiscoveryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isFa = isPersian;
     final n = npc;
     final rawImage = n.imageUrl?.trim() ?? '';
     // Local dev uploads come back as relative paths (/uploads/...); resolve
     // them against the active backend so emulator/dev builds load them.
     final resolvedImage = rawImage.startsWith('/') ? '${GameApiService.baseUrl}$rawImage' : rawImage;
     final hasImage = resolvedImage.isNotEmpty;
-    // Prefer the display title; raw latin role codes (e.g. "drover") are
-    // never shown next to a proper title.
-    final roleText = n.role.trim();
-    final isRoleCode = RegExp(r'^[a-z_]+$').hasMatch(roleText);
-    final subtitle = n.title.trim().isNotEmpty
-        ? n.title.trim()
-        : (isRoleCode ? '' : roleText);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 14),
@@ -63,82 +54,19 @@ class NpcDiscoveryCard extends StatelessWidget {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Top Ribbon Banner
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.12),
-              border: Border(
-                bottom: BorderSide(
-                  color: accentColor.withValues(alpha: 0.22),
-                  width: 1,
-                ),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.person_add_alt_rounded,
-                      size: 15,
-                      color: accentColor,
-                    ),
-                    const SizedBox(width: 7),
-                    Text(
-                      isFa ? 'آشنایی با شخصیت تازه' : 'NEW CHARACTER',
-                      style: isFa
-                          ? GoogleFonts.vazirmatn(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: accentColor,
-                            )
-                          : GoogleFonts.inter(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                              color: accentColor,
-                            ),
-                    ),
-                  ],
-                ),
-                if (onDismiss != null)
-                  InkWell(
-                    onTap: onDismiss,
-                    borderRadius: BorderRadius.circular(6),
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.close_rounded,
-                        size: 16,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          // Image-dominant portrait with name + title overlaid inside the image,
-          // or a compact name header when imageless
-          if (hasImage) ...[
-            Stack(
+      child: hasImage
+          ? Stack(
               children: [
                 GestureDetector(
                   onTap: () => FullScreenImageViewer.show(context, resolvedImage),
                   child: CachedNetworkImage(
                     imageUrl: resolvedImage,
-                    height: 320,
+                    height: 440,
                     width: double.infinity,
                     fit: BoxFit.cover,
                     alignment: Alignment.topCenter,
                     placeholder: (context, url) => Container(
-                      height: 320,
+                      height: 440,
                       color: const Color(0xFF0F111D),
                       child: const Center(
                         child: SizedBox(
@@ -152,7 +80,7 @@ class NpcDiscoveryCard extends StatelessWidget {
                       ),
                     ),
                     errorWidget: (context, url, error) => Container(
-                      height: 200,
+                      height: 320,
                       color: const Color(0xFF0F111D),
                       child: const Center(
                         child: Icon(
@@ -164,22 +92,8 @@ class NpcDiscoveryCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.transparent,
-                          const Color(0x33090A10),
-                          const Color(0xFF0F111D).withValues(alpha: 0.94),
-                        ],
-                        stops: const [0.45, 0.72, 1.0],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                    ),
-                  ),
-                ),
+
+                // Top-left zoom icon indicator
                 Positioned(
                   top: 10,
                   left: 10,
@@ -196,129 +110,67 @@ class NpcDiscoveryCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 14,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        n.name,
-                        style: isFa
-                            ? GoogleFonts.vazirmatn(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFFF4F4F5),
-                                shadows: const [Shadow(color: Colors.black, blurRadius: 8)],
-                              )
-                            : GoogleFonts.cinzel(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFFF4F4F5),
-                                letterSpacing: 0.8,
-                              ),
+
+                // Top-right dismiss button
+                if (onDismiss != null)
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: InkWell(
+                      onTap: onDismiss,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          size: 16,
+                          color: Colors.white70,
+                        ),
                       ),
-                      if (subtitle.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: accentColor.withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: accentColor.withValues(alpha: 0.45)),
-                          ),
-                          child: Text(
-                            subtitle,
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.bold,
-                              color: accentColor,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
-                ),
               ],
-            ),
-          ] else ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Row(
+            )
+          : Container(
+              height: 240,
+              color: const Color(0xFF0F111D),
+              child: Stack(
                 children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: accentColor.withValues(alpha: 0.15),
-                      border: Border.all(color: accentColor.withValues(alpha: 0.5)),
+                  const Center(
+                    child: Icon(
+                      Icons.person_rounded,
+                      color: Color(0xFFA78BFA),
+                      size: 64,
                     ),
-                    child: Icon(Icons.person_rounded, color: accentColor, size: 24),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          n.name,
-                          style: isFa
-                              ? GoogleFonts.vazirmatn(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFFF4F4F5),
-                                )
-                              : GoogleFonts.cinzel(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFFF4F4F5),
-                                  letterSpacing: 0.8,
-                                ),
-                        ),
-                        if (subtitle.isNotEmpty)
-                          Text(
-                            subtitle,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: accentColor,
-                            ),
+                  if (onDismiss != null)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: InkWell(
+                        onTap: onDismiss,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.55),
+                            shape: BoxShape.circle,
                           ),
-                      ],
+                          child: const Icon(
+                            Icons.close_rounded,
+                            size: 16,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
-          ],
-
-          // Short description
-          if (n.description.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                n.description,
-                style: isFa
-                    ? GoogleFonts.vazirmatn(
-                        fontSize: 13,
-                        height: 1.65,
-                        color: const Color(0xFFD4D4D8),
-                      )
-                    : GoogleFonts.inter(
-                        fontSize: 12.5,
-                        height: 1.6,
-                        color: const Color(0xFFD4D4D8),
-                      ),
-              ),
-            ),
-          ] else
-            const SizedBox(height: 12),
-        ],
-      ),
     ).animate().fadeIn(duration: 350.ms).slideY(begin: -0.06, end: 0, curve: Curves.easeOutCubic);
   }
 }
