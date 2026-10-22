@@ -262,8 +262,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
    * Right-click belongs to the map, not to the browser.
    *
    * Without this the canvas behaves like an image: the browser menu ("Save
-   * image as…", "Reload", "Inspect") opens in the middle of drawing, and on
-   * touch devices a long press pops it over the map.
+   * image as…", "Reload", "Inspect") opens in the middle of drawing and would
+   * also fire at the end of a right-drag pan. Suppressing it is what lets the
+   * secondary button be a navigation gesture.
    */
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -294,16 +295,20 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     if (!isCanvasSurface(e)) return;
     const worldPoint = clientToWorld(e.clientX, e.clientY);
 
-    // Pan with middle mouse or Alt
-    if (e.button === 1 || e.altKey) {
+    // Pan with the middle button, the right button, or Alt + drag. Suppressing
+    // the browser menu hands the secondary button to the map, and right-drag to
+    // pan is the map-editor convention — it also means the gesture a user
+    // reaches for first works, instead of silently doing nothing.
+    if (e.button === 1 || e.button === 2 || e.altKey) {
+      // Also stops Chrome's middle-click autoscroll and any native drag.
+      e.preventDefault();
       setIsPanning(true);
       setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
       return;
     }
 
-    // Only the primary button runs a tool. Right-click stays inert (its browser
-    // menu is suppressed on the container), so a mis-click cannot drop a vertex
-    // or a settlement.
+    // Only the primary button runs a tool; the side buttons stay inert here, so
+    // a mis-click cannot drop a vertex or a settlement.
     if (e.button !== 0) return;
 
     // Land Sculpt Brush continuous drag
@@ -472,7 +477,10 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
   // Mouse Move handler (silky 60fps local buffering)
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isCanvasSurface(e)) return;
+    // A pan in progress owns the pointer: keep tracking it even when the drag
+    // crosses a floating overlay, otherwise the map freezes for as long as the
+    // cursor is over the badge instead of the canvas.
+    if (!isPanning && !isCanvasSurface(e)) return;
     const worldPoint = clientToWorld(e.clientX, e.clientY);
     setHoveredCoord(worldPoint);
 
@@ -688,7 +696,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       onMouseLeave={handleMouseLeave}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
-      className="relative w-full h-full overflow-hidden select-none cursor-crosshair"
+      className={`relative w-full h-full overflow-hidden select-none ${
+        isPanning ? 'cursor-grabbing' : 'cursor-crosshair'
+      }`}
       style={{ backgroundColor: VINTAGE_PARCHMENT.bgParchmentHex }}
     >
       {/* PixiJS WebGL Canvas */}
@@ -837,6 +847,10 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           </span>
           <span className="text-stone-600">|</span>
           <span>Zoom: {Math.round(zoom * 100)}%</span>
+          <span className="text-stone-600">|</span>
+          <span className="text-stone-500">
+            {isPersian ? 'کلیک راست: جابجایی' : 'Right-drag: pan'}
+          </span>
         </div>
       )}
 
