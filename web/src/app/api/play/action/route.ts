@@ -240,7 +240,7 @@ async function processTurnAction(
     // tier is the default. The requested tier pays its own price, so switching
     // can never underpay for a higher model. Anonymous stateless calls keep the
     // story default and cannot request an upgrade for free.
-    const requestedEngineTier = auth ? body?.engineTier : undefined;
+    const requestedEngineTier = (auth || process.env.NODE_ENV !== 'production') ? body?.engineTier : undefined;
     const engineTier: EngineTier =
       requestedEngineTier === 'advance' || requestedEngineTier === 'plus' || requestedEngineTier === 'normal'
         ? requestedEngineTier
