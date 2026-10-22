@@ -408,6 +408,114 @@ export function marqueeSelectRefs(
 }
 
 // ---------------------------------------------------------------------------
+// Translation — moving a selection as one object
+// ---------------------------------------------------------------------------
+
+/** Translates one terrain feature's geometry; the id and metadata stay put. */
+export function translateTerrainFeature(
+  feature: MapTerrainFeature,
+  dx: number,
+  dy: number
+): MapTerrainFeature {
+  if (dx === 0 && dy === 0) return feature;
+  return {
+    ...feature,
+    x: typeof feature.x === 'number' ? feature.x + dx : feature.x,
+    y: typeof feature.y === 'number' ? feature.y + dy : feature.y,
+    points: feature.points ? offsetRing(feature.points, dx, dy) : undefined,
+    polygon: feature.polygon ? offsetRing(feature.polygon, dx, dy) : undefined,
+    holes: feature.holes?.map((hole) => offsetRing(hole, dx, dy)),
+  };
+}
+
+export function translatePlacement(
+  placement: MapEntityPlacement,
+  dx: number,
+  dy: number
+): MapEntityPlacement {
+  if (dx === 0 && dy === 0) return placement;
+  return { ...placement, x: placement.x + dx, y: placement.y + dy };
+}
+
+export function translateLocation(
+  location: WorldLocation,
+  dx: number,
+  dy: number
+): WorldLocation {
+  if (dx === 0 && dy === 0) return location;
+  return {
+    ...location,
+    coordinates: location.coordinates
+      ? offsetPoint(location.coordinates, dx, dy)
+      : location.coordinates,
+    // Plan 19: a hand-dragged pin is the author's authority forever. The
+    // auto-fit solver treats manual pins as hard anchors.
+    coordinatesSource: location.coordinates ? 'manual' : location.coordinatesSource,
+  };
+}
+
+/**
+ * Translates a route's free geometry.
+ *
+ * The endpoints are location ids, not points: they move when their settlement
+ * moves. Only the waypoints are owned by the route itself, so a route dragged
+ * on its own bends through its waypoints while staying anchored to its towns.
+ */
+export function translateTradeRoute(
+  route: WorldTradeRoute,
+  dx: number,
+  dy: number
+): WorldTradeRoute {
+  if (dx === 0 && dy === 0) return route;
+  return {
+    ...route,
+    waypoints: route.waypoints?.map((point) => offsetPoint(point, dx, dy)),
+  };
+}
+
+export interface MapTranslationResult {
+  terrainFeatures: MapTerrainFeature[];
+  placements: MapEntityPlacement[];
+  locations: WorldLocation[];
+  tradeRoutes: WorldTradeRoute[];
+}
+
+/**
+ * Returns full lists with only the referenced objects translated.
+ *
+ * Unselected objects keep their identity (same reference), which keeps React
+ * and Pixi comparisons cheap and makes the result easy to assert in tests.
+ */
+export function translateMapObjects(
+  source: MapSelectionSource,
+  refs: MapObjectRef[],
+  dx: number,
+  dy: number
+): MapTranslationResult {
+  const terrainIds = new Set(refs.filter((r) => r.kind === 'terrain').map((r) => r.id));
+  const placementIds = new Set(
+    refs.filter((r) => r.kind === 'placement').map((r) => r.id)
+  );
+  const locationIds = new Set(refs.filter((r) => r.kind === 'location').map((r) => r.id));
+  const routeIds = new Set(refs.filter((r) => r.kind === 'trade_route').map((r) => r.id));
+
+  return {
+    terrainFeatures: (source.terrainFeatures ?? []).map((feature) =>
+      terrainIds.has(feature.id) ? translateTerrainFeature(feature, dx, dy) : feature
+    ),
+    placements: (source.placements ?? []).map((placement) =>
+      placementIds.has(placement.id) ? translatePlacement(placement, dx, dy) : placement
+    ),
+    locations: (source.locations ?? []).map((location) =>
+      locationIds.has(location.id) ? translateLocation(location, dx, dy) : location
+    ),
+    tradeRoutes: (source.tradeRoutes ?? []).map((route) =>
+      routeIds.has(route.id) ? translateTradeRoute(route, dx, dy) : route
+    ),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Clipboard
 // ---------------------------------------------------------------------------
 

@@ -35,6 +35,7 @@ import {
   cloneMapClipboard,
   collectSelectableRefs,
   mapObjectRefKey,
+  translateMapObjects,
   type MapClipboard,
   type MapObjectRef,
 } from '@/lib/engines/world/mapSelection';
@@ -138,11 +139,14 @@ export default function CartographerPage() {
 
   /** Records an authoring action so it can be undone. */
   const commit = useCallback(
-    (label: string, apply: () => void) => {
+    (label: string, apply: () => void, options?: { coalesceMs?: number }) => {
       const before = captureSnapshot();
       // The inspector writes on every keystroke: a burst of the same action is
-      // folded into one entry so a single undo reverts the whole edit.
-      const coalesceMs = label.startsWith('Edit ') ? CARTOGRAPHER_COALESCE_MS : 0;
+      // folded into one entry so a single undo reverts the whole edit. Arrow
+      // nudges opt into the same treatment explicitly.
+      const coalesceMs =
+        options?.coalesceMs ??
+        (label.startsWith('Edit ') ? CARTOGRAPHER_COALESCE_MS : 0);
       setHistory((h) => pushCartographerHistory(h, label, before, { coalesceMs }));
       apply();
     },
@@ -773,6 +777,57 @@ export default function CartographerPage() {
   );
 
   /**
+   * Plan 23 — moves every selected object by the same world-space delta.
+   * One commit, so a drag or an arrow nudge is a single undo step. Only the
+   * slices that actually changed are rewritten.
+   */
+  const handleMoveSelection = useCallback(
+    (refs: MapObjectRef[], dx: number, dy: number, coalesce = false) => {
+      if (refs.length === 0 || (dx === 0 && dy === 0)) return;
+      if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+
+      const moved = translateMapObjects(selectionSource, refs, dx, dy);
+      const touchesMapData = refs.some((r) => r.kind === 'terrain' || r.kind === 'placement');
+      const touchesLocations = refs.some((r) => r.kind === 'location');
+      const touchesRoutes = refs.some((r) => r.kind === 'trade_route');
+
+      commit(
+        coalesce ? 'Nudge selection' : 'Move selection',
+        () => {
+          if (touchesMapData) {
+            updateMapData((prev) => {
+              const current = prev || mapData;
+              return {
+                ...current,
+                terrainFeatures: moved.terrainFeatures,
+                placements: moved.placements,
+              };
+            });
+          }
+          if (touchesLocations || touchesRoutes) {
+            updateWorldBible((prev) => ({
+              ...prev,
+              locations: touchesLocations ? moved.locations : prev.locations,
+              tradeRoutes: touchesRoutes ? moved.tradeRoutes : prev.tradeRoutes,
+            }));
+          }
+        },
+        // Holding an arrow key fires a burst of nudges; fold the burst into one
+        // undo entry instead of filling the history with one entry per pixel.
+        coalesce ? { coalesceMs: CARTOGRAPHER_COALESCE_MS } : undefined
+      );
+    },
+    [commit, mapData, selectionSource, updateMapData, updateWorldBible]
+  );
+
+  const handleNudgeSelection = useCallback(
+    (dx: number, dy: number) => {
+      handleMoveSelection(selection, dx, dy, true);
+    },
+    [handleMoveSelection, selection]
+  );
+
+  /**
    * The pasted batch is applied as one undo step and becomes the selection.
    * Terrain/pins and locations/routes live in two different slices of the
    * bible, so both updates are queued inside the same commit.
@@ -901,6 +956,22 @@ export default function CartographerPage() {
         setSelection([]);
         return;
       }
+
+      // Plan 23 — arrow-key nudge. 1 world unit, 10 with Shift. Ctrl/Alt are
+      // left alone so browser gestures (zoom, history) still work.
+      if (
+        selection.length > 0 &&
+        (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown')
+      ) {
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+        handleNudgeSelection(dx, dy);
+        return;
+      }
+
       if (!(e.ctrlKey || e.metaKey)) return;
 
       const key = e.key.toLowerCase();
@@ -920,7 +991,15 @@ export default function CartographerPage() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selection, handleDeleteSelection, handleSelectAll, handleCopy, handlePaste, handleDuplicateSelection]);
+  }, [
+    selection,
+    handleDeleteSelection,
+    handleSelectAll,
+    handleCopy,
+    handlePaste,
+    handleDuplicateSelection,
+    handleNudgeSelection,
+  ]);
 
   // Station NPC at location
   const handleStationNpc = (npcId: string, locationId: string) => {
@@ -1026,7 +1105,7 @@ export default function CartographerPage() {
           activeTool={activeTool}
           selection={selection}
           onSelectionChange={setSelection}
-          onUpdateLocation={handleUpdateLocation}
+          onMoveSelection={handleMoveSelection}
           onUpdateTradeRoute={handleUpdateTradeRoute}
           onAddTradeRoute={handleAddTradeRoute}
           onUpdateTerrain={handleUpdateTerrain}

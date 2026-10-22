@@ -54,7 +54,8 @@ interface PixiCartographerCanvasProps {
   /** Plan 23: every selected object, not only the one in the Inspector. */
   selection: MapObjectRef[];
   onSelectionChange: (refs: MapObjectRef[]) => void;
-  onUpdateLocation: (id: string, updated: Partial<WorldLocation>) => void;
+  /** Plan 23: commit a finished group drag as one undoable translation. */
+  onMoveSelection: (refs: MapObjectRef[], dx: number, dy: number) => void;
   onUpdateTradeRoute: (id: string, updated: Partial<WorldTradeRoute>) => void;
   onAddTradeRoute: (route: WorldTradeRoute) => void;
   onUpdateTerrain: (id: string, updated: Partial<MapTerrainFeature>) => void;
@@ -95,13 +96,30 @@ interface MarqueeState {
 /** A click that never moved further than this is not a rubber band. */
 const MARQUEE_THRESHOLD_PX = 3;
 
+/**
+ * A group move in progress.
+ *
+ * `origin` and `delta` are world-space. The world is not mutated while the
+ * pointer moves: the engine draws the selected objects translated by `delta`,
+ * and only mouseup commits the move (one undo step, one world update).
+ */
+interface SelectionDragState {
+  refs: MapObjectRef[];
+  origin: MapPoint;
+  delta: MapPoint;
+  moved: boolean;
+}
+
+/** Screen-space distance before a press becomes a drag. */
+const SELECTION_DRAG_THRESHOLD_PX = 3;
+
 export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   worldBible,
   settings,
   activeTool,
   selection,
   onSelectionChange,
-  onUpdateLocation,
+  onMoveSelection,
   onUpdateTradeRoute,
   onAddTradeRoute,
   onUpdateTerrain,
@@ -132,6 +150,15 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   const setMarqueeState = useCallback((next: MarqueeState | null) => {
     marqueeRef.current = next;
     setMarquee(next);
+  }, []);
+
+  // Group move in progress (Plan 23). Same ref-mirror trick: the mouseup path
+  // needs the live delta without re-binding the global mouseup listener.
+  const [selectionDrag, setSelectionDrag] = useState<SelectionDragState | null>(null);
+  const selectionDragRef = useRef<SelectionDragState | null>(null);
+  const setSelectionDragState = useCallback((next: SelectionDragState | null) => {
+    selectionDragRef.current = next;
+    setSelectionDrag(next);
   }, []);
 
   // Creation & tool drafting state
@@ -246,6 +273,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       worldBible,
       settings,
       selection,
+      selectionDelta: selectionDrag?.moved ? selectionDrag.delta : null,
       activeTool,
       draggedNode,
       transientPos,
@@ -257,6 +285,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     worldBible,
     settings,
     selection,
+    selectionDrag,
     activeTool,
     draggedNode,
     transientPos,
@@ -486,27 +515,12 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           return;
         }
 
-        const alreadySelected = selection.some((ref) => sameMapObjectRef(ref, hitRef));
-        // Clicking one member of a multi-selection collapses to that object.
-        // There is no group drag yet, so keeping the others selected while only
-        // this one follows the pointer would make the selection lie.
-        if (!alreadySelected || selection.length > 1) {
-          onSelectionChange([hitRef]);
-        }
+        // A waypoint is an edit handle, not a selection member: select the
+        // owning route, then drag only that vertex.
+        if (hit.kind === 'waypoint') {
+          const alreadySelected = selection.some((ref) => sameMapObjectRef(ref, hitRef));
+          if (!alreadySelected) onSelectionChange([hitRef]);
 
-        if (hit.kind === 'location') {
-          const loc = hit.candidate.location;
-          // Start dragging buffered settlement
-          const nodeData: DraggedNodeData = {
-            type: 'location',
-            id: loc.id,
-            startPoint: loc.coordinates!,
-          };
-          setDraggedNode(nodeData);
-          draggedNodeRef.current = nodeData;
-          setTransientPos(loc.coordinates!);
-          transientPosRef.current = loc.coordinates!;
-        } else if (hit.kind === 'waypoint') {
           const wpData = hit.candidate;
           const nodeData: DraggedNodeData = {
             type: 'waypoint',
@@ -519,7 +533,32 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           draggedNodeRef.current = nodeData;
           setTransientPos(wpData.point);
           transientPosRef.current = wpData.point;
+          return;
         }
+
+        const alreadySelected = selection.some((ref) => sameMapObjectRef(ref, hitRef));
+        // Plan 23: a member of a multi-selection stays selected when pressed,
+        // because dragging now moves the whole set — the design-tool behaviour.
+        if (!alreadySelected) onSelectionChange([hitRef]);
+
+        const dragRefs = alreadySelected ? selection : [hitRef];
+        const hasMovableGeometry = dragRefs.some((ref) => {
+          if (ref.kind !== 'trade_route') return true;
+          const route = (worldBible.tradeRoutes ?? []).find((r) => r.id === ref.id);
+          return Boolean(route?.waypoints?.length);
+        });
+        // A route with no waypoints has nothing of its own to move (its ends
+        // are towns). Leave it selected without starting a dead drag.
+        if (!hasMovableGeometry) return;
+
+        // No preventDefault: pressing the map should blur a focused Inspector
+        // field so arrow-key nudges reach the map again.
+        setSelectionDragState({
+          refs: dragRefs,
+          origin: worldPoint,
+          delta: { x: 0, y: 0 },
+          moved: false,
+        });
         return;
       }
 
@@ -546,7 +585,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     // A pan or rubber band in progress owns the pointer: keep tracking it even
     // when the drag crosses a floating overlay, otherwise the map (or the
     // band) freezes for as long as the cursor is over the badge.
-    if (!isPanning && !marqueeRef.current && !isCanvasSurface(e)) return;
+    if (!isPanning && !marqueeRef.current && !selectionDragRef.current && !isCanvasSurface(e)) return;
     const worldPoint = clientToWorld(e.clientX, e.clientY);
     setHoveredCoord(worldPoint);
 
@@ -559,6 +598,21 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         x1: e.clientX - rect.left,
         y1: e.clientY - rect.top,
       });
+      return;
+    }
+
+    // Group move in progress: track the delta; the world is untouched until
+    // mouseup and the engine renders the selected objects translated.
+    if (selectionDragRef.current) {
+      const move = selectionDragRef.current;
+      const delta = {
+        x: worldPoint.x - move.origin.x,
+        y: worldPoint.y - move.origin.y,
+      };
+      const moved =
+        move.moved ||
+        Math.hypot(delta.x, delta.y) * zoom > SELECTION_DRAG_THRESHOLD_PX;
+      setSelectionDragState({ ...move, delta, moved });
       return;
     }
 
@@ -615,6 +669,18 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
   // Commit drag on mouse release
   const commitDragEnd = useCallback(() => {
+    // Finish a group move: one translation for the whole selection, committed
+    // once (the page turns it into a single undo step).
+    const move = selectionDragRef.current;
+    if (move) {
+      setSelectionDragState(null);
+      if (move.moved) {
+        const dx = Math.round(move.delta.x);
+        const dy = Math.round(move.delta.y);
+        if (dx !== 0 || dy !== 0) onMoveSelection(move.refs, dx, dy);
+      }
+    }
+
     // Finish a rubber-band selection first: it is a viewport gesture and must
     // not fall through to the sculpt/drag cleanup below.
     const band = marqueeRef.current;
@@ -690,18 +756,12 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
     if (active && finalPos) {
       const hasMoved = active.startPoint.x !== finalPos.x || active.startPoint.y !== finalPos.y;
-      if (hasMoved) {
-        if (active.type === 'location') {
-          // Plan 19: manual drags are the author's authority — stamp provenance
-          // so the auto-fit solver treats this pin as a hard anchor forever.
-          onUpdateLocation(active.id, { coordinates: finalPos, coordinatesSource: 'manual' });
-        } else if (active.type === 'waypoint' && active.routeId && active.index !== undefined) {
-          const route = tradeRoutesRef.current.find((r) => r.id === active.routeId);
-          if (route && route.waypoints) {
-            const updatedWaypoints = [...route.waypoints];
-            updatedWaypoints[active.index] = finalPos;
-            onUpdateTradeRoute(route.id, { waypoints: updatedWaypoints });
-          }
+      if (hasMoved && active.type === 'waypoint' && active.routeId && active.index !== undefined) {
+        const route = tradeRoutesRef.current.find((r) => r.id === active.routeId);
+        if (route && route.waypoints) {
+          const updatedWaypoints = [...route.waypoints];
+          updatedWaypoints[active.index] = finalPos;
+          onUpdateTradeRoute(route.id, { waypoints: updatedWaypoints });
         }
       }
     }
@@ -712,12 +772,14 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     draggedNodeRef.current = null;
     transientPosRef.current = null;
   }, [
-    onUpdateLocation,
+    onMoveSelection,
     onUpdateTradeRoute,
     onReplaceTerrain,
     onSelectionChange,
     setMarqueeState,
-    worldBible,
+    setSelectionDragState,
+    worldBible.tradeRoutes,
+    worldBible.mapData?.terrainFeatures,
     settings,
     pan,
     zoom,
@@ -825,7 +887,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
       className={`relative w-full h-full overflow-hidden select-none ${
-        isPanning ? 'cursor-grabbing' : 'cursor-crosshair'
+        isPanning || selectionDrag ? 'cursor-grabbing' : 'cursor-crosshair'
       }`}
       style={{ backgroundColor: VINTAGE_PARCHMENT.bgParchmentHex }}
     >

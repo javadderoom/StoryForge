@@ -1,4 +1,4 @@
-# Plan 23 — Cartographer Multi-Selection, Marquee and the Map Clipboard
+# Plan 23 — Cartographer Multi-Selection, Group Move, Marquee and the Map Clipboard
 
 Status: implemented
 Depends on: Plan 21 (map-object layers), Plan 22 (material textures)
@@ -12,8 +12,9 @@ large map is not drawing one new island — it is rearranging or duplicating the
 twenty objects that already exist.
 
 This plan brings the selection model up to the design-tool baseline authors
-already know: marquee drag, Shift/Ctrl-click, Ctrl+A, Ctrl+C/V, Ctrl+D and
-Delete for the whole set.
+already know: marquee drag, Shift/Ctrl-click, Ctrl+A, Ctrl+C/V, Ctrl+D,
+Delete for the whole set, and moving the whole set by dragging it or nudging
+it with the arrow keys.
 
 ## Model
 
@@ -44,7 +45,9 @@ bookkeeping, marquee geometry, selectability, clipboard snapshot/clone.
 | Left-click on empty parchment | Clears the selection. |
 | Shift/Ctrl/Cmd + click | Toggles that object in the selection (no drag). |
 | Shift/Ctrl/Cmd + drag | Additive rubber band (unions with the current set). |
-| Click one member of a multi-selection | Collapses to that object (no group move yet). |
+| Drag any selected object | Moves the ENTIRE selection as one group. |
+| Drag an unselected object | Selects it, then moves it (or the set it joins). |
+| Arrow keys | Nudges the selection 1 world unit; Shift + arrow nudges 10. |
 | Ctrl/Cmd + A | Selects everything visible and unlocked; arms the Select tool. |
 | Ctrl/Cmd + C | Snapshots the selection into the in-app clipboard. |
 | Ctrl/Cmd + V | Pastes clones offset by 24 world units per consecutive paste. |
@@ -95,6 +98,37 @@ Paste clones with:
 
 The paste is one `commit()`, so a single Ctrl+Z removes the whole batch.
 
+## Group move
+
+Pressing a member of a multi-selection no longer collapses the selection: the
+whole set follows the pointer, which is the behaviour every design tool has
+taught authors to expect. A press that moves less than 3 screen pixels is still
+a click, not a drag.
+
+The world is never mutated while the pointer moves. The canvas keeps a
+`SelectionDragState` (refs, origin, live delta) and the engine receives a
+`selectionDelta` render option. `renderAll` builds translated *view* arrays for
+the selected terrain, pins, settlements and routes, then hands those arrays to
+the existing draw routines; no draw function needed to learn about drags.
+
+Translation semantics:
+
+- terrain: polygon, holes, polyline points and the x/y anchor all shift;
+- pins: x/y shift;
+- settlements: `coordinates` shift and are stamped
+  `coordinatesSource: 'manual'` (a hand-placed pin is a hard anchor for the
+  auto-fit solver);
+- routes: only waypoints shift. Their ends are location ids, so a road follows
+  a moved town automatically, and a route dragged on its own bends through its
+  waypoints while staying anchored to its towns. A route with no waypoints has
+  no free geometry, so pressing it selects it without starting a dead drag.
+
+Mouseup commits ONE translation for the whole set: one world update, one
+`Move selection` history entry, one Ctrl+Z to undo. Arrow-key nudges go through
+the same path and coalesce within `CARTOGRAPHER_COALESCE_MS`, so holding a key
+does not fill the history with one entry per unit; the burst undoes as one
+move.
+
 ## Bulk delete
 
 One `notify.confirm` (`Delete N objects (3 terrain features, 2 pins)?`) and one
@@ -118,18 +152,16 @@ selected, because they are editing affordances, not selection decoration.
 
 ## Deliberately deferred
 
-- **Group drag / arrow-key nudge.** Moving a multi-selection needs a live
-  translation preview across four geometry models (terrain polygons, pins,
-  settlements, route waypoints). Copy/paste already gives authors a way to
-  move a set; group drag is the next increment and should not be half-built.
 - Cut (Ctrl+X). Copy + Delete is equivalent and avoids an unconfirmed
   destructive shortcut.
 
 ## Verification
 
-- `mapSelection.test.ts` — 23 tests: ref union/toggle, selectability filters,
+- `mapSelection.test.ts` — 27 tests: ref union/toggle, selectability filters,
   polygon/polyline/circle marquee intersection (including the lake-hole case),
   clipboard offsets, id remapping inside a batch, dropping external edges,
-  clipboard immutability.
+  clipboard immutability, and translation of terrain geometry / pins /
+  settlements / route waypoints while unselected objects keep their identity.
+- Full suite — 1395/1395 passing.
 - `npx tsc --noEmit` — clean.
 - `npx next build --webpack` — clean.

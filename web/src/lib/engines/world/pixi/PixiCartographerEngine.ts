@@ -15,7 +15,14 @@ import {
   MapPoint,
 } from '@/lib/types';
 import { CartographerTool } from '@/components/cartographer/CartographerHeader';
-import { mapObjectKey, type MapObjectRef } from '../mapSelection';
+import {
+  mapObjectKey,
+  translateLocation,
+  translatePlacement,
+  translateTerrainFeature,
+  translateTradeRoute,
+  type MapObjectRef,
+} from '../mapSelection';
 import { VINTAGE_PARCHMENT } from './vintageTheme';
 import { PixiSpatialIndex, SpatialItem } from './PixiSpatialIndex';
 import {
@@ -60,6 +67,12 @@ export interface RenderAllOptions {
   settings: WorldMapSettings;
   /** Plan 23: every selected object, not just the one open in the Inspector. */
   selection: MapObjectRef[];
+  /**
+   * Plan 23: a live translation applied to the selected objects while a group
+   * drag is in flight. The world is only written on mouseup; until then this
+   * offset is a render-only preview.
+   */
+  selectionDelta?: MapPoint | null;
   activeTool: CartographerTool;
   draggedNode: DraggedNodeData | null;
   transientPos: MapPoint | null;
@@ -241,6 +254,7 @@ export class PixiCartographerEngine {
       worldBible,
       settings,
       selection,
+      selectionDelta,
       activeTool,
       draggedNode,
       transientPos,
@@ -253,6 +267,46 @@ export class PixiCartographerEngine {
     const tradeRoutes = worldBible.tradeRoutes || [];
     const terrainFeatures = worldBible.mapData?.terrainFeatures || [];
     const placements = worldBible.mapData?.placements || [];
+
+    // Plan 23 — group move preview.
+    //
+    // Rather than teaching every draw routine about an offset, we hand the
+    // renderer a translated *view* of the world for the duration of the drag.
+    // Selected terrain, pins, settlements and routes are shifted; a route whose
+    // endpoint settlement is selected follows automatically because the route
+    // renderer resolves endpoints from the view's location list.
+    const selectionKeys = new Set(selection.map((ref) => mapObjectKey(ref.kind, ref.id)));
+    const dx = selectionDelta?.x ?? 0;
+    const dy = selectionDelta?.y ?? 0;
+    const hasDelta = dx !== 0 || dy !== 0;
+    const viewTerrain = hasDelta
+      ? terrainFeatures.map((feature) =>
+          selectionKeys.has(mapObjectKey('terrain', feature.id))
+            ? translateTerrainFeature(feature, dx, dy)
+            : feature
+        )
+      : terrainFeatures;
+    const viewPlacements = hasDelta
+      ? placements.map((placement) =>
+          selectionKeys.has(mapObjectKey('placement', placement.id))
+            ? translatePlacement(placement, dx, dy)
+            : placement
+        )
+      : placements;
+    const viewLocations = hasDelta
+      ? locations.map((location) =>
+          selectionKeys.has(mapObjectKey('location', location.id))
+            ? translateLocation(location, dx, dy)
+            : location
+        )
+      : locations;
+    const viewRoutes = hasDelta
+      ? tradeRoutes.map((route) =>
+          selectionKeys.has(mapObjectKey('trade_route', route.id))
+            ? translateTradeRoute(route, dx, dy)
+            : route
+        )
+      : tradeRoutes;
 
     // How strongly the material textures are laid over the flat theme
     // colours. 0 = the classic flat look, 1 = fully textured.
@@ -274,13 +328,12 @@ export class PixiCartographerEngine {
     this.renderGrid(settings);
 
     // 4. Render Continents, Biomes, Rivers, Mountains
-    this.renderTerrain(terrainFeatures, settings);
+    this.renderTerrain(viewTerrain, settings);
 
     // 5. Render Trade Routes & Waypoints
-    const selectionKeys = new Set(selection.map((ref) => mapObjectKey(ref.kind, ref.id)));
     this.renderRoutes({
-      tradeRoutes,
-      locations,
+      tradeRoutes: viewRoutes,
+      locations: viewLocations,
       selectionKeys,
       draggedNode,
       transientPos,
@@ -289,7 +342,7 @@ export class PixiCartographerEngine {
 
     // 6. Render Settlements & Heraldic Labels
     this.renderSettlements({
-      locations,
+      locations: viewLocations,
       draggedNode,
       transientPos,
       settings,
@@ -297,15 +350,15 @@ export class PixiCartographerEngine {
     });
 
     // 7. Render Placed Lore Pins
-    this.renderPlacements(placements, settings);
+    this.renderPlacements(viewPlacements, settings);
 
     // 7b. One selection language for every object kind (Plan 23)
     this.renderSelectionOverlay({
       selectionKeys,
-      terrainFeatures,
-      placements,
-      locations,
-      tradeRoutes,
+      terrainFeatures: viewTerrain,
+      placements: viewPlacements,
+      locations: viewLocations,
+      tradeRoutes: viewRoutes,
       draggedNode,
       transientPos,
       settings,

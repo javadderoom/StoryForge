@@ -11,6 +11,8 @@ import {
   resolveTradeRoutePoints,
   ringIntersectsBounds,
   toggleMapObjectRef,
+  translateMapObjects,
+  translateTerrainFeature,
   type MapObjectRef,
   type MapSelectionSource,
 } from './mapSelection';
@@ -353,6 +355,93 @@ describe('mapSelection — marquee geometry', () => {
       true,
       'the hole is not known to this primitive — the terrain test owns holes'
     );
+  });
+});
+
+describe('mapSelection — translation (group move)', () => {
+  it('translates every geometry anchor of a terrain feature', () => {
+    const moved = translateTerrainFeature(
+      terrain({
+        id: 'terr_1',
+        polygon: SQUARE,
+        holes: [DONUT_HOLE],
+        points: [{ x: 1, y: 2 }],
+        x: 7,
+        y: 8,
+      }),
+      10,
+      -5
+    );
+    assert.equal(moved.id, 'terr_1');
+    assert.equal(moved.name, 'Continent');
+    assert.deepEqual(moved.polygon, [
+      { x: 10, y: -5 },
+      { x: 110, y: -5 },
+      { x: 110, y: 95 },
+      { x: 10, y: 95 },
+    ]);
+    assert.deepEqual(moved.holes![0][0], { x: 40, y: 25 });
+    assert.deepEqual(moved.points![0], { x: 11, y: -3 });
+    assert.equal(moved.x, 17);
+    assert.equal(moved.y, 3);
+  });
+
+  it('moves only the selected objects and keeps the others by reference', () => {
+    const untouchedTerrain = terrain({ id: 'terr_2' });
+    const untouchedLocation = location({ id: 'loc_2' });
+    const source: MapSelectionSource = {
+      terrainFeatures: [terrain({ id: 'terr_1' }), untouchedTerrain],
+      placements: [placement({ id: 'pin_1' }), placement({ id: 'pin_2' })],
+      locations: [location({ id: 'loc_1' }), untouchedLocation],
+      tradeRoutes: [
+        route({ id: 'tr_1', waypoints: [{ x: 5, y: 5 }] }),
+        route({ id: 'tr_2', waypoints: undefined }),
+      ],
+    };
+
+    const moved = translateMapObjects(
+      source,
+      [
+        { kind: 'terrain', id: 'terr_1' },
+        { kind: 'placement', id: 'pin_1' },
+        { kind: 'location', id: 'loc_1' },
+        { kind: 'trade_route', id: 'tr_1' },
+      ],
+      12,
+      -8
+    );
+
+    assert.equal(moved.terrainFeatures[0].polygon![0].x, 12);
+    assert.equal(moved.terrainFeatures[0].polygon![0].y, -8);
+    assert.equal(moved.terrainFeatures[1], untouchedTerrain);
+    assert.deepEqual(
+      { x: moved.placements[0].x, y: moved.placements[0].y },
+      { x: 62, y: 42 }
+    );
+    assert.equal(moved.placements[1].x, 50);
+    assert.deepEqual(moved.locations[0].coordinates, { x: 62, y: 42 });
+    assert.equal(moved.locations[0].coordinatesSource, 'manual');
+    assert.equal(moved.locations[1], untouchedLocation);
+    assert.deepEqual(moved.tradeRoutes[0].waypoints, [{ x: 17, y: -3 }]);
+    assert.equal(moved.tradeRoutes[0].originLocationId, 'loc_a');
+    assert.equal(moved.tradeRoutes[1].waypoints, undefined);
+  });
+
+  it('returns the same objects for a zero delta', () => {
+    const feature = terrain();
+    const source: MapSelectionSource = { terrainFeatures: [feature] };
+    const moved = translateMapObjects(source, [{ kind: 'terrain', id: 'terr_1' }], 0, 0);
+    assert.equal(moved.terrainFeatures[0], feature);
+  });
+
+  it('moves a location without coordinates safely', () => {
+    const moved = translateMapObjects(
+      { locations: [location({ id: 'loc_1', coordinates: undefined })] },
+      [{ kind: 'location', id: 'loc_1' }],
+      5,
+      5
+    );
+    assert.equal(moved.locations[0].coordinates, undefined);
   });
 });
 
