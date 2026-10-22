@@ -184,8 +184,10 @@ export default function NarratorModelsPage() {
       setPayload(data);
       setDraft(structuredClone(data.configs));
       setNotice(t.saved);
+      notify.success(t.saved);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed');
+      notify.error(e instanceof Error ? e.message : 'Save failed');
     } finally {
       setSaving(false);
     }
@@ -233,7 +235,7 @@ export default function NarratorModelsPage() {
       const res = await fetch('/api/studio/narrator-models', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier }),
+        body: JSON.stringify({ tier, config: draft?.[tier] }),
       });
       const json = await res.json();
       if (!json?.success) throw new Error(json?.error ?? 'Probe failed');

@@ -175,8 +175,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const configs = await getNarratorTierConfigs();
-    const config = configs[tier];
+    let config: NarratorTierConfig;
+    if (body?.config) {
+      const validation = validateNarratorTierConfig({ ...body.config, tier });
+      if (!validation.ok) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid tier configuration.', fieldErrors: validation.errors },
+          { status: 400 }
+        );
+      }
+      config = normalizeNarratorTierConfig(validation.value);
+    } else {
+      const configs = await getNarratorTierConfigs();
+      config = configs[tier];
+    }
     if (!isProviderConfigured(config.provider)) {
       return NextResponse.json(
         {
