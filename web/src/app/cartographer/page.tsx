@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useStudioStory, getDefaultOntology } from '@/lib/context/StudioStoryContext';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import {
   WorldMapData,
   WorldMapSettings,
@@ -13,7 +13,6 @@ import {
 import {
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
-  DEFAULT_MAP_SETTINGS,
   getOrInitializeWorldMapData,
   ensureLocationCoordinates,
 } from '@/lib/engines/world/cartographerEngine';
@@ -26,36 +25,15 @@ import { CartographerInspector, SelectedMapItem } from '@/components/cartographe
 import { CartographerSelectionBar } from '@/components/cartographer/CartographerSelectionBar';
 import { CartographerAiOracleModal } from '@/components/cartographer/CartographerAiOracleModal';
 import { notify } from '@/lib/notify';
-import { auditWorldMapLayout } from '@/lib/engines/world/mapLayoutAuditor';
-import { solveMapLayout, stableSeedFromString } from '@/lib/engines/world/mapLayoutSolver';
 import { reorderPlacementByZ, reorderTerrainByZ, terrainCenter } from '@/lib/engines/world/mapObjectOrder';
-import {
-  buildMapClipboard,
-  clipboardSize,
-  cloneMapClipboard,
-  collectSelectableRefs,
-  mapObjectRefKey,
-  translateMapObjects,
-  type MapClipboard,
-  type MapObjectRef,
-} from '@/lib/engines/world/mapSelection';
-import {
-  CARTOGRAPHER_COALESCE_MS,
-  createCartographerHistory,
-  mergeCartographerSnapshot,
-  peekRedoLabel,
-  peekUndoLabel,
-  pushCartographerHistory,
-  redoCartographerHistory,
-  undoCartographerHistory,
-  type CartographerHistory,
-  type CartographerSnapshot,
-} from '@/lib/engines/world/cartographerHistory';
+import { peekRedoLabel, peekUndoLabel } from '@/lib/engines/world/cartographerHistory';
+import { useCartographerHistory } from '@/components/cartographer/hooks/useCartographerHistory';
+import { useCartographerAutoFit } from '@/components/cartographer/hooks/useCartographerAutoFit';
+import { useCartographerSelection } from '@/components/cartographer/hooks/useCartographerSelection';
 
 export default function CartographerPage() {
   const {
     story,
-    selectedStoryId,
     setSelectedStoryId,
     storiesList,
     selectedWorldId,
@@ -75,183 +53,60 @@ export default function CartographerPage() {
     editNpc,
   } = useStudioStory();
 
-  // Active Tool & Selection State
-  //
-  // Plan 23: a selection is a list of *references*, never a list of object
-  // copies. The objects are resolved from the current world on every render,
-  // so an Inspector edit, an undo or a delete can never leave a stale snapshot
-  // selected — a ref whose object disappeared simply stops resolving.
+  // Active tool and floating panel state.
   const [activeTool, setActiveTool] = useState<CartographerTool>('select');
-  const [selection, setSelection] = useState<MapObjectRef[]>([]);
-
-  // Floating Panel Drawer States
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isAiOracleOpen, setIsAiOracleOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Viewport Transform State
+  // Viewport transform state.
   const [zoom, setZoom] = useState(0.85);
   const [pan, setPan] = useState({ x: 80, y: 40 });
 
-  // -----------------------------------------------------------------------
-  // Undo / redo — every authoring action pushes a pre-state snapshot, so
-  // Ctrl+Z / Ctrl+Shift+Z work across terrain, pins, routes, NPC stationing
-  // and the Plan 19 refit.
-  // -----------------------------------------------------------------------
-  const [history, setHistory] = useState<CartographerHistory>(createCartographerHistory());
-
-  const captureSnapshot = useCallback((): CartographerSnapshot => {
-    const wb = story.worldBible;
-    return {
-      locations: structuredClone(wb.locations ?? []),
-      tradeRoutes: structuredClone(wb.tradeRoutes ?? []),
-      npcStations: (wb.npcs ?? []).map((n) => ({
-        id: n.id,
-        currentLocationId: n.currentLocationId,
-      })),
-      mapData: wb.mapData ? structuredClone(wb.mapData) : undefined,
-    };
-  }, [story.worldBible]);
-
-  const restoreSnapshot = useCallback(
-    (snapshot: CartographerSnapshot) => {
-      const merged = mergeCartographerSnapshot(captureSnapshot(), snapshot);
-      updateWorldBible((prev) => ({
-        ...prev,
-        locations: merged.locations,
-        tradeRoutes: merged.tradeRoutes,
-        npcs: (prev.npcs ?? []).map((n) => {
-          const station = merged.npcStations.find((s) => s.id === n.id);
-          if (!station) return n;
-          if (station.currentLocationId === undefined) {
-            const { currentLocationId: _dropped, ...rest } = n as any;
-            return rest;
-          }
-          return { ...n, currentLocationId: station.currentLocationId } as typeof n;
-        }),
-        mapData: merged.mapData,
-        ontology: { ...(prev.ontology || getDefaultOntology(isPersian)), mapData: merged.mapData },
-      }));
-    },
-    [captureSnapshot, updateWorldBible, isPersian]
-  );
-
-  /** Records an authoring action so it can be undone. */
-  const commit = useCallback(
-    (label: string, apply: () => void, options?: { coalesceMs?: number }) => {
-      const before = captureSnapshot();
-      // The inspector writes on every keystroke: a burst of the same action is
-      // folded into one entry so a single undo reverts the whole edit. Arrow
-      // nudges opt into the same treatment explicitly.
-      const coalesceMs =
-        options?.coalesceMs ??
-        (label.startsWith('Edit ') ? CARTOGRAPHER_COALESCE_MS : 0);
-      setHistory((h) => pushCartographerHistory(h, label, before, { coalesceMs }));
-      apply();
-    },
-    [captureSnapshot]
-  );
-
-  const handleUndo = useCallback(() => {
-    const result = undoCartographerHistory(history, captureSnapshot());
-    if (!result) {
-      notify.info(isPersian ? 'عملی برای بازگردانی وجود ندارد.' : 'Nothing to undo.');
-      return;
-    }
-    restoreSnapshot(result.restored);
-    setHistory(result.history);
-    notify.info(isPersian ? `بازگردانی: ${result.label}` : `Undone: ${result.label}`);
-  }, [history, captureSnapshot, restoreSnapshot, isPersian]);
-
-  const handleRedo = useCallback(() => {
-    const result = redoCartographerHistory(history);
-    if (!result) {
-      notify.info(isPersian ? 'عملی برای تکرار وجود ندارد.' : 'Nothing to redo.');
-      return;
-    }
-    restoreSnapshot(result.restored);
-    setHistory(result.history);
-    notify.info(isPersian ? `تکرار: ${result.label}` : `Redone: ${result.label}`);
-  }, [history, restoreSnapshot, isPersian]);
-
-  // Ctrl+Z / Ctrl+Shift+Z (Cmd on macOS) — ignored while typing in a field.
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-      if (!(e.ctrlKey || e.metaKey)) return;
-      const key = e.key.toLowerCase();
-      if (key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        handleUndo();
-      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
-        e.preventDefault();
-        handleRedo();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handleUndo, handleRedo]);
-
-  // Ensure map data exists
+  // Ensure map data exists.
   const mapData: WorldMapData = useMemo(() => {
     return getOrInitializeWorldMapData(story.worldBible, isPersian);
   }, [story.worldBible, isPersian]);
 
   const mapSettings: WorldMapSettings = mapData.settings;
 
-  /** Resolves selection refs against the live world (never against a copy). */
-  const selectedItems = useMemo<NonNullable<SelectedMapItem>[]>(() => {
-    const locations = story.worldBible.locations ?? [];
-    const routes = story.worldBible.tradeRoutes ?? [];
-    const items: NonNullable<SelectedMapItem>[] = [];
+  const seedKey = selectedWorldId || story.worldId || story.worldBible.worldName || 'storyforge-world';
 
-    for (const ref of selection) {
-      if (ref.kind === 'location') {
-        const data = locations.find((l) => l.id === ref.id);
-        if (data) items.push({ type: 'location', data });
-      } else if (ref.kind === 'trade_route') {
-        const data = routes.find((r) => r.id === ref.id);
-        if (data) items.push({ type: 'trade_route', data });
-      } else if (ref.kind === 'terrain') {
-        const data = mapData.terrainFeatures.find((f) => f.id === ref.id);
-        if (data) items.push({ type: 'terrain', data });
-      } else {
-        const data = mapData.placements.find((p) => p.id === ref.id);
-        if (data) items.push({ type: 'placement', data });
-      }
-    }
-    return items;
-  }, [selection, mapData, story.worldBible.locations, story.worldBible.tradeRoutes]);
+  const { history, commit, handleUndo, handleRedo } = useCartographerHistory({
+    worldBible: story.worldBible,
+    updateWorldBible,
+    isPersian,
+  });
 
-  /**
-   * Drops refs whose objects vanished (delete, undo, a world switch). We keep
-   * the array identity when everything resolves so this cannot loop.
-   */
-  useEffect(() => {
-    if (selection.length === 0 || selectedItems.length === selection.length) return;
-    setSelection(selectedItems.map((item) => ({ kind: item.type, id: item.data.id })));
-  }, [selection.length, selectedItems]);
+  const { autoFitSnapshot, handleAutoFit, handleUndoAutoFit } = useCartographerAutoFit({
+    worldBible: story.worldBible,
+    seedKey,
+    isPersian,
+    commit,
+    updateWorldBible,
+  });
 
-  /** The Inspector only opens for a single object, exactly as before. */
-  const selectedItem: SelectedMapItem =
-    selectedItems.length === 1 ? selectedItems[0] : null;
+  const {
+    selection,
+    setSelection,
+    selectedItems,
+    selectedItem,
+    removeFromSelection,
+    handleDeleteSelection,
+    handleMoveSelection,
+    handleDuplicateSelection,
+  } = useCartographerSelection({
+    worldBible: story.worldBible,
+    mapData,
+    mapSettings,
+    commit,
+    updateMapData,
+    updateWorldBible,
+    isPersian,
+    setActiveTool,
+  });
 
-  /** Removes refs that a singular handler just deleted. */
-  const removeFromSelection = useCallback((refs: MapObjectRef[]) => {
-    if (refs.length === 0) return;
-    const keys = new Set(refs.map(mapObjectRefKey));
-    setSelection((prev) => prev.filter((ref) => !keys.has(mapObjectRefKey(ref))));
-  }, []);
 
   // Ensure initial locations have coordinates if unassigned
   useEffect(() => {
@@ -382,110 +237,6 @@ export default function CartographerPage() {
     });
   };
 
-  // -----------------------------------------------------------------------
-  // Plan 19: coordinate auto-fit — derive legacy/missing pins from lore &
-  // topology. Manual pins are hard anchors; the apply path is undoable until
-  // the user saves (a save makes the refit canon).
-  // -----------------------------------------------------------------------
-  interface AutoFitSnapshotEntry {
-    locationId: string;
-    coordinates: { x: number; y: number } | undefined;
-    coordinatesSource: WorldLocation['coordinatesSource'];
-  }
-
-  const [autoFitSnapshot, setAutoFitSnapshot] = useState<AutoFitSnapshotEntry[] | null>(null);
-
-  const handleAutoFit = async () => {
-    const wb = story.worldBible;
-    const mapData =
-      wb.mapData ?? (wb.ontology as { mapData?: WorldMapData } | undefined)?.mapData ?? null;
-    const audit = auditWorldMapLayout(wb, mapData);
-    if (audit.counts.legacy_auto === 0 && audit.counts.unplaced === 0) {
-      notify.info(
-        isPersian
-          ? 'همهٔ مکان‌ها مختصات معتبر دارند؛ بازماندهٔ قدیمی برای بازچینی نیست.'
-          : 'All locations already carry coordinates; no legacy remnants to refit.'
-      );
-      return;
-    }
-
-    const issueLines = audit.issues
-      .slice(0, 4)
-      .map((i) => (isPersian ? `• ${i.fa}` : `• ${i.en}`))
-      .join('\n');
-    const issueBlock = issueLines ? `\n${issueLines}` : '';
-    const ok = await notify.confirm({
-      title: isPersian ? 'چیدمان خودکار مختصات' : 'Auto-fit coordinates',
-      message:
-        (isPersian
-          ? `${audit.counts.legacy_auto} بازماندهٔ قدیمی و ${audit.counts.unplaced} مکان فاقد مختصات شناسایی شد؛ ${audit.counts.manual} نشان دستی دست‌نخورده می‌ماند.\nموقعیت‌ها از گراف جهان، مسیرهای تجاری، متن روایت و زمینِ نقشه استخراج می‌شود و پس از اعمال قابل بازگردانی است.`
-          : `${audit.counts.legacy_auto} legacy remnant(s) and ${audit.counts.unplaced} unplaced location(s) detected; ${audit.counts.manual} manual pin(s) will stay untouched.\nPositions derive from the world graph, trade routes, lore text and terrain, and can be undone after apply.`) +
-        issueBlock,
-      confirmText: isPersian ? 'بازچینی' : 'Refit',
-      cancelText: isPersian ? 'انصراف' : 'Cancel',
-    });
-    if (!ok) return;
-
-    const seed = stableSeedFromString(
-      selectedWorldId || story.worldId || story.worldBible.worldName || 'storyforge-world'
-    );
-    const result = solveMapLayout({
-      locations: wb.locations,
-      tradeRoutes: wb.tradeRoutes,
-      mapData,
-      mode: 'legacy',
-      seed,
-    });
-    if (!result.placements.length) {
-      notify.info(isPersian ? 'چیزی برای جابجایی نبود.' : 'Nothing to move.');
-      return;
-    }
-
-    const touchedIds = new Set(result.diffs.map((d) => d.locationId));
-    setAutoFitSnapshot(
-      wb.locations
-        .filter((l) => touchedIds.has(l.id))
-        .map((l) => ({
-          locationId: l.id,
-          coordinates: l.coordinates,
-          coordinatesSource: l.coordinatesSource,
-        }))
-    );
-
-    commit('Auto-fit coordinates', () => {
-      updateWorldBible((prev) => ({
-        ...prev,
-        locations: (prev.locations || []).map((l) => {
-          const placement = result.placements.find((p) => p.locationId === l.id);
-          if (!placement) return l;
-          return { ...l, coordinates: placement.position, coordinatesSource: 'solver' as const };
-        }),
-      }));
-    });
-    notify.success(
-      isPersian
-        ? `${result.summaryText} — برای ذخیرهٔ نهایی روی ذخیره بزنید.`
-        : `${result.summaryText} — hit Save to persist.`
-    );
-  };
-
-  const handleUndoAutoFit = () => {
-    const snapshot = autoFitSnapshot;
-    if (!snapshot || snapshot.length === 0) return;
-    updateWorldBible((prev) => ({
-      ...prev,
-      locations: (prev.locations || []).map((l) => {
-        const entry = snapshot.find((s) => s.locationId === l.id);
-        if (!entry) return l;
-        const restored: WorldLocation = { ...l, coordinates: entry.coordinates, coordinatesSource: entry.coordinatesSource };
-        if (!entry.coordinates) delete restored.coordinates;
-        if (!entry.coordinatesSource) delete restored.coordinatesSource;
-        return restored;
-      }),
-    }));
-    setAutoFitSnapshot(null);
-    notify.info(isPersian ? 'مختصات قبلی بازگردانی شد.' : 'Previous coordinates restored.');
-  };
 
   // Trade Route Handlers
   const handleAddTradeRoute = (route: WorldTradeRoute) => {
@@ -666,340 +417,8 @@ export default function CartographerPage() {
     const screenW = typeof window !== 'undefined' ? window.innerWidth : 1200;
     const screenH = typeof window !== 'undefined' ? window.innerHeight : 800;
     setPan({ x: screenW / 2 - point.x * zoom, y: screenH / 2 - point.y * zoom });
-  }, [zoom]);
+  }, [setSelection, zoom]);
 
-  // -----------------------------------------------------------------------
-  // Plan 23 — multi-selection clipboard, duplicate, select-all and bulk delete
-  // -----------------------------------------------------------------------
-  const clipboardRef = useRef<MapClipboard | null>(null);
-  const pasteStepRef = useRef(0);
-
-  /** Everything the map can currently select, in one shape. */
-  const selectionSource = useMemo(
-    () => ({
-      locations: story.worldBible.locations,
-      tradeRoutes: story.worldBible.tradeRoutes,
-      terrainFeatures: mapData.terrainFeatures,
-      placements: mapData.placements,
-    }),
-    [story.worldBible.locations, story.worldBible.tradeRoutes, mapData]
-  );
-
-  /**
-   * Deletes a whole selection after ONE confirmation and as ONE undo step.
-   *
-   * Routes whose endpoints disappear are removed too: a route with a dangling
-   * end is not drawn and can never be picked again, so leaving it behind would
-   * create invisible debris. Child locations lose their parent instead of
-   * pointing at a location that no longer exists.
-   */
-  const handleDeleteSelection = useCallback(
-    async (refs: MapObjectRef[]) => {
-      const unique = Array.from(new Map(refs.map((ref) => [mapObjectRefKey(ref), ref])).values());
-      if (unique.length === 0) return;
-
-      const terrainIds = new Set(unique.filter((r) => r.kind === 'terrain').map((r) => r.id));
-      const placementIds = new Set(unique.filter((r) => r.kind === 'placement').map((r) => r.id));
-      const locationIds = new Set(unique.filter((r) => r.kind === 'location').map((r) => r.id));
-      const routeIds = new Set(unique.filter((r) => r.kind === 'trade_route').map((r) => r.id));
-
-      const parts: string[] = [];
-      const addPart = (count: number, en: string, fa: string) => {
-        if (count === 0) return;
-        parts.push(isPersian ? `${count} ${fa}` : `${count} ${en}${count === 1 ? '' : 's'}`);
-      };
-      addPart(terrainIds.size, 'terrain feature', 'عارضه طبیعی');
-      addPart(placementIds.size, 'pin', 'سنجاق');
-      addPart(locationIds.size, 'location', 'مکان');
-      addPart(routeIds.size, 'trade route', 'مسیر کاروان');
-
-      const only = unique.length === 1 ? selectedItems[0] : undefined;
-      const namedObject =
-        only && 'name' in only.data
-          ? only.data.name
-          : only && only.type === 'placement'
-          ? only.data.customLabel
-          : undefined;
-
-      const ok = await notify.confirm({
-        title: isPersian ? 'حذف انتخاب' : 'Delete selection',
-        message: isPersian
-          ? unique.length === 1 && namedObject
-            ? `آیا «${namedObject}» حذف شود؟ این عمل با Ctrl+Z قابل بازگردانی است.`
-            : `آیا ${unique.length} شیء (${parts.join('، ')}) حذف شوند؟ این عمل با Ctrl+Z قابل بازگردانی است.`
-          : unique.length === 1 && namedObject
-          ? `Delete "${namedObject}"? You can undo this with Ctrl+Z.`
-          : `Delete ${unique.length} objects (${parts.join(', ')})? You can undo this with Ctrl+Z.`,
-      });
-      if (!ok) return;
-
-      commit('Delete selection', () => {
-        updateWorldBible((prev) => {
-          const prevMap = prev.mapData ?? prev.ontology?.mapData;
-          const locations = (prev.locations ?? [])
-            .filter((l) => !locationIds.has(l.id))
-            .map((l) =>
-              l.parentLocationId && locationIds.has(l.parentLocationId)
-                ? { ...l, parentLocationId: undefined }
-                : l
-            );
-          const tradeRoutes = (prev.tradeRoutes ?? []).filter(
-            (route) =>
-              !routeIds.has(route.id) &&
-              !locationIds.has(route.originLocationId) &&
-              !locationIds.has(route.destinationLocationId)
-          );
-          const nextMap = prevMap
-            ? {
-                ...prevMap,
-                terrainFeatures: prevMap.terrainFeatures.filter((f) => !terrainIds.has(f.id)),
-                placements: prevMap.placements.filter((p) => !placementIds.has(p.id)),
-              }
-            : prevMap;
-          return {
-            ...prev,
-            locations,
-            tradeRoutes,
-            mapData: nextMap,
-            ontology: { ...(prev.ontology || getDefaultOntology(isPersian)), mapData: nextMap },
-          };
-        });
-      });
-
-      setSelection([]);
-      notify.info(
-        isPersian
-          ? `${unique.length} شیء حذف شد`
-          : `${unique.length} object${unique.length === 1 ? '' : 's'} deleted`
-      );
-    },
-    [commit, isPersian, selectedItems, updateWorldBible]
-  );
-
-  /**
-   * Plan 23 — moves every selected object by the same world-space delta.
-   * One commit, so a drag or an arrow nudge is a single undo step. Only the
-   * slices that actually changed are rewritten.
-   */
-  const handleMoveSelection = useCallback(
-    (refs: MapObjectRef[], dx: number, dy: number, coalesce = false) => {
-      if (refs.length === 0 || (dx === 0 && dy === 0)) return;
-      if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
-
-      const moved = translateMapObjects(selectionSource, refs, dx, dy);
-      const touchesMapData = refs.some((r) => r.kind === 'terrain' || r.kind === 'placement');
-      const touchesLocations = refs.some((r) => r.kind === 'location');
-      const touchesRoutes = refs.some((r) => r.kind === 'trade_route');
-
-      commit(
-        coalesce ? 'Nudge selection' : 'Move selection',
-        () => {
-          if (touchesMapData) {
-            updateMapData((prev) => {
-              const current = prev || mapData;
-              return {
-                ...current,
-                terrainFeatures: moved.terrainFeatures,
-                placements: moved.placements,
-              };
-            });
-          }
-          if (touchesLocations || touchesRoutes) {
-            updateWorldBible((prev) => ({
-              ...prev,
-              locations: touchesLocations ? moved.locations : prev.locations,
-              tradeRoutes: touchesRoutes ? moved.tradeRoutes : prev.tradeRoutes,
-            }));
-          }
-        },
-        // Holding an arrow key fires a burst of nudges; fold the burst into one
-        // undo entry instead of filling the history with one entry per pixel.
-        coalesce ? { coalesceMs: CARTOGRAPHER_COALESCE_MS } : undefined
-      );
-    },
-    [commit, mapData, selectionSource, updateMapData, updateWorldBible]
-  );
-
-  const handleNudgeSelection = useCallback(
-    (dx: number, dy: number) => {
-      handleMoveSelection(selection, dx, dy, true);
-    },
-    [handleMoveSelection, selection]
-  );
-
-  /**
-   * The pasted batch is applied as one undo step and becomes the selection.
-   * Terrain/pins and locations/routes live in two different slices of the
-   * bible, so both updates are queued inside the same commit.
-   */
-  const pasteClipboard = useCallback(
-    (payload: MapClipboard, offsetX: number, offsetY: number): number => {
-      // Unique even when two pastes land in the same millisecond (key repeat,
-      // scripted tests): the random tag prevents id collisions between batches.
-      const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-      let counter = 0;
-      const clones = cloneMapClipboard(payload, {
-        offsetX,
-        offsetY,
-        copySuffix: isPersian ? ' (رونوشت)' : ' (copy)',
-        makeId: (kind) => {
-          const prefix =
-            kind === 'terrain'
-              ? 'terr'
-              : kind === 'placement'
-              ? 'pin'
-              : kind === 'location'
-              ? 'loc'
-              : 'tr';
-          return `${prefix}_${stamp}_${counter++}`;
-        },
-      });
-      if (clones.refs.length === 0) return 0;
-
-      commit('Paste', () => {
-        updateMapData((prev) => {
-          const current = prev || mapData;
-          return {
-            ...current,
-            terrainFeatures: [...current.terrainFeatures, ...clones.terrainFeatures],
-            placements: [...current.placements, ...clones.placements],
-          };
-        });
-        if (clones.locations.length > 0 || clones.tradeRoutes.length > 0) {
-          updateWorldBible((prev) => ({
-            ...prev,
-            locations: [...(prev.locations ?? []), ...clones.locations],
-            tradeRoutes: [...(prev.tradeRoutes ?? []), ...clones.tradeRoutes],
-          }));
-        }
-      });
-
-      setSelection(clones.refs);
-      return clones.refs.length;
-    },
-    [commit, isPersian, mapData, updateMapData, updateWorldBible]
-  );
-
-  const handleCopy = useCallback(() => {
-    if (selection.length === 0) return;
-    const payload = buildMapClipboard(selectionSource, selection);
-    const size = clipboardSize(payload);
-    if (size === 0) return;
-    // Snapshot: editing or deleting an object after copying must not change
-    // what the next paste produces.
-    clipboardRef.current = structuredClone(payload);
-    pasteStepRef.current = 1;
-    notify.info(isPersian ? `${size} شیء کپی شد` : `${size} object${size === 1 ? '' : 's'} copied`);
-  }, [isPersian, selection, selectionSource]);
-
-  const handlePaste = useCallback(() => {
-    const payload = clipboardRef.current;
-    if (!payload) return;
-    // Each consecutive paste steps further away, so repeated Ctrl+V produces a
-    // readable row of copies instead of a stack.
-    const step = pasteStepRef.current;
-    pasteStepRef.current += 1;
-    const count = pasteClipboard(payload, 24 * step, 24 * step);
-    if (count > 0) {
-      notify.success(
-        isPersian
-          ? `${count} شیء چسبانده شد`
-          : `${count} object${count === 1 ? '' : 's'} pasted`
-      );
-    }
-  }, [isPersian, pasteClipboard]);
-
-  const handleDuplicateSelection = useCallback(() => {
-    if (selection.length === 0) return;
-    const payload = buildMapClipboard(selectionSource, selection);
-    const count = pasteClipboard(payload, 24, 24);
-    if (count > 0) {
-      notify.success(
-        isPersian
-          ? `${count} شیء تکثیر شد`
-          : `${count} object${count === 1 ? '' : 's'} duplicated`
-      );
-    }
-  }, [isPersian, pasteClipboard, selection, selectionSource]);
-
-  const handleSelectAll = useCallback(() => {
-    const refs = collectSelectableRefs(selectionSource, mapSettings);
-    // Selecting while a drawing tool is armed is almost always a mistake the
-    // author has to undo by hand; Ctrl+A means "select", so arm the select tool.
-    setActiveTool('select');
-    setSelection(refs);
-    if (refs.length === 0) {
-      notify.info(isPersian ? 'شیء قابل انتخابی روی نقشه نیست.' : 'Nothing on the map can be selected.');
-    }
-  }, [isPersian, mapSettings, selectionSource]);
-
-  // Plan 23 authoring shortcuts — ignored while typing in a field.
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-
-      if (e.key === 'Delete' && selection.length > 0) {
-        e.preventDefault();
-        void handleDeleteSelection(selection);
-        return;
-      }
-      if (e.key === 'Escape' && selection.length > 0) {
-        setSelection([]);
-        return;
-      }
-
-      // Plan 23 — arrow-key nudge. 1 world unit, 10 with Shift. Ctrl/Alt are
-      // left alone so browser gestures (zoom, history) still work.
-      if (
-        selection.length > 0 &&
-        (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown')
-      ) {
-        if (e.ctrlKey || e.metaKey || e.altKey) return;
-        e.preventDefault();
-        const step = e.shiftKey ? 10 : 1;
-        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
-        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
-        handleNudgeSelection(dx, dy);
-        return;
-      }
-
-      if (!(e.ctrlKey || e.metaKey)) return;
-
-      const key = e.key.toLowerCase();
-      if (key === 'a') {
-        e.preventDefault();
-        handleSelectAll();
-      } else if (key === 'c') {
-        e.preventDefault();
-        handleCopy();
-      } else if (key === 'v') {
-        e.preventDefault();
-        handlePaste();
-      } else if (key === 'd') {
-        e.preventDefault();
-        handleDuplicateSelection();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [
-    selection,
-    handleDeleteSelection,
-    handleSelectAll,
-    handleCopy,
-    handlePaste,
-    handleDuplicateSelection,
-    handleNudgeSelection,
-  ]);
 
   // Station NPC at location
   const handleStationNpc = (npcId: string, locationId: string) => {
@@ -1035,7 +454,7 @@ export default function CartographerPage() {
       const newPin: MapEntityPlacement = {
         id: `pin_${Date.now().toString(36)}`,
         entityId: id,
-        entityType: type as any,
+        entityType: type as MapEntityPlacement['entityType'],
         x: centerWorldX,
         y: centerWorldY,
       };
@@ -1054,7 +473,7 @@ export default function CartographerPage() {
         selectedWorldId={selectedWorldId || story.worldId || ''}
         onSelectWorld={(id) => {
           // Select world or first story in world
-          const matchingStory = storiesList.find((s) => (s as any).worldId === id);
+          const matchingStory = storiesList.find((s) => (s as { worldId?: string }).worldId === id);
           if (matchingStory) {
             setSelectedStoryId(matchingStory.id);
           }

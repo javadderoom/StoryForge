@@ -11,10 +11,7 @@ import {
   MapPoint,
 } from '@/lib/types';
 import { CartographerTool } from './CartographerHeader';
-import {
-  PixiCartographerEngine,
-  DraggedNodeData,
-} from '@/lib/engines/world/pixi/PixiCartographerEngine';
+import type { DraggedNodeData } from '@/lib/engines/world/pixi/PixiCartographerEngine';
 import {
   marqueeSelectRefs,
   mergeMapObjectRefs,
@@ -27,8 +24,6 @@ import {
   calculateZoomPan,
   calculateZoomToRect,
   clampZoom,
-  CANVAS_WIDTH,
-  CANVAS_HEIGHT,
 } from '@/lib/engines/world/pixi/pixiMath';
 import { VINTAGE_PARCHMENT } from '@/lib/engines/world/pixi/vintageTheme';
 import {
@@ -36,17 +31,10 @@ import {
   generateOrganicStamp,
   applySculptOperation,
 } from '@/lib/engines/world/landSculptEngine';
-import { notify } from '@/lib/notify';
-import {
-  Compass,
-  Sparkles,
-  Navigation,
-  Paintbrush,
-  Eraser,
-  Waves,
-  Trash2,
-  MousePointer,
-} from 'lucide-react';
+import { usePixiEngine } from './canvas/usePixiEngine';
+import { useMapDrafting } from './canvas/useMapDrafting';
+import { CanvasOverlays } from './canvas/CanvasOverlays';
+import { LandSculptHud } from './canvas/LandSculptHud';
 
 interface PixiCartographerCanvasProps {
   worldBible: WorldBible;
@@ -70,13 +58,6 @@ interface PixiCartographerCanvasProps {
   pan: { x: number; y: number };
   setPan: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
 }
-
-/**
- * The terrain types the "Clear land & water" action removes. Everything else
- * — ranges, valleys, rivers, biomes, anomalies — is the author's work and
- * survives.
- */
-const LAND_AND_WATER_TYPES = new Set(['continent', 'island', 'ocean', 'sea', 'lake']);
 
 /**
  * A rubber band in progress, in container-relative screen pixels.
@@ -130,6 +111,10 @@ interface ZoomRectState {
 /** Both axes must clear this before a zoom box is worth applying. */
 const ZOOM_RECT_THRESHOLD_PX = 8;
 
+/** Draft state that must survive the handler's local scope while a route is being drawn. */
+type DraftWindow = Window & { __pixiDraftOriginLocId?: string };
+const draftWindow = (): DraftWindow => window as DraftWindow;
+
 export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   worldBible,
   settings,
@@ -139,11 +124,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   onMoveSelection,
   onUpdateTradeRoute,
   onAddTradeRoute,
-  onUpdateTerrain,
   onAddTerrain,
   onReplaceTerrain,
   onAddLocation,
-  onAddPlacement,
   isPersian,
   zoom,
   setZoom,
@@ -152,7 +135,6 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const engineRef = useRef<PixiCartographerEngine | null>(null);
 
   // Pan and drag states
   const [isPanning, setIsPanning] = useState(false);
@@ -207,10 +189,6 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     };
   }, []);
 
-  // Creation & tool drafting state
-  const [draftPoints, setDraftPoints] = useState<MapPoint[]>([]);
-  const [rulerPoints, setRulerPoints] = useState<MapPoint[]>([]);
-
   // Buffered drag state for zero-server-request 60fps moves
   const [draggedNode, setDraggedNode] = useState<DraggedNodeData | null>(null);
   const [transientPos, setTransientPos] = useState<MapPoint | null>(null);
@@ -228,6 +206,38 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   const draggedNodeRef = useRef<DraggedNodeData | null>(null);
   const transientPosRef = useRef<MapPoint | null>(null);
   const tradeRoutesRef = useRef(worldBible.tradeRoutes || []);
+  const cancelZoomBox = useCallback(() => setZoomRectState(null), [setZoomRectState]);
+
+  const {
+    draftPoints,
+    setDraftPoints,
+    rulerPoints,
+    setRulerPoints,
+    handleDoubleClick,
+  } = useMapDrafting({
+    activeTool,
+    isPersian,
+    onAddTerrain,
+    onSelectionChange,
+    onCancelZoom: cancelZoomBox,
+  });
+
+  const engineRef = usePixiEngine({
+    containerRef,
+    canvasRef,
+    worldBible,
+    settings,
+    selection,
+    selectionDelta: selectionDrag?.moved ? selectionDrag.delta : null,
+    activeTool,
+    draggedNode,
+    transientPos,
+    draftPoints,
+    rulerPoints,
+    isPersian,
+    pan,
+    zoom,
+  });
 
   useEffect(() => {
     draggedNodeRef.current = draggedNode;
@@ -246,99 +256,8 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       engineRef.current.clearBrushCursor();
       engineRef.current.clearBrushPreview();
     }
-  }, [activeTool]);
+  }, [activeTool, engineRef]);
 
-  // A draft belongs to the tool that started it. Switching tools drops the
-  // in-progress preview (the blue line and its vertex dots) so a stray click
-  // never leaves a stray line on the map — and one tool's vertices can never
-  // leak into the next tool's shape.
-  useEffect(() => {
-    setDraftPoints([]);
-    setRulerPoints([]);
-  }, [activeTool]);
-
-  // Initialize Pixi Engine on mount
-  useEffect(() => {
-    if (!canvasRef.current || !containerRef.current) return;
-
-    const engine = new PixiCartographerEngine();
-    engineRef.current = engine;
-
-    const rect = containerRef.current.getBoundingClientRect();
-    engine
-      .init(canvasRef.current, rect.width, rect.height)
-      .then(() => {
-        engine.setTransform(pan, zoom);
-        engine.renderAll({
-          worldBible,
-          settings,
-          selection,
-          activeTool,
-          draggedNode,
-          transientPos,
-          draftPoints,
-          rulerPoints,
-          isPersian,
-        });
-      })
-      .catch((err) => {
-        console.error('Failed to initialize PixiCartographerEngine:', err);
-      });
-
-    // Resize observer
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        if (width > 0 && height > 0) {
-          engine.resize(width, height);
-        }
-      }
-    });
-
-    resizeObserver.observe(containerRef.current);
-
-    return () => {
-      resizeObserver.disconnect();
-      engine.destroy();
-      engineRef.current = null;
-    };
-  }, []);
-
-  // Sync pan & zoom transforms to Pixi viewport
-  useEffect(() => {
-    if (engineRef.current) {
-      engineRef.current.setTransform(pan, zoom);
-    }
-  }, [pan, zoom]);
-
-  // Re-render when data or interaction state changes
-  useEffect(() => {
-    if (!engineRef.current) return;
-
-    engineRef.current.renderAll({
-      worldBible,
-      settings,
-      selection,
-      selectionDelta: selectionDrag?.moved ? selectionDrag.delta : null,
-      activeTool,
-      draggedNode,
-      transientPos,
-      draftPoints,
-      rulerPoints,
-      isPersian,
-    });
-  }, [
-    worldBible,
-    settings,
-    selection,
-    selectionDrag,
-    activeTool,
-    draggedNode,
-    transientPos,
-    draftPoints,
-    rulerPoints,
-    isPersian,
-  ]);
 
   // Convert client coordinates to World Map coordinates
   const clientToWorld = useCallback(
@@ -509,9 +428,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       if (clickedLoc) {
         if (draftPoints.length === 0) {
           setDraftPoints([clickedLoc.coordinates!]);
-          (window as any).__pixiDraftOriginLocId = clickedLoc.id;
+          draftWindow().__pixiDraftOriginLocId = clickedLoc.id;
         } else {
-          const originId = (window as any).__pixiDraftOriginLocId;
+          const originId = draftWindow().__pixiDraftOriginLocId;
           if (originId && originId !== clickedLoc.id) {
             const intermediate = draftPoints.slice(1);
             const origLoc = locations.find((l) => l.id === originId);
@@ -532,7 +451,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
             onSelectionChange([{ kind: 'trade_route', id: newRoute.id }]);
           }
           setDraftPoints([]);
-          delete (window as any).__pixiDraftOriginLocId;
+          delete draftWindow().__pixiDraftOriginLocId;
         }
       } else {
         if (draftPoints.length > 0) {
@@ -881,6 +800,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     draggedNodeRef.current = null;
     transientPosRef.current = null;
   }, [
+    engineRef,
     onMoveSelection,
     onUpdateTradeRoute,
     onReplaceTerrain,
@@ -890,8 +810,10 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     setZoomRectState,
     setZoom,
     setPan,
+    worldBible.locations,
     worldBible.tradeRoutes,
-    worldBible.mapData?.terrainFeatures,
+    worldBible.mapData,
+    worldBible.ontology?.mapData,
     settings,
     pan,
     zoom,
@@ -913,83 +835,6 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       window.removeEventListener('mouseup', onGlobalMouseUp);
     };
   }, [commitDragEnd]);
-
-  // Double click finishes the draft (Enter does the same — see the key handler).
-  const handleDoubleClick = useCallback((e?: React.MouseEvent) => {
-    // Alt is navigation: an Alt-double-click must not finish a draft.
-    if (e?.altKey) return;
-    if (draftPoints.length < 2) return;
-    if (activeTool === 'terrain_continent' || activeTool === 'terrain_biome') {
-      const isBiome = activeTool === 'terrain_biome';
-      const newFeature: MapTerrainFeature = {
-        id: `terr_${Date.now().toString(36)}`,
-        name: isBiome
-          ? isPersian
-            ? 'ناحیه اقلیمی نو'
-            : 'New Biome Region'
-          : isPersian
-          ? 'خشکی نوبنیاد'
-          : 'New Landmass',
-        type: isBiome ? 'forest' : 'continent',
-        polygon: draftPoints,
-        color: isBiome ? '#4d5f3e' : VINTAGE_PARCHMENT.landFillHex,
-        description: isPersian ? 'عنصر جغرافیایی ترسیم‌شده' : 'User-created geographical feature',
-      };
-      onAddTerrain(newFeature);
-      onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
-    } else if (
-      activeTool === 'terrain_mountain' ||
-      activeTool === 'terrain_river' ||
-      activeTool === 'terrain_valley'
-    ) {
-      const type =
-        activeTool === 'terrain_mountain'
-          ? 'mountain_range'
-          : activeTool === 'terrain_river'
-          ? 'river'
-          : 'valley';
-
-      const newFeature: MapTerrainFeature = {
-        id: `terr_${Date.now().toString(36)}`,
-        name:
-          type === 'mountain_range'
-            ? isPersian
-              ? 'رشته‌کوه کهن'
-              : 'Ancient Mountain Ridge'
-            : type === 'river'
-            ? isPersian
-              ? 'رودخانه خروشان'
-              : 'Winding River'
-            : isPersian
-            ? 'دره و شکاف زمین'
-            : 'Rift Valley',
-        type,
-        points: draftPoints,
-        elevation: type === 'mountain_range' ? 3200 : type === 'valley' ? -200 : 150,
-        width: type === 'river' ? 4 : 28,
-      };
-      onAddTerrain(newFeature);
-      onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
-    }
-
-    setDraftPoints([]);
-  }, [draftPoints, activeTool, isPersian, onAddTerrain, onSelectionChange]);
-
-  // Escape cancels the draft, Enter commits it.
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setDraftPoints([]);
-        setRulerPoints([]);
-        setZoomRectState(null);
-      } else if (e.key === 'Enter' && draftPoints.length >= 2) {
-        e.preventDefault();
-        handleDoubleClick();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleDoubleClick, draftPoints.length, setZoomRectState]);
 
   return (
     <div
@@ -1013,207 +858,31 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       {/* PixiJS WebGL Canvas */}
       <canvas ref={canvasRef} className="w-full h-full block" />
 
-      {/* Rubber-band selection (Plan 23). Screen-space, so it stays crisp at
-          every zoom level; pointer-events-none keeps it out of the gesture. */}
-      {marquee &&
-        Math.abs(marquee.x1 - marquee.x0) > MARQUEE_THRESHOLD_PX &&
-        Math.abs(marquee.y1 - marquee.y0) > MARQUEE_THRESHOLD_PX && (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute z-30 border border-amber-500/90 bg-amber-300/15 shadow-[0_0_0_1px_rgba(255,247,226,0.55)]"
-            style={{
-              left: Math.min(marquee.x0, marquee.x1),
-              top: Math.min(marquee.y0, marquee.y1),
-              width: Math.abs(marquee.x1 - marquee.x0),
-              height: Math.abs(marquee.y1 - marquee.y0),
-            }}
-          />
-        )}
+      <CanvasOverlays
+        marquee={marquee}
+        zoomRect={zoomRect}
+        hoveredCoord={hoveredCoord}
+        zoom={zoom}
+        draftPointCount={draftPoints.length}
+        isPersian={isPersian}
+        marqueeThresholdPx={MARQUEE_THRESHOLD_PX}
+        zoomRectThresholdPx={ZOOM_RECT_THRESHOLD_PX}
+        stopOverlayMouse={stopOverlayMouse}
+      />
 
-      {/* Alt-drag zoom box. Dashed so it reads as a navigation gesture, not
-          another selection band. Screen-space, like the marquee. */}
-      {zoomRect &&
-        Math.abs(zoomRect.x1 - zoomRect.x0) >= ZOOM_RECT_THRESHOLD_PX &&
-        Math.abs(zoomRect.y1 - zoomRect.y0) >= ZOOM_RECT_THRESHOLD_PX && (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute z-30 border-2 border-dashed border-amber-700/90 bg-amber-300/10 shadow-[0_0_0_1px_rgba(255,247,226,0.6)]"
-            style={{
-              left: Math.min(zoomRect.x0, zoomRect.x1),
-              top: Math.min(zoomRect.y0, zoomRect.y1),
-              width: Math.abs(zoomRect.x1 - zoomRect.x0),
-              height: Math.abs(zoomRect.y1 - zoomRect.y0),
-            }}
-          />
-        )}
-
-      {/* Land Sculpt Brush Floating HUD */}
       {activeTool === 'land_brush' && (
-        <div
-          onMouseDown={stopOverlayMouse}
-          onMouseMove={stopOverlayMouse}
-          onMouseUp={stopOverlayMouse}
-          className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 rounded-2xl bg-zinc-950/90 backdrop-blur-md border border-amber-800/50 shadow-2xl text-xs select-none"
-        >
-          {/* Mode Toggle */}
-          <div className="flex items-center gap-1 bg-zinc-900/90 p-1 rounded-xl border border-zinc-800">
-            <button
-              type="button"
-              onClick={() => setSculptMode('paint')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
-                sculptMode === 'paint'
-                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/40 font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <Paintbrush className="w-3.5 h-3.5" />
-              <span>{isPersian ? 'افزودن خشکی' : 'Paint Land'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setSculptMode('carve')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
-                sculptMode === 'carve'
-                  ? 'bg-cyan-600 text-white shadow-md shadow-cyan-900/40 font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <Eraser className="w-3.5 h-3.5" />
-              <span>{isPersian ? 'تراشیدن آب / دریا' : 'Carve Water'}</span>
-            </button>
-          </div>
-
-          {/* Brush Size Slider */}
-          <div className="flex items-center gap-2 px-2">
-            <span className="text-[11px] text-zinc-400 font-medium">
-              {isPersian ? 'اندازه قلم:' : 'Size:'}
-            </span>
-            <input
-              type="range"
-              min={20}
-              max={180}
-              step={5}
-              value={brushSize}
-              onChange={(e) => setBrushSize(Number(e.target.value))}
-              className="w-24 accent-amber-500 cursor-pointer"
-            />
-            <span className="text-[11px] font-mono text-amber-400 w-10 text-right" dir="ltr">
-              {brushSize}px
-            </span>
-          </div>
-
-          <div className="h-4 w-px bg-zinc-800" />
-
-          {/* Roughness Slider */}
-          <div className="flex items-center gap-2 px-2">
-            <span className="text-[11px] text-zinc-400 font-medium">
-              {isPersian ? 'زبری ساحل:' : 'Roughness:'}
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={0.8}
-              step={0.05}
-              value={brushRoughness}
-              onChange={(e) => setBrushRoughness(Number(e.target.value))}
-              className="w-20 accent-amber-500 cursor-pointer"
-            />
-            <span className="text-[11px] font-mono text-amber-400 w-9 text-right" dir="ltr">
-              {Math.round(brushRoughness * 100)}%
-            </span>
-          </div>
-
-          <div className="h-4 w-px bg-zinc-800" />
-
-          {/* Reset to Ocean Button */}
-          <button
-            type="button"
-            onClick={async () => {
-              const confirmed = await notify.confirm({
-                title: isPersian ? 'پاکسازی خشکی و آب' : 'Clear land & water',
-                message: isPersian
-                  ? 'همهٔ خشکی‌ها، جزیره‌ها و آب‌های نقشه حذف می‌شوند. رشته‌کوه‌ها، دره‌ها، رودها و اقلیم‌ها دست‌نخورده می‌مانند.'
-                  : 'All landmasses, islands and water bodies are removed. Mountain ranges, valleys, rivers and biomes are kept.',
-              });
-              if (confirmed && onReplaceTerrain) {
-                // Plan 21: this used to clear EVERY terrain feature while the
-                // label claimed "landmasses" — it silently destroyed the
-                // author's ranges, rivers and biomes. Now it removes land and
-                // standing water only, and the action stays undoable.
-                const kept = (worldBible.mapData?.terrainFeatures ?? []).filter(
-                  (f) => !LAND_AND_WATER_TYPES.has(f.type)
-                );
-                onReplaceTerrain(kept);
-                notify.info(
-                  isPersian
-                    ? 'خشکی و آب نقشه پاک شد'
-                    : 'Land and water cleared — ranges, rivers and biomes kept'
-                );
-              }
-            }}
-            title={isPersian ? 'پاکسازی خشکی و آب' : 'Clear land and water'}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-zinc-400 hover:text-rose-400 hover:bg-rose-950/40 border border-transparent hover:border-rose-900/50 transition-all"
-          >
-            <Waves className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="text-[11px]">{isPersian ? 'پاکسازی خشکی و آب' : 'Clear Land'}</span>
-          </button>
-        </div>
-      )}
-
-      {/* Floating Viewport Status Badge */}
-      <div
-        onMouseDown={stopOverlayMouse}
-        onMouseMove={stopOverlayMouse}
-        onMouseUp={stopOverlayMouse}
-        className="absolute top-4 left-4 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-stone-900/80 backdrop-blur-md border border-amber-800/40 text-stone-200 text-xs shadow-lg"
-      >
-        <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-        <span className="font-serif font-medium tracking-wide">
-          {isPersian ? 'موتور شتاب‌یافته WebGL • سبک چرمینه کلاسیک' : 'PixiJS WebGL • Vintage Parchment Engine'}
-        </span>
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-950/60 text-amber-300 font-mono border border-amber-700/50">
-          v8 GPU
-        </span>
-      </div>
-
-      {/* Coordinate HUD */}
-      {hoveredCoord && (
-        <div
-          onMouseDown={stopOverlayMouse}
-          onMouseMove={stopOverlayMouse}
-          onMouseUp={stopOverlayMouse}
-          className="absolute bottom-4 left-4 z-20 flex items-center gap-2 px-3 py-1 rounded bg-stone-900/80 backdrop-blur-sm border border-stone-800 text-[11px] font-mono text-stone-400"
-        >
-          <Navigation className="w-3 h-3 text-stone-500" />
-          <span>
-            X: {hoveredCoord.x} | Y: {hoveredCoord.y}
-          </span>
-          <span className="text-stone-600">|</span>
-          <span>Zoom: {Math.round(zoom * 100)}%</span>
-          <span className="text-stone-600">|</span>
-          <span className="text-stone-500">
-            {isPersian
-              ? 'کشیدن: انتخاب · راست: جابجایی · Alt: بزرگنمایی'
-              : 'Drag: select · Right-drag: pan · Alt-drag: zoom'}
-          </span>
-        </div>
-      )}
-
-      {/* Draft hint — the preview alone never says how to finish a shape */}
-      {draftPoints.length > 0 && (
-        <div
-          onMouseDown={stopOverlayMouse}
-          onMouseMove={stopOverlayMouse}
-          onMouseUp={stopOverlayMouse}
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-sky-950/85 backdrop-blur-sm border border-sky-800/60 text-[11px] text-sky-100 shadow-lg"
-        >
-          <MousePointer className="w-3 h-3 text-sky-400" />
-          <span>
-            {isPersian
-              ? `${draftPoints.length} نقطه — برای ثبت دوبار کلیک کنید یا Enter بزنید · Esc برای لغو`
-              : `${draftPoints.length} point${draftPoints.length === 1 ? '' : 's'} — double-click or press Enter to commit · Esc to cancel`}
-          </span>
-        </div>
+        <LandSculptHud
+          isPersian={isPersian}
+          sculptMode={sculptMode}
+          onModeChange={setSculptMode}
+          brushSize={brushSize}
+          onBrushSizeChange={setBrushSize}
+          brushRoughness={brushRoughness}
+          onBrushRoughnessChange={setBrushRoughness}
+          terrainFeatures={worldBible.mapData?.terrainFeatures ?? []}
+          onReplaceTerrain={onReplaceTerrain}
+          stopOverlayMouse={stopOverlayMouse}
+        />
       )}
     </div>
   );
