@@ -22,6 +22,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { WorldMapSettings } from '@/lib/types';
+import { resolveTextureStrength } from '@/lib/engines/world/texturePalette';
 
 interface CartographerLayerPanelProps {
   settings: WorldMapSettings;
@@ -36,6 +37,9 @@ export const CartographerLayerPanel: React.FC<CartographerLayerPanelProps> = ({
   onClose,
   isPersian,
 }) => {
+  // Textures exist for the parchment theme only (see texturePalette.ts).
+  const isParchment = (settings.theme ?? 'parchment') === 'parchment';
+
   const layers = [
     {
       key: 'terrain' as const,
@@ -223,6 +227,39 @@ export const CartographerLayerPanel: React.FC<CartographerLayerPanelProps> = ({
           </span>
         </div>
       </div>
+
+      {/* Plan 22: material texture strength — 0 is the classic flat look.
+          The tiles are duotoned against the parchment palette, so the control
+          only exists for that theme. */}
+      {isParchment && (
+        <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
+          <span
+            title={
+              isPersian
+                ? 'شدت بافت روی نقشه؛ صفر یعنی نقشه کاملاً تخت (قدیمی)'
+                : 'How strongly the material textures are laid over the map; zero is the classic flat look'
+            }
+          >
+            {isPersian ? 'شدت بافت' : 'Texture Strength'}:
+          </span>
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={Math.round(resolveTextureStrength(settings.textureStrength) * 100)}
+              onChange={(e) =>
+                onUpdateSettings({ textureStrength: Number(e.target.value) / 100 })
+              }
+              className="w-24 accent-amber-500 cursor-pointer"
+            />
+            <span className="font-mono text-zinc-300 text-[11px] w-9 text-right">
+              {Math.round(resolveTextureStrength(settings.textureStrength) * 100)}%
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

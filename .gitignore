@@ -39,6 +39,11 @@ scratch/
 # --- Knowledge graph cache (generated, local only) ---
 graphify-out/
 
+# --- Cartographer asset cache (raw CC0 source downloads, local only) ---
+# The PROCESSED tiles in web/public/textures/ are committed; the raw
+# multi-megabyte sources are re-downloadable with `npx tsx scripts/buildTextures.ts`.
+web/.cache/
+
 # --- Teamwork / Subagent scratch directories ---
 .agents/teamwork/
 

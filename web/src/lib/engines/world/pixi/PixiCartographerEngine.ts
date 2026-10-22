@@ -4,7 +4,7 @@
  * Renders high-performance interactive maps with the Classic Parchment / Vintage Fantasy aesthetic.
  */
 
-import { Application, Container, Graphics, Text, TextStyle } from 'pixi.js';
+import { Application, Container, Graphics, Matrix, Text, TextStyle } from 'pixi.js';
 import {
   WorldBible,
   WorldMapSettings,
@@ -28,6 +28,13 @@ import {
 } from '../mapHitTest';
 import { isObjectVisible, orderPlacementsForRender, orderTerrainForRender } from '../mapObjectOrder';
 import {
+  MAP_MATERIALS,
+  resolveTextureStrength,
+  textureScaleFor,
+  type MapMaterialKey,
+} from '../texturePalette';
+import { MapTextureLibrary } from './mapTextureLibrary';
+import {
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
   calculateHexVertices,
@@ -40,6 +47,19 @@ export interface DraggedNodeData {
   routeId?: string;
   index?: number;
   startPoint: MapPoint;
+}
+
+/** Everything one full render pass needs. */
+export interface RenderAllOptions {
+  worldBible: WorldBible;
+  settings: WorldMapSettings;
+  selectedItem: SelectedMapItem;
+  activeTool: CartographerTool;
+  draggedNode: DraggedNodeData | null;
+  transientPos: MapPoint | null;
+  draftPoints: MapPoint[];
+  rulerPoints: MapPoint[];
+  isPersian: boolean;
 }
 
 export class PixiCartographerEngine {
@@ -74,6 +94,17 @@ export class PixiCartographerEngine {
 
   // Spatial Index for sub-millisecond point hit-testing
   public spatialIndex = new PixiSpatialIndex();
+
+  /**
+   * The material tiles. They are loaded in the background; until they arrive
+   * (or if they fail to arrive) the map is painted with the flat theme
+   * colours, which is exactly how it looked before textures existed.
+   */
+  private textureLibrary = new MapTextureLibrary();
+  private textureStrength = 0;
+  private materialMatrices = new Map<MapMaterialKey, Matrix>();
+  /** The options of the last render, so a late texture load can re-render. */
+  private lastRenderOptions: RenderAllOptions | null = null;
 
   private isInitialized = false;
 
@@ -122,6 +153,49 @@ export class PixiCartographerEngine {
 
     this.app.stage.addChild(this.worldContainer);
     this.isInitialized = true;
+
+    // Material tiles load in the background: the map is on screen immediately
+    // with its flat colours and upgrades to the textured look a moment later.
+    void this.textureLibrary.load().then(() => {
+      if (!this.lastRenderOptions) return;
+      this.renderAll(this.lastRenderOptions);
+    });
+  }
+
+  /**
+   * Paints a region with its material.
+   *
+   * The flat theme colour is always laid down first, then the material
+   * texture is cross-faded over it. At strength 0 the map is exactly the flat
+   * look it always had; at strength 1 it is entirely textured.
+   */
+  private fillWithMaterial(
+    g: Graphics,
+    points: number[],
+    material: MapMaterialKey | null,
+    flatColor: number,
+    flatAlpha: number
+  ): void {
+    const strength = this.textureStrength;
+    g.poly(points).fill({ color: flatColor, alpha: flatAlpha * (1 - strength) });
+
+    if (!material || strength <= 0) return;
+    const texture = this.textureLibrary.get(material);
+    if (!texture) return;
+
+    let matrix = this.materialMatrices.get(material);
+    if (!matrix) {
+      const scale = textureScaleFor(MAP_MATERIALS[material]);
+      matrix = new Matrix().scale(scale, scale);
+      this.materialMatrices.set(material, matrix);
+    }
+
+    g.poly(points).fill({
+      texture,
+      matrix,
+      textureSpace: 'global',
+      alpha: MAP_MATERIALS[material].alpha * strength,
+    });
   }
 
   /**
@@ -144,17 +218,8 @@ export class PixiCartographerEngine {
   /**
    * Full Render Pass: Re-draws all map visual layers according to WorldBible state
    */
-  public renderAll(options: {
-    worldBible: WorldBible;
-    settings: WorldMapSettings;
-    selectedItem: SelectedMapItem;
-    activeTool: CartographerTool;
-    draggedNode: DraggedNodeData | null;
-    transientPos: MapPoint | null;
-    draftPoints: MapPoint[];
-    rulerPoints: MapPoint[];
-    isPersian: boolean;
-  }): void {
+  public renderAll(options: RenderAllOptions): void {
+    this.lastRenderOptions = options;
     if (!this.isInitialized) return;
 
     const {
@@ -174,6 +239,16 @@ export class PixiCartographerEngine {
     const terrainFeatures = worldBible.mapData?.terrainFeatures || [];
     const placements = worldBible.mapData?.placements || [];
     const npcs = worldBible.npcs || [];
+
+    // How strongly the material textures are laid over the flat theme
+    // colours. 0 = the classic flat look, 1 = fully textured.
+    //
+    // The material tiles are duotoned against the parchment palette, so they
+    // belong to that theme only: the other themes keep their flat colours
+    // until they get their own material set.
+    const theme = settings.theme ?? 'parchment';
+    this.textureStrength =
+      theme === 'parchment' ? resolveTextureStrength(settings.textureStrength) : 0;
 
     // 1. Re-index interactive spatial elements
     this.rebuildSpatialIndex(locations, tradeRoutes, terrainFeatures, placements);
@@ -287,10 +362,14 @@ export class PixiCartographerEngine {
     const g = this.bgGraphics;
     g.clear();
 
-    // Ocean wash
-    g.rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT).fill({
-      color: VINTAGE_PARCHMENT.oceanWash,
-    });
+    // Ocean wash — the flat theme colour, with the sea material laid over it.
+    this.fillWithMaterial(
+      g,
+      [0, 0, CANVAS_WIDTH, 0, CANVAS_WIDTH, CANVAS_HEIGHT, 0, CANVAS_HEIGHT],
+      'ocean',
+      VINTAGE_PARCHMENT.oceanWash,
+      1
+    );
 
     // Antique sea wavelets across open waters (woodcut cartographic ripples)
     const waveSpacing = 160;
@@ -422,8 +501,10 @@ export class PixiCartographerEngine {
           break;
         case 'ocean':
         case 'sea':
+          if (settings.visibleLayers.water) this.drawWaterBody(g, feat, 'ocean');
+          break;
         case 'lake':
-          if (settings.visibleLayers.water) this.drawWaterBody(g, feat);
+          if (settings.visibleLayers.water) this.drawWaterBody(g, feat, 'water');
           break;
         case 'forest':
         case 'desert':
@@ -463,8 +544,8 @@ export class PixiCartographerEngine {
     const flatPoints: number[] = [];
     for (const pt of points) flatPoints.push(pt.x, pt.y);
 
-    // Land fill
-    g.poly(flatPoints).fill({ color: VINTAGE_PARCHMENT.landFill });
+    // Land fill — the paper material
+    this.fillWithMaterial(g, flatPoints, 'land', VINTAGE_PARCHMENT.landFill, 1);
 
     // Hand-inked primary coastline
     g.poly(flatPoints).stroke({ width: 2.2, color: VINTAGE_PARCHMENT.coastlineInk });
@@ -480,20 +561,20 @@ export class PixiCartographerEngine {
       const holeFlat: number[] = [];
       for (const pt of holePoints) holeFlat.push(pt.x, pt.y);
 
-      g.poly(holeFlat).fill({ color: VINTAGE_PARCHMENT.oceanWash });
+      this.fillWithMaterial(g, holeFlat, 'water', VINTAGE_PARCHMENT.oceanWash, 1);
       g.poly(holeFlat).stroke({ width: 2.0, color: VINTAGE_PARCHMENT.coastlineInk });
       g.poly(holeFlat).stroke({ width: 4.5, color: VINTAGE_PARCHMENT.coastlineGlow, alpha: 0.35 });
     }
   }
 
   /** Standing water: lakes, inland seas and open-ocean sheets. */
-  private drawWaterBody(g: Graphics, feat: MapTerrainFeature): void {
+  private drawWaterBody(g: Graphics, feat: MapTerrainFeature, material: 'ocean' | 'water'): void {
     if (!feat.polygon || feat.polygon.length <= 2) return;
     const points = generateOrganicParchmentContours(feat.polygon, 2);
     const flatPoints: number[] = [];
     for (const pt of points) flatPoints.push(pt.x, pt.y);
 
-    g.poly(flatPoints).fill({ color: VINTAGE_PARCHMENT.oceanWash });
+    this.fillWithMaterial(g, flatPoints, material, VINTAGE_PARCHMENT.oceanWash, 1);
     g.poly(flatPoints).stroke({ width: 2.0, color: VINTAGE_PARCHMENT.coastlineInk });
     g.poly(flatPoints).stroke({ width: 4.5, color: VINTAGE_PARCHMENT.coastlineGlow, alpha: 0.35 });
   }
@@ -505,16 +586,29 @@ export class PixiCartographerEngine {
     for (const pt of feat.polygon) flatPoints.push(pt.x, pt.y);
 
     let color: number = VINTAGE_PARCHMENT.biomeForest;
-    if (feat.type === 'desert') color = VINTAGE_PARCHMENT.biomeDesert;
-    else if (feat.type === 'swamp') color = VINTAGE_PARCHMENT.biomeSwamp;
-    else if (feat.type === 'tundra') color = VINTAGE_PARCHMENT.biomeTundra;
-    else if (feat.type === 'oasis') color = 0x6f8f5a;
-    else if (feat.type === 'wasteland') color = 0x8a7a63;
-    else if (feat.type === 'plains') color = 0xc9b87a;
+    let material: MapMaterialKey = 'forest';
+    if (feat.type === 'desert') {
+      color = VINTAGE_PARCHMENT.biomeDesert;
+      material = 'desert';
+    } else if (feat.type === 'swamp') {
+      color = VINTAGE_PARCHMENT.biomeSwamp;
+      material = 'swamp';
+    } else if (feat.type === 'tundra') {
+      color = VINTAGE_PARCHMENT.biomeTundra;
+      material = 'tundra';
+    } else if (feat.type === 'oasis') {
+      color = 0x6f8f5a;
+      material = 'plains';
+    } else if (feat.type === 'wasteland') {
+      color = 0x8a7a63;
+      material = 'desert';
+    } else if (feat.type === 'plains') {
+      color = 0xc9b87a;
+      material = 'plains';
+    }
 
-    g.poly(flatPoints)
-      .fill({ color, alpha: 0.35 })
-      .stroke({ width: 1, color, alpha: 0.6 });
+    this.fillWithMaterial(g, flatPoints, material, color, 0.35);
+    g.poly(flatPoints).stroke({ width: 1, color, alpha: 0.6 });
   }
 
   /** Rivers: winding blue-grey ink lines. */
@@ -927,6 +1021,7 @@ export class PixiCartographerEngine {
    * Cleans up PixiJS application and graphics on component unmount
    */
   public destroy(): void {
+    this.textureLibrary.destroy();
     if (this.app) {
       this.app.destroy(true, { children: true });
       this.app = null;

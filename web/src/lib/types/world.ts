@@ -771,6 +771,12 @@ export interface WorldMapSettings {
    * behavior: 1 canvas unit ≙ 1 km). Tune per world once Plan 19 refit pins
    * are meaningful (typical 0.3–0.6 for a regional map). */
   kmPerSpatialUnit?: number;
+  /**
+   * Plan 22: how strongly the material textures are laid over the flat theme
+   * colours. 0 = the classic flat-cartography look, 1 = fully textured.
+   * Undefined means the default (see DEFAULT_TEXTURE_STRENGTH).
+   */
+  textureStrength?: number;
   visibleLayers: {
     terrain: boolean;
     water: boolean;
@@ -1583,6 +1589,7 @@ export const WorldMapSettingsSchema = z.object({
   gridSize: z.number().default(40),
   showGridCoordinates: z.boolean().default(false),
   kmPerSpatialUnit: z.number().positive().max(1000).optional(),
+  textureStrength: z.number().min(0).max(1).optional(),
   visibleLayers: z.record(z.boolean()).default({}),
 });
 
