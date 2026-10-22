@@ -12,11 +12,10 @@ import {
   WorldTradeRoute,
   MapTerrainFeature,
   MapEntityPlacement,
-  NPCDossier,
   MapPoint,
 } from '@/lib/types';
-import { SelectedMapItem } from '@/components/cartographer/CartographerInspector';
 import { CartographerTool } from '@/components/cartographer/CartographerHeader';
+import { mapObjectKey, type MapObjectRef } from '../mapSelection';
 import { VINTAGE_PARCHMENT } from './vintageTheme';
 import { PixiSpatialIndex, SpatialItem } from './PixiSpatialIndex';
 import {
@@ -26,7 +25,13 @@ import {
   type MapHit,
   type MapHitCandidate,
 } from '../mapHitTest';
-import { isObjectVisible, orderPlacementsForRender, orderTerrainForRender } from '../mapObjectOrder';
+import {
+  isObjectVisible,
+  isPlacementVisibleInLayers,
+  isTerrainVisibleInLayers,
+  orderPlacementsForRender,
+  orderTerrainForRender,
+} from '../mapObjectOrder';
 import {
   MAP_MATERIALS,
   resolveTextureStrength,
@@ -53,7 +58,8 @@ export interface DraggedNodeData {
 export interface RenderAllOptions {
   worldBible: WorldBible;
   settings: WorldMapSettings;
-  selectedItem: SelectedMapItem;
+  /** Plan 23: every selected object, not just the one open in the Inspector. */
+  selection: MapObjectRef[];
   activeTool: CartographerTool;
   draggedNode: DraggedNodeData | null;
   transientPos: MapPoint | null;
@@ -86,6 +92,7 @@ export class PixiCartographerEngine {
   private settlementGraphics = new Graphics();
   private placementGraphics = new Graphics();
   private interactionGraphics = new Graphics();
+  private selectionGraphics = new Graphics();
   private brushGraphics = new Graphics();
   private brushCursorGraphics = new Graphics();
 
@@ -127,6 +134,7 @@ export class PixiCartographerEngine {
     this.placementLayer.addChild(this.placementGraphics);
     this.interactionLayer.addChild(
       this.interactionGraphics,
+      this.selectionGraphics,
       this.brushGraphics,
       this.brushCursorGraphics
     );
@@ -232,7 +240,7 @@ export class PixiCartographerEngine {
     const {
       worldBible,
       settings,
-      selectedItem,
+      selection,
       activeTool,
       draggedNode,
       transientPos,
@@ -245,7 +253,6 @@ export class PixiCartographerEngine {
     const tradeRoutes = worldBible.tradeRoutes || [];
     const terrainFeatures = worldBible.mapData?.terrainFeatures || [];
     const placements = worldBible.mapData?.placements || [];
-    const npcs = worldBible.npcs || [];
 
     // How strongly the material textures are laid over the flat theme
     // colours. 0 = the classic flat look, 1 = fully textured.
@@ -270,10 +277,11 @@ export class PixiCartographerEngine {
     this.renderTerrain(terrainFeatures, settings);
 
     // 5. Render Trade Routes & Waypoints
+    const selectionKeys = new Set(selection.map((ref) => mapObjectKey(ref.kind, ref.id)));
     this.renderRoutes({
       tradeRoutes,
       locations,
-      selectedItem,
+      selectionKeys,
       draggedNode,
       transientPos,
       settings,
@@ -282,8 +290,6 @@ export class PixiCartographerEngine {
     // 6. Render Settlements & Heraldic Labels
     this.renderSettlements({
       locations,
-      npcs,
-      selectedItem,
       draggedNode,
       transientPos,
       settings,
@@ -292,6 +298,18 @@ export class PixiCartographerEngine {
 
     // 7. Render Placed Lore Pins
     this.renderPlacements(placements, settings);
+
+    // 7b. One selection language for every object kind (Plan 23)
+    this.renderSelectionOverlay({
+      selectionKeys,
+      terrainFeatures,
+      placements,
+      locations,
+      tradeRoutes,
+      draggedNode,
+      transientPos,
+      settings,
+    });
 
     // 8. Render Active Interaction Tools (Drafting & Ruler)
     this.renderInteraction({
@@ -500,18 +518,19 @@ export class PixiCartographerEngine {
 
     for (const feat of orderTerrainForRender(terrainFeatures)) {
       if (!isObjectVisible(feat)) continue;
+      if (!isTerrainVisibleInLayers(feat.type, settings.visibleLayers)) continue;
 
       switch (feat.type) {
         case 'continent':
         case 'island':
-          if (settings.visibleLayers.terrain) this.drawLandmass(g, feat);
+          this.drawLandmass(g, feat);
           break;
         case 'ocean':
         case 'sea':
-          if (settings.visibleLayers.water) this.drawWaterBody(g, feat, 'ocean');
+          this.drawWaterBody(g, feat, 'ocean');
           break;
         case 'lake':
-          if (settings.visibleLayers.water) this.drawWaterBody(g, feat, 'water');
+          this.drawWaterBody(g, feat, 'water');
           break;
         case 'forest':
         case 'desert':
@@ -520,22 +539,22 @@ export class PixiCartographerEngine {
         case 'wasteland':
         case 'plains':
         case 'oasis':
-          if (settings.visibleLayers.biomes) this.drawBiome(g, feat);
+          this.drawBiome(g, feat);
           break;
         case 'river':
-          if (settings.visibleLayers.water) this.drawRiver(g, feat);
+          this.drawRiver(g, feat);
           break;
         case 'valley':
         case 'canyon':
         case 'chasm':
-          if (settings.visibleLayers.valleys) this.drawValley(g, feat);
+          this.drawValley(g, feat);
           break;
         case 'mountain_range':
-          if (settings.visibleLayers.mountains) this.drawRange(g, feat);
+          this.drawRange(g, feat);
           break;
         case 'peak':
         case 'volcano':
-          if (settings.visibleLayers.mountains) this.drawPeak(g, feat);
+          this.drawPeak(g, feat);
           break;
         case 'arcane_anomaly':
           this.drawAnomaly(g, feat);
@@ -715,12 +734,12 @@ export class PixiCartographerEngine {
   private renderRoutes(options: {
     tradeRoutes: WorldTradeRoute[];
     locations: WorldLocation[];
-    selectedItem: SelectedMapItem;
+    selectionKeys: Set<string>;
     draggedNode: DraggedNodeData | null;
     transientPos: MapPoint | null;
     settings: WorldMapSettings;
   }): void {
-    const { tradeRoutes, locations, selectedItem, draggedNode, transientPos, settings } = options;
+    const { tradeRoutes, locations, selectionKeys, draggedNode, transientPos, settings } = options;
     const g = this.routeGraphics;
     g.clear();
 
@@ -761,7 +780,9 @@ export class PixiCartographerEngine {
       else if (route.status === 'secret') strokeColor = VINTAGE_PARCHMENT.caravanSecret;
       else if (route.status === 'seasonal') strokeColor = VINTAGE_PARCHMENT.caravanSeasonal;
 
-      const isSelected = selectedItem?.type === 'trade_route' && selectedItem.data.id === route.id;
+      // The amber selection overlay is drawn later, on top of every layer;
+      // this flag only decides whether the draggable waypoint dots appear.
+      const isSelected = selectionKeys.has(mapObjectKey('trade_route', route.id));
 
       // Draw Main Route Line
       g.moveTo(fullPoints[0].x, fullPoints[0].y);
@@ -791,14 +812,12 @@ export class PixiCartographerEngine {
    */
   private renderSettlements(options: {
     locations: WorldLocation[];
-    npcs: NPCDossier[];
-    selectedItem: SelectedMapItem;
     draggedNode: DraggedNodeData | null;
     transientPos: MapPoint | null;
     settings: WorldMapSettings;
     isPersian: boolean;
   }): void {
-    const { locations, npcs, selectedItem, draggedNode, transientPos, settings } = options;
+    const { locations, draggedNode, transientPos, settings } = options;
     const g = this.settlementGraphics;
     g.clear();
     this.settlementLabelsContainer.removeChildren();
@@ -812,7 +831,6 @@ export class PixiCartographerEngine {
       const coords = isDragged && transientPos ? transientPos : loc.coordinates;
       const { x, y } = coords;
 
-      const isSelected = selectedItem?.type === 'location' && selectedItem.data.id === loc.id;
       const isCapital = loc.category === 'capital';
       const isFortress = loc.category === 'stronghold';
       const isDungeon = loc.category === 'dungeon';
@@ -822,20 +840,13 @@ export class PixiCartographerEngine {
       if (isCapital) fillColor = VINTAGE_PARCHMENT.capitalGold;
       else if (isDungeon) fillColor = VINTAGE_PARCHMENT.dungeonCrimson;
 
-      // Selection Aura
-      if (isSelected) {
-        g.circle(x, y, radius + 8).stroke({
-          width: 2.5,
-          color: VINTAGE_PARCHMENT.caravanWaypoint,
-        });
-      }
-
-      // Outer Shield / Roundel
+      // Outer Shield / Roundel (the selection ring is drawn by the shared
+      // overlay, so every kind of map object is highlighted the same way)
       g.circle(x, y, radius)
         .fill({ color: fillColor })
         .stroke({
           width: 2,
-          color: isSelected ? 0xffffff : VINTAGE_PARCHMENT.settlementBorder,
+          color: VINTAGE_PARCHMENT.settlementBorder,
         });
 
       // Inner heraldic core
@@ -884,28 +895,150 @@ export class PixiCartographerEngine {
     for (const p of orderPlacementsForRender(placements)) {
       if (!isObjectVisible(p)) continue;
 
-      let isVisible = true;
+      if (!isPlacementVisibleInLayers(p.entityType, settings.visibleLayers)) continue;
+
       let pinColor = 0x4f46e5;
-
-      if (p.entityType === 'npc') {
-        isVisible = settings.visibleLayers.npcs;
-        pinColor = 0x3b82f6;
-      } else if (p.entityType === 'bestiary') {
-        isVisible = settings.visibleLayers.bestiary;
-        pinColor = 0xdc2626;
-      } else if (p.entityType === 'artifact') {
-        isVisible = settings.visibleLayers.relics;
-        pinColor = 0x9333ea;
-      } else if (p.entityType === 'deity') {
-        isVisible = settings.visibleLayers.deities;
-        pinColor = 0xeab308;
-      }
-
-      if (!isVisible) continue;
+      if (p.entityType === 'npc') pinColor = 0x3b82f6;
+      else if (p.entityType === 'bestiary') pinColor = 0xdc2626;
+      else if (p.entityType === 'artifact') pinColor = 0x9333ea;
+      else if (p.entityType === 'deity') pinColor = 0xeab308;
 
       g.circle(p.x, p.y, 9)
         .fill({ color: pinColor })
         .stroke({ width: 1.5, color: 0xffffff });
+    }
+  }
+
+  /**
+   * Plan 23 — one visual language for every selected object.
+   *
+   * Each selected object gets a two-pass stroke: a wide cream halo that keeps
+   * the marker readable on both the blue sea and the light paper, then a thin
+   * amber line on top. Drawn in the interaction layer above all content, so a
+   * selection is never buried by an object drawn later.
+   */
+  private renderSelectionOverlay(options: {
+    selectionKeys: Set<string>;
+    terrainFeatures: MapTerrainFeature[];
+    placements: MapEntityPlacement[];
+    locations: WorldLocation[];
+    tradeRoutes: WorldTradeRoute[];
+    draggedNode: DraggedNodeData | null;
+    transientPos: MapPoint | null;
+    settings: WorldMapSettings;
+  }): void {
+    const g = this.selectionGraphics;
+    g.clear();
+
+    const {
+      selectionKeys,
+      terrainFeatures,
+      placements,
+      locations,
+      tradeRoutes,
+      draggedNode,
+      transientPos,
+      settings,
+    } = options;
+    if (selectionKeys.size === 0) return;
+
+    const haloColor = VINTAGE_PARCHMENT.selectionHalo;
+    const inkColor = VINTAGE_PARCHMENT.selectionInk;
+    const HALO_WIDTH = 6;
+    const INK_WIDTH = 2.2;
+
+    const strokePolyline = (points: MapPoint[], closed: boolean) => {
+      if (points.length < 2) return;
+      const flat = points.flatMap((point) => [point.x, point.y]);
+      if (closed) {
+        g.poly(flat).stroke({ width: HALO_WIDTH, color: haloColor, alpha: 0.9 });
+        g.poly(flat).stroke({ width: INK_WIDTH, color: inkColor });
+        return;
+      }
+      for (const pass of [
+        { width: HALO_WIDTH, color: haloColor, alpha: 0.9 },
+        { width: INK_WIDTH, color: inkColor, alpha: 1 },
+      ]) {
+        g.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) g.lineTo(points[i].x, points[i].y);
+        g.stroke({ width: pass.width, color: pass.color, alpha: pass.alpha, cap: 'round', join: 'round' });
+      }
+    };
+
+    const strokeCircle = (x: number, y: number, radius: number) => {
+      g.circle(x, y, radius).stroke({ width: HALO_WIDTH, color: haloColor, alpha: 0.9 });
+      g.circle(x, y, radius).stroke({ width: INK_WIDTH, color: inkColor });
+    };
+
+    // Terrain: polygons, ink lines and point features.
+    for (const feature of terrainFeatures) {
+      if (!selectionKeys.has(mapObjectKey('terrain', feature.id))) continue;
+      if (!isObjectVisible(feature)) continue;
+      if (!isTerrainVisibleInLayers(feature.type, settings.visibleLayers)) continue;
+
+      if (feature.polygon && feature.polygon.length >= 3) {
+        strokePolyline(feature.polygon, true);
+      } else if (feature.points && feature.points.length > 0) {
+        strokePolyline(feature.points, false);
+      } else if (typeof feature.x === 'number' && typeof feature.y === 'number') {
+        strokeCircle(feature.x, feature.y, (feature.radius ?? 24) + 4);
+      }
+    }
+
+    // Lore pins.
+    for (const placement of placements) {
+      if (!selectionKeys.has(mapObjectKey('placement', placement.id))) continue;
+      if (!isObjectVisible(placement)) continue;
+      if (!isPlacementVisibleInLayers(placement.entityType, settings.visibleLayers)) continue;
+      strokeCircle(placement.x, placement.y, 15);
+    }
+
+    // Settlements (follow the transient position while a pin is being dragged).
+    if (settings.visibleLayers.settlements) {
+      for (const location of locations) {
+        if (!selectionKeys.has(mapObjectKey('location', location.id))) continue;
+        const coords =
+          draggedNode?.type === 'location' && draggedNode.id === location.id && transientPos
+            ? transientPos
+            : location.coordinates;
+        if (!coords) continue;
+        strokeCircle(coords.x, coords.y, 19);
+      }
+    }
+
+    // Trade routes (endpoints and waypoints follow a live drag).
+    if (settings.visibleLayers.caravanRoutes) {
+      for (const route of tradeRoutes) {
+        if (!selectionKeys.has(mapObjectKey('trade_route', route.id))) continue;
+
+        const origin = locations.find((l) => l.id === route.originLocationId)?.coordinates;
+        const destination = locations.find((l) => l.id === route.destinationLocationId)?.coordinates;
+        const originCoords =
+          draggedNode?.type === 'location' &&
+          draggedNode.id === route.originLocationId &&
+          transientPos
+            ? transientPos
+            : origin;
+        const destinationCoords =
+          draggedNode?.type === 'location' &&
+          draggedNode.id === route.destinationLocationId &&
+          transientPos
+            ? transientPos
+            : destination;
+        if (!originCoords || !destinationCoords) continue;
+
+        const points: MapPoint[] = [originCoords];
+        for (const [index, waypoint] of (route.waypoints ?? []).entries()) {
+          const isDraggedWaypoint =
+            draggedNode?.type === 'waypoint' &&
+            draggedNode.routeId === route.id &&
+            draggedNode.index === index &&
+            transientPos;
+          points.push(isDraggedWaypoint ? transientPos! : waypoint);
+        }
+        points.push(destinationCoords);
+        strokePolyline(points, false);
+      }
     }
   }
 

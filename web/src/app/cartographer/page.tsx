@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useStudioStory, getDefaultOntology } from '@/lib/context/StudioStoryContext';
 import {
   WorldMapData,
@@ -23,11 +23,21 @@ import { PixiCartographerCanvas } from '@/components/cartographer/PixiCartograph
 import { CartographerLayerPanel } from '@/components/cartographer/CartographerLayerPanel';
 import { CartographerEntityPalette } from '@/components/cartographer/CartographerEntityPalette';
 import { CartographerInspector, SelectedMapItem } from '@/components/cartographer/CartographerInspector';
+import { CartographerSelectionBar } from '@/components/cartographer/CartographerSelectionBar';
 import { CartographerAiOracleModal } from '@/components/cartographer/CartographerAiOracleModal';
 import { notify } from '@/lib/notify';
 import { auditWorldMapLayout } from '@/lib/engines/world/mapLayoutAuditor';
 import { solveMapLayout, stableSeedFromString } from '@/lib/engines/world/mapLayoutSolver';
 import { reorderPlacementByZ, reorderTerrainByZ, terrainCenter } from '@/lib/engines/world/mapObjectOrder';
+import {
+  buildMapClipboard,
+  clipboardSize,
+  cloneMapClipboard,
+  collectSelectableRefs,
+  mapObjectRefKey,
+  type MapClipboard,
+  type MapObjectRef,
+} from '@/lib/engines/world/mapSelection';
 import {
   CARTOGRAPHER_COALESCE_MS,
   createCartographerHistory,
@@ -65,8 +75,13 @@ export default function CartographerPage() {
   } = useStudioStory();
 
   // Active Tool & Selection State
+  //
+  // Plan 23: a selection is a list of *references*, never a list of object
+  // copies. The objects are resolved from the current world on every render,
+  // so an Inspector edit, an undo or a delete can never leave a stale snapshot
+  // selected — a ref whose object disappeared simply stops resolving.
   const [activeTool, setActiveTool] = useState<CartographerTool>('select');
-  const [selectedItem, setSelectedItem] = useState<SelectedMapItem>(null);
+  const [selection, setSelection] = useState<MapObjectRef[]>([]);
 
   // Floating Panel Drawer States
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(false);
@@ -190,6 +205,50 @@ export default function CartographerPage() {
 
   const mapSettings: WorldMapSettings = mapData.settings;
 
+  /** Resolves selection refs against the live world (never against a copy). */
+  const selectedItems = useMemo<NonNullable<SelectedMapItem>[]>(() => {
+    const locations = story.worldBible.locations ?? [];
+    const routes = story.worldBible.tradeRoutes ?? [];
+    const items: NonNullable<SelectedMapItem>[] = [];
+
+    for (const ref of selection) {
+      if (ref.kind === 'location') {
+        const data = locations.find((l) => l.id === ref.id);
+        if (data) items.push({ type: 'location', data });
+      } else if (ref.kind === 'trade_route') {
+        const data = routes.find((r) => r.id === ref.id);
+        if (data) items.push({ type: 'trade_route', data });
+      } else if (ref.kind === 'terrain') {
+        const data = mapData.terrainFeatures.find((f) => f.id === ref.id);
+        if (data) items.push({ type: 'terrain', data });
+      } else {
+        const data = mapData.placements.find((p) => p.id === ref.id);
+        if (data) items.push({ type: 'placement', data });
+      }
+    }
+    return items;
+  }, [selection, mapData, story.worldBible.locations, story.worldBible.tradeRoutes]);
+
+  /**
+   * Drops refs whose objects vanished (delete, undo, a world switch). We keep
+   * the array identity when everything resolves so this cannot loop.
+   */
+  useEffect(() => {
+    if (selection.length === 0 || selectedItems.length === selection.length) return;
+    setSelection(selectedItems.map((item) => ({ kind: item.type, id: item.data.id })));
+  }, [selection.length, selectedItems]);
+
+  /** The Inspector only opens for a single object, exactly as before. */
+  const selectedItem: SelectedMapItem =
+    selectedItems.length === 1 ? selectedItems[0] : null;
+
+  /** Removes refs that a singular handler just deleted. */
+  const removeFromSelection = useCallback((refs: MapObjectRef[]) => {
+    if (refs.length === 0) return;
+    const keys = new Set(refs.map(mapObjectRefKey));
+    setSelection((prev) => prev.filter((ref) => !keys.has(mapObjectRefKey(ref))));
+  }, []);
+
   // Ensure initial locations have coordinates if unassigned
   useEffect(() => {
     const rawLocs = story.worldBible.locations || [];
@@ -281,9 +340,7 @@ export default function CartographerPage() {
           terrainFeatures: current.terrainFeatures.filter((f) => f.id !== id),
         };
       });
-      if (selectedItem?.type === 'terrain' && selectedItem.data.id === id) {
-        setSelectedItem(null);
-      }
+      removeFromSelection([{ kind: 'terrain', id }]);
     });
     notify.info(isPersian ? 'عارضه طبیعی حذف شد' : 'Terrain feature deleted');
   };
@@ -311,20 +368,13 @@ export default function CartographerPage() {
   const handleUpdateLocation = (id: string, updated: Partial<WorldLocation>) => {
     commit(updated.coordinates ? 'Move pin' : 'Edit location', () => {
       editLocation(id, updated);
-      setSelectedItem((prev) =>
-        prev?.type === 'location' && prev.data.id === id
-          ? { type: 'location', data: { ...prev.data, ...updated } }
-          : prev
-      );
     });
   };
 
   const handleDeleteLocation = (id: string) => {
     commit('Delete location', () => {
       deleteLocation(id);
-      if (selectedItem?.type === 'location' && selectedItem.data.id === id) {
-        setSelectedItem(null);
-      }
+      removeFromSelection([{ kind: 'location', id }]);
     });
   };
 
@@ -441,20 +491,13 @@ export default function CartographerPage() {
   const handleUpdateTradeRoute = (id: string, updated: Partial<WorldTradeRoute>) => {
     commit(updated.waypoints ? 'Move waypoint' : 'Edit trade route', () => {
       editTradeRoute(id, updated);
-      setSelectedItem((prev) =>
-        prev?.type === 'trade_route' && prev.data.id === id
-          ? { type: 'trade_route', data: { ...prev.data, ...updated } }
-          : prev
-      );
     });
   };
 
   const handleDeleteTradeRoute = (id: string) => {
     commit('Delete trade route', () => {
       deleteTradeRoute(id);
-      if (selectedItem?.type === 'trade_route' && selectedItem.data.id === id) {
-        setSelectedItem(null);
-      }
+      removeFromSelection([{ kind: 'trade_route', id }]);
     });
   };
 
@@ -481,9 +524,7 @@ export default function CartographerPage() {
           placements: current.placements.filter((p) => p.id !== id),
         };
       });
-      if (selectedItem?.type === 'placement' && selectedItem.data.id === id) {
-        setSelectedItem(null);
-      }
+      removeFromSelection([{ kind: 'placement', id }]);
     });
   };
 
@@ -608,7 +649,7 @@ export default function CartographerPage() {
   /** Selects a map object from the object list and centres the camera on it. */
   const handleSelectMapObject = useCallback((item: SelectedMapItem) => {
     if (!item) return;
-    setSelectedItem(item);
+    setSelection([{ kind: item.type, id: item.data.id }]);
 
     const point =
       item.type === 'terrain'
@@ -623,66 +664,221 @@ export default function CartographerPage() {
     setPan({ x: screenW / 2 - point.x * zoom, y: screenH / 2 - point.y * zoom });
   }, [zoom]);
 
-  /**
-   * Deletes whatever is currently selected. Reached from the Inspector and
-   * from the Delete key on the canvas — the same path, one confirmation.
-   */
-  const handleDeleteSelection = useCallback(
-    async (item: NonNullable<SelectedMapItem>) => {
-      if (item.type === 'terrain') {
-        const ok = await notify.confirm({
-          title: isPersian ? 'حذف عارضه طبیعی' : 'Delete terrain feature',
-          message: isPersian
-            ? `آیا از حذف "${item.data.name}" اطمینان دارید؟`
-            : `Delete "${item.data.name}" from the map?`,
-        });
-        if (!ok) return;
-        handleDeleteTerrain(item.data.id);
-        setSelectedItem(null);
-        return;
-      }
-      if (item.type === 'placement') {
-        const ok = await notify.confirm({
-          title: isPersian ? 'برداشتن سنجاق' : 'Remove pin',
-          message: isPersian
-            ? 'آیا این سنجاق از نقشه برداشته شود؟'
-            : 'Remove this pin from the map?',
-        });
-        if (!ok) return;
-        handleDeletePlacement(item.data.id);
-        setSelectedItem(null);
-        return;
-      }
-      if (item.type === 'trade_route') {
-        const ok = await notify.confirm({
-          title: isPersian ? 'حذف مسیر کاروان' : 'Delete trade route',
-          message: isPersian
-            ? `آیا از حذف مسیر "${item.data.name}" اطمینان دارید؟`
-            : `Delete the route "${item.data.name}"?`,
-        });
-        if (!ok) return;
-        handleDeleteTradeRoute(item.data.id);
-        setSelectedItem(null);
-        return;
-      }
-      if (item.type === 'location') {
-        const ok = await notify.confirm({
-          title: isPersian ? 'حذف مکان' : 'Delete location',
-          message: isPersian
-            ? `آیا از حذف مکان "${item.data.name}" از نقشه و انجیل جهان اطمینان دارید؟`
-            : `Delete "${item.data.name}" from the map and the world bible?`,
-        });
-        if (!ok) return;
-        handleDeleteLocation(item.data.id);
-        setSelectedItem(null);
-      }
-    },
-    [isPersian, handleDeleteTerrain, handleDeletePlacement, handleDeleteTradeRoute, handleDeleteLocation]
+  // -----------------------------------------------------------------------
+  // Plan 23 — multi-selection clipboard, duplicate, select-all and bulk delete
+  // -----------------------------------------------------------------------
+  const clipboardRef = useRef<MapClipboard | null>(null);
+  const pasteStepRef = useRef(0);
+
+  /** Everything the map can currently select, in one shape. */
+  const selectionSource = useMemo(
+    () => ({
+      locations: story.worldBible.locations,
+      tradeRoutes: story.worldBible.tradeRoutes,
+      terrainFeatures: mapData.terrainFeatures,
+      placements: mapData.placements,
+    }),
+    [story.worldBible.locations, story.worldBible.tradeRoutes, mapData]
   );
 
-  // Plan 21: the Delete key removes the current selection — the same path the
-  // Inspector's delete button uses, so both are undoable. Ignored while the
-  // author is typing in a field.
+  /**
+   * Deletes a whole selection after ONE confirmation and as ONE undo step.
+   *
+   * Routes whose endpoints disappear are removed too: a route with a dangling
+   * end is not drawn and can never be picked again, so leaving it behind would
+   * create invisible debris. Child locations lose their parent instead of
+   * pointing at a location that no longer exists.
+   */
+  const handleDeleteSelection = useCallback(
+    async (refs: MapObjectRef[]) => {
+      const unique = Array.from(new Map(refs.map((ref) => [mapObjectRefKey(ref), ref])).values());
+      if (unique.length === 0) return;
+
+      const terrainIds = new Set(unique.filter((r) => r.kind === 'terrain').map((r) => r.id));
+      const placementIds = new Set(unique.filter((r) => r.kind === 'placement').map((r) => r.id));
+      const locationIds = new Set(unique.filter((r) => r.kind === 'location').map((r) => r.id));
+      const routeIds = new Set(unique.filter((r) => r.kind === 'trade_route').map((r) => r.id));
+
+      const parts: string[] = [];
+      const addPart = (count: number, en: string, fa: string) => {
+        if (count === 0) return;
+        parts.push(isPersian ? `${count} ${fa}` : `${count} ${en}${count === 1 ? '' : 's'}`);
+      };
+      addPart(terrainIds.size, 'terrain feature', 'عارضه طبیعی');
+      addPart(placementIds.size, 'pin', 'سنجاق');
+      addPart(locationIds.size, 'location', 'مکان');
+      addPart(routeIds.size, 'trade route', 'مسیر کاروان');
+
+      const only = unique.length === 1 ? selectedItems[0] : undefined;
+      const namedObject =
+        only && 'name' in only.data
+          ? only.data.name
+          : only && only.type === 'placement'
+          ? only.data.customLabel
+          : undefined;
+
+      const ok = await notify.confirm({
+        title: isPersian ? 'حذف انتخاب' : 'Delete selection',
+        message: isPersian
+          ? unique.length === 1 && namedObject
+            ? `آیا «${namedObject}» حذف شود؟ این عمل با Ctrl+Z قابل بازگردانی است.`
+            : `آیا ${unique.length} شیء (${parts.join('، ')}) حذف شوند؟ این عمل با Ctrl+Z قابل بازگردانی است.`
+          : unique.length === 1 && namedObject
+          ? `Delete "${namedObject}"? You can undo this with Ctrl+Z.`
+          : `Delete ${unique.length} objects (${parts.join(', ')})? You can undo this with Ctrl+Z.`,
+      });
+      if (!ok) return;
+
+      commit('Delete selection', () => {
+        updateWorldBible((prev) => {
+          const prevMap = prev.mapData ?? prev.ontology?.mapData;
+          const locations = (prev.locations ?? [])
+            .filter((l) => !locationIds.has(l.id))
+            .map((l) =>
+              l.parentLocationId && locationIds.has(l.parentLocationId)
+                ? { ...l, parentLocationId: undefined }
+                : l
+            );
+          const tradeRoutes = (prev.tradeRoutes ?? []).filter(
+            (route) =>
+              !routeIds.has(route.id) &&
+              !locationIds.has(route.originLocationId) &&
+              !locationIds.has(route.destinationLocationId)
+          );
+          const nextMap = prevMap
+            ? {
+                ...prevMap,
+                terrainFeatures: prevMap.terrainFeatures.filter((f) => !terrainIds.has(f.id)),
+                placements: prevMap.placements.filter((p) => !placementIds.has(p.id)),
+              }
+            : prevMap;
+          return {
+            ...prev,
+            locations,
+            tradeRoutes,
+            mapData: nextMap,
+            ontology: { ...(prev.ontology || getDefaultOntology(isPersian)), mapData: nextMap },
+          };
+        });
+      });
+
+      setSelection([]);
+      notify.info(
+        isPersian
+          ? `${unique.length} شیء حذف شد`
+          : `${unique.length} object${unique.length === 1 ? '' : 's'} deleted`
+      );
+    },
+    [commit, isPersian, selectedItems, updateWorldBible]
+  );
+
+  /**
+   * The pasted batch is applied as one undo step and becomes the selection.
+   * Terrain/pins and locations/routes live in two different slices of the
+   * bible, so both updates are queued inside the same commit.
+   */
+  const pasteClipboard = useCallback(
+    (payload: MapClipboard, offsetX: number, offsetY: number): number => {
+      // Unique even when two pastes land in the same millisecond (key repeat,
+      // scripted tests): the random tag prevents id collisions between batches.
+      const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+      let counter = 0;
+      const clones = cloneMapClipboard(payload, {
+        offsetX,
+        offsetY,
+        copySuffix: isPersian ? ' (رونوشت)' : ' (copy)',
+        makeId: (kind) => {
+          const prefix =
+            kind === 'terrain'
+              ? 'terr'
+              : kind === 'placement'
+              ? 'pin'
+              : kind === 'location'
+              ? 'loc'
+              : 'tr';
+          return `${prefix}_${stamp}_${counter++}`;
+        },
+      });
+      if (clones.refs.length === 0) return 0;
+
+      commit('Paste', () => {
+        updateMapData((prev) => {
+          const current = prev || mapData;
+          return {
+            ...current,
+            terrainFeatures: [...current.terrainFeatures, ...clones.terrainFeatures],
+            placements: [...current.placements, ...clones.placements],
+          };
+        });
+        if (clones.locations.length > 0 || clones.tradeRoutes.length > 0) {
+          updateWorldBible((prev) => ({
+            ...prev,
+            locations: [...(prev.locations ?? []), ...clones.locations],
+            tradeRoutes: [...(prev.tradeRoutes ?? []), ...clones.tradeRoutes],
+          }));
+        }
+      });
+
+      setSelection(clones.refs);
+      return clones.refs.length;
+    },
+    [commit, isPersian, mapData, updateMapData, updateWorldBible]
+  );
+
+  const handleCopy = useCallback(() => {
+    if (selection.length === 0) return;
+    const payload = buildMapClipboard(selectionSource, selection);
+    const size = clipboardSize(payload);
+    if (size === 0) return;
+    // Snapshot: editing or deleting an object after copying must not change
+    // what the next paste produces.
+    clipboardRef.current = structuredClone(payload);
+    pasteStepRef.current = 1;
+    notify.info(isPersian ? `${size} شیء کپی شد` : `${size} object${size === 1 ? '' : 's'} copied`);
+  }, [isPersian, selection, selectionSource]);
+
+  const handlePaste = useCallback(() => {
+    const payload = clipboardRef.current;
+    if (!payload) return;
+    // Each consecutive paste steps further away, so repeated Ctrl+V produces a
+    // readable row of copies instead of a stack.
+    const step = pasteStepRef.current;
+    pasteStepRef.current += 1;
+    const count = pasteClipboard(payload, 24 * step, 24 * step);
+    if (count > 0) {
+      notify.success(
+        isPersian
+          ? `${count} شیء چسبانده شد`
+          : `${count} object${count === 1 ? '' : 's'} pasted`
+      );
+    }
+  }, [isPersian, pasteClipboard]);
+
+  const handleDuplicateSelection = useCallback(() => {
+    if (selection.length === 0) return;
+    const payload = buildMapClipboard(selectionSource, selection);
+    const count = pasteClipboard(payload, 24, 24);
+    if (count > 0) {
+      notify.success(
+        isPersian
+          ? `${count} شیء تکثیر شد`
+          : `${count} object${count === 1 ? '' : 's'} duplicated`
+      );
+    }
+  }, [isPersian, pasteClipboard, selection, selectionSource]);
+
+  const handleSelectAll = useCallback(() => {
+    const refs = collectSelectableRefs(selectionSource, mapSettings);
+    // Selecting while a drawing tool is armed is almost always a mistake the
+    // author has to undo by hand; Ctrl+A means "select", so arm the select tool.
+    setActiveTool('select');
+    setSelection(refs);
+    if (refs.length === 0) {
+      notify.info(isPersian ? 'شیء قابل انتخابی روی نقشه نیست.' : 'Nothing on the map can be selected.');
+    }
+  }, [isPersian, mapSettings, selectionSource]);
+
+  // Plan 23 authoring shortcuts — ignored while typing in a field.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -695,14 +891,36 @@ export default function CartographerPage() {
       ) {
         return;
       }
-      if (e.key === 'Delete' && selectedItem) {
+
+      if (e.key === 'Delete' && selection.length > 0) {
         e.preventDefault();
-        void handleDeleteSelection(selectedItem);
+        void handleDeleteSelection(selection);
+        return;
+      }
+      if (e.key === 'Escape' && selection.length > 0) {
+        setSelection([]);
+        return;
+      }
+      if (!(e.ctrlKey || e.metaKey)) return;
+
+      const key = e.key.toLowerCase();
+      if (key === 'a') {
+        e.preventDefault();
+        handleSelectAll();
+      } else if (key === 'c') {
+        e.preventDefault();
+        handleCopy();
+      } else if (key === 'v') {
+        e.preventDefault();
+        handlePaste();
+      } else if (key === 'd') {
+        e.preventDefault();
+        handleDuplicateSelection();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedItem, handleDeleteSelection]);
+  }, [selection, handleDeleteSelection, handleSelectAll, handleCopy, handlePaste, handleDuplicateSelection]);
 
   // Station NPC at location
   const handleStationNpc = (npcId: string, locationId: string) => {
@@ -717,7 +935,7 @@ export default function CartographerPage() {
     if (type === 'location') {
       const loc = story.worldBible.locations.find((l) => l.id === id);
       if (loc) {
-        setSelectedItem({ type: 'location', data: loc });
+        setSelection([{ kind: 'location', id: loc.id }]);
         if (loc.coordinates) {
           // Center camera on location
           const screenW = typeof window !== 'undefined' ? window.innerWidth : 1200;
@@ -743,7 +961,7 @@ export default function CartographerPage() {
         y: centerWorldY,
       };
       handleAddPlacement(newPin);
-      setSelectedItem({ type: 'placement', data: newPin });
+      setSelection([{ kind: 'placement', id: newPin.id }]);
     }
     setIsPaletteOpen(false);
   };
@@ -806,8 +1024,8 @@ export default function CartographerPage() {
           worldBible={story.worldBible}
           settings={mapSettings}
           activeTool={activeTool}
-          selectedItem={selectedItem}
-          onSelectItem={setSelectedItem}
+          selection={selection}
+          onSelectionChange={setSelection}
           onUpdateLocation={handleUpdateLocation}
           onUpdateTradeRoute={handleUpdateTradeRoute}
           onAddTradeRoute={handleAddTradeRoute}
@@ -862,11 +1080,23 @@ export default function CartographerPage() {
           />
         )}
 
+        {/* Multi-selection actions (Plan 23). A single object keeps the full
+            Inspector; two or more get the compact floating bar instead. */}
+        {selectedItems.length > 1 && (
+          <CartographerSelectionBar
+            count={selectedItems.length}
+            onDuplicate={handleDuplicateSelection}
+            onDelete={() => void handleDeleteSelection(selection)}
+            onClear={() => setSelection([])}
+            isPersian={isPersian}
+          />
+        )}
+
         {/* Selected Node Inspector Drawer (Right) */}
         {selectedItem && (
           <CartographerInspector
             selectedItem={selectedItem}
-            onClose={() => setSelectedItem(null)}
+            onClose={() => setSelection([])}
             onUpdateLocation={handleUpdateLocation}
             onDeleteLocation={handleDeleteLocation}
             onUpdateTradeRoute={handleUpdateTradeRoute}

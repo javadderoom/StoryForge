@@ -11,11 +11,17 @@ import {
   MapPoint,
 } from '@/lib/types';
 import { CartographerTool } from './CartographerHeader';
-import { SelectedMapItem } from './CartographerInspector';
 import {
   PixiCartographerEngine,
   DraggedNodeData,
 } from '@/lib/engines/world/pixi/PixiCartographerEngine';
+import {
+  marqueeSelectRefs,
+  mergeMapObjectRefs,
+  sameMapObjectRef,
+  toggleMapObjectRef,
+  type MapObjectRef,
+} from '@/lib/engines/world/mapSelection';
 import {
   screenToWorld,
   calculateZoomPan,
@@ -45,8 +51,9 @@ interface PixiCartographerCanvasProps {
   worldBible: WorldBible;
   settings: WorldMapSettings;
   activeTool: CartographerTool;
-  selectedItem: SelectedMapItem;
-  onSelectItem: (item: SelectedMapItem) => void;
+  /** Plan 23: every selected object, not only the one in the Inspector. */
+  selection: MapObjectRef[];
+  onSelectionChange: (refs: MapObjectRef[]) => void;
   onUpdateLocation: (id: string, updated: Partial<WorldLocation>) => void;
   onUpdateTradeRoute: (id: string, updated: Partial<WorldTradeRoute>) => void;
   onAddTradeRoute: (route: WorldTradeRoute) => void;
@@ -69,12 +76,31 @@ interface PixiCartographerCanvasProps {
  */
 const LAND_AND_WATER_TYPES = new Set(['continent', 'island', 'ocean', 'sea', 'lake']);
 
+/**
+ * A rubber band in progress, in container-relative screen pixels.
+ *
+ * `base` is the selection the band started from when Shift/Ctrl is held, so
+ * an additive band unions with what was already selected instead of replacing
+ * it.
+ */
+interface MarqueeState {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  additive: boolean;
+  base: MapObjectRef[];
+}
+
+/** A click that never moved further than this is not a rubber band. */
+const MARQUEE_THRESHOLD_PX = 3;
+
 export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   worldBible,
   settings,
   activeTool,
-  selectedItem,
-  onSelectItem,
+  selection,
+  onSelectionChange,
   onUpdateLocation,
   onUpdateTradeRoute,
   onAddTradeRoute,
@@ -97,6 +123,16 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   const [isPanning, setIsPanning] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hoveredCoord, setHoveredCoord] = useState<MapPoint | null>(null);
+
+  // Rubber-band selection (Plan 23). The ref mirrors the state so the mouseup
+  // path can read the band synchronously without re-binding global listeners
+  // on every pointer move.
+  const [marquee, setMarquee] = useState<MarqueeState | null>(null);
+  const marqueeRef = useRef<MarqueeState | null>(null);
+  const setMarqueeState = useCallback((next: MarqueeState | null) => {
+    marqueeRef.current = next;
+    setMarquee(next);
+  }, []);
 
   // Creation & tool drafting state
   const [draftPoints, setDraftPoints] = useState<MapPoint[]>([]);
@@ -163,7 +199,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         engine.renderAll({
           worldBible,
           settings,
-          selectedItem,
+          selection,
           activeTool,
           draggedNode,
           transientPos,
@@ -209,7 +245,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     engineRef.current.renderAll({
       worldBible,
       settings,
-      selectedItem,
+      selection,
       activeTool,
       draggedNode,
       transientPos,
@@ -220,7 +256,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   }, [
     worldBible,
     settings,
-    selectedItem,
+    selection,
     activeTool,
     draggedNode,
     transientPos,
@@ -371,7 +407,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         category: 'settlement',
       };
       onAddLocation(newLoc);
-      onSelectItem({ type: 'location', data: newLoc });
+      onSelectionChange([{ kind: 'location', id: newLoc.id }]);
       return;
     }
 
@@ -406,7 +442,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
               commodities: [{ entityId: 'comm_goods', name: isPersian ? 'ادویه و غلات' : 'Spices & Silk' }],
             };
             onAddTradeRoute(newRoute);
-            onSelectItem({ type: 'trade_route', data: newRoute });
+            onSelectionChange([{ kind: 'trade_route', id: newRoute.id }]);
           }
           setDraftPoints([]);
           delete (window as any).__pixiDraftOriginLocId;
@@ -424,14 +460,42 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     // Plan 21: the pick is geometry-accurate (point-in-polygon for landmasses,
     // distance-to-segment for rivers and routes), so every authored shape can
     // be selected — and therefore opened in the Inspector and deleted.
+    //
+    // Plan 23: Shift/Ctrl-click toggles one object in the selection, and a
+    // drag that starts on empty parchment draws a rubber band. Panning is on
+    // the middle/right button or Alt, so the primary button is free for the
+    // design-tool gesture authors expect.
     if (activeTool === 'select' && engineRef.current) {
       const hit = engineRef.current.pickAt(worldPoint);
+      const additive = e.shiftKey || e.ctrlKey || e.metaKey;
 
       if (hit) {
+        const hitRef: MapObjectRef =
+          hit.kind === 'waypoint'
+            ? { kind: 'trade_route', id: hit.candidate.routeId }
+            : hit.kind === 'location'
+            ? { kind: 'location', id: hit.candidate.location.id }
+            : hit.kind === 'terrain'
+            ? { kind: 'terrain', id: hit.candidate.feature.id }
+            : hit.kind === 'placement'
+            ? { kind: 'placement', id: hit.candidate.placement.id }
+            : { kind: 'trade_route', id: hit.candidate.route.id };
+
+        if (additive) {
+          onSelectionChange(toggleMapObjectRef(selection, hitRef));
+          return;
+        }
+
+        const alreadySelected = selection.some((ref) => sameMapObjectRef(ref, hitRef));
+        // Clicking one member of a multi-selection collapses to that object.
+        // There is no group drag yet, so keeping the others selected while only
+        // this one follows the pointer would make the selection lie.
+        if (!alreadySelected || selection.length > 1) {
+          onSelectionChange([hitRef]);
+        }
+
         if (hit.kind === 'location') {
           const loc = hit.candidate.location;
-          onSelectItem({ type: 'location', data: loc });
-
           // Start dragging buffered settlement
           const nodeData: DraggedNodeData = {
             type: 'location',
@@ -442,7 +506,6 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           draggedNodeRef.current = nodeData;
           setTransientPos(loc.coordinates!);
           transientPosRef.current = loc.coordinates!;
-          return;
         } else if (hit.kind === 'waypoint') {
           const wpData = hit.candidate;
           const nodeData: DraggedNodeData = {
@@ -456,33 +519,48 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           draggedNodeRef.current = nodeData;
           setTransientPos(wpData.point);
           transientPosRef.current = wpData.point;
-          return;
-        } else if (hit.kind === 'terrain') {
-          onSelectItem({ type: 'terrain', data: hit.candidate.feature });
-          return;
-        } else if (hit.kind === 'placement') {
-          onSelectItem({ type: 'placement', data: hit.candidate.placement });
-          return;
-        } else if (hit.kind === 'trade_route') {
-          onSelectItem({ type: 'trade_route', data: hit.candidate.route });
-          return;
         }
-      } else {
-        // Clicked empty parchment: start panning
-        setIsPanning(true);
-        setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+        return;
       }
+
+      // Empty parchment: begin a rubber band. A press-and-release without
+      // movement clears the selection when it ends.
+      const container = containerRef.current;
+      if (!container) return;
+      e.preventDefault();
+      const rect = container.getBoundingClientRect();
+      setMarqueeState({
+        x0: e.clientX - rect.left,
+        y0: e.clientY - rect.top,
+        x1: e.clientX - rect.left,
+        y1: e.clientY - rect.top,
+        additive,
+        base: additive ? selection : [],
+      });
+      return;
     }
   };
 
   // Mouse Move handler (silky 60fps local buffering)
   const handleMouseMove = (e: React.MouseEvent) => {
-    // A pan in progress owns the pointer: keep tracking it even when the drag
-    // crosses a floating overlay, otherwise the map freezes for as long as the
-    // cursor is over the badge instead of the canvas.
-    if (!isPanning && !isCanvasSurface(e)) return;
+    // A pan or rubber band in progress owns the pointer: keep tracking it even
+    // when the drag crosses a floating overlay, otherwise the map (or the
+    // band) freezes for as long as the cursor is over the badge.
+    if (!isPanning && !marqueeRef.current && !isCanvasSurface(e)) return;
     const worldPoint = clientToWorld(e.clientX, e.clientY);
     setHoveredCoord(worldPoint);
+
+    if (marqueeRef.current) {
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      setMarqueeState({
+        ...marqueeRef.current,
+        x1: e.clientX - rect.left,
+        y1: e.clientY - rect.top,
+      });
+      return;
+    }
 
     // Land Sculpt Brush cursor and continuous stroke accumulation
     if (activeTool === 'land_brush' && engineRef.current) {
@@ -537,6 +615,51 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
   // Commit drag on mouse release
   const commitDragEnd = useCallback(() => {
+    // Finish a rubber-band selection first: it is a viewport gesture and must
+    // not fall through to the sculpt/drag cleanup below.
+    const band = marqueeRef.current;
+    if (band) {
+      setMarqueeState(null);
+      const moved =
+        Math.abs(band.x1 - band.x0) > MARQUEE_THRESHOLD_PX ||
+        Math.abs(band.y1 - band.y0) > MARQUEE_THRESHOLD_PX;
+
+      if (!moved) {
+        // A plain click on empty parchment clears; Shift/Ctrl-click keeps it.
+        if (!band.additive) onSelectionChange([]);
+      } else {
+        const topLeft = screenToWorld(
+          Math.min(band.x0, band.x1),
+          Math.min(band.y0, band.y1),
+          pan,
+          zoom
+        );
+        const bottomRight = screenToWorld(
+          Math.max(band.x0, band.x1),
+          Math.max(band.y0, band.y1),
+          pan,
+          zoom
+        );
+        const bandMapData = worldBible.mapData ?? worldBible.ontology?.mapData;
+        const hits = marqueeSelectRefs(
+          {
+            locations: worldBible.locations,
+            tradeRoutes: worldBible.tradeRoutes,
+            terrainFeatures: bandMapData?.terrainFeatures,
+            placements: bandMapData?.placements,
+          },
+          {
+            minX: topLeft.x,
+            minY: topLeft.y,
+            maxX: bottomRight.x,
+            maxY: bottomRight.y,
+          },
+          settings
+        );
+        onSelectionChange(band.additive ? mergeMapObjectRefs(band.base, hits) : hits);
+      }
+    }
+
     // Finalize Land Sculpt stroke
     if (isSculptingRef.current) {
       isSculptingRef.current = false;
@@ -592,7 +715,12 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     onUpdateLocation,
     onUpdateTradeRoute,
     onReplaceTerrain,
-    worldBible.mapData?.terrainFeatures,
+    onSelectionChange,
+    setMarqueeState,
+    worldBible,
+    settings,
+    pan,
+    zoom,
     sculptMode,
   ]);
 
@@ -632,7 +760,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         description: isPersian ? 'عنصر جغرافیایی ترسیم‌شده' : 'User-created geographical feature',
       };
       onAddTerrain(newFeature);
-      onSelectItem({ type: 'terrain', data: newFeature });
+      onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
     } else if (
       activeTool === 'terrain_mountain' ||
       activeTool === 'terrain_river' ||
@@ -665,11 +793,11 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         width: type === 'river' ? 4 : 28,
       };
       onAddTerrain(newFeature);
-      onSelectItem({ type: 'terrain', data: newFeature });
+      onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
     }
 
     setDraftPoints([]);
-  }, [draftPoints, activeTool, isPersian, onAddTerrain, onSelectItem]);
+  }, [draftPoints, activeTool, isPersian, onAddTerrain, onSelectionChange]);
 
   // Escape cancels the draft, Enter commits it.
   useEffect(() => {
@@ -703,6 +831,23 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     >
       {/* PixiJS WebGL Canvas */}
       <canvas ref={canvasRef} className="w-full h-full block" />
+
+      {/* Rubber-band selection (Plan 23). Screen-space, so it stays crisp at
+          every zoom level; pointer-events-none keeps it out of the gesture. */}
+      {marquee &&
+        Math.abs(marquee.x1 - marquee.x0) > MARQUEE_THRESHOLD_PX &&
+        Math.abs(marquee.y1 - marquee.y0) > MARQUEE_THRESHOLD_PX && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute z-30 border border-amber-500/90 bg-amber-300/15 shadow-[0_0_0_1px_rgba(255,247,226,0.55)]"
+            style={{
+              left: Math.min(marquee.x0, marquee.x1),
+              top: Math.min(marquee.y0, marquee.y1),
+              width: Math.abs(marquee.x1 - marquee.x0),
+              height: Math.abs(marquee.y1 - marquee.y0),
+            }}
+          />
+        )}
 
       {/* Land Sculpt Brush Floating HUD */}
       {activeTool === 'land_brush' && (
@@ -849,7 +994,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           <span>Zoom: {Math.round(zoom * 100)}%</span>
           <span className="text-stone-600">|</span>
           <span className="text-stone-500">
-            {isPersian ? 'کلیک راست: جابجایی' : 'Right-drag: pan'}
+            {isPersian ? 'کشیدن: انتخاب · راست: جابجایی' : 'Drag: select · Right-drag: pan'}
           </span>
         </div>
       )}

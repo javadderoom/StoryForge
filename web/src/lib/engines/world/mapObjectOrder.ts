@@ -23,7 +23,12 @@
  * never be visible in one place and invisible in another.
  */
 
-import type { MapPoint, MapTerrainType } from '@/lib/types/world';
+import type {
+  MapEntityPlacementType,
+  MapPoint,
+  MapTerrainType,
+  WorldMapSettings,
+} from '@/lib/types/world';
 
 /**
  * Draw bands, lowest first. The spacing (1000) leaves room for an author to
@@ -172,6 +177,73 @@ export function isObjectVisible(obj: { visible?: boolean }): boolean {
 /** Locked objects cannot be picked or edited on the canvas. */
 export function isObjectLocked(obj: { locked?: boolean }): boolean {
   return obj.locked === true;
+}
+
+/**
+ * Whether a terrain type is shown by the layer panel's category switches.
+ *
+ * This is the ONE mapping from a type to its switch: the renderer and the
+ * selection marquee both read it, so an object can never be selectable while
+ * invisible (or invisible while selectable).
+ */
+export function isTerrainVisibleInLayers(
+  type: MapTerrainType,
+  layers: WorldMapSettings['visibleLayers']
+): boolean {
+  switch (type) {
+    case 'continent':
+    case 'island':
+      return layers.terrain;
+    case 'ocean':
+    case 'sea':
+    case 'lake':
+    case 'river':
+      return layers.water;
+    case 'forest':
+    case 'desert':
+    case 'swamp':
+    case 'tundra':
+    case 'wasteland':
+    case 'plains':
+    case 'oasis':
+      return layers.biomes;
+    case 'valley':
+    case 'canyon':
+    case 'chasm':
+      return layers.valleys;
+    case 'mountain_range':
+    case 'peak':
+    case 'volcano':
+      return layers.mountains;
+    case 'arcane_anomaly':
+      return true;
+    default:
+      return true;
+  }
+}
+
+/**
+ * Whether a lore pin is shown by the layer panel's category switches.
+ *
+ * Pins with types that have no switch of their own (timeline markers, faction
+ * outposts) are always drawn, which is what the renderer has always done.
+ */
+export function isPlacementVisibleInLayers(
+  type: MapEntityPlacementType,
+  layers: WorldMapSettings['visibleLayers']
+): boolean {
+  switch (type) {
+    case 'npc':
+      return layers.npcs;
+    case 'bestiary':
+      return layers.bestiary;
+    case 'artifact':
+      return layers.relics;
+    case 'deity':
+      return layers.deities;
+    default:
+      return true;
+  }
 }
 
 /**

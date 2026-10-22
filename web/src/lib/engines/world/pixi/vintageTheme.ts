@@ -52,6 +52,12 @@ export const VINTAGE_PARCHMENT = {
   labelBannerBorder: 0x5c4938,
   labelText: 0x1e130c,
 
+  // Selection (Plan 23)
+  // A wide cream under-stroke plus a thin amber line: readable on both the
+  // pale paper and the indigo sea wash, and clearly not part of the map ink.
+  selectionHalo: 0xfff7e2,
+  selectionInk: 0xb45309,
+
   // Cartographic Frame & Grid
   gridRuling: 0xa8987e,
   gridRulingHex: '#a8987e',
