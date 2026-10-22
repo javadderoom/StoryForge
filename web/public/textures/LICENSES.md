@@ -15,9 +15,9 @@ edges do not wrap, which shows up on the map as a grid of seams.
 
 | Material | Source (CC0) | File | Ramp | Tile | Coverage | Matrix scale |
 |---|---|---|---|---|---|---|
-| `ocean` | [`Ice002`](https://ambientcg.com/view?id=Ice002) | `Ice002_1K-JPG_Color.jpg` | #c6b48c → #f0e6cb | 1024² | 430 units | 0.420 |
+| `ocean` | [`Ice002`](https://ambientcg.com/view?id=Ice002) | `Ice002_1K-JPG_Color.jpg` | #6f8fa6 → #dbe7e6 | 1024² | 430 units | 0.420 |
 | `land` | [`Paper003`](https://ambientcg.com/view?id=Paper003) | `Paper003_1K-JPG_Color.jpg` | #e3d8b8 → #fdfbf1 | 1024² | 520 units | 0.508 |
-| `water` | [`Ice002`](https://ambientcg.com/view?id=Ice002) | `Ice002_1K-JPG_Color.jpg` | #b9a67e → #e8dcbc | 1024² | 360 units | 0.352 |
+| `water` | [`Ice002`](https://ambientcg.com/view?id=Ice002) | `Ice002_1K-JPG_Color.jpg` | #5f86a0 → #d3e4e3 | 1024² | 360 units | 0.352 |
 | `forest` | [`Ground106`](https://ambientcg.com/view?id=Ground106) | `Ground106_1K-JPG_Color.jpg` | #2f3a24 → #8b9a70 | 512² | 460 units | 0.898 |
 | `desert` | [`Ground101`](https://ambientcg.com/view?id=Ground101) | `Ground101_1K-JPG_Color.jpg` | #a8814a → #f0dcae | 512² | 720 units | 1.406 |
 | `swamp` | [`Ground025`](https://ambientcg.com/view?id=Ground025) | `Ground025_1K-JPG_Color.jpg` | #33301f → #8a8266 | 512² | 460 units | 0.898 |

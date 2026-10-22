@@ -66,21 +66,26 @@ export interface MapMaterial {
 /**
  * The material table for the parchment theme.
  *
- * The tints are chosen against `VINTAGE_PARCHMENT`: the sea and the land are
- * two shades of the same aged parchment (the wet and the dry of it), and the
- * biomes are the muted earth pigments an illuminator would have used.
+ * The tints are chosen against `VINTAGE_PARCHMENT`: land is aged paper, water
+ * is the cool indigo/verdigris wash antique charts gave open water (so the
+ * sheet still reads at a glance: warm = dry, cool = wet), and the biomes are
+ * the muted earth pigments an illuminator would have used.
  */
 export const MAP_MATERIALS: Record<MapMaterialKey, MapMaterial> = {
   ocean: {
     key: 'ocean',
     source: 'Ice002',
-    shadow: '#c6b48c',
-    highlight: '#f0e6cb',
+    // The sea is the one place the parchment palette goes cool: antique charts
+    // washed open water with indigo/verdigris, and a cool sea keeps the warm
+    // paper the lightest thing on the sheet (land reads first, water recedes).
+    // The ramp is wide enough that the caustic network survives the duotone.
+    shadow: '#6f8fa6',
+    highlight: '#dbe7e6',
     tileSize: 430,
     alpha: 1,
     resolution: 1024,
     blur: 1,
-    contrast: 0.4,
+    contrast: 0.65,
     brightness: 0,
     label: { en: 'Open Sea', fa: 'دریای آزاد' },
   },
@@ -100,13 +105,15 @@ export const MAP_MATERIALS: Record<MapMaterialKey, MapMaterial> = {
   water: {
     key: 'water',
     source: 'Ice002',
-    shadow: '#b9a67e',
-    highlight: '#e8dcbc',
+    // Lakes and inland seas: the same cool family as the ocean, one step deeper
+    // so standing water is distinguishable from the open sea.
+    shadow: '#5f86a0',
+    highlight: '#d3e4e3',
     tileSize: 360,
     alpha: 1,
     resolution: 1024,
     blur: 1,
-    contrast: 0.45,
+    contrast: 0.7,
     brightness: 0,
     label: { en: 'Inland Water', fa: 'آب‌های داخلی' },
   },

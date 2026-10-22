@@ -8,8 +8,10 @@ export const VINTAGE_PARCHMENT = {
   // Base Paper & Water
   bgParchment: 0xf5ecd5,
   bgParchmentHex: '#f5ecd5',
-  oceanWash: 0xe4d5b2,
-  oceanWashHex: '#e4d5b2',
+  // Midpoint of the `ocean` material ramp, so the flat fallback and the
+  // textured sea are the same colour.
+  oceanWash: 0xa5bbc6,
+  oceanWashHex: '#a5bbc6',
   landFill: 0xf9f3df,
   landFillHex: '#f9f3df',
 

@@ -42,8 +42,14 @@ staying inside the map's palette.
 | `tundra` | `Snow014` (snow) | 640 units | tundra biome | 512² |
 | `plains` | `Grass003` (grass) | 560 units | plains, oasis | 512² |
 
-Total payload: **184 KB** of WebP for the whole set. Provenance and ramps are
+Total payload: **224 KB** of WebP for the whole set. Provenance and ramps are
 regenerated into `web/public/textures/LICENSES.md` by the build script.
+
+The sea is the one cool material in an otherwise warm palette: open water is
+washed indigo/verdigris (ramp `#6f8fa6 → #dbe7e6`), standing water one step
+deeper (`#5f86a0 → #d3e4e3`). That is the antique-chart convention, and it is
+what makes the map readable at a glance — warm = dry, cool = wet — while the
+paper stays the lightest thing on the sheet.
 
 ## The pipeline — `web/scripts/buildTextures.ts`
 
@@ -103,7 +109,7 @@ derivatives are the only textures the app ships.
 | 2 | **`sharp.blur()` promotes a 1-channel raw buffer to 3 channels.** Indexing the result as greyscale silently scrambles the tile (it looked like "the blur destroyed the structure"). | `.toColourspace('b-w')` after the blur, plus an explicit length assertion. |
 | 3 | A plain blur samples across the tile edge and pulls the border inwards → seams. | Blur a wrapped 3×3 copy and crop the centre back out (`blurWrapped`). |
 | 4 | Sigma 3 flattened the sea's caustic network into a featureless gradient — the *structure* is high-frequency. | Blur is only ever 0–1 px (it exists to take the edge off JPEG grain). Softness is dialled with `contrast` and `tileSize`. |
-| 5 | At 700 units per repeat the caustics read as **cracked earth**. | Small repeats (430/360) turn the cells into ripples; contrast 0.40/0.45 keeps them a whisper. |
+| 5 | At 700 units per repeat the caustics read as **cracked earth**. | Small repeats (430/360) turn the cells into ripples. The first pass kept them a whisper (contrast 0.40) — too faint to see on the parchment wash, so the sea now runs at 0.65/0.70 against a wide indigo ramp. |
 | 6 | A ramp whose midpoint is not the region's old flat colour changes the biome's colour identity (the first forest pass was a dark olive slab). | Every ramp is chosen so its midpoint ≈ the flat colour it replaces. |
 | 7 | Pixi's `Assets.load` takes `src`, not `url`; the wrong key fails silently per-tile. | `Assets.load({ alias, src })`, and failures are logged. |
 | 8 | **Pixi inverts the fill matrix.** `generateTextureFillMatrix` does `style.matrix.invert()` then scales by `1/resolution`, so `uv = position / (scale × resolution)` and one repeat spans `scale × resolution` units. `resolution / tileSize` therefore stretched every tile by `(resolution / tileSize)²` — the sea showed caustic blobs ~2400 units wide, which read as a flat wash ("the ocean texture doesn't show"). | `textureScaleFor` returns `tileSize / resolution` (sea 0.420, land 0.508). Verified by rendering the real fill in a headless Pixi harness and reading the framebuffer back. |
