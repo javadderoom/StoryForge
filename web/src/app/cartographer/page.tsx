@@ -27,6 +27,7 @@ import { CartographerAiOracleModal } from '@/components/cartographer/Cartographe
 import { notify } from '@/lib/notify';
 import { auditWorldMapLayout } from '@/lib/engines/world/mapLayoutAuditor';
 import { solveMapLayout, stableSeedFromString } from '@/lib/engines/world/mapLayoutSolver';
+import { reorderPlacementByZ, reorderTerrainByZ, terrainCenter } from '@/lib/engines/world/mapObjectOrder';
 import {
   CARTOGRAPHER_COALESCE_MS,
   createCartographerHistory,
@@ -486,6 +487,223 @@ export default function CartographerPage() {
     });
   };
 
+  // -----------------------------------------------------------------------
+  // Plan 21 — per-object layer controls
+  //
+  // Every one of these goes through `commit()`, so each is a single undoable
+  // step rather than a silent mutation of the world.
+  // -----------------------------------------------------------------------
+  const handleSetTerrainState = useCallback(
+    (id: string, patch: Partial<MapTerrainFeature>, label: string) => {
+      commit(label, () => {
+        updateMapData((prev) => {
+          const current = prev || mapData;
+          return {
+            ...current,
+            terrainFeatures: current.terrainFeatures.map((f) =>
+              f.id === id ? { ...f, ...patch } : f
+            ),
+          };
+        });
+      });
+    },
+    [commit, mapData, updateMapData]
+  );
+
+  const handleSetPlacementState = useCallback(
+    (id: string, patch: Partial<MapEntityPlacement>, label: string) => {
+      commit(label, () => {
+        updateMapData((prev) => {
+          const current = prev || mapData;
+          return {
+            ...current,
+            placements: current.placements.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+          };
+        });
+      });
+    },
+    [commit, mapData, updateMapData]
+  );
+
+  const handleToggleTerrainVisibility = useCallback(
+    (id: string) => {
+      const feature = (mapData.terrainFeatures || []).find((f) => f.id === id);
+      if (!feature) return;
+      handleSetTerrainState(id, { visible: feature.visible === false }, 'Toggle layer visibility');
+    },
+    [handleSetTerrainState, mapData]
+  );
+
+  const handleToggleTerrainLock = useCallback(
+    (id: string) => {
+      const feature = (mapData.terrainFeatures || []).find((f) => f.id === id);
+      if (!feature) return;
+      handleSetTerrainState(id, { locked: !(feature.locked === true) }, 'Toggle layer lock');
+    },
+    [handleSetTerrainState, mapData]
+  );
+
+  const handleTogglePlacementVisibility = useCallback(
+    (id: string) => {
+      const pin = (mapData.placements || []).find((p) => p.id === id);
+      if (!pin) return;
+      handleSetPlacementState(id, { visible: pin.visible === false }, 'Toggle pin visibility');
+    },
+    [handleSetPlacementState, mapData]
+  );
+
+  const handleTogglePlacementLock = useCallback(
+    (id: string) => {
+      const pin = (mapData.placements || []).find((p) => p.id === id);
+      if (!pin) return;
+      handleSetPlacementState(id, { locked: !(pin.locked === true) }, 'Toggle pin lock');
+    },
+    [handleSetPlacementState, mapData]
+  );
+
+  const handleReorderTerrain = useCallback(
+    (id: string, direction: 'forward' | 'backward') => {
+      commit(direction === 'forward' ? 'Bring layer forward' : 'Send layer backward', () => {
+        updateMapData((prev) => {
+          const current = prev || mapData;
+          return {
+            ...current,
+            terrainFeatures: reorderTerrainByZ(current.terrainFeatures, id, direction),
+          };
+        });
+      });
+    },
+    [commit, mapData, updateMapData]
+  );
+
+  const handleReorderPlacement = useCallback(
+    (id: string, direction: 'forward' | 'backward') => {
+      commit(direction === 'forward' ? 'Bring pin forward' : 'Send pin backward', () => {
+        updateMapData((prev) => {
+          const current = prev || mapData;
+          return {
+            ...current,
+            placements: reorderPlacementByZ(current.placements, id, direction),
+          };
+        });
+      });
+    },
+    [commit, mapData, updateMapData]
+  );
+
+  const handleRenameTerrain = useCallback(
+    (id: string, name: string) => {
+      handleSetTerrainState(id, { name }, 'Rename feature');
+    },
+    [handleSetTerrainState]
+  );
+
+  const handleRenamePlacement = useCallback(
+    (id: string, label: string) => {
+      handleSetPlacementState(id, { customLabel: label }, 'Rename pin');
+    },
+    [handleSetPlacementState]
+  );
+
+  /** Selects a map object from the object list and centres the camera on it. */
+  const handleSelectMapObject = useCallback((item: SelectedMapItem) => {
+    if (!item) return;
+    setSelectedItem(item);
+
+    const point =
+      item.type === 'terrain'
+        ? terrainCenter(item.data)
+        : item.type === 'placement'
+        ? { x: item.data.x, y: item.data.y }
+        : null;
+    if (!point) return;
+
+    const screenW = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const screenH = typeof window !== 'undefined' ? window.innerHeight : 800;
+    setPan({ x: screenW / 2 - point.x * zoom, y: screenH / 2 - point.y * zoom });
+  }, [zoom]);
+
+  /**
+   * Deletes whatever is currently selected. Reached from the Inspector and
+   * from the Delete key on the canvas — the same path, one confirmation.
+   */
+  const handleDeleteSelection = useCallback(
+    async (item: NonNullable<SelectedMapItem>) => {
+      if (item.type === 'terrain') {
+        const ok = await notify.confirm({
+          title: isPersian ? 'حذف عارضه طبیعی' : 'Delete terrain feature',
+          message: isPersian
+            ? `آیا از حذف "${item.data.name}" اطمینان دارید؟`
+            : `Delete "${item.data.name}" from the map?`,
+        });
+        if (!ok) return;
+        handleDeleteTerrain(item.data.id);
+        setSelectedItem(null);
+        return;
+      }
+      if (item.type === 'placement') {
+        const ok = await notify.confirm({
+          title: isPersian ? 'برداشتن سنجاق' : 'Remove pin',
+          message: isPersian
+            ? 'آیا این سنجاق از نقشه برداشته شود؟'
+            : 'Remove this pin from the map?',
+        });
+        if (!ok) return;
+        handleDeletePlacement(item.data.id);
+        setSelectedItem(null);
+        return;
+      }
+      if (item.type === 'trade_route') {
+        const ok = await notify.confirm({
+          title: isPersian ? 'حذف مسیر کاروان' : 'Delete trade route',
+          message: isPersian
+            ? `آیا از حذف مسیر "${item.data.name}" اطمینان دارید؟`
+            : `Delete the route "${item.data.name}"?`,
+        });
+        if (!ok) return;
+        handleDeleteTradeRoute(item.data.id);
+        setSelectedItem(null);
+        return;
+      }
+      if (item.type === 'location') {
+        const ok = await notify.confirm({
+          title: isPersian ? 'حذف مکان' : 'Delete location',
+          message: isPersian
+            ? `آیا از حذف مکان "${item.data.name}" از نقشه و انجیل جهان اطمینان دارید؟`
+            : `Delete "${item.data.name}" from the map and the world bible?`,
+        });
+        if (!ok) return;
+        handleDeleteLocation(item.data.id);
+        setSelectedItem(null);
+      }
+    },
+    [isPersian, handleDeleteTerrain, handleDeletePlacement, handleDeleteTradeRoute, handleDeleteLocation]
+  );
+
+  // Plan 21: the Delete key removes the current selection — the same path the
+  // Inspector's delete button uses, so both are undoable. Ignored while the
+  // author is typing in a field.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === 'Delete' && selectedItem) {
+        e.preventDefault();
+        void handleDeleteSelection(selectedItem);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedItem, handleDeleteSelection]);
+
   // Station NPC at location
   const handleStationNpc = (npcId: string, locationId: string) => {
     commit('Station NPC', () => {
@@ -629,6 +847,18 @@ export default function CartographerPage() {
             onSelectEntityForPlacement={handleSelectEntityForPlacement}
             onClose={() => setIsPaletteOpen(false)}
             isPersian={isPersian}
+            mapData={mapData}
+            onSelectMapObject={handleSelectMapObject}
+            onToggleTerrainVisibility={handleToggleTerrainVisibility}
+            onToggleTerrainLock={handleToggleTerrainLock}
+            onRenameTerrain={handleRenameTerrain}
+            onReorderTerrain={handleReorderTerrain}
+            onDeleteTerrain={handleDeleteTerrain}
+            onTogglePlacementVisibility={handleTogglePlacementVisibility}
+            onTogglePlacementLock={handleTogglePlacementLock}
+            onRenamePlacement={handleRenamePlacement}
+            onReorderPlacement={handleReorderPlacement}
+            onDeletePlacement={handleDeletePlacement}
           />
         )}
 
@@ -644,6 +874,10 @@ export default function CartographerPage() {
             onUpdateTerrain={handleUpdateTerrain}
             onDeleteTerrain={handleDeleteTerrain}
             onDeletePlacement={handleDeletePlacement}
+            onToggleTerrainVisibility={handleToggleTerrainVisibility}
+            onToggleTerrainLock={handleToggleTerrainLock}
+            onTogglePlacementVisibility={handleTogglePlacementVisibility}
+            onTogglePlacementLock={handleTogglePlacementLock}
             npcs={story.worldBible.npcs || []}
             factions={story.worldBible.factions || []}
             locations={story.worldBible.locations || []}

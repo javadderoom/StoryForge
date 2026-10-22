@@ -1121,7 +1121,13 @@ export function applySculptOperation(
 
     const isSplit = pieces.length > 1;
 
-    // Primary piece retains parent position and identity
+    // Primary piece retains parent position and identity.
+    //
+    // The parent is SPREAD, not rebuilt from a field list: the sculpting only
+    // changes geometry, so everything else the author set (elevation, colour,
+    // description, and the Plan 21 layer controls `visible` / `locked` /
+    // `zIndex`) has to survive the stroke. Rebuilding from an explicit list
+    // silently dropped those fields on every brush stroke.
     const primaryPiece = pieces[0];
     const primaryType = isSplit
       ? (primaryPiece.area >= CONTINENT_AREA_THRESHOLD ? 'continent' : 'island')
@@ -1131,13 +1137,12 @@ export function applySculptOperation(
     const primaryName = isSplit ? `${parent.name} (Major)` : parent.name;
 
     orderedLandFeatures[idx] = {
-      id: parent.id,
+      ...parent,
       name: primaryName,
       type: primaryType,
       color: parent.color || VINTAGE_PARCHMENT.landFillHex,
       polygon: primaryPiece.outerRing,
       holes: primaryPiece.holes.length > 0 ? primaryPiece.holes : undefined,
-      description: parent.description,
       climateZone: parent.climateZone || 'temperate',
     };
 
@@ -1145,13 +1150,13 @@ export function applySculptOperation(
     for (let s = 1; s < pieces.length; s++) {
       const secPiece = pieces[s];
       secondaryPieces.push({
+        ...parent,
         id: `${parent.id}_isle_${s + 1}`,
         name: `${parent.name} (Isle ${s + 1})`,
         type: 'island',
         color: parent.color || VINTAGE_PARCHMENT.landFillHex,
         polygon: secPiece.outerRing,
         holes: secPiece.holes.length > 0 ? secPiece.holes : undefined,
-        description: parent.description,
         climateZone: parent.climateZone || 'temperate',
       });
     }

@@ -16,6 +16,19 @@ import {
   Castle,
   Shield,
   Layers,
+  Mountain,
+  Waves,
+  Split,
+  Trees,
+  Eye,
+  EyeOff,
+  Lock,
+  Unlock,
+  Pencil,
+  ArrowUp,
+  ArrowDown,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   WorldBible,
@@ -25,25 +38,84 @@ import {
   WorldArtifact,
   WorldDeity,
   TimelineEvent,
+  WorldMapData,
+  MapTerrainFeature,
+  MapEntityPlacement,
 } from '@/lib/types';
+import { SelectedMapItem } from './CartographerInspector';
+import { notify } from '@/lib/notify';
+import {
+  MAP_OBJECT_GROUP_ORDER,
+  sortTerrainForList,
+  terrainGroup,
+  type MapObjectGroupKey,
+} from '@/lib/engines/world/mapObjectOrder';
 
 interface CartographerEntityPaletteProps {
   worldBible: WorldBible;
   onSelectEntityForPlacement: (type: string, id: string) => void;
   onClose: () => void;
   isPersian: boolean;
+  /**
+   * Plan 21 — the map's own objects (terrain features and lore pins). These
+   * are not manifest entities: they are the geography the author draws.
+   */
+  mapData?: WorldMapData;
+  onSelectMapObject?: (item: SelectedMapItem) => void;
+  onToggleTerrainVisibility?: (id: string) => void;
+  onToggleTerrainLock?: (id: string) => void;
+  onRenameTerrain?: (id: string, name: string) => void;
+  onReorderTerrain?: (id: string, direction: 'forward' | 'backward') => void;
+  onDeleteTerrain?: (id: string) => void;
+  onTogglePlacementVisibility?: (id: string) => void;
+  onTogglePlacementLock?: (id: string) => void;
+  onRenamePlacement?: (id: string, label: string) => void;
+  onReorderPlacement?: (id: string, direction: 'forward' | 'backward') => void;
+  onDeletePlacement?: (id: string) => void;
 }
 
-type PaletteTab = 'locations' | 'npcs' | 'bestiary' | 'artifacts' | 'religions' | 'timeline';
+type PaletteTab = 'objects' | 'locations' | 'npcs' | 'bestiary' | 'artifacts' | 'religions' | 'timeline';
+
+/** The bilingual heading of each object group. */
+const GROUP_LABELS: Record<MapObjectGroupKey, { en: string; fa: string }> = {
+  landmass: { en: 'Landmasses', fa: 'خشکی‌ها' },
+  water: { en: 'Waters & Rivers', fa: 'آب‌ها و رودها' },
+  range: { en: 'Ranges & Peaks', fa: 'رشته‌کوه‌ها و قله‌ها' },
+  valley: { en: 'Valleys & Chasms', fa: 'دره‌ها و شکاف‌ها' },
+  biome: { en: 'Biomes & Soil', fa: 'اقلیم‌ها و خاک' },
+};
+
+/** True when a feature carries no geometry at all, so it cannot be drawn. */
+function hasNoGeometry(feature: MapTerrainFeature): boolean {
+  if (feature.polygon && feature.polygon.length >= 3) return false;
+  if (feature.points && feature.points.length >= 1) return false;
+  if (typeof feature.x === 'number' && typeof feature.y === 'number') return false;
+  return true;
+}
 
 export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps> = ({
   worldBible,
   onSelectEntityForPlacement,
   onClose,
   isPersian,
+  mapData,
+  onSelectMapObject,
+  onToggleTerrainVisibility,
+  onToggleTerrainLock,
+  onRenameTerrain,
+  onReorderTerrain,
+  onDeleteTerrain,
+  onTogglePlacementVisibility,
+  onTogglePlacementLock,
+  onRenamePlacement,
+  onReorderPlacement,
+  onDeletePlacement,
 }) => {
-  const [activeTab, setActiveTab] = useState<PaletteTab>('locations');
+  const [activeTab, setActiveTab] = useState<PaletteTab>('objects');
   const [search, setSearch] = useState('');
+  /** Which row is being renamed inline. */
+  const [editing, setEditing] = useState<{ kind: 'terrain' | 'placement'; id: string } | null>(null);
+  const [draftName, setDraftName] = useState('');
 
   const locations = worldBible.locations || [];
   const npcs = worldBible.npcs || [];
@@ -51,8 +123,16 @@ export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps>
   const artifacts = worldBible.artifacts || [];
   const deities = worldBible.religions || [];
   const timeline = worldBible.timeline || [];
+  const terrainFeatures = mapData?.terrainFeatures || [];
+  const placements = mapData?.placements || [];
 
   const tabs = [
+    {
+      id: 'objects' as const,
+      label: { en: 'Map Objects', fa: 'عوارض نقشه' },
+      icon: Layers,
+      count: terrainFeatures.length + placements.length,
+    },
     { id: 'locations' as const, label: { en: 'Locations', fa: 'مکان‌ها' }, icon: MapPin, count: locations.length },
     { id: 'npcs' as const, label: { en: 'NPCs', fa: 'شخصیت‌ها' }, icon: User, count: npcs.length },
     { id: 'bestiary' as const, label: { en: 'Bestiary', fa: 'جانوران' }, icon: Skull, count: creatures.length },
@@ -62,6 +142,52 @@ export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps>
   ];
 
   const filterQuery = search.toLowerCase().trim();
+
+  /** Resolves a lore pin's display name from the manifest it points at. */
+  const resolvePinName = (pin: MapEntityPlacement): string => {
+    if (pin.customLabel) return pin.customLabel;
+    switch (pin.entityType) {
+      case 'npc':
+        return npcs.find((n) => n.id === pin.entityId)?.name || pin.entityId;
+      case 'bestiary':
+        return creatures.find((c) => c.id === pin.entityId)?.name || pin.entityId;
+      case 'artifact':
+        return artifacts.find((a) => a.id === pin.entityId)?.name || pin.entityId;
+      case 'deity':
+        return deities.find((d) => d.id === pin.entityId)?.name || pin.entityId;
+      case 'timeline':
+        return timeline.find((t) => t.id === pin.entityId)?.title || pin.entityId;
+      case 'location':
+        return locations.find((l) => l.id === pin.entityId)?.name || pin.entityId;
+      default:
+        return pin.entityId;
+    }
+  };
+
+  const commitRename = () => {
+    if (!editing) return;
+    const value = draftName.trim();
+    if (value) {
+      if (editing.kind === 'terrain') onRenameTerrain?.(editing.id, value);
+      else onRenamePlacement?.(editing.id, value);
+    }
+    setEditing(null);
+  };
+
+  const startRename = (kind: 'terrain' | 'placement', id: string, current: string) => {
+    setEditing({ kind, id });
+    setDraftName(current);
+  };
+
+  const groups = MAP_OBJECT_GROUP_ORDER.map((key) => ({
+    key,
+    label: GROUP_LABELS[key],
+    items: sortTerrainForList(terrainFeatures).filter((f) => terrainGroup(f.type) === key),
+  })).filter((group) => group.items.length > 0);
+
+  const matchesFilter = (name: string) => !filterQuery || name.toLowerCase().includes(filterQuery);
+
+  const visiblePlacements = placements.filter((p) => matchesFilter(resolvePinName(p)));
 
   return (
     <div className="absolute right-4 top-20 z-20 w-88 bg-zinc-950/92 backdrop-blur-md border border-zinc-800/80 rounded-3xl p-4 shadow-2xl flex flex-col gap-3.5 select-none animate-fadeIn max-h-[calc(100vh-120px)]">
@@ -119,6 +245,251 @@ export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps>
 
       {/* Entity List */}
       <div className="flex-1 overflow-y-auto scrollbar-thin pr-1 space-y-1.5 min-h-[220px]">
+        {/* Map Objects — the geography the author draws, plus lore pins */}
+        {activeTab === 'objects' && (
+          <div className="space-y-3">
+            {groups.map((group) => {
+              const GroupIcon =
+                group.key === 'landmass'
+                  ? Globe
+                  : group.key === 'water'
+                  ? Waves
+                  : group.key === 'range'
+                  ? Mountain
+                  : group.key === 'valley'
+                  ? Split
+                  : Trees;
+              const items = group.items.filter((f) => matchesFilter(f.name));
+              if (items.length === 0) return null;
+              return (
+                <div key={group.key} className="space-y-1">
+                  <div className="flex items-center gap-1.5 px-1 pt-1">
+                    <GroupIcon className="w-3 h-3 text-amber-400/70" />
+                    <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">
+                      {isPersian ? group.label.fa : group.label.en}
+                    </span>
+                    <span className="text-[10px] text-zinc-600 font-mono">{items.length}</span>
+                  </div>
+
+                  {items.map((feature) => (
+                    <div
+                      key={feature.id}
+                      className="p-2 bg-zinc-900/70 border border-zinc-800/80 rounded-xl flex items-center gap-1.5 hover:border-zinc-700 transition-colors"
+                    >
+                      <button
+                        onClick={() => onToggleTerrainVisibility?.(feature.id)}
+                        title={isPersian ? 'نمایش یا پنهان‌سازی' : 'Show or hide'}
+                        className="shrink-0 text-zinc-500 hover:text-amber-300 transition-colors"
+                      >
+                        {feature.visible === false ? (
+                          <EyeOff className="w-3.5 h-3.5" />
+                        ) : (
+                          <Eye className="w-3.5 h-3.5 text-amber-400/80" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => onToggleTerrainLock?.(feature.id)}
+                        title={isPersian ? 'قفل کردن' : 'Lock or unlock'}
+                        className="shrink-0 text-zinc-500 hover:text-amber-300 transition-colors"
+                      >
+                        {feature.locked ? (
+                          <Lock className="w-3.5 h-3.5 text-amber-400" />
+                        ) : (
+                          <Unlock className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+
+                      {editing?.kind === 'terrain' && editing.id === feature.id ? (
+                        <input
+                          autoFocus
+                          value={draftName}
+                          onChange={(e) => setDraftName(e.target.value)}
+                          onBlur={commitRename}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') commitRename();
+                            if (e.key === 'Escape') setEditing(null);
+                          }}
+                          className="flex-1 min-w-0 bg-zinc-900 border border-amber-500/50 text-zinc-100 rounded-lg px-1.5 py-0.5 text-xs focus:outline-none"
+                        />
+                      ) : (
+                        <button
+                          onClick={() => onSelectMapObject?.({ type: 'terrain', data: feature })}
+                          className="flex-1 min-w-0 text-left"
+                          title={isPersian ? 'انتخاب روی نقشه' : 'Select on the map'}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-semibold text-zinc-200 truncate">
+                              {feature.name}
+                            </span>
+                            {hasNoGeometry(feature) && (
+                              <AlertTriangle
+                                className="w-3 h-3 text-amber-500 shrink-0"
+                                aria-label={isPersian ? 'بدون هندسه' : 'No geometry'}
+                              />
+                            )}
+                          </div>
+                          <div className="text-[10px] text-zinc-500 font-mono truncate">{feature.type}</div>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => startRename('terrain', feature.id, feature.name)}
+                        title={isPersian ? 'تغییر نام' : 'Rename'}
+                        className="shrink-0 text-zinc-600 hover:text-amber-300 transition-colors"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => onReorderTerrain?.(feature.id, 'forward')}
+                        title={isPersian ? 'یک پله جلوتر' : 'Bring forward'}
+                        className="shrink-0 text-zinc-600 hover:text-amber-300 transition-colors"
+                      >
+                        <ArrowUp className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => onReorderTerrain?.(feature.id, 'backward')}
+                        title={isPersian ? 'یک پله عقب‌تر' : 'Send backward'}
+                        className="shrink-0 text-zinc-600 hover:text-amber-300 transition-colors"
+                      >
+                        <ArrowDown className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const confirmed = await notify.confirm({
+                            title: isPersian ? 'حذف عارضه طبیعی' : 'Delete terrain feature',
+                            message: isPersian
+                              ? `آیا از حذف "${feature.name}" اطمینان دارید؟`
+                              : `Delete "${feature.name}" from the map?`,
+                          });
+                          if (confirmed) onDeleteTerrain?.(feature.id);
+                        }}
+                        title={isPersian ? 'حذف' : 'Delete'}
+                        className="shrink-0 text-zinc-600 hover:text-rose-400 transition-colors"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+
+            {/* Lore pins */}
+            {visiblePlacements.length > 0 && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 px-1 pt-1">
+                  <MapPin className="w-3 h-3 text-amber-400/70" />
+                  <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">
+                    {isPersian ? 'سنجاق‌های داستانی' : 'Lore Pins'}
+                  </span>
+                  <span className="text-[10px] text-zinc-600 font-mono">
+                    {visiblePlacements.length}
+                  </span>
+                </div>
+
+                {visiblePlacements.map((pin) => (
+                  <div
+                    key={pin.id}
+                    className="p-2 bg-zinc-900/70 border border-zinc-800/80 rounded-xl flex items-center gap-1.5 hover:border-zinc-700 transition-colors"
+                  >
+                    <button
+                      onClick={() => onTogglePlacementVisibility?.(pin.id)}
+                      title={isPersian ? 'نمایش یا پنهان‌سازی' : 'Show or hide'}
+                      className="shrink-0 text-zinc-500 hover:text-amber-300 transition-colors"
+                    >
+                      {pin.visible === false ? (
+                        <EyeOff className="w-3.5 h-3.5" />
+                      ) : (
+                        <Eye className="w-3.5 h-3.5 text-amber-400/80" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => onTogglePlacementLock?.(pin.id)}
+                      title={isPersian ? 'قفل کردن' : 'Lock or unlock'}
+                      className="shrink-0 text-zinc-500 hover:text-amber-300 transition-colors"
+                    >
+                      {pin.locked ? (
+                        <Lock className="w-3.5 h-3.5 text-amber-400" />
+                      ) : (
+                        <Unlock className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+
+                    {editing?.kind === 'placement' && editing.id === pin.id ? (
+                      <input
+                        autoFocus
+                        value={draftName}
+                        onChange={(e) => setDraftName(e.target.value)}
+                        onBlur={commitRename}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') commitRename();
+                          if (e.key === 'Escape') setEditing(null);
+                        }}
+                        className="flex-1 min-w-0 bg-zinc-900 border border-amber-500/50 text-zinc-100 rounded-lg px-1.5 py-0.5 text-xs focus:outline-none"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => onSelectMapObject?.({ type: 'placement', data: pin })}
+                        className="flex-1 min-w-0 text-left"
+                        title={isPersian ? 'انتخاب روی نقشه' : 'Select on the map'}
+                      >
+                        <div className="text-xs font-semibold text-zinc-200 truncate">
+                          {resolvePinName(pin)}
+                        </div>
+                        <div className="text-[10px] text-zinc-500 font-mono truncate">{pin.entityType}</div>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => startRename('placement', pin.id, resolvePinName(pin))}
+                      title={isPersian ? 'تغییر نام' : 'Rename'}
+                      className="shrink-0 text-zinc-600 hover:text-amber-300 transition-colors"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => onReorderPlacement?.(pin.id, 'forward')}
+                      title={isPersian ? 'یک پله جلوتر' : 'Bring forward'}
+                      className="shrink-0 text-zinc-600 hover:text-amber-300 transition-colors"
+                    >
+                      <ArrowUp className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => onReorderPlacement?.(pin.id, 'backward')}
+                      title={isPersian ? 'یک پله عقب‌تر' : 'Send backward'}
+                      className="shrink-0 text-zinc-600 hover:text-amber-300 transition-colors"
+                    >
+                      <ArrowDown className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const confirmed = await notify.confirm({
+                          title: isPersian ? 'برداشتن سنجاق' : 'Remove pin',
+                          message: isPersian
+                            ? 'آیا این سنجاق از نقشه برداشته شود؟'
+                            : 'Remove this pin from the map?',
+                        });
+                        if (confirmed) onDeletePlacement?.(pin.id);
+                      }}
+                      title={isPersian ? 'حذف' : 'Delete'}
+                      className="shrink-0 text-zinc-600 hover:text-rose-400 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {terrainFeatures.length === 0 && placements.length === 0 && (
+              <div className="text-center py-8 text-xs text-zinc-500">
+                {isPersian
+                  ? 'هنوز هیچ عارضه‌ای روی نقشه ترسیم نشده است'
+                  : 'No map objects yet — draw some on the canvas'}
+              </div>
+            )}
+          </div>
+        )}
         {/* Locations */}
         {activeTab === 'locations' && (
           locations.length === 0 ? (

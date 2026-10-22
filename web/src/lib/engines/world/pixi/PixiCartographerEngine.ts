@@ -20,6 +20,14 @@ import { CartographerTool } from '@/components/cartographer/CartographerHeader';
 import { VINTAGE_PARCHMENT } from './vintageTheme';
 import { PixiSpatialIndex, SpatialItem } from './PixiSpatialIndex';
 import {
+  buildMapHitCandidates,
+  hitCandidateBounds,
+  hitTestMapObjects,
+  type MapHit,
+  type MapHitCandidate,
+} from '../mapHitTest';
+import { isObjectVisible, orderPlacementsForRender, orderTerrainForRender } from '../mapObjectOrder';
+import {
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
   calculateHexVertices,
@@ -168,7 +176,7 @@ export class PixiCartographerEngine {
     const npcs = worldBible.npcs || [];
 
     // 1. Re-index interactive spatial elements
-    this.rebuildSpatialIndex(locations, tradeRoutes, terrainFeatures);
+    this.rebuildSpatialIndex(locations, tradeRoutes, terrainFeatures, placements);
 
     // 2. Render Background & Vintage Frame
     this.renderBackground(settings);
@@ -213,65 +221,63 @@ export class PixiCartographerEngine {
   }
 
   /**
-   * Rebuilds the RBush spatial index for hit testing
+   * Rebuilds the RBush spatial index for hit testing.
+   *
+   * Plan 21: every authored shape is indexed, not only the point-shaped ones.
+   * A landmass is indexed by its bounding box, a river by the box around its
+   * polyline, a lore pin by its own position. The index is the COARSE filter;
+   * `pickAt` runs the exact geometry test on the candidates it returns.
    */
   private rebuildSpatialIndex(
     locations: WorldLocation[],
     tradeRoutes: WorldTradeRoute[],
-    terrainFeatures: MapTerrainFeature[]
+    terrainFeatures: MapTerrainFeature[],
+    placements: MapEntityPlacement[]
   ): void {
     this.spatialIndex.clear();
     const spatialItems: SpatialItem[] = [];
 
-    // Index Locations
-    for (const loc of locations) {
-      if (loc.coordinates && loc.coordinates.x > 0) {
-        spatialItems.push({
-          id: loc.id,
-          type: 'location',
-          minX: loc.coordinates.x - 24,
-          minY: loc.coordinates.y - 24,
-          maxX: loc.coordinates.x + 24,
-          maxY: loc.coordinates.y + 24,
-          data: loc,
-        });
-      }
-    }
+    const candidates = buildMapHitCandidates({
+      locations,
+      tradeRoutes,
+      terrainFeatures,
+      placements,
+    });
 
-    // Index Trade Route Waypoints
-    for (const route of tradeRoutes) {
-      if (route.waypoints) {
-        route.waypoints.forEach((wp, idx) => {
-          spatialItems.push({
-            id: `wp_${route.id}_${idx}`,
-            type: 'waypoint',
-            minX: wp.x - 12,
-            minY: wp.y - 12,
-            maxX: wp.x + 12,
-            maxY: wp.y + 12,
-            data: { routeId: route.id, index: idx, point: wp },
-          });
-        });
-      }
-    }
-
-    // Index Terrain Features
-    for (const terr of terrainFeatures) {
-      if (terr.x && terr.y) {
-        const r = terr.radius || 30;
-        spatialItems.push({
-          id: terr.id,
-          type: 'terrain',
-          minX: terr.x - r,
-          minY: terr.y - r,
-          maxX: terr.x + r,
-          maxY: terr.y + r,
-          data: terr,
-        });
-      }
+    for (const candidate of candidates) {
+      const box = hitCandidateBounds(candidate);
+      if (!box) continue;
+      spatialItems.push({
+        id: candidate.id,
+        type: candidate.kind,
+        minX: box.minX,
+        minY: box.minY,
+        maxX: box.maxX,
+        maxY: box.maxY,
+        data: candidate,
+      });
     }
 
     this.spatialIndex.load(spatialItems);
+  }
+
+  /**
+   * Picks the map object under a world point.
+   *
+   * The spatial index narrows the world down to the few objects whose bounds
+   * are near the click; the exact geometry test (point-in-polygon, distance to
+   * a segment) then decides which of them was really hit.
+   */
+  public pickAt(point: MapPoint): MapHit | null {
+    const PAD = 40;
+    const rough = this.spatialIndex.searchBBox(
+      point.x - PAD,
+      point.y - PAD,
+      point.x + PAD,
+      point.y + PAD
+    );
+    const candidates = rough.map((item) => item.data as MapHitCandidate);
+    return hitTestMapObjects(point, candidates);
   }
 
   /**
@@ -394,195 +400,214 @@ export class PixiCartographerEngine {
 
   /**
    * 3. Continents, Biomes, Rivers, and Mountains in Antique Ink Style
+   *
+   * Plan 21: ONE z-ordered pass. Every object carries a draw order — an
+   * explicit `zIndex`, or its band plus its position in the array — so the
+   * default stacking is exactly the one this method used to hard-code
+   * (ocean, land, biomes, standing water, ink lines, relief), while any
+   * object can still be raised above any other. Per-object `visible` hides a
+   * single object; the category switches hide whole classes.
    */
   private renderTerrain(terrainFeatures: MapTerrainFeature[], settings: WorldMapSettings): void {
     const g = this.terrainGraphics;
     g.clear();
 
-    // A. Continents & Islands (Landmasses)
-    if (settings.visibleLayers.terrain) {
-      for (const feat of terrainFeatures) {
-        if ((feat.type === 'continent' || feat.type === 'island') && feat.polygon && feat.polygon.length > 2) {
-          const points = generateOrganicParchmentContours(feat.polygon, 3);
-          const flatPoints: number[] = [];
-          for (const pt of points) {
-            flatPoints.push(pt.x, pt.y);
-          }
+    for (const feat of orderTerrainForRender(terrainFeatures)) {
+      if (!isObjectVisible(feat)) continue;
 
-          // Land fill
-          g.poly(flatPoints).fill({
-            color: VINTAGE_PARCHMENT.landFill,
-          });
-
-          // Hand-inked primary coastline
-          g.poly(flatPoints).stroke({
-            width: 2.2,
-            color: VINTAGE_PARCHMENT.coastlineInk,
-          });
-
-          // Automated vintage coastline echo rings
-          // Outer echo ring 1 (subtle water contour glow)
-          g.poly(flatPoints).stroke({
-            width: 5.5,
-            color: VINTAGE_PARCHMENT.coastlineGlow,
-            alpha: 0.45,
-          });
-
-          // Outer echo ring 2 (subtle wider water ripple)
-          g.poly(flatPoints).stroke({
-            width: 11,
-            color: VINTAGE_PARCHMENT.coastlineHatch,
-            alpha: 0.15,
-          });
-
-          // Render interior carved water holes (lakes, inland seas, straits)
-          if (feat.holes && feat.holes.length > 0) {
-            for (const hole of feat.holes) {
-              if (hole.length > 2) {
-                const holePoints = generateOrganicParchmentContours(hole, 2);
-                const holeFlat: number[] = [];
-                for (const pt of holePoints) {
-                  holeFlat.push(pt.x, pt.y);
-                }
-
-                // Inward ocean wash fill
-                g.poly(holeFlat).fill({
-                  color: VINTAGE_PARCHMENT.oceanWash,
-                });
-
-                // Hand-inked inner shoreline
-                g.poly(holeFlat).stroke({
-                  width: 2.0,
-                  color: VINTAGE_PARCHMENT.coastlineInk,
-                });
-
-                // Inward echo ring
-                g.poly(holeFlat).stroke({
-                  width: 4.5,
-                  color: VINTAGE_PARCHMENT.coastlineGlow,
-                  alpha: 0.35,
-                });
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // B. Biomes (Forests, Swamps, Deserts)
-    if (settings.visibleLayers.biomes) {
-      for (const feat of terrainFeatures) {
-        if (
-          (feat.type === 'forest' || feat.type === 'desert' || feat.type === 'swamp' || feat.type === 'tundra') &&
-          feat.polygon &&
-          feat.polygon.length > 2
-        ) {
-          const flatPoints: number[] = [];
-          for (const pt of feat.polygon) {
-            flatPoints.push(pt.x, pt.y);
-          }
-
-          let color: number = VINTAGE_PARCHMENT.biomeForest;
-          if (feat.type === 'desert') color = VINTAGE_PARCHMENT.biomeDesert;
-          else if (feat.type === 'swamp') color = VINTAGE_PARCHMENT.biomeSwamp;
-          else if (feat.type === 'tundra') color = VINTAGE_PARCHMENT.biomeTundra;
-
-          g.poly(flatPoints)
-            .fill({ color, alpha: 0.35 })
-            .stroke({ width: 1, color, alpha: 0.6 });
-        }
-      }
-    }
-
-    // C. Lakes & Inland Waters
-    if (settings.visibleLayers.water) {
-      for (const feat of terrainFeatures) {
-        if (feat.type === 'lake' && feat.polygon && feat.polygon.length > 2) {
-          const points = generateOrganicParchmentContours(feat.polygon, 2);
-          const flatPoints: number[] = [];
-          for (const pt of points) {
-            flatPoints.push(pt.x, pt.y);
-          }
-
-          g.poly(flatPoints).fill({ color: VINTAGE_PARCHMENT.oceanWash });
-          g.poly(flatPoints).stroke({ width: 2.0, color: VINTAGE_PARCHMENT.coastlineInk });
-          g.poly(flatPoints).stroke({
-            width: 4.5,
-            color: VINTAGE_PARCHMENT.coastlineGlow,
-            alpha: 0.35,
-          });
-        }
-      }
-    }
-
-    // D. Winding Rivers (Antique Blue-Gray Ink)
-    if (settings.visibleLayers.water) {
-      for (const feat of terrainFeatures) {
-        if (feat.type === 'river' && feat.points && feat.points.length > 1) {
-          const pts = feat.points;
-          g.moveTo(pts[0].x, pts[0].y);
-          for (let i = 1; i < pts.length; i++) {
-            g.lineTo(pts[i].x, pts[i].y);
-          }
-          g.stroke({
-            width: feat.width || 3.5,
-            color: VINTAGE_PARCHMENT.riverInk,
-            cap: 'round',
-            join: 'round',
-          });
-        }
-      }
-    }
-
-    // E. Mountain Ranges & Hand-Inked Peaks
-    if (settings.visibleLayers.mountains) {
-      for (const feat of terrainFeatures) {
-        // Ridge line
-        if (feat.type === 'mountain_range' && feat.points && feat.points.length > 1) {
-          const pts = feat.points;
-          g.moveTo(pts[0].x, pts[0].y);
-          for (let i = 1; i < pts.length; i++) {
-            g.lineTo(pts[i].x, pts[i].y);
-          }
-          g.stroke({
-            width: feat.width || 25,
-            color: VINTAGE_PARCHMENT.mountainShade,
-            alpha: 0.6,
-            cap: 'round',
-          });
-          g.stroke({
-            width: 3,
-            color: VINTAGE_PARCHMENT.mountainInk,
-            cap: 'round',
-          });
-        }
-
-        // Distinct Peaks & Summits (Woodcut Engraving Style)
-        if (feat.type === 'peak' || feat.type === 'volcano') {
-          const x = feat.x || 0;
-          const y = feat.y || 0;
-          const r = feat.radius || 30;
-
-          // Main Mountain Triangle
-          g.poly([x, y - r, x - r * 0.8, y + r * 0.7, x + r * 0.8, y + r * 0.7])
-            .fill({ color: feat.type === 'volcano' ? 0x7f1d1d : VINTAGE_PARCHMENT.landFill })
-            .stroke({ width: 2, color: VINTAGE_PARCHMENT.mountainInk });
-
-          // Shaded Eastern Slope
-          g.poly([x, y - r, x, y + r * 0.7, x + r * 0.8, y + r * 0.7]).fill({
-            color: VINTAGE_PARCHMENT.mountainShade,
-            alpha: 0.5,
-          });
-
-          // Snowcap
-          g.poly([x, y - r, x - r * 0.3, y - r * 0.3, x + r * 0.3, y - r * 0.3]).fill({
-            color: VINTAGE_PARCHMENT.mountainSnowcap,
-          });
-        }
+      switch (feat.type) {
+        case 'continent':
+        case 'island':
+          if (settings.visibleLayers.terrain) this.drawLandmass(g, feat);
+          break;
+        case 'ocean':
+        case 'sea':
+        case 'lake':
+          if (settings.visibleLayers.water) this.drawWaterBody(g, feat);
+          break;
+        case 'forest':
+        case 'desert':
+        case 'swamp':
+        case 'tundra':
+        case 'wasteland':
+        case 'plains':
+        case 'oasis':
+          if (settings.visibleLayers.biomes) this.drawBiome(g, feat);
+          break;
+        case 'river':
+          if (settings.visibleLayers.water) this.drawRiver(g, feat);
+          break;
+        case 'valley':
+        case 'canyon':
+        case 'chasm':
+          if (settings.visibleLayers.valleys) this.drawValley(g, feat);
+          break;
+        case 'mountain_range':
+          if (settings.visibleLayers.mountains) this.drawRange(g, feat);
+          break;
+        case 'peak':
+        case 'volcano':
+          if (settings.visibleLayers.mountains) this.drawPeak(g, feat);
+          break;
+        case 'arcane_anomaly':
+          this.drawAnomaly(g, feat);
+          break;
       }
     }
   }
 
+  /** Continents and islands: parchment fill, inked coastline, echo rings. */
+  private drawLandmass(g: Graphics, feat: MapTerrainFeature): void {
+    if (!feat.polygon || feat.polygon.length <= 2) return;
+    const points = generateOrganicParchmentContours(feat.polygon, 3);
+    const flatPoints: number[] = [];
+    for (const pt of points) flatPoints.push(pt.x, pt.y);
+
+    // Land fill
+    g.poly(flatPoints).fill({ color: VINTAGE_PARCHMENT.landFill });
+
+    // Hand-inked primary coastline
+    g.poly(flatPoints).stroke({ width: 2.2, color: VINTAGE_PARCHMENT.coastlineInk });
+
+    // Automated vintage coastline echo rings
+    g.poly(flatPoints).stroke({ width: 5.5, color: VINTAGE_PARCHMENT.coastlineGlow, alpha: 0.45 });
+    g.poly(flatPoints).stroke({ width: 11, color: VINTAGE_PARCHMENT.coastlineHatch, alpha: 0.15 });
+
+    // Interior carved water holes (lakes, inland seas, straits)
+    for (const hole of feat.holes ?? []) {
+      if (hole.length <= 2) continue;
+      const holePoints = generateOrganicParchmentContours(hole, 2);
+      const holeFlat: number[] = [];
+      for (const pt of holePoints) holeFlat.push(pt.x, pt.y);
+
+      g.poly(holeFlat).fill({ color: VINTAGE_PARCHMENT.oceanWash });
+      g.poly(holeFlat).stroke({ width: 2.0, color: VINTAGE_PARCHMENT.coastlineInk });
+      g.poly(holeFlat).stroke({ width: 4.5, color: VINTAGE_PARCHMENT.coastlineGlow, alpha: 0.35 });
+    }
+  }
+
+  /** Standing water: lakes, inland seas and open-ocean sheets. */
+  private drawWaterBody(g: Graphics, feat: MapTerrainFeature): void {
+    if (!feat.polygon || feat.polygon.length <= 2) return;
+    const points = generateOrganicParchmentContours(feat.polygon, 2);
+    const flatPoints: number[] = [];
+    for (const pt of points) flatPoints.push(pt.x, pt.y);
+
+    g.poly(flatPoints).fill({ color: VINTAGE_PARCHMENT.oceanWash });
+    g.poly(flatPoints).stroke({ width: 2.0, color: VINTAGE_PARCHMENT.coastlineInk });
+    g.poly(flatPoints).stroke({ width: 4.5, color: VINTAGE_PARCHMENT.coastlineGlow, alpha: 0.35 });
+  }
+
+  /** Biomes: translucent washes laid over the land. */
+  private drawBiome(g: Graphics, feat: MapTerrainFeature): void {
+    if (!feat.polygon || feat.polygon.length <= 2) return;
+    const flatPoints: number[] = [];
+    for (const pt of feat.polygon) flatPoints.push(pt.x, pt.y);
+
+    let color: number = VINTAGE_PARCHMENT.biomeForest;
+    if (feat.type === 'desert') color = VINTAGE_PARCHMENT.biomeDesert;
+    else if (feat.type === 'swamp') color = VINTAGE_PARCHMENT.biomeSwamp;
+    else if (feat.type === 'tundra') color = VINTAGE_PARCHMENT.biomeTundra;
+    else if (feat.type === 'oasis') color = 0x6f8f5a;
+    else if (feat.type === 'wasteland') color = 0x8a7a63;
+    else if (feat.type === 'plains') color = 0xc9b87a;
+
+    g.poly(flatPoints)
+      .fill({ color, alpha: 0.35 })
+      .stroke({ width: 1, color, alpha: 0.6 });
+  }
+
+  /** Rivers: winding blue-grey ink lines. */
+  private drawRiver(g: Graphics, feat: MapTerrainFeature): void {
+    if (!feat.points || feat.points.length < 2) return;
+    const pts = feat.points;
+    g.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      g.lineTo(pts[i].x, pts[i].y);
+    }
+    g.stroke({
+      width: feat.width || 3.5,
+      color: VINTAGE_PARCHMENT.riverInk,
+      cap: 'round',
+      join: 'round',
+    });
+  }
+
+  /**
+   * Valleys, canyons and chasms: a dark cleft with a hand-inked lip.
+   *
+   * The Valley tool and the AI Oracle both produce these, but the renderer
+   * had no branch for them — they lived in the data and never appeared on
+   * the map (Cartographer truth audit, item #2).
+   */
+  private drawValley(g: Graphics, feat: MapTerrainFeature): void {
+    if (!feat.points || feat.points.length < 2) return;
+    const pts = feat.points;
+    g.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      g.lineTo(pts[i].x, pts[i].y);
+    }
+    g.stroke({
+      width: feat.width || 28,
+      color: VINTAGE_PARCHMENT.valleyInk,
+      alpha: 0.28,
+      cap: 'round',
+      join: 'round',
+    });
+    g.stroke({
+      width: 2,
+      color: VINTAGE_PARCHMENT.valleyInk,
+      alpha: 0.85,
+      cap: 'round',
+      join: 'round',
+    });
+  }
+
+  /** Mountain ranges: a shaded spine with a hand-inked crest. */
+  private drawRange(g: Graphics, feat: MapTerrainFeature): void {
+    if (!feat.points || feat.points.length < 2) return;
+    const pts = feat.points;
+    g.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      g.lineTo(pts[i].x, pts[i].y);
+    }
+    g.stroke({
+      width: feat.width || 25,
+      color: VINTAGE_PARCHMENT.mountainShade,
+      alpha: 0.6,
+      cap: 'round',
+    });
+    g.stroke({ width: 3, color: VINTAGE_PARCHMENT.mountainInk, cap: 'round' });
+  }
+
+  /** Peaks and volcanoes: woodcut triangles with a snowcap. */
+  private drawPeak(g: Graphics, feat: MapTerrainFeature): void {
+    if (typeof feat.x !== 'number' || typeof feat.y !== 'number') return;
+    const x = feat.x;
+    const y = feat.y;
+    const r = feat.radius || 30;
+
+    g.poly([x, y - r, x - r * 0.8, y + r * 0.7, x + r * 0.8, y + r * 0.7])
+      .fill({ color: feat.type === 'volcano' ? 0x7f1d1d : VINTAGE_PARCHMENT.landFill })
+      .stroke({ width: 2, color: VINTAGE_PARCHMENT.mountainInk });
+
+    g.poly([x, y - r, x, y + r * 0.7, x + r * 0.8, y + r * 0.7]).fill({
+      color: VINTAGE_PARCHMENT.mountainShade,
+      alpha: 0.5,
+    });
+
+    g.poly([x, y - r, x - r * 0.3, y - r * 0.3, x + r * 0.3, y - r * 0.3]).fill({
+      color: VINTAGE_PARCHMENT.mountainSnowcap,
+    });
+  }
+
+  /** Arcane anomalies: a faint violet ring. */
+  private drawAnomaly(g: Graphics, feat: MapTerrainFeature): void {
+    if (typeof feat.x !== 'number' || typeof feat.y !== 'number') return;
+    const r = feat.radius || 26;
+    g.circle(feat.x, feat.y, r).fill({ color: 0x693d7a, alpha: 0.18 });
+    g.circle(feat.x, feat.y, r).stroke({ width: 1.6, color: 0x693d7a, alpha: 0.8 });
+  }
   /**
    * 4. Caravan Trails & Trade Routes
    */
@@ -753,7 +778,11 @@ export class PixiCartographerEngine {
     const g = this.placementGraphics;
     g.clear();
 
-    for (const p of placements) {
+    // Plan 21: pins are drawn in their own draw order, and a hidden pin is
+    // simply not drawn (the category switch still applies on top of it).
+    for (const p of orderPlacementsForRender(placements)) {
+      if (!isObjectVisible(p)) continue;
+
       let isVisible = true;
       let pinColor = 0x4f46e5;
 

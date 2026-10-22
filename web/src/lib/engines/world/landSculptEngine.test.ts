@@ -486,6 +486,42 @@ test('Boolean Sculpt Operations (applySculptOperation)', async (t) => {
     assert.ok(bbox.maxX >= 390);
   });
 
+  await t.test('Paint Mode: non-geometric fields survive the stroke', () => {
+    // Plan 21: the sculpting only changes geometry. The author's layer
+    // controls (visible / locked / zIndex) and the rest of the feature's
+    // metadata must survive a brush stroke — the engine used to rebuild
+    // features from an explicit field list and silently dropped them.
+    const baseStamp = generateOrganicStamp(500, 500, 80, 0.2);
+    const existing: MapTerrainFeature[] = [
+      {
+        id: 'terr_kept',
+        name: 'Kept Landmass',
+        type: 'continent',
+        polygon: baseStamp,
+        elevation: 1234,
+        description: 'A described landmass',
+        climateZone: 'arid',
+        visible: false,
+        locked: true,
+        zIndex: 4321,
+      },
+    ];
+
+    const updated = applySculptOperation(
+      existing,
+      generateOrganicStamp(560, 500, 80, 0.2),
+      'paint'
+    );
+
+    assert.strictEqual(updated.length, 1);
+    assert.strictEqual(updated[0].elevation, 1234);
+    assert.strictEqual(updated[0].description, 'A described landmass');
+    assert.strictEqual(updated[0].climateZone, 'arid');
+    assert.strictEqual(updated[0].visible, false);
+    assert.strictEqual(updated[0].locked, true);
+    assert.strictEqual(updated[0].zIndex, 4321);
+  });
+
   await t.test('Carve Mode: strait cut splitting continent across ocean produces 2 islands', () => {
     const continent: MapTerrainFeature = {
       id: 'terr_continent_split',

@@ -62,6 +62,13 @@ interface PixiCartographerCanvasProps {
   setPan: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
 }
 
+/**
+ * The terrain types the "Clear land & water" action removes. Everything else
+ * — ranges, valleys, rivers, biomes, anomalies — is the author's work and
+ * survives.
+ */
+const LAND_AND_WATER_TYPES = new Set(['continent', 'island', 'ocean', 'sea', 'lake']);
+
 export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   worldBible,
   settings,
@@ -391,13 +398,17 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       return;
     }
 
-    // Select Tool: Hit test via RBush spatial index
+    // Select Tool: pick the map object under the cursor.
+    //
+    // Plan 21: the pick is geometry-accurate (point-in-polygon for landmasses,
+    // distance-to-segment for rivers and routes), so every authored shape can
+    // be selected — and therefore opened in the Inspector and deleted.
     if (activeTool === 'select' && engineRef.current) {
-      const hit = engineRef.current.spatialIndex.findNearest(worldPoint.x, worldPoint.y, 30);
+      const hit = engineRef.current.pickAt(worldPoint);
 
       if (hit) {
-        if (hit.type === 'location') {
-          const loc = hit.data as WorldLocation;
+        if (hit.kind === 'location') {
+          const loc = hit.candidate.location;
           onSelectItem({ type: 'location', data: loc });
 
           // Start dragging buffered settlement
@@ -411,8 +422,8 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           setTransientPos(loc.coordinates!);
           transientPosRef.current = loc.coordinates!;
           return;
-        } else if (hit.type === 'waypoint') {
-          const wpData = hit.data as { routeId: string; index: number; point: MapPoint };
+        } else if (hit.kind === 'waypoint') {
+          const wpData = hit.candidate;
           const nodeData: DraggedNodeData = {
             type: 'waypoint',
             id: hit.id,
@@ -425,8 +436,14 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           setTransientPos(wpData.point);
           transientPosRef.current = wpData.point;
           return;
-        } else if (hit.type === 'terrain') {
-          onSelectItem({ type: 'terrain', data: hit.data });
+        } else if (hit.kind === 'terrain') {
+          onSelectItem({ type: 'terrain', data: hit.candidate.feature });
+          return;
+        } else if (hit.kind === 'placement') {
+          onSelectItem({ type: 'placement', data: hit.candidate.placement });
+          return;
+        } else if (hit.kind === 'trade_route') {
+          onSelectItem({ type: 'trade_route', data: hit.candidate.route });
           return;
         }
       } else {
@@ -743,21 +760,32 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
             type="button"
             onClick={async () => {
               const confirmed = await notify.confirm({
-                title: isPersian ? 'بازنشانی به اقیانوس' : 'Reset to Ocean',
+                title: isPersian ? 'پاکسازی خشکی و آب' : 'Clear land & water',
                 message: isPersian
-                  ? 'آیا از پاک کردن تمامی خشکی‌ها و بازنشانی نقشه به اقیانوس بی‌کران اطمینان دارید؟'
-                  : 'Clear all landmasses and reset canvas to open ocean water?',
+                  ? 'همهٔ خشکی‌ها، جزیره‌ها و آب‌های نقشه حذف می‌شوند. رشته‌کوه‌ها، دره‌ها، رودها و اقلیم‌ها دست‌نخورده می‌مانند.'
+                  : 'All landmasses, islands and water bodies are removed. Mountain ranges, valleys, rivers and biomes are kept.',
               });
               if (confirmed && onReplaceTerrain) {
-                onReplaceTerrain([]);
-                notify.info(isPersian ? 'نقشه به آب زلال بازنشانی شد' : 'Map reset to open ocean');
+                // Plan 21: this used to clear EVERY terrain feature while the
+                // label claimed "landmasses" — it silently destroyed the
+                // author's ranges, rivers and biomes. Now it removes land and
+                // standing water only, and the action stays undoable.
+                const kept = (worldBible.mapData?.terrainFeatures ?? []).filter(
+                  (f) => !LAND_AND_WATER_TYPES.has(f.type)
+                );
+                onReplaceTerrain(kept);
+                notify.info(
+                  isPersian
+                    ? 'خشکی و آب نقشه پاک شد'
+                    : 'Land and water cleared — ranges, rivers and biomes kept'
+                );
               }
             }}
-            title={isPersian ? 'پاکسازی کامل خشکی‌ها' : 'Clear land to ocean'}
+            title={isPersian ? 'پاکسازی خشکی و آب' : 'Clear land and water'}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-zinc-400 hover:text-rose-400 hover:bg-rose-950/40 border border-transparent hover:border-rose-900/50 transition-all"
           >
             <Waves className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="text-[11px]">{isPersian ? 'پاکسازی به دریا' : 'Reset Sea'}</span>
+            <span className="text-[11px]">{isPersian ? 'پاکسازی خشکی و آب' : 'Clear Land'}</span>
           </button>
         </div>
       )}

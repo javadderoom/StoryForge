@@ -714,6 +714,17 @@ export interface MapTerrainFeature {
   holes?: MapPoint[][]; // polygon hole loops for inland lakes, inland seas, or carved water cutouts
   description?: string;
   climateZone?: 'polar' | 'temperate' | 'arid' | 'tropical' | 'mystical';
+  /**
+   * Per-object layer controls (Plan 21). Left `undefined` on purpose: the
+   * meaning is "visible, unlocked, default draw order", and keeping the field
+   * absent means an existing world is never rewritten just by being saved.
+   */
+  /** Hidden objects are not drawn and cannot be picked on the canvas. */
+  visible?: boolean;
+  /** Locked objects cannot be picked or edited on the canvas — unlock them from the object list. */
+  locked?: boolean;
+  /** Draw order. Defaults to a banded base + the object's index in the array. */
+  zIndex?: number;
 }
 
 export type MapEntityPlacementType =
@@ -734,6 +745,12 @@ export interface MapEntityPlacement {
   customLabel?: string;
   customIcon?: string;
   notes?: string;
+  /** Per-object layer controls (Plan 21) — see {@link MapTerrainFeature.visible}. */
+  visible?: boolean;
+  /** Locked pins cannot be picked or edited on the canvas. */
+  locked?: boolean;
+  /** Draw order. Defaults to the pin's index in the array. */
+  zIndex?: number;
 }
 
 export type MapStyleTheme =
@@ -1537,6 +1554,11 @@ export const MapTerrainFeatureSchema = z.object({
   holes: z.array(z.array(MapPointSchema)).optional(),
   description: z.string().optional(),
   climateZone: z.enum(['polar', 'temperate', 'arid', 'tropical', 'mystical']).optional(),
+  // Plan 21 per-object layer controls. Optional without a default so existing
+  // worlds are not rewritten (and stay diff-free) just by being validated.
+  visible: z.boolean().optional(),
+  locked: z.boolean().optional(),
+  zIndex: z.number().optional(),
 });
 
 export const MapEntityPlacementSchema = z.object({
@@ -1548,6 +1570,9 @@ export const MapEntityPlacementSchema = z.object({
   customLabel: z.string().optional(),
   customIcon: z.string().optional(),
   notes: z.string().optional(),
+  visible: z.boolean().optional(),
+  locked: z.boolean().optional(),
+  zIndex: z.number().optional(),
 });
 
 export const WorldMapSettingsSchema = z.object({

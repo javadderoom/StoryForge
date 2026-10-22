@@ -22,6 +22,10 @@ import {
   Compass,
   AlertTriangle,
   Package,
+  Eye,
+  EyeOff,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import {
   WorldLocation,
@@ -52,6 +56,11 @@ interface CartographerInspectorProps {
   onUpdateTerrain: (id: string, updated: Partial<MapTerrainFeature>) => void;
   onDeleteTerrain: (id: string) => void;
   onDeletePlacement: (id: string) => void;
+  /** Plan 21 — per-object layer controls. */
+  onToggleTerrainVisibility?: (id: string) => void;
+  onToggleTerrainLock?: (id: string) => void;
+  onTogglePlacementVisibility?: (id: string) => void;
+  onTogglePlacementLock?: (id: string) => void;
   npcs: NPCDossier[];
   factions: Faction[];
   locations: WorldLocation[];
@@ -89,6 +98,10 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
   onUpdateTerrain,
   onDeleteTerrain,
   onDeletePlacement,
+  onToggleTerrainVisibility,
+  onToggleTerrainLock,
+  onTogglePlacementVisibility,
+  onTogglePlacementLock,
   npcs,
   factions,
   locations,
@@ -464,6 +477,38 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
               />
             </div>
 
+            {/* Plan 21: per-object layer controls */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onToggleTerrainVisibility?.(feature.id)}
+                title={isPersian ? 'نمایش یا پنهان‌سازی' : 'Show or hide'}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-medium border transition-all ${
+                  feature.visible === false
+                    ? 'bg-zinc-900/60 border-zinc-800 text-zinc-500'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                }`}
+              >
+                {feature.visible === false ? (
+                  <EyeOff className="w-3.5 h-3.5" />
+                ) : (
+                  <Eye className="w-3.5 h-3.5" />
+                )}
+                <span>{isPersian ? 'نمایش' : 'Visible'}</span>
+              </button>
+              <button
+                onClick={() => onToggleTerrainLock?.(feature.id)}
+                title={isPersian ? 'قفل کردن' : 'Lock or unlock'}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-medium border transition-all ${
+                  feature.locked
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                    : 'bg-zinc-900/60 border-zinc-800 text-zinc-500'
+                }`}
+              >
+                {feature.locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                <span>{isPersian ? 'قفل' : 'Lock'}</span>
+              </button>
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-[11px] text-zinc-400 mb-1 block font-medium">
@@ -521,9 +566,17 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
 
             <div className="pt-2">
               <button
-                onClick={() => {
-                  onDeleteTerrain(feature.id);
-                  onClose();
+                onClick={async () => {
+                  const confirmed = await notify.confirm({
+                    title: isPersian ? 'حذف عارضه طبیعی' : 'Delete terrain feature',
+                    message: isPersian
+                      ? `آیا از حذف "${feature.name}" اطمینان دارید؟`
+                      : `Delete "${feature.name}" from the map?`,
+                  });
+                  if (confirmed) {
+                    onDeleteTerrain(feature.id);
+                    onClose();
+                  }
                 }}
                 className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/30 transition-all"
               >
@@ -556,11 +609,51 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
               <span>Y: {pin.y}</span>
             </div>
 
+            {/* Plan 21: per-object layer controls */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onTogglePlacementVisibility?.(pin.id)}
+                title={isPersian ? 'نمایش یا پنهان‌سازی' : 'Show or hide'}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-medium border transition-all ${
+                  pin.visible === false
+                    ? 'bg-zinc-900/60 border-zinc-800 text-zinc-500'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                }`}
+              >
+                {pin.visible === false ? (
+                  <EyeOff className="w-3.5 h-3.5" />
+                ) : (
+                  <Eye className="w-3.5 h-3.5" />
+                )}
+                <span>{isPersian ? 'نمایش' : 'Visible'}</span>
+              </button>
+              <button
+                onClick={() => onTogglePlacementLock?.(pin.id)}
+                title={isPersian ? 'قفل کردن' : 'Lock or unlock'}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-medium border transition-all ${
+                  pin.locked
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                    : 'bg-zinc-900/60 border-zinc-800 text-zinc-500'
+                }`}
+              >
+                {pin.locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                <span>{isPersian ? 'قفل' : 'Lock'}</span>
+              </button>
+            </div>
+
             <div className="pt-2">
               <button
-                onClick={() => {
-                  onDeletePlacement(pin.id);
-                  onClose();
+                onClick={async () => {
+                  const confirmed = await notify.confirm({
+                    title: isPersian ? 'برداشتن سنجاق' : 'Remove pin',
+                    message: isPersian
+                      ? 'آیا این سنجاق از نقشه برداشته شود؟'
+                      : 'Remove this pin from the map?',
+                  });
+                  if (confirmed) {
+                    onDeletePlacement(pin.id);
+                    onClose();
+                  }
                 }}
                 className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/30 transition-all"
               >
