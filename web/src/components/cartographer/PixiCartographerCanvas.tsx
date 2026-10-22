@@ -258,6 +258,17 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     e.stopPropagation();
   }, []);
 
+  /**
+   * Right-click belongs to the map, not to the browser.
+   *
+   * Without this the canvas behaves like an image: the browser menu ("Save
+   * image as…", "Reload", "Inspect") opens in the middle of drawing, and on
+   * touch devices a long press pops it over the map.
+   */
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+  }, []);
+
   // Mouse wheel zoom centered at cursor
   const handleWheel = (e: React.WheelEvent) => {
     if (!isCanvasSurface(e)) return;
@@ -289,6 +300,11 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
       return;
     }
+
+    // Only the primary button runs a tool. Right-click stays inert (its browser
+    // menu is suppressed on the container), so a mis-click cannot drop a vertex
+    // or a settlement.
+    if (e.button !== 0) return;
 
     // Land Sculpt Brush continuous drag
     if (activeTool === 'land_brush') {
@@ -671,6 +687,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       onMouseUp={commitDragEnd}
       onMouseLeave={handleMouseLeave}
       onDoubleClick={handleDoubleClick}
+      onContextMenu={handleContextMenu}
       className="relative w-full h-full overflow-hidden select-none cursor-crosshair"
       style={{ backgroundColor: VINTAGE_PARCHMENT.bgParchmentHex }}
     >
