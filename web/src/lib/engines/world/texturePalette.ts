@@ -346,13 +346,20 @@ export function normalizeLuminance(grey: number, range: LuminanceRange): number 
 }
 
 /**
- * The Pixi fill matrix for a material: how many world units one repeat of
- * the texture covers.
+ * The Pixi fill-matrix scale for a material: how many world units one repeat
+ * of the texture covers.
  *
- * With `textureSpace: 'global'` the texture is laid down across the whole
- * world and the shapes cut holes in it, so every region of the map shares one
- * continuous sheet of material — exactly like a real map.
+ * Pixi INVERTS the fill matrix when it builds the texture matrix —
+ * `generateTextureFillMatrix` calls `style.matrix.invert()`, then scales the
+ * result by `1 / texture.resolution` — so the shader samples
+ * `uv = position / (scale * resolution)`. One repeat therefore spans
+ * `scale * resolution` world units, which means the scale is
+ * `tileSize / resolution`, NOT `resolution / tileSize`.
+ *
+ * The inverted value stretches every tile by `(resolution / tileSize)²`: the
+ * sea's caustics became soft blobs thousands of units across and the whole map
+ * read as flat colour instead of material.
  */
 export function textureScaleFor(material: MapMaterial): number {
-  return material.resolution / material.tileSize;
+  return material.tileSize / material.resolution;
 }

@@ -78,12 +78,14 @@ derivatives are the only textures the app ships.
   missing tile is logged and that material falls back to its flat colour. The
   map always draws.
 - **`pixi/PixiCartographerEngine.ts`** — `fillWithMaterial()` paints the flat
-  theme colour at `alpha × (1 − strength)`, then the material fill at
-  `material.alpha × strength`. A textured `Graphics` fill uses the tile with
-  `textureSpace: 'global'` and a per-material `Matrix` scaled by
-  `resolution / tileSize`, so one repeat covers exactly `tileSize` world units
-  and the texture is pinned to the map (it pans and zooms with the drawing, and
-  adjacent regions share one continuous field).
+  theme colour at `alpha × (1 − strength)` — or at full alpha while the tile is
+  still missing, so the fallback is the pre-texture look rather than a ghost —
+  then the material fill at `material.alpha × strength`. A textured `Graphics`
+  fill uses the tile with `textureSpace: 'global'` and a per-material `Matrix`
+  scaled by `tileSize / resolution` (Pixi inverts it — see trap 8), so one
+  repeat covers exactly `tileSize` world units and the texture is pinned to the
+  map (it pans and zooms with the drawing, and adjacent regions share one
+  continuous field).
   All filled terrain routes through it: the sea background, landmasses, the
   water holes carved in a landmass, standing water, and the biome washes. Ink —
   coastlines, ranges, rivers, the sea wavelets — is untouched and always draws
@@ -104,13 +106,21 @@ derivatives are the only textures the app ships.
 | 5 | At 700 units per repeat the caustics read as **cracked earth**. | Small repeats (430/360) turn the cells into ripples; contrast 0.40/0.45 keeps them a whisper. |
 | 6 | A ramp whose midpoint is not the region's old flat colour changes the biome's colour identity (the first forest pass was a dark olive slab). | Every ramp is chosen so its midpoint ≈ the flat colour it replaces. |
 | 7 | Pixi's `Assets.load` takes `src`, not `url`; the wrong key fails silently per-tile. | `Assets.load({ alias, src })`, and failures are logged. |
+| 8 | **Pixi inverts the fill matrix.** `generateTextureFillMatrix` does `style.matrix.invert()` then scales by `1/resolution`, so `uv = position / (scale × resolution)` and one repeat spans `scale × resolution` units. `resolution / tileSize` therefore stretched every tile by `(resolution / tileSize)²` — the sea showed caustic blobs ~2400 units wide, which read as a flat wash ("the ocean texture doesn't show"). | `textureScaleFor` returns `tileSize / resolution` (sea 0.420, land 0.508). Verified by rendering the real fill in a headless Pixi harness and reading the framebuffer back. |
+| 9 | Fading the flat colour to `1 − strength` *before* knowing whether the tile exists leaves every region at 15 % alpha while the tiles load — and for good if one 404s. | Resolve the texture first; paint the flat colour at full alpha when there is none. |
 
 ## Verification
 
 - `texturePalette.test.ts` — 22 tests: hex parsing, ramp endpoints/monotonicity,
   percentile range (including the flat-source fallback), normalisation,
   grading, strength clamping, the material table's shape, the terrain→material
-  map, and `textureScaleFor`.
+  map, and the tiling contract (`textureScaleFor × resolution === tileSize`,
+  which pins Pixi's inverted-matrix convention).
+- **The texture fill itself** was verified in a headless Pixi harness (Chrome
+  + SwiftShader) that built the same `Graphics` fill the engine builds and read
+  the framebuffer back. That is what proved the fill *paints* while its scale
+  was 5.7× too large — the pattern was there, it had just been blown up into a
+  wash (trap 8).
 - **Art direction** was checked outside the browser: a throwaway `sharp`
   harness composited the real tiles at the real world scale into a mock map
   (sea + landmass + forest + ink) and the result was inspected at each tuning

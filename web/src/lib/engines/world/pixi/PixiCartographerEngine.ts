@@ -177,11 +177,18 @@ export class PixiCartographerEngine {
     flatAlpha: number
   ): void {
     const strength = this.textureStrength;
-    g.poly(points).fill({ color: flatColor, alpha: flatAlpha * (1 - strength) });
+    const texture = material && strength > 0 ? this.textureLibrary.get(material) : null;
 
-    if (!material || strength <= 0) return;
-    const texture = this.textureLibrary.get(material);
-    if (!texture) return;
+    // The flat colour carries the region on its own until the texture exists:
+    // fading it to `1 - strength` up front would leave the map a washed-out
+    // ghost while the tiles load (and permanently, if one 404s) instead of the
+    // pre-texture look the fallback promises.
+    g.poly(points).fill({
+      color: flatColor,
+      alpha: flatAlpha * (texture ? 1 - strength : 1),
+    });
+
+    if (!texture || !material) return;
 
     let matrix = this.materialMatrices.get(material);
     if (!matrix) {

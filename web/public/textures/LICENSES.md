@@ -15,14 +15,14 @@ edges do not wrap, which shows up on the map as a grid of seams.
 
 | Material | Source (CC0) | File | Ramp | Tile | Coverage | Matrix scale |
 |---|---|---|---|---|---|---|
-| `ocean` | [`Ice002`](https://ambientcg.com/view?id=Ice002) | `Ice002_1K-JPG_Color.jpg` | #c6b48c → #f0e6cb | 1024² | 430 units | 2.381 |
-| `land` | [`Paper003`](https://ambientcg.com/view?id=Paper003) | `Paper003_1K-JPG_Color.jpg` | #e3d8b8 → #fdfbf1 | 1024² | 520 units | 1.969 |
-| `water` | [`Ice002`](https://ambientcg.com/view?id=Ice002) | `Ice002_1K-JPG_Color.jpg` | #b9a67e → #e8dcbc | 1024² | 360 units | 2.844 |
-| `forest` | [`Ground106`](https://ambientcg.com/view?id=Ground106) | `Ground106_1K-JPG_Color.jpg` | #2f3a24 → #8b9a70 | 512² | 460 units | 1.113 |
-| `desert` | [`Ground101`](https://ambientcg.com/view?id=Ground101) | `Ground101_1K-JPG_Color.jpg` | #a8814a → #f0dcae | 512² | 720 units | 0.711 |
-| `swamp` | [`Ground025`](https://ambientcg.com/view?id=Ground025) | `Ground025_1K-JPG_Color.jpg` | #33301f → #8a8266 | 512² | 460 units | 1.113 |
-| `tundra` | [`Snow014`](https://ambientcg.com/view?id=Snow014) | `Snow014_1K-JPG_Color.jpg` | #bdb8a8 → #f6f3e8 | 512² | 640 units | 0.800 |
-| `plains` | [`Grass003`](https://ambientcg.com/view?id=Grass003) | `Grass003_1K-JPG_Color.jpg` | #8a8a52 → #dcd8a4 | 512² | 560 units | 0.914 |
+| `ocean` | [`Ice002`](https://ambientcg.com/view?id=Ice002) | `Ice002_1K-JPG_Color.jpg` | #c6b48c → #f0e6cb | 1024² | 430 units | 0.420 |
+| `land` | [`Paper003`](https://ambientcg.com/view?id=Paper003) | `Paper003_1K-JPG_Color.jpg` | #e3d8b8 → #fdfbf1 | 1024² | 520 units | 0.508 |
+| `water` | [`Ice002`](https://ambientcg.com/view?id=Ice002) | `Ice002_1K-JPG_Color.jpg` | #b9a67e → #e8dcbc | 1024² | 360 units | 0.352 |
+| `forest` | [`Ground106`](https://ambientcg.com/view?id=Ground106) | `Ground106_1K-JPG_Color.jpg` | #2f3a24 → #8b9a70 | 512² | 460 units | 0.898 |
+| `desert` | [`Ground101`](https://ambientcg.com/view?id=Ground101) | `Ground101_1K-JPG_Color.jpg` | #a8814a → #f0dcae | 512² | 720 units | 1.406 |
+| `swamp` | [`Ground025`](https://ambientcg.com/view?id=Ground025) | `Ground025_1K-JPG_Color.jpg` | #33301f → #8a8266 | 512² | 460 units | 0.898 |
+| `tundra` | [`Snow014`](https://ambientcg.com/view?id=Snow014) | `Snow014_1K-JPG_Color.jpg` | #bdb8a8 → #f6f3e8 | 512² | 640 units | 1.250 |
+| `plains` | [`Grass003`](https://ambientcg.com/view?id=Grass003) | `Grass003_1K-JPG_Color.jpg` | #8a8a52 → #dcd8a4 | 512² | 560 units | 1.094 |
 
 ## Regenerating
 

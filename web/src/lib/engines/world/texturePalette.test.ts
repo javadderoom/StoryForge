@@ -145,12 +145,21 @@ describe('texturePalette — the material table', () => {
     }
   });
 
-  it('scales a material so one repeat covers its tile size', () => {
+  it('makes one texture repeat cover exactly tileSize world units', () => {
     for (const material of Object.values(MAP_MATERIALS)) {
       const scale = textureScaleFor(material);
-      // resolution pixels must map onto tileSize world units.
-      assert.ok(Math.abs(scale - material.resolution / material.tileSize) < 1e-9);
-      assert.ok(scale > 0);
+      // Pixi inverts the fill matrix before use (see
+      // pixi.js/lib/scene/graphics/shared/utils/generateTextureFillMatrix.js),
+      // so the shader samples uv = worldPos / (scale * resolution): a repeat is
+      // `scale * resolution` world units wide. That must be the tile size the
+      // material was authored for — getting it backwards stretches every tile
+      // by (resolution / tileSize)² and the map reads as flat paint.
+      const worldUnitsPerRepeat = scale * material.resolution;
+      assert.ok(
+        Math.abs(worldUnitsPerRepeat - material.tileSize) < 1e-6,
+        `${material.key}: one repeat covers ${worldUnitsPerRepeat} units, expected ${material.tileSize}`
+      );
+      assert.ok(scale > 0, `${material.key}: the matrix scale must be positive`);
     }
   });
 
