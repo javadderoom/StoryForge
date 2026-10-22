@@ -9,6 +9,7 @@ import '../services/game_api_service.dart';
 import '../services/audio_service.dart';
 import 'audio_provider.dart';
 import 'auth_provider.dart';
+import 'dice_overlay_provider.dart';
 
 class GameSessionState {
   final bool isLoading;
@@ -366,6 +367,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
   bool _isHoldingNarrative = false;
   String _streamingProseBuffer = '';
   List<ChoiceOption> _streamingChoicesBuffer = const [];
+  String? _streamingSceneImageUrl;
+  bool _hasStreamingSceneImage = false;
 
   @override
   GameSessionState build() => GameSessionState();
@@ -504,6 +507,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     _isHoldingNarrative = holdNarrativeUpdate;
     _streamingProseBuffer = '';
     _streamingChoicesBuffer = const [];
+    _streamingSceneImageUrl = null;
+    _hasStreamingSceneImage = false;
 
     if (!holdNarrativeUpdate) {
       state = state.copyWith(
@@ -514,6 +519,9 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         currentNarrative: '',
         choices: const [],
         lastActionText: choice.text,
+        clearSceneImage: true,
+        clearDiscoveredCreature: true,
+        clearDiscoveredNpcs: true,
       );
     } else {
       state = state.copyWith(
@@ -563,10 +571,12 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             );
             return null;
           }
+          final errText = event['error'] ?? 'Turn failed';
+          ref.read(diceOverlayProvider.notifier).reportError(errText);
           state = state.copyWith(
             isLoading: false,
             isStreamingNarrative: false,
-            errorMessage: event['error'] ?? 'Turn failed',
+            errorMessage: errText,
           );
           return null;
         }
@@ -576,6 +586,23 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
           final resolution = resData != null ? CheckResolution.fromJson(resData) : null;
           finalResolution = resolution;
           state = state.copyWith(lastResolution: resolution);
+          if (resolution != null) {
+            ref.read(diceOverlayProvider.notifier).applyServerResolution(resolution);
+          }
+          continue;
+        }
+
+        if (eventType == 'beat_start') {
+          final sceneImg = event['imageUrl'] as String?;
+          _streamingSceneImageUrl = sceneImg;
+          _hasStreamingSceneImage = true;
+
+          if (!_isHoldingNarrative) {
+            state = state.copyWith(
+              currentSceneImageUrl: sceneImg,
+              clearSceneImage: sceneImg == null,
+            );
+          }
           continue;
         }
 
@@ -588,6 +615,10 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
               isLoading: false,
               isStreamingNarrative: true,
               currentNarrative: _streamingProseBuffer,
+              currentSceneImageUrl: _hasStreamingSceneImage ? _streamingSceneImageUrl : null,
+              clearSceneImage: !_hasStreamingSceneImage || _streamingSceneImageUrl == null,
+              clearDiscoveredCreature: true,
+              clearDiscoveredNpcs: true,
             );
           }
           continue;
@@ -609,6 +640,9 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
           final data = Map<String, dynamic>.from(event);
           final resData = data['resolution'];
           final resolution = resData != null ? CheckResolution.fromJson(resData) : finalResolution;
+          if (resolution != null) {
+            ref.read(diceOverlayProvider.notifier).applyServerResolution(resolution);
+          }
           final rawProgression = data['progression'] ?? resData?['progression'];
           final xpAward = rawProgression != null
               ? ProgressionAward.fromJson(Map<String, dynamic>.from(rawProgression as Map))
@@ -706,6 +740,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
           : raw.startsWith('Exception: ')
               ? raw.substring('Exception: '.length)
               : raw;
+      ref.read(diceOverlayProvider.notifier).reportError(msg);
       state = state.copyWith(
         isLoading: false,
         isStreamingNarrative: false,
@@ -725,6 +760,10 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         choices: _streamingChoicesBuffer,
         isLoading: _streamingProseBuffer.isEmpty,
         isStreamingNarrative: _streamingProseBuffer.isNotEmpty,
+        currentSceneImageUrl: _hasStreamingSceneImage ? _streamingSceneImageUrl : null,
+        clearSceneImage: !_hasStreamingSceneImage || _streamingSceneImageUrl == null,
+        clearDiscoveredCreature: true,
+        clearDiscoveredNpcs: true,
       );
       return;
     }
@@ -817,6 +856,9 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       errorMessage: null,
       currentNarrative: '',
       choices: const [],
+      clearSceneImage: true,
+      clearDiscoveredCreature: true,
+      clearDiscoveredNpcs: true,
     );
 
     var accumulatedProse = '';

@@ -1146,7 +1146,18 @@ async function processTurnAction(
       ? story.initialStoryBeats?.find((b: any) => b.sceneId === targetSceneId)
       : undefined;
 
-    // Emit resolution immediately over stream so dice animations / banners fire with zero lag
+    const earlyBeatSceneId =
+      resolvedAuthoredBeat?.sceneId ||
+      (typeof requestedSceneId === 'string' && requestedSceneId) ||
+      (session?.currentSceneId as string | undefined) ||
+      `scene_turn_${turnNumber}`;
+
+    const earlyMatchedAuthoredBeat =
+      resolvedAuthoredBeat ||
+      story.initialStoryBeats?.find((b: any) => b.sceneId === earlyBeatSceneId) ||
+      activeChapter?.scenes?.find((s: any) => s.sceneId === earlyBeatSceneId);
+
+    // Emit resolution and initial beat metadata immediately over stream so dice animations and scene visuals fire with zero lag
     if (streamWriter) {
       await streamWriter.sendEvent('resolution', {
         outcome: resolution.outcome,
@@ -1156,6 +1167,10 @@ async function processTurnAction(
         statId: resolution.statId,
         consequenceSummary: resolution.consequenceSummary,
         activeClocks: updatedPlayerState.activeTensionClocks ?? [],
+      });
+      await streamWriter.sendEvent('beat_start', {
+        sceneId: earlyBeatSceneId,
+        imageUrl: earlyMatchedAuthoredBeat?.imageUrl ?? null,
       });
     }
 
@@ -1346,16 +1361,8 @@ async function processTurnAction(
     }
 
     // Carry the real authored scene id when known; fixes stuck-currentSceneId
-    const beatSceneId =
-      resolvedAuthoredBeat?.sceneId ||
-      (typeof requestedSceneId === 'string' && requestedSceneId) ||
-      (session?.currentSceneId as string | undefined) ||
-      `scene_turn_${turnNumber}`;
-
-    const matchedAuthoredBeat =
-      resolvedAuthoredBeat ||
-      story.initialStoryBeats?.find((b) => b.sceneId === beatSceneId) ||
-      activeChapter?.scenes?.find((s) => s.sceneId === beatSceneId);
+    const beatSceneId = earlyBeatSceneId;
+    const matchedAuthoredBeat = earlyMatchedAuthoredBeat;
 
     // Bestiary Creature Discovery Tracking
     const bestiary: any[] = story.worldBible?.bestiary || [];

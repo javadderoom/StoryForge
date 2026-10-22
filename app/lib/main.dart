@@ -85,23 +85,6 @@ class _AfsanehSazAppState extends ConsumerState<AfsanehSazApp> {
 
   @override
   Widget build(BuildContext context) {
-    final diceState = ref.watch(diceOverlayProvider);
-
-    // Feed the dice overlay the SERVER's authoritative resolution as soon as
-    // the turn resolves, or report errors if the turn fails.
-    ref.listen<GameSessionState>(gameSessionProvider, (prev, next) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        if (next.errorMessage != null && next.errorMessage != prev?.errorMessage) {
-          ref.read(diceOverlayProvider.notifier).reportError(next.errorMessage!);
-        }
-        final resolution = next.lastResolution;
-        if (resolution == null) return;
-        if (prev != null && identical(prev.lastResolution, resolution)) return;
-        ref.read(diceOverlayProvider.notifier).applyServerResolution(resolution);
-      });
-    });
-
     return MaterialApp(
       navigatorKey: rootNavigatorKey,
       title: 'افسانه‌ساز',
@@ -114,33 +97,38 @@ class _AfsanehSazAppState extends ConsumerState<AfsanehSazApp> {
           child: Stack(
             children: [
               child ?? const SizedBox.shrink(),
-              // Pre-warmed Root 3D D20 Dice Overlay (Initialized once on app launch)
-              DiceRollOverlay(
-                isVisible: diceState.isVisible,
-                isRolling: diceState.isRolling,
-                resolution: diceState.resolution,
-                serverResolution: diceState.serverResolution,
-                awaitingReferee: diceState.awaitingReferee,
-                actionText: diceState.actionText,
-                isPersian: diceState.isPersian,
-                statsConfig: diceState.statsConfig,
-                errorMessage: diceState.errorMessage,
-                isRecalling: diceState.isRecalling,
-                onRollComplete: () {
-                  ref.read(diceOverlayProvider.notifier).finishRoll();
-                },
-                onRecall: diceState.onRecall,
-                onDismiss: () {
-                  ref.read(diceOverlayProvider.notifier).hide();
-                },
-                onContinue: () {
-                  final onContinueCb = diceState.onContinue;
-                  ref.read(diceOverlayProvider.notifier).hide();
-                  if (onContinueCb != null) {
-                    onContinueCb();
-                  } else {
-                    ref.read(gameSessionProvider.notifier).applyPendingTurn();
-                  }
+              // Pre-warmed Root 3D D20 Dice Overlay (Isolated inside Consumer so MaterialApp never rebuilds)
+              Consumer(
+                builder: (context, ref, _) {
+                  final diceState = ref.watch(diceOverlayProvider);
+                  return DiceRollOverlay(
+                    isVisible: diceState.isVisible,
+                    isRolling: diceState.isRolling,
+                    resolution: diceState.resolution,
+                    serverResolution: diceState.serverResolution,
+                    awaitingReferee: diceState.awaitingReferee,
+                    actionText: diceState.actionText,
+                    isPersian: diceState.isPersian,
+                    statsConfig: diceState.statsConfig,
+                    errorMessage: diceState.errorMessage,
+                    isRecalling: diceState.isRecalling,
+                    onRollComplete: () {
+                      ref.read(diceOverlayProvider.notifier).finishRoll();
+                    },
+                    onRecall: diceState.onRecall,
+                    onDismiss: () {
+                      ref.read(diceOverlayProvider.notifier).hide();
+                    },
+                    onContinue: () {
+                      final onContinueCb = diceState.onContinue;
+                      ref.read(diceOverlayProvider.notifier).hide();
+                      if (onContinueCb != null) {
+                        onContinueCb();
+                      } else {
+                        ref.read(gameSessionProvider.notifier).applyPendingTurn();
+                      }
+                    },
+                  );
                 },
               ),
             ],

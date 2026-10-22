@@ -59,7 +59,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   double _lineHeight = 1.95;
   bool _isInitialPortalComplete = false;
   final Set<String> _dismissedNoticeKeys = {};
-  bool _isStatusDeltaDismissed = false;
+  int _lastScrolledTurn = -1;
+  int _dismissedDeltaTurn = -1;
+  ProgressionAward? _lastCelebratedXpAward;
 
   @override
   void initState() {
@@ -508,56 +510,46 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(gameSessionProvider);
-    // After the dice modal closes and the pending turn is applied, the new
-    // narrative arrives with an incremented turnNumber — scroll back to the
-    // top so the player reads the new prose instead of stale choices.
-    ref.listen<GameSessionState>(gameSessionProvider, (prev, next) {
-      if (prev != null && (next.turnNumber != prev.turnNumber || (prev.currentNarrative.isNotEmpty && next.currentNarrative.isEmpty))) {
-        _scrollToTop();
-      }
+    final isPersian = session.isPersian;
 
-      // Reset turn status delta notification dismissal on new turn changes
-      if (next.lastStatusDelta != null && next.lastStatusDelta != prev?.lastStatusDelta) {
+    // After the turn updates, scroll back to top so player reads new prose
+    if (_lastScrolledTurn != -1 && _lastScrolledTurn != session.turnNumber) {
+      _lastScrolledTurn = session.turnNumber;
+      _scrollToTop();
+    } else if (_lastScrolledTurn == -1 && session.turnNumber > 0) {
+      _lastScrolledTurn = session.turnNumber;
+    }
+
+    // Check for XP gain and Level-Up celebration events
+    if (session.lastXpAward != null && session.lastXpAward != _lastCelebratedXpAward) {
+      _lastCelebratedXpAward = session.lastXpAward;
+      final award = session.lastXpAward!;
+      if (award.xpGained > 0 || award.levelUpOccurred) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            setState(() {
-              _isStatusDeltaDismissed = false;
+          if (!mounted) return;
+          RpgToast.show(
+            context,
+            title: award.levelUpOccurred
+                ? (isPersian ? 'ارتقای تراز قهرمان!' : 'Level Up!')
+                : '+${toPersianDigits(award.xpGained)} XP',
+            subtitle: award.levelUpOccurred
+                ? (isPersian ? 'به تراز جدید رسیدید! برای تخصیص امتیازها ضربه بزنید.' : 'New level reached! Upgrades available.')
+                : (isPersian ? (award.reasonFa ?? 'کسب تجربه در اقدام') : (award.reasonEn ?? 'Experience gained')),
+            type: award.levelUpOccurred ? RpgToastType.warning : RpgToastType.success,
+            isPersian: isPersian,
+            duration: Duration(milliseconds: award.levelUpOccurred ? 4500 : 3000),
+          );
+
+          if (award.levelUpOccurred && session.playerState != null) {
+            Future.delayed(const Duration(milliseconds: 700), () {
+              if (mounted && context.mounted) {
+                LevelUpDialog.show(context, playerState: session.playerState!, isPersian: isPersian);
+              }
             });
           }
         });
       }
-
-      // Check for XP gain and Level-Up celebration events
-      if (next.lastXpAward != null && next.lastXpAward != prev?.lastXpAward) {
-        final award = next.lastXpAward!;
-        if (award.xpGained > 0 || award.levelUpOccurred) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            RpgToast.show(
-              context,
-              title: award.levelUpOccurred
-                  ? (next.isPersian ? 'ارتقای تراز قهرمان!' : 'Level Up!')
-                  : '+${toPersianDigits(award.xpGained)} XP',
-              subtitle: award.levelUpOccurred
-                  ? (next.isPersian ? 'به تراز جدید رسیدید! برای تخصیص امتیازها ضربه بزنید.' : 'New level reached! Upgrades available.')
-                  : (next.isPersian ? (award.reasonFa ?? 'کسب تجربه در اقدام') : (award.reasonEn ?? 'Experience gained')),
-              type: award.levelUpOccurred ? RpgToastType.warning : RpgToastType.success,
-              isPersian: next.isPersian,
-              duration: Duration(milliseconds: award.levelUpOccurred ? 4500 : 3000),
-            );
-
-            if (award.levelUpOccurred && next.playerState != null) {
-              Future.delayed(const Duration(milliseconds: 700), () {
-                if (mounted && context.mounted) {
-                  LevelUpDialog.show(context, playerState: next.playerState!, isPersian: next.isPersian);
-                }
-              });
-            }
-          });
-        }
-      }
-    });
-    final isPersian = session.isPersian;
+    }
     final theme = _getActiveTheme(session.storyId);
     final isLowHp = _isLowVitals(session);
 
@@ -831,7 +823,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   child: session.currentNarrative.isEmpty ||
                           (session.isLoading && session.playerState == null) ||
                           !_isInitialPortalComplete
-                      ? _buildInitialRealmLoader(theme, isPersian)
+                      ? _buildInitialRealmLoader(theme, isPersian, session)
                       : SingleChildScrollView(
                           key: const ValueKey('reader_content'),
                           controller: _scrollController,
@@ -1572,7 +1564,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   // Floating Transient Turn Status Delta Notification (Matching Web)
                   if (session.lastStatusDelta != null &&
                       session.lastStatusDelta!.hasChanges &&
-                      !_isStatusDeltaDismissed) ...[
+                      _dismissedDeltaTurn != session.turnNumber) ...[
                     Positioned(
                       left: 16,
                       right: 16,
@@ -1589,7 +1581,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                           CompendiumScreen.open(context);
                         },
                         onDismiss: () {
-                          setState(() => _isStatusDeltaDismissed = true);
+                          setState(() => _dismissedDeltaTurn = session.turnNumber);
                           ref.read(gameSessionProvider.notifier).dismissStatusDelta();
                         },
                       ),
@@ -1603,9 +1595,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
   }
 
-  Widget _buildInitialRealmLoader(RealmTheme theme, bool isPersian) {
-    final session = ref.watch(gameSessionProvider);
-
+  Widget _buildInitialRealmLoader(RealmTheme theme, bool isPersian, GameSessionState session) {
     if (session.errorMessage != null && session.currentNarrative.isEmpty) {
       return Center(
         child: Padding(
