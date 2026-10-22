@@ -229,6 +229,13 @@ export async function POST(req: NextRequest) {
         narrativeProse: lastTurn.narrativeProse || '',
         presentedChoices: (lastTurn.presentedChoices as any[]) || [],
         chapterNumber: (lastTurn as any).chapterNumber,
+        // A beat always carries the moment it was narrated. The stored turn
+        // keeps it; on an old record that predates the field, the retry time is
+        // the closest honest answer (the client sorts and labels by this).
+        timestamp:
+          typeof (lastTurn as { timestamp?: unknown }).timestamp === 'number'
+            ? ((lastTurn as { timestamp: number }).timestamp)
+            : Date.now(),
       };
 
       return NextResponse.json(
