@@ -205,6 +205,52 @@ export async function POST(req: NextRequest) {
       }>;
     const lastTurn = sessionTurns.length > 0 ? sessionTurns[sessionTurns.length - 1] : null;
 
+    // Idempotency check: If the client retries an action for a turn that has
+    // already been completed on the server (e.g. client-side timeout or double tap),
+    // return the completed turn record directly instead of double-generating, double-charging,
+    // or corrupting Snap choice predictions.
+    if (
+      !isRemake &&
+      session &&
+      lastTurn &&
+      typeof lastTurn.turnNumber === 'number' &&
+      typeof body?.turnNumber === 'number' &&
+      body.turnNumber <= lastTurn.turnNumber
+    ) {
+      console.log(
+        `[play/action] Idempotent retry detected for session ${sessionId}: requested turn ${body.turnNumber} <= completed turn ${lastTurn.turnNumber}. Returning existing turn.`
+      );
+      const existingBeat: TurnBeat = {
+        turnNumber: lastTurn.turnNumber,
+        sceneId: (lastTurn as any).sceneId || `scene_turn_${lastTurn.turnNumber}`,
+        playerActionText: lastTurn.playerActionText || '',
+        actionStyle: (lastTurn as any).actionStyle || 'free_text',
+        resolution: lastTurn.resolution,
+        narrativeProse: lastTurn.narrativeProse || '',
+        presentedChoices: (lastTurn.presentedChoices as any[]) || [],
+        chapterNumber: (lastTurn as any).chapterNumber,
+      };
+
+      return NextResponse.json(
+        {
+          success: true,
+          data: {
+            beat: existingBeat,
+            resolution: lastTurn.resolution,
+            progression: (lastTurn.resolution as any)?.progression,
+            updatedPlayerState: session.playerState,
+            sagaLedger: (session as any).sagaLedger,
+            activeChapterId: (session as any).currentChapterId ?? null,
+            remainingCredits: auth?.user?.creditBalance ?? null,
+            remakeUsed: false,
+            remakeCount: (lastTurn as any).remakeCount ?? 0,
+            activeTensionClocks: (session.playerState as any)?.activeTensionClocks ?? [],
+          },
+        },
+        { headers: buildCorsHeaders(req) }
+      );
+    }
+
     if (isRemake) {
       if (!session || sessionTurns.length === 0 || !lastTurn) {
         return NextResponse.json(

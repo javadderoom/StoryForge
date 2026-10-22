@@ -273,18 +273,35 @@ export function deriveActualChoice(
   const text = (actionText ?? '').trim();
   const explicit = typeof explicitChoiceId === 'string' && explicitChoiceId.length > 0 ? explicitChoiceId : undefined;
 
-  const matched = list.find(
-    (choice) =>
-      (explicit && choice?.id === explicit) ||
-      (!explicit && typeof choice?.text === 'string' && choice.text.trim() === text)
-  );
-
-  if (typeof matched?.id === 'string' && matched.id) {
-    return { actualChoiceId: matched.id };
-  }
+  // 1. If explicit choiceId is provided, check if it matches in the presented list
   if (explicit) {
+    const byId = list.find((choice) => choice?.id === explicit);
+    if (byId) {
+      // If action text matches another choice in the list exactly, prioritize the actual action text
+      const byText = text ? list.find((choice) => typeof choice?.text === 'string' && choice.text.trim() === text) : null;
+      if (byText && byText.id !== explicit) {
+        return { actualChoiceId: byText.id };
+      }
+      return { actualChoiceId: byId.id };
+    }
+    // If explicit ID is not in presented choices, check if text matches any presented choice
+    if (text) {
+      const byText = list.find((choice) => typeof choice?.text === 'string' && choice.text.trim() === text);
+      if (byText?.id) {
+        return { actualChoiceId: byText.id };
+      }
+    }
     return { actualChoiceId: explicit };
   }
+
+  // 2. Fall back to exact text matching
+  if (text) {
+    const byText = list.find((choice) => typeof choice?.text === 'string' && choice.text.trim() === text);
+    if (byText?.id) {
+      return { actualChoiceId: byText.id };
+    }
+  }
+
   return { actualActionText: actionText };
 }
 
