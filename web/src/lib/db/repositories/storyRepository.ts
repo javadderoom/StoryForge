@@ -655,15 +655,25 @@ export class StoryRepository {
         }
         let world = worldId ? await tx.world.findUnique({ where: { id: worldId } }) : null;
         if (!world) {
-          world = await tx.world.create({
-            data: {
-              name: input.worldBible.worldName,
-              summary: input.worldBible.summary,
-              themeNotes: input.worldBible.themeNotes,
-              worldBibleVersion: input.worldBibleVersion || 1,
-              worldBibleHistory: (input.worldBibleHistory || []) as any,
-            },
-          });
+          // Preserve an explicitly requested world id. Imported manifests and
+          // legacy stories can carry an id that has no row in THIS database
+          // yet. Letting the database generate a different id made every
+          // autosave miss again and create another same-name world, so the
+          // Cartographer's world switcher accumulated duplicate rows.
+          const worldData = {
+            name: input.worldBible.worldName,
+            summary: input.worldBible.summary,
+            themeNotes: input.worldBible.themeNotes,
+            worldBibleVersion: input.worldBibleVersion || 1,
+            worldBibleHistory: (input.worldBibleHistory || []) as any,
+          };
+          world = worldId
+            ? await tx.world.upsert({
+                where: { id: worldId },
+                update: {},
+                create: { id: worldId, ...worldData },
+              })
+            : await tx.world.create({ data: worldData });
           worldId = world.id;
         }
 
