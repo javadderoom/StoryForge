@@ -442,13 +442,14 @@ export default function CartographerPage() {
       const loc = story.worldBible.locations.find((l) => l.id === id);
       if (loc) {
         setSelection([{ kind: 'location', id: loc.id }]);
-        if (loc.coordinates) {
-          // Center camera on location
+        const anchor = resolvePlaceMapAnchor(loc, mapData.terrainFeatures);
+        if (anchor) {
+          // Center camera on the place's pin, or its linked terrain label.
           const screenW = typeof window !== 'undefined' ? window.innerWidth : 1200;
           const screenH = typeof window !== 'undefined' ? window.innerHeight : 800;
           setPan({
-            x: screenW / 2 - loc.coordinates.x * zoom,
-            y: screenH / 2 - loc.coordinates.y * zoom,
+            x: screenW / 2 - anchor.x * zoom,
+            y: screenH / 2 - anchor.y * zoom,
           });
         }
       }
