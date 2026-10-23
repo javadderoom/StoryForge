@@ -793,9 +793,9 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
                 <div className="flex items-center gap-3">
                   <input
                     type="range"
-                    min={feature.type === 'river' ? 4 : feature.type === 'mountain_range' ? 35 : 10}
+                    min={feature.type === 'river' ? 4 : feature.type === 'mountain_range' ? 14 : 10}
                     max={feature.type === 'river' ? 28 : feature.type === 'mountain_range' ? 85 : 75}
-                    step={feature.type === 'mountain_range' ? 5 : 1}
+                    step={feature.type === 'mountain_range' ? 2 : 1}
                     value={
                       feature.type === 'mountain_range'
                         ? feature.scale || (feature.width ? Math.round(feature.width / 0.58) : 55)

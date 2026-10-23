@@ -67,8 +67,8 @@ export function generateProceduralMountainRange(
   const rawSeed = options.seed ?? 42;
   const rng = makeRng(rawSeed);
 
-  const baseHmax = Math.max(20, Math.min(120, options.scale ?? 55));
-  const rangeWidth = Math.max(10, Math.min(100, options.rangeWidth ?? 32));
+  const baseHmax = Math.max(12, Math.min(120, options.scale ?? 55));
+  const rangeWidth = Math.max(6, Math.min(100, options.rangeWidth ?? 32));
   const hasSnowcaps = options.hasSnowcaps ?? true;
   const foothillDensity = Math.max(0, Math.min(1, options.foothillDensity ?? 0.4));
 
@@ -104,7 +104,7 @@ export function generateProceduralMountainRange(
 
   // 2. Sample along the spine with natural overlapping intervals
   // Peak stepping step size is ~0.45 * average peak base width
-  const stepDist = Math.max(18, Math.min(45, baseHmax * 0.5));
+  const stepDist = Math.max(10, Math.min(45, baseHmax * 0.5));
   const numSteps = Math.max(2, Math.ceil(totalLength / stepDist));
 
   const peaks: ProceduralPeak[] = [];

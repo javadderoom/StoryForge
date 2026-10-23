@@ -39,6 +39,7 @@ export default function StoriesListPage() {
     createStoryInWorld,
     duplicateStory,
     deleteStory,
+    deleteWorld,
     setStoryPublished,
     importStoryJson,
   } = useStudioStory();
@@ -165,6 +166,26 @@ export default function StoriesListPage() {
     router.push('/studio/world');
   };
 
+  const handleDeleteWorld = async (worldId: string, worldName: string, storyCount: number) => {
+    const confirmed = await notify.confirm({
+      title: isPersian ? 'حذف جهان' : 'Delete World',
+      message:
+        storyCount > 0
+          ? isPersian
+            ? `جهان «${worldName}» و ${storyCount} داستان داخل آن برای همیشه حذف شوند؟ این کار قابل بازگشت نیست.`
+            : `Permanently delete "${worldName}" and all ${storyCount} ${
+                storyCount === 1 ? 'story' : 'stories'
+              } inside it? This cannot be undone.`
+          : isPersian
+            ? `جهان خالی «${worldName}» برای همیشه حذف شود؟`
+            : `Permanently delete the empty world "${worldName}"?`,
+      confirmText: isPersian ? 'حذف جهان' : 'Delete World',
+      cancelText: isPersian ? 'انصراف' : 'Cancel',
+      isDestructive: true,
+    });
+    if (confirmed) await deleteWorld(worldId);
+  };
+
   const handleCreateStory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
@@ -278,14 +299,29 @@ export default function StoriesListPage() {
                 </span>
               )}
             </div>
-            <button
-              onClick={() => handleCreateInWorld(group.worldId)}
-              className="flex items-center gap-1 text-[11px] font-bold text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer shrink-0"
-              title={isPersian ? 'داستان جدید در همین جهان' : 'New story in this world'}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              {isPersian ? 'داستان جدید در این جهان' : 'New story in this world'}
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => handleCreateInWorld(group.worldId)}
+                className="flex items-center gap-1 text-[11px] font-bold text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+                title={isPersian ? 'داستان جدید در همین جهان' : 'New story in this world'}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {isPersian ? 'داستان جدید در این جهان' : 'New story in this world'}
+              </button>
+              <button
+                onClick={() =>
+                  void handleDeleteWorld(
+                    group.worldId,
+                    group.worldName,
+                    group.totalStoryCount
+                  )
+                }
+                className="p-1.5 text-zinc-500 hover:text-rose-300 hover:bg-rose-500/10 border border-zinc-700/70 hover:border-rose-500/30 rounded-lg transition-all cursor-pointer"
+                title={isPersian ? 'حذف جهان و همه داستان‌هایش' : 'Delete world and all its stories'}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
           {group.items.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">

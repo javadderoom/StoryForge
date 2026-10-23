@@ -281,9 +281,9 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
             </span>
             <input
               type="range"
-              min={35}
+              min={14}
               max={85}
-              step={5}
+              step={2}
               value={mountainScale}
               onChange={(e) => onMountainScaleChange(Number(e.target.value))}
               className="w-24 accent-orange-500 cursor-pointer"

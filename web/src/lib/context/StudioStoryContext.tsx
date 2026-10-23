@@ -393,6 +393,8 @@ interface StudioStoryContextType {
   createStoryInWorld: (worldId: string, language?: 'en' | 'fa') => void;
   duplicateStory: (storyId: string) => void;
   deleteStory: (storyId: string) => Promise<void>;
+  /** Delete a whole shared world and every story inside it. */
+  deleteWorld: (worldId: string) => Promise<void>;
   setStoryPublished: (id: string, published: boolean) => void;
   // Shared worlds
   worldsList: WorldListItem[];
@@ -971,6 +973,61 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
       }
     },
     [isPersian, selectedStoryId, refreshWorlds]
+  );
+
+  // Delete a whole shared world. The API cascades to every story in it (and
+  // their play sessions), so the caller must confirm the exact scope first.
+  const deleteWorld = useCallback(
+    async (worldId: string) => {
+      try {
+        const res = await fetch(
+          `/api/studio/worlds?worldId=${encodeURIComponent(worldId)}`,
+          { method: 'DELETE' }
+        );
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.success) {
+          notify.error(
+            data?.error ||
+              (isPersian ? 'حذف جهان ناموفق بود' : 'Failed to delete world')
+          );
+          return;
+        }
+
+        const removedStories = customStories.filter(
+          (candidate) => (candidate.worldId || candidate.id) === worldId
+        );
+        for (const removed of removedStories) {
+          localStorage.removeItem(getStorageKey(removed.id));
+        }
+
+        setCustomStories((prev) =>
+          prev.filter((candidate) => (candidate.worldId || candidate.id) !== worldId)
+        );
+
+        const deletingSelectedStory =
+          Boolean(selectedStoryId) &&
+          (story.worldId === worldId ||
+            removedStories.some((candidate) => candidate.id === selectedStoryId));
+        if (deletingSelectedStory) {
+          setSelectedStoryId('');
+          setStory(EMPTY_STORY_PLACEHOLDER);
+          setHasLocalDraft(false);
+          setLastSaved(null);
+        }
+
+        await refreshWorlds();
+        notify.info(isPersian ? 'جهان حذف شد' : 'World deleted');
+      } catch {
+        notify.error(isPersian ? 'حذف جهان ناموفق بود' : 'Failed to delete world');
+      }
+    },
+    [
+      customStories,
+      isPersian,
+      refreshWorlds,
+      selectedStoryId,
+      story.worldId,
+    ]
   );
 
   // Direct backend sync helper — the actual network write, with no autosave
@@ -2777,6 +2834,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         createStoryInWorld,
         duplicateStory,
         deleteStory,
+        deleteWorld,
         setStoryPublished,
         worldsList,
         selectedWorldId,
