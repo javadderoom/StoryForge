@@ -67,30 +67,93 @@ export default function StoriesListPage() {
     delete: isPersian ? 'حذف' : 'Delete',
   };
 
-  const filteredStories = storiesList.filter((s) =>
-    searchQuery.trim()
-      ? s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.tagline.toLowerCase().includes(searchQuery.toLowerCase())
-      : true
-  );
+  const query = searchQuery.trim().toLowerCase();
+  const storyMatchesQuery = (story: StoryListItem) =>
+    !query ||
+    story.title.toLowerCase().includes(query) ||
+    story.tagline.toLowerCase().includes(query);
+  const worldMatchesQuery = (name: string, id: string) =>
+    !query || name.toLowerCase().includes(query) || id.toLowerCase().includes(query);
 
-  // Group stories by their shared world (legacy stories without a world
-  // link each form their own single-story group).
+  // Show every world, including worlds that have no stories yet. The Story
+  // Library used to derive groups exclusively from stories, which made orphan
+  // worlds visible only in the Cartographer's raw world dropdown.
   const worldGroups = (() => {
-    const groups = new Map<string, { worldId: string; worldName: string; items: StoryListItem[] }>();
-    for (const s of filteredStories) {
-      const wid = s.worldId || s.id;
-      const known = worldsList.find((w) => w.id === wid);
-      const wname = s.worldName || known?.name || s.title;
-      let g = groups.get(wid);
-      if (!g) {
-        g = { worldId: wid, worldName: wname, items: [] };
-        groups.set(wid, g);
+    const groups = new Map<
+      string,
+      {
+        worldId: string;
+        worldName: string;
+        items: StoryListItem[];
+        totalStoryCount: number;
       }
-      g.items.push(s);
+    >();
+
+    for (const world of worldsList) {
+      groups.set(world.id, {
+        worldId: world.id,
+        worldName: world.name,
+        items: [],
+        totalStoryCount: world.storyCount,
+      });
     }
-    return [...groups.values()];
+
+    for (const story of storiesList) {
+      const wid = story.worldId || story.id;
+      let group = groups.get(wid);
+      if (!group) {
+        group = {
+          worldId: wid,
+          worldName: story.worldName || story.title,
+          items: [],
+          totalStoryCount: 0,
+        };
+        groups.set(wid, group);
+      }
+
+      // A world-name search reveals that world's stories even if the story
+      // title/tagline itself does not contain the query.
+      if (
+        storyMatchesQuery(story) ||
+        worldMatchesQuery(group.worldName, group.worldId)
+      ) {
+        group.items.push(story);
+      }
+    }
+
+    // Legacy groups (and a stale world-list count) must still show their real
+    // story total even when search filters the visible cards.
+    for (const group of groups.values()) {
+      const actualTotal = storiesList.filter(
+        (story) => (story.worldId || story.id) === group.worldId
+      ).length;
+      group.totalStoryCount = Math.max(group.totalStoryCount, actualTotal);
+    }
+
+    return [...groups.values()]
+      .filter(
+        (group) =>
+          !query ||
+          group.items.length > 0 ||
+          worldMatchesQuery(group.worldName, group.worldId)
+      )
+      .sort(
+        (a, b) =>
+          Number(a.totalStoryCount === 0) - Number(b.totalStoryCount === 0) ||
+          a.worldName.localeCompare(b.worldName) ||
+          a.worldId.localeCompare(b.worldId)
+      );
   })();
+
+  const duplicateWorldNameCounts = new Map<string, number>();
+  for (const world of worldsList) {
+    duplicateWorldNameCounts.set(
+      world.name,
+      (duplicateWorldNameCounts.get(world.name) || 0) + 1
+    );
+  }
+  const hasDuplicateWorldName = (name: string) =>
+    (duplicateWorldNameCounts.get(name) || 0) > 1;
 
   const handleOpenStory = (storyId: string) => {
     setSelectedStoryId(storyId);
@@ -198,9 +261,22 @@ export default function StoriesListPage() {
               <h3 className="text-sm font-bold text-zinc-200 truncate">
                 {group.worldName}
               </h3>
+              {hasDuplicateWorldName(group.worldName) && (
+                <span
+                  className="text-[9px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-700/60 rounded-md px-1.5 py-0.5 shrink-0"
+                  title={group.worldId}
+                >
+                  #{group.worldId.slice(0, 8)}
+                </span>
+              )}
               <span className="text-[10px] font-mono text-zinc-500 bg-zinc-800/80 border border-zinc-700/60 rounded-md px-1.5 py-0.5 shrink-0">
-                {group.items.length} {group.items.length === 1 ? 'story' : 'stories'}
+                {group.totalStoryCount} {group.totalStoryCount === 1 ? 'story' : 'stories'}
               </span>
+              {group.totalStoryCount === 0 && (
+                <span className="text-[9px] font-mono uppercase tracking-wide text-amber-300/80 bg-amber-500/10 border border-amber-500/25 rounded-md px-1.5 py-0.5 shrink-0">
+                  {isPersian ? 'خالی' : 'Empty'}
+                </span>
+              )}
             </div>
             <button
               onClick={() => handleCreateInWorld(group.worldId)}
@@ -211,39 +287,62 @@ export default function StoriesListPage() {
               {isPersian ? 'داستان جدید در این جهان' : 'New story in this world'}
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {group.items.map((item) => (
-              <StoryCard
-                key={item.id}
-                item={item}
-                isActive={item.id === selectedStoryId}
-                isPersian={isPersian}
-                t={t}
-                onOpen={() => handleOpenStory(item.id)}
-                onDuplicate={() => duplicateStory(item.id)}
-                onTogglePublish={() => setStoryPublished(item.id, !item.published)}
-                onDelete={() => deleteStory(item.id)}
-              />
-            ))}
-          </div>
+          {group.items.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {group.items.map((item) => (
+                <StoryCard
+                  key={item.id}
+                  item={item}
+                  isActive={item.id === selectedStoryId}
+                  isPersian={isPersian}
+                  t={t}
+                  onOpen={() => handleOpenStory(item.id)}
+                  onDuplicate={() => duplicateStory(item.id)}
+                  onTogglePublish={() => setStoryPublished(item.id, !item.published)}
+                  onDelete={() => deleteStory(item.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-zinc-700/80 bg-zinc-900/30 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <Globe className="w-5 h-5 text-amber-400/70 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-zinc-300">
+                    {isPersian ? 'این جهان هنوز داستانی ندارد' : 'This world has no stories yet'}
+                  </p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    {isPersian
+                      ? 'نقشه و انجیل جهان حفظ شده است؛ اولین داستان را در همین جهان بسازید.'
+                      : 'Its map and world bible are preserved. Create the first story in this world.'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleCreateInWorld(group.worldId)}
+                className="flex items-center justify-center gap-1.5 text-[11px] font-bold text-zinc-950 bg-amber-500 hover:bg-amber-400 px-3 py-2 rounded-xl transition-all cursor-pointer shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {isPersian ? 'ساخت اولین داستان' : 'Create first story'}
+              </button>
+            </div>
+          )}
         </div>
       ))}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {filteredStories.length === 0 && (
-          <div className="col-span-full flex flex-col items-center justify-center py-16 text-zinc-500">
-            <BookOpen className="w-12 h-12 mb-4 opacity-30" />
-            <p className="text-sm">
-              {searchQuery.trim()
-                ? isPersian
-                  ? 'داستانی مطابق جستجو یافت نشد.'
-                  : 'No stories match your search.'
-                : isPersian
-                  ? 'هنوز داستانی نساخته‌اید. اولین جهان خود را ایجاد کنید.'
-                  : "You haven't created any stories yet. Create your first world."}
-            </p>
-          </div>
-        )}
-      </div>
+      {worldGroups.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
+          <BookOpen className="w-12 h-12 mb-4 opacity-30" />
+          <p className="text-sm">
+            {searchQuery.trim()
+              ? isPersian
+                ? 'جهانی مطابق جستجو یافت نشد.'
+                : 'No worlds match your search.'
+              : isPersian
+                ? 'هنوز جهانی نساخته‌اید. اولین جهان خود را ایجاد کنید.'
+                : "You haven't created any worlds yet. Create your first world."}
+          </p>
+        </div>
+      )}
 
       {/* Create Story Modal */}
       {createModalOpen && (

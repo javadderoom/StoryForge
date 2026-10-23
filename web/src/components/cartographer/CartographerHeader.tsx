@@ -52,7 +52,7 @@ export type CartographerTool =
 
 interface CartographerHeaderProps {
   worldName: string;
-  worldsList: Array<{ id: string; name: string }>;
+  worldsList: Array<{ id: string; name: string; storyCount?: number }>;
   selectedWorldId: string;
   onSelectWorld: (id: string) => void;
   activeTool: CartographerTool;
@@ -136,6 +136,14 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
   isFullscreen,
   onToggleFullscreen,
 }) => {
+  const duplicateWorldNames = new Set(
+    worldsList
+      .filter((world) =>
+        worldsList.some((other) => other.id !== world.id && other.name === world.name)
+      )
+      .map((world) => world.name)
+  );
+
   return (
     <header className="h-16 bg-zinc-950/90 border-b border-zinc-800/80 backdrop-blur-md px-4 flex items-center justify-between gap-3 select-none z-30 shrink-0">
       {/* Left: Branding & World Switcher */}
@@ -165,19 +173,42 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
               </span>
             </div>
 
-            {/* World Switcher Dropdown */}
-            {worldsList.length > 1 ? (
+            {/* World Switcher Dropdown — every world is visible, including
+                empty/orphan worlds. Empty worlds are disabled here because the
+                Cartographer needs a story to open; the Story Library creates
+                the first story in them. */}
+            {worldsList.length > 0 ? (
               <div className="relative inline-block mt-0.5">
                 <select
                   value={selectedWorldId}
                   onChange={(e) => onSelectWorld(e.target.value)}
-                  className="bg-transparent text-xs text-zinc-400 hover:text-zinc-200 cursor-pointer pr-4 focus:outline-none appearance-none"
+                  className="bg-transparent text-xs text-zinc-400 hover:text-zinc-200 cursor-pointer pr-4 focus:outline-none appearance-none max-w-[320px]"
                 >
-                  {worldsList.map((w) => (
-                    <option key={w.id} value={w.id} className="bg-zinc-900 text-zinc-200">
-                      {w.name}
-                    </option>
-                  ))}
+                  {worldsList.map((w) => {
+                    const isEmpty = w.storyCount === 0;
+                    const isDuplicate = duplicateWorldNames.has(w.name);
+                    const storyLabel =
+                      typeof w.storyCount === 'number'
+                        ? ` (${w.storyCount} ${w.storyCount === 1 ? 'story' : 'stories'})`
+                        : '';
+                    const emptyLabel = isEmpty
+                      ? isPersian
+                        ? ' — بدون داستان'
+                        : ' — no stories'
+                      : '';
+                    const idLabel = isDuplicate ? ` · #${w.id.slice(0, 8)}` : '';
+
+                    return (
+                      <option
+                        key={w.id}
+                        value={w.id}
+                        disabled={isEmpty}
+                        className="bg-zinc-900 text-zinc-200"
+                      >
+                        {w.name}{storyLabel}{emptyLabel}{idLabel}
+                      </option>
+                    );
+                  })}
                 </select>
                 <ChevronDown className="w-3 h-3 text-zinc-500 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
