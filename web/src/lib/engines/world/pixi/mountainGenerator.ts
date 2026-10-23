@@ -27,6 +27,7 @@ export interface ProceduralPeak {
   shadowPoly: MapPoint[];
   snowcapSunlitPoly?: MapPoint[];
   snowcapShadowPoly?: MapPoint[];
+  snowlinePath?: MapPoint[];
   cragSpine: MapPoint[];
   shadowHatchLines: [MapPoint, MapPoint][];
   groundHatchLines: [MapPoint, MapPoint][];
@@ -139,7 +140,7 @@ export function generateProceduralMountainRange(
       base: { x: Math.round(peakBaseX), y: Math.round(peakBaseY) },
       height: mainHeight,
       rng,
-      hasSnowcaps: hasSnowcaps && mainHeight >= baseHmax * 0.62,
+      hasSnowcaps: hasSnowcaps && mainHeight >= baseHmax * 0.45,
     });
     peaks.push(peak);
 
@@ -158,7 +159,7 @@ export function generateProceduralMountainRange(
         base: { x: Math.round(flankX), y: Math.round(flankY) },
         height: flankHeight,
         rng,
-        hasSnowcaps: hasSnowcaps && flankHeight >= baseHmax * 0.75,
+        hasSnowcaps: hasSnowcaps && flankHeight >= baseHmax * 0.55,
       });
       peaks.push(flankPeak);
     }
@@ -268,8 +269,9 @@ function createIsometricPeak({
   // Snowcap geometry (cut at upper 28-35% of the summit)
   let snowcapSunlitPoly: MapPoint[] | undefined;
   let snowcapShadowPoly: MapPoint[] | undefined;
+  let snowlinePath: MapPoint[] | undefined;
 
-  if (hasSnowcaps && !isVolcano && safeHeight >= 28) {
+  if (hasSnowcaps && !isVolcano && safeHeight >= 16) {
     const snowLevel = 0.32; // Upper 32%
     const snowY = apex.y + safeHeight * snowLevel;
 
@@ -299,6 +301,7 @@ function createIsometricPeak({
 
     snowcapSunlitPoly = [apex, snowLeft, midLeftTeeth, snowCrag];
     snowcapShadowPoly = [apex, snowCrag, midRightTeeth, snowRight];
+    snowlinePath = [snowLeft, midLeftTeeth, snowCrag, midRightTeeth, snowRight];
   }
 
   return {
@@ -312,6 +315,7 @@ function createIsometricPeak({
     shadowPoly,
     snowcapSunlitPoly,
     snowcapShadowPoly,
+    snowlinePath,
     cragSpine,
     shadowHatchLines,
     groundHatchLines,

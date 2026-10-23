@@ -94,3 +94,44 @@ test('mountainGenerator: generateStandalonePeak supports volcanoes with distinct
   assert.equal(volcano.isVolcano, true);
   assert.equal(volcano.snowcapSunlitPoly, undefined, 'Volcanoes should not have standard snowcaps');
 });
+
+test('mountainGenerator: respects hasSnowcaps toggle and generates snowlinePath', () => {
+  const points = [
+    { x: 100, y: 300 },
+    { x: 300, y: 300 },
+    { x: 500, y: 300 },
+  ];
+
+  // With snowcaps enabled
+  const withSnow = generateProceduralMountainRange(points, {
+    seed: 42,
+    scale: 60,
+    hasSnowcaps: true,
+  });
+  const peaksWithSnow = withSnow.filter((p) => p.snowcapSunlitPoly && p.snowlinePath);
+  assert.ok(peaksWithSnow.length > 0, 'High peaks should have snowcaps and snowlinePath');
+  assert.ok(peaksWithSnow[0].snowlinePath!.length >= 4, 'snowlinePath should have jagged crag points');
+
+  // With snowcaps disabled
+  const withoutSnow = generateProceduralMountainRange(points, {
+    seed: 42,
+    scale: 60,
+    hasSnowcaps: false,
+  });
+  const peaksWithoutSnow = withoutSnow.filter((p) => p.snowcapSunlitPoly || p.snowlinePath);
+  assert.equal(peaksWithoutSnow.length, 0, 'No peaks should have snowcaps when disabled');
+});
+
+test('mountainGenerator: scale option directly scales the peak dimensions', () => {
+  const points = [
+    { x: 100, y: 200 },
+    { x: 400, y: 200 },
+  ];
+  const smallPeaks = generateProceduralMountainRange(points, { seed: 101, scale: 35 });
+  const largePeaks = generateProceduralMountainRange(points, { seed: 101, scale: 80 });
+
+  const maxSmallHeight = Math.max(...smallPeaks.map((p) => p.scale));
+  const maxLargeHeight = Math.max(...largePeaks.map((p) => p.scale));
+
+  assert.ok(maxLargeHeight > maxSmallHeight * 1.8, 'Large scale should produce significantly taller peaks');
+});

@@ -14,6 +14,7 @@ import {
   EyeOff,
   Lock,
   Unlock,
+  Snowflake,
 } from 'lucide-react';
 import {
   WorldLocation,
@@ -627,7 +628,7 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
               <div>
                 <label className="text-[11px] text-zinc-400 mb-1 block font-medium">
                   {feature.type === 'mountain_range'
-                    ? (isPersian ? 'پهنای رشته‌کوه / مقیاس قله‌ها' : 'Range Width & Peak Scale')
+                    ? (isPersian ? 'اندازه قله‌ها (مقیاس رشته‌کوه)' : 'Peak Scale & Range Width')
                     : feature.type === 'river'
                     ? (isPersian ? 'پهنای دهانه رودخانه' : 'River Mouth Width')
                     : feature.type === 'highland' || feature.type === 'plateau'
@@ -637,29 +638,78 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
                 <div className="flex items-center gap-3">
                   <input
                     type="range"
-                    min={feature.type === 'river' ? 4 : 10}
-                    max={feature.type === 'river' ? 28 : 75}
+                    min={feature.type === 'river' ? 4 : feature.type === 'mountain_range' ? 35 : 10}
+                    max={feature.type === 'river' ? 28 : feature.type === 'mountain_range' ? 85 : 75}
+                    step={feature.type === 'mountain_range' ? 5 : 1}
                     value={
-                      feature.width ||
-                      (feature.type === 'river'
-                        ? 10
-                        : feature.type === 'highland' || feature.type === 'plateau'
-                        ? 22
-                        : 28)
+                      feature.type === 'mountain_range'
+                        ? feature.scale || (feature.width ? Math.round(feature.width / 0.58) : 55)
+                        : feature.width ||
+                          (feature.type === 'river'
+                            ? 10
+                            : feature.type === 'highland' || feature.type === 'plateau'
+                            ? 22
+                            : 28)
                     }
-                    onChange={(e) => onUpdateTerrain(feature.id, { width: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      if (feature.type === 'mountain_range') {
+                        onUpdateTerrain(feature.id, {
+                          scale: val,
+                          width: Math.round(val * 0.58),
+                        });
+                      } else {
+                        onUpdateTerrain(feature.id, { width: val });
+                      }
+                    }}
                     className="flex-1 accent-amber-500 cursor-pointer"
                   />
                   <span className="font-mono text-zinc-300 w-10 text-right">
-                    {feature.width ||
-                      (feature.type === 'river'
-                        ? 10
-                        : feature.type === 'highland' || feature.type === 'plateau'
-                        ? 22
-                        : 28)}
-                    px
+                    {feature.type === 'mountain_range'
+                      ? `${feature.scale || (feature.width ? Math.round(feature.width / 0.58) : 55)}px`
+                      : `${
+                          feature.width ||
+                          (feature.type === 'river'
+                            ? 10
+                            : feature.type === 'highland' || feature.type === 'plateau'
+                            ? 22
+                            : 28)
+                        }px`}
                   </span>
                 </div>
+              </div>
+            )}
+
+            {/* Mountain Range Summit Snowcaps Toggle */}
+            {feature.type === 'mountain_range' && (
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900 border border-zinc-800">
+                <div className="flex items-center gap-2">
+                  <Snowflake className="w-4 h-4 text-sky-400" />
+                  <span className="text-xs font-medium text-zinc-300">
+                    {isPersian ? 'کلاهک‌های برفی قله‌ها' : 'Summit Snowcaps'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onUpdateTerrain(feature.id, {
+                      hasSnowcaps: feature.hasSnowcaps !== undefined ? !feature.hasSnowcaps : false,
+                    })
+                  }
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all border ${
+                    feature.hasSnowcaps !== false
+                      ? 'bg-sky-950/80 border-sky-400/60 text-sky-200'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  {feature.hasSnowcaps !== false
+                    ? isPersian
+                      ? 'فعال'
+                      : 'Enabled'
+                    : isPersian
+                    ? 'غیرفعال'
+                    : 'Disabled'}
+                </button>
               </div>
             )}
 

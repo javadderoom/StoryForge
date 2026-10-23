@@ -248,6 +248,8 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     cliffHeight,
     terraceTiers,
     valleyWidth,
+    mountainScale,
+    hasSnowcaps,
   });
 
   const engineRef = usePixiEngine({
@@ -913,6 +915,8 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
               : isValley
               ? -200
               : (terraceTiers > 1 ? 1800 : 800),
+            scale: isMountain ? mountainScale : undefined,
+            hasSnowcaps: isMountain ? hasSnowcaps : undefined,
             width: isMountain
               ? Math.round(mountainScale * 0.58)
               : isRiver

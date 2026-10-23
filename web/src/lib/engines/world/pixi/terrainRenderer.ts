@@ -604,13 +604,21 @@ export function drawRange(g: Graphics, feat: MapTerrainFeature): void {
   if (!feat.points || feat.points.length === 0) return;
 
   const seed = hashStringToSeed(feat.id || `mountain_${feat.points[0].x}_${feat.points[0].y}`);
-  const baseScale = feat.elevation ? Math.max(35, Math.min(85, feat.elevation / 45)) : (feat.width ? feat.width * 1.8 : 55);
+  // If feat.scale is provided, respect it directly!
+  // Otherwise fall back to feat.width / elevation
+  const baseScale =
+    feat.scale ??
+    (feat.width ? Math.round(feat.width / 0.58) : undefined) ??
+    (feat.elevation ? Math.max(35, Math.min(85, feat.elevation / 45)) : 55);
+
+  const rangeWidth = feat.width ?? Math.round(baseScale * 0.58);
+  const hasSnowcaps = feat.hasSnowcaps ?? (feat.elevation ? feat.elevation >= 2400 : true);
 
   const peaks = generateProceduralMountainRange(feat.points, {
     seed,
     scale: baseScale,
-    rangeWidth: feat.width || 32,
-    hasSnowcaps: (feat.elevation ?? 3200) >= 2400,
+    rangeWidth,
+    hasSnowcaps,
   });
 
   for (const peak of peaks) {
@@ -672,12 +680,27 @@ export function renderProceduralPeakToGraphics(g: Graphics, peak: ProceduralPeak
   // 4. Snowcap Summits
   if (peak.snowcapSunlitPoly && peak.snowcapSunlitPoly.length >= 3) {
     g.poly(toFlatPoints(peak.snowcapSunlitPoly)).fill({
-      color: VINTAGE_PARCHMENT.mountainSnowcap,
+      color: 0xffffff, // Pure crisp snowcap
     });
   }
   if (peak.snowcapShadowPoly && peak.snowcapShadowPoly.length >= 3) {
     g.poly(toFlatPoints(peak.snowcapShadowPoly)).fill({
-      color: 0xede6d8, // Shaded snow tone
+      color: 0xdde6ed, // Cool shaded mountain snow
+    });
+  }
+
+  // 4b. Hand-inked Jagged Lower Snowline
+  if (peak.snowlinePath && peak.snowlinePath.length >= 2) {
+    g.moveTo(peak.snowlinePath[0].x, peak.snowlinePath[0].y);
+    for (let i = 1; i < peak.snowlinePath.length; i++) {
+      g.lineTo(peak.snowlinePath[i].x, peak.snowlinePath[i].y);
+    }
+    g.stroke({
+      width: 1.25,
+      color: VINTAGE_PARCHMENT.mountainInk,
+      cap: 'round',
+      join: 'round',
+      alpha: 0.9,
     });
   }
 

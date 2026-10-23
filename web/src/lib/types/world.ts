@@ -735,6 +735,8 @@ export interface MapTerrainFeature {
   elevation?: number; // e.g. -500 to +4500 meters
   points?: MapPoint[]; // polyline for rivers / ridges / valleys
   width?: number;
+  scale?: number; // visual scale / peak height in pixels
+  hasSnowcaps?: boolean; // snowcaps enabled on peaks
   polygon?: MapPoint[]; // polygon boundary for landmasses, biomes, water bodies
   holes?: MapPoint[][]; // polygon hole loops for inland lakes, inland seas, or carved water cutouts
   description?: string;

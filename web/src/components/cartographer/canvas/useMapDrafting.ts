@@ -19,6 +19,8 @@ interface UseMapDraftingOptions {
   cliffHeight?: number;
   terraceTiers?: number;
   valleyWidth?: number;
+  mountainScale?: number;
+  hasSnowcaps?: boolean;
 }
 
 /**
@@ -37,6 +39,8 @@ export function useMapDrafting({
   cliffHeight = 22,
   terraceTiers = 1,
   valleyWidth = 28,
+  mountainScale = 55,
+  hasSnowcaps = true,
 }: UseMapDraftingOptions) {
   const [draftPoints, setDraftPoints] = useState<MapPoint[]>([]);
   const [rulerPoints, setRulerPoints] = useState<MapPoint[]>([]);
@@ -141,8 +145,15 @@ export function useMapDrafting({
               : 'Rift Valley',
           type,
           points: draftPoints,
-          elevation: type === 'mountain_range' ? 3200 : type === 'valley' ? -200 : 150,
-          width: type === 'river' ? 10 : valleyWidth,
+          elevation: type === 'mountain_range' ? (hasSnowcaps ? 3200 : 2000) : type === 'valley' ? -200 : 150,
+          scale: type === 'mountain_range' ? mountainScale : undefined,
+          hasSnowcaps: type === 'mountain_range' ? hasSnowcaps : undefined,
+          width:
+            type === 'river'
+              ? 10
+              : type === 'mountain_range'
+              ? Math.round(mountainScale * 0.58)
+              : valleyWidth,
         };
         onAddTerrain(newFeature);
         onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
@@ -161,6 +172,8 @@ export function useMapDrafting({
       cliffHeight,
       terraceTiers,
       valleyWidth,
+      mountainScale,
+      hasSnowcaps,
     ]
   );
 
