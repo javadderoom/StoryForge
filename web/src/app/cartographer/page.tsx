@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { normalizeOntology, useStudioStory } from '@/lib/context/StudioStoryContext';
 import {
   WorldMapData,
@@ -34,6 +35,7 @@ import { useCartographerAutoFit } from '@/components/cartographer/hooks/useCarto
 import { useCartographerSelection } from '@/components/cartographer/hooks/useCartographerSelection';
 
 export default function CartographerPage() {
+  const router = useRouter();
   const {
     story,
     setSelectedStoryId,
@@ -41,6 +43,7 @@ export default function CartographerPage() {
     selectedWorldId,
     worldsList,
     updateWorldBible,
+    deleteWorld,
     addLocation,
     editLocation,
     deleteLocation,
@@ -243,6 +246,43 @@ export default function CartographerPage() {
       deleteLocation(id);
       removeFromSelection([{ kind: 'location', id }]);
     });
+  };
+
+  const handleDeleteCurrentWorld = async () => {
+    const worldId = selectedWorldId || story.worldId;
+    if (!worldId) return;
+
+    const world = worldsList.find((candidate) => candidate.id === worldId);
+    const storyCount =
+      world?.storyCount ??
+      storiesList.filter(
+        (candidate) =>
+          (candidate as { worldId?: string }).worldId === worldId ||
+          candidate.id === worldId
+      ).length;
+    const worldLabel = world?.name || story.worldBible.worldName;
+
+    const confirmed = await notify.confirm({
+      title: isPersian ? 'حذف جهان' : 'Delete World',
+      message:
+        storyCount > 0
+          ? isPersian
+            ? `جهان «${worldLabel}» و ${storyCount} داستان داخل آن برای همیشه حذف شوند؟ این کار شامل انجیل جهان، نقشه و نشست‌های بازی است و قابل بازگشت نیست.`
+            : `Permanently delete "${worldLabel}" and all ${storyCount} ${
+                storyCount === 1 ? 'story' : 'stories'
+              }? This deletes its world bible, map, and play sessions. It cannot be undone.`
+          : isPersian
+            ? `جهان خالی «${worldLabel}» برای همیشه حذف شود؟`
+            : `Permanently delete the empty world "${worldLabel}"?`,
+      confirmText: isPersian ? 'حذف جهان' : 'Delete World',
+      cancelText: isPersian ? 'انصراف' : 'Cancel',
+      isDestructive: true,
+    });
+
+    if (confirmed) {
+      await deleteWorld(worldId);
+      router.push('/studio/stories');
+    }
   };
 
 
@@ -525,6 +565,7 @@ export default function CartographerPage() {
             setSelectedStoryId(matchingStory.id);
           }
         }}
+        onDeleteWorld={handleDeleteCurrentWorld}
         activeTool={activeTool}
         onSelectTool={setActiveTool}
         settings={mapSettings}

@@ -28,6 +28,7 @@ import {
   Undo2,
   Redo2,
   ListTree,
+  Trash2,
 } from 'lucide-react';
 import { WorldMapSettings, MapStyleTheme } from '@/lib/types';
 
@@ -55,6 +56,8 @@ interface CartographerHeaderProps {
   worldsList: Array<{ id: string; name: string; storyCount?: number }>;
   selectedWorldId: string;
   onSelectWorld: (id: string) => void;
+  /** Delete the currently selected world (cascades to its stories). */
+  onDeleteWorld?: () => void | Promise<void>;
   activeTool: CartographerTool;
   onSelectTool: (tool: CartographerTool) => void;
   settings: WorldMapSettings;
@@ -104,6 +107,7 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
   worldsList,
   selectedWorldId,
   onSelectWorld,
+  onDeleteWorld,
   activeTool,
   onSelectTool,
   settings,
@@ -178,39 +182,50 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
                 Cartographer needs a story to open; the Story Library creates
                 the first story in them. */}
             {worldsList.length > 0 ? (
-              <div className="relative inline-block mt-0.5">
-                <select
-                  value={selectedWorldId}
-                  onChange={(e) => onSelectWorld(e.target.value)}
-                  className="bg-transparent text-xs text-zinc-400 hover:text-zinc-200 cursor-pointer pr-4 focus:outline-none appearance-none max-w-[320px]"
-                >
-                  {worldsList.map((w) => {
-                    const isEmpty = w.storyCount === 0;
-                    const isDuplicate = duplicateWorldNames.has(w.name);
-                    const storyLabel =
-                      typeof w.storyCount === 'number'
-                        ? ` (${w.storyCount} ${w.storyCount === 1 ? 'story' : 'stories'})`
+              <div className="flex items-center gap-1 mt-0.5">
+                <div className="relative inline-block">
+                  <select
+                    value={selectedWorldId}
+                    onChange={(e) => onSelectWorld(e.target.value)}
+                    className="bg-transparent text-xs text-zinc-400 hover:text-zinc-200 cursor-pointer pr-4 focus:outline-none appearance-none max-w-[320px]"
+                  >
+                    {worldsList.map((w) => {
+                      const isEmpty = w.storyCount === 0;
+                      const isDuplicate = duplicateWorldNames.has(w.name);
+                      const storyLabel =
+                        typeof w.storyCount === 'number'
+                          ? ` (${w.storyCount} ${w.storyCount === 1 ? 'story' : 'stories'})`
+                          : '';
+                      const emptyLabel = isEmpty
+                        ? isPersian
+                          ? ' — بدون داستان'
+                          : ' — no stories'
                         : '';
-                    const emptyLabel = isEmpty
-                      ? isPersian
-                        ? ' — بدون داستان'
-                        : ' — no stories'
-                      : '';
-                    const idLabel = isDuplicate ? ` · #${w.id.slice(0, 8)}` : '';
+                      const idLabel = isDuplicate ? ` · #${w.id.slice(0, 8)}` : '';
 
-                    return (
-                      <option
-                        key={w.id}
-                        value={w.id}
-                        disabled={isEmpty}
-                        className="bg-zinc-900 text-zinc-200"
-                      >
-                        {w.name}{storyLabel}{emptyLabel}{idLabel}
-                      </option>
-                    );
-                  })}
-                </select>
-                <ChevronDown className="w-3 h-3 text-zinc-500 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      return (
+                        <option
+                          key={w.id}
+                          value={w.id}
+                          disabled={isEmpty}
+                          className="bg-zinc-900 text-zinc-200"
+                        >
+                          {w.name}{storyLabel}{emptyLabel}{idLabel}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <ChevronDown className="w-3 h-3 text-zinc-500 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+                {onDeleteWorld && (
+                  <button
+                    onClick={() => void onDeleteWorld()}
+                    title={isPersian ? 'حذف جهان جاری و همه داستان‌هایش' : 'Delete current world and all its stories'}
+                    className="p-1 rounded-lg text-zinc-600 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             ) : (
               <span className="text-xs text-zinc-400 truncate max-w-[180px] block mt-0.5 font-medium">
