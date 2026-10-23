@@ -112,6 +112,56 @@ test('Cartographer Engine - Map Initialization & Defaults', async (t) => {
     assert.equal(mapData.terrainFeatures.length, 1);
     assert.equal(mapData.terrainFeatures[0].id, 'terr_custom_1');
   });
+
+  await t.test('migrates legacy land-hole water into selectable lake features on load', () => {
+    const lakeHole = [
+      { x: 100, y: 100 },
+      { x: 200, y: 100 },
+      { x: 200, y: 200 },
+      { x: 100, y: 200 },
+    ];
+    const legacyTerrain: MapTerrainFeature[] = [
+      {
+        id: 'terr_legacy_continent',
+        name: 'Legacy Continent',
+        type: 'continent',
+        polygon: [
+          { x: 0, y: 0 },
+          { x: 500, y: 0 },
+          { x: 500, y: 500 },
+          { x: 0, y: 500 },
+        ],
+        holes: [lakeHole],
+      },
+    ];
+
+    const mockWb: WorldBible = {
+      worldId: 'world_test_legacy',
+      worldName: 'Legacy World',
+      summary: '',
+      themeNotes: '',
+      laws: [],
+      factions: [],
+      locations: [],
+      timeline: [],
+      npcs: [],
+      mapData: {
+        version: 1,
+        settings: DEFAULT_MAP_SETTINGS,
+        terrainFeatures: legacyTerrain,
+        placements: [],
+      },
+    };
+
+    const mapData = getOrInitializeWorldMapData(mockWb, false);
+    const continent = mapData.terrainFeatures.find((f) => f.id === 'terr_legacy_continent');
+    const lakes = mapData.terrainFeatures.filter((f) => f.type === 'lake');
+
+    assert.ok(continent);
+    assert.ok(!continent.holes || continent.holes.length === 0);
+    assert.equal(lakes.length, 1);
+    assert.deepEqual(lakes[0].polygon, lakeHole);
+  });
 });
 
 test('Cartographer Engine - Location Spatial Placement', async (t) => {

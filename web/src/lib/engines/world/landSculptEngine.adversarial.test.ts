@@ -24,32 +24,9 @@ import {
   getNoiseFunction,
   getNoiseCacheSize,
   MAX_NOISE_CACHE_SIZE,
-  MAX_INTERPOLATION_STEPS,
-  getSqDist,
-  getSqSegmentDist,
-  calculateSignedArea,
   calculatePolygonArea,
-  getBoundingBox,
-  doAABBIntersect,
-  removeDuplicateVertices,
-  removeCollinearVertices,
-  ensureOpenRing,
-  ensureClosedRing,
-  isDegeneratePolygon,
-  simplifyRadialDist,
-  simplifyPolyline,
   simplifyPolygonRing,
-  simplifyDouglasPeucker,
-  sanitizePolygonRing,
-  sanitizeAndSimplifyPolygon,
-  mapPointsToGeoRing,
-  geoRingToMapPoints,
-  featureToGeoPolygon,
-  featuresToGeoMultiPolygon,
   applySculptOperation,
-  DEFAULT_SIMPLIFY_EPSILON,
-  MIN_FEATURE_AREA,
-  MIN_HOLE_AREA,
 } from './landSculptEngine';
 import { MapPoint, MapTerrainFeature } from '@/lib/types';
 
@@ -406,12 +383,14 @@ test('Adversarial Dimension 5: Multiple Nested Holes and Topological Stress', as
 
     const land = result.find((f) => f.id === 'cont_multi_lakes');
     assert.ok(land, 'Primary continent retained');
-    assert.ok(land.holes, 'Continent must have holes array');
-    assert.strictEqual(land.holes.length, 5, `Expected 5 holes in continent, got ${land.holes.length}`);
+    assert.ok(
+      !land.holes || land.holes.length === 0,
+      'Continent must not duplicate lake water as land holes'
+    );
 
-    // Companion lake features
+    // One lake owns each carved body of water.
     const lakes = result.filter((f) => f.type === 'lake');
-    assert.strictEqual(lakes.length, 5, `Expected 5 companion lake features, got ${lakes.length}`);
+    assert.strictEqual(lakes.length, 5, `Expected 5 lake features, got ${lakes.length}`);
   });
 
   await t.test('Russian doll nesting: Island inside a lake inside a continent', () => {
@@ -431,6 +410,13 @@ test('Adversarial Dimension 5: Multiple Nested Holes and Topological Stress', as
     // Check features in step 3
     const landPieces = step3.filter((f) => f.type === 'continent' || f.type === 'island');
     assert.ok(landPieces.length >= 2, `Expected continent + island in lake, got ${landPieces.length}`);
+    const step3Lakes = step3.filter((f) => f.type === 'lake');
+    assert.equal(step3Lakes.length, 1, 'The lake must remain the single water owner');
+    assert.equal(
+      step3Lakes[0].holes?.length,
+      1,
+      'The lake must cut out the painted island instead of covering it'
+    );
 
     // Step 4: Carve a tiny caldera lake inside the new center island!
     const tinyCalderaCut = createSquarePolygon(480, 480, 40);

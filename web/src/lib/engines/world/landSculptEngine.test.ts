@@ -29,20 +29,15 @@ import {
   ensureOpenRing,
   ensureClosedRing,
   isDegeneratePolygon,
-  simplifyRadialDist,
   simplifyPolyline,
   simplifyPolygonRing,
   simplifyDouglasPeucker,
   sanitizePolygonRing,
-  sanitizeAndSimplifyPolygon,
   mapPointsToGeoRing,
   geoRingToMapPoints,
   featureToGeoPolygon,
-  featuresToGeoMultiPolygon,
   applySculptOperation,
-  DEFAULT_SIMPLIFY_EPSILON,
   MIN_FEATURE_AREA,
-  MIN_HOLE_AREA,
 } from './landSculptEngine';
 import { MapPoint, MapTerrainFeature } from '@/lib/types';
 
@@ -572,16 +567,63 @@ test('Boolean Sculpt Operations (applySculptOperation)', async (t) => {
 
     const result = applySculptOperation([continent], lakeCarve, 'carve');
 
-    // Landmass retains continent type and possesses a hole loop
+    // Landmasses describe land only. The lake owns the water, so there is
+    // exactly one selectable water element and no duplicate unselectable hole.
     const landmass = result.find((f) => f.type === 'continent');
     assert.ok(landmass, 'Mainland must exist');
-    assert.ok(landmass.holes && landmass.holes.length === 1, 'Mainland must have 1 hole');
-    assert.strictEqual(landmass.holes[0].length, 4);
+    assert.ok(
+      !landmass.holes || landmass.holes.length === 0,
+      'Mainland must not duplicate lake water as a land hole'
+    );
 
-    // Companion lake feature is created for styling, inspection, and contours
-    const lake = result.find((f) => f.type === 'lake');
-    assert.ok(lake, 'Companion lake feature must be created');
-    assert.strictEqual(lake.polygon?.length, 4);
+    const lakes = result.filter((f) => f.type === 'lake');
+    assert.strictEqual(lakes.length, 1, 'Exactly one lake feature must own the carved water');
+    assert.strictEqual(lakes[0].polygon?.length, 4);
+  });
+
+  await t.test('Paint Mode: painting over part of a lake trims the lake instead of filling the rest', () => {
+    const continent: MapTerrainFeature = {
+      id: 'terr_paint_lake',
+      name: 'Paint Lake Continent',
+      type: 'continent',
+      polygon: [
+        { x: 100, y: 100 },
+        { x: 600, y: 100 },
+        { x: 600, y: 600 },
+        { x: 100, y: 600 },
+      ],
+    };
+    const lakeCut: MapPoint[] = [
+      { x: 250, y: 250 },
+      { x: 350, y: 250 },
+      { x: 350, y: 350 },
+      { x: 250, y: 350 },
+    ];
+
+    const carved = applySculptOperation([continent], lakeCut, 'carve');
+    const carvedLake = carved.find((f) => f.type === 'lake');
+    assert.ok(carvedLake, 'Carving must create the lake owner');
+
+    // Paint over the eastern half of the lake and onto the surrounding land.
+    const paintStroke: MapPoint[] = [
+      { x: 300, y: 300 },
+      { x: 400, y: 300 },
+      { x: 400, y: 400 },
+      { x: 300, y: 400 },
+    ];
+    const painted = applySculptOperation(carved, paintStroke, 'paint');
+
+    const land = painted.find((f) => f.id === 'terr_paint_lake');
+    assert.ok(land);
+    assert.ok(!land.holes || land.holes.length === 0, 'Land must not regain a water hole');
+
+    const lakes = painted.filter((f) => f.type === 'lake');
+    assert.strictEqual(lakes.length, 1, 'The lake must stay a single feature');
+    assert.ok(lakes[0].polygon);
+    assert.ok(
+      calculatePolygonArea(lakes[0].polygon) < calculatePolygonArea(lakeCut),
+      'The lake must be trimmed by the paint stroke, not filled wholesale'
+    );
   });
 
   await t.test('Carve Mode: carving on empty ocean is safe no-op returning empty array', () => {

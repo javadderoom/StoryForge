@@ -37,5 +37,7 @@ export type FillWithMaterial = (
   points: number[],
   material: MapMaterialKey | null,
   flatColor: number,
-  flatAlpha: number
+  flatAlpha: number,
+  /** Flat-point rings to cut out of every fill layer (islands inside lakes). */
+  holes?: number[][]
 ) => void;

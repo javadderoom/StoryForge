@@ -216,7 +216,6 @@ export function applySculptOperation(
 
   interface ProcessedPiece {
     outerRing: MapPoint[];
-    holes: MapPoint[][];
     parent: MapTerrainFeature | null;
     area: number;
   }
@@ -296,11 +295,16 @@ export function applySculptOperation(
         const overlapArea = (ixMax - ixMin) * (iyMax - iyMin);
 
         // Prefer the smallest existing landmass that actually contains the
-        // piece's centre. That keeps Russian-doll islands attached to their
-        // own island feature instead of the surrounding continent.
-        const score = lb.feature.polygon && isPointInPolygon(pieceCentroid, lb.feature.polygon)
-          ? 1e15 / Math.max(lb.area, 1) + overlapArea / 1e9
-          : overlapArea;
+        // piece's centre. The area guard matters for a continent with a lake
+        // hole: its centre can fall inside a small island in that lake, and
+        // without the guard the island would steal the whole continent.
+        const canContain = lb.area >= area * 0.95;
+        const score =
+          canContain &&
+          lb.feature.polygon &&
+          isPointInPolygon(pieceCentroid, lb.feature.polygon)
+            ? 1e15 / Math.max(lb.area, 1) + overlapArea / 1e9
+            : overlapArea;
 
         if (score > bestScore) {
           bestScore = score;
@@ -311,7 +315,6 @@ export function applySculptOperation(
 
     processedPieces.push({
       outerRing: simplifiedOuter,
-      holes: validHoles,
       parent: bestParent,
       area,
     });

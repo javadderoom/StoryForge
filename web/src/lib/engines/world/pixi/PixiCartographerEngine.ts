@@ -192,10 +192,18 @@ export class PixiCartographerEngine {
     points: number[],
     material: MapMaterialKey | null,
     flatColor: number,
-    flatAlpha: number
+    flatAlpha: number,
+    holes?: number[][]
   ): void {
     const strength = this.textureStrength;
     const texture = material && strength > 0 ? this.textureLibrary.get(material) : null;
+
+    const cutHoles = () => {
+      if (!holes || holes.length === 0) return;
+      for (const hole of holes) {
+        if (hole.length >= 6) g.poly(hole).cut();
+      }
+    };
 
     // The flat colour carries the region on its own until the texture exists:
     // fading it to `1 - strength` up front would leave the map a washed-out
@@ -205,6 +213,7 @@ export class PixiCartographerEngine {
       color: flatColor,
       alpha: flatAlpha * (texture ? 1 - strength : 1),
     });
+    cutHoles();
 
     if (!texture || !material) return;
 
@@ -221,6 +230,7 @@ export class PixiCartographerEngine {
       textureSpace: 'global',
       alpha: MAP_MATERIALS[material].alpha * strength,
     });
+    cutHoles();
   }
 
   /**

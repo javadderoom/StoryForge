@@ -158,6 +158,71 @@ describe('mapHitTest — picking authored shapes', () => {
     assert.equal(hitTestMapObjectsIn({ x: 50, y: 50 }, { terrainFeatures: [holed] }), null);
   });
 
+  it('picks the lake that owns inland water, not the surrounding landmass', () => {
+    const inlandLake = terrain({
+      id: 'lake_1',
+      name: 'Inland Lake',
+      type: 'lake',
+      polygon: [
+        { x: 40, y: 40 },
+        { x: 60, y: 40 },
+        { x: 60, y: 60 },
+        { x: 40, y: 60 },
+      ],
+    });
+
+    const hit = hitTestMapObjectsIn(
+      { x: 50, y: 50 },
+      { terrainFeatures: [terrain(), inlandLake] }
+    );
+
+    assert.ok(hit);
+    assert.equal(hit.kind, 'terrain');
+    assert.equal(hit.id, 'lake_1');
+  });
+
+  it('picks an island instead of the lake when the lake has an island hole', () => {
+    const inlandLake = terrain({
+      id: 'lake_1',
+      name: 'Inland Lake',
+      type: 'lake',
+      polygon: [
+        { x: 30, y: 30 },
+        { x: 70, y: 30 },
+        { x: 70, y: 70 },
+        { x: 30, y: 70 },
+      ],
+      holes: [
+        [
+          { x: 45, y: 45 },
+          { x: 55, y: 45 },
+          { x: 55, y: 55 },
+          { x: 45, y: 55 },
+        ],
+      ],
+    });
+    const island = terrain({
+      id: 'isle_1',
+      name: 'Lake Isle',
+      type: 'island',
+      polygon: [
+        { x: 45, y: 45 },
+        { x: 55, y: 45 },
+        { x: 55, y: 55 },
+        { x: 45, y: 55 },
+      ],
+    });
+
+    const hit = hitTestMapObjectsIn(
+      { x: 50, y: 50 },
+      { terrainFeatures: [island, inlandLake] }
+    );
+
+    assert.ok(hit);
+    assert.equal(hit.kind, 'terrain');
+    assert.equal(hit.id, 'isle_1');
+  });
+
   it('picks a river polyline', () => {
     const river = terrain({
       id: 'terr_river',

@@ -22,7 +22,6 @@ import polygonClipping, {
 } from 'polygon-clipping';
 import type { MapPoint, MapTerrainFeature } from '@/lib/types';
 import {
-  calculatePolygonArea,
   doAABBIntersect,
   getBoundingBox,
   getPolygonCentroid,

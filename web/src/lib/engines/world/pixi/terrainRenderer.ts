@@ -113,6 +113,15 @@ function drawLandmass(g: Graphics, feat: MapTerrainFeature, fill: FillWithMateri
   // as a selectable lake and once as an unselectable gap in the land.
 }
 
+/** Flat hole rings used to cut islands out of every water fill layer. */
+function flatWaterHoles(feat: MapTerrainFeature): number[][] {
+  return (feat.holes ?? [])
+    .filter((hole) => hole.length > 2)
+    .map((hole) =>
+      toFlatPoints(generateOrganicParchmentContours(hole, 2))
+    );
+}
+
 /** Standing water: open-ocean sheets and large seas. */
 function drawWaterBody(
   g: Graphics,
@@ -124,15 +133,9 @@ function drawWaterBody(
   const points = generateOrganicParchmentContours(feat.polygon, 2);
   const flatPoints = toFlatPoints(points);
 
-  fill(g, flatPoints, material, VINTAGE_PARCHMENT.oceanWash, 1);
-
   // A lake can contain an island. Cut those islands out of the water fill so
   // the land underneath (drawn in the land band) stays visible.
-  for (const hole of feat.holes ?? []) {
-    if (hole.length <= 2) continue;
-    const holePoints = generateOrganicParchmentContours(hole, 2);
-    g.poly(toFlatPoints(holePoints)).cut();
-  }
+  fill(g, flatPoints, material, VINTAGE_PARCHMENT.oceanWash, 1, flatWaterHoles(feat));
 
   g.poly(flatPoints).stroke({ width: 2.0, color: VINTAGE_PARCHMENT.coastlineInk });
   g.poly(flatPoints).stroke({ width: 4.5, color: VINTAGE_PARCHMENT.coastlineGlow, alpha: 0.35 });
@@ -151,8 +154,16 @@ export function drawLake(
   const points = generateOrganicParchmentContours(feat.polygon, 2);
   const flatPoints = toFlatPoints(points);
 
-  // 1. Shallow coastal shelf wash
-  fill(g, flatPoints, 'water', VINTAGE_PARCHMENT.lakeShallow, 1);
+  // 1. Shallow coastal shelf wash. Islands inside the lake are land, not
+  // water, so their rings are cut out of both the flat and textured fill.
+  fill(
+    g,
+    flatPoints,
+    'water',
+    VINTAGE_PARCHMENT.lakeShallow,
+    1,
+    flatWaterHoles(feat)
+  );
 
   // 2. Deep lake shelf / center bathymetric depression
   if (points.length >= 4) {
@@ -171,6 +182,18 @@ export function drawLake(
     }));
     const deepFlat = toFlatPoints(deepPoints);
     g.poly(deepFlat).fill({ color: VINTAGE_PARCHMENT.lakeDeep, alpha: 0.55 });
+
+    // The deep wash is contracted around the lake centre, so contract each
+    // island hole by the same amount before cutting it out of that wash.
+    for (const hole of feat.holes ?? []) {
+      if (hole.length <= 2) continue;
+      const holePoints = generateOrganicParchmentContours(hole, 2).map((p) => ({
+        x: cx + (p.x - cx) * 0.65,
+        y: cy + (p.y - cy) * 0.65,
+      }));
+      g.poly(toFlatPoints(holePoints)).cut();
+    }
+
     g.poly(deepFlat).stroke({ width: 1.0, color: VINTAGE_PARCHMENT.coastlineInk, alpha: 0.25 });
   }
 
