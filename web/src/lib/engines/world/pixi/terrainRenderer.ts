@@ -246,48 +246,103 @@ export function renderProceduralHighlandToGraphics(
   highland: ProceduralHighland,
   fill: FillWithMaterial
 ): void {
-  // 1. Shaded Cliff Drop Face (behind / underneath the rim)
+  // 1. Soft underlying cliff drop shadow band
   if (highland.cliffDropPolygon.length >= 3) {
     g.poly(toFlatPoints(highland.cliffDropPolygon)).fill({
       color: VINTAGE_PARCHMENT.highlandCliff,
-      alpha: 0.72,
+      alpha: 0.35,
     });
   }
 
-  // 2. Rock Strata Hatching Lines along cliff drop face
-  for (const [start, end] of highland.strataHatches) {
-    g.moveTo(start.x, start.y).lineTo(end.x, end.y);
+  // 2. Rock Buttresses / Crags along the Scarp (Dual-facet 2.5D shading)
+  for (const buttress of highland.buttresses) {
+    // Sunlit West flank
+    if (buttress.sunlitPoly.length >= 3) {
+      g.poly(toFlatPoints(buttress.sunlitPoly)).fill({
+        color: VINTAGE_PARCHMENT.landFill,
+      });
+    }
+
+    // Shaded East flank
+    if (buttress.shadowPoly.length >= 3) {
+      g.poly(toFlatPoints(buttress.shadowPoly)).fill({
+        color: VINTAGE_PARCHMENT.mountainShade,
+        alpha: 0.85,
+      });
+    }
+
+    // Buttress central crag spine
+    g.moveTo(buttress.rimApex.x, buttress.rimApex.y)
+      .lineTo(buttress.spinePt.x, buttress.spinePt.y)
+      .stroke({
+        width: 1.4,
+        color: VINTAGE_PARCHMENT.mountainCrag,
+        cap: 'round',
+        join: 'round',
+      });
+
+    // Outer silhouette of the buttress foot
+    g.moveTo(buttress.leftBase.x, buttress.leftBase.y)
+      .lineTo(buttress.spinePt.x, buttress.spinePt.y)
+      .lineTo(buttress.rightBase.x, buttress.rightBase.y)
+      .stroke({
+        width: 1.1,
+        color: VINTAGE_PARCHMENT.mountainInk,
+        alpha: 0.75,
+        cap: 'round',
+        join: 'round',
+      });
+
+    // Chisel strata rock lines (short diagonal cuts, NOT long barcode needle combs)
+    for (const [start, end] of buttress.chiselLines) {
+      g.moveTo(start.x, start.y).lineTo(end.x, end.y);
+    }
+    if (buttress.chiselLines.length > 0) {
+      g.stroke({
+        width: 1.1,
+        color: VINTAGE_PARCHMENT.mountainInk,
+        alpha: 0.75,
+        cap: 'round',
+      });
+    }
   }
-  if (highland.strataHatches.length > 0) {
+
+  // 3. Grounding talus line along the base of the cliffs
+  if (highland.talusLine.length >= 2) {
+    g.moveTo(highland.talusLine[0].x, highland.talusLine[0].y);
+    for (let i = 1; i < highland.talusLine.length; i++) {
+      g.lineTo(highland.talusLine[i].x, highland.talusLine[i].y);
+    }
     g.stroke({
-      width: 1.15,
-      color: VINTAGE_PARCHMENT.highlandHatch,
-      alpha: 0.78,
+      width: 1.0,
+      color: VINTAGE_PARCHMENT.mountainInk,
+      alpha: 0.45,
       cap: 'round',
+      join: 'round',
     });
   }
 
-  // 3. Elevated Flat Table Surface Polygon
+  // 4. Elevated Flat Table Surface Polygon
   if (highland.tablePolygon.length >= 3) {
     const tableFlat = toFlatPoints(highland.tablePolygon);
     fill(g, tableFlat, 'land', VINTAGE_PARCHMENT.highlandTop, 1);
   }
 
-  // 4. Hand-inked Upper Cliff Rim Lip
+  // 5. Hand-inked Upper Cliff Rim Lip
   if (highland.rimPath.length >= 2) {
     g.moveTo(highland.rimPath[0].x, highland.rimPath[0].y);
     for (let i = 1; i < highland.rimPath.length; i++) {
       g.lineTo(highland.rimPath[i].x, highland.rimPath[i].y);
     }
     g.stroke({
-      width: 2.0,
+      width: 2.2,
       color: VINTAGE_PARCHMENT.mountainInk,
       cap: 'round',
       join: 'round',
     });
   }
 
-  // 5. Secondary Terrace Step Contours (if multi-tiered)
+  // 6. Secondary Terrace Step Contours (inner mesa bench)
   if (highland.terraceContours) {
     for (const contour of highland.terraceContours) {
       if (contour.length >= 2) {
@@ -298,7 +353,7 @@ export function renderProceduralHighlandToGraphics(
         g.stroke({
           width: 1.2,
           color: VINTAGE_PARCHMENT.coastlineHatch,
-          alpha: 0.55,
+          alpha: 0.5,
           cap: 'round',
           join: 'round',
         });

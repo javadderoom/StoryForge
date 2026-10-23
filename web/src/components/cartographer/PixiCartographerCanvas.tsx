@@ -412,28 +412,25 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       return;
     }
 
-    // Continuous drag-to-draw for Mountains, Rivers, Valleys, and Highland Escarpments
+    // Continuous drag-to-draw for ALL geographical elements
     const isDragGeoTool =
       activeTool === 'terrain_mountain' ||
       activeTool === 'terrain_river' ||
       activeTool === 'terrain_valley' ||
-      (activeTool === 'terrain_highland' && highlandMode === 'ridge');
+      activeTool === 'terrain_highland' ||
+      activeTool === 'terrain_lake' ||
+      activeTool === 'terrain_biome';
 
     if (isDragGeoTool) {
       isDraggingGeoStrokeRef.current = true;
       geoStrokeSeedRef.current = Math.floor(Math.random() * 100000);
       geoStrokePointsRef.current = [worldPoint];
-      setDraftPoints((prev) => [...prev, worldPoint]);
+      setDraftPoints([worldPoint]);
       return;
     }
 
-    // Multi-point drafting tool (continents, lakes, biomes, plateau polygons)
-    if (
-      activeTool === 'terrain_continent' ||
-      activeTool === 'terrain_lake' ||
-      activeTool === 'terrain_biome' ||
-      (activeTool === 'terrain_highland' && highlandMode === 'plateau')
-    ) {
+    // Multi-point drafting tool for continents
+    if (activeTool === 'terrain_continent') {
       setDraftPoints((prev) => [...prev, worldPoint]);
       return;
     }
@@ -696,19 +693,21 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       }
     }
 
-    // Mountain, River, Valley & Highland Escarpment continuous drag-to-draw accumulation (60 FPS local preview)
+    // Continuous drag-to-draw accumulation (60 FPS local preview for all elements)
     if (
       isDraggingGeoStrokeRef.current &&
       (activeTool === 'terrain_mountain' ||
         activeTool === 'terrain_river' ||
         activeTool === 'terrain_valley' ||
-        (activeTool === 'terrain_highland' && highlandMode === 'ridge')) &&
+        activeTool === 'terrain_highland' ||
+        activeTool === 'terrain_lake' ||
+        activeTool === 'terrain_biome') &&
       engineRef.current
     ) {
       const pts = geoStrokePointsRef.current;
       const lastPt = pts[pts.length - 1];
       const dist = lastPt ? Math.hypot(worldPoint.x - lastPt.x, worldPoint.y - lastPt.y) : 999;
-      if (dist >= 14) {
+      if (dist >= 12) {
         pts.push(worldPoint);
         if (activeTool === 'terrain_mountain') {
           engineRef.current.renderMountainStrokePreview(pts, {
@@ -734,8 +733,12 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
             seed: geoStrokeSeedRef.current,
             cliffHeight,
             terraceTiers,
-            isPolygon: false,
+            isPolygon: highlandMode === 'plateau',
           });
+        } else if (activeTool === 'terrain_lake') {
+          engineRef.current.renderLakeStrokePreview(pts);
+        } else if (activeTool === 'terrain_biome') {
+          engineRef.current.renderBiomeStrokePreview(pts, activeBiome);
         }
       }
       return;
@@ -884,11 +887,25 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         totalStrokeDist += Math.hypot(strokePts[i + 1].x - strokePts[i].x, strokePts[i + 1].y - strokePts[i].y);
       }
 
-      if (strokePts.length >= 2 && totalStrokeDist > 25) {
+      if (strokePts.length >= 2 && totalStrokeDist > 20) {
         const isMountain = activeTool === 'terrain_mountain';
         const isRiver = activeTool === 'terrain_river';
         const isValley = activeTool === 'terrain_valley';
         const isHighlandRidge = activeTool === 'terrain_highland' && highlandMode === 'ridge';
+        const isHighlandPlateau = activeTool === 'terrain_highland' && highlandMode === 'plateau';
+        const isLake = activeTool === 'terrain_lake';
+        const isBiome = activeTool === 'terrain_biome';
+
+        // Closed loop for area shapes
+        const closedPts = [...strokePts];
+        if (
+          Math.hypot(
+            closedPts[0].x - closedPts[closedPts.length - 1].x,
+            closedPts[0].y - closedPts[closedPts.length - 1].y
+          ) > 5
+        ) {
+          closedPts.push({ ...closedPts[0] });
+        }
 
         if (isMountain || isRiver || isValley || isHighlandRidge) {
           const newFeature: MapTerrainFeature = {
@@ -924,6 +941,51 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
               : isValley
               ? valleyWidth
               : cliffHeight,
+          };
+          onAddTerrain(newFeature);
+          onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
+          setDraftPoints([]);
+        } else if (isHighlandPlateau) {
+          const newFeature: MapTerrainFeature = {
+            id: `terr_${Date.now().toString(36)}`,
+            name: isPersian ? 'فلات مرتفع' : 'Elevated Plateau',
+            type: 'plateau',
+            polygon: closedPts,
+            elevation: terraceTiers > 1 ? 1800 : 800,
+            width: cliffHeight,
+            description: isPersian ? 'زمین‌های مرتفع با سقف صاف' : 'Elevated flat-topped tablelands',
+          };
+          onAddTerrain(newFeature);
+          onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
+          setDraftPoints([]);
+        } else if (isLake) {
+          const newFeature: MapTerrainFeature = {
+            id: `terr_${Date.now().toString(36)}`,
+            name: isPersian ? 'دریاچه لاجوردی' : 'Inland Lake',
+            type: 'lake',
+            polygon: closedPts,
+            color: '#5a7b91',
+            description: isPersian ? 'دریاچه عمیق آب شیرین' : 'Deep inland freshwater lake',
+          };
+          onAddTerrain(newFeature);
+          onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
+          setDraftPoints([]);
+        } else if (isBiome) {
+          const biomeNames: Record<string, { en: string; fa: string }> = {
+            forest: { en: 'Ancient Forest', fa: 'جنگل کهن' },
+            jungle: { en: 'Primeval Jungle', fa: 'جنگل گرمسیری' },
+            desert: { en: 'Sand Dune Desert', fa: 'کویر و ریگزار' },
+            swamp: { en: 'Foul Marshland', fa: 'مرداب و لجنزار' },
+            tundra: { en: 'Frozen Tundra', fa: 'تندرای یخی' },
+            plains: { en: 'Golden Plains', fa: 'دشت بی‌کران' },
+          };
+          const selectedName = biomeNames[activeBiome];
+          const newFeature: MapTerrainFeature = {
+            id: `terr_${Date.now().toString(36)}`,
+            name: isPersian ? selectedName?.fa || 'ناحیه اقلیمی' : selectedName?.en || 'Biome Region',
+            type: activeBiome,
+            polygon: closedPts,
+            description: isPersian ? 'عنصر جغرافیایی ترسیم‌شده' : 'User-created geographical feature',
           };
           onAddTerrain(newFeature);
           onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);

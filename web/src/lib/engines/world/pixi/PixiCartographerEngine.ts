@@ -33,6 +33,8 @@ import {
   renderProceduralRiverToGraphics,
   renderProceduralHighlandToGraphics,
   renderProceduralValleyToGraphics,
+  drawLake,
+  drawBiome,
 } from './terrainRenderer';
 import {
   generateProceduralMountainRange,
@@ -520,6 +522,38 @@ export class PixiCartographerEngine {
     if (points.length < 2) return;
     const valley = generateProceduralValley(points, options);
     renderProceduralValleyToGraphics(this.brushGraphics, valley);
+  }
+
+  /**
+   * Renders real-time procedural lake preview during mouse drag (60 FPS).
+   */
+  public renderLakeStrokePreview(points: MapPoint[]): void {
+    this.brushGraphics.clear();
+    if (points.length < 3) return;
+    const closed = [...points, points[0]];
+    drawLake(
+      this.brushGraphics,
+      { id: 'preview_lake', name: 'Lake', type: 'lake', polygon: closed },
+      (g, pts, _mat, color, alpha) => {
+        g.poly(pts).fill({ color, alpha });
+      }
+    );
+  }
+
+  /**
+   * Renders real-time procedural biome preview during mouse drag (60 FPS).
+   */
+  public renderBiomeStrokePreview(points: MapPoint[], biomeType: string): void {
+    this.brushGraphics.clear();
+    if (points.length < 3) return;
+    const closed = [...points, points[0]];
+    drawBiome(
+      this.brushGraphics,
+      { id: 'preview_biome', name: 'Biome', type: biomeType as any, polygon: closed },
+      (g, pts, _mat, color, alpha) => {
+        g.poly(pts).fill({ color, alpha });
+      }
+    );
   }
 
   public renderBrushCursor(

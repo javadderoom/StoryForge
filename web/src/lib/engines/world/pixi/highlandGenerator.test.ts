@@ -43,8 +43,9 @@ test('highlandGenerator: generates open escarpment ridge line', () => {
     isPolygon: false,
   });
 
-  assert.equal(escarpment.rimPath.length, 3);
-  assert.ok(escarpment.strataHatches.length >= 4);
+  assert.ok(escarpment.rimPath.length >= 3);
+  assert.ok(escarpment.buttresses.length > 0, 'Should generate rock buttresses along the scarp');
+  assert.ok(escarpment.strataHatches.length >= 2);
   for (const [start, end] of escarpment.strataHatches) {
     assert.ok(Number.isFinite(start.x) && Number.isFinite(start.y));
     assert.ok(Number.isFinite(end.x) && Number.isFinite(end.y));

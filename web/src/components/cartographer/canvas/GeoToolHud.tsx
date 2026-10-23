@@ -230,10 +230,10 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
       {activeTool === 'terrain_lake' && (
         <div className="flex items-center gap-2 px-2 text-sky-300">
           <Droplets className="w-4 h-4 text-sky-400 animate-pulse" />
-          <span className="text-xs">
+          <span className="text-xs font-medium">
             {isPersian
-              ? 'کلیک برای ترسیم رئوس دریاچه، دابل‌کلیک یا اینتر برای بستن'
-              : 'Click vertices to sculpt lake outline, double-click or Enter to close'}
+              ? 'کلیک و درگ موس برای قلم‌زنی دریاچه (رها کردن موس برای بستن خودکار)'
+              : 'Click & drag mouse to sculpt organic lake (auto-closes on release)'}
           </span>
           <span className="text-[11px] text-zinc-400 bg-zinc-900/80 px-2 py-0.5 rounded border border-zinc-800 ml-2">
             {isPersian ? 'عمق دوبانده خودکار' : 'Auto 2-tier depth wash'}
