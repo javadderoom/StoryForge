@@ -225,7 +225,7 @@ export function drawHighland(
 
   const isPolygon = Boolean(feat.polygon && feat.polygon.length >= 3);
   const seed = hashStringToSeed(feat.id || `highland_${points[0].x}_${points[0].y}`);
-  const cliffHeight = feat.width ? Math.max(10, Math.min(60, feat.width)) : 22;
+  const cliffHeight = feat.width ? Math.max(10, Math.min(90, feat.width)) : 36;
   const terraceTiers = feat.elevation && feat.elevation > 1500 ? 2 : 1;
 
   const highland = generateProceduralHighland(points, {
@@ -246,119 +246,152 @@ export function renderProceduralHighlandToGraphics(
   highland: ProceduralHighland,
   fill: FillWithMaterial
 ): void {
-  // 1. Soft underlying cliff drop shadow band
+  const strokePath = (
+    points: MapPoint[],
+    width: number,
+    color: number,
+    alpha = 1
+  ) => {
+    if (points.length < 2) return;
+    g.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      g.lineTo(points[i].x, points[i].y);
+    }
+    g.stroke({ width, color, alpha, cap: 'round', join: 'round' });
+  };
+
+  /** Closed ribbon around a polyline, used for soft eroded fold shadows. */
+  const ribbonPolygon = (points: MapPoint[], width: number): MapPoint[] => {
+    if (points.length < 2) return [];
+    const left: MapPoint[] = [];
+    const right: MapPoint[] = [];
+    for (let i = 0; i < points.length; i++) {
+      const prev = points[Math.max(0, i - 1)];
+      const next = points[Math.min(points.length - 1, i + 1)];
+      const dx = next.x - prev.x;
+      const dy = next.y - prev.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len;
+      const ny = dx / len;
+      left.push({ x: points[i].x + nx * width * 0.5, y: points[i].y + ny * width * 0.5 });
+      right.push({ x: points[i].x - nx * width * 0.5, y: points[i].y - ny * width * 0.5 });
+    }
+    return [...left, ...right.reverse()];
+  };
+
+  const hasCliffPeaks = (highland.cliffPeaks?.length ?? 0) > 0;
+
+  // 1. Ground shadow / cliff base. Closed plateaus get a broad flat mass
+  // under the peak ring; open escarpments keep their original drop band.
   if (highland.cliffDropPolygon.length >= 3) {
     g.poly(toFlatPoints(highland.cliffDropPolygon)).fill({
       color: VINTAGE_PARCHMENT.highlandCliff,
-      alpha: 0.35,
+      alpha: hasCliffPeaks ? 0.06 : 0.38,
     });
   }
 
-  // 2. Rock Buttresses / Crags along the Scarp (Dual-facet 2.5D shading)
-  for (const buttress of highland.buttresses) {
-    // Sunlit West flank
-    if (buttress.sunlitPoly.length >= 3) {
-      g.poly(toFlatPoints(buttress.sunlitPoly)).fill({
-        color: VINTAGE_PARCHMENT.landFill,
-      });
-    }
-
-    // Shaded East flank
-    if (buttress.shadowPoly.length >= 3) {
-      g.poly(toFlatPoints(buttress.shadowPoly)).fill({
-        color: VINTAGE_PARCHMENT.mountainShade,
-        alpha: 0.85,
-      });
-    }
-
-    // Buttress central crag spine
-    g.moveTo(buttress.rimApex.x, buttress.rimApex.y)
-      .lineTo(buttress.spinePt.x, buttress.spinePt.y)
-      .stroke({
-        width: 1.4,
-        color: VINTAGE_PARCHMENT.mountainCrag,
-        cap: 'round',
-        join: 'round',
-      });
-
-    // Outer silhouette of the buttress foot
-    g.moveTo(buttress.leftBase.x, buttress.leftBase.y)
-      .lineTo(buttress.spinePt.x, buttress.spinePt.y)
-      .lineTo(buttress.rightBase.x, buttress.rightBase.y)
-      .stroke({
-        width: 1.1,
-        color: VINTAGE_PARCHMENT.mountainInk,
-        alpha: 0.75,
-        cap: 'round',
-        join: 'round',
-      });
-
-    // Chisel strata rock lines (short diagonal cuts, NOT long barcode needle combs)
-    for (const [start, end] of buttress.chiselLines) {
-      g.moveTo(start.x, start.y).lineTo(end.x, end.y);
-    }
-    if (buttress.chiselLines.length > 0) {
-      g.stroke({
-        width: 1.1,
-        color: VINTAGE_PARCHMENT.mountainInk,
-        alpha: 0.75,
-        cap: 'round',
-      });
-    }
-  }
-
-  // 3. Grounding talus line along the base of the cliffs
-  if (highland.talusLine.length >= 2) {
-    g.moveTo(highland.talusLine[0].x, highland.talusLine[0].y);
-    for (let i = 1; i < highland.talusLine.length; i++) {
-      g.lineTo(highland.talusLine[i].x, highland.talusLine[i].y);
-    }
-    g.stroke({
-      width: 1.0,
-      color: VINTAGE_PARCHMENT.mountainInk,
-      alpha: 0.45,
-      cap: 'round',
-      join: 'round',
-    });
-  }
-
-  // 4. Elevated Flat Table Surface Polygon
+  // 2. Elevated table surface. `desert` is the tan material; the old `land`
+  // material washed the plateau back to almost the same colour as the paper.
   if (highland.tablePolygon.length >= 3) {
     const tableFlat = toFlatPoints(highland.tablePolygon);
-    fill(g, tableFlat, 'land', VINTAGE_PARCHMENT.highlandTop, 1);
+    fill(g, tableFlat, 'desert', VINTAGE_PARCHMENT.highlandTop, 1);
   }
 
-  // 5. Hand-inked Upper Cliff Rim Lip
-  if (highland.rimPath.length >= 2) {
-    g.moveTo(highland.rimPath[0].x, highland.rimPath[0].y);
-    for (let i = 1; i < highland.rimPath.length; i++) {
-      g.lineTo(highland.rimPath[i].x, highland.rimPath[i].y);
+  // 3. Eroded interior folds and drainage. A soft ribbon on the east side
+  // plus a light west lip gives the fold volume.
+  for (const ridge of highland.interiorRidges ?? []) {
+    const shadowRibbon = ribbonPolygon(ridge, 10);
+    if (shadowRibbon.length >= 3) {
+      g.poly(toFlatPoints(shadowRibbon)).fill({
+        color: VINTAGE_PARCHMENT.highlandCliff,
+        alpha: 0.15,
+      });
     }
-    g.stroke({
-      width: 2.2,
-      color: VINTAGE_PARCHMENT.mountainInk,
-      cap: 'round',
-      join: 'round',
-    });
+    strokePath(
+      ridge.map((point) => ({ x: point.x - 1.5, y: point.y - 1.5 })),
+      3.0,
+      VINTAGE_PARCHMENT.mountainHighlight,
+      0.16
+    );
+    strokePath(ridge, 1.05, VINTAGE_PARCHMENT.highlandHatch, 0.5);
   }
 
-  // 6. Secondary Terrace Step Contours (inner mesa bench)
-  if (highland.terraceContours) {
-    for (const contour of highland.terraceContours) {
-      if (contour.length >= 2) {
-        g.moveTo(contour[0].x, contour[0].y);
-        for (let i = 1; i < contour.length; i++) {
-          g.lineTo(contour[i].x, contour[i].y);
-        }
-        g.stroke({
-          width: 1.2,
-          color: VINTAGE_PARCHMENT.coastlineHatch,
-          alpha: 0.5,
-          cap: 'round',
-          join: 'round',
+  if (hasCliffPeaks) {
+    // 4a. Layered eskers/peaks ring the table (Gerami Uplands style). They
+    // are generated by the same mountain engine as standalone ranges, then
+    // rendered in the highland palette rather than the generic mountain one.
+    for (const peak of highland.cliffPeaks ?? []) {
+      if (peak.sunlitPoly.length >= 3) {
+        g.poly(toFlatPoints(peak.sunlitPoly)).fill({
+          color: VINTAGE_PARCHMENT.highlandTop,
+          alpha: 0.82,
         });
       }
+      if (peak.shadowPoly.length >= 3) {
+        g.poly(toFlatPoints(peak.shadowPoly)).fill({
+          color: VINTAGE_PARCHMENT.highlandCliff,
+          alpha: 0.86,
+        });
+      }
+      if (peak.cragSpine.length >= 2) {
+        strokePath(peak.cragSpine, 1.2, VINTAGE_PARCHMENT.mountainInk, 0.66);
+      }
+      for (const [start, end] of peak.shadowHatchLines) {
+        strokePath([start, end], 0.9, VINTAGE_PARCHMENT.highlandHatch, 0.36);
+      }
     }
+  } else {
+    // 4b. Open escarpment / legacy fallback: buttresses along the scarp.
+    for (const buttress of highland.buttresses) {
+      if (buttress.sunlitPoly.length >= 3) {
+        g.poly(toFlatPoints(buttress.sunlitPoly)).fill({
+          color: VINTAGE_PARCHMENT.highlandTop,
+          alpha: 0.52,
+        });
+      }
+      if (buttress.shadowPoly.length >= 3) {
+        g.poly(toFlatPoints(buttress.shadowPoly)).fill({
+          color: VINTAGE_PARCHMENT.highlandCliff,
+          alpha: 0.68,
+        });
+      }
+      strokePath(
+        [buttress.rimApex, buttress.spinePt],
+        1.25,
+        VINTAGE_PARCHMENT.highlandHatch,
+        0.55
+      );
+      strokePath(
+        [buttress.leftBase, buttress.spinePt, buttress.rightBase],
+        1.2,
+        VINTAGE_PARCHMENT.mountainInk,
+        0.8
+      );
+      for (const [start, end] of buttress.chiselLines) {
+        strokePath([start, end], 1.1, VINTAGE_PARCHMENT.highlandHatch, 0.72);
+      }
+    }
+
+    for (const [start, end] of highland.rimSpurs ?? []) {
+      strokePath([start, end], 1.25, VINTAGE_PARCHMENT.highlandHatch, 0.42);
+    }
+  }
+
+  // 5. Thick hand-inked rim lip. Two passes: a heavy silhouette and a fine
+  // inner contour so the edge reads as rock, not a marker line.
+  if (highland.rimPath.length >= 2) {
+    strokePath(highland.rimPath, 3.4, VINTAGE_PARCHMENT.mountainInk, 1);
+    strokePath(highland.rimPath, 1.15, VINTAGE_PARCHMENT.highlandHatch, 0.8);
+  }
+
+  // 6. Grounding talus line along the foot of the escarpment.
+  if (highland.talusLine.length >= 2) {
+    strokePath(highland.talusLine, 1.0, VINTAGE_PARCHMENT.mountainInk, 0.36);
+  }
+
+  // 7. Secondary terrace contours.
+  for (const contour of highland.terraceContours ?? []) {
+    strokePath(contour, 1.15, VINTAGE_PARCHMENT.highlandCliff, 0.24);
   }
 }
 

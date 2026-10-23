@@ -12,6 +12,8 @@ import {
   Droplets,
   Sun,
   Snowflake,
+  Link2,
+  Unlink,
 } from 'lucide-react';
 import type { CartographerTool } from '../CartographerHeader';
 
@@ -47,6 +49,10 @@ export interface GeoToolHudProps {
   onMountainScaleChange: (scale: number) => void;
   hasSnowcaps: boolean;
   onToggleSnowcaps: () => void;
+  isElevationLinked?: boolean;
+  onToggleElevationLink?: () => void;
+  mountainElevation?: number;
+  onMountainElevationChange?: (elevation: number) => void;
 
   // River settings
   riverWidth: number;
@@ -73,6 +79,10 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
   onMountainScaleChange,
   hasSnowcaps,
   onToggleSnowcaps,
+  isElevationLinked = true,
+  onToggleElevationLink,
+  mountainElevation = 2750,
+  onMountainElevationChange,
   riverWidth,
   onRiverWidthChange,
 }) => {
@@ -131,8 +141,8 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
             </span>
             <input
               type="range"
-              min={12}
-              max={50}
+              min={16}
+              max={90}
               step={2}
               value={cliffHeight}
               onChange={(e) => onCliffHeightChange(Number(e.target.value))}
@@ -275,6 +285,8 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
             <Mountain className="w-3.5 h-3.5 text-orange-400" />
             <span className="font-medium">{isPersian ? 'رشته‌کوه' : 'Mountain Range'}</span>
           </div>
+
+          {/* Peak Scale Slider */}
           <div className="flex items-center gap-2 px-2 border-l border-zinc-800">
             <span className="text-[11px] text-zinc-400 font-medium">
               {isPersian ? 'اندازه قله‌ها:' : 'Peak Scale:'}
@@ -285,13 +297,72 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
               max={85}
               step={2}
               value={mountainScale}
-              onChange={(e) => onMountainScaleChange(Number(e.target.value))}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                onMountainScaleChange(val);
+                if (isElevationLinked && onMountainElevationChange) {
+                  onMountainElevationChange(Math.round(val * 50));
+                }
+              }}
               className="w-24 accent-orange-500 cursor-pointer"
             />
             <span className="text-[11px] font-mono text-orange-300 w-7 text-right">
               {mountainScale}px
             </span>
           </div>
+
+          {/* Elevation & Link/Unlink Toggle */}
+          <div className="flex items-center gap-1.5 px-2 border-l border-zinc-800">
+            <button
+              type="button"
+              onClick={onToggleElevationLink}
+              className={`p-1 rounded-lg border transition-all ${
+                isElevationLinked
+                  ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 hover:bg-amber-500/20'
+                  : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+              }`}
+              title={
+                isPersian
+                  ? isElevationLinked
+                    ? 'رابطه مستقیم اندازه و ارتفاع (۱ پیکسل = ۵۰ متر). برای قطع ارتباط و وارد کردن مقدار دقیق و دلخواه کلیک کنید.'
+                    : 'ارتباط مستقیم قطع است (امکان وارد کردن مقدار دقیق و دلخواه). برای اتصال مجدد کلیک کنید.'
+                  : isElevationLinked
+                  ? 'Directly linked (1px = 50m). Click to unlink for custom values.'
+                  : 'Unlinked. Click to link directly with scale.'
+              }
+            >
+              {isElevationLinked ? (
+                <Link2 className="w-3.5 h-3.5 text-amber-400" />
+              ) : (
+                <Unlink className="w-3.5 h-3.5 text-zinc-400" />
+              )}
+            </button>
+
+            {isElevationLinked ? (
+              <span
+                className="text-[11px] font-mono text-zinc-300 min-w-[42px]"
+                title={isPersian ? 'ارتفاع تخمینی متصل' : 'Linked elevation'}
+              >
+                {Math.round(mountainScale * 50)}m
+              </span>
+            ) : (
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  value={mountainElevation}
+                  onChange={(e) => {
+                    const elev = Number(e.target.value);
+                    if (onMountainElevationChange) onMountainElevationChange(elev);
+                  }}
+                  className="w-16 bg-zinc-900 border border-zinc-800 rounded px-1.5 py-0.5 text-[11px] font-mono text-zinc-200 focus:outline-none focus:border-amber-500/50 text-right"
+                  placeholder="2750"
+                  title={isPersian ? 'ارتفاع دقیق و دلخواه به متر' : 'Custom elevation in meters'}
+                />
+                <span className="text-[11px] font-mono text-zinc-400">m</span>
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={onToggleSnowcaps}

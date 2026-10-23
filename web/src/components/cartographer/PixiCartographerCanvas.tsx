@@ -217,12 +217,14 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
   // Geographical tools live HUD state
   const [highlandMode, setHighlandMode] = useState<HighlandMode>('plateau');
-  const [cliffHeight, setCliffHeight] = useState<number>(22);
+  const [cliffHeight, setCliffHeight] = useState<number>(36);
   const [terraceTiers, setTerraceTiers] = useState<number>(1);
   const [activeBiome, setActiveBiome] = useState<BiomeType>('forest');
   const [biomeDensity, setBiomeDensity] = useState<BiomeDensity>('medium');
   const [valleyWidth, setValleyWidth] = useState<number>(28);
   const [mountainScale, setMountainScale] = useState<number>(55);
+  const [isMountainElevationLinked, setIsMountainElevationLinked] = useState<boolean>(true);
+  const [mountainElevation, setMountainElevation] = useState<number>(2750);
   const [hasSnowcaps, setHasSnowcaps] = useState<boolean>(true);
   const [riverWidth, setRiverWidth] = useState<number>(11);
 
@@ -926,12 +928,13 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
               : 'highland',
             points: strokePts,
             elevation: isMountain
-              ? (hasSnowcaps ? 3200 : 2000)
+              ? (isMountainElevationLinked ? Math.round(mountainScale * 50) : mountainElevation)
               : isRiver
               ? 150
               : isValley
               ? -200
               : (terraceTiers > 1 ? 1800 : 800),
+            syncElevationScale: isMountain ? isMountainElevationLinked : undefined,
             scale: isMountain ? mountainScale : undefined,
             hasSnowcaps: isMountain ? hasSnowcaps : undefined,
             width: isMountain
@@ -1122,7 +1125,21 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         valleyWidth={valleyWidth}
         onValleyWidthChange={setValleyWidth}
         mountainScale={mountainScale}
-        onMountainScaleChange={setMountainScale}
+        onMountainScaleChange={(val) => {
+          setMountainScale(val);
+          if (isMountainElevationLinked) {
+            setMountainElevation(Math.round(val * 50));
+          }
+        }}
+        isElevationLinked={isMountainElevationLinked}
+        onToggleElevationLink={() => setIsMountainElevationLinked((v) => !v)}
+        mountainElevation={mountainElevation}
+        onMountainElevationChange={(elev) => {
+          setMountainElevation(elev);
+          if (isMountainElevationLinked) {
+            setMountainScale(Math.max(14, Math.min(100, Math.round(elev / 50))));
+          }
+        }}
         hasSnowcaps={hasSnowcaps}
         onToggleSnowcaps={() => setHasSnowcaps((v) => !v)}
         riverWidth={riverWidth}

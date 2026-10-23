@@ -737,6 +737,8 @@ export interface MapTerrainFeature {
   y?: number;
   radius?: number;
   elevation?: number; // e.g. -500 to +4500 meters
+  /** Whether elevation (m) is directly synchronized with visual scale in pixels (default: true). */
+  syncElevationScale?: boolean;
   points?: MapPoint[]; // polyline for rivers / ridges / valleys
   width?: number;
   scale?: number; // visual scale / peak height in pixels

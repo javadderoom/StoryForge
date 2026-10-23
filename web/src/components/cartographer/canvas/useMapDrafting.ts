@@ -36,7 +36,7 @@ export function useMapDrafting({
   onCancelZoom,
   activeBiome = 'forest',
   highlandMode = 'plateau',
-  cliffHeight = 22,
+  cliffHeight = 36,
   terraceTiers = 1,
   valleyWidth = 28,
   mountainScale = 55,

@@ -28,9 +28,12 @@ export const VINTAGE_PARCHMENT = {
   mountainShade: 0xb8a58a,
   mountainHighlight: 0xfffaee,
   mountainSnowcap: 0xfffaee,
-  highlandTop: 0xfbf7ea,
-  highlandCliff: 0x8c7355,
-  highlandHatch: 0x3d2b1c,
+  // Gerami-style uplands: a warm eroded tableland, not a barely-tinted copy
+  // of the surrounding paper. The cliff belt is several tones darker so the
+  // elevation reads at map scale.
+  highlandTop: 0xd9ba7f,
+  highlandCliff: 0x8a633a,
+  highlandHatch: 0x392414,
   canyonFloor: 0x3d2c1e,
   canyonLip: 0x5c4228,
   lakeDeep: 0x5a7b91,

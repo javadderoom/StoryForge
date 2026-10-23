@@ -625,6 +625,11 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
           : undefined;
         const linkedToMissingPlace = Boolean(feature.locationId && !linkedLocation);
         const linkedToIncompatiblePlace = Boolean(linkedLocation && !compatibleIds.has(linkedLocation.id));
+        const isMountain =
+          feature.type === 'mountain_range' ||
+          feature.type === 'peak' ||
+          feature.type === 'volcano';
+        const isElevationLinked = isMountain ? feature.syncElevationScale !== false : false;
 
         return (
           <div className="space-y-4 text-xs">
@@ -686,13 +691,70 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
               </div>
 
               <div>
-                <label className="text-[11px] text-zinc-400 mb-1 block font-medium">
-                  {isPersian ? 'ارتفاع نسبی' : 'Elevation (m)'}
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] text-zinc-400 font-medium">
+                    {isPersian ? 'ارتفاع نسبی' : 'Elevation (m)'}
+                  </label>
+                  {isMountain && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdateTerrain(feature.id, {
+                          syncElevationScale: !isElevationLinked,
+                        })
+                      }
+                      className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors border ${
+                        isElevationLinked
+                          ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20'
+                          : 'bg-zinc-800/80 border-zinc-700 text-zinc-400 hover:text-zinc-200'
+                      }`}
+                      title={
+                        isPersian
+                          ? isElevationLinked
+                            ? 'رابطه مستقیم ارتفاع و اندازه به پیکسل برقرار است (۱ پیکسل = ۵۰ متر). برای قطع ارتباط و تنظیم مقدار دقیق و دلخواه کلیک کنید.'
+                            : 'ارتباط مستقیم قطع است (امکان تنظیم مقدار دقیق و دلخواه). برای اتصال مجدد کلیک کنید.'
+                          : isElevationLinked
+                          ? 'Elevation is directly linked to peak scale (1px = 50m). Click to unlink for custom values.'
+                          : 'Unlinked. Click to link directly with peak scale.'
+                      }
+                    >
+                      {isElevationLinked ? (
+                        <>
+                          <Link2 className="w-2.5 h-2.5 text-amber-400" />
+                          <span>{isPersian ? 'متصل به پیکسل' : 'Linked'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Unlink className="w-2.5 h-2.5 text-zinc-400" />
+                          <span>{isPersian ? 'دلخواه' : 'Custom'}</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
                 <input
                   type="number"
-                  value={feature.elevation ?? 0}
-                  onChange={(e) => onUpdateTerrain(feature.id, { elevation: Number(e.target.value) })}
+                  value={
+                    feature.elevation ??
+                    (isMountain
+                      ? feature.scale
+                        ? Math.round(feature.scale * 50)
+                        : 2000
+                      : 0)
+                  }
+                  onChange={(e) => {
+                    const elev = Number(e.target.value);
+                    if (isMountain && isElevationLinked) {
+                      const newScale = Math.max(14, Math.min(100, Math.round(elev / 50)));
+                      onUpdateTerrain(feature.id, {
+                        elevation: elev,
+                        scale: newScale,
+                        width: Math.round(newScale * 0.58),
+                      });
+                    } else {
+                      onUpdateTerrain(feature.id, { elevation: elev });
+                    }
+                  }}
                   className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-amber-500/50"
                 />
               </div>
@@ -793,8 +855,24 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
                 <div className="flex items-center gap-3">
                   <input
                     type="range"
-                    min={feature.type === 'river' ? 4 : feature.type === 'mountain_range' ? 14 : 10}
-                    max={feature.type === 'river' ? 28 : feature.type === 'mountain_range' ? 85 : 75}
+                    min={
+                      feature.type === 'river'
+                        ? 4
+                        : feature.type === 'mountain_range'
+                        ? 14
+                        : feature.type === 'highland' || feature.type === 'plateau'
+                        ? 16
+                        : 10
+                    }
+                    max={
+                      feature.type === 'river'
+                        ? 28
+                        : feature.type === 'mountain_range'
+                        ? 85
+                        : feature.type === 'highland' || feature.type === 'plateau'
+                        ? 90
+                        : 75
+                    }
                     step={feature.type === 'mountain_range' ? 2 : 1}
                     value={
                       feature.type === 'mountain_range'
@@ -803,34 +881,49 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
                           (feature.type === 'river'
                             ? 10
                             : feature.type === 'highland' || feature.type === 'plateau'
-                            ? 22
+                            ? 36
                             : 28)
                     }
                     onChange={(e) => {
                       const val = Number(e.target.value);
                       if (feature.type === 'mountain_range') {
-                        onUpdateTerrain(feature.id, {
-                          scale: val,
-                          width: Math.round(val * 0.58),
-                        });
+                        if (isElevationLinked) {
+                          onUpdateTerrain(feature.id, {
+                            scale: val,
+                            width: Math.round(val * 0.58),
+                            elevation: Math.round(val * 50),
+                          });
+                        } else {
+                          onUpdateTerrain(feature.id, {
+                            scale: val,
+                            width: Math.round(val * 0.58),
+                          });
+                        }
                       } else {
                         onUpdateTerrain(feature.id, { width: val });
                       }
                     }}
                     className="flex-1 accent-amber-500 cursor-pointer"
                   />
-                  <span className="font-mono text-zinc-300 w-10 text-right">
-                    {feature.type === 'mountain_range'
-                      ? `${feature.scale || (feature.width ? Math.round(feature.width / 0.58) : 55)}px`
-                      : `${
-                          feature.width ||
-                          (feature.type === 'river'
-                            ? 10
-                            : feature.type === 'highland' || feature.type === 'plateau'
-                            ? 22
-                            : 28)
-                        }px`}
-                  </span>
+                  <div className="flex items-center gap-1.5 font-mono text-zinc-300 w-auto min-w-[50px] justify-end">
+                    <span>
+                      {feature.type === 'mountain_range'
+                        ? `${feature.scale || (feature.width ? Math.round(feature.width / 0.58) : 55)}px`
+                        : `${
+                            feature.width ||
+                            (feature.type === 'river'
+                              ? 10
+                              : feature.type === 'highland' || feature.type === 'plateau'
+                              ? 36
+                              : 28)
+                          }px`}
+                    </span>
+                    {feature.type === 'mountain_range' && isElevationLinked && (
+                      <span className="text-[10px] text-zinc-500">
+                        ({Math.round((feature.scale || 55) * 50)}m)
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
