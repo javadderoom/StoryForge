@@ -1,6 +1,6 @@
 # Plan 24 — Cartographer Place Categories and Semantic Terrain Links
 
-Status: proposed — not implemented
+Status: in progress — category metadata, terrain links, category-aware rendering/picking and the semantic audit are implemented; backfill/reconciliation actions are pending
 Depends on: Plan 19 (coordinate refit), Plan 21 (map-object layers), Plan 23 (multi-selection)
 
 ## Problem
@@ -301,6 +301,44 @@ edge.
 - Unlinked non-point locations are visible in a reconciliation report and are
   never silently converted.
 - `tsc --noEmit`, the map/location test suites and `next build --webpack` pass.
+
+## Implemented so far
+
+- `web/src/lib/engines/world/placeCategories.ts` — canonical category
+  metadata, ontology overrides, custom-category fallback.
+- `web/src/lib/types/world.ts` — `PlaceGeometryKind`, `PlaceRenderAs`,
+  category rendering fields, `MapTerrainFeature.locationId`.
+- `StudioStoryContext.getDefaultOntology()` — canonical categories now carry
+  geometry/render metadata; `normalizeOntology()` upgrades existing worlds and
+  preserves custom categories.
+- `CartographerInspector` — category dropdown now reads
+  `ontology.placeCategories`; terrain inspector has a **Narrative Place**
+  selector; location inspector shows linked terrain and warns when a non-point
+  place has none.
+- `CartographerEntityPalette` — shows linked place names on terrain rows and a
+  reconciliation banner for unlinked places / broken links.
+- `entitiesRenderer.renderSettlements()` — point categories keep shields; area,
+  line, water and anomaly categories render as quiet labels instead.
+- `mapHitTest` and `mapSelection` — non-point places are no longer phantom
+  settlement click targets or marquee/Ctrl+A members; linked terrain remains
+  selectable.
+- `mapSelection.cloneMapClipboard()` — a copied terrain keeps `locationId` only
+  when the linked place is copied in the same batch.
+- `mapSemantics.ts` — `auditMapSemantics()` and
+  `getMapSemanticReconciliation()` cover missing beat/pin/route/terrain
+  references, unlinked non-point places and duplicate names.
+- Tests: `placeCategories.test.ts`, `mapSemantics.test.ts`, plus new hit-test,
+  selection and clipboard cases. Full suite: 1440 tests, 1435 passing, 5
+  unrelated DB tests cancelled.
+
+### Still pending
+
+- Automatic name/containment backfill of `locationId`.
+- Explicit “Create terrain from this place” and “Convert place to terrain only”
+  actions.
+- A dedicated reconciliation panel with per-row fixes (the palette currently
+  surfaces the counts; the inspector handles one object at a time).
+- Optional publish gating on broken scene/pin/route references.
 
 ## Open questions
 

@@ -11,10 +11,6 @@ import {
   History,
   X,
   Search,
-  Plus,
-  Check,
-  Castle,
-  Shield,
   Layers,
   Mountain,
   Waves,
@@ -32,12 +28,6 @@ import {
 } from 'lucide-react';
 import {
   WorldBible,
-  WorldLocation,
-  NPCDossier,
-  WorldCreature,
-  WorldArtifact,
-  WorldDeity,
-  TimelineEvent,
   WorldMapData,
   MapTerrainFeature,
   MapEntityPlacement,
@@ -50,6 +40,7 @@ import {
   terrainGroup,
   type MapObjectGroupKey,
 } from '@/lib/engines/world/mapObjectOrder';
+import { getMapSemanticReconciliation } from '@/lib/engines/world/mapSemantics';
 
 interface CartographerEntityPaletteProps {
   worldBible: WorldBible;
@@ -126,6 +117,7 @@ export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps>
   const timeline = worldBible.timeline || [];
   const terrainFeatures = mapData?.terrainFeatures || [];
   const placements = mapData?.placements || [];
+  const reconciliation = getMapSemanticReconciliation(worldBible, mapData);
 
   const tabs = [
     {
@@ -249,6 +241,29 @@ export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps>
         {/* Map Objects — the geography the author draws, plus lore pins */}
         {activeTab === 'objects' && (
           <div className="space-y-3">
+            {(reconciliation.unlinkedPlaces.length > 0 ||
+              reconciliation.missingPlaceLinks.length > 0) && (
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[10px] text-amber-200 leading-relaxed">
+                <div className="flex items-center gap-1.5 font-semibold">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  {isPersian ? 'ناسازگاری نقشه و روایت' : 'Map / story reconciliation'}
+                </div>
+                {reconciliation.unlinkedPlaces.length > 0 && (
+                  <div className="mt-1 text-amber-200/80">
+                    {isPersian
+                      ? `${reconciliation.unlinkedPlaces.length} مکان غیرنقطه‌ای هندسه‌ای متصل ندارد.`
+                      : `${reconciliation.unlinkedPlaces.length} non-point place(s) have no linked terrain.`}
+                  </div>
+                )}
+                {reconciliation.missingPlaceLinks.length > 0 && (
+                  <div className="mt-0.5 text-rose-300/90">
+                    {isPersian
+                      ? `${reconciliation.missingPlaceLinks.length} عارضه به مکان حذف‌شده اشاره می‌کند.`
+                      : `${reconciliation.missingPlaceLinks.length} terrain feature(s) link to a missing place.`}
+                  </div>
+                )}
+              </div>
+            )}
             {groups.map((group) => {
               const GroupIcon =
                 group.key === 'landmass'

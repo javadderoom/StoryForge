@@ -110,12 +110,16 @@ export function resolvePlaceCategoryMeta(
   };
 }
 
-/** True when this category is drawn as a point pin rather than a region. */
+/**
+ * True when this category is drawn and picked as a point pin. `renderAs` is
+ * authoritative: an author may deliberately pin a region, and a custom
+ * category without rendering metadata keeps the historical pin behaviour.
+ */
 export function isPointPlaceCategory(
   categoryId: string | undefined,
   categories?: ReadonlyArray<Pick<CustomPlaceCategory, 'id' | 'geometryKind' | 'renderAs' | 'mapTerrainTypes'>> | null
 ): boolean {
-  return resolvePlaceCategoryMeta(categoryId, categories).geometryKind === 'point';
+  return resolvePlaceCategoryMeta(categoryId, categories).renderAs === 'settlement';
 }
 
 /** Adds canonical metadata to a category definition, if one is known. */

@@ -2,7 +2,6 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DEFAULT_EDGE_TOLERANCE,
-  DEFAULT_GRAB_RADIUS,
   HIT_TIER,
   buildMapHitCandidates,
   compareMapHits,
@@ -12,7 +11,6 @@ import {
   hitTestMapObjectsIn,
   pointInPolygon,
   ringArea,
-  type MapHitCandidate,
 } from './mapHitTest';
 import type {
   MapEntityPlacement,

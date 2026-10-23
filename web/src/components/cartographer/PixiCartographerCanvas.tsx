@@ -894,6 +894,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     worldBible.tradeRoutes,
     worldBible.mapData,
     worldBible.ontology?.mapData,
+    worldBible.ontology?.placeCategories,
     settings,
     pan,
     zoom,

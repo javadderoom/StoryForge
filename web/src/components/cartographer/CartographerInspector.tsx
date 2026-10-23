@@ -1,27 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Castle,
   Route,
   Mountain,
   User,
-  Skull,
-  Sparkles,
-  Sun,
-  History,
   X,
   Trash2,
-  Edit2,
-  ExternalLink,
   MapPin,
-  Shield,
-  Layers,
   ArrowRight,
-  Plus,
-  Compass,
-  AlertTriangle,
-  Package,
   Eye,
   EyeOff,
   Lock,
@@ -34,7 +22,6 @@ import {
   MapEntityPlacement,
   NPCDossier,
   TradeRouteStatus,
-  TradeFlowDirection,
   Faction,
   CustomPlaceCategory,
 } from '@/lib/types';
@@ -105,7 +92,6 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
   locations,
   placeCategories,
   terrainFeatures,
-  onStationNpc,
   isPersian,
 }) => {
   if (!selectedItem) return null;
@@ -187,7 +173,11 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
                 </label>
                 <select
                   value={loc.dangerLevel}
-                  onChange={(e) => onUpdateLocation(loc.id, { dangerLevel: Number(e.target.value) as any })}
+                  onChange={(e) =>
+                    onUpdateLocation(loc.id, {
+                      dangerLevel: Number(e.target.value) as WorldLocation['dangerLevel'],
+                    })
+                  }
                   className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-amber-500/50 cursor-pointer"
                 >
                   {[1, 2, 3, 4, 5].map((lvl) => (
@@ -223,7 +213,7 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
                 {isPersian ? 'نمایش روی نقشه' : 'Drawn on the map as'}
               </label>
               <div className="flex flex-wrap gap-1.5">
-                {categoryMeta.geometryKind === 'point' ? (
+                {categoryMeta.renderAs === 'settlement' ? (
                   <span className="text-[10px] px-2 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400">
                     {isPersian ? 'سنجاق نقطه‌ای' : 'Point pin'}
                   </span>
@@ -348,7 +338,6 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
         const route = selectedItem.data;
         const origin = locations.find((l) => l.id === route.originLocationId);
         const destination = locations.find((l) => l.id === route.destinationLocationId);
-        const controllingFaction = factions.find((f) => f.id === route.controllingFactionId);
 
         return (
           <div className="space-y-4 text-xs">
@@ -389,7 +378,9 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
               </label>
               <select
                 value={route.status || 'active'}
-                onChange={(e) => onUpdateTradeRoute(route.id, { status: e.target.value as any })}
+                onChange={(e) =>
+                  onUpdateTradeRoute(route.id, { status: e.target.value as TradeRouteStatus })
+                }
                 className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500/50 cursor-pointer"
               >
                 {TRADE_STATUSES.map((st) => (
@@ -408,8 +399,12 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
                 </label>
                 <select
                   value={route.dangerLevel ?? 2}
-                  onChange={(e) => onUpdateTradeRoute(route.id, { dangerLevel: Number(e.target.value) as any })}
-                  className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-amber-500/50 cursor-pointer"
+                  onChange={(e) =>
+                  onUpdateTradeRoute(route.id, {
+                    dangerLevel: Number(e.target.value) as WorldTradeRoute['dangerLevel'],
+                  })
+                }
+                className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-amber-500/50 cursor-pointer"
                 >
                   {[1, 2, 3, 4, 5].map((lvl) => (
                     <option key={lvl} value={lvl}>
@@ -608,7 +603,11 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
               </label>
               <select
                 value={feature.climateZone || 'temperate'}
-                onChange={(e) => onUpdateTerrain(feature.id, { climateZone: e.target.value as any })}
+                onChange={(e) =>
+                  onUpdateTerrain(feature.id, {
+                    climateZone: e.target.value as MapTerrainFeature['climateZone'],
+                  })
+                }
                 className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500/50 cursor-pointer"
               >
                 <option value="temperate">{isPersian ? 'معتدل' : 'Temperate'}</option>

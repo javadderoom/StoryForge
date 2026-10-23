@@ -100,7 +100,7 @@ export function auditMapSemantics(
 
   for (const location of locations) {
     const meta = resolvePlaceCategoryMeta(location.category, placeCategories);
-    if (meta.geometryKind !== 'point' && !linkedLocationIds.has(location.id)) {
+    if (meta.renderAs !== 'settlement' && !linkedLocationIds.has(location.id)) {
       issues.push({
         code: 'unlinked_non_point_place',
         severity: 'warning',
@@ -213,7 +213,7 @@ export function getMapSemanticReconciliation(
   return {
     unlinkedPlaces: locations.filter(
       (location) =>
-        resolvePlaceCategoryMeta(location.category, categories).geometryKind !== 'point' &&
+        resolvePlaceCategoryMeta(location.category, categories).renderAs !== 'settlement' &&
         !linked.has(location.id)
     ),
     missingPlaceLinks: terrain.filter(

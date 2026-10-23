@@ -131,7 +131,7 @@ export function renderSettlements(
     if (!loc.coordinates || loc.coordinates.x <= 0) continue;
 
     const meta = resolvePlaceCategoryMeta(loc.category, placeCategories);
-    const isPoint = meta.geometryKind === 'point' && meta.renderAs === 'settlement';
+    const isPoint = meta.renderAs === 'settlement';
     const isDragged = draggedNode?.type === 'location' && draggedNode.id === loc.id;
     const coords = isDragged && transientPos ? transientPos : loc.coordinates;
     const { x, y } = coords;
