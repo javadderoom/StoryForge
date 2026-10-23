@@ -56,6 +56,28 @@ test('highlandGenerator: generates closed plateau with table polygon and shaded 
   }
 });
 
+test('highlandGenerator: closed-looking ridge stays an escarpment when isPolygon is false', () => {
+  const loopedRidge = [
+    { x: 100, y: 120 },
+    { x: 220, y: 100 },
+    { x: 300, y: 200 },
+    { x: 220, y: 300 },
+    { x: 100, y: 280 },
+    { x: 102, y: 122 },
+  ];
+
+  const highland = generateProceduralHighland(loopedRidge, {
+    seed: 789,
+    cliffHeight: 24,
+    isPolygon: false,
+  });
+
+  assert.ok(highland.id.startsWith('escarpment_'), 'Must stay an open escarpment');
+  assert.equal(highland.apronRings, undefined, 'Must not become a closed plateau');
+  assert.equal(highland.cliffPeaks, undefined, 'Must not render the plateau peak ring');
+  assert.ok(highland.buttresses.length > 0);
+});
+
 test('highlandGenerator: generates open escarpment ridge line', () => {
   const ridgePoints = [
     { x: 100, y: 150 },

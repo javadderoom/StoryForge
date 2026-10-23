@@ -95,10 +95,15 @@ export function generateProceduralHighland(
   const cliffHeight = Math.max(10, Math.min(90, options.cliffHeight ?? 36));
   const terraceTiers = Math.max(1, Math.min(3, options.terraceTiers ?? 1));
 
-  // Determine if input is a closed polygon or a line escarpment
+  // Determine if input is a closed polygon or a line escarpment.
+  //
+  // `isPolygon: false` is authoritative for the cliff-escarpment tool: a
+  // ridge stroke that happens to end near its start must remain a ridge.
+  // Only callers that omit the option keep the legacy proximity auto-detect.
   const isClosed =
-    options.isPolygon ||
-    (points.length >= 3 &&
+    options.isPolygon === true ||
+    (options.isPolygon === undefined &&
+      points.length >= 3 &&
       Math.hypot(
         points[0].x - points[points.length - 1].x,
         points[0].y - points[points.length - 1].y
