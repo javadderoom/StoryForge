@@ -26,6 +26,7 @@ import { CartographerSelectionBar } from '@/components/cartographer/Cartographer
 import { CartographerAiOracleModal } from '@/components/cartographer/CartographerAiOracleModal';
 import { notify } from '@/lib/notify';
 import { reorderPlacementByZ, reorderTerrainByZ, terrainCenter } from '@/lib/engines/world/mapObjectOrder';
+import { resolvePlaceMapAnchor } from '@/lib/engines/world/placeCategories';
 import { peekRedoLabel, peekUndoLabel } from '@/lib/engines/world/cartographerHistory';
 import { useCartographerHistory } from '@/components/cartographer/hooks/useCartographerHistory';
 import { useCartographerAutoFit } from '@/components/cartographer/hooks/useCartographerAutoFit';
@@ -414,6 +415,8 @@ export default function CartographerPage() {
     const point =
       item.type === 'terrain'
         ? terrainCenter(item.data)
+        : item.type === 'location'
+        ? resolvePlaceMapAnchor(item.data, mapData.terrainFeatures)
         : item.type === 'placement'
         ? { x: item.data.x, y: item.data.y }
         : null;
@@ -422,7 +425,7 @@ export default function CartographerPage() {
     const screenW = typeof window !== 'undefined' ? window.innerWidth : 1200;
     const screenH = typeof window !== 'undefined' ? window.innerHeight : 800;
     setPan({ x: screenW / 2 - point.x * zoom, y: screenH / 2 - point.y * zoom });
-  }, [setSelection, zoom]);
+  }, [mapData.terrainFeatures, setSelection, zoom]);
 
 
   // Station NPC at location

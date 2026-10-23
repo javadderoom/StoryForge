@@ -684,9 +684,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         } else {
           engineRef.current.renderRiverStrokePreview(pts, {
             seed: geoStrokeSeedRef.current,
-            startWidth: 2.0,
-            endWidth: 10.0,
-            meanderRoughness: 0.35,
+            startWidth: 1.2,
+            endWidth: 11.0,
+            meanderRoughness: 0.3,
           });
         }
       }

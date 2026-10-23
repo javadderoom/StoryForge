@@ -11,6 +11,7 @@ import {
   hitTestMapObjectsIn,
   pointInPolygon,
   ringArea,
+  type MapHitCandidate,
 } from './mapHitTest';
 import type {
   MapEntityPlacement,
@@ -471,7 +472,7 @@ describe('mapHitTest — candidate construction', () => {
     assert.equal(candidates.filter((c) => c.kind === 'trade_route').length, 0);
   });
 
-  it('does not create a point target for a non-point place category', () => {
+  it('builds a label target for a non-point place instead of a settlement pin', () => {
     const candidates = buildMapHitCandidates({
       locations: [
         location({ id: 'loc_river', category: 'waterway', coordinates: { x: 50, y: 50 } }),
@@ -480,9 +481,59 @@ describe('mapHitTest — candidate construction', () => {
       ],
       placeCategories: [],
     });
-    const locationIds = candidates
-      .filter((candidate) => candidate.kind === 'location')
-      .map((candidate) => candidate.id);
-    assert.deepEqual(locationIds, ['loc_town']);
+    const locationCandidates = candidates.filter(
+      (candidate): candidate is Extract<MapHitCandidate, { kind: 'location' }> =>
+        candidate.kind === 'location'
+    );
+    assert.deepEqual(
+      locationCandidates.map((candidate) => candidate.id),
+      ['loc_river', 'loc_steppe', 'loc_town']
+    );
+    assert.equal(locationCandidates[0].labelOnly, true);
+    assert.equal(locationCandidates[2].labelOnly, undefined);
+  });
+
+  it('anchors a non-point place label on its linked terrain', () => {
+    const candidates = buildMapHitCandidates({
+      locations: [location({ id: 'loc_steppe', category: 'plains', coordinates: { x: 500, y: 500 } })],
+      terrainFeatures: [terrain({ locationId: 'loc_steppe' })],
+      placeCategories: [],
+    });
+    const candidate = candidates.find(
+      (item): item is Extract<MapHitCandidate, { kind: 'location' }> =>
+        item.kind === 'location' && item.id === 'loc_steppe'
+    );
+    assert.ok(candidate);
+    assert.equal(candidate.labelOnly, true);
+    assert.deepEqual(candidate.labelPoint, { x: 50, y: 50 });
+  });
+
+  it('picks a non-point place by clicking its label', () => {
+    const hit = hitTestMapObjectsIn(
+      { x: 50, y: 50 },
+      {
+        locations: [
+          location({ id: 'loc_river', name: 'Ashen River', category: 'waterway', coordinates: { x: 50, y: 50 } }),
+        ],
+        placeCategories: [],
+      },
+      { visibleLayers: layers() }
+    );
+    assert.equal(hit?.kind, 'location');
+    assert.equal(hit?.id, 'loc_river');
+  });
+
+  it('does not pick a non-point place when the labels layer is off', () => {
+    const hit = hitTestMapObjectsIn(
+      { x: 50, y: 50 },
+      {
+        locations: [
+          location({ id: 'loc_river', name: 'Ashen River', category: 'waterway', coordinates: { x: 50, y: 50 } }),
+        ],
+        placeCategories: [],
+      },
+      { visibleLayers: layers({ labels: false }) }
+    );
+    assert.equal(hit, null);
   });
 });

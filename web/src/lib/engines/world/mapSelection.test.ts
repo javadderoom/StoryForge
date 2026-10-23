@@ -210,7 +210,7 @@ describe('mapSelection — selectability', () => {
     assert.deepEqual(collectSelectableRefs(source, settings()), []);
   });
 
-  it('does not select non-point places as settlement pins', () => {
+  it('selects non-point places by their labels', () => {
     const source: MapSelectionSource = {
       locations: [
         location({ id: 'loc_town', category: 'settlement' }),
@@ -221,7 +221,49 @@ describe('mapSelection — selectability', () => {
     };
     assert.deepEqual(collectSelectableRefs(source, settings()).map(mapObjectRefKey), [
       'location:loc_town',
+      'location:loc_river',
+      'location:loc_steppe',
     ]);
+  });
+
+  it('hides non-point places when the labels layer is off', () => {
+    const source: MapSelectionSource = {
+      locations: [
+        location({ id: 'loc_town', category: 'settlement' }),
+        location({ id: 'loc_river', category: 'waterway' }),
+      ],
+      placeCategories: [],
+    };
+    assert.deepEqual(
+      collectSelectableRefs(source, settings({ visibleLayers: layers({ labels: false }) })).map(
+        mapObjectRefKey
+      ),
+      ['location:loc_town']
+    );
+  });
+
+  it('uses the linked terrain anchor for a non-point place marquee hit', () => {
+    const source: MapSelectionSource = {
+      locations: [
+        location({
+          id: 'loc_steppe',
+          category: 'plains',
+          coordinates: { x: 500, y: 500 },
+        }),
+      ],
+      terrainFeatures: [terrain({ id: 'terr_steppe', locationId: 'loc_steppe' })],
+      placeCategories: [],
+    };
+    // The place coordinates are far away; the band touches the terrain label
+    // anchor, so the place must still be selected.
+    assert.deepEqual(
+      marqueeSelectRefs(
+        source,
+        { minX: 40, minY: 40, maxX: 60, maxY: 60 },
+        settings()
+      ).map(mapObjectRefKey),
+      ['location:loc_steppe', 'terrain:terr_steppe']
+    );
   });
 });
 
@@ -456,6 +498,65 @@ describe('mapSelection — translation (group move)', () => {
       5
     );
     assert.equal(moved.locations[0].coordinates, undefined);
+  });
+
+  it('moves the linked terrain when a non-point place is moved', () => {
+    const source: MapSelectionSource = {
+      locations: [
+        location({
+          id: 'loc_river',
+          category: 'waterway',
+          coordinates: { x: 10, y: 10 },
+        }),
+      ],
+      terrainFeatures: [
+        terrain({
+          id: 'terr_river',
+          locationId: 'loc_river',
+          points: [
+            { x: 0, y: 0 },
+            { x: 100, y: 0 },
+          ],
+        }),
+      ],
+      placeCategories: [],
+    };
+
+    const moved = translateMapObjects(
+      source,
+      [{ kind: 'location', id: 'loc_river' }],
+      10,
+      20
+    );
+
+    assert.deepEqual(moved.terrainFeatures[0].points, [
+      { x: 10, y: 20 },
+      { x: 110, y: 20 },
+    ]);
+    // The label is anchored to the terrain, so the coordinates stay untouched.
+    assert.deepEqual(moved.locations[0].coordinates, { x: 10, y: 10 });
+  });
+
+  it('moves an unlinked non-point place by its coordinates', () => {
+    const source: MapSelectionSource = {
+      locations: [
+        location({
+          id: 'loc_river',
+          category: 'waterway',
+          coordinates: { x: 10, y: 10 },
+        }),
+      ],
+      placeCategories: [],
+    };
+
+    const moved = translateMapObjects(
+      source,
+      [{ kind: 'location', id: 'loc_river' }],
+      10,
+      20
+    );
+
+    assert.deepEqual(moved.locations[0].coordinates, { x: 20, y: 30 });
   });
 });
 

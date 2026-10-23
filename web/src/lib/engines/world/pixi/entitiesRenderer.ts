@@ -14,9 +14,8 @@ import {
   isObjectVisible,
   isPlacementVisibleInLayers,
   orderPlacementsForRender,
-  terrainCenter,
 } from '../mapObjectOrder';
-import { resolvePlaceCategoryMeta } from '../placeCategories';
+import { resolvePlaceCategoryMeta, resolvePlaceMapAnchor } from '../placeCategories';
 import type { DraggedNodeData } from './renderTypes';
 
 export function renderRoutes(
@@ -122,38 +121,34 @@ export function renderSettlements(
 
   if (!settings.visibleLayers.settlements && !settings.visibleLayers.labels) return;
 
-  const linkedByLocation = new Map<string, MapTerrainFeature>();
-  for (const feature of terrainFeatures ?? []) {
-    if (feature.locationId) linkedByLocation.set(feature.locationId, feature);
-  }
-
   for (const loc of locations) {
-    if (!loc.coordinates || loc.coordinates.x <= 0) continue;
-
     const meta = resolvePlaceCategoryMeta(loc.category, placeCategories);
     const isPoint = meta.renderAs === 'settlement';
     const isDragged = draggedNode?.type === 'location' && draggedNode.id === loc.id;
-    const coords = isDragged && transientPos ? transientPos : loc.coordinates;
-    const { x, y } = coords;
 
     // Plan 24: a river/steppe/sea is a semantic place, not a settlement. Its
     // linked terrain is already drawn by the terrain layer; here it gets a
-    // readable label and no city shield.
+    // readable label and no city shield. Unlike a point pin it does not need
+    // its own coordinates when a linked feature supplies the anchor.
     if (!isPoint) {
       if (!settings.visibleLayers.labels) continue;
-      const linked = linkedByLocation.get(loc.id);
-      const labelPoint = (linked && terrainCenter(linked)) || { x, y };
+      const anchor = resolvePlaceMapAnchor(loc, terrainFeatures);
+      if (!anchor) continue;
       drawPlaceLabel(
         g,
         labelsContainer,
         loc.name,
-        labelPoint,
+        anchor,
         meta.renderAs === 'settlement' ? 'label' : meta.renderAs
       );
       continue;
     }
 
+    if (!loc.coordinates || loc.coordinates.x <= 0) continue;
     if (!settings.visibleLayers.settlements) continue;
+
+    const coords = isDragged && transientPos ? transientPos : loc.coordinates;
+    const { x, y } = coords;
 
     const isCapital = loc.category === 'capital';
     const isFortress = loc.category === 'stronghold';

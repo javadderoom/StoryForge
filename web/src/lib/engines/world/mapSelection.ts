@@ -32,7 +32,11 @@ import type {
 } from '@/lib/types/world';
 import type { MapBounds } from './mapHitTest';
 import { isObjectLocked, isObjectVisible, isPlacementVisibleInLayers, isTerrainVisibleInLayers } from './mapObjectOrder';
-import { isPointPlaceCategory } from './placeCategories';
+import {
+  isPointPlaceCategory,
+  placeLabelHalfWidth,
+  resolvePlaceMapAnchor,
+} from './placeCategories';
 
 // ---------------------------------------------------------------------------
 // References
@@ -88,7 +92,7 @@ export interface MapSelectionSource {
   tradeRoutes?: WorldTradeRoute[];
   terrainFeatures?: MapTerrainFeature[];
   placements?: MapEntityPlacement[];
-  /** Plan 24: non-point places are selected through their linked terrain. */
+  /** Plan 24: decides whether a place is selected by pin or by label. */
   placeCategories?: CustomPlaceCategory[];
 }
 
@@ -308,12 +312,20 @@ export function collectSelectableRefs(
   const locations = source.locations ?? [];
   const layers = settings?.visibleLayers;
 
-  if (!layers || layers.settlements) {
-    for (const location of locations) {
+  for (const location of locations) {
+    if (isPointPlaceCategory(location.category, source.placeCategories)) {
+      if (layers && !layers.settlements) continue;
       if (!location.coordinates || location.coordinates.x <= 0) continue;
-      if (!isPointPlaceCategory(location.category, source.placeCategories)) continue;
       refs.push({ kind: 'location', id: location.id });
+      continue;
     }
+
+    // Plan 24: a non-point place is drawn as a label, so it is selectable
+    // while the labels layer is on — at its linked terrain anchor or, for a
+    // legacy unlinked place, at its own coordinates.
+    if (layers && !layers.labels) continue;
+    if (!resolvePlaceMapAnchor(location, source.terrainFeatures)) continue;
+    refs.push({ kind: 'location', id: location.id });
   }
 
   if (!layers || layers.caravanRoutes) {
@@ -381,8 +393,13 @@ export function marqueeSelectRefs(
 
   for (const location of locations) {
     if (!wanted.has(mapObjectKey('location', location.id))) continue;
-    const coords = location.coordinates!;
-    if (circleIntersectsBounds(coords.x, coords.y, LOCATION_SELECT_RADIUS, bounds)) {
+    const isPoint = isPointPlaceCategory(location.category, source.placeCategories);
+    const anchor = isPoint ? location.coordinates : resolvePlaceMapAnchor(location, source.terrainFeatures);
+    if (!anchor) continue;
+    const radius = isPoint
+      ? LOCATION_SELECT_RADIUS
+      : Math.max(LOCATION_SELECT_RADIUS, placeLabelHalfWidth(location.name));
+    if (circleIntersectsBounds(anchor.x, anchor.y, radius, bounds)) {
       refs.push({ kind: 'location', id: location.id });
     }
   }
@@ -497,6 +514,8 @@ export function translateMapObjects(
   dx: number,
   dy: number
 ): MapTranslationResult {
+  const locations = source.locations ?? [];
+  const terrainFeatures = source.terrainFeatures ?? [];
   const terrainIds = new Set(refs.filter((r) => r.kind === 'terrain').map((r) => r.id));
   const placementIds = new Set(
     refs.filter((r) => r.kind === 'placement').map((r) => r.id)
@@ -504,15 +523,46 @@ export function translateMapObjects(
   const locationIds = new Set(refs.filter((r) => r.kind === 'location').map((r) => r.id));
   const routeIds = new Set(refs.filter((r) => r.kind === 'trade_route').map((r) => r.id));
 
+  // Plan 24: moving a non-point place means moving the terrain that draws it.
+  // The place has no pin of its own; translating its coordinates instead would
+  // leave the label behind. A non-point place with no linked terrain still has
+  // a label anchored to its own coordinates, so that fallback keeps moving.
+  const selectedNonPointLocationIds = new Set(
+    locations
+      .filter(
+        (location) =>
+          locationIds.has(location.id) &&
+          !isPointPlaceCategory(location.category, source.placeCategories)
+      )
+      .map((location) => location.id)
+  );
+  const linkedTerrainIds = new Set(
+    terrainFeatures
+      .filter(
+        (feature) =>
+          Boolean(feature.locationId) && selectedNonPointLocationIds.has(feature.locationId!)
+      )
+      .map((feature) => feature.id)
+  );
+  const movedTerrainIds = new Set([...terrainIds, ...linkedTerrainIds]);
+  const linkedPlaceIds = new Set(
+    terrainFeatures
+      .map((feature) => feature.locationId)
+      .filter((id): id is string => Boolean(id))
+  );
+
   return {
-    terrainFeatures: (source.terrainFeatures ?? []).map((feature) =>
-      terrainIds.has(feature.id) ? translateTerrainFeature(feature, dx, dy) : feature
+    terrainFeatures: terrainFeatures.map((feature) =>
+      movedTerrainIds.has(feature.id) ? translateTerrainFeature(feature, dx, dy) : feature
     ),
     placements: (source.placements ?? []).map((placement) =>
       placementIds.has(placement.id) ? translatePlacement(placement, dx, dy) : placement
     ),
-    locations: (source.locations ?? []).map((location) =>
-      locationIds.has(location.id) ? translateLocation(location, dx, dy) : location
+    locations: locations.map((location) =>
+      locationIds.has(location.id) &&
+      !(selectedNonPointLocationIds.has(location.id) && linkedPlaceIds.has(location.id))
+        ? translateLocation(location, dx, dy)
+        : location
     ),
     tradeRoutes: (source.tradeRoutes ?? []).map((route) =>
       routeIds.has(route.id) ? translateTradeRoute(route, dx, dy) : route

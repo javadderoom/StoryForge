@@ -351,6 +351,7 @@ export class PixiCartographerEngine {
       draggedNode,
       transientPos,
       settings,
+      placeCategories,
     });
 
     // 8. Render Active Interaction Tools (Drafting & Ruler)

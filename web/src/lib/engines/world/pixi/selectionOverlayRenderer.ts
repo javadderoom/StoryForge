@@ -1,5 +1,6 @@
 import type { Graphics } from 'pixi.js';
 import type {
+  CustomPlaceCategory,
   MapEntityPlacement,
   MapPoint,
   WorldLocation,
@@ -14,6 +15,12 @@ import {
   isPlacementVisibleInLayers,
   isTerrainVisibleInLayers,
 } from '../mapObjectOrder';
+import {
+  isPointPlaceCategory,
+  placeLabelHalfWidth,
+  PLACE_LABEL_HALF_HEIGHT,
+  resolvePlaceMapAnchor,
+} from '../placeCategories';
 import type { DraggedNodeData } from './renderTypes';
 
 export function renderSelectionOverlay(
@@ -27,6 +34,7 @@ export function renderSelectionOverlay(
     draggedNode: DraggedNodeData | null;
     transientPos: MapPoint | null;
     settings: WorldMapSettings;
+    placeCategories?: CustomPlaceCategory[];
   }): void {
   g.clear();
 
@@ -39,6 +47,7 @@ export function renderSelectionOverlay(
       draggedNode,
       transientPos,
       settings,
+      placeCategories,
     } = options;
     if (selectionKeys.size === 0) return;
 
@@ -70,6 +79,25 @@ export function renderSelectionOverlay(
       g.circle(x, y, radius).stroke({ width: INK_WIDTH, color: inkColor });
     };
 
+    const strokeLabel = (anchor: MapPoint, name: string) => {
+      const halfWidth = placeLabelHalfWidth(name);
+      const box = {
+        x: anchor.x - halfWidth,
+        y: anchor.y - PLACE_LABEL_HALF_HEIGHT,
+        width: halfWidth * 2,
+        height: PLACE_LABEL_HALF_HEIGHT * 2,
+      };
+      g.roundRect(box.x, box.y, box.width, box.height, 5).stroke({
+        width: HALO_WIDTH,
+        color: haloColor,
+        alpha: 0.9,
+      });
+      g.roundRect(box.x, box.y, box.width, box.height, 5).stroke({
+        width: INK_WIDTH,
+        color: inkColor,
+      });
+    };
+
     // Terrain: polygons, ink lines and point features.
     for (const feature of terrainFeatures) {
       if (!selectionKeys.has(mapObjectKey('terrain', feature.id))) continue;
@@ -93,17 +121,27 @@ export function renderSelectionOverlay(
       strokeCircle(placement.x, placement.y, 15);
     }
 
-    // Settlements (follow the transient position while a pin is being dragged).
-    if (settings.visibleLayers.settlements) {
-      for (const location of locations) {
-        if (!selectionKeys.has(mapObjectKey('location', location.id))) continue;
+    // Places: point categories follow their pin; non-point categories are
+    // outlined by the label that is actually drawn for them.
+    for (const location of locations) {
+      if (!selectionKeys.has(mapObjectKey('location', location.id))) continue;
+      const isPoint = isPointPlaceCategory(location.category, placeCategories);
+
+      if (isPoint) {
+        if (!settings.visibleLayers.settlements) continue;
         const coords =
           draggedNode?.type === 'location' && draggedNode.id === location.id && transientPos
             ? transientPos
             : location.coordinates;
         if (!coords) continue;
         strokeCircle(coords.x, coords.y, 19);
+        continue;
       }
+
+      if (!settings.visibleLayers.labels) continue;
+      const anchor = resolvePlaceMapAnchor(location, terrainFeatures);
+      if (!anchor) continue;
+      strokeLabel(anchor, location.name);
     }
 
     // Trade routes (endpoints and waypoints follow a live drag).

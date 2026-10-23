@@ -159,10 +159,9 @@ export function drawRiver(g: Graphics, feat: MapTerrainFeature): void {
   const seed = hashStringToSeed(feat.id || `river_${feat.points[0].x}_${feat.points[0].y}`);
   const river = generateProceduralRiver(feat.points, {
     seed,
-    startWidth: 2.0,
-    endWidth: feat.width || 10.0,
-    meanderRoughness: 0.35,
-    enableDelta: (feat.points.length >= 3),
+    startWidth: 1.2,
+    endWidth: feat.width || 11.0,
+    meanderRoughness: 0.3,
   });
 
   renderProceduralRiverToGraphics(g, river);
@@ -172,73 +171,40 @@ export function drawRiver(g: Graphics, feat: MapTerrainFeature): void {
  * Renders a ProceduralRiver geometry object onto a Pixi Graphics context.
  */
 export function renderProceduralRiverToGraphics(g: Graphics, river: ProceduralRiver): void {
-  // 1. Water Ribbon Body
+  // 1. Soft Watercolor Wash
   if (river.waterPolygon.length >= 3) {
     g.poly(toFlatPoints(river.waterPolygon)).fill({
       color: VINTAGE_PARCHMENT.riverWash,
-      alpha: 0.75,
+      alpha: 0.6,
     });
   }
 
-  // 2. Left Bank Outline
+  // 2. Left Bank Hand-inked Outline
   if (river.leftBank.length >= 2) {
     g.moveTo(river.leftBank[0].x, river.leftBank[0].y);
     for (let i = 1; i < river.leftBank.length; i++) {
       g.lineTo(river.leftBank[i].x, river.leftBank[i].y);
     }
     g.stroke({
-      width: 1.6,
+      width: 1.4,
       color: VINTAGE_PARCHMENT.riverBankInk,
       cap: 'round',
       join: 'round',
     });
   }
 
-  // 3. Right Bank Outline
+  // 3. Right Bank Hand-inked Outline
   if (river.rightBank.length >= 2) {
     g.moveTo(river.rightBank[0].x, river.rightBank[0].y);
     for (let i = 1; i < river.rightBank.length; i++) {
       g.lineTo(river.rightBank[i].x, river.rightBank[i].y);
     }
     g.stroke({
-      width: 1.6,
+      width: 1.4,
       color: VINTAGE_PARCHMENT.riverBankInk,
       cap: 'round',
       join: 'round',
     });
-  }
-
-  // 4. Delta Estuary Distributary Channels
-  for (const branch of river.deltaBranches ?? []) {
-    if (branch.waterPolygon.length >= 3) {
-      g.poly(toFlatPoints(branch.waterPolygon)).fill({
-        color: VINTAGE_PARCHMENT.riverWash,
-        alpha: 0.7,
-      });
-    }
-
-    if (branch.leftBank.length >= 2) {
-      g.moveTo(branch.leftBank[0].x, branch.leftBank[0].y);
-      for (let i = 1; i < branch.leftBank.length; i++) {
-        g.lineTo(branch.leftBank[i].x, branch.leftBank[i].y);
-      }
-      g.stroke({ width: 1.3, color: VINTAGE_PARCHMENT.riverBankInk, cap: 'round', join: 'round' });
-    }
-
-    if (branch.rightBank.length >= 2) {
-      g.moveTo(branch.rightBank[0].x, branch.rightBank[0].y);
-      for (let i = 1; i < branch.rightBank.length; i++) {
-        g.lineTo(branch.rightBank[i].x, branch.rightBank[i].y);
-      }
-      g.stroke({ width: 1.3, color: VINTAGE_PARCHMENT.riverBankInk, cap: 'round', join: 'round' });
-    }
-  }
-
-  // 5. Delta Sandbar Islands
-  for (const island of river.sandbarIslands ?? []) {
-    const flatIsland = toFlatPoints(island);
-    g.poly(flatIsland).fill({ color: VINTAGE_PARCHMENT.sandbarFill, alpha: 0.95 });
-    g.poly(flatIsland).stroke({ width: 1.2, color: VINTAGE_PARCHMENT.coastlineInk, alpha: 0.75 });
   }
 }
 

@@ -225,7 +225,15 @@ export function useCartographerSelection({
       if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
 
       const moved = translateMapObjects(selectionSource, refs, dx, dy);
-      const touchesMapData = refs.some((ref) => ref.kind === 'terrain' || ref.kind === 'placement');
+      const previousTerrain = selectionSource.terrainFeatures ?? [];
+      // A non-point place has no pin: moving it moves its linked terrain, so
+      // the map-data slice must be committed even when no terrain ref is in
+      // the selection.
+      const movesTerrain = moved.terrainFeatures.some(
+        (feature, index) => feature !== previousTerrain[index]
+      );
+      const touchesMapData =
+        movesTerrain || refs.some((ref) => ref.kind === 'terrain' || ref.kind === 'placement');
       const touchesLocations = refs.some((ref) => ref.kind === 'location');
       const touchesRoutes = refs.some((ref) => ref.kind === 'trade_route');
 

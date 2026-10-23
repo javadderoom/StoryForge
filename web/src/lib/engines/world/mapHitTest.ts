@@ -48,7 +48,12 @@ import {
   isPlacementVisibleInLayers,
   isTerrainVisibleInLayers,
 } from './mapObjectOrder';
-import { isPointPlaceCategory } from './placeCategories';
+import {
+  isPointPlaceCategory,
+  placeLabelHalfWidth,
+  PLACE_LABEL_HALF_HEIGHT,
+  resolvePlaceMapAnchor,
+} from './placeCategories';
 
 /** Pick priority tiers — lower wins. */
 export const HIT_TIER = {
@@ -65,7 +70,19 @@ export const HIT_TIER = {
 export type MapHitKind = 'location' | 'waypoint' | 'terrain' | 'placement' | 'trade_route';
 
 export type MapHitCandidate =
-  | { kind: 'location'; id: string; location: WorldLocation }
+  | {
+      kind: 'location';
+      id: string;
+      location: WorldLocation;
+      /**
+       * Plan 24: a non-point place is still selectable, but by its label
+       * rather than by a settlement pin. The anchor is the linked terrain's
+       * representative point, or the place's own coordinates when unlinked.
+       */
+      labelOnly?: boolean;
+      labelPoint?: MapPoint;
+      labelHalfWidth?: number;
+    }
   | { kind: 'waypoint'; id: string; routeId: string; index: number; point: MapPoint }
   | { kind: 'terrain'; id: string; feature: MapTerrainFeature }
   | { kind: 'placement'; id: string; placement: MapEntityPlacement }
@@ -195,7 +212,7 @@ export interface MapHitCandidateInput {
   tradeRoutes?: WorldTradeRoute[];
   terrainFeatures?: MapTerrainFeature[];
   placements?: MapEntityPlacement[];
-  /** Plan 24: non-point places are picked through their linked terrain. */
+  /** Plan 24: decides whether a place is a pin or a label target. */
   placeCategories?: CustomPlaceCategory[];
 }
 
@@ -216,12 +233,27 @@ export function buildMapHitCandidates(input: MapHitCandidateInput): MapHitCandid
   for (const loc of locations) {
     // x <= 0 is the "not placed on the map" sentinel; the renderer skips those
     // settlements, so they must not be pickable at the left edge either.
-    // Plan 24: a river/steppe/sea is not a settlement pin. It is picked through
-    // its linked terrain, so do not create a phantom point target for it.
-    if (!isPointPlaceCategory(loc.category, input.placeCategories)) continue;
-    if (loc.coordinates && loc.coordinates.x > 0) {
-      candidates.push({ kind: 'location', id: loc.id, location: loc });
+    if (isPointPlaceCategory(loc.category, input.placeCategories)) {
+      if (loc.coordinates && loc.coordinates.x > 0) {
+        candidates.push({ kind: 'location', id: loc.id, location: loc });
+      }
+      continue;
     }
+
+    // Plan 24: a river/steppe/sea is a semantic place drawn as a label. It is
+    // still selectable — by the label itself, not by a phantom settlement pin.
+    // A linked terrain supplies the anchor; a legacy unlinked place uses its
+    // own coordinates so it does not become unreachable.
+    const labelPoint = resolvePlaceMapAnchor(loc, input.terrainFeatures);
+    if (!labelPoint) continue;
+    candidates.push({
+      kind: 'location',
+      id: loc.id,
+      location: loc,
+      labelOnly: true,
+      labelPoint,
+      labelHalfWidth: placeLabelHalfWidth(loc.name),
+    });
   }
 
   for (const route of routes) {
@@ -289,10 +321,20 @@ function boundsOfPoints(points: MapPoint[], pad = 0): MapBounds | null {
  */
 export function hitCandidateBounds(candidate: MapHitCandidate, pad = 0): MapBounds | null {
   switch (candidate.kind) {
-    case 'location':
+    case 'location': {
+      if (candidate.labelOnly && candidate.labelPoint) {
+        const halfWidth = candidate.labelHalfWidth ?? placeLabelHalfWidth(candidate.location.name);
+        return {
+          minX: candidate.labelPoint.x - halfWidth - pad,
+          minY: candidate.labelPoint.y - PLACE_LABEL_HALF_HEIGHT - pad,
+          maxX: candidate.labelPoint.x + halfWidth + pad,
+          maxY: candidate.labelPoint.y + PLACE_LABEL_HALF_HEIGHT + pad,
+        };
+      }
       return candidate.location.coordinates
         ? boundsOfPoints([candidate.location.coordinates], pad)
         : null;
+    }
     case 'waypoint':
       return boundsOfPoints([candidate.point], pad);
     case 'placement':
@@ -339,6 +381,26 @@ function hitFor(
 ): MapHit | null {
   switch (candidate.kind) {
     case 'location': {
+      if (candidate.labelOnly) {
+        if (!candidate.labelPoint) return null;
+        if (layers && !layers.labels) return null;
+
+        const halfWidth = candidate.labelHalfWidth ?? placeLabelHalfWidth(candidate.location.name);
+        const dx = Math.max(0, Math.abs(point.x - candidate.labelPoint.x) - halfWidth);
+        const dy = Math.max(0, Math.abs(point.y - candidate.labelPoint.y) - PLACE_LABEL_HALF_HEIGHT);
+        const distance = Math.hypot(dx, dy);
+        if (distance > grab) return null;
+        return {
+          kind: 'location',
+          id: candidate.id,
+          distance,
+          tier: HIT_TIER.PIN,
+          zIndex: 0,
+          area: 0,
+          candidate,
+        };
+      }
+
       if (layers && !layers.settlements) return null;
       const c = candidate.location.coordinates!;
       const distance = Math.hypot(point.x - c.x, point.y - c.y);

@@ -12,10 +12,14 @@
 
 import type {
   CustomPlaceCategory,
+  MapPoint,
+  MapTerrainFeature,
   MapTerrainType,
   PlaceGeometryKind,
   PlaceRenderAs,
+  WorldLocation,
 } from '@/lib/types/world';
+import { terrainCenter } from './mapObjectOrder';
 
 export interface PlaceCategoryRenderMeta {
   geometryKind: PlaceGeometryKind;
@@ -126,4 +130,42 @@ export function isPointPlaceCategory(
 export function withPlaceCategoryMeta(category: CustomPlaceCategory): CustomPlaceCategory {
   const meta = DEFAULT_PLACE_CATEGORY_META[category.id];
   return meta ? { ...category, ...meta } : category;
+}
+
+// ---------------------------------------------------------------------------
+// Label anchors
+// ---------------------------------------------------------------------------
+
+/**
+ * Approximate half-width of a place label, in world units.
+ *
+ * The canvas uses a 10px serif italic label. We deliberately keep this pure
+ * and approximate: the hit target only needs to be forgiving around the text,
+ * not pixel-perfect. The selection outline uses the same number so what the
+ * author sees selected matches what the author can click.
+ */
+export function placeLabelHalfWidth(name: string): number {
+  return Math.max(22, (name || '').trim().length * 2.8 + 10);
+}
+
+/** Vertical padding around a label's baseline. */
+export const PLACE_LABEL_HALF_HEIGHT = 9;
+
+/**
+ * Where a non-point place's label and click target live.
+ *
+ * A linked terrain feature owns the geometry, so its representative centre is
+ * the anchor; a legacy/unlinked place falls back to its own coordinates. This
+ * is shared by the renderer, hit test, selection and overlay so the label,
+ * click target and selection ring can never drift apart.
+ */
+export function resolvePlaceMapAnchor(
+  location: WorldLocation,
+  terrainFeatures?: ReadonlyArray<MapTerrainFeature> | null
+): MapPoint | null {
+  const linked = terrainFeatures?.find((feature) => feature.locationId === location.id);
+  const center = linked ? terrainCenter(linked) : null;
+  if (center) return center;
+  if (location.coordinates && location.coordinates.x > 0) return location.coordinates;
+  return null;
 }

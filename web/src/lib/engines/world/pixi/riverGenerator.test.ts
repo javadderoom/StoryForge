@@ -21,8 +21,8 @@ test('riverGenerator: monotonically tapers width from headwaters to estuary', ()
 
   const river = generateProceduralRiver(points, {
     seed: 42,
-    startWidth: 2.5,
-    endWidth: 14.0,
+    startWidth: 1.2,
+    endWidth: 12.0,
   });
 
   assert.ok(river.centerline.length >= 20, 'Should have dense resampled centerline');
@@ -67,19 +67,31 @@ test('riverGenerator: produces deterministic output with identical seed', () => 
   }
 });
 
-test('riverGenerator: creates delta branches and sandbar islands for long rivers', () => {
-  const longPoints = [
-    { x: 50, y: 50 },
-    { x: 150, y: 120 },
-    { x: 300, y: 250 },
-    { x: 450, y: 350 },
+test('riverGenerator: handles sharp bends and hairpin turns without collapsing banks', () => {
+  const hairpinPoints = [
+    { x: 100, y: 100 },
+    { x: 250, y: 280 },
+    { x: 120, y: 450 },
+    { x: 300, y: 600 },
   ];
 
-  const river = generateProceduralRiver(longPoints, {
+  const river = generateProceduralRiver(hairpinPoints, {
     seed: 555,
-    enableDelta: true,
+    startWidth: 1.2,
+    endWidth: 12.0,
+    meanderRoughness: 0.3,
   });
 
-  assert.ok(river.deltaBranches && river.deltaBranches.length >= 2, 'Should create delta branches');
-  assert.ok(river.sandbarIslands && river.sandbarIslands.length >= 1, 'Should create sandbar islands');
+  assert.ok(river.centerline.length >= 20);
+
+  // Verify that left and right bank never invert or produce NaN/Infinity
+  for (let i = 0; i < river.leftBank.length; i++) {
+    const l = river.leftBank[i];
+    const r = river.rightBank[i];
+    assert.ok(Number.isFinite(l.x) && Number.isFinite(l.y), `Left bank vertex ${i} must be finite`);
+    assert.ok(Number.isFinite(r.x) && Number.isFinite(r.y), `Right bank vertex ${i} must be finite`);
+
+    const widthAtStep = Math.hypot(r.x - l.x, r.y - l.y);
+    assert.ok(widthAtStep > 0.5, `Width at step ${i} must remain positive (got ${widthAtStep})`);
+  }
 });
