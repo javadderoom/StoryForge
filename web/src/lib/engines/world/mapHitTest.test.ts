@@ -472,4 +472,19 @@ describe('mapHitTest — candidate construction', () => {
     assert.equal(candidates.filter((c) => c.kind === 'waypoint').length, 0);
     assert.equal(candidates.filter((c) => c.kind === 'trade_route').length, 0);
   });
+
+  it('does not create a point target for a non-point place category', () => {
+    const candidates = buildMapHitCandidates({
+      locations: [
+        location({ id: 'loc_river', category: 'waterway', coordinates: { x: 50, y: 50 } }),
+        location({ id: 'loc_steppe', category: 'plains', coordinates: { x: 70, y: 70 } }),
+        location({ id: 'loc_town', category: 'settlement', coordinates: { x: 90, y: 90 } }),
+      ],
+      placeCategories: [],
+    });
+    const locationIds = candidates
+      .filter((candidate) => candidate.kind === 'location')
+      .map((candidate) => candidate.id);
+    assert.deepEqual(locationIds, ['loc_town']);
+  });
 });

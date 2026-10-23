@@ -83,14 +83,20 @@ export const CartographerToolbar: React.FC<CartographerToolbarProps> = ({
         {
           id: 'terrain_mountain',
           name: { en: 'Mountains & Peaks', fa: 'رشته‌کوه و قله' },
-          tooltip: { en: 'Place mountain spines, peaks & volcanoes', fa: 'افزودن رشته‌کوه‌ها، قله‌ها و آتشفشان' },
+          tooltip: {
+            en: 'Click & drag to generate procedural mountain ranges with varied peaks',
+            fa: 'کلیک و درگ موس برای قلم‌زنی رشته‌کوه‌ها با قله‌های طبیعی',
+          },
           icon: Mountain,
           accentClass: 'hover:text-orange-400',
         },
         {
           id: 'terrain_river',
           name: { en: 'River & Waters', fa: 'رودخانه و آبراهه' },
-          tooltip: { en: 'Draw winding rivers flowing to lakes/seas', fa: 'ترسیم رودخانه‌ها و آبراهه‌ها به دریا' },
+          tooltip: {
+            en: 'Click & drag to draw tapered meandering rivers flowing to the sea',
+            fa: 'کلیک و درگ موس برای ترسیم رودخانه‌های مخروطی و پیچان به دریا',
+          },
           icon: Waves,
           accentClass: 'hover:text-cyan-400',
         },

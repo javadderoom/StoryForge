@@ -58,7 +58,8 @@ interface CartographerEntityPaletteProps {
   isPersian: boolean;
   /**
    * Plan 21 — the map's own objects (terrain features and lore pins). These
-   * are not manifest entities: they are the geography the author draws.
+   * are drawing primitives, not manifest place categories; a terrain feature
+   * may link to a WorldLocation through its optional `locationId`.
    */
   mapData?: WorldMapData;
   onSelectMapObject?: (item: SelectedMapItem) => void;
@@ -328,7 +329,12 @@ export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps>
                               />
                             )}
                           </div>
-                          <div className="text-[10px] text-zinc-500 font-mono truncate">{feature.type}</div>
+                          <div className="text-[10px] text-zinc-500 font-mono truncate">
+                            {feature.type}
+                            {feature.locationId
+                              ? ` · ${locations.find((loc) => loc.id === feature.locationId)?.name || feature.locationId}`
+                              : ''}
+                          </div>
                         </button>
                       )}
 

@@ -209,6 +209,20 @@ describe('mapSelection — selectability', () => {
     };
     assert.deepEqual(collectSelectableRefs(source, settings()), []);
   });
+
+  it('does not select non-point places as settlement pins', () => {
+    const source: MapSelectionSource = {
+      locations: [
+        location({ id: 'loc_town', category: 'settlement' }),
+        location({ id: 'loc_river', category: 'waterway' }),
+        location({ id: 'loc_steppe', category: 'plains' }),
+      ],
+      placeCategories: [],
+    };
+    assert.deepEqual(collectSelectableRefs(source, settings()).map(mapObjectRefKey), [
+      'location:loc_town',
+    ]);
+  });
 });
 
 describe('mapSelection — marquee geometry', () => {
@@ -580,5 +594,31 @@ describe('mapSelection — clipboard', () => {
     });
     assert.deepEqual(original.polygon, SQUARE);
     assert.equal(original.id, 'terr_1');
+  });
+
+  it('remaps a terrain place link when the place is copied in the same batch', () => {
+    const clones = cloneMapClipboard(
+      {
+        locations: [location({ id: 'loc_1' })],
+        tradeRoutes: [],
+        terrainFeatures: [terrain({ id: 'terr_1', locationId: 'loc_1' })],
+        placements: [],
+      },
+      { offsetX: 10, offsetY: 10, copySuffix: ' (copy)', makeId: (kind) => `${kind}_new` }
+    );
+    assert.equal(clones.terrainFeatures[0].locationId, 'location_new');
+  });
+
+  it('drops a terrain place link when the place is not copied', () => {
+    const clones = cloneMapClipboard(
+      {
+        locations: [],
+        tradeRoutes: [],
+        terrainFeatures: [terrain({ id: 'terr_1', locationId: 'loc_outside' })],
+        placements: [],
+      },
+      { offsetX: 10, offsetY: 10, copySuffix: ' (copy)', makeId: () => 'terrain_new' }
+    );
+    assert.equal(clones.terrainFeatures[0].locationId, undefined);
   });
 });

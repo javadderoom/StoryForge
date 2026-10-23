@@ -93,7 +93,7 @@ export function useMapDrafting({
           type,
           points: draftPoints,
           elevation: type === 'mountain_range' ? 3200 : type === 'valley' ? -200 : 150,
-          width: type === 'river' ? 4 : 28,
+          width: type === 'river' ? 10 : 28,
         };
         onAddTerrain(newFeature);
         onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);

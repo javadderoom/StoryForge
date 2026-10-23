@@ -22,6 +22,7 @@
  */
 
 import type {
+  CustomPlaceCategory,
   MapEntityPlacement,
   MapPoint,
   MapTerrainFeature,
@@ -31,6 +32,7 @@ import type {
 } from '@/lib/types/world';
 import type { MapBounds } from './mapHitTest';
 import { isObjectLocked, isObjectVisible, isPlacementVisibleInLayers, isTerrainVisibleInLayers } from './mapObjectOrder';
+import { isPointPlaceCategory } from './placeCategories';
 
 // ---------------------------------------------------------------------------
 // References
@@ -86,6 +88,8 @@ export interface MapSelectionSource {
   tradeRoutes?: WorldTradeRoute[];
   terrainFeatures?: MapTerrainFeature[];
   placements?: MapEntityPlacement[];
+  /** Plan 24: non-point places are selected through their linked terrain. */
+  placeCategories?: CustomPlaceCategory[];
 }
 
 /** Screen-world radius used to pick a settlement by its pin. */
@@ -307,6 +311,7 @@ export function collectSelectableRefs(
   if (!layers || layers.settlements) {
     for (const location of locations) {
       if (!location.coordinates || location.coordinates.x <= 0) continue;
+      if (!isPointPlaceCategory(location.category, source.placeCategories)) continue;
       refs.push({ kind: 'location', id: location.id });
     }
   }
@@ -620,6 +625,9 @@ export function cloneMapClipboard(
     points: feature.points ? offsetRing(feature.points, offsetX, offsetY) : undefined,
     polygon: feature.polygon ? offsetRing(feature.polygon, offsetX, offsetY) : undefined,
     holes: feature.holes?.map((hole) => offsetRing(hole, offsetX, offsetY)),
+    // Keep a place link only when that place was copied in the same batch.
+    // A duplicate must never silently attach itself to the original's place.
+    locationId: feature.locationId ? newIds.get(feature.locationId) : undefined,
   }));
 
   const placements: MapEntityPlacement[] = clipboard.placements.map((placement) => ({

@@ -24,10 +24,15 @@ export const VINTAGE_PARCHMENT = {
 
   // Natural Elements
   mountainInk: 0x2d1f14,
+  mountainCrag: 0x22160d,
   mountainShade: 0xb8a58a,
+  mountainHighlight: 0xfffaee,
   mountainSnowcap: 0xfffaee,
   riverInk: 0x4a6b82,
+  riverBankInk: 0x2c4355,
+  riverWash: 0x94b1c2,
   riverHighlight: 0x769bb5,
+  sandbarFill: 0xded2b6,
   biomeForest: 0x4d5f3e,
   biomeDesert: 0xd4a76a,
   biomeSwamp: 0x524b38,

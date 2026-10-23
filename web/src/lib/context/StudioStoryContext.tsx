@@ -43,6 +43,7 @@ import {
   type IdleAutosaveController,
 } from '@/lib/utils/idleAutosave';
 import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
+import { withPlaceCategoryMeta } from '@/lib/engines/world/placeCategories';
 
 // Resolve a reference (entity id OR human-readable name) to the canonical
 // stored entity id. Used by relation CRUD so links created by the AI adviser
@@ -244,7 +245,7 @@ export function getDefaultOntology(isPersian: boolean): WorldOntology {
         color: '#A855F7',
         isDefault: true,
       },
-    ],
+    ].map(withPlaceCategoryMeta),
     lawCategories: [
       { id: 'magic', name: isPersian ? 'جادو و ماوراءالطبیعه' : 'Magic & Metaphysics', description: isPersian ? 'محدودیت‌ها و بهای استفاده از نیروهای جادویی' : 'Costs and limitations of occult or mystical arts', color: '#A855F7', isDefault: true },
       { id: 'physics', name: isPersian ? 'فیزیک و قوانین ماده' : 'Physics & Materials', description: isPersian ? 'ویژگی فلزات، سموم و محدودیت‌های فیزیکی' : 'Physical constants, metallurgy, and natural limits', color: '#38BDF8', isDefault: true },
@@ -299,6 +300,9 @@ export function normalizeOntology(ont: WorldOntology | undefined, isPersian: boo
         description: b.description,
         color: b.color || cleanCat.color,
         isDefault: true,
+        geometryKind: b.geometryKind ?? cleanCat.geometryKind,
+        renderAs: b.renderAs ?? cleanCat.renderAs,
+        mapTerrainTypes: b.mapTerrainTypes ?? cleanCat.mapTerrainTypes,
       });
     } else {
       const { defaultDangerLevel: _, ...cleanCat } = cat as any;

@@ -12,6 +12,7 @@ import {
   MapTerrainFeature,
   MapEntityPlacement,
   MapPoint,
+  CustomPlaceCategory,
 } from '@/lib/types';
 import {
   mapObjectKey,
@@ -25,7 +26,19 @@ import type { RenderAllOptions } from './renderTypes';
 export type { DraggedNodeData, RenderAllOptions } from './renderTypes';
 import { renderBackground } from './mapBackgroundRenderer';
 import { renderGrid } from './mapBackgroundRenderer';
-import { renderTerrain } from './terrainRenderer';
+import {
+  renderTerrain,
+  renderProceduralPeakToGraphics,
+  renderProceduralRiverToGraphics,
+} from './terrainRenderer';
+import {
+  generateProceduralMountainRange,
+  type MountainRangeOptions,
+} from './mountainGenerator';
+import {
+  generateProceduralRiver,
+  type RiverOptions,
+} from './riverGenerator';
 import {
   renderPlacements,
   renderRoutes,
@@ -240,6 +253,7 @@ export class PixiCartographerEngine {
     const tradeRoutes = worldBible.tradeRoutes || [];
     const terrainFeatures = worldBible.mapData?.terrainFeatures || [];
     const placements = worldBible.mapData?.placements || [];
+    const placeCategories = worldBible.ontology?.placeCategories ?? [];
 
     // Plan 23 — group move preview.
     //
@@ -292,7 +306,7 @@ export class PixiCartographerEngine {
       theme === 'parchment' ? resolveTextureStrength(settings.textureStrength) : 0;
 
     // 1. Re-index interactive spatial elements
-    this.rebuildSpatialIndex(locations, tradeRoutes, terrainFeatures, placements);
+    this.rebuildSpatialIndex(locations, tradeRoutes, terrainFeatures, placements, placeCategories);
 
     // 2. Render Background & Vintage Frame
     renderBackground(this.bgGraphics, this.fillWithMaterial.bind(this));
@@ -320,6 +334,8 @@ export class PixiCartographerEngine {
       transientPos,
       settings,
       isPersian,
+      placeCategories,
+      terrainFeatures: viewTerrain,
     });
 
     // 7. Render Placed Lore Pins
@@ -358,7 +374,8 @@ export class PixiCartographerEngine {
     locations: WorldLocation[],
     tradeRoutes: WorldTradeRoute[],
     terrainFeatures: MapTerrainFeature[],
-    placements: MapEntityPlacement[]
+    placements: MapEntityPlacement[],
+    placeCategories: CustomPlaceCategory[]
   ): void {
     this.spatialIndex.clear();
     const spatialItems: SpatialItem[] = [];
@@ -368,6 +385,7 @@ export class PixiCartographerEngine {
       tradeRoutes,
       terrainFeatures,
       placements,
+      placeCategories,
     });
 
     for (const candidate of candidates) {
@@ -422,6 +440,34 @@ export class PixiCartographerEngine {
 
   public renderBrushPreview(stamps: MapPoint[][], mode: 'paint' | 'carve'): void {
     renderBrushPreview(this.brushGraphics, stamps, mode);
+  }
+
+  /**
+   * Renders real-time procedural mountain range preview during mouse drag (60 FPS).
+   */
+  public renderMountainStrokePreview(
+    points: MapPoint[],
+    options: MountainRangeOptions = {}
+  ): void {
+    this.brushGraphics.clear();
+    if (points.length < 2) return;
+    const peaks = generateProceduralMountainRange(points, options);
+    for (const peak of peaks) {
+      renderProceduralPeakToGraphics(this.brushGraphics, peak);
+    }
+  }
+
+  /**
+   * Renders real-time procedural tapered river preview during mouse drag (60 FPS).
+   */
+  public renderRiverStrokePreview(
+    points: MapPoint[],
+    options: RiverOptions = {}
+  ): void {
+    this.brushGraphics.clear();
+    if (points.length < 2) return;
+    const river = generateProceduralRiver(points, options);
+    renderProceduralRiverToGraphics(this.brushGraphics, river);
   }
 
   public renderBrushCursor(

@@ -36,8 +36,10 @@ import {
   TradeRouteStatus,
   TradeFlowDirection,
   Faction,
+  CustomPlaceCategory,
 } from '@/lib/types';
 import { notify } from '@/lib/notify';
+import { resolvePlaceCategoryMeta } from '@/lib/engines/world/placeCategories';
 
 export type SelectedMapItem =
   | { type: 'location'; data: WorldLocation }
@@ -64,6 +66,10 @@ interface CartographerInspectorProps {
   npcs: NPCDossier[];
   factions: Faction[];
   locations: WorldLocation[];
+  /** Plan 24: the ontology categories, including author-created ones. */
+  placeCategories: CustomPlaceCategory[];
+  /** Plan 24: used to show which terrain realizes a non-point place. */
+  terrainFeatures: MapTerrainFeature[];
   onStationNpc: (npcId: string, locationId: string) => void;
   isPersian: boolean;
 }
@@ -78,15 +84,7 @@ const STATUS_LABELS: Record<TradeRouteStatus, { en: string; fa: string; color: s
   secret: { en: 'Secret Smuggling Corridor', fa: 'مسیر مخفی قاچاق', color: 'text-violet-400 bg-violet-500/10 border-violet-500/30' },
 };
 
-const SETTLEMENT_CATEGORIES = [
-  { id: 'capital', en: 'Imperial Capital', fa: 'پایتخت سلطنتی / پایتخت کهن' },
-  { id: 'stronghold', en: 'Fortress / Citadel', fa: 'دژ نظامی / بارو' },
-  { id: 'trade_port', en: 'Harbor & Trade Port', fa: 'بندرگاه و مرکز مبادلات' },
-  { id: 'sanctuary', en: 'Forest / Mountain Sanctuary', fa: 'پناهگاه امن / دیر خلوت‌نشینان' },
-  { id: 'settlement', en: 'Frontier Town / Oasis', fa: 'شهر مرزی / واحه کویری' },
-  { id: 'dungeon', en: 'Subterranean Deep / Dungeon', fa: 'سیاه‌چال / ژرفنای زیرزمینی' },
-  { id: 'ruins', en: 'Ancient Sunken Ruins', fa: 'خرابه‌های باستانی فراموش‌شده' },
-];
+
 
 export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
   selectedItem,
@@ -105,6 +103,8 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
   npcs,
   factions,
   locations,
+  placeCategories,
+  terrainFeatures,
   onStationNpc,
   isPersian,
 }) => {
@@ -138,6 +138,20 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
       {selectedItem.type === 'location' && (() => {
         const loc = selectedItem.data;
         const stationedNpcs = npcs.filter((n) => n.currentLocationId === loc.id);
+        const currentCategoryId = loc.category || 'settlement';
+        const categoryOptions = placeCategories.some((category) => category.id === currentCategoryId)
+          ? placeCategories
+          : [
+              {
+                id: currentCategoryId,
+                name: currentCategoryId,
+                description: '',
+                color: '#a1a1aa',
+              } as CustomPlaceCategory,
+              ...placeCategories,
+            ];
+        const categoryMeta = resolvePlaceCategoryMeta(loc.category, placeCategories);
+        const linkedFeatures = terrainFeatures.filter((feature) => feature.locationId === loc.id);
 
         return (
           <div className="space-y-4 text-xs">
@@ -188,19 +202,46 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
             {/* Category */}
             <div>
               <label className="text-[11px] text-zinc-400 mb-1 block font-medium">
-                {isPersian ? 'دسته‌بندی سکونتگاه' : 'Settlement Category'}
+                {isPersian ? 'دسته‌بندی مکان' : 'Place Category'}
               </label>
               <select
-                value={loc.category || 'settlement'}
+                value={currentCategoryId}
                 onChange={(e) => onUpdateLocation(loc.id, { category: e.target.value })}
                 className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500/50 cursor-pointer"
               >
-                {SETTLEMENT_CATEGORIES.map((cat) => (
+                {categoryOptions.map((cat) => (
                   <option key={cat.id} value={cat.id}>
-                    {isPersian ? cat.fa : cat.en}
+                    {cat.name}
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Plan 24: how this place is realized on the map */}
+            <div>
+              <label className="text-[11px] text-zinc-400 mb-1 block font-medium">
+                {isPersian ? 'نمایش روی نقشه' : 'Drawn on the map as'}
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {categoryMeta.geometryKind === 'point' ? (
+                  <span className="text-[10px] px-2 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400">
+                    {isPersian ? 'سنجاق نقطه‌ای' : 'Point pin'}
+                  </span>
+                ) : linkedFeatures.length > 0 ? (
+                  linkedFeatures.map((feature) => (
+                    <span
+                      key={feature.id}
+                      className="text-[10px] px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300"
+                    >
+                      {feature.name}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-[10px] px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300">
+                    {isPersian ? 'هیچ عارضه‌ای متصل نیست' : 'No linked terrain yet'}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Atmosphere Keywords */}
@@ -535,6 +576,32 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
               </div>
             </div>
 
+            {/* Plan 24: the semantic place this geometry realizes */}
+            <div>
+              <label className="text-[11px] text-zinc-400 mb-1 block font-medium">
+                {isPersian ? 'مکان روایی متصل' : 'Narrative Place'}
+              </label>
+              <select
+                value={feature.locationId || ''}
+                onChange={(e) =>
+                  onUpdateTerrain(feature.id, { locationId: e.target.value || undefined })
+                }
+                className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500/50 cursor-pointer"
+              >
+                <option value="">{isPersian ? 'بدون مکان روایی' : 'No narrative place'}</option>
+                {feature.locationId && !locations.some((loc) => loc.id === feature.locationId) && (
+                  <option value={feature.locationId}>
+                    {feature.locationId} ({isPersian ? 'ناموجود' : 'missing'})
+                  </option>
+                )}
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="text-[11px] text-zinc-400 mb-1 block font-medium">
                 {isPersian ? 'اقلیم آب‌وهوایی' : 'Climate Zone'}
@@ -551,6 +618,32 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
                 <option value="mystical">{isPersian ? 'جادویی / اثیری' : 'Mystical'}</option>
               </select>
             </div>
+
+            {/* Plan 25: Width / Scale control for mountain ranges, rivers, and valleys */}
+            {(feature.type === 'mountain_range' || feature.type === 'river' || feature.type === 'valley') && (
+              <div>
+                <label className="text-[11px] text-zinc-400 mb-1 block font-medium">
+                  {feature.type === 'mountain_range'
+                    ? (isPersian ? 'پهنای رشته‌کوه / مقیاس قله‌ها' : 'Range Width & Peak Scale')
+                    : feature.type === 'river'
+                    ? (isPersian ? 'پهنای دهانه رودخانه' : 'River Mouth Width')
+                    : (isPersian ? 'عرض دره' : 'Valley Width')}
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={feature.type === 'river' ? 4 : 15}
+                    max={feature.type === 'river' ? 28 : 75}
+                    value={feature.width || (feature.type === 'river' ? 10 : 28)}
+                    onChange={(e) => onUpdateTerrain(feature.id, { width: Number(e.target.value) })}
+                    className="flex-1 accent-amber-500 cursor-pointer"
+                  />
+                  <span className="font-mono text-zinc-300 w-10 text-right">
+                    {feature.width || (feature.type === 'river' ? 10 : 28)}px
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="text-[11px] text-zinc-400 mb-1 block font-medium">

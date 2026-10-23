@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useStudioStory } from '@/lib/context/StudioStoryContext';
+import { normalizeOntology, useStudioStory } from '@/lib/context/StudioStoryContext';
 import {
   WorldMapData,
   WorldMapSettings,
@@ -70,6 +70,10 @@ export default function CartographerPage() {
   }, [story.worldBible, isPersian]);
 
   const mapSettings: WorldMapSettings = mapData.settings;
+  const placeCategories = useMemo(
+    () => normalizeOntology(story.worldBible.ontology, isPersian).placeCategories,
+    [story.worldBible.ontology, isPersian]
+  );
 
   const seedKey = selectedWorldId || story.worldId || story.worldBible.worldName || 'storyforge-world';
 
@@ -100,6 +104,7 @@ export default function CartographerPage() {
     worldBible: story.worldBible,
     mapData,
     mapSettings,
+    placeCategories,
     commit,
     updateMapData,
     updateWorldBible,
@@ -609,6 +614,8 @@ export default function CartographerPage() {
             npcs={story.worldBible.npcs || []}
             factions={story.worldBible.factions || []}
             locations={story.worldBible.locations || []}
+            placeCategories={placeCategories}
+            terrainFeatures={mapData.terrainFeatures}
             onStationNpc={handleStationNpc}
             isPersian={isPersian}
           />

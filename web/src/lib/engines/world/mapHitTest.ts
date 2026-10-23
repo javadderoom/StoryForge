@@ -33,6 +33,7 @@
  */
 
 import type {
+  CustomPlaceCategory,
   MapEntityPlacement,
   MapPoint,
   MapTerrainFeature,
@@ -47,6 +48,7 @@ import {
   isPlacementVisibleInLayers,
   isTerrainVisibleInLayers,
 } from './mapObjectOrder';
+import { isPointPlaceCategory } from './placeCategories';
 
 /** Pick priority tiers — lower wins. */
 export const HIT_TIER = {
@@ -193,6 +195,8 @@ export interface MapHitCandidateInput {
   tradeRoutes?: WorldTradeRoute[];
   terrainFeatures?: MapTerrainFeature[];
   placements?: MapEntityPlacement[];
+  /** Plan 24: non-point places are picked through their linked terrain. */
+  placeCategories?: CustomPlaceCategory[];
 }
 
 /**
@@ -212,6 +216,9 @@ export function buildMapHitCandidates(input: MapHitCandidateInput): MapHitCandid
   for (const loc of locations) {
     // x <= 0 is the "not placed on the map" sentinel; the renderer skips those
     // settlements, so they must not be pickable at the left edge either.
+    // Plan 24: a river/steppe/sea is not a settlement pin. It is picked through
+    // its linked terrain, so do not create a phantom point target for it.
+    if (!isPointPlaceCategory(loc.category, input.placeCategories)) continue;
     if (loc.coordinates && loc.coordinates.x > 0) {
       candidates.push({ kind: 'location', id: loc.id, location: loc });
     }

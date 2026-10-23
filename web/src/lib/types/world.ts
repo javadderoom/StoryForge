@@ -618,6 +618,18 @@ export interface CustomRelationType {
   isDefault?: boolean;
 }
 
+/**
+ * Plan 24: how a semantic place category participates in the map.
+ * - point:  drawn as a pin (settlements, fortresses, dungeons)
+ * - line:   realized by a polyline feature (rivers, passes)
+ * - area:   realized by a polygon feature (plains, seas, wilderness)
+ * - region: a named grouping that may own several features
+ */
+export type PlaceGeometryKind = 'point' | 'line' | 'area' | 'region';
+
+/** How a category is painted on the canvas. */
+export type PlaceRenderAs = 'settlement' | 'label' | 'line' | 'water' | 'anomaly';
+
 export interface CustomPlaceCategory {
   id: string; // e.g. "stronghold", "dungeon", "settlement", "ruins", "wilderness"
   name: string;
@@ -625,6 +637,11 @@ export interface CustomPlaceCategory {
   color: string;
   defaultDangerLevel?: 1 | 2 | 3 | 4 | 5;
   isDefault?: boolean;
+  /** Plan 24 map behaviour. Optional so existing worlds stay valid. */
+  geometryKind?: PlaceGeometryKind;
+  renderAs?: PlaceRenderAs;
+  /** Terrain primitives an author can use to draw this place. */
+  mapTerrainTypes?: MapTerrainType[];
 }
 
 export interface CustomLawCategory {
@@ -703,6 +720,11 @@ export interface MapTerrainFeature {
   id: string;
   name: string;
   type: MapTerrainType;
+  /**
+   * Plan 24: the semantic WorldLocation this geometry realizes. Point places
+   * use WorldLocation.coordinates; area/line places use this link.
+   */
+  locationId?: string;
   color?: string;
   x?: number;
   y?: number;
@@ -1052,6 +1074,9 @@ export const CustomPlaceCategorySchema = z.object({
   color: z.string().default('#38BDF8'),
   defaultDangerLevel: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).optional(),
   isDefault: z.boolean().optional(),
+  geometryKind: z.enum(['point', 'line', 'area', 'region']).optional(),
+  renderAs: z.enum(['settlement', 'label', 'line', 'water', 'anomaly']).optional(),
+  mapTerrainTypes: z.array(z.string()).optional(),
 });
 
 export const CustomLawCategorySchema = z.object({
@@ -1549,6 +1574,7 @@ export const MapTerrainFeatureSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   type: z.string(),
+  locationId: z.string().optional(),
   color: z.string().optional(),
   x: z.number().optional(),
   y: z.number().optional(),

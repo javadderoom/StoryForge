@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type {
+  CustomPlaceCategory,
   WorldBible,
   WorldMapData,
   WorldMapSettings,
@@ -35,6 +36,7 @@ interface UseCartographerSelectionOptions {
   worldBible: WorldBible;
   mapData: WorldMapData;
   mapSettings: WorldMapSettings;
+  placeCategories: CustomPlaceCategory[];
   commit: Commit;
   updateMapData: UpdateMapData;
   updateWorldBible: UpdateWorldBible;
@@ -52,6 +54,7 @@ export function useCartographerSelection({
   worldBible,
   mapData,
   mapSettings,
+  placeCategories,
   commit,
   updateMapData,
   updateWorldBible,
@@ -67,8 +70,9 @@ export function useCartographerSelection({
       tradeRoutes: worldBible.tradeRoutes,
       terrainFeatures: mapData.terrainFeatures,
       placements: mapData.placements,
+      placeCategories,
     }),
-    [worldBible.locations, worldBible.tradeRoutes, mapData]
+    [worldBible.locations, worldBible.tradeRoutes, mapData, placeCategories]
   );
 
   /** Resolves selection refs against the live world (never against a copy). */

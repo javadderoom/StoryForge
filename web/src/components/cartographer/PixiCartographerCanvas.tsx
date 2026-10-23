@@ -203,6 +203,11 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   const lastStrokePointRef = useRef<MapPoint | null>(null);
   const strokeSeedRef = useRef<number>(42);
 
+  // Drag-to-Generate geography strokes (Mountains & Rivers)
+  const isDraggingGeoStrokeRef = useRef(false);
+  const geoStrokePointsRef = useRef<MapPoint[]>([]);
+  const geoStrokeSeedRef = useRef<number>(42);
+
   const draggedNodeRef = useRef<DraggedNodeData | null>(null);
   const transientPosRef = useRef<MapPoint | null>(null);
   const tradeRoutesRef = useRef(worldBible.tradeRoutes || []);
@@ -382,11 +387,18 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       return;
     }
 
-    // Multi-point drafting tool (continents, mountains, rivers, biomes)
+    // Continuous drag-to-draw for Mountains and Rivers
+    if (activeTool === 'terrain_mountain' || activeTool === 'terrain_river') {
+      isDraggingGeoStrokeRef.current = true;
+      geoStrokeSeedRef.current = Math.floor(Math.random() * 100000);
+      geoStrokePointsRef.current = [worldPoint];
+      setDraftPoints((prev) => [...prev, worldPoint]);
+      return;
+    }
+
+    // Multi-point drafting tool (continents, valleys, biomes)
     if (
       activeTool === 'terrain_continent' ||
-      activeTool === 'terrain_mountain' ||
-      activeTool === 'terrain_river' ||
       activeTool === 'terrain_valley' ||
       activeTool === 'terrain_biome'
     ) {
@@ -652,6 +664,35 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       }
     }
 
+    // Mountain & River continuous drag-to-draw accumulation (60 FPS local preview)
+    if (
+      isDraggingGeoStrokeRef.current &&
+      (activeTool === 'terrain_mountain' || activeTool === 'terrain_river') &&
+      engineRef.current
+    ) {
+      const pts = geoStrokePointsRef.current;
+      const lastPt = pts[pts.length - 1];
+      const dist = lastPt ? Math.hypot(worldPoint.x - lastPt.x, worldPoint.y - lastPt.y) : 999;
+      if (dist >= 14) {
+        pts.push(worldPoint);
+        if (activeTool === 'terrain_mountain') {
+          engineRef.current.renderMountainStrokePreview(pts, {
+            seed: geoStrokeSeedRef.current,
+            scale: 55,
+            rangeWidth: 32,
+          });
+        } else {
+          engineRef.current.renderRiverStrokePreview(pts, {
+            seed: geoStrokeSeedRef.current,
+            startWidth: 2.0,
+            endWidth: 10.0,
+            meanderRoughness: 0.35,
+          });
+        }
+      }
+      return;
+    }
+
     if (isPanning) {
       setPan({
         x: e.clientX - dragStart.x,
@@ -741,6 +782,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
             tradeRoutes: worldBible.tradeRoutes,
             terrainFeatures: bandMapData?.terrainFeatures,
             placements: bandMapData?.placements,
+            placeCategories: worldBible.ontology?.placeCategories,
           },
           {
             minX: topLeft.x,
@@ -779,6 +821,40 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       }
     }
 
+    // Finalize Mountain or River continuous drag stroke
+    if (isDraggingGeoStrokeRef.current) {
+      isDraggingGeoStrokeRef.current = false;
+      engineRef.current?.clearBrushPreview();
+
+      const strokePts = [...geoStrokePointsRef.current];
+      geoStrokePointsRef.current = [];
+
+      let totalStrokeDist = 0;
+      for (let i = 0; i < strokePts.length - 1; i++) {
+        totalStrokeDist += Math.hypot(strokePts[i + 1].x - strokePts[i].x, strokePts[i + 1].y - strokePts[i].y);
+      }
+
+      if (strokePts.length >= 2 && totalStrokeDist > 25) {
+        const isMountain = activeTool === 'terrain_mountain';
+        const isRiver = activeTool === 'terrain_river';
+        if (isMountain || isRiver) {
+          const newFeature: MapTerrainFeature = {
+            id: `terr_${Date.now().toString(36)}`,
+            name: isMountain
+              ? (isPersian ? 'رشته‌کوه کهن' : 'Ancient Mountain Ridge')
+              : (isPersian ? 'رودخانه خروشان' : 'Winding River'),
+            type: isMountain ? 'mountain_range' : 'river',
+            points: strokePts,
+            elevation: isMountain ? 3200 : 150,
+            width: isMountain ? 28 : 10,
+          };
+          onAddTerrain(newFeature);
+          onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
+          setDraftPoints([]);
+        }
+      }
+    }
+
     const active = draggedNodeRef.current;
     const finalPos = transientPosRef.current;
 
@@ -800,6 +876,10 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     draggedNodeRef.current = null;
     transientPosRef.current = null;
   }, [
+    onAddTerrain,
+    activeTool,
+    isPersian,
+    setDraftPoints,
     engineRef,
     onMoveSelection,
     onUpdateTradeRoute,
