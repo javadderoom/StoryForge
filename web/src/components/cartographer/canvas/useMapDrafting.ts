@@ -6,6 +6,7 @@ import type { MapPoint, MapTerrainFeature } from '@/lib/types';
 import type { MapObjectRef } from '@/lib/engines/world/mapSelection';
 import { VINTAGE_PARCHMENT } from '@/lib/engines/world/pixi/vintageTheme';
 import type { CartographerTool } from '../CartographerHeader';
+import type { BiomeType, HighlandMode } from './GeoToolHud';
 
 interface UseMapDraftingOptions {
   activeTool: CartographerTool;
@@ -13,6 +14,11 @@ interface UseMapDraftingOptions {
   onAddTerrain: (feature: MapTerrainFeature) => void;
   onSelectionChange: (refs: MapObjectRef[]) => void;
   onCancelZoom: () => void;
+  activeBiome?: BiomeType;
+  highlandMode?: HighlandMode;
+  cliffHeight?: number;
+  terraceTiers?: number;
+  valleyWidth?: number;
 }
 
 /**
@@ -26,6 +32,11 @@ export function useMapDrafting({
   onAddTerrain,
   onSelectionChange,
   onCancelZoom,
+  activeBiome = 'forest',
+  highlandMode = 'plateau',
+  cliffHeight = 22,
+  terraceTiers = 1,
+  valleyWidth = 28,
 }: UseMapDraftingOptions) {
   const [draftPoints, setDraftPoints] = useState<MapPoint[]>([]);
   const [rulerPoints, setRulerPoints] = useState<MapPoint[]>([]);
@@ -48,19 +59,57 @@ export function useMapDrafting({
 
       if (activeTool === 'terrain_continent' || activeTool === 'terrain_biome') {
         const isBiome = activeTool === 'terrain_biome';
+        const biomeNames: Record<string, { en: string; fa: string }> = {
+          forest: { en: 'Ancient Forest', fa: 'جنگل کهن' },
+          jungle: { en: 'Primeval Jungle', fa: 'جنگل گرمسیری' },
+          desert: { en: 'Sand Dune Desert', fa: 'کویر و ریگزار' },
+          swamp: { en: 'Foul Marshland', fa: 'مرداب و لجنزار' },
+          tundra: { en: 'Frozen Tundra', fa: 'تندرای یخی' },
+          plains: { en: 'Golden Plains', fa: 'دشت بی‌کران' },
+        };
+        const selectedName = isBiome ? biomeNames[activeBiome] : null;
+
         const newFeature: MapTerrainFeature = {
           id: `terr_${Date.now().toString(36)}`,
           name: isBiome
-            ? isPersian
-              ? 'ناحیه اقلیمی نو'
-              : 'New Biome Region'
+            ? (isPersian ? selectedName?.fa || 'ناحیه اقلیمی' : selectedName?.en || 'Biome Region')
             : isPersian
             ? 'خشکی نوبنیاد'
             : 'New Landmass',
-          type: isBiome ? 'forest' : 'continent',
+          type: isBiome ? activeBiome : 'continent',
           polygon: draftPoints,
-          color: isBiome ? '#4d5f3e' : VINTAGE_PARCHMENT.landFillHex,
+          color: isBiome ? undefined : VINTAGE_PARCHMENT.landFillHex,
           description: isPersian ? 'عنصر جغرافیایی ترسیم‌شده' : 'User-created geographical feature',
+        };
+        onAddTerrain(newFeature);
+        onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
+      } else if (activeTool === 'terrain_lake') {
+        const newFeature: MapTerrainFeature = {
+          id: `terr_${Date.now().toString(36)}`,
+          name: isPersian ? 'دریاچه لاجوردی' : 'Inland Lake',
+          type: 'lake',
+          polygon: draftPoints,
+          color: '#5a7b91',
+          description: isPersian ? 'دریاچه عمیق آب شیرین' : 'Deep inland freshwater lake',
+        };
+        onAddTerrain(newFeature);
+        onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
+      } else if (activeTool === 'terrain_highland') {
+        const isRidge = highlandMode === 'ridge';
+        const newFeature: MapTerrainFeature = {
+          id: `terr_${Date.now().toString(36)}`,
+          name: isRidge
+            ? isPersian
+              ? 'دیواره صخره‌ای و پرتگاه'
+              : 'Highland Escarpment'
+            : isPersian
+            ? 'فلات مرتفع'
+            : 'Elevated Plateau',
+          type: isRidge ? 'highland' : 'plateau',
+          ...(isRidge ? { points: draftPoints } : { polygon: draftPoints }),
+          elevation: terraceTiers > 1 ? 1800 : 800,
+          width: cliffHeight,
+          description: isPersian ? 'زمین‌های مرتفع با سقف صاف' : 'Elevated flat-topped tablelands',
         };
         onAddTerrain(newFeature);
         onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
@@ -93,7 +142,7 @@ export function useMapDrafting({
           type,
           points: draftPoints,
           elevation: type === 'mountain_range' ? 3200 : type === 'valley' ? -200 : 150,
-          width: type === 'river' ? 10 : 28,
+          width: type === 'river' ? 10 : valleyWidth,
         };
         onAddTerrain(newFeature);
         onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
@@ -101,7 +150,18 @@ export function useMapDrafting({
 
       setDraftPoints([]);
     },
-    [draftPoints, activeTool, isPersian, onAddTerrain, onSelectionChange]
+    [
+      draftPoints,
+      activeTool,
+      isPersian,
+      onAddTerrain,
+      onSelectionChange,
+      activeBiome,
+      highlandMode,
+      cliffHeight,
+      terraceTiers,
+      valleyWidth,
+    ]
   );
 
   // Escape cancels the draft, Enter commits it.

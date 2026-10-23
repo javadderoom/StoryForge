@@ -11,6 +11,7 @@ import {
   MapEntityPlacement,
   MapStyleTheme,
 } from '@/lib/types';
+import { normalizeLandWaterFeatures } from './landSculpt/waterFeatures';
 
 export const CANVAS_WIDTH = 2400;
 export const CANVAS_HEIGHT = 1600;
@@ -440,7 +441,7 @@ export function getOrInitializeWorldMapData(
 
   const terrain =
     existingMap?.terrainFeatures && existingMap.terrainFeatures.length > 0
-      ? existingMap.terrainFeatures
+      ? normalizeLandWaterFeatures(existingMap.terrainFeatures)
       : createSeedTerrainFeatures(isPersian);
 
   const settings: WorldMapSettings = {

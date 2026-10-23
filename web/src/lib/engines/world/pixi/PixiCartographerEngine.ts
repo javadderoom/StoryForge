@@ -22,6 +22,7 @@ import {
   translateTradeRoute,
 } from '../mapSelection';
 import { VINTAGE_PARCHMENT } from './vintageTheme';
+import { normalizeLandWaterFeatures } from '../landSculpt/waterFeatures';
 import type { RenderAllOptions } from './renderTypes';
 export type { DraggedNodeData, RenderAllOptions } from './renderTypes';
 import { renderBackground } from './mapBackgroundRenderer';
@@ -30,6 +31,8 @@ import {
   renderTerrain,
   renderProceduralPeakToGraphics,
   renderProceduralRiverToGraphics,
+  renderProceduralHighlandToGraphics,
+  renderProceduralValleyToGraphics,
 } from './terrainRenderer';
 import {
   generateProceduralMountainRange,
@@ -39,6 +42,14 @@ import {
   generateProceduralRiver,
   type RiverOptions,
 } from './riverGenerator';
+import {
+  generateProceduralHighland,
+  type HighlandOptions,
+} from './highlandGenerator';
+import {
+  generateProceduralValley,
+  type ValleyOptions,
+} from './valleyGenerator';
 import {
   renderPlacements,
   renderRoutes,
@@ -251,7 +262,9 @@ export class PixiCartographerEngine {
 
     const locations = worldBible.locations || [];
     const tradeRoutes = worldBible.tradeRoutes || [];
-    const terrainFeatures = worldBible.mapData?.terrainFeatures || [];
+    const terrainFeatures = normalizeLandWaterFeatures(
+      worldBible.mapData?.terrainFeatures || []
+    );
     const placements = worldBible.mapData?.placements || [];
     const placeCategories = worldBible.ontology?.placeCategories ?? [];
 
@@ -469,6 +482,34 @@ export class PixiCartographerEngine {
     if (points.length < 2) return;
     const river = generateProceduralRiver(points, options);
     renderProceduralRiverToGraphics(this.brushGraphics, river);
+  }
+
+  /**
+   * Renders real-time procedural highland / cliff preview during mouse drag (60 FPS).
+   */
+  public renderHighlandStrokePreview(
+    points: MapPoint[],
+    options: HighlandOptions = {}
+  ): void {
+    this.brushGraphics.clear();
+    if (points.length < 2) return;
+    const highland = generateProceduralHighland(points, options);
+    renderProceduralHighlandToGraphics(this.brushGraphics, highland, (g, pts, _mat, color, alpha) => {
+      g.poly(pts).fill({ color, alpha });
+    });
+  }
+
+  /**
+   * Renders real-time procedural canyon / valley preview during mouse drag (60 FPS).
+   */
+  public renderValleyStrokePreview(
+    points: MapPoint[],
+    options: ValleyOptions = {}
+  ): void {
+    this.brushGraphics.clear();
+    if (points.length < 2) return;
+    const valley = generateProceduralValley(points, options);
+    renderProceduralValleyToGraphics(this.brushGraphics, valley);
   }
 
   public renderBrushCursor(

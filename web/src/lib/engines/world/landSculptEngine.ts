@@ -57,3 +57,12 @@ export {
   featuresToGeoMultiPolygon,
 } from './landSculpt/geojson';
 export { applySculptOperation } from './landSculpt/sculpt';
+export {
+  normalizeLandWaterFeatures,
+  findBestLakeMatch,
+  createInlandLake,
+  isPointInLakeWater,
+  lakeWaterGeometry,
+  buildLakeWaterMultiPolygon,
+  findNestedLandFeatures,
+} from './landSculpt/waterFeatures';

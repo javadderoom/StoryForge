@@ -618,27 +618,46 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
               </select>
             </div>
 
-            {/* Plan 25: Width / Scale control for mountain ranges, rivers, and valleys */}
-            {(feature.type === 'mountain_range' || feature.type === 'river' || feature.type === 'valley') && (
+            {/* Width / Scale control for mountain ranges, rivers, valleys, and highlands */}
+            {(feature.type === 'mountain_range' ||
+              feature.type === 'river' ||
+              feature.type === 'valley' ||
+              feature.type === 'highland' ||
+              feature.type === 'plateau') && (
               <div>
                 <label className="text-[11px] text-zinc-400 mb-1 block font-medium">
                   {feature.type === 'mountain_range'
                     ? (isPersian ? 'پهنای رشته‌کوه / مقیاس قله‌ها' : 'Range Width & Peak Scale')
                     : feature.type === 'river'
                     ? (isPersian ? 'پهنای دهانه رودخانه' : 'River Mouth Width')
+                    : feature.type === 'highland' || feature.type === 'plateau'
+                    ? (isPersian ? 'ارتفاع دیواره صخره‌ای' : 'Cliff Drop Height')
                     : (isPersian ? 'عرض دره' : 'Valley Width')}
                 </label>
                 <div className="flex items-center gap-3">
                   <input
                     type="range"
-                    min={feature.type === 'river' ? 4 : 15}
+                    min={feature.type === 'river' ? 4 : 10}
                     max={feature.type === 'river' ? 28 : 75}
-                    value={feature.width || (feature.type === 'river' ? 10 : 28)}
+                    value={
+                      feature.width ||
+                      (feature.type === 'river'
+                        ? 10
+                        : feature.type === 'highland' || feature.type === 'plateau'
+                        ? 22
+                        : 28)
+                    }
                     onChange={(e) => onUpdateTerrain(feature.id, { width: Number(e.target.value) })}
                     className="flex-1 accent-amber-500 cursor-pointer"
                   />
                   <span className="font-mono text-zinc-300 w-10 text-right">
-                    {feature.width || (feature.type === 'river' ? 10 : 28)}px
+                    {feature.width ||
+                      (feature.type === 'river'
+                        ? 10
+                        : feature.type === 'highland' || feature.type === 'plateau'
+                        ? 22
+                        : 28)}
+                    px
                   </span>
                 </div>
               </div>

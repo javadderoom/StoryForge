@@ -16,7 +16,6 @@ import {
   doAABBIntersect,
   getBoundingBox,
   getPolygonCentroid,
-  getSqDist,
   isPointInPolygon,
 } from './geometry';
 import { simplifyPolygonRing } from './simplify';
@@ -26,6 +25,13 @@ import {
   geoRingToMapPoints,
   mapPointsToGeoRing,
 } from './geojson';
+import {
+  buildLakeWaterMultiPolygon,
+  createInlandLake,
+  createUniqueFeatureId,
+  findBestLakeMatch,
+  isPointInLakeWater,
+} from './waterFeatures';
 
 // ============================================================================
 // 6. BOOLEAN SCULPT OPERATION (PAINT & CARVE)
@@ -139,8 +145,28 @@ export function applySculptOperation(
     }
   }
 
-  // 5. Convert existing land features to GeoMultiPolygon
-  const existingMultiPoly = featuresToGeoMultiPolygon(landFeatures);
+  // 5. Convert existing land features to GeoMultiPolygon.
+  //
+  // Landmasses no longer carry water in their `holes` arrays. Reconstruct the
+  // land-minus-water geometry from the semantic lake features so painting next
+  // to a lake cannot silently fill that lake with land.
+  const existingLandMultiPoly = featuresToGeoMultiPolygon(landFeatures);
+  const existingLakeWaterMultiPoly = buildLakeWaterMultiPolygon(
+    existingLakeFeatures,
+    landFeatures
+  );
+
+  let existingMultiPoly = existingLandMultiPoly;
+  if (existingLandMultiPoly.length > 0 && existingLakeWaterMultiPoly.length > 0) {
+    try {
+      existingMultiPoly = polygonClipping.difference(
+        existingLandMultiPoly,
+        existingLakeWaterMultiPoly
+      ) as GeoMultiPolygon;
+    } catch {
+      existingMultiPoly = existingLandMultiPoly;
+    }
+  }
 
   // 6. Execute Boolean Clipping
   let resultMultiPoly: GeoMultiPolygon;
@@ -185,6 +211,7 @@ export function applySculptOperation(
   const landBBoxes = landFeatures.map((lf) => ({
     feature: lf,
     bbox: lf.polygon ? getBoundingBox(lf.polygon) : { minX: 0, minY: 0, maxX: 0, maxY: 0 },
+    area: lf.polygon ? calculatePolygonArea(lf.polygon) : 0,
   }));
 
   interface ProcessedPiece {
@@ -232,39 +259,51 @@ export function applySculptOperation(
       }
     }
 
-    // Find overlapping parent
+    // Find overlapping parent.
+    //
+    // A piece that sits in lake water (not on an island inside it) is a new
+    // landmass, not a detached part of the surrounding continent. Conversely,
+    // an island that already exists inside the lake must keep its own identity
+    // rather than being stolen by the continent's much larger bounding box.
     const pieceBbox = getBoundingBox(simplifiedOuter);
-    let bestParent: MapTerrainFeature | null = null;
-    let maxOverlapArea = 0;
+    const pieceCentroid = getPolygonCentroid(simplifiedOuter);
+    const pieceStartsInWater =
+      simplifiedOuter.length > 0 &&
+      isPointInLakeWater(simplifiedOuter[0], existingLakeFeatures, landFeatures);
 
-    for (const lb of landBBoxes) {
-      if (doAABBIntersect(pieceBbox, lb.bbox)) {
-        // Topological check: if this piece falls inside one of lb.feature's holes,
-        // it cannot belong to lb.feature (e.g. an island inside a continent's interior lake)
-        let insideHole = false;
-        if (lb.feature.holes && lb.feature.holes.length > 0) {
-          for (const hole of lb.feature.holes) {
-            if (
+    let bestParent: MapTerrainFeature | null = null;
+    let bestScore = 0;
+
+    if (!pieceStartsInWater) {
+      for (const lb of landBBoxes) {
+        if (!doAABBIntersect(pieceBbox, lb.bbox)) continue;
+
+        // Legacy maps may still carry holes on the landmass. A piece inside one
+        // cannot belong to that landmass.
+        const insideHole =
+          !!lb.feature.holes?.some(
+            (hole) =>
               simplifiedOuter.length > 0 &&
               isPointInPolygon(simplifiedOuter[0], hole) &&
               (simplifiedOuter.length < 2 || isPointInPolygon(simplifiedOuter[1], hole))
-            ) {
-              insideHole = true;
-              break;
-            }
-          }
-        }
-        if (insideHole) {
-          continue;
-        }
+          );
+        if (insideHole) continue;
 
         const ixMin = Math.max(pieceBbox.minX, lb.bbox.minX);
         const ixMax = Math.min(pieceBbox.maxX, lb.bbox.maxX);
         const iyMin = Math.max(pieceBbox.minY, lb.bbox.minY);
         const iyMax = Math.min(pieceBbox.maxY, lb.bbox.maxY);
         const overlapArea = (ixMax - ixMin) * (iyMax - iyMin);
-        if (overlapArea > maxOverlapArea) {
-          maxOverlapArea = overlapArea;
+
+        // Prefer the smallest existing landmass that actually contains the
+        // piece's centre. That keeps Russian-doll islands attached to their
+        // own island feature instead of the surrounding continent.
+        const score = lb.feature.polygon && isPointInPolygon(pieceCentroid, lb.feature.polygon)
+          ? 1e15 / Math.max(lb.area, 1) + overlapArea / 1e9
+          : overlapArea;
+
+        if (score > bestScore) {
+          bestScore = score;
           bestParent = lb.feature;
         }
       }
@@ -278,67 +317,47 @@ export function applySculptOperation(
     });
   }
 
-  // Match holes to existing lake features by centroid/proximity, preserving IDs and metadata
+  // Match holes to existing lake features by centroid/proximity, preserving IDs and metadata.
+  // Lakes own the water: the surrounding landmass only gets its outer coast.
   const matchedLakeIds = new Set<string>();
   const finalLakes: MapTerrainFeature[] = [];
+  const usedIds = new Set(existingFeatures.map((feature) => feature.id));
 
-  for (const { hole } of holeList) {
-    const holeCentroid = getPolygonCentroid(hole);
-    const holeBbox = getBoundingBox(hole);
+  for (const { hole, pieceIndex } of holeList) {
+    // A hole that contains land pieces is a lake with islands. The lake owns
+    // those island outlines as holes so its fill never paints over the land.
+    const lakeHoles = processedPieces
+      .map((piece, index) => ({ piece, index }))
+      .filter(
+        ({ piece, index }) =>
+          index !== pieceIndex &&
+          piece.outerRing.length >= 3 &&
+          isPointInPolygon(piece.outerRing[0], hole)
+      )
+      .map(({ piece }) => piece.outerRing);
 
-    let bestLakeMatch: MapTerrainFeature | null = null;
-    let bestScore = -1;
-
-    for (const lake of existingLakeFeatures) {
-      if (matchedLakeIds.has(lake.id) || !lake.polygon || lake.polygon.length < 3) continue;
-
-      const lakeBbox = getBoundingBox(lake.polygon);
-      const lakeCentroid = getPolygonCentroid(lake.polygon);
-
-      let score = 0;
-      if (doAABBIntersect(holeBbox, lakeBbox)) {
-        const ixMin = Math.max(holeBbox.minX, lakeBbox.minX);
-        const ixMax = Math.min(holeBbox.maxX, lakeBbox.maxX);
-        const iyMin = Math.max(holeBbox.minY, lakeBbox.minY);
-        const iyMax = Math.min(holeBbox.maxY, lakeBbox.maxY);
-        const overlapArea = (ixMax - ixMin) * (iyMax - iyMin);
-        const distSq = getSqDist(holeCentroid, lakeCentroid);
-        score = overlapArea / (1 + Math.sqrt(distSq));
-      } else {
-        const distSq = getSqDist(holeCentroid, lakeCentroid);
-        const maxDim = Math.max(
-          holeBbox.maxX - holeBbox.minX,
-          holeBbox.maxY - holeBbox.minY,
-          lakeBbox.maxX - lakeBbox.minX,
-          lakeBbox.maxY - lakeBbox.minY
-        );
-        if (distSq < maxDim * maxDim) {
-          score = 1 / (1 + Math.sqrt(distSq));
-        }
-      }
-
-      if (score > bestScore && score > 0) {
-        bestScore = score;
-        bestLakeMatch = lake;
-      }
-    }
+    const bestLakeMatch = findBestLakeMatch(
+      hole,
+      existingLakeFeatures,
+      matchedLakeIds
+    );
 
     if (bestLakeMatch) {
       matchedLakeIds.add(bestLakeMatch.id);
       finalLakes.push({
         ...bestLakeMatch,
         polygon: hole,
+        holes: lakeHoles.length > 0 ? lakeHoles : bestLakeMatch.holes,
       });
     } else {
-      // Create companion lake feature for newly carved hole
+      const id = createUniqueFeatureId(
+        `terr_lake_${Math.round(hole[0].x)}_${Math.round(hole[0].y)}`,
+        usedIds
+      );
+      const lake = createInlandLake(hole, id);
       finalLakes.push({
-        id: `terr_lake_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-        name: 'Inland Caldera Lake',
-        type: 'lake',
-        polygon: hole,
-        color: '#4f728c',
-        description: 'An inland water body carved into the landmass',
-        climateZone: 'temperate',
+        ...lake,
+        holes: lakeHoles.length > 0 ? lakeHoles : undefined,
       });
     }
   }
@@ -372,12 +391,39 @@ export function applySculptOperation(
               [lakeGeo],
               strokeMultiPoly
             ) as GeoMultiPolygon;
-            if (diff && diff.length > 0) {
-              const outerPoints = geoRingToMapPoints(diff[0][0]);
-              if (outerPoints.length >= 3 && calculatePolygonArea(outerPoints) >= minHoleArea) {
+
+            let keptOriginal = false;
+            for (const diffPoly of diff ?? []) {
+              const outerPoints = geoRingToMapPoints(diffPoly[0]);
+              if (
+                outerPoints.length < 3 ||
+                calculatePolygonArea(outerPoints) < minHoleArea
+              ) {
+                continue;
+              }
+
+              const holes = diffPoly
+                .slice(1)
+                .map((ring) => geoRingToMapPoints(ring))
+                .filter(
+                  (hole) => hole.length >= 3 && calculatePolygonArea(hole) >= minHoleArea
+                );
+
+              if (!keptOriginal) {
+                keptOriginal = true;
                 finalLakes.push({
                   ...lake,
                   polygon: outerPoints,
+                  holes: holes.length > 0 ? holes : undefined,
+                });
+              } else {
+                const id = createUniqueFeatureId(
+                  `terr_lake_${Math.round(outerPoints[0].x)}_${Math.round(outerPoints[0].y)}`,
+                  usedIds
+                );
+                finalLakes.push({
+                  ...createInlandLake(outerPoints, id, lake),
+                  holes: holes.length > 0 ? holes : undefined,
                 });
               }
             }
@@ -437,7 +483,8 @@ export function applySculptOperation(
       type: primaryType,
       color: parent.color || VINTAGE_PARCHMENT.landFillHex,
       polygon: primaryPiece.outerRing,
-      holes: primaryPiece.holes.length > 0 ? primaryPiece.holes : undefined,
+      // Inland water is owned by lake features, never duplicated here.
+      holes: undefined,
       climateZone: parent.climateZone || 'temperate',
     };
 
@@ -451,7 +498,7 @@ export function applySculptOperation(
         type: 'island',
         color: parent.color || VINTAGE_PARCHMENT.landFillHex,
         polygon: secPiece.outerRing,
-        holes: secPiece.holes.length > 0 ? secPiece.holes : undefined,
+        holes: undefined,
         climateZone: parent.climateZone || 'temperate',
       });
     }
@@ -481,7 +528,7 @@ export function applySculptOperation(
       type,
       color: VINTAGE_PARCHMENT.landFillHex,
       polygon: piece.outerRing,
-      holes: piece.holes.length > 0 ? piece.holes : undefined,
+      holes: undefined,
       climateZone: 'temperate',
     });
   }

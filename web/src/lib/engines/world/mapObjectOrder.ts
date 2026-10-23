@@ -58,6 +58,7 @@ const BAND_BY_TYPE: Record<MapTerrainType, MapObjectBand> = {
   continent: 'land',
   island: 'land',
   forest: 'biome',
+  jungle: 'biome',
   desert: 'biome',
   tundra: 'biome',
   swamp: 'biome',
@@ -73,6 +74,8 @@ const BAND_BY_TYPE: Record<MapTerrainType, MapObjectBand> = {
   mountain_range: 'range',
   peak: 'range',
   volcano: 'range',
+  highland: 'land',
+  plateau: 'land',
 };
 
 /** The draw band of a terrain type. */
@@ -101,10 +104,13 @@ const GROUP_BY_TYPE: Record<MapTerrainType, MapObjectGroupKey> = {
   mountain_range: 'range',
   peak: 'range',
   volcano: 'range',
+  highland: 'range',
+  plateau: 'range',
   valley: 'valley',
   canyon: 'valley',
   chasm: 'valley',
   forest: 'biome',
+  jungle: 'biome',
   desert: 'biome',
   tundra: 'biome',
   swamp: 'biome',
@@ -200,6 +206,7 @@ export function isTerrainVisibleInLayers(
     case 'river':
       return layers.water;
     case 'forest':
+    case 'jungle':
     case 'desert':
     case 'swamp':
     case 'tundra':
@@ -214,6 +221,8 @@ export function isTerrainVisibleInLayers(
     case 'mountain_range':
     case 'peak':
     case 'volcano':
+    case 'highland':
+    case 'plateau':
       return layers.mountains;
     case 'arcane_anomaly':
       return true;

@@ -6,6 +6,8 @@ import {
   Paintbrush,
   Globe,
   Mountain,
+  Layers,
+  Droplets,
   Waves,
   Split,
   Trees,
@@ -91,6 +93,16 @@ export const CartographerToolbar: React.FC<CartographerToolbarProps> = ({
           accentClass: 'hover:text-orange-400',
         },
         {
+          id: 'terrain_highland',
+          name: { en: 'Highlands & Plateaus', fa: 'فلات و زمین‌های مرتفع' },
+          tooltip: {
+            en: 'Draw flat-topped plateaus, uplands & cliff escarpments (Gerami Uplands style)',
+            fa: 'ترسیم فلات‌ها، زمین‌های مرتفع با سقف صاف و دیواره صخره‌ای',
+          },
+          icon: Layers,
+          accentClass: 'hover:text-amber-500',
+        },
+        {
           id: 'terrain_river',
           name: { en: 'River & Waters', fa: 'رودخانه و آبراهه' },
           tooltip: {
@@ -99,6 +111,16 @@ export const CartographerToolbar: React.FC<CartographerToolbarProps> = ({
           },
           icon: Waves,
           accentClass: 'hover:text-cyan-400',
+        },
+        {
+          id: 'terrain_lake',
+          name: { en: 'Lakes & Inland Waters', fa: 'دریاچه و آبگیر' },
+          tooltip: {
+            en: 'Carve multi-tier depth lakes with shoreline ripple echoes',
+            fa: 'ترسیم دریاچه‌های عمیق با موج‌های ساحلی',
+          },
+          icon: Droplets,
+          accentClass: 'hover:text-sky-400',
         },
         {
           id: 'terrain_valley',

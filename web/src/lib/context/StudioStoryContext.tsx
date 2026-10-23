@@ -44,6 +44,7 @@ import {
 } from '@/lib/utils/idleAutosave';
 import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
 import { withPlaceCategoryMeta } from '@/lib/engines/world/placeCategories';
+import { normalizeLandWaterFeatures } from '@/lib/engines/world/landSculpt/waterFeatures';
 
 // Resolve a reference (entity id OR human-readable name) to the canonical
 // stored entity id. Used by relation CRUD so links created by the AI adviser
@@ -2602,7 +2603,17 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     (updater: (prev: WorldMapData | undefined) => WorldMapData) => {
       updateWorldBible((prev) => {
         const currentMap = prev.mapData || prev.ontology?.mapData;
-        const nextMap = updater(currentMap);
+        // Migrate legacy maps on their first write so every authoring action
+        // operates on the single-water invariant, not on duplicate land holes.
+        const normalizedMap = currentMap
+          ? {
+              ...currentMap,
+              terrainFeatures: normalizeLandWaterFeatures(
+                currentMap.terrainFeatures ?? []
+              ),
+            }
+          : currentMap;
+        const nextMap = updater(normalizedMap);
         return {
           ...prev,
           mapData: nextMap,

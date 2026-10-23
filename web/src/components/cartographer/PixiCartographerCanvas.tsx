@@ -31,10 +31,17 @@ import {
   generateOrganicStamp,
   applySculptOperation,
 } from '@/lib/engines/world/landSculptEngine';
+import { normalizeLandWaterFeatures } from '@/lib/engines/world/landSculpt/waterFeatures';
 import { usePixiEngine } from './canvas/usePixiEngine';
 import { useMapDrafting } from './canvas/useMapDrafting';
 import { CanvasOverlays } from './canvas/CanvasOverlays';
 import { LandSculptHud } from './canvas/LandSculptHud';
+import {
+  GeoToolHud,
+  type HighlandMode,
+  type BiomeType,
+  type BiomeDensity,
+} from './canvas/GeoToolHud';
 
 interface PixiCartographerCanvasProps {
   worldBible: WorldBible;
@@ -208,6 +215,17 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   const geoStrokePointsRef = useRef<MapPoint[]>([]);
   const geoStrokeSeedRef = useRef<number>(42);
 
+  // Geographical tools live HUD state
+  const [highlandMode, setHighlandMode] = useState<HighlandMode>('plateau');
+  const [cliffHeight, setCliffHeight] = useState<number>(22);
+  const [terraceTiers, setTerraceTiers] = useState<number>(1);
+  const [activeBiome, setActiveBiome] = useState<BiomeType>('forest');
+  const [biomeDensity, setBiomeDensity] = useState<BiomeDensity>('medium');
+  const [valleyWidth, setValleyWidth] = useState<number>(28);
+  const [mountainScale, setMountainScale] = useState<number>(55);
+  const [hasSnowcaps, setHasSnowcaps] = useState<boolean>(true);
+  const [riverWidth, setRiverWidth] = useState<number>(11);
+
   const draggedNodeRef = useRef<DraggedNodeData | null>(null);
   const transientPosRef = useRef<MapPoint | null>(null);
   const tradeRoutesRef = useRef(worldBible.tradeRoutes || []);
@@ -225,6 +243,11 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     onAddTerrain,
     onSelectionChange,
     onCancelZoom: cancelZoomBox,
+    activeBiome,
+    highlandMode,
+    cliffHeight,
+    terraceTiers,
+    valleyWidth,
   });
 
   const engineRef = usePixiEngine({
@@ -387,8 +410,14 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       return;
     }
 
-    // Continuous drag-to-draw for Mountains and Rivers
-    if (activeTool === 'terrain_mountain' || activeTool === 'terrain_river') {
+    // Continuous drag-to-draw for Mountains, Rivers, Valleys, and Highland Escarpments
+    const isDragGeoTool =
+      activeTool === 'terrain_mountain' ||
+      activeTool === 'terrain_river' ||
+      activeTool === 'terrain_valley' ||
+      (activeTool === 'terrain_highland' && highlandMode === 'ridge');
+
+    if (isDragGeoTool) {
       isDraggingGeoStrokeRef.current = true;
       geoStrokeSeedRef.current = Math.floor(Math.random() * 100000);
       geoStrokePointsRef.current = [worldPoint];
@@ -396,11 +425,12 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       return;
     }
 
-    // Multi-point drafting tool (continents, valleys, biomes)
+    // Multi-point drafting tool (continents, lakes, biomes, plateau polygons)
     if (
       activeTool === 'terrain_continent' ||
-      activeTool === 'terrain_valley' ||
-      activeTool === 'terrain_biome'
+      activeTool === 'terrain_lake' ||
+      activeTool === 'terrain_biome' ||
+      (activeTool === 'terrain_highland' && highlandMode === 'plateau')
     ) {
       setDraftPoints((prev) => [...prev, worldPoint]);
       return;
@@ -664,10 +694,13 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       }
     }
 
-    // Mountain & River continuous drag-to-draw accumulation (60 FPS local preview)
+    // Mountain, River, Valley & Highland Escarpment continuous drag-to-draw accumulation (60 FPS local preview)
     if (
       isDraggingGeoStrokeRef.current &&
-      (activeTool === 'terrain_mountain' || activeTool === 'terrain_river') &&
+      (activeTool === 'terrain_mountain' ||
+        activeTool === 'terrain_river' ||
+        activeTool === 'terrain_valley' ||
+        (activeTool === 'terrain_highland' && highlandMode === 'ridge')) &&
       engineRef.current
     ) {
       const pts = geoStrokePointsRef.current;
@@ -678,15 +711,28 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         if (activeTool === 'terrain_mountain') {
           engineRef.current.renderMountainStrokePreview(pts, {
             seed: geoStrokeSeedRef.current,
-            scale: 55,
-            rangeWidth: 32,
+            scale: mountainScale,
+            rangeWidth: Math.round(mountainScale * 0.58),
+            hasSnowcaps,
           });
-        } else {
+        } else if (activeTool === 'terrain_river') {
           engineRef.current.renderRiverStrokePreview(pts, {
             seed: geoStrokeSeedRef.current,
             startWidth: 1.2,
-            endWidth: 11.0,
+            endWidth: riverWidth,
             meanderRoughness: 0.3,
+          });
+        } else if (activeTool === 'terrain_valley') {
+          engineRef.current.renderValleyStrokePreview(pts, {
+            seed: geoStrokeSeedRef.current,
+            width: valleyWidth,
+          });
+        } else if (activeTool === 'terrain_highland') {
+          engineRef.current.renderHighlandStrokePreview(pts, {
+            seed: geoStrokeSeedRef.current,
+            cliffHeight,
+            terraceTiers,
+            isPolygon: false,
           });
         }
       }
@@ -780,7 +826,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           {
             locations: worldBible.locations,
             tradeRoutes: worldBible.tradeRoutes,
-            terrainFeatures: bandMapData?.terrainFeatures,
+            terrainFeatures: normalizeLandWaterFeatures(
+              bandMapData?.terrainFeatures ?? []
+            ),
             placements: bandMapData?.placements,
             placeCategories: worldBible.ontology?.placeCategories,
           },
@@ -821,7 +869,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       }
     }
 
-    // Finalize Mountain or River continuous drag stroke
+    // Finalize Mountain, River, Valley, or Highland continuous drag stroke
     if (isDraggingGeoStrokeRef.current) {
       isDraggingGeoStrokeRef.current = false;
       engineRef.current?.clearBrushPreview();
@@ -837,16 +885,41 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       if (strokePts.length >= 2 && totalStrokeDist > 25) {
         const isMountain = activeTool === 'terrain_mountain';
         const isRiver = activeTool === 'terrain_river';
-        if (isMountain || isRiver) {
+        const isValley = activeTool === 'terrain_valley';
+        const isHighlandRidge = activeTool === 'terrain_highland' && highlandMode === 'ridge';
+
+        if (isMountain || isRiver || isValley || isHighlandRidge) {
           const newFeature: MapTerrainFeature = {
             id: `terr_${Date.now().toString(36)}`,
             name: isMountain
               ? (isPersian ? 'رشته‌کوه کهن' : 'Ancient Mountain Ridge')
-              : (isPersian ? 'رودخانه خروشان' : 'Winding River'),
-            type: isMountain ? 'mountain_range' : 'river',
+              : isRiver
+              ? (isPersian ? 'رودخانه خروشان' : 'Winding River')
+              : isValley
+              ? (isPersian ? 'دره و شکاف زمین' : 'Rift Valley')
+              : (isPersian ? 'دیواره صخره‌ای و فلات' : 'Highland Escarpment'),
+            type: isMountain
+              ? 'mountain_range'
+              : isRiver
+              ? 'river'
+              : isValley
+              ? 'valley'
+              : 'highland',
             points: strokePts,
-            elevation: isMountain ? 3200 : 150,
-            width: isMountain ? 28 : 10,
+            elevation: isMountain
+              ? (hasSnowcaps ? 3200 : 2000)
+              : isRiver
+              ? 150
+              : isValley
+              ? -200
+              : (terraceTiers > 1 ? 1800 : 800),
+            width: isMountain
+              ? Math.round(mountainScale * 0.58)
+              : isRiver
+              ? riverWidth
+              : isValley
+              ? valleyWidth
+              : cliffHeight,
           };
           onAddTerrain(newFeature);
           onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
@@ -965,6 +1038,30 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           stopOverlayMouse={stopOverlayMouse}
         />
       )}
+
+      <GeoToolHud
+        activeTool={activeTool}
+        isPersian={isPersian}
+        stopOverlayMouse={stopOverlayMouse}
+        highlandMode={highlandMode}
+        onHighlandModeChange={setHighlandMode}
+        cliffHeight={cliffHeight}
+        onCliffHeightChange={setCliffHeight}
+        terraceTiers={terraceTiers}
+        onTerraceTiersChange={setTerraceTiers}
+        activeBiome={activeBiome}
+        onBiomeChange={setActiveBiome}
+        biomeDensity={biomeDensity}
+        onBiomeDensityChange={setBiomeDensity}
+        valleyWidth={valleyWidth}
+        onValleyWidthChange={setValleyWidth}
+        mountainScale={mountainScale}
+        onMountainScaleChange={setMountainScale}
+        hasSnowcaps={hasSnowcaps}
+        onToggleSnowcaps={() => setHasSnowcaps((v) => !v)}
+        riverWidth={riverWidth}
+        onRiverWidthChange={setRiverWidth}
+      />
     </div>
   );
 };

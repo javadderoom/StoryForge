@@ -19,6 +19,18 @@ import {
   generateProceduralRiver,
   type ProceduralRiver,
 } from './riverGenerator';
+import {
+  generateProceduralHighland,
+  type ProceduralHighland,
+} from './highlandGenerator';
+import {
+  generateBiomeSymbols,
+  type BiomeFeatureSymbols,
+} from './biomeSymbolGenerator';
+import {
+  generateProceduralValley,
+  type ProceduralValley,
+} from './valleyGenerator';
 
 export function renderTerrain(
   g: Graphics,
@@ -37,14 +49,19 @@ export function renderTerrain(
       case 'island':
         drawLandmass(g, feat, fill);
         break;
+      case 'highland':
+      case 'plateau':
+        drawHighland(g, feat, fill);
+        break;
       case 'ocean':
       case 'sea':
         drawWaterBody(g, feat, 'ocean', fill);
         break;
       case 'lake':
-        drawWaterBody(g, feat, 'water', fill);
+        drawLake(g, feat, fill);
         break;
       case 'forest':
+      case 'jungle':
       case 'desert':
       case 'swamp':
       case 'tundra':
@@ -91,19 +108,12 @@ function drawLandmass(g: Graphics, feat: MapTerrainFeature, fill: FillWithMateri
   g.poly(flatPoints).stroke({ width: 5.5, color: VINTAGE_PARCHMENT.coastlineGlow, alpha: 0.45 });
   g.poly(flatPoints).stroke({ width: 11, color: VINTAGE_PARCHMENT.coastlineHatch, alpha: 0.15 });
 
-  // Interior carved water holes (lakes, inland seas, straits)
-  for (const hole of feat.holes ?? []) {
-    if (hole.length <= 2) continue;
-    const holePoints = generateOrganicParchmentContours(hole, 2);
-    const holeFlat = toFlatPoints(holePoints);
-
-    fill(g, holeFlat, 'water', VINTAGE_PARCHMENT.oceanWash, 1);
-    g.poly(holeFlat).stroke({ width: 2.0, color: VINTAGE_PARCHMENT.coastlineInk });
-    g.poly(holeFlat).stroke({ width: 4.5, color: VINTAGE_PARCHMENT.coastlineGlow, alpha: 0.35 });
-  }
+  // Inland water is drawn only by its lake feature. A landmass no longer owns
+  // a duplicate water hole, which is what made a carved lake appear twice: once
+  // as a selectable lake and once as an unselectable gap in the land.
 }
 
-/** Standing water: lakes, inland seas and open-ocean sheets. */
+/** Standing water: open-ocean sheets and large seas. */
 function drawWaterBody(
   g: Graphics,
   feat: MapTerrainFeature,
@@ -115,18 +125,176 @@ function drawWaterBody(
   const flatPoints = toFlatPoints(points);
 
   fill(g, flatPoints, material, VINTAGE_PARCHMENT.oceanWash, 1);
+
+  // A lake can contain an island. Cut those islands out of the water fill so
+  // the land underneath (drawn in the land band) stays visible.
+  for (const hole of feat.holes ?? []) {
+    if (hole.length <= 2) continue;
+    const holePoints = generateOrganicParchmentContours(hole, 2);
+    g.poly(toFlatPoints(holePoints)).cut();
+  }
+
   g.poly(flatPoints).stroke({ width: 2.0, color: VINTAGE_PARCHMENT.coastlineInk });
   g.poly(flatPoints).stroke({ width: 4.5, color: VINTAGE_PARCHMENT.coastlineGlow, alpha: 0.35 });
 }
 
-/** Biomes: translucent washes laid over the land. */
-function drawBiome(g: Graphics, feat: MapTerrainFeature, fill: FillWithMaterial): void {
+/**
+ * Lakes: hand-inked fantasy manuscript lakes with multi-tier depth wash
+ * (shallow turquoise shelf + deep indigo core) and shoreline wave echo rings.
+ */
+export function drawLake(
+  g: Graphics,
+  feat: MapTerrainFeature,
+  fill: FillWithMaterial
+): void {
+  if (!feat.polygon || feat.polygon.length <= 2) return;
+  const points = generateOrganicParchmentContours(feat.polygon, 2);
+  const flatPoints = toFlatPoints(points);
+
+  // 1. Shallow coastal shelf wash
+  fill(g, flatPoints, 'water', VINTAGE_PARCHMENT.lakeShallow, 1);
+
+  // 2. Deep lake shelf / center bathymetric depression
+  if (points.length >= 4) {
+    let cx = 0;
+    let cy = 0;
+    for (const p of points) {
+      cx += p.x;
+      cy += p.y;
+    }
+    cx /= points.length;
+    cy /= points.length;
+
+    const deepPoints = points.map((p) => ({
+      x: cx + (p.x - cx) * 0.65,
+      y: cy + (p.y - cy) * 0.65,
+    }));
+    const deepFlat = toFlatPoints(deepPoints);
+    g.poly(deepFlat).fill({ color: VINTAGE_PARCHMENT.lakeDeep, alpha: 0.55 });
+    g.poly(deepFlat).stroke({ width: 1.0, color: VINTAGE_PARCHMENT.coastlineInk, alpha: 0.25 });
+  }
+
+  // 3. Hand-inked primary dark coastline
+  g.poly(flatPoints).stroke({ width: 2.0, color: VINTAGE_PARCHMENT.coastlineInk });
+
+  // 4. Shoreline wave echo rings
+  g.poly(flatPoints).stroke({ width: 4.8, color: VINTAGE_PARCHMENT.coastlineGlow, alpha: 0.4 });
+  g.poly(flatPoints).stroke({ width: 9.5, color: VINTAGE_PARCHMENT.coastlineHatch, alpha: 0.16 });
+}
+
+/**
+ * Highlands and Plateaus / Mesas: elevated flat table surface, shaded cliff drop,
+ * and rock strata hatching matching the Gerami Uplands style.
+ */
+export function drawHighland(
+  g: Graphics,
+  feat: MapTerrainFeature,
+  fill: FillWithMaterial
+): void {
+  const points =
+    feat.polygon && feat.polygon.length >= 3
+      ? feat.polygon
+      : feat.points && feat.points.length >= 2
+      ? feat.points
+      : null;
+
+  if (!points) return;
+
+  const isPolygon = Boolean(feat.polygon && feat.polygon.length >= 3);
+  const seed = hashStringToSeed(feat.id || `highland_${points[0].x}_${points[0].y}`);
+  const cliffHeight = feat.width ? Math.max(10, Math.min(60, feat.width)) : 22;
+  const terraceTiers = feat.elevation && feat.elevation > 1500 ? 2 : 1;
+
+  const highland = generateProceduralHighland(points, {
+    seed,
+    cliffHeight,
+    terraceTiers,
+    isPolygon,
+  });
+
+  renderProceduralHighlandToGraphics(g, highland, fill);
+}
+
+/**
+ * Renders a ProceduralHighland geometry object onto a Pixi Graphics context.
+ */
+export function renderProceduralHighlandToGraphics(
+  g: Graphics,
+  highland: ProceduralHighland,
+  fill: FillWithMaterial
+): void {
+  // 1. Shaded Cliff Drop Face (behind / underneath the rim)
+  if (highland.cliffDropPolygon.length >= 3) {
+    g.poly(toFlatPoints(highland.cliffDropPolygon)).fill({
+      color: VINTAGE_PARCHMENT.highlandCliff,
+      alpha: 0.72,
+    });
+  }
+
+  // 2. Rock Strata Hatching Lines along cliff drop face
+  for (const [start, end] of highland.strataHatches) {
+    g.moveTo(start.x, start.y).lineTo(end.x, end.y);
+  }
+  if (highland.strataHatches.length > 0) {
+    g.stroke({
+      width: 1.15,
+      color: VINTAGE_PARCHMENT.highlandHatch,
+      alpha: 0.78,
+      cap: 'round',
+    });
+  }
+
+  // 3. Elevated Flat Table Surface Polygon
+  if (highland.tablePolygon.length >= 3) {
+    const tableFlat = toFlatPoints(highland.tablePolygon);
+    fill(g, tableFlat, 'land', VINTAGE_PARCHMENT.highlandTop, 1);
+  }
+
+  // 4. Hand-inked Upper Cliff Rim Lip
+  if (highland.rimPath.length >= 2) {
+    g.moveTo(highland.rimPath[0].x, highland.rimPath[0].y);
+    for (let i = 1; i < highland.rimPath.length; i++) {
+      g.lineTo(highland.rimPath[i].x, highland.rimPath[i].y);
+    }
+    g.stroke({
+      width: 2.0,
+      color: VINTAGE_PARCHMENT.mountainInk,
+      cap: 'round',
+      join: 'round',
+    });
+  }
+
+  // 5. Secondary Terrace Step Contours (if multi-tiered)
+  if (highland.terraceContours) {
+    for (const contour of highland.terraceContours) {
+      if (contour.length >= 2) {
+        g.moveTo(contour[0].x, contour[0].y);
+        for (let i = 1; i < contour.length; i++) {
+          g.lineTo(contour[i].x, contour[i].y);
+        }
+        g.stroke({
+          width: 1.2,
+          color: VINTAGE_PARCHMENT.coastlineHatch,
+          alpha: 0.55,
+          cap: 'round',
+          join: 'round',
+        });
+      }
+    }
+  }
+}
+
+/** Biomes: translucent washes laid over the land plus procedural hand-inked flora/symbols. */
+export function drawBiome(g: Graphics, feat: MapTerrainFeature, fill: FillWithMaterial): void {
   if (!feat.polygon || feat.polygon.length <= 2) return;
   const flatPoints = toFlatPoints(feat.polygon);
 
   let color: number = VINTAGE_PARCHMENT.biomeForest;
   let material: MapMaterialKey = 'forest';
-  if (feat.type === 'desert') {
+  if (feat.type === 'jungle') {
+    color = VINTAGE_PARCHMENT.biomeJungle;
+    material = 'forest';
+  } else if (feat.type === 'desert') {
     color = VINTAGE_PARCHMENT.biomeDesert;
     material = 'desert';
   } else if (feat.type === 'swamp') {
@@ -146,8 +314,120 @@ function drawBiome(g: Graphics, feat: MapTerrainFeature, fill: FillWithMaterial)
     material = 'plains';
   }
 
+  // 1. Soft watercolor wash tint
   fill(g, flatPoints, material, color, 0.35);
   g.poly(flatPoints).stroke({ width: 1, color, alpha: 0.6 });
+
+  // 2. Procedural Hand-inked Symbols (Trees, Sand Dunes, Marsh Reeds)
+  const seed = hashStringToSeed(feat.id || `biome_${feat.polygon[0].x}_${feat.polygon[0].y}`);
+  const symbols = generateBiomeSymbols(feat.polygon, feat.type, {
+    seed,
+    density: 'medium',
+  });
+
+  renderBiomeSymbolsToGraphics(g, symbols, feat.type);
+}
+
+/**
+ * Renders procedural biome symbols (hand-inked trees, dune ridges, marsh reeds).
+ */
+export function renderBiomeSymbolsToGraphics(
+  g: Graphics,
+  symbols: BiomeFeatureSymbols,
+  biomeType: string
+): void {
+  // 1. Sand Dunes (Desert / Wasteland)
+  for (const dune of symbols.sandDunes) {
+    if (dune.shadowPoly.length >= 3) {
+      g.poly(toFlatPoints(dune.shadowPoly)).fill({
+        color: VINTAGE_PARCHMENT.duneShade,
+        alpha: 0.55,
+      });
+    }
+    if (dune.crestPath.length >= 2) {
+      g.moveTo(dune.crestPath[0].x, dune.crestPath[0].y);
+      for (let i = 1; i < dune.crestPath.length; i++) {
+        g.lineTo(dune.crestPath[i].x, dune.crestPath[i].y);
+      }
+      g.stroke({
+        width: 1.2,
+        color: VINTAGE_PARCHMENT.primaryInk,
+        cap: 'round',
+        join: 'round',
+        alpha: 0.85,
+      });
+    }
+  }
+
+  // 2. Marsh Reeds (Swamp)
+  for (const tuft of symbols.marshReeds) {
+    for (const [start, end] of tuft.blades) {
+      g.moveTo(start.x, start.y).lineTo(end.x, end.y);
+    }
+  }
+  if (symbols.marshReeds.length > 0) {
+    g.stroke({
+      width: 1.2,
+      color: VINTAGE_PARCHMENT.marshReed,
+      cap: 'round',
+      alpha: 0.85,
+    });
+  }
+
+  // 3. Trees (Forest / Jungle / Oasis / Tundra)
+  // Trees are already strictly Y-sorted in generateBiomeSymbols!
+  for (const tree of symbols.trees) {
+    // Small Trunk
+    g.moveTo(tree.trunk[0].x, tree.trunk[0].y)
+      .lineTo(tree.trunk[1].x, tree.trunk[1].y)
+      .stroke({
+        width: 1.5,
+        color: VINTAGE_PARCHMENT.treeTrunk,
+        cap: 'round',
+      });
+
+    // Sunlit Crown (West lobe)
+    if (tree.crownPoly.length >= 3) {
+      g.poly(toFlatPoints(tree.crownPoly)).fill({
+        color:
+          biomeType === 'jungle'
+            ? VINTAGE_PARCHMENT.biomeJungle
+            : biomeType === 'tundra'
+            ? 0x5a6e5e
+            : VINTAGE_PARCHMENT.treeCrownHighlight,
+      });
+    }
+
+    // Shaded East lobe
+    if (tree.shadowPoly.length >= 3) {
+      g.poly(toFlatPoints(tree.shadowPoly)).fill({
+        color: VINTAGE_PARCHMENT.treeCrownShadow,
+        alpha: 0.75,
+      });
+    }
+
+    // Outer inked contour
+    if (tree.crownPoly.length >= 3) {
+      g.poly(toFlatPoints(tree.crownPoly)).stroke({
+        width: 1.0,
+        color: VINTAGE_PARCHMENT.mountainInk,
+        alpha: 0.85,
+      });
+    }
+
+    // Shadow hatch lines on eastern lobe
+    for (const [start, end] of tree.hatchLines) {
+      g.moveTo(start.x, start.y).lineTo(end.x, end.y);
+    }
+    if (tree.hatchLines.length > 0) {
+      g.stroke({
+        width: 0.85,
+        color: VINTAGE_PARCHMENT.mountainInk,
+        alpha: 0.65,
+        cap: 'round',
+      });
+    }
+  }
 }
 
 /**
@@ -209,29 +489,88 @@ export function renderProceduralRiverToGraphics(g: Graphics, river: ProceduralRi
 }
 
 /**
- * Valleys, canyons and chasms: a dark cleft with a hand-inked lip.
+ * Valleys, canyons and chasms: sunken rift gorge with dual fault rims,
+ * dark floor crevasse, and inward rock strata hatching.
  */
-function drawValley(g: Graphics, feat: MapTerrainFeature): void {
+export function drawValley(g: Graphics, feat: MapTerrainFeature): void {
   if (!feat.points || feat.points.length < 2) return;
-  const pts = feat.points;
-  g.moveTo(pts[0].x, pts[0].y);
-  for (let i = 1; i < pts.length; i++) {
-    g.lineTo(pts[i].x, pts[i].y);
-  }
-  g.stroke({
+
+  const seed = hashStringToSeed(feat.id || `valley_${feat.points[0].x}_${feat.points[0].y}`);
+  const valley = generateProceduralValley(feat.points, {
+    seed,
     width: feat.width || 28,
-    color: VINTAGE_PARCHMENT.valleyInk,
-    alpha: 0.28,
-    cap: 'round',
-    join: 'round',
   });
-  g.stroke({
-    width: 2,
-    color: VINTAGE_PARCHMENT.valleyInk,
-    alpha: 0.85,
-    cap: 'round',
-    join: 'round',
-  });
+
+  renderProceduralValleyToGraphics(g, valley);
+}
+
+/**
+ * Renders a ProceduralValley geometry object onto a Pixi Graphics context.
+ */
+export function renderProceduralValleyToGraphics(g: Graphics, valley: ProceduralValley): void {
+  // 1. Sunken Gorge Shadow Floor
+  if (valley.gorgePolygon.length >= 3) {
+    g.poly(toFlatPoints(valley.gorgePolygon)).fill({
+      color: VINTAGE_PARCHMENT.canyonFloor,
+      alpha: 0.6,
+    });
+  }
+
+  // 2. Inward Cliff Strata Hatching
+  for (const [start, end] of valley.strataHatches) {
+    g.moveTo(start.x, start.y).lineTo(end.x, end.y);
+  }
+  if (valley.strataHatches.length > 0) {
+    g.stroke({
+      width: 1.1,
+      color: VINTAGE_PARCHMENT.canyonLip,
+      alpha: 0.7,
+      cap: 'round',
+    });
+  }
+
+  // 3. Bottom Central Crevasse Cleft Line
+  if (valley.centerCrevasse.length >= 2) {
+    g.moveTo(valley.centerCrevasse[0].x, valley.centerCrevasse[0].y);
+    for (let i = 1; i < valley.centerCrevasse.length; i++) {
+      g.lineTo(valley.centerCrevasse[i].x, valley.centerCrevasse[i].y);
+    }
+    g.stroke({
+      width: 1.6,
+      color: VINTAGE_PARCHMENT.mountainCrag,
+      alpha: 0.85,
+      cap: 'round',
+      join: 'round',
+    });
+  }
+
+  // 4. North/West Left Fault Rim Lip
+  if (valley.leftRim.length >= 2) {
+    g.moveTo(valley.leftRim[0].x, valley.leftRim[0].y);
+    for (let i = 1; i < valley.leftRim.length; i++) {
+      g.lineTo(valley.leftRim[i].x, valley.leftRim[i].y);
+    }
+    g.stroke({
+      width: 1.4,
+      color: VINTAGE_PARCHMENT.primaryInk,
+      cap: 'round',
+      join: 'round',
+    });
+  }
+
+  // 5. South/East Right Fault Rim Lip
+  if (valley.rightRim.length >= 2) {
+    g.moveTo(valley.rightRim[0].x, valley.rightRim[0].y);
+    for (let i = 1; i < valley.rightRim.length; i++) {
+      g.lineTo(valley.rightRim[i].x, valley.rightRim[i].y);
+    }
+    g.stroke({
+      width: 1.4,
+      color: VINTAGE_PARCHMENT.primaryInk,
+      cap: 'round',
+      join: 'round',
+    });
+  }
 }
 
 /**
