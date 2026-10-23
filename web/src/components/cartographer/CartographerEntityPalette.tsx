@@ -25,6 +25,7 @@ import {
   ArrowDown,
   Trash2,
   AlertTriangle,
+  Link2,
 } from 'lucide-react';
 import {
   WorldBible,
@@ -41,6 +42,7 @@ import {
   type MapObjectGroupKey,
 } from '@/lib/engines/world/mapObjectOrder';
 import { getMapSemanticReconciliation } from '@/lib/engines/world/mapSemantics';
+import { resolvePlaceCategoryMeta } from '@/lib/engines/world/placeCategories';
 
 interface CartographerEntityPaletteProps {
   worldBible: WorldBible;
@@ -110,6 +112,7 @@ export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps>
   const [draftName, setDraftName] = useState('');
 
   const locations = worldBible.locations || [];
+  const placeCategories = worldBible.ontology?.placeCategories ?? [];
   const npcs = worldBible.npcs || [];
   const creatures = worldBible.bestiary || [];
   const artifacts = worldBible.artifacts || [];
@@ -260,6 +263,31 @@ export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps>
                     {isPersian
                       ? `${reconciliation.missingPlaceLinks.length} عارضه به مکان حذف‌شده اشاره می‌کند.`
                       : `${reconciliation.missingPlaceLinks.length} terrain feature(s) link to a missing place.`}
+                  </div>
+                )}
+
+                {reconciliation.unlinkedPlaces.length > 0 && (
+                  <div className="mt-1.5 space-y-1">
+                    {reconciliation.unlinkedPlaces.slice(0, 4).map((place) => (
+                      <button
+                        key={place.id}
+                        onClick={() => onSelectMapObject?.({ type: 'location', data: place })}
+                        className="w-full flex items-center gap-1.5 px-1.5 py-1 rounded-lg bg-amber-500/5 border border-amber-500/20 text-left text-[10px] text-amber-100/90 hover:bg-amber-500/15 hover:border-amber-500/40 transition-colors"
+                      >
+                        <Link2 className="w-3 h-3 shrink-0" />
+                        <span className="truncate flex-1">{place.name}</span>
+                        <span className="shrink-0 font-mono text-[9px] uppercase tracking-wide text-amber-300/80">
+                          {isPersian ? 'اتصال' : 'Pair'}
+                        </span>
+                      </button>
+                    ))}
+                    {reconciliation.unlinkedPlaces.length > 4 && (
+                      <div className="px-1 text-[9px] text-amber-200/60">
+                        {isPersian
+                          ? `و ${reconciliation.unlinkedPlaces.length - 4} مکان دیگر`
+                          : `+${reconciliation.unlinkedPlaces.length - 4} more`}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -522,6 +550,8 @@ export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps>
               .filter((loc) => !filterQuery || loc.name.toLowerCase().includes(filterQuery) || loc.region?.toLowerCase().includes(filterQuery))
               .map((loc) => {
                 const isPlaced = loc.coordinates && loc.coordinates.x > 0;
+                const isGeometryPlace =
+                  resolvePlaceCategoryMeta(loc.category, placeCategories).renderAs !== 'settlement';
                 return (
                   <div
                     key={loc.id}
@@ -544,6 +574,15 @@ export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps>
                         {loc.region || (isPersian ? 'منطقه نامشخص' : 'Unknown region')} • {isPersian ? `سطح خطر ${loc.dangerLevel}` : `Danger ${loc.dangerLevel}`}
                       </div>
                     </div>
+                    {isGeometryPlace && (
+                      <button
+                        onClick={() => onSelectMapObject?.({ type: 'location', data: loc })}
+                        title={isPersian ? 'اتصال عارضه موجود' : 'Link existing terrain'}
+                        className="p-1.5 bg-zinc-900 hover:bg-emerald-500/15 text-zinc-500 hover:text-emerald-300 border border-zinc-800 hover:border-emerald-500/30 rounded-xl transition-all shrink-0"
+                      >
+                        <Link2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     <button
                       onClick={() => onSelectEntityForPlacement('location', loc.id)}
                       className="px-2 py-1 bg-amber-500/15 hover:bg-amber-500 text-amber-300 hover:text-zinc-950 border border-amber-500/30 rounded-xl text-xs font-medium transition-all shrink-0"

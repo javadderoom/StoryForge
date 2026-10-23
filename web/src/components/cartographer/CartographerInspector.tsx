@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Castle,
   Route,
@@ -15,6 +15,8 @@ import {
   Lock,
   Unlock,
   Snowflake,
+  Link2,
+  Unlink,
 } from 'lucide-react';
 import {
   WorldLocation,
@@ -28,6 +30,10 @@ import {
 } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import { resolvePlaceCategoryMeta } from '@/lib/engines/world/placeCategories';
+import {
+  findTerrainCandidatesForPlace,
+  placeAcceptsTerrainType,
+} from '@/lib/engines/world/terrainPlacePairing';
 
 export type SelectedMapItem =
   | { type: 'location'; data: WorldLocation }
@@ -95,6 +101,15 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
   terrainFeatures,
   isPersian,
 }) => {
+  // The picker is keyed by location, not a bare boolean: switching selection
+  // closes it automatically, so a candidate chosen for one place can never be
+  // attributed to another.
+  const [candidatePickerLocationId, setCandidatePickerLocationId] = useState<string | null>(null);
+  const selectedLocationId =
+    selectedItem?.type === 'location' ? selectedItem.data.id : null;
+  const showTerrainCandidates =
+    selectedLocationId !== null && candidatePickerLocationId === selectedLocationId;
+
   if (!selectedItem) return null;
 
   return (
@@ -139,6 +154,11 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
             ];
         const categoryMeta = resolvePlaceCategoryMeta(loc.category, placeCategories);
         const linkedFeatures = terrainFeatures.filter((feature) => feature.locationId === loc.id);
+        const terrainCandidates = findTerrainCandidatesForPlace(
+          loc,
+          terrainFeatures,
+          placeCategories
+        );
 
         return (
           <div className="space-y-4 text-xs">
@@ -222,9 +242,23 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
                   linkedFeatures.map((feature) => (
                     <span
                       key={feature.id}
-                      className="text-[10px] px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300"
+                      className="inline-flex items-center gap-1 text-[10px] pl-2 pr-1 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300"
                     >
-                      {feature.name}
+                      <span className="max-w-[150px] truncate">{feature.name}</span>
+                      <button
+                        onClick={() => {
+                          onUpdateTerrain(feature.id, { locationId: undefined });
+                          notify.info(
+                            isPersian
+                              ? 'اتصال عارضه از این مکان برداشته شد'
+                              : 'Terrain link removed'
+                          );
+                        }}
+                        title={isPersian ? 'برداشتن اتصال' : 'Unlink terrain'}
+                        className="p-0.5 rounded-md text-emerald-400/70 hover:text-white hover:bg-emerald-500/20 transition-colors"
+                      >
+                        <Unlink className="w-2.5 h-2.5" />
+                      </button>
                     </span>
                   ))
                 ) : (
@@ -233,6 +267,88 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
                   </span>
                 )}
               </div>
+
+              {categoryMeta.renderAs !== 'settlement' && (
+                <div className="mt-2 space-y-1.5">
+                  <button
+                    onClick={() =>
+                      setCandidatePickerLocationId((current) =>
+                        current === loc.id ? null : loc.id
+                      )
+                    }
+                    className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl border text-[11px] font-medium transition-all ${
+                      showTerrainCandidates
+                        ? 'bg-amber-500/15 border-amber-500/40 text-amber-200'
+                        : 'bg-zinc-900/70 border-zinc-800 text-zinc-300 hover:border-amber-500/35 hover:text-amber-200'
+                    }`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Link2 className="w-3.5 h-3.5" />
+                      {isPersian ? 'اتصال یک عارضه موجود' : 'Link existing terrain'}
+                    </span>
+                    {terrainCandidates.length > 0 && (
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-zinc-950/60 border border-zinc-800">
+                        {terrainCandidates.length}
+                      </span>
+                    )}
+                  </button>
+
+                  {showTerrainCandidates && (
+                    <div className="space-y-1 p-1.5 rounded-2xl border border-zinc-800/80 bg-zinc-900/50 max-h-52 overflow-y-auto scrollbar-thin">
+                      {terrainCandidates.length === 0 ? (
+                        <p className="px-1.5 py-1 text-[10px] leading-relaxed text-zinc-500">
+                          {isPersian
+                            ? 'عارضه بدون اتصال و سازگاری پیدا نشد. یک عارضه از نوع مناسب برای این مکان رسم کنید.'
+                            : 'No unlinked compatible terrain. Draw the appropriate feature for this place first.'}
+                        </p>
+                      ) : (
+                        terrainCandidates.map((candidate) => {
+                          const reason =
+                            candidate.nameMatch === 'exact'
+                              ? (isPersian ? 'نام یکسان' : 'Exact name')
+                              : candidate.nameMatch === 'contains'
+                              ? (isPersian ? 'نام مرتبط' : 'Related name')
+                              : candidate.distance !== null
+                              ? (isPersian ? 'نزدیک مکان' : 'Near the place pin')
+                              : (isPersian ? 'هندسه سازگار' : 'Compatible geometry');
+                          const distance =
+                            candidate.distance !== null
+                              ? ` · ${Math.round(candidate.distance)}u`
+                              : '';
+
+                          return (
+                            <button
+                              key={candidate.feature.id}
+                              onClick={() => {
+                                onUpdateTerrain(candidate.feature.id, { locationId: loc.id });
+                                notify.success(
+                                  isPersian
+                                    ? `عارضه «${candidate.feature.name}» به این مکان متصل شد`
+                                    : `"${candidate.feature.name}" linked to this place`
+                                );
+                                setCandidatePickerLocationId(null);
+                              }}
+                              className="w-full text-left p-2 rounded-xl bg-zinc-950/70 border border-zinc-800/80 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-semibold text-zinc-200 truncate">
+                                  {candidate.feature.name}
+                                </span>
+                                <span className="text-[9px] uppercase tracking-wide text-emerald-400/80 font-mono shrink-0">
+                                  {candidate.feature.type}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-zinc-500 mt-0.5">
+                                {reason}{distance}
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Atmosphere Keywords */}
@@ -499,6 +615,16 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
       {/* ----------------- TERRAIN FEATURE INSPECTOR ----------------- */}
       {selectedItem.type === 'terrain' && (() => {
         const feature = selectedItem.data;
+        const compatibleLocations = locations.filter((location) =>
+          placeAcceptsTerrainType(location, feature.type, placeCategories)
+        );
+        const compatibleIds = new Set(compatibleLocations.map((location) => location.id));
+        const otherLocations = locations.filter((location) => !compatibleIds.has(location.id));
+        const linkedLocation = feature.locationId
+          ? locations.find((location) => location.id === feature.locationId)
+          : undefined;
+        const linkedToMissingPlace = Boolean(feature.locationId && !linkedLocation);
+        const linkedToIncompatiblePlace = Boolean(linkedLocation && !compatibleIds.has(linkedLocation.id));
 
         return (
           <div className="space-y-4 text-xs">
@@ -585,17 +711,46 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
                 className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500/50 cursor-pointer"
               >
                 <option value="">{isPersian ? 'بدون مکان روایی' : 'No narrative place'}</option>
-                {feature.locationId && !locations.some((loc) => loc.id === feature.locationId) && (
+                {linkedToMissingPlace && (
                   <option value={feature.locationId}>
                     {feature.locationId} ({isPersian ? 'ناموجود' : 'missing'})
                   </option>
                 )}
-                {locations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.name}
-                  </option>
-                ))}
+                {compatibleLocations.length > 0 && (
+                  <optgroup label={isPersian ? 'مکان‌های سازگار' : 'Compatible places'}>
+                    {compatibleLocations.map((location) => (
+                      <option key={location.id} value={location.id}>
+                        {location.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {otherLocations.length > 0 && (
+                  <optgroup label={isPersian ? 'سایر مکان‌ها' : 'Other places'}>
+                    {otherLocations.map((location) => (
+                      <option key={location.id} value={location.id}>
+                        {location.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
+              <p className="mt-1 text-[10px] leading-relaxed text-zinc-500">
+                {compatibleLocations.length > 0
+                  ? isPersian
+                    ? `${compatibleLocations.length} مکان سازگار با هندسه ${feature.type} در ابتدا فهرست شده است.`
+                    : `${compatibleLocations.length} place(s) compatible with ${feature.type} geometry are listed first.`
+                  : isPersian
+                  ? `هیچ مکانی با هندسه ${feature.type} سازگار نیست.`
+                  : `No place currently accepts ${feature.type} geometry.`}
+              </p>
+              {linkedToIncompatiblePlace && (
+                <p className="mt-1 text-[10px] leading-relaxed text-amber-300/90">
+                  {isPersian
+                    ? 'مکان متصل از دسته‌ای است که معمولاً با این نوع هندسه ترسیم نمی‌شود.'
+                    : 'The linked place belongs to a category that normally does not use this geometry.'}
+                </p>
+              )}
             </div>
 
             <div>
