@@ -34,6 +34,7 @@ export function renderRoutes(
     if (!settings.visibleLayers.caravanRoutes) return;
 
     for (const route of tradeRoutes) {
+      if (!isObjectVisible(route)) continue;
       const orig = locations.find((l) => l.id === route.originLocationId);
       const dest = locations.find((l) => l.id === route.destinationLocationId);
       if (!orig?.coordinates || !dest?.coordinates) continue;
@@ -122,6 +123,7 @@ export function renderSettlements(
   if (!settings.visibleLayers.settlements && !settings.visibleLayers.labels) return;
 
   for (const loc of locations) {
+    if (!isObjectVisible(loc)) continue;
     const meta = resolvePlaceCategoryMeta(loc.category, placeCategories);
     const isPoint = meta.renderAs === 'settlement';
     const isDragged = draggedNode?.type === 'location' && draggedNode.id === loc.id;

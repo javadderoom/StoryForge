@@ -27,6 +27,7 @@ import {
   Wand2,
   Undo2,
   Redo2,
+  ListTree,
 } from 'lucide-react';
 import { WorldMapSettings, MapStyleTheme } from '@/lib/types';
 
@@ -81,6 +82,8 @@ interface CartographerHeaderProps {
   redoLabel?: string | null;
   onToggleLayerPanel: () => void;
   isLayerPanelOpen: boolean;
+  onToggleElementsPanel: () => void;
+  isElementsPanelOpen: boolean;
   onTogglePalette: () => void;
   isPaletteOpen: boolean;
   isPersian: boolean;
@@ -125,6 +128,8 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
   redoLabel,
   onToggleLayerPanel,
   isLayerPanelOpen,
+  onToggleElementsPanel,
+  isElementsPanelOpen,
   onTogglePalette,
   isPaletteOpen,
   isPersian,
@@ -229,6 +234,20 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
         >
           <Layers className="w-3.5 h-3.5" />
           <span>{isPersian ? 'لایه‌ها' : 'Layers'}</span>
+        </button>
+
+        {/* Elements List Toggle */}
+        <button
+          onClick={onToggleElementsPanel}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium transition-colors ${
+            isElementsPanelOpen
+              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+          }`}
+          title={isPersian ? 'فهرست المنت‌ها و اجزای نقشه' : 'Map Elements List'}
+        >
+          <ListTree className="w-3.5 h-3.5" />
+          <span>{isPersian ? 'المنت‌ها' : 'Elements'}</span>
         </button>
 
         {/* Entity Palette Toggle */}

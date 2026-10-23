@@ -231,6 +231,7 @@ export function buildMapHitCandidates(input: MapHitCandidateInput): MapHitCandid
   const routes = input.tradeRoutes ?? [];
 
   for (const loc of locations) {
+    if (!isObjectVisible(loc) || isObjectLocked(loc)) continue;
     // x <= 0 is the "not placed on the map" sentinel; the renderer skips those
     // settlements, so they must not be pickable at the left edge either.
     if (isPointPlaceCategory(loc.category, input.placeCategories)) {
@@ -257,6 +258,7 @@ export function buildMapHitCandidates(input: MapHitCandidateInput): MapHitCandid
   }
 
   for (const route of routes) {
+    if (!isObjectVisible(route) || isObjectLocked(route)) continue;
     const origin = locations.find((l) => l.id === route.originLocationId);
     const dest = locations.find((l) => l.id === route.destinationLocationId);
     // A route without both endpoint coordinates is not drawn. Its waypoint

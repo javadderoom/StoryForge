@@ -21,6 +21,7 @@ import { CartographerToolbar } from '@/components/cartographer/CartographerToolb
 import { PixiCartographerCanvas } from '@/components/cartographer/PixiCartographerCanvas';
 import { CartographerLayerPanel } from '@/components/cartographer/CartographerLayerPanel';
 import { CartographerEntityPalette } from '@/components/cartographer/CartographerEntityPalette';
+import { CartographerElementsPanel } from '@/components/cartographer/CartographerElementsPanel';
 import { CartographerInspector, SelectedMapItem } from '@/components/cartographer/CartographerInspector';
 import { CartographerSelectionBar } from '@/components/cartographer/CartographerSelectionBar';
 import { CartographerAiOracleModal } from '@/components/cartographer/CartographerAiOracleModal';
@@ -57,6 +58,7 @@ export default function CartographerPage() {
   // Active tool and floating panel state.
   const [activeTool, setActiveTool] = useState<CartographerTool>('select');
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(false);
+  const [isElementsPanelOpen, setIsElementsPanelOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isAiOracleOpen, setIsAiOracleOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -363,6 +365,42 @@ export default function CartographerPage() {
     [handleSetPlacementState, mapData]
   );
 
+  const handleToggleLocationVisibility = useCallback(
+    (id: string) => {
+      const loc = (story.worldBible.locations || []).find((l) => l.id === id);
+      if (!loc) return;
+      handleUpdateLocation(id, { visible: loc.visible === false });
+    },
+    [handleUpdateLocation, story.worldBible.locations]
+  );
+
+  const handleToggleLocationLock = useCallback(
+    (id: string) => {
+      const loc = (story.worldBible.locations || []).find((l) => l.id === id);
+      if (!loc) return;
+      handleUpdateLocation(id, { locked: !(loc.locked === true) });
+    },
+    [handleUpdateLocation, story.worldBible.locations]
+  );
+
+  const handleToggleRouteVisibility = useCallback(
+    (id: string) => {
+      const route = (story.worldBible.tradeRoutes || []).find((r) => r.id === id);
+      if (!route) return;
+      handleUpdateTradeRoute(id, { visible: route.visible === false });
+    },
+    [handleUpdateTradeRoute, story.worldBible.tradeRoutes]
+  );
+
+  const handleToggleRouteLock = useCallback(
+    (id: string) => {
+      const route = (story.worldBible.tradeRoutes || []).find((r) => r.id === id);
+      if (!route) return;
+      handleUpdateTradeRoute(id, { locked: !(route.locked === true) });
+    },
+    [handleUpdateTradeRoute, story.worldBible.tradeRoutes]
+  );
+
   const handleReorderTerrain = useCallback(
     (id: string, direction: 'forward' | 'backward') => {
       commit(direction === 'forward' ? 'Bring layer forward' : 'Send layer backward', () => {
@@ -512,11 +550,19 @@ export default function CartographerPage() {
         onToggleLayerPanel={() => {
           setIsLayerPanelOpen((v) => !v);
           setIsPaletteOpen(false);
+          setIsElementsPanelOpen(false);
         }}
         isLayerPanelOpen={isLayerPanelOpen}
+        onToggleElementsPanel={() => {
+          setIsElementsPanelOpen((v) => !v);
+          setIsLayerPanelOpen(false);
+          setIsPaletteOpen(false);
+        }}
+        isElementsPanelOpen={isElementsPanelOpen}
         onTogglePalette={() => {
           setIsPaletteOpen((v) => !v);
           setIsLayerPanelOpen(false);
+          setIsElementsPanelOpen(false);
         }}
         isPaletteOpen={isPaletteOpen}
         isPersian={isPersian}
@@ -562,6 +608,29 @@ export default function CartographerPage() {
             onUpdateSettings={handleUpdateSettings}
             onClose={() => setIsLayerPanelOpen(false)}
             isPersian={isPersian}
+          />
+        )}
+
+        {/* Elements List Drawer with Accordion Categories (Right) */}
+        {isElementsPanelOpen && (
+          <CartographerElementsPanel
+            worldBible={story.worldBible}
+            mapData={mapData}
+            onClose={() => setIsElementsPanelOpen(false)}
+            isPersian={isPersian}
+            onSelectMapObject={handleSelectMapObject}
+            onToggleTerrainVisibility={handleToggleTerrainVisibility}
+            onToggleTerrainLock={handleToggleTerrainLock}
+            onDeleteTerrain={handleDeleteTerrain}
+            onTogglePlacementVisibility={handleTogglePlacementVisibility}
+            onTogglePlacementLock={handleTogglePlacementLock}
+            onDeletePlacement={handleDeletePlacement}
+            onToggleLocationVisibility={handleToggleLocationVisibility}
+            onToggleLocationLock={handleToggleLocationLock}
+            onDeleteLocation={handleDeleteLocation}
+            onToggleRouteVisibility={handleToggleRouteVisibility}
+            onToggleRouteLock={handleToggleRouteLock}
+            onDeleteRoute={handleDeleteTradeRoute}
           />
         )}
 

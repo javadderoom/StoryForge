@@ -207,6 +207,10 @@ export interface WorldLocation {
   coordinatesSource?: 'manual' | 'solver' | 'legacy_auto';
   mapIcon?: string;
   elevation?: number;
+  /** Per-object visibility toggle on the map canvas. Default true. */
+  visible?: boolean;
+  /** Per-object lock toggle on the map canvas. Default false. */
+  locked?: boolean;
 }
 
 /**
@@ -1535,6 +1539,10 @@ export interface WorldTradeRoute {
   secretLore?: string;
   /** Cartographer: visual intermediate road/caravan waypoints on canvas */
   waypoints?: Array<{ x: number; y: number }>;
+  /** Per-object visibility toggle on the map canvas. Default true. */
+  visible?: boolean;
+  /** Per-object lock toggle on the map canvas. Default false. */
+  locked?: boolean;
 }
 
 export const PowerRankAdvancementCostSchema = z.object({

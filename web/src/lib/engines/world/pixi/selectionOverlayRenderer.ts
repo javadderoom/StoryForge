@@ -124,7 +124,7 @@ export function renderSelectionOverlay(
     // Places: point categories follow their pin; non-point categories are
     // outlined by the label that is actually drawn for them.
     for (const location of locations) {
-      if (!selectionKeys.has(mapObjectKey('location', location.id))) continue;
+      if (!selectionKeys.has(mapObjectKey('location', location.id)) || !isObjectVisible(location)) continue;
       const isPoint = isPointPlaceCategory(location.category, placeCategories);
 
       if (isPoint) {
@@ -147,7 +147,7 @@ export function renderSelectionOverlay(
     // Trade routes (endpoints and waypoints follow a live drag).
     if (settings.visibleLayers.caravanRoutes) {
       for (const route of tradeRoutes) {
-        if (!selectionKeys.has(mapObjectKey('trade_route', route.id))) continue;
+        if (!selectionKeys.has(mapObjectKey('trade_route', route.id)) || !isObjectVisible(route)) continue;
 
         const origin = locations.find((l) => l.id === route.originLocationId)?.coordinates;
         const destination = locations.find((l) => l.id === route.destinationLocationId)?.coordinates;
