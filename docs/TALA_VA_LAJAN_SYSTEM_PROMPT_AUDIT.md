@@ -374,4 +374,39 @@ The updated story was pushed to production and a live session was initialized:
     3. *[inquisitive]* Inspect the tied cargo on the camels before leaving Chahsang.
     4. *[aggressive]* Place a hand on the shield grip and warn the drivers to keep caravan line discipline.
 
+---
+
+## 10. Organic Character Introductions & Dialogue Naturalism Refinement
+
+### 10.1 Key Directives Implemented
+1. **Colloquial Phrasing**:
+   - Replaced archaic/stiff *«چشم باز کن»* with natural, colloquial Persian: *«چشماتو باز کن»*.
+2. **Organic Character Introductions (No Omniscient Spoon-Feeding)**:
+   - The narrator is strictly forbidden from announcing an NPC's name out of nowhere.
+   - Names must be learned purely in-fiction through:
+     - Direct self-introduction (e.g. Borzou introducing himself to the startled player).
+     - Overhearing third-party dialogue (e.g. Borzou shouting *«بهرام! مهار اون ماده‌شتر رو بگیر!»*).
+     - Physical insignias, ledgers, or badges.
+3. **Living Idioms Preserved vs. Synthetic Calques Banned**:
+   - **Preserved Living Idioms**: *«خون‌دل خوردن»*, *«بار و بنه»*, *«عرق ریختن»*, *«پای کار ایستادن»*, *«دندان روی جگر گذاشتن»*.
+   - **Banned Synthetic Calques**: *«بادیه‌نوردی»*, *«کویرپیمایی»*, *«تیغت لغزش نکند»*, *«گامت نلرزد»*.
+
+### 10.2 Production Opening Beat (`initialStoryBeats[0]`) Live Text
+```text
+«هی! رزمنده... هی، چشماتو باز کن!»
+
+با ضربهٔ چکمه‌ای به ساق پایت و تکانِ محکم شانه، هراسان از خواب می‌پری.
+
+خاکِ کاه و غبار انبار کاروانسرا در هوای خنک سحرگاه چاه‌سنگ معلق است. دستت ناخودآگاه و برق‌آسا روی قبضهٔ شمشیر می‌نشیند، اما پیش از آنکه تیغ را از نیام بکشی، سایهٔ بلند و چهارشانهٔ مردی را بالای سرت می‌بینی که دست پینه‌بسته‌اش را با آرامش بالا می‌آورد:
+
+«آروم بگیر، نیومدم سر ببرم. من برزو هستم؛ کاروان‌سالارِ بار نمک. وقت خوابیدن سر اومد. شترها رو بار زدیم و کاروان داره راه می‌افته... شنیدم شمشیرزن قابلی هستی و وقت درگیری دستت نمی‌لرزه. همراه ما بیا؛ این بارِ نمک بدون چند تا تیغ‌کش کاربلد از بادیه رد نمی‌شه.»
+```
+
+### 10.3 Single Authored Opening Choice
+```text
+«سهم و دستمزدِ من از این خون‌دل خوردن تو بیابون چقدره، کاروان‌سالار؟ تا ندونم چی گیرم میاد، شمشیرم از نیام بیرون نمی‌آد.»
+```
+*(Style: Diplomatic / Risk: Low)*
+
+
 
