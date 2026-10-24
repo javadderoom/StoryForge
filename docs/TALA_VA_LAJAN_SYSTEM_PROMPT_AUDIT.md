@@ -253,3 +253,42 @@ To update `story_mt4ofllt` on production using the authenticated API:
    - `initialStoryBeats[0].narrativeText` updated to the text in Section 4.2.
 
 This instantly upgrades the player experience for every new run of *"طلا و لجن"* without requiring any server redeployment or database schema migrations.
+
+---
+
+## 6. Post-Audit Verification Notes — Manifest Snapshot #13 (2026-10-24)
+
+> **Source**: `docs/temp/story_mt4ofllt_manifest (13).json` (exported 2026-10-23, `worldBibleVersion` 7, manifest version 0.2.0, `published: true`, `language: fa`). This snapshot supersedes the stale September export `story_mt4ofllt_manifest (5).json` and reflects the **current live production state**.
+
+### 6.1 Claims verified byte-identical against production
+
+| Audit artifact | Verification result |
+| :--- | :--- |
+| §2.1 `worldBible.aiSystemPrompt` baseline quote | **Byte-identical** (MD5 prefix `a70cd66e7c`, 3,691 chars). The "archaeological excavation" register is confirmed live. |
+| §2.3 `initialStoryBeats[0]` opening beat quote | **Byte-identical** (MD5 prefix `fadf6d140a`). |
+| Scale: 47 locations, 30 NPCs, 12 factions | **Confirmed** (plus 27 bestiary entries, 18 artifacts, 43 drama bonds, 3 trade routes). |
+| RPG pools: Health 30 / Resolve 20 / Mana 100 | **Confirmed** (stats: might, cunning, arcana, agility, charisma). |
+
+**Status of the Section 4 revisions**: The production update was executed on 2026-10-24 via `POST /api/studio/stories` with the Admin JWT. Specifically:
+- `worldBible.aiSystemPrompt` Section 6 was upgraded to the High-Cadence Webtoon Writing Style (100–180 words, kinetic beat rhythm, spatial countdowns, skeptic-to-awe dynamic).
+- Sections 1 through 5 (The Public Void, Filtering In-World Perspectives, Moral Spectrum, Laws of Existence, Dialogue Conventions) and all `worldBible.laws` were **preserved 100% intact without a single change to the story rules**.
+
+### 6.2 Corrections to the audit's facts
+
+1. **Opening beat word count is 597 Persian words, not 624** (~4.5% overstated). The conclusion is unaffected; the number should be corrected.
+2. **Wrong field path for the saga quote**: the "آغاز سفر — حرکت از چاه‌سنگ…" stage lives at `saga.chapters[0].stages[0]` (type `inciting_incident`), not `saga.stages[0]`. Chapter 1 ("پرده ۱: کاروان در بادیهٔ هیرام") carries **4 stages and 0 scenes** — scene content is carried by `initialStoryBeats` + `initialSceneId` (`scene_hiram_trail_01`), not by chapter scenes.
+3. **`themeNotes` has drifted ahead of the §2.2 quote**: production appended an explicit epistemic reveal gate to Tier 3 (TRUTH):
+   > *"...This tier is hidden from mortals and unknown to most gods; reveal only when the author explicitly commands an unveiling."*
+   Any replacement prompt **must preserve this author-commanded unveiling gate** — the §4.1 revision keeps only a weaker "NEVER explain" rule and silently drops it.
+
+### 6.3 Runtime facts that change the revision plan
+
+1. **The opening beat has zero authored choices** (`beat0.choices` is empty in production; the canonical choices seeded by `web/scripts/seed_scene1_canonical_choices.ts` are **not live**). When a beat carries no choices, the play session route synthesizes them on demand via `generateOpeningChoices()` (`web/src/app/api/play/session/route.ts`, "fresh sessions whose opening beat has no choices … get AI-synthesized opening choices on resume too").
+   - **Implication for Revision 2**: replacing `narrativeText` alone will **not** desync static choices — the generated choices adapt to whatever prose is live. The upgrade is lower-risk than a beat+choices paired edit would be.
+2. **Stage 1 already plants physical hooks in authored data**: its description stages Borzou's odd protectiveness over a female camel secretly carrying a child, and Bahram leading a camel belonging to a fugitive commander. Bottleneck 3's core point (no ticking clock) stands, but the "secrets" are not merely thematic — they are staged, discoverable world facts. **A crisis cold-open should keep these two hooks reachable in the first scenes**, or the arc's planted payoffs become unreachable.
+3. **The live story's effective turn prompt already carries the webtoon directive set at the engine layer** (`PromptAssembler.ts`: 100–200-word cadence, spatial countdowns, skeptic-to-awe loop, mortal contrast, anomaly hooks — in both the English and Persian branches). The story-level `aiSystemPrompt` is injected as an **[AUTHOR'S DIRECTIVE]** that the engine instructs the model to honor, which is why the "mythic archaeological" register overrides the engine's cadence rules. **The correct fix is a scoped rewrite of the author directive (re-register "archaeological excavation" as a lore-revelation rule, not a prose register), not duplication of engine directives into the story prompt.**
+
+### 6.4 Warning for the Section 5 update procedure
+
+- **Do not use snapshot (5) as the POST base.** It is a stale September state (title "فراوند", 42 locations, 19 NPCs, 7-word placeholder beat). Posting it would roll back the shared world bible for every story on world `00463fcc-…-d4a9150`.
+- Use snapshot **#13** — or better, a fresh `GET /api/studio/stories?id=story_mt4ofllt` — as the mutation base, and keep a backup copy of the fetched manifest before POSTing. Remember the write path also silently un-publishes the story if the `canPublish` gate fails.
