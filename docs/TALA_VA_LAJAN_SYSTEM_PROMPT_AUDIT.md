@@ -292,3 +292,33 @@ This instantly upgrades the player experience for every new run of *"طلا و �
 
 - **Do not use snapshot (5) as the POST base.** It is a stale September state (title "فراوند", 42 locations, 19 NPCs, 7-word placeholder beat). Posting it would roll back the shared world bible for every story on world `00463fcc-…-d4a9150`.
 - Use snapshot **#13** — or better, a fresh `GET /api/studio/stories?id=story_mt4ofllt` — as the mutation base, and keep a backup copy of the fetched manifest before POSTing. Remember the write path also silently un-publishes the story if the `canPublish` gate fails.
+
+---
+
+## 7. 5-Turn Live Playthrough & Opening Beat Deployment (2026-10-24)
+
+### 7.1 5-Turn Live Playthrough Metrics
+
+A live 5-turn session (`2f741548-26f6-42bb-9bb9-c00bb919572b`) was executed against production after applying the webtoon style prompt directive:
+
+| Turn | Action / Trigger | Dice / Outcome | Word Count | Latency | Key Narrative & Pacing Observations |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Turn 1** | Grip lead rope & scan ridge | Roll: 6 (Failure) | **147 words** | 12.0s | Sand collapses under boots, rope snaps loose, Borzou shouts from dust: *"Don't grope blindly for fox holes! This scree offers no shelter!"* Spatial countdown: *"You have seconds."* |
+| **Turn 2** | Draw blade & dive before runaway camel | Roll: 20 (Critical Success) | **136 words** | 11.0s | Dynamic hero dive, blade plunged into dirt, camel halted. Single-word pause: **`سکوت.`** (Silence). Borzou wide-eyed with awe: *"This man took root in the hurricane!"* |
+| **Turn 3** | Signal Maziar to flank left | Roll: 16 (Success) | **147 words** | 12.4s | Maziar shields water-skins with colloquial banter. Anomaly emerges: boiling sulfur mud opens like a beast's maw across the trail. Countdown: *"Twenty paces."* |
+| **Turn 4** | Leap onto black crags to scout | Roll: 11 (Success) | **139 words** | 13.9s | Visceral muscle strain, discovery of boiling poison vents ahead. Bahram raises staff in awe: *"You found it! The path is open above!"* |
+| **Turn 5** | Anchor rope across rocks | Roll: 7 (Failure) | **151 words** | 14.6s | Friction burns palms as rope tears on granite; lead camel sinks to knee in boiling slime, screeching in agony. Borzou panics: *"Cargo is sinking! Grab the tether!"* |
+
+**Key Takeaways**:
+- **Average Word Count**: **144 words** (down from 350–500 words).
+- **Format**: Short, punchy 1–2 sentence blocks with dramatic pauses.
+- **Skeptic-to-Awe Loop**: Confirmed operational across both Borzou and Bahram.
+- **Sensory Crunch**: Tearing ropes, sulfur fumes, burning friction, splashing corrosive mud.
+
+### 7.2 Deployment of Revision 2 (133-Word Opening Cold-Open)
+
+Per user approval, the 597-word static wardrobe catalog in `initialStoryBeats[0]` was replaced on production with the 133-word cold-open:
+- **Verified length**: 759 characters / 133 words.
+- **Live verification**: `POST /api/play/session` generates 4 dynamic, highly relevant opening choices tailored to the boiling mud and gold anomaly.
+- **World rules intact**: All 2 canonical laws and character bonds remain completely untouched.
+
