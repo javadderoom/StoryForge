@@ -317,8 +317,61 @@ A live 5-turn session (`2f741548-26f6-42bb-9bb9-c00bb919572b`) was executed agai
 
 ### 7.2 Deployment of Revision 2 (133-Word Opening Cold-Open)
 
-Per user approval, the 597-word static wardrobe catalog in `initialStoryBeats[0]` was replaced on production with the 133-word cold-open:
+Per initial user approval, the 597-word static wardrobe catalog in `initialStoryBeats[0]` was replaced on production with the 133-word cold-open:
 - **Verified length**: 759 characters / 133 words.
 - **Live verification**: `POST /api/play/session` generates 4 dynamic, highly relevant opening choices tailored to the boiling mud and gold anomaly.
 - **World rules intact**: All 2 canonical laws and character bonds remain completely untouched.
+
+---
+
+## 8. Chahsang Caravanserai Awakening: Grounded Origins & Single-NPC Recruitment
+
+### 8.1 Critical Feedback & Root Correction
+Following the initial cold-open test, user critique identified key narrative dissonance:
+1. **Pacing Overcorrection**: Starting *in media res* with an immediate boiling-sinkhole catastrophe felt jarring, cinematic-cliché, and ungrounded.
+2. **Character Clutter**: Introducing multiple companions (Borzou, Bahram, Maziar) at the exact same moment overloaded the reader's working memory.
+3. **Role & Hierarchy Confusion**: The player is an itinerant sword-for-hire, not the caravan master. Having a mercenary decide how the caravan navigates before even joining it violated in-world logic.
+4. **Geography Realism**: A caravan does not materialize midway through the wasteland; its journey originates at **چاه‌سنگ (Chahsang)** (`loc_muzo9ij9_ycy6`), the desert oasis and caravanserai junction.
+
+### 8.2 Production Redesign: `initialStoryBeats[0]`
+The opening beat was restructured to start at dawn inside the caravanserai of Chahsang:
+- **State**: The player awakens on a straw pallet to the thud of the deep stone well and distant camel snorts.
+- **Single Point of Contact**: Only Caravan Master Borzou Sangtarash (`npc_borzou`) approaches the player.
+- **Recruitment Hook**: Borzou acknowledges the player's reputation: *"Up, warrior... I hear you handle a blade with skill and don't flinch before the red wind. My caravan leaves Chahsang for Zarrin-Pol in an hour; I need a trustworthy blade to escort the herd. Stand up and come along."*
+- **Single Authored Choice**: Exactly one pragmatic opening choice is offered:
+  - *«سهم و دستمزدِ من از این خون‌دل خوردن در بیابان چقدر است، کاروان‌سالار؟ در بادیهٔ هیرام، شمشیر بی‌مزد از نیام کشیده نمی‌شود.»* (What is my cut and wage for bleeding in this wasteland, caravan master? In the desert of Hiram, an unpaid blade does not leave its scabbard.)
+
+---
+
+## 9. Quest Engine Integration & Turn 1 Live Test
+
+### 9.1 Quest Schema Definition (`quest_prologue`)
+To validate the untested Quest subsystem, a new prologue escort quest was defined in `worldBible.quests`:
+- **ID**: `quest_prologue`
+- **Title**: محافظت از کاروان نمک در بادیهٔ هیرام (*Protecting the Salt Caravan in the Desert of Hiram*)
+- **Category**: `caravan_escort`
+- **Giver**: `npc_borzou`
+- **Origin**: `loc_muzo9ij9_ycy6` (چاه‌سنگ)
+- **Trade Route**: `route_mv00dghz_fosto`
+- **Objectives**:
+  1. `obj_accept_contract`: Accept the escort contract with Borzou at Chahsang Caravanserai.
+  2. `obj_cross_hiram`: Cross the scree of Hiram and defend against the red wind and predators to reach Rabat-e Sorkh (`loc_rabat_sorkh`).
+  3. `obj_deliver_zarrinpol`: Deliver the shipment to the Golden Horn Caravanserai (`loc_mtr2c3uu_yocj`) at Zarrin-Pol.
+- **Rewards**: 40 Silver Coins, +25 Borzou Trust Delta.
+
+### 9.2 Live Session Verification (`aeda83fb-d0e6-4ad4-a879-8936f1995941`)
+The updated story was pushed to production and a live session was initialized:
+- **Initial Location**: `loc_muzo9ij9_ycy6` (Chahsang)
+- **Active Quests**: `['quest_prologue']`
+- **Turn 1 Execution**:
+  - The player selects the wage question choice.
+  - **Borzou's Response**: Borzou narrows his amber eyes in approval—a mercenary who clarifies terms before drawing steel is a reliable professional:
+    > *«سهم تو از این بادیه‌نوردی، دو کیسه نقرهٔ سرخ است به وقت رسیدن به بارانداز زرین‌پل، به شرط آنکه تیغ‌ات سر راه لغزش نکند.»*
+  - **Dynamic Scene Progression**: The caravanserai awakens around them; dust rises, hooves clatter on cobblestone, Bahram commands the line, and the caravan begins its departure toward the great expanse of Hiram.
+  - **Generated Choices for Turn 2**:
+    1. *[tactical]* Accept Borzou's wage and take the vanguard position to scout the trail.
+    2. *[inquisitive]* Approach Bahram Dashban to inquire about the condition of the red camels before departure.
+    3. *[inquisitive]* Inspect the tied cargo on the camels before leaving Chahsang.
+    4. *[aggressive]* Place a hand on the shield grip and warn the drivers to keep caravan line discipline.
+
 
