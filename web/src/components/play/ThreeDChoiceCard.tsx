@@ -57,7 +57,7 @@ export function ThreeDChoiceCard({ choice, theme, isPersian = false, statsConfig
       }}
       onMouseLeave={reset}
       onClick={onTap}
-      className="group relative w-full text-start rounded-2xl border p-4 transition-shadow"
+      className="group relative w-full text-start rounded-2xl border px-4 py-3 transition-shadow"
       style={{
         background: `linear-gradient(135deg, ${theme.cardBg} 0%, ${theme.bgGradientEnd} 100%)`,
         borderColor: hover ? edgeColor : theme.cardBorder,

@@ -464,15 +464,25 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 [CORE DIRECTIVE: AI IS THE NARRATOR, NOT THE GAME ENGINE]
 1. All game mechanics (dice rolls, stats, and consequences) are ALREADY pre-resolved deterministically.
 2. You MUST strictly depict the pre-calculated outcome. Do NOT contradict or alter the mechanical result.
-3. LITERARY MULTI-PARAGRAPH NOVELISTIC ARCHITECTURE:
-   - Target Length: Deliver rich, atmospheric literary prose between 250 and 500 words across 4 distinct paragraphs. Keep the pacing focused, kinetic, and punchy—never condense into a single brief paragraph, nor bloat into rambling scenic filler!
-   - Paragraph 1 (Kinetic Execution & Immediate Sensory Impact): Open directly with the physical execution of the player's action, the clash of metal, wood, or muscle, and tactile sensory immersion (the smell of cold river mist, spray of wet silt, reverberation in your arm, the sting of sudden pain or momentum).
-   - Paragraph 2 (World Ripple & Living Environment/NPC Counter-Play): Expand the lens to show how the surrounding world and present entities react (the shifting stance of adversaries, the glint of torchlight, animals muttering in their harnesses, or a companion/bystander reacting with dialogue or movement).
-   - Paragraph 3 (Sensory Evolution & Tactical Tension): Broaden the atmosphere and sensory depth, capturing shifting environmental details, psychological stakes, or the escalating tactical situation.
-   - Paragraph 4 (Tactile Stakes, Aftermath & The Looming Dilemma): Bring focus back to the protagonist's physical state (breathing, pulse, bleeding wounds, or strain on your shield/blade) and firmly establish the new tactile dilemma and tension that seamlessly sets up the choices.
-   - PARAGRAPH DELIMITATION & SENTENCE DENSITY: Separate the 4 paragraphs with a blank line (\n\n). Each paragraph should contain roughly 3 to 5 full, descriptive, and purposeful sentences (approximately 60 to 110 words per paragraph), ensuring the full scene lands naturally within the 250 to 500 word range.
-   - SENSORY MICRO-OBSERVATIONS: Weave at least two tactile, auditory, or olfactory details into the prose (e.g. the cold bite of night air through a split in the leather, the weight of the bronze hilt, or the sucking drag of black mud).
-   - DIALOGUE FRICTION & ECHO: If the player or an adversary speaks, greets, or shouts, dramatize both the spoken dialogue ("...") and the audible response, counter-threat, or stunned silence.
+3. HIGH-CADENCE WEBTOON CADENCE & KINETIC PROSE ARCHITECTURE:
+   - Target Length: Deliver punchy, high-velocity literary prose between 100 and 200 words across short, kinetic 1-to-3 sentence paragraph blocks. Keep the pacing focused, kinetic, and relentless—never pad with rambling scenic filler!
+   - Dynamic Beat Structure:
+     * Beat 1 (Kinetic Execution & Immediate Impact): Open directly with the physical execution of the action, the clash of steel, flesh, or spellcraft, and visceral somatic feedback (recoil, blood spray, pulse pounding).
+     * Beat 2 (World Shockwave & NPC Reaction): Depict immediate adversary response, environmental recoil, or bystander reactions.
+     * Beat 3 (The Looming Dilemma & Ticking Threat): Establish the new immediate physical dilemma or escalating danger that immediately sets up the choices.
+   - SENTENCE RHYTHM & DRAMATIC PAUSES: Use rapid sensory motion followed by dramatic single-sentence pauses or punchlines (e.g. "Silence.", "You have seconds."). Never bloat into academic multi-page chapters.
+   - SENSORY MICRO-OBSERVATIONS: Weave visceral tactile, auditory, or olfactory details into the prose (the crunch of bone, hiss of burning mana, cold bite of steel, trembling adrenaline).
+   - DIALOGUE FRICTION & ECHO: If the player or an adversary speaks, greets, or shouts, dramatize direct spoken dialogue ("...") with biting counter-speech, threat, or stunned silence.
+4. SPATIAL VELOCITY & COUNTDOWNS (ADRENALINE SPIKE):
+   - When threats, ambushes, charges, or ticking-clock hazards occur, use spatial countdowns (e.g. "forty yards, thirty, twenty... tusks aimed directly at your chest. You have seconds. What do you do?"). Create real physiological urgency.
+5. THE SKEPTIC-TO-AWE SOCIAL LOOP:
+   - Newly introduced or unfamiliar NPCs begin skeptical, dismissive, or guarded (e.g. "Human is human. You just stink of dark magic").
+   - When the protagonist demonstrates decisive power, tactical brilliance, or lethal competence, NPCs must react with genuine shock, stunned silence, wide eyes, or grudging submission (e.g. driving spear into dirt, bowing stiffly: "You killed it with one thought").
+6. QUALITATIVE POWER SCALING (MORTAL HUMAN CONTRAST):
+   - If the protagonist is above Level 1 or possesses supernatural power ranks, frequently and vividly contrast their physical/magical performance against the ceiling of ordinary mortal humans (e.g. "At Level 3, your muscular density and reaction speed are three times higher than the peak of an elite mortal knight").
+7. CONCENTRIC DANGER & THE ANOMALOUS CURIOSITY HOOK:
+   - Never dump entire historical encyclopedias at once.
+   - Ground the immediate terrain, warn of the deeper perimeter, and plant ONE anomalous physical curiosity (e.g. ancient glowing runes, subterranean metallic grinding, unexplained machines) to pull the reader forward.
 [CAUSE & EFFECT PRIORITY — IMMEDIATE ACTION RESPONSIVENESS]
 - The prose MUST open with or directly dramatize the protagonist performing the player's specific action and the immediate direct reaction of the world or target NPC.
 - TARGET FIDELITY: Depict the reaction of the EXACT entity targeted by the action (e.g. the closed gate, the wall, or the specific sentry). Do NOT invent or substitute an unintroduced commander or off-scene NPC as the face-to-face responder!
@@ -561,15 +571,25 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 [CORE DIRECTIVE: AI IS THE NARRATOR, NOT THE GAME ENGINE]
 1. All game mechanics (dice rolls, stats, and consequences) are ALREADY pre-resolved deterministically.
 2. You MUST strictly depict the pre-calculated outcome. Do NOT contradict or alter the mechanical result.
-3. عمق ادبی، گستردگی داستان و ساختار چندبندی رمان (LITERARY MULTI-PARAGRAPH ARCHITECTURE):
-   - حجم و طول متن: نثری شیوا، غنی و رمان‌گونه بین ۲۵۰ تا ۵۰۰ کلمه در قالب ۴ بند (پاراگراف) مشخص و خوش‌خوان ارائه بده. ریتم روایت باید پرشتاب، زنده و تأثیرگذار باشد—هرگز تمام صحنه را در یک بندِ کوتاه خلاصه نکن، و در عین حال از اطناب و کش دادن بی‌دلیل پرهیز کن!
-   - بند اول (کنش جنبشی و ضربهٔ حسیِ بلافاصله): صحنه را مستقیماً با خودِ عمل بازیکن، درگیری فیزیکی، طنین برخورد تیغه یا سپر، پاشیدن گل‌ولای یا بوی نم و غبار، و پیامد ملموس مکانیکی آغاز کن.
-   - بند دوم (بازتاب محیطی و کنش‌وپاسخ شخصیت‌ها / درندگان): زاویه را بازتر کن و نشان بده محیط زنده و افراد حاضر چگونه واکنش نشان می‌دهند (چرخش یا موضع‌گیری گزمه‌ها یا درنده، بازتاب نور مشعل‌ها بر لجن، بی‌قراری شترها و ستوران، یا عکس‌العمل و کلام اطرافیان).
-   - بند سوم (توسعهٔ اتمسفر و تنش روانی/محیطی): به جزئیات فضاسازی، سایه‌روشن‌ها، بوی محیط و بار روانی و تاکتیکی موقعیت عمق ببخش.
-   - بند چهارم (پیامد جسمانی، ایستایی صحنه و تنگنای پیش‌رو): دوباره بر وضعیت ملموس تن، نفس‌ها، درد یا کوفتگی عضلات، چنگ زدن دست بر قبضه، و موقعیت دشوار و تعلیقی که بازیکن پیش از تصمیم بعدی در آن گرفتار شده تمرکز کن تا گزینه‌ها کاملاً طبیعی بر بستر این تعلیق بنشینند.
-   - تفکیک بندها با خط خالی و چگالی جملات: دقیقاً ۴ بند را با خط خالی (\n\n) از هم جدا کن. هر بند حاوی ۳ الی ۵ جملهٔ کامل، فضاساز و سنجیده باشد (حدود ۶۰ الی ۱۱۰ کلمه برای هر بند) تا حجم کل صحنه به شکل طبیعی در محدوده مطلوب ۲۵۰ تا ۵۰۰ کلمه قرار گیرد.
-   - ریزمشاهدات حسی (Sensory Micro-Observations): حداقل دو جزئیات ملموس حسی (سرمای گزندهٔ بادِ آب بر عرق تن، سنگینی انتهای شمشیر در کف دست، صدای خرد شدن نی‌های خشک زیر چکمه) را در تاروپود متن بگنجان.
-   - طنین گفتار و دیالوگ: اگر بازیکن یا شخصیتی سخن گفت، حتماً دیالوگ مستقیم با علامت «...» را با پاسخ کلامی، تشر، یا سکوت تهدیدآمیز طرف مقابل بازتاب بده.
+3. ریتم پرشتاب، جنبشی و ساختار وب‌تونی صحنه (HIGH-CADENCE KINETIC ARCHITECTURE):
+   - حجم و طول متن: نثری کوبنده، زنده، گیرا و پرکشش بین ۱۰۰ تا ۲۰۰ کلمه در قالب بندهای کوتاه ۱ تا ۳ جمله‌ای ارائه بده. ریتم روایت باید نفس‌گیر، سریع و بی‌درنگ باشد—از کش دادن، توصیفات فرسایشی منظره و انشای مطول دانشگاهی اکیداً پرهیز کن!
+   - ساختار ضرباهنگ صحنه:
+     * ضربهٔ اول (کنش جنبشی و اصابتِ بلافاصله): صحنه را مستقیماً با خودِ عمل بازیکن، درگیری فیزیکی، طنین برخورد تیغه یا جادو، جهش خون یا پاشیدن گل، و بازخورد جسمانی (تپش نبض، سوزش عضله) آغاز کن.
+     * ضربهٔ دوم (بازتاب ضربه و واکنش جهان/شخصیت‌ها): بازتاب فوری دشمن، بهت همراهان یا واکنش محیط به کنش قهرمان را نشان بده.
+     * ضربهٔ سوم (تنگنای فوری و تهدید ثانیه‌ای): وضعیت بحرانی تازه، خطرِ در حال نزدیک شدن یا تعلیقی را رقم بزن که گزینه‌ها بلافاصله بر بستر آن بنشینند.
+   - موسیقی جملات و مکث‌های دراماتیک: از جملات پرشتاب به همراه مکث‌های تک‌جمله‌ای یا تک‌کلمه‌ای غافلگیرکننده (مانند «سکوت.» یا «تنها چند ثانیه فرصت داری.») استفاده کن.
+   - ریزمشاهدات حسی ملموس (Sensory Crunch): جزئیات زنده و گزندهٔ حسی (طنین خرد شدن استخوان، جلزولز جادو، سرمای فولاد، لرزش آدرنالین) را در تاروپود متن بنشان.
+   - طنین گفتار: دیالوگ‌های مستقیم با علامت «...» باید دارای تنش، اصطکاک و لحن قاطع باشند.
+4. سرعت فضایی و شمارش معکوس فاصله (SPATIAL VELOCITY & COUNTDOWNS):
+   - هنگام یورش، غافلگیری، کمین یا خطرات زمان‌دار، از شمارش معکوس فواصل استفاده کن (مانند «چهل گام، سی، بیست... شاخ‌ها سینه را نشانه رفته‌اند. تنها چند ثانیه فرصت داری. چه می‌کنی؟»). این کار ضربان قلب خواننده را بالا می‌برد.
+5. چرخهٔ روان‌شناختی «تردید به شگفتی و تعظیم» (THE SKEPTIC-TO-AWE LOOP):
+   - شخصیت‌ها و دشمنانی که تازه با قهرمان روبه‌رو می‌شوند، در آغاز مشکوک، تحقیرکننده، متکبر یا محتاط هستند.
+   - وقتی قهرمان قدرت، هوش تاکتیکی یا ضربهٔ مهلک خود را نشان می‌دهد، ناباوری آنها فوراً به بهت، سکوت خشک‌شده، چشمان گشادشده از حیرت، یا تعظیم و احترام قلبی بدل می‌شود.
+6. مقیاس‌پذیری کیفی قدرت در مقایسه با انسان فانی (QUALITATIVE POWER SCALING):
+   - اگر قهرمان بالاتر از سطح ۱ است یا دارای رتبه‌های قدرت، عملکرد فیزیکی، بازتاب‌ها یا توان جادویی او را صراحتاً در برابر سقف توانایی یک انسان فانی عادی مقایسه کن (مثلاً «در سطح ۳، چگالی عضلانی و سرعت واکنش تو سه برابر ورزیده‌ترین جنگجویان فانی است؛ برای این راهزنان محلی، تو یک بلای مجسم هستی»).
+7. خطرات لایه‌ای و طعمهٔ کنجکاویِ اسرارآمیز (CONCENTRIC DANGER & CURIOSITY HOOK):
+   - هرگز تمام تاریخ و لور جهان را یکجا نریز.
+   - خطر فوری را نشان بده، از لایهٔ مرگبار بعدی هشدار بده، و یک پدیده یا ساختار عجیب و نامعلوم (مانند سنگ‌نوشته‌های درخشان باستانی، غرش مکانیکی در دل زمین، ماشین‌های اشباح) به عنوان طعمهٔ کنجکاوی در افق بکار تا ذهن خواننده برای کشف آن بی‌تاب بماند.
 [اولویت علت و معلول — پاسخگویی مستقیم به اقدام بازیکن / CAUSE & EFFECT PRIORITY]
 - صحنه باید فوراً با نشان دادن خودِ کنش بازیکن و واکنش بلافاصلهٔ جهان یا شخصیت مقابل آغاز شود یا بر آن متمرکز باشد.
 - وفاداری به هدف اقدام (Target Fidelity): دقیقاً واکنش همان هدف، شخص یا مانعی که بازیکن مورد خطاب قرار داده یا بر آن اقدام کرده را نشان بده (مثلاً همان نگهبانان یا درِ بسته). هرگز یک فرمانده یا شخصیت غایب را که در صحنه نبوده ناگهان رو در روی بازیکن ظاهر نکن!
@@ -704,7 +724,7 @@ You MUST respond with a valid JSON object matching this schema:
       : '';
     const traitsLineFa = traitsLineEn;
 
-    const enProtagonistBlock = (statsLineEn || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || traitsLineEn || powerRanksLineEn || context.playerStatus?.itemInteractionsCatalog)
+    const enProtagonistBlock = (statsLineEn || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || traitsLineEn || powerRanksLineEn || context.playerStatus?.itemInteractionsCatalog || context.powerScaleContext)
       ? [
           '[PROTAGONIST STATUS & CAPABILITIES]',
           context.playerStatus?.characterName
@@ -725,13 +745,14 @@ You MUST respond with a valid JSON object matching this schema:
             ? `• Active Character Conditions (MANDATORY sensory reflection in prose & tone): ${promptVisibleConditions(context.playerStatus.conditions).join(', ')}`
             : '',
           powerRanksLineEn ? `\n[POWER SCHOOL RANKINGS & MASTERY]\n${powerRanksLineEn}` : '',
+          context.powerScaleContext ? `\n[MORTAL BASELINE & POWER SCALE CONTRAST]\n${context.powerScaleContext}` : '',
           context.playerStatus?.itemInteractionsCatalog ? `\n${context.playerStatus.itemInteractionsCatalog}` : '',
         ]
           .filter(Boolean)
           .join('\n')
       : '';
 
-    const faProtagonistBlock = (statsLineFa || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || traitsLineFa || context.playerStatus?.conditions?.length || powerRanksLineFa || context.playerStatus?.itemInteractionsCatalog)
+    const faProtagonistBlock = (statsLineFa || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || traitsLineFa || context.playerStatus?.conditions?.length || powerRanksLineFa || context.playerStatus?.itemInteractionsCatalog || context.powerScaleContext)
       ? [
           '[وضعیت و توانمندی‌های قهرمان داستان / PROTAGONIST STATUS]',
           context.playerStatus?.characterName
@@ -752,6 +773,7 @@ You MUST respond with a valid JSON object matching this schema:
             ? `• حالت‌ها و وضعیت‌های فعلی کاراکتر (بسیار مهم: حتماً این احوال، تنش و فرسودگی را در نثر، تنفس و توصیف حسی منعکس کن): ${promptVisibleConditions(context.playerStatus.conditions).join('، ')}`
             : '',
           powerRanksLineFa ? `\n[مکاتب قدرت و درجات تسلط / POWER SYSTEM RANKINGS]\n${powerRanksLineFa}` : '',
+          context.powerScaleContext ? `\n[سنجش مقیاس قدرت در برابر انسان فانی / POWER SCALE CONTRAST]\n${context.powerScaleContext}` : '',
           context.playerStatus?.itemInteractionsCatalog ? `\n${context.playerStatus.itemInteractionsCatalog}` : '',
         ]
           .filter(Boolean)

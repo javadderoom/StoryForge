@@ -559,6 +559,16 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
       }
       return out.length ? out : undefined;
     })(),
+    powerScaleContext: (() => {
+      const level = playerState.level ?? 1;
+      const isFa = story.language === 'fa';
+      if (level > 1) {
+        return isFa
+          ? `قهرمان در سطح ${level} قرار دارد${playerState.archetypeName ? ` (با پیشه/کهن‌الگوی ${playerState.archetypeName})` : ''}. واکنش‌ها، تمرکز حواس، توان جادویی و چگالی بدنی او فراتر از محدودیت‌های یک انسان فانی معمولی (سطح ۱) است. در روایت، دستاوردهای قهرمان را با سقف توانایی افراد عادی مقایسه کن و نشان بده چگونه موجودات و دشمنان رده‌پایین تحت تأثیر این برتری آشکار مرعوب یا شگفت‌زده می‌شوند.`
+          : `The protagonist is Level ${level}${playerState.archetypeName ? ` (${playerState.archetypeName})` : ''}. Their physical reaction speed, mana conductivity, and impact resilience are significantly beyond the limits of ordinary mortal humans (Level 1 baseline). Frequently contrast their feats against mortal human ceilings and depict how lower-tier adversaries or skeptical NPCs are unsettled or awed by this disparity.`;
+      }
+      return undefined;
+    })(),
   };
 }
 
@@ -641,7 +651,7 @@ export async function generateValidatedScene(
     resolution,
     worldBible: story.worldBible,
     language: story.language,
-    minWordCount: input.minWordCount ?? (process.env.NODE_ENV === 'test' ? 0 : 150),
+    minWordCount: input.minWordCount ?? (process.env.NODE_ENV === 'test' ? 0 : 70),
   };
   const subqClient = subqAdapter ?? new SubQAdapter();
   let candidate = aiResponse;

@@ -189,7 +189,7 @@ class _ThreeDChoiceCardState extends State<ThreeDChoiceCard>
                 // 1. Base Dark Card
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
                   decoration: BoxDecoration(
                     color: widget.theme.cardBg,
                     borderRadius: BorderRadius.circular(20),

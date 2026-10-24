@@ -134,7 +134,7 @@ describe('ProseValidator — minimum word count enforcement', () => {
     const finding = result.findings.find((f) => f.category === 'prose_length');
     assert.ok(finding);
     assert.match(finding?.detail ?? '', /کمتر از حداقل مجاز/);
-    assert.match(finding?.detail ?? '', /۲۵۰ الی ۵۰۰ کلمه/);
+    assert.match(finding?.detail ?? '', /۱۰۰ الی ۲۰۰ کلمه/);
   });
 });
 

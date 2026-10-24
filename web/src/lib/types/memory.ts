@@ -136,6 +136,8 @@ export interface WorkingContextEnvelope {
     capabilities: string;
     scope?: string;
   }>;
+  /** Qualitative narrative power scaling context contrasting player level/rank against ordinary mortal humans */
+  powerScaleContext?: string;
   /** Plan 17 (§4.5): active inter-city journey — the scene is the road. */
   travel?: {
     originName: string;
