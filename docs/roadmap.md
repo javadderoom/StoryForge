@@ -99,3 +99,12 @@ This document outlines the upcoming feature roadmap and planned capabilities for
   * Wire `settings.theme` to the renderer, give the travel ruler a distance/days readout, and render the seed terrain on open.
   * ✅ **Delivered:** undo/redo for every Cartographer action (`Ctrl+Z` / `Ctrl+Shift+Z`, plus header buttons) with field-level merge semantics.
 
+### 11. 📱 Generative Webtoon & LitRPG Reader Integration
+* 📖 **[Competitive UX Analysis & LitRPG Webtoon Integration](COMPETITIVE_ANALYSIS_AND_LITRPG_WEBTOON_INTEGRATION.md)**
+* **Core Capabilities**:
+  * Inline LitRPG "System Window" cards with animated HP/MP gauges and real-time XP counters ($0/100 \to 80/100$).
+  * Floating resource feedback pills (`-120 MP`, `+80 XP`, `[Unique Skill: Active]`) directly inside the narrative stream.
+  * Episodic visual beat generation (Webtoon mode): embedding scene illustrations dynamically between dramatic beats.
+  * Concentric danger ring zoning on the Cartographer canvas and in regional lore checks.
+  * Action-first input bar (`"What do you do?"`) with markdown action shortcuts, slash commands, and one-tap voice reading.
+
