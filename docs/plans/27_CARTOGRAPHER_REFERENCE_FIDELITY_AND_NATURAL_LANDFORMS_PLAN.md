@@ -1,8 +1,25 @@
 # Plan 27 — Cartographer Reference Fidelity & Natural Landforms Engine
 
-**Status:** Proposed — Awaiting User Approval  
+**Status:** In Progress — Phases A, B, C Completed (Active Milestone: Phase D)  
 **Depends on:** Plan 21 (Map-Object Layers), Plan 24 (Place Categories & Terrain Links), Plan 25 (Procedural Mountains & Rivers), Plan 26 (Highlands, Lakes, Canyons & Biomes)  
-**Target Reference:** `docs/images/reference_faravand_map.jpg` (Hand-inked illuminated fantasy manuscript map of *FARAVAND*)
+**Target Reference:** `docs/images/reference_faravand_map.jpg` (Hand-inked illuminated fantasy manuscript map of *FARAVAND*)  
+**Active Test Coverage:** 68 passing tests across geometry, hit testing, bridges, deltas, and transform math  
+
+---
+
+## Progress & Delivery Tracker
+
+| Phase / Module | Deliverable | Engine Files | Test Suite | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **Phase A** (Direct Reshaping) | Interactive Vertex Dragging, Midpoint `+` Insertion, Keyboard Deletion (`Del`/`Backspace`) | `mapHitTest.ts`, `PixiSpatialIndex.ts`, `selectionOverlayRenderer.ts`, `PixiCartographerCanvas.tsx` | `mapHitTest.test.ts` (6 tests) | ✅ **Completed** (`d297d2b`, `11c50f0`) |
+| **Phase B** (Transform Gizmo) | 8-Point Bounding Box Gizmo (Uniform/Non-uniform scale, 360° rotation stalk, dual-mode selection) | `transformMath.ts`, `selectionOverlayRenderer.ts`, `usePixiEngine.ts`, `PixiCartographerEngine.ts` | `transformMath.test.ts` (4 tests) | ✅ **Completed** (`3206a93`) |
+| **Phase C.1** (Civil Infrastructure) | Procedural Bridge Generation, River Crossing Snapping, *Zarrin-Pol* Alignment, Cutwater Piers & Wake Ripples | `bridgeGenerator.ts`, `bridgeRenderer.ts`, `PixiCartographerEngine.ts`, `placeCategories.ts` | `bridgeGenerator.test.ts` (8 tests) | ✅ **Completed** (`cdec364`) |
+| **Phase C.2** (Hydrology V2) | River Delta Distributary Fan, Discharge-Weighted Channels, Alluvial Silt Islands, Studio Inspector UI | `deltaGenerator.ts`, `riverGenerator.ts`, `terrainRenderer.ts`, `CartographerInspector.tsx` | `deltaGenerator.test.ts` (5 tests) | ✅ **Completed** (`1ebfeed`) |
+| **Phase D.1** (Specialized Biomes) | *Sepidchal* Salt Pan Voronoi Polygon Crust & Halite Evaporite Efflorescence | `saltPanGenerator.ts`, `terrainRenderer.ts` | `saltPanGenerator.test.ts` | ⏳ **Next Up** |
+| **Phase D.2** (Specialized Biomes) | *Hiram Steppe* Sinuous Barchan Sand Dunes & Windward Ripple Hatching | `duneFieldGenerator.ts`, `terrainRenderer.ts` | `duneFieldGenerator.test.ts` | 📅 Queued |
+| **Phase D.3** (Coastal Waterlining) | Multi-Ring Concentric Wave Contours (Parallel shoreline echoes) | `waterliningGenerator.ts`, `terrainRenderer.ts` | `waterliningGenerator.test.ts` | 📅 Queued |
+| **Phase E.1** (Civil & Typography) | Continuous Forest Canopy Massing (*Jangal-e Shabnam*) & Curved Spline Typography | `canopyMassGenerator.ts`, `splineTextRenderer.ts` | `splineTextRenderer.test.ts` | 📅 Queued |
+| **Phase E.2** (Manuscript Furniture)| Nautical Compass Rose, Faravand Title Cartouche, Dual-Unit Scale Bar (*Parasangs* / Miles) | `manuscriptFurnitureRenderer.ts` | `manuscriptFurniture.test.ts` | 📅 Queued |
 
 ---
 
@@ -290,12 +307,18 @@ gantt
     Faravand Map Visual Audit                        :p5_3, after p5_2, 1d
 ```
 
-### Phase Breakdown
-* **Phase 1: Hydrology & Coastlines**: Implement `deltaGenerator.ts` and `waterliningGenerator.ts`. Connect them to `terrainRenderer.ts`.
-* **Phase 2: Surface Biomes**: Implement `saltPanGenerator.ts`, `duneFieldGenerator.ts`, and `canopyMassGenerator.ts`. Update biome tool settings in Studio.
-* **Phase 3: Direct Manipulation & Reshaping**: Implement interactive vertex anchor points, midpoint addition, and the 8-point bounding box transform/rotation gizmo for all terrain elements.
-* **Phase 4: Civil Infrastructure & Typography**: Implement `bridgeGenerator.ts` and `splineTextRenderer.ts`. Enable bridge stamping at Zarrin-Pol.
-* **Phase 5: Manuscript Furniture & Polish**: Add vector compass rose, title cartouche banner, and scale bar overlays. Run full unit testing and calibration against the Faravand map.
+### Phase Breakdown & Execution Status
+* **Phase A: Direct Manipulation & Reshaping**: ✅ **Completed (`d297d2b`, `11c50f0`)**
+  - Interactive vertex anchor points, midpoint `+` ghost handles, and keyboard vertex deletion (`Delete`/`Backspace`).
+* **Phase B: Transform Gizmo**: ✅ **Completed (`3206a93`)**
+  - 8-point bounding box gizmo (uniform/non-uniform scaling) + top rotation stalk with 360° centroid rotation. Dual-mode selection (Transform Mode vs Double-Click Vertex Reshaping Mode).
+* **Phase C: Story-Critical Landmarks & Hydrology**: ✅ **Completed (`cdec364`, `1ebfeed`)**
+  - **C.1 Civil Infrastructure**: Procedural masonry bridge generation (`bridgeGenerator.ts`, `bridgeRenderer.ts`), river crossing detection, and *Zarrin-Pol* bridge snapping.
+  - **C.2 Hydrology V2**: River delta branching fan (`deltaGenerator.ts`), discharge-weighted distributary channels, alluvial silt islands, and Studio Inspector controls.
+* **Phase D: Specialized Biomes & Shoreline Waterlining**: ⏳ **In Progress (Active Milestone)**
+  - Implement `saltPanGenerator.ts` (Voronoi salt crust for Sepidchal), `duneFieldGenerator.ts` (Barchan dunes for Hiram Steppe), and `waterliningGenerator.ts` (concentric wave echoes).
+* **Phase E: Typography & Manuscript Furniture**: 📅 **Queued**
+  - Implement continuous forest canopy massing (`canopyMassGenerator.ts`), curved spline typography (`splineTextRenderer.ts`), compass rose, title cartouche, and dual-unit scale bar.
 
 ---
 

@@ -108,3 +108,17 @@ This document outlines the upcoming feature roadmap and planned capabilities for
   * Concentric danger ring zoning on the Cartographer canvas and in regional lore checks.
   * Action-first input bar (`"What do you do?"`) with markdown action shortcuts, slash commands, and one-tap voice reading.
 
+### 12. 🏰 Illuminated Manuscript Cartography & Natural Landforms Engine (Plan 27)
+* 📖 **[Plan 27: Cartographer Reference Fidelity & Natural Landforms Engine](plans/27_CARTOGRAPHER_REFERENCE_FIDELITY_AND_NATURAL_LANDFORMS_PLAN.md)**
+* **Target Reference**: Hand-inked illuminated fantasy manuscript map of *FARAVAND* (`docs/images/reference_faravand_map.jpg`).
+* **Delivered Capabilities (Phases A, B, C)**:
+  * ✅ **Direct Vertex Anchor Reshaping**: Interactive white vertex circular handles on rivers, mountain ridges, and polygon biomes; midpoint `+` insertion handles; keyboard deletion (`Delete`/`Backspace`); real-time Catmull-Rom spline recalculation at 60 FPS.
+  * ✅ **8-Point Bounding Box Transform Gizmo**: Uniform/non-uniform scale handles + top rotation arm with 360° centroid rotation; dual-mode interaction (transform bounding box on single click, vertex reshaping on double click).
+  * ✅ **Civil Infrastructure & Bridge Crossings**: Procedural stone masonry bridge generation (`bridgeGenerator.ts`, `bridgeRenderer.ts`) with under-deck parchment masking, flared riverbank abutments, cutwater piers in the water channel with downstream wake ripples, and automatic snapping for *Zarrin-Pol* (`loc_mtr1h3jy_8dv6`).
+  * ✅ **Hydrology V2 River Delta Engine**: Branching distributary fans (`deltaGenerator.ts`), discharge-weighted channel widths, alluvial silt/sandbar islands with manuscript hatching, and Studio Inspector delta controls.
+* **Upcoming Milestones (Phases D & E)**:
+  * ⏳ **Specialized Biomes**: Voronoi salt crust playa for *Sepidchal*, sinuous barchan dune fields for *Hiram Steppe*, and continuous forest canopy massing (*Jangal-e Shabnam*).
+  * ⏳ **Shoreline Waterlining**: Concentric multi-ring wave contours hugging coastlines and inland lakes.
+  * ⏳ **Typography & Manuscript Furniture**: Spline-aligned curved typography, nautical compass rose, world title cartouche, and dual-unit scale bar.
+
+
