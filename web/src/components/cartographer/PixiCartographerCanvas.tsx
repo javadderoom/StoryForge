@@ -168,6 +168,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   onAddTradeRoute,
   onUpdateRoute,
   onAddRoute,
+  onUpdateTerrain,
   onAddTerrain,
   onReplaceTerrain,
   onAddLocation,
@@ -334,6 +335,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   const transientPosRef = useRef<MapPoint | null>(null);
   const tradeRoutesRef = useRef(worldBible.tradeRoutes || []);
   const mapRoutesRef = useRef(worldBible.mapData?.routes || []);
+  const terrainFeaturesRef = useRef(worldBible.mapData?.terrainFeatures || []);
   const routeDraftRef = useRef<RouteDraftState | null>(null);
   const routeSnapRef = useRef<RouteSnapTarget | null>(null);
   const routePointerRef = useRef<MapPoint | null>(null);
@@ -392,6 +394,10 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   useEffect(() => {
     mapRoutesRef.current = worldBible.mapData?.routes || [];
   }, [worldBible.mapData?.routes]);
+
+  useEffect(() => {
+    terrainFeaturesRef.current = worldBible.mapData?.terrainFeatures || [];
+  }, [worldBible.mapData?.terrainFeatures]);
 
   useEffect(() => {
     if (activeTool !== 'land_brush' && engineRef.current) {
@@ -805,6 +811,8 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
             ? { kind: 'trade_route', id: hit.candidate.routeId }
             : hit.kind === 'route_vertex'
             ? { kind: 'route', id: hit.candidate.routeId }
+            : hit.kind === 'terrain_vertex'
+            ? { kind: 'terrain', id: hit.candidate.featureId }
             : hit.kind === 'route'
             ? { kind: 'route', id: hit.candidate.route.id }
             : hit.kind === 'location'
@@ -817,6 +825,26 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
         if (additive) {
           onSelectionChange(toggleMapObjectRef(selection, hitRef));
+          return;
+        }
+
+        // A terrain vertex is an edit handle: select the owning terrain, then drag that vertex.
+        if (hit.kind === 'terrain_vertex') {
+          const alreadySelected = selection.some((ref) => sameMapObjectRef(ref, hitRef));
+          if (!alreadySelected) onSelectionChange([hitRef]);
+
+          const vertex = hit.candidate;
+          const nodeData: DraggedNodeData = {
+            type: 'terrain_vertex',
+            id: vertex.featureId,
+            index: vertex.index,
+            subType: vertex.subType,
+            startPoint: vertex.point,
+          };
+          setDraggedNode(nodeData);
+          draggedNodeRef.current = nodeData;
+          setTransientPos(vertex.point);
+          transientPosRef.current = vertex.point;
           return;
         }
 
@@ -1393,6 +1421,20 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           const updatedPath = [...(route.path ?? [])];
           updatedPath[active.index] = finalPos;
           onUpdateRoute(route.id, { path: updatedPath });
+        }
+      }
+      if (hasMoved && active.type === 'terrain_vertex' && active.id && active.index !== undefined) {
+        const feature = terrainFeaturesRef.current.find((f) => f.id === active.id);
+        if (feature) {
+          if (active.subType === 'points' && feature.points) {
+            const updatedPoints = [...feature.points];
+            updatedPoints[active.index] = finalPos;
+            onUpdateTerrain(feature.id, { points: updatedPoints });
+          } else if (active.subType === 'polygon' && feature.polygon) {
+            const updatedPolygon = [...feature.polygon];
+            updatedPolygon[active.index] = finalPos;
+            onUpdateTerrain(feature.id, { polygon: updatedPolygon });
+          }
         }
       }
     }

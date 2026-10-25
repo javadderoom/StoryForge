@@ -653,4 +653,67 @@ describe('mapHitTest — drawn roads (Plan 25)', () => {
     }, { visibleLayers: layers() });
     assert.equal(locked, null);
   });
+
+  describe('terrain vertex reshaping (Plan 27)', () => {
+    const river = terrain({
+      id: 'river_edit_1',
+      name: 'Zarvan River',
+      type: 'river',
+      points: [
+        { x: 100, y: 100 },
+        { x: 150, y: 120 },
+        { x: 200, y: 160 },
+      ],
+    });
+
+    it('picks the river itself when not selected', () => {
+      const hit = hitTestMapObjectsIn({ x: 102, y: 101 }, { terrainFeatures: [river] });
+      assert.equal(hit?.kind, 'terrain');
+      assert.equal(hit?.id, 'river_edit_1');
+    });
+
+    it('picks a terrain vertex as an edit handle when the feature is selected', () => {
+      const hit = hitTestMapObjectsIn(
+        { x: 151, y: 121 },
+        {
+          terrainFeatures: [river],
+          selectedTerrainIds: new Set(['river_edit_1']),
+        }
+      );
+      assert.equal(hit?.kind, 'terrain_vertex');
+      assert.equal(hit?.candidate.kind, 'terrain_vertex');
+      if (hit?.candidate.kind === 'terrain_vertex') {
+        assert.equal(hit.candidate.featureId, 'river_edit_1');
+        assert.equal(hit.candidate.index, 1);
+        assert.equal(hit.candidate.subType, 'points');
+      }
+    });
+
+    it('picks a polygon vertex on a selected lake', () => {
+      const lake = terrain({
+        id: 'lake_edit_1',
+        name: 'Lake Veridia',
+        type: 'lake',
+        polygon: [
+          { x: 300, y: 300 },
+          { x: 400, y: 300 },
+          { x: 400, y: 400 },
+          { x: 300, y: 400 },
+        ],
+      });
+      const hit = hitTestMapObjectsIn(
+        { x: 399, y: 301 },
+        {
+          terrainFeatures: [lake],
+          selectedTerrainIds: new Set(['lake_edit_1']),
+        }
+      );
+      assert.equal(hit?.kind, 'terrain_vertex');
+      if (hit?.candidate.kind === 'terrain_vertex') {
+        assert.equal(hit.candidate.featureId, 'lake_edit_1');
+        assert.equal(hit.candidate.index, 1);
+        assert.equal(hit.candidate.subType, 'polygon');
+      }
+    });
+  });
 });

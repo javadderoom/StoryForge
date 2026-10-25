@@ -73,6 +73,7 @@ export type MapHitKind =
   | 'location'
   | 'waypoint'
   | 'terrain'
+  | 'terrain_vertex'
   | 'placement'
   | 'trade_route'
   | 'route'
@@ -94,6 +95,15 @@ export type MapHitCandidate =
     }
   | { kind: 'waypoint'; id: string; routeId: string; index: number; point: MapPoint }
   | { kind: 'terrain'; id: string; feature: MapTerrainFeature }
+  | {
+      kind: 'terrain_vertex';
+      id: string;
+      featureId: string;
+      index: number;
+      subType: 'points' | 'polygon';
+      point: MapPoint;
+      feature: MapTerrainFeature;
+    }
   | { kind: 'placement'; id: string; placement: MapEntityPlacement }
   | { kind: 'trade_route'; id: string; route: WorldTradeRoute; points: MapPoint[] }
   | { kind: 'route'; id: string; route: MapRoute; points: MapPoint[] }
@@ -226,6 +236,8 @@ export interface MapHitCandidateInput {
   placements?: MapEntityPlacement[];
   /** Plan 24: decides whether a place is a pin or a label target. */
   placeCategories?: CustomPlaceCategory[];
+  /** When supplied, vertex editing handles are exposed for selected terrain features. */
+  selectedTerrainIds?: Set<string>;
 }
 
 /**
@@ -314,6 +326,34 @@ export function buildMapHitCandidates(input: MapHitCandidateInput): MapHitCandid
   }
 
   for (const feature of input.terrainFeatures ?? []) {
+    if (
+      isObjectVisible(feature) &&
+      !isObjectLocked(feature) &&
+      input.selectedTerrainIds?.has(feature.id)
+    ) {
+      (feature.points ?? []).forEach((point, index) => {
+        candidates.push({
+          kind: 'terrain_vertex',
+          id: `tv_${feature.id}_pts_${index}`,
+          featureId: feature.id,
+          index,
+          subType: 'points',
+          point,
+          feature,
+        });
+      });
+      (feature.polygon ?? []).forEach((point, index) => {
+        candidates.push({
+          kind: 'terrain_vertex',
+          id: `tv_${feature.id}_poly_${index}`,
+          featureId: feature.id,
+          index,
+          subType: 'polygon',
+          point,
+          feature,
+        });
+      });
+    }
     candidates.push({ kind: 'terrain', id: feature.id, feature });
   }
 
@@ -375,6 +415,8 @@ export function hitCandidateBounds(candidate: MapHitCandidate, pad = 0): MapBoun
     case 'waypoint':
       return boundsOfPoints([candidate.point], pad);
     case 'route_vertex':
+      return boundsOfPoints([candidate.point], pad);
+    case 'terrain_vertex':
       return boundsOfPoints([candidate.point], pad);
     case 'placement':
       return boundsOfPoints([{ x: candidate.placement.x, y: candidate.placement.y }], pad);
@@ -482,6 +524,23 @@ function hitFor(
         distance,
         tier: HIT_TIER.PIN,
         zIndex: 0,
+        area: 0,
+        candidate,
+      };
+    }
+
+    case 'terrain_vertex': {
+      const feature = candidate.feature;
+      if (!isObjectVisible(feature) || isObjectLocked(feature)) return null;
+      if (layers && !isTerrainVisibleInLayers(feature.type, layers)) return null;
+      const distance = Math.hypot(point.x - candidate.point.x, point.y - candidate.point.y);
+      if (distance > grab) return null;
+      return {
+        kind: 'terrain_vertex',
+        id: candidate.id,
+        distance,
+        tier: HIT_TIER.PIN,
+        zIndex: 9999,
         area: 0,
         candidate,
       };

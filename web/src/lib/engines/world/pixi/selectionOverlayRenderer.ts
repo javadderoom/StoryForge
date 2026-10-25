@@ -109,9 +109,35 @@ export function renderSelectionOverlay(
       if (!isTerrainVisibleInLayers(feature.type, settings.visibleLayers)) continue;
 
       if (feature.polygon && feature.polygon.length >= 3) {
-        strokePolyline(feature.polygon, true);
+        const poly = feature.polygon.map((point, index) => {
+          const isDragged =
+            draggedNode?.type === 'terrain_vertex' &&
+            draggedNode.id === feature.id &&
+            draggedNode.subType === 'polygon' &&
+            draggedNode.index === index;
+          return isDragged && transientPos ? transientPos : point;
+        });
+        strokePolyline(poly, true);
+        poly.forEach((point) => {
+          g.circle(point.x, point.y, 4.5)
+            .fill({ color: 0xfffbeb })
+            .stroke({ width: 1.5, color: 0xb45309 });
+        });
       } else if (feature.points && feature.points.length > 0) {
-        strokePolyline(feature.points, false);
+        const pts = feature.points.map((point, index) => {
+          const isDragged =
+            draggedNode?.type === 'terrain_vertex' &&
+            draggedNode.id === feature.id &&
+            draggedNode.subType === 'points' &&
+            draggedNode.index === index;
+          return isDragged && transientPos ? transientPos : point;
+        });
+        strokePolyline(pts, false);
+        pts.forEach((point) => {
+          g.circle(point.x, point.y, 4.5)
+            .fill({ color: 0xfffbeb })
+            .stroke({ width: 1.5, color: 0xb45309 });
+        });
       } else if (typeof feature.x === 'number' && typeof feature.y === 'number') {
         strokeCircle(feature.x, feature.y, (feature.radius ?? 24) + 4);
       }

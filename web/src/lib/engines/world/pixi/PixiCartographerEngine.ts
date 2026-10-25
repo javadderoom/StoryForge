@@ -300,13 +300,30 @@ export class PixiCartographerEngine {
     const dx = selectionDelta?.x ?? 0;
     const dy = selectionDelta?.y ?? 0;
     const hasDelta = dx !== 0 || dy !== 0;
-    const viewTerrain = hasDelta
+    let viewTerrain = hasDelta
       ? terrainFeatures.map((feature) =>
           selectionKeys.has(mapObjectKey('terrain', feature.id))
             ? translateTerrainFeature(feature, dx, dy)
             : feature
         )
       : terrainFeatures;
+
+    if (draggedNode?.type === 'terrain_vertex' && transientPos && draggedNode.index !== undefined) {
+      viewTerrain = viewTerrain.map((feature) => {
+        if (feature.id !== draggedNode.id) return feature;
+        if (draggedNode.subType === 'points' && feature.points) {
+          const pts = [...feature.points];
+          pts[draggedNode.index!] = transientPos;
+          return { ...feature, points: pts };
+        }
+        if (draggedNode.subType === 'polygon' && feature.polygon) {
+          const poly = [...feature.polygon];
+          poly[draggedNode.index!] = transientPos;
+          return { ...feature, polygon: poly };
+        }
+        return feature;
+      });
+    }
     const viewPlacements = hasDelta
       ? placements.map((placement) =>
           selectionKeys.has(mapObjectKey('placement', placement.id))
@@ -347,13 +364,18 @@ export class PixiCartographerEngine {
       theme === 'parchment' ? resolveTextureStrength(settings.textureStrength) : 0;
 
     // 1. Re-index interactive spatial elements
+    const selectedTerrainIds = new Set<string>();
+    for (const ref of selection) {
+      if (ref.kind === 'terrain') selectedTerrainIds.add(ref.id);
+    }
     this.rebuildSpatialIndex(
       locations,
       tradeRoutes,
       mapRoutes,
       terrainFeatures,
       placements,
-      placeCategories
+      placeCategories,
+      selectedTerrainIds
     );
 
     // 2. Render Background & Vintage Frame
@@ -443,7 +465,8 @@ export class PixiCartographerEngine {
     mapRoutes: MapRoute[],
     terrainFeatures: MapTerrainFeature[],
     placements: MapEntityPlacement[],
-    placeCategories: CustomPlaceCategory[]
+    placeCategories: CustomPlaceCategory[],
+    selectedTerrainIds?: Set<string>
   ): void {
     this.spatialIndex.clear();
     const spatialItems: SpatialItem[] = [];
@@ -455,6 +478,7 @@ export class PixiCartographerEngine {
       terrainFeatures,
       placements,
       placeCategories,
+      selectedTerrainIds,
     });
 
     for (const candidate of candidates) {
