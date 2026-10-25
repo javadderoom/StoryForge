@@ -80,6 +80,15 @@ interface CartographerElementsPanelProps {
    * matching geographical bucket.
    */
   placeCategories?: CustomPlaceCategory[];
+  /**
+   * Plan 25: applies one visibility state to many elements as a single
+   * undoable action with a single notification. Falls back to per-item
+   * toggles when absent.
+   */
+  onSetElementsVisibility?: (
+    targets: Array<{ kind: ItemWrapper['kind']; id: string }>,
+    visible: boolean
+  ) => void;
 }
 
 interface CategoryDefinition {
@@ -232,6 +241,7 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
   onToggleRoadLock,
   onDeleteRoad,
   placeCategories,
+  onSetElementsVisibility,
 }) => {
   // Accordion state: null initially so all categories start collapsed.
   // Opening any category automatically closes all others.
@@ -569,7 +579,9 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
     }
   };
 
-  // Category-level bulk visibility toggle: if any is visible, hide all; if all hidden, show all
+  // Category-level bulk visibility toggle: if any is visible, hide all; if all
+  // hidden, show all. One batched action — one undo step, one notification —
+  // instead of a toast per element.
   const handleToggleCategoryBulkVisibility = (e: React.MouseEvent, categoryKey: ElementCategoryKey) => {
     e.stopPropagation();
     const items = categorizedItems[categoryKey];
@@ -577,6 +589,16 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
 
     const anyVisible = items.some((it) => it.visible);
     const targetState = !anyVisible;
+    const targets = items
+      .filter((it) => it.visible !== targetState)
+      .map((it) => ({ kind: it.kind, id: it.id }));
+
+    if (targets.length === 0) return;
+
+    if (onSetElementsVisibility) {
+      onSetElementsVisibility(targets, targetState);
+      return;
+    }
 
     for (const item of items) {
       if (item.visible !== targetState) {

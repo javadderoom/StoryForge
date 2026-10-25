@@ -470,6 +470,72 @@ export default function CartographerPage() {
     [commit, mapData, updateMapData]
   );
 
+  /**
+   * Sets one visibility state across many elements as a single action:
+   * one undo step and one notification. Map objects are batched into one
+   * map-data write; locations and trade routes are batched into one
+   * world-bible write — bypassing the per-item CRUD notifications that
+   * would otherwise stack a toast per element.
+   */
+  const handleSetElementsVisibility = useCallback(
+    (
+      targets: Array<{ kind: 'terrain' | 'placement' | 'location' | 'route' | 'road'; id: string }>,
+      visible: boolean
+    ) => {
+      if (targets.length === 0) return;
+
+      const terrainIds = new Set(targets.filter((t) => t.kind === 'terrain').map((t) => t.id));
+      const placementIds = new Set(targets.filter((t) => t.kind === 'placement').map((t) => t.id));
+      const roadIds = new Set(targets.filter((t) => t.kind === 'road').map((t) => t.id));
+      const locationIds = new Set(targets.filter((t) => t.kind === 'location').map((t) => t.id));
+      const tradeRouteIds = new Set(targets.filter((t) => t.kind === 'route').map((t) => t.id));
+
+      const touchesMapData = terrainIds.size + placementIds.size + roadIds.size > 0;
+      const touchesWorldBible = locationIds.size + tradeRouteIds.size > 0;
+      if (!touchesMapData && !touchesWorldBible) return;
+
+      commit(visible ? 'Show elements' : 'Hide elements', () => {
+        if (touchesMapData) {
+          updateMapData((prev) => {
+            const current = prev || mapData;
+            return {
+              ...current,
+              terrainFeatures: current.terrainFeatures.map((f) =>
+                terrainIds.has(f.id) ? { ...f, visible } : f
+              ),
+              placements: current.placements.map((p) =>
+                placementIds.has(p.id) ? { ...p, visible } : p
+              ),
+              routes: (current.routes ?? []).map((r) =>
+                roadIds.has(r.id) ? { ...r, visible } : r
+              ),
+            };
+          });
+        }
+        if (touchesWorldBible) {
+          updateWorldBible((prev) => ({
+            ...prev,
+            locations: (prev.locations ?? []).map((l) =>
+              locationIds.has(l.id) ? { ...l, visible } : l
+            ),
+            tradeRoutes: (prev.tradeRoutes ?? []).map((r) =>
+              tradeRouteIds.has(r.id) ? { ...r, visible } : r
+            ),
+          }));
+        }
+      });
+
+      notify.info(
+        isPersian
+          ? `${targets.length} عنصر ${visible ? 'نمایش' : 'پنهان'} شد`
+          : `${targets.length} element${targets.length === 1 ? '' : 's'} ${
+              visible ? 'shown' : 'hidden'
+            }`
+      );
+    },
+    [commit, mapData, updateMapData, updateWorldBible, isPersian]
+  );
+
   const handleToggleTerrainVisibility = useCallback(
     (id: string) => {
       const feature = (mapData.terrainFeatures || []).find((f) => f.id === id);
@@ -788,6 +854,7 @@ export default function CartographerPage() {
             onToggleRoadLock={handleToggleRoadLock}
             onDeleteRoad={handleDeleteRoad}
             placeCategories={placeCategories}
+            onSetElementsVisibility={handleSetElementsVisibility}
           />
         )}
 
