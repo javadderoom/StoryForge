@@ -41,6 +41,7 @@ import {
   type MapRouteSource,
 } from '@/lib/engines/world/mapRoutes';
 import { normalizeLandWaterFeatures } from '@/lib/engines/world/landSculpt/waterFeatures';
+import { applyTransform } from '@/lib/engines/world/pixi/transformMath';
 import { usePixiEngine } from './canvas/usePixiEngine';
 import { useMapDrafting } from './canvas/useMapDrafting';
 import { CanvasOverlays } from './canvas/CanvasOverlays';
@@ -284,6 +285,12 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         }
       }
 
+      if (e.key === 'Escape') {
+        setIsVertexEditMode(false);
+        setActiveVertex(null);
+        activeVertexRef.current = null;
+      }
+
       if (e.key === 'PageUp' || e.key === 'PageDown') {
         e.preventDefault();
         const isZoomIn = e.key === 'PageUp';
@@ -335,6 +342,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     index: number;
     subType: 'points' | 'polygon';
   } | null>(null);
+  const [isVertexEditMode, setIsVertexEditMode] = useState(false);
 
   // Land Sculpt Brush controls
   const [sculptMode, setSculptMode] = useState<'paint' | 'carve'>('paint');
@@ -408,6 +416,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     draftPoints,
     rulerPoints,
     isPersian,
+    vertexEditMode: isVertexEditMode,
     pan,
     zoom,
   });
@@ -844,7 +853,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
             ? { kind: 'trade_route', id: hit.candidate.routeId }
             : hit.kind === 'route_vertex'
             ? { kind: 'route', id: hit.candidate.routeId }
-            : hit.kind === 'terrain_vertex' || hit.kind === 'terrain_midpoint'
+            : hit.kind === 'terrain_vertex' || hit.kind === 'terrain_midpoint' || hit.kind === 'transform_handle'
             ? { kind: 'terrain', id: hit.candidate.featureId }
             : hit.kind === 'route'
             ? { kind: 'route', id: hit.candidate.route.id }
@@ -894,6 +903,26 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
             activeVertexRef.current = { featureId: mid.featureId, index: mid.insertIndex, subType: mid.subType };
             return;
           }
+        }
+
+        // A transform handle (scale / rotate) scales or spins the entire feature.
+        if (hit.kind === 'transform_handle') {
+          const alreadySelected = selection.some((ref) => sameMapObjectRef(ref, hitRef));
+          if (!alreadySelected) onSelectionChange([hitRef]);
+
+          const th = hit.candidate;
+          const nodeData: DraggedNodeData = {
+            type: 'transform_handle',
+            id: th.featureId,
+            handleType: th.handleType,
+            originBox: th.box,
+            startPoint: th.point,
+          };
+          setDraggedNode(nodeData);
+          draggedNodeRef.current = nodeData;
+          setTransientPos(th.point);
+          transientPosRef.current = th.point;
+          return;
         }
 
         // A terrain vertex is an edit handle: select the owning terrain, then drag that vertex.
@@ -1509,6 +1538,38 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           }
         }
       }
+      if (
+        hasMoved &&
+        active.type === 'transform_handle' &&
+        active.id &&
+        active.originBox &&
+        active.handleType
+      ) {
+        const feature = terrainFeaturesRef.current.find((f) => f.id === active.id);
+        if (feature) {
+          if (feature.points && feature.points.length >= 2) {
+            const transformed = applyTransform(
+              feature.points,
+              active.handleType,
+              active.originBox,
+              active.startPoint,
+              finalPos,
+              false
+            );
+            onUpdateTerrain(feature.id, { points: transformed });
+          } else if (feature.polygon && feature.polygon.length >= 3) {
+            const transformed = applyTransform(
+              feature.polygon,
+              active.handleType,
+              active.originBox,
+              active.startPoint,
+              finalPos,
+              false
+            );
+            onUpdateTerrain(feature.id, { polygon: transformed });
+          }
+        }
+      }
     }
 
     setIsPanning(false);
@@ -1555,6 +1616,14 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   };
 
   const handleCanvasDoubleClick = (event: React.MouseEvent) => {
+    if (activeTool === 'select' && engineRef.current) {
+      const worldPoint = clientToWorld(event.clientX, event.clientY);
+      const hit = engineRef.current.pickAt(worldPoint, settings.visibleLayers);
+      if (hit && (hit.kind === 'terrain' || hit.kind === 'terrain_vertex' || hit.kind === 'transform_handle')) {
+        setIsVertexEditMode((prev) => !prev);
+        return;
+      }
+    }
     if (activeTool === 'draw_route') {
       const point = clientToWorld(event.clientX, event.clientY);
       const snap = snapRouteAt(point);

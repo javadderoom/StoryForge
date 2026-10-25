@@ -22,6 +22,7 @@ interface UsePixiEngineOptions {
   draftPoints: MapPoint[];
   rulerPoints: MapPoint[];
   isPersian: boolean;
+  vertexEditMode?: boolean;
   pan: { x: number; y: number };
   zoom: number;
 }
@@ -44,6 +45,7 @@ export function usePixiEngine({
   draftPoints,
   rulerPoints,
   isPersian,
+  vertexEditMode,
   pan,
   zoom,
 }: UsePixiEngineOptions): React.RefObject<PixiCartographerEngine | null> {
@@ -73,6 +75,7 @@ export function usePixiEngine({
           draftPoints,
           rulerPoints,
           isPersian,
+          vertexEditMode,
         });
       })
       .catch((error) => {
@@ -113,6 +116,7 @@ export function usePixiEngine({
       draftPoints,
       rulerPoints,
       isPersian,
+      vertexEditMode,
     });
   }, [
     worldBible,
@@ -125,6 +129,7 @@ export function usePixiEngine({
     draftPoints,
     rulerPoints,
     isPersian,
+    vertexEditMode,
   ]);
 
   return engineRef;

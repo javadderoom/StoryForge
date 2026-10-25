@@ -46,6 +46,7 @@ import {
   generateProceduralRiver,
   type RiverOptions,
 } from './riverGenerator';
+import { applyTransform } from './transformMath';
 import {
   generateProceduralHighland,
   type HighlandOptions,
@@ -324,6 +325,40 @@ export class PixiCartographerEngine {
         return feature;
       });
     }
+
+    if (
+      draggedNode?.type === 'transform_handle' &&
+      transientPos &&
+      draggedNode.originBox &&
+      draggedNode.handleType
+    ) {
+      viewTerrain = viewTerrain.map((feature) => {
+        if (feature.id !== draggedNode.id) return feature;
+        if (feature.points && feature.points.length >= 2) {
+          const transformed = applyTransform(
+            feature.points,
+            draggedNode.handleType!,
+            draggedNode.originBox!,
+            draggedNode.startPoint,
+            transientPos,
+            false
+          );
+          return { ...feature, points: transformed };
+        }
+        if (feature.polygon && feature.polygon.length >= 3) {
+          const transformed = applyTransform(
+            feature.polygon,
+            draggedNode.handleType!,
+            draggedNode.originBox!,
+            draggedNode.startPoint,
+            transientPos,
+            false
+          );
+          return { ...feature, polygon: transformed };
+        }
+        return feature;
+      });
+    }
     const viewPlacements = hasDelta
       ? placements.map((placement) =>
           selectionKeys.has(mapObjectKey('placement', placement.id))
@@ -375,7 +410,8 @@ export class PixiCartographerEngine {
       terrainFeatures,
       placements,
       placeCategories,
-      selectedTerrainIds
+      selectedTerrainIds,
+      options.vertexEditMode
     );
 
     // 2. Render Background & Vintage Frame
@@ -440,6 +476,7 @@ export class PixiCartographerEngine {
       transientPos,
       settings,
       placeCategories,
+      vertexEditMode: options.vertexEditMode,
     });
 
     // 8. Render Active Interaction Tools (Drafting & Ruler)
@@ -466,7 +503,8 @@ export class PixiCartographerEngine {
     terrainFeatures: MapTerrainFeature[],
     placements: MapEntityPlacement[],
     placeCategories: CustomPlaceCategory[],
-    selectedTerrainIds?: Set<string>
+    selectedTerrainIds?: Set<string>,
+    vertexEditMode?: boolean
   ): void {
     this.spatialIndex.clear();
     const spatialItems: SpatialItem[] = [];
@@ -479,6 +517,7 @@ export class PixiCartographerEngine {
       placements,
       placeCategories,
       selectedTerrainIds,
+      vertexEditMode,
     });
 
     for (const candidate of candidates) {

@@ -24,6 +24,11 @@ import {
 } from '../placeCategories';
 import type { DraggedNodeData } from './renderTypes';
 import { resolveMapRoutePoints } from '../mapRoutes';
+import {
+  computeTerrainBounds,
+  getTransformHandles,
+  ROTATION_ARM_OFFSET,
+} from './transformMath';
 
 export function renderSelectionOverlay(
   g: Graphics,
@@ -38,6 +43,7 @@ export function renderSelectionOverlay(
     transientPos: MapPoint | null;
     settings: WorldMapSettings;
     placeCategories?: CustomPlaceCategory[];
+    vertexEditMode?: boolean;
   }): void {
   g.clear();
 
@@ -52,6 +58,7 @@ export function renderSelectionOverlay(
       transientPos,
       settings,
       placeCategories,
+      vertexEditMode,
     } = options;
     if (selectionKeys.size === 0) return;
 
@@ -118,24 +125,27 @@ export function renderSelectionOverlay(
           return isDragged && transientPos ? transientPos : point;
         });
         strokePolyline(poly, true);
-        // Render midpoint insertion handles
-        for (let i = 0; i < poly.length; i++) {
-          const p1 = poly[i];
-          const p2 = poly[(i + 1) % poly.length];
-          if (Math.hypot(p2.x - p1.x, p2.y - p1.y) >= 16) {
-            const mx = (p1.x + p2.x) / 2;
-            const my = (p1.y + p2.y) / 2;
-            g.circle(mx, my, 3.5)
-              .fill({ color: 0xd97706, alpha: 0.85 })
-              .stroke({ width: 1.2, color: 0xfffbeb });
+
+        if (vertexEditMode) {
+          // Render midpoint insertion handles
+          for (let i = 0; i < poly.length; i++) {
+            const p1 = poly[i];
+            const p2 = poly[(i + 1) % poly.length];
+            if (Math.hypot(p2.x - p1.x, p2.y - p1.y) >= 16) {
+              const mx = (p1.x + p2.x) / 2;
+              const my = (p1.y + p2.y) / 2;
+              g.circle(mx, my, 3.5)
+                .fill({ color: 0xd97706, alpha: 0.85 })
+                .stroke({ width: 1.2, color: 0xfffbeb });
+            }
           }
+          // Render primary vertex anchor handles
+          poly.forEach((point) => {
+            g.circle(point.x, point.y, 4.5)
+              .fill({ color: 0xfffbeb })
+              .stroke({ width: 1.5, color: 0xb45309 });
+          });
         }
-        // Render primary vertex anchor handles
-        poly.forEach((point) => {
-          g.circle(point.x, point.y, 4.5)
-            .fill({ color: 0xfffbeb })
-            .stroke({ width: 1.5, color: 0xb45309 });
-        });
       } else if (feature.points && feature.points.length > 0) {
         const pts = feature.points.map((point, index) => {
           const isDragged =
@@ -146,26 +156,65 @@ export function renderSelectionOverlay(
           return isDragged && transientPos ? transientPos : point;
         });
         strokePolyline(pts, false);
-        // Render midpoint insertion handles
-        for (let i = 0; i < pts.length - 1; i++) {
-          const p1 = pts[i];
-          const p2 = pts[i + 1];
-          if (Math.hypot(p2.x - p1.x, p2.y - p1.y) >= 16) {
-            const mx = (p1.x + p2.x) / 2;
-            const my = (p1.y + p2.y) / 2;
-            g.circle(mx, my, 3.5)
-              .fill({ color: 0xd97706, alpha: 0.85 })
-              .stroke({ width: 1.2, color: 0xfffbeb });
+
+        if (vertexEditMode) {
+          // Render midpoint insertion handles
+          for (let i = 0; i < pts.length - 1; i++) {
+            const p1 = pts[i];
+            const p2 = pts[i + 1];
+            if (Math.hypot(p2.x - p1.x, p2.y - p1.y) >= 16) {
+              const mx = (p1.x + p2.x) / 2;
+              const my = (p1.y + p2.y) / 2;
+              g.circle(mx, my, 3.5)
+                .fill({ color: 0xd97706, alpha: 0.85 })
+                .stroke({ width: 1.2, color: 0xfffbeb });
+            }
           }
+          // Render primary vertex anchor handles
+          pts.forEach((point) => {
+            g.circle(point.x, point.y, 4.5)
+              .fill({ color: 0xfffbeb })
+              .stroke({ width: 1.5, color: 0xb45309 });
+          });
         }
-        // Render primary vertex anchor handles
-        pts.forEach((point) => {
-          g.circle(point.x, point.y, 4.5)
-            .fill({ color: 0xfffbeb })
-            .stroke({ width: 1.5, color: 0xb45309 });
-        });
       } else if (typeof feature.x === 'number' && typeof feature.y === 'number') {
         strokeCircle(feature.x, feature.y, (feature.radius ?? 24) + 4);
+      }
+
+      // 8-point Bounding Box Transform Gizmo & Rotation Handle (in transform mode)
+      if (!vertexEditMode) {
+        const box = computeTerrainBounds(feature);
+        if (box) {
+          // Draw bounding box
+          g.rect(box.minX, box.minY, box.width, box.height)
+            .stroke({ width: 1.2, color: 0x3b82f6, alpha: 0.75 });
+
+          // Draw rotation stalk from top edge midpoint upward
+          g.moveTo(box.cx, box.minY)
+            .lineTo(box.cx, box.minY - ROTATION_ARM_OFFSET)
+            .stroke({ width: 1.2, color: 0x3b82f6, alpha: 0.8 });
+
+          // Draw rotation grip handle
+          g.circle(box.cx, box.minY - ROTATION_ARM_OFFSET, 4.5)
+            .fill({ color: 0x2563eb })
+            .stroke({ width: 1.5, color: 0xffffff });
+
+          // Draw 8 scale handles
+          const handles = getTransformHandles(box);
+          for (const h of handles) {
+            if (h.type === 'rotate') continue;
+            const isCorner = h.type === 'nw' || h.type === 'ne' || h.type === 'se' || h.type === 'sw';
+            if (isCorner) {
+              g.rect(h.x - 3.5, h.y - 3.5, 7, 7)
+                .fill({ color: 0xffffff })
+                .stroke({ width: 1.2, color: 0x2563eb });
+            } else {
+              g.circle(h.x, h.y, 3)
+                .fill({ color: 0xffffff })
+                .stroke({ width: 1.2, color: 0x2563eb });
+            }
+          }
+        }
       }
     }
 

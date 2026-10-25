@@ -672,12 +672,13 @@ describe('mapHitTest — drawn roads (Plan 25)', () => {
       assert.equal(hit?.id, 'river_edit_1');
     });
 
-    it('picks a terrain vertex as an edit handle when the feature is selected', () => {
+    it('picks a terrain vertex as an edit handle when the feature is selected in vertex mode', () => {
       const hit = hitTestMapObjectsIn(
         { x: 151, y: 121 },
         {
           terrainFeatures: [river],
           selectedTerrainIds: new Set(['river_edit_1']),
+          vertexEditMode: true,
         }
       );
       assert.equal(hit?.kind, 'terrain_vertex');
@@ -689,7 +690,7 @@ describe('mapHitTest — drawn roads (Plan 25)', () => {
       }
     });
 
-    it('picks a polygon vertex on a selected lake', () => {
+    it('picks a polygon vertex on a selected lake in vertex mode', () => {
       const lake = terrain({
         id: 'lake_edit_1',
         name: 'Lake Veridia',
@@ -706,6 +707,7 @@ describe('mapHitTest — drawn roads (Plan 25)', () => {
         {
           terrainFeatures: [lake],
           selectedTerrainIds: new Set(['lake_edit_1']),
+          vertexEditMode: true,
         }
       );
       assert.equal(hit?.kind, 'terrain_vertex');
@@ -716,13 +718,14 @@ describe('mapHitTest — drawn roads (Plan 25)', () => {
       }
     });
 
-    it('picks a terrain midpoint for inserting a new vertex on a selected river', () => {
+    it('picks a terrain midpoint for inserting a new vertex on a selected river in vertex mode', () => {
       // Points are (100, 100) and (150, 120); midpoint is (125, 110)
       const hit = hitTestMapObjectsIn(
         { x: 125, y: 110 },
         {
           terrainFeatures: [river],
           selectedTerrainIds: new Set(['river_edit_1']),
+          vertexEditMode: true,
         }
       );
       assert.equal(hit?.kind, 'terrain_midpoint');
@@ -733,7 +736,7 @@ describe('mapHitTest — drawn roads (Plan 25)', () => {
       }
     });
 
-    it('picks a polygon midpoint for inserting a new vertex on a selected lake', () => {
+    it('picks a polygon midpoint for inserting a new vertex on a selected lake in vertex mode', () => {
       const lake = terrain({
         id: 'lake_edit_2',
         name: 'Lake Firouzeh',
@@ -751,6 +754,7 @@ describe('mapHitTest — drawn roads (Plan 25)', () => {
         {
           terrainFeatures: [lake],
           selectedTerrainIds: new Set(['lake_edit_2']),
+          vertexEditMode: true,
         }
       );
       assert.equal(hit?.kind, 'terrain_midpoint');
@@ -758,6 +762,47 @@ describe('mapHitTest — drawn roads (Plan 25)', () => {
         assert.equal(hit.candidate.featureId, 'lake_edit_2');
         assert.equal(hit.candidate.insertIndex, 1);
         assert.equal(hit.candidate.subType, 'polygon');
+      }
+    });
+
+    it('picks an 8-point transform handle or rotation handle in transform mode', () => {
+      const lake = terrain({
+        id: 'lake_trans_1',
+        name: 'Lake Firouzeh',
+        type: 'lake',
+        polygon: [
+          { x: 100, y: 100 },
+          { x: 200, y: 100 },
+          { x: 200, y: 200 },
+          { x: 100, y: 200 },
+        ],
+      });
+      // Corner 'se' at (200, 200)
+      const hitCorner = hitTestMapObjectsIn(
+        { x: 199, y: 199 },
+        {
+          terrainFeatures: [lake],
+          selectedTerrainIds: new Set(['lake_trans_1']),
+          vertexEditMode: false,
+        }
+      );
+      assert.equal(hitCorner?.kind, 'transform_handle');
+      if (hitCorner?.candidate.kind === 'transform_handle') {
+        assert.equal(hitCorner.candidate.handleType, 'se');
+      }
+
+      // Rotation stalk grip at cx: 150, minY - 24: 76
+      const hitRotate = hitTestMapObjectsIn(
+        { x: 150, y: 76 },
+        {
+          terrainFeatures: [lake],
+          selectedTerrainIds: new Set(['lake_trans_1']),
+          vertexEditMode: false,
+        }
+      );
+      assert.equal(hitRotate?.kind, 'transform_handle');
+      if (hitRotate?.candidate.kind === 'transform_handle') {
+        assert.equal(hitRotate.candidate.handleType, 'rotate');
       }
     });
   });

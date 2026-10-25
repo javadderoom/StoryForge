@@ -56,6 +56,12 @@ import {
   resolvePlaceMapAnchor,
 } from './placeCategories';
 import { resolveMapRoutePoints } from './mapRoutes';
+import {
+  computeTerrainBounds,
+  getTransformHandles,
+  type TransformHandleType,
+  type BoundingBox2D,
+} from './pixi/transformMath';
 
 /** Pick priority tiers — lower wins. */
 export const HIT_TIER = {
@@ -75,6 +81,7 @@ export type MapHitKind =
   | 'terrain'
   | 'terrain_vertex'
   | 'terrain_midpoint'
+  | 'transform_handle'
   | 'placement'
   | 'trade_route'
   | 'route'
@@ -112,6 +119,15 @@ export type MapHitCandidate =
       insertIndex: number;
       subType: 'points' | 'polygon';
       point: MapPoint;
+      feature: MapTerrainFeature;
+    }
+  | {
+      kind: 'transform_handle';
+      id: string;
+      featureId: string;
+      handleType: TransformHandleType;
+      point: MapPoint;
+      box: BoundingBox2D;
       feature: MapTerrainFeature;
     }
   | { kind: 'placement'; id: string; placement: MapEntityPlacement }
@@ -246,8 +262,10 @@ export interface MapHitCandidateInput {
   placements?: MapEntityPlacement[];
   /** Plan 24: decides whether a place is a pin or a label target. */
   placeCategories?: CustomPlaceCategory[];
-  /** When supplied, vertex editing handles are exposed for selected terrain features. */
+  /** When supplied, editing handles are exposed for selected terrain features. */
   selectedTerrainIds?: Set<string>;
+  /** When true, exposes vertex anchors and midpoints. When false (default), exposes bounding box scale/rotate handles. */
+  vertexEditMode?: boolean;
 }
 
 /**
@@ -341,59 +359,79 @@ export function buildMapHitCandidates(input: MapHitCandidateInput): MapHitCandid
       !isObjectLocked(feature) &&
       input.selectedTerrainIds?.has(feature.id)
     ) {
-      const pts = feature.points ?? [];
-      pts.forEach((point, index) => {
-        candidates.push({
-          kind: 'terrain_vertex',
-          id: `tv_${feature.id}_pts_${index}`,
-          featureId: feature.id,
-          index,
-          subType: 'points',
-          point,
-          feature,
-        });
-      });
-      for (let i = 0; i < pts.length - 1; i++) {
-        const p1 = pts[i];
-        const p2 = pts[i + 1];
-        if (Math.hypot(p2.x - p1.x, p2.y - p1.y) >= 16) {
+      if (input.vertexEditMode) {
+        // Vertex anchors and midpoints (Path Reshaping Mode)
+        const pts = feature.points ?? [];
+        pts.forEach((point, index) => {
           candidates.push({
-            kind: 'terrain_midpoint',
-            id: `tm_${feature.id}_pts_${i}`,
+            kind: 'terrain_vertex',
+            id: `tv_${feature.id}_pts_${index}`,
             featureId: feature.id,
-            insertIndex: i + 1,
+            index,
             subType: 'points',
-            point: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 },
+            point,
             feature,
           });
-        }
-      }
-
-      const poly = feature.polygon ?? [];
-      poly.forEach((point, index) => {
-        candidates.push({
-          kind: 'terrain_vertex',
-          id: `tv_${feature.id}_poly_${index}`,
-          featureId: feature.id,
-          index,
-          subType: 'polygon',
-          point,
-          feature,
         });
-      });
-      for (let i = 0; i < poly.length; i++) {
-        const p1 = poly[i];
-        const p2 = poly[(i + 1) % poly.length];
-        if (Math.hypot(p2.x - p1.x, p2.y - p1.y) >= 16) {
+        for (let i = 0; i < pts.length - 1; i++) {
+          const p1 = pts[i];
+          const p2 = pts[i + 1];
+          if (Math.hypot(p2.x - p1.x, p2.y - p1.y) >= 16) {
+            candidates.push({
+              kind: 'terrain_midpoint',
+              id: `tm_${feature.id}_pts_${i}`,
+              featureId: feature.id,
+              insertIndex: i + 1,
+              subType: 'points',
+              point: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 },
+              feature,
+            });
+          }
+        }
+
+        const poly = feature.polygon ?? [];
+        poly.forEach((point, index) => {
           candidates.push({
-            kind: 'terrain_midpoint',
-            id: `tm_${feature.id}_poly_${i}`,
+            kind: 'terrain_vertex',
+            id: `tv_${feature.id}_poly_${index}`,
             featureId: feature.id,
-            insertIndex: i + 1,
+            index,
             subType: 'polygon',
-            point: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 },
+            point,
             feature,
           });
+        });
+        for (let i = 0; i < poly.length; i++) {
+          const p1 = poly[i];
+          const p2 = poly[(i + 1) % poly.length];
+          if (Math.hypot(p2.x - p1.x, p2.y - p1.y) >= 16) {
+            candidates.push({
+              kind: 'terrain_midpoint',
+              id: `tm_${feature.id}_poly_${i}`,
+              featureId: feature.id,
+              insertIndex: i + 1,
+              subType: 'polygon',
+              point: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 },
+              feature,
+            });
+          }
+        }
+      } else {
+        // 8-point Bounding Box handles + 1 rotate handle (Transform Mode)
+        const box = computeTerrainBounds(feature);
+        if (box) {
+          const handles = getTransformHandles(box);
+          for (const h of handles) {
+            candidates.push({
+              kind: 'transform_handle',
+              id: `th_${feature.id}_${h.type}`,
+              featureId: feature.id,
+              handleType: h.type,
+              point: { x: h.x, y: h.y },
+              box,
+              feature,
+            });
+          }
         }
       }
     }
@@ -462,6 +500,8 @@ export function hitCandidateBounds(candidate: MapHitCandidate, pad = 0): MapBoun
     case 'terrain_vertex':
       return boundsOfPoints([candidate.point], pad);
     case 'terrain_midpoint':
+      return boundsOfPoints([candidate.point], pad);
+    case 'transform_handle':
       return boundsOfPoints([candidate.point], pad);
     case 'placement':
       return boundsOfPoints([{ x: candidate.placement.x, y: candidate.placement.y }], pad);
@@ -603,6 +643,23 @@ function hitFor(
         distance,
         tier: HIT_TIER.POINT,
         zIndex: 9998,
+        area: 0,
+        candidate,
+      };
+    }
+
+    case 'transform_handle': {
+      const feature = candidate.feature;
+      if (!isObjectVisible(feature) || isObjectLocked(feature)) return null;
+      if (layers && !isTerrainVisibleInLayers(feature.type, layers)) return null;
+      const distance = Math.hypot(point.x - candidate.point.x, point.y - candidate.point.y);
+      if (distance > grab) return null;
+      return {
+        kind: 'transform_handle',
+        id: candidate.id,
+        distance,
+        tier: HIT_TIER.PIN,
+        zIndex: 10000,
         area: 0,
         candidate,
       };

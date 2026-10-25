@@ -3,10 +3,13 @@ import type { MapPoint, WorldBible, WorldMapSettings } from '@/lib/types';
 import type { CartographerTool } from '@/components/cartographer/CartographerHeader';
 import type { MapObjectRef } from '../mapSelection';
 import type { MapMaterialKey } from '../texturePalette';
+import type { TransformHandleType, BoundingBox2D } from './transformMath';
 
 export interface DraggedNodeData {
-  type: 'location' | 'waypoint' | 'route_vertex' | 'terrain_vertex';
+  type: 'location' | 'waypoint' | 'route_vertex' | 'terrain_vertex' | 'transform_handle';
   id: string;
+  handleType?: TransformHandleType;
+  originBox?: BoundingBox2D;
   routeId?: string;
   index?: number;
   subType?: 'points' | 'polygon';
@@ -33,6 +36,7 @@ export interface RenderAllOptions {
   draftPoints: MapPoint[];
   rulerPoints: MapPoint[];
   isPersian: boolean;
+  vertexEditMode?: boolean;
 }
 
 export type FillWithMaterial = (
