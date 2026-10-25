@@ -25,6 +25,7 @@ import type {
   CustomPlaceCategory,
   MapEntityPlacement,
   MapPoint,
+  MapRoute,
   MapTerrainFeature,
   WorldLocation,
   WorldMapSettings,
@@ -37,13 +38,14 @@ import {
   placeLabelHalfWidth,
   resolvePlaceMapAnchor,
 } from './placeCategories';
+import { isMapRouteDrawn, resolveMapRoutePoints } from './mapRoutes';
 
 // ---------------------------------------------------------------------------
 // References
 // ---------------------------------------------------------------------------
 
-/** The four things a map selection can contain. Matches `SelectedMapItem`. */
-export type MapObjectKind = 'terrain' | 'placement' | 'location' | 'trade_route';
+/** The map objects a selection can contain. Matches `SelectedMapItem`. */
+export type MapObjectKind = 'terrain' | 'placement' | 'location' | 'trade_route' | 'route';
 
 export interface MapObjectRef {
   kind: MapObjectKind;
@@ -90,6 +92,7 @@ export function toggleMapObjectRef(refs: MapObjectRef[], ref: MapObjectRef): Map
 export interface MapSelectionSource {
   locations?: WorldLocation[];
   tradeRoutes?: WorldTradeRoute[];
+  mapRoutes?: MapRoute[];
   terrainFeatures?: MapTerrainFeature[];
   placements?: MapEntityPlacement[];
   /** Plan 24: decides whether a place is selected by pin or by label. */
@@ -335,6 +338,15 @@ export function collectSelectableRefs(
     }
   }
 
+  // Plan 25: drawn roads. A route on a hidden layer is not selectable.
+  if (!layers || layers.routes !== false) {
+    for (const route of source.mapRoutes ?? []) {
+      if (!isObjectVisible(route) || isObjectLocked(route)) continue;
+      if (!isMapRouteDrawn(route)) continue;
+      refs.push({ kind: 'route', id: route.id });
+    }
+  }
+
   for (const feature of source.terrainFeatures ?? []) {
     if (!isObjectVisible(feature) || isObjectLocked(feature)) continue;
     if (layers && !isTerrainVisibleInLayers(feature.type, layers)) continue;
@@ -409,6 +421,14 @@ export function marqueeSelectRefs(
     const points = resolveTradeRoutePoints(route, locations);
     if (polylineIntersectsBounds(points, expandBounds(bounds, ROUTE_SELECT_PAD))) {
       refs.push({ kind: 'trade_route', id: route.id });
+    }
+  }
+
+  for (const route of source.mapRoutes ?? []) {
+    if (!wanted.has(mapObjectKey('route', route.id))) continue;
+    const points = resolveMapRoutePoints(route, source).points;
+    if (polylineIntersectsBounds(points, expandBounds(bounds, ROUTE_SELECT_PAD))) {
+      refs.push({ kind: 'route', id: route.id });
     }
   }
 
@@ -495,11 +515,33 @@ export function translateTradeRoute(
   };
 }
 
+/**
+ * Translates a drawn road.
+ *
+ * Snapped ends stay attached to their geo element and resolve to the moved
+ * geometry automatically. Free ends and the drawn middle are owned by the
+ * route, so they move with it.
+ */
+export function translateMapRoute(route: MapRoute, dx: number, dy: number): MapRoute {
+  if (dx === 0 && dy === 0) return route;
+  const moveEndpoint = (endpoint: MapRoute['origin']): MapRoute['origin'] =>
+    endpoint.ref
+      ? endpoint
+      : { ...endpoint, fallback: offsetPoint(endpoint.fallback, dx, dy) };
+  return {
+    ...route,
+    origin: moveEndpoint(route.origin),
+    destination: moveEndpoint(route.destination),
+    path: (route.path ?? []).map((point) => offsetPoint(point, dx, dy)),
+  };
+}
+
 export interface MapTranslationResult {
   terrainFeatures: MapTerrainFeature[];
   placements: MapEntityPlacement[];
   locations: WorldLocation[];
   tradeRoutes: WorldTradeRoute[];
+  mapRoutes: MapRoute[];
 }
 
 /**
@@ -522,6 +564,7 @@ export function translateMapObjects(
   );
   const locationIds = new Set(refs.filter((r) => r.kind === 'location').map((r) => r.id));
   const routeIds = new Set(refs.filter((r) => r.kind === 'trade_route').map((r) => r.id));
+  const mapRouteIds = new Set(refs.filter((r) => r.kind === 'route').map((r) => r.id));
 
   // Plan 24: moving a non-point place means moving the terrain that draws it.
   // The place has no pin of its own; translating its coordinates instead would
@@ -567,6 +610,9 @@ export function translateMapObjects(
     tradeRoutes: (source.tradeRoutes ?? []).map((route) =>
       routeIds.has(route.id) ? translateTradeRoute(route, dx, dy) : route
     ),
+    mapRoutes: (source.mapRoutes ?? []).map((route) =>
+      mapRouteIds.has(route.id) ? translateMapRoute(route, dx, dy) : route
+    ),
   };
 }
 
@@ -577,6 +623,7 @@ export function translateMapObjects(
 export interface MapClipboard {
   locations: WorldLocation[];
   tradeRoutes: WorldTradeRoute[];
+  mapRoutes: MapRoute[];
   terrainFeatures: MapTerrainFeature[];
   placements: MapEntityPlacement[];
 }
@@ -606,6 +653,9 @@ export function buildMapClipboard(
     tradeRoutes: (source.tradeRoutes ?? []).filter((r) =>
       wanted.has(mapObjectKey('trade_route', r.id))
     ),
+    mapRoutes: (source.mapRoutes ?? []).filter((r) =>
+      wanted.has(mapObjectKey('route', r.id))
+    ),
     terrainFeatures: (source.terrainFeatures ?? []).filter((f) =>
       wanted.has(mapObjectKey('terrain', f.id))
     ),
@@ -619,6 +669,7 @@ export function clipboardSize(clipboard: MapClipboard): number {
   return (
     clipboard.locations.length +
     clipboard.tradeRoutes.length +
+    clipboard.mapRoutes.length +
     clipboard.terrainFeatures.length +
     clipboard.placements.length
   );
@@ -662,6 +713,7 @@ export function cloneMapClipboard(
   for (const placement of clipboard.placements) newIds.set(placement.id, makeId('placement'));
   for (const location of clipboard.locations) newIds.set(location.id, makeId('location'));
   for (const route of clipboard.tradeRoutes) newIds.set(route.id, makeId('trade_route'));
+  for (const route of clipboard.mapRoutes) newIds.set(route.id, makeId('route'));
   const remapOrKeep = (id: string) => newIds.get(id) ?? id;
   const remapInBatch = (id: string | undefined) =>
     id === undefined ? undefined : newIds.get(id);
@@ -713,9 +765,36 @@ export function cloneMapClipboard(
     waypoints: route.waypoints?.map((point) => offsetPoint(point, offsetX, offsetY)),
   }));
 
+  const mapRoutes: MapRoute[] = clipboard.mapRoutes.map((route) => {
+    const cloneEndpoint = (endpoint: MapRoute['origin']): MapRoute['origin'] => {
+      const ref = endpoint.ref
+        ? {
+            ...endpoint.ref,
+            id: newIds.get(endpoint.ref.id) ?? endpoint.ref.id,
+          }
+        : undefined;
+      return {
+        ...endpoint,
+        ref,
+        fallback: offsetPoint(endpoint.fallback, offsetX, offsetY),
+      };
+    };
+
+    return {
+      ...route,
+      id: newIds.get(route.id)!,
+      name: withCopySuffix(route.name, copySuffix) ?? route.name,
+      origin: cloneEndpoint(route.origin),
+      destination: cloneEndpoint(route.destination),
+      path: (route.path ?? []).map((point) => offsetPoint(point, offsetX, offsetY)),
+      tradeRouteId: remapInBatch(route.tradeRouteId),
+    };
+  });
+
   return {
     locations,
     tradeRoutes,
+    mapRoutes,
     terrainFeatures,
     placements,
     refs: [
@@ -723,6 +802,7 @@ export function cloneMapClipboard(
       ...placements.map((placement): MapObjectRef => ({ kind: 'placement', id: placement.id })),
       ...locations.map((location): MapObjectRef => ({ kind: 'location', id: location.id })),
       ...tradeRoutes.map((route): MapObjectRef => ({ kind: 'trade_route', id: route.id })),
+      ...mapRoutes.map((route): MapObjectRef => ({ kind: 'route', id: route.id })),
     ],
   };
 }

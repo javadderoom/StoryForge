@@ -13,6 +13,7 @@ import {
   Trees,
   Castle,
   Route,
+  Truck,
   User,
   Skull,
   Sparkles,
@@ -78,9 +79,15 @@ export const CartographerLayerPanel: React.FC<CartographerLayerPanelProps> = ({
       color: 'text-amber-400',
     },
     {
-      key: 'caravanRoutes' as const,
-      label: { en: 'Caravan Corridors & Roads', fa: 'مسیر کاروان‌ها و شاهراه‌ها' },
+      key: 'routes' as const,
+      label: { en: 'Roads, Trails & Sea Lanes', fa: 'جاده‌ها، راه‌ها و گذرگاه‌های دریایی' },
       icon: Route,
+      color: 'text-amber-300',
+    },
+    {
+      key: 'caravanRoutes' as const,
+      label: { en: 'Trade Corridors', fa: 'مسیرهای تجاری کاروان' },
+      icon: Truck,
       color: 'text-orange-400',
     },
     {

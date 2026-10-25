@@ -10,6 +10,7 @@ import {
   WorldTradeRoute,
   MapTerrainFeature,
   MapEntityPlacement,
+  MapRoute,
 } from '@/lib/types';
 import {
   CANVAS_WIDTH,
@@ -23,6 +24,11 @@ import { PixiCartographerCanvas } from '@/components/cartographer/PixiCartograph
 import { CartographerLayerPanel } from '@/components/cartographer/CartographerLayerPanel';
 import { CartographerEntityPalette } from '@/components/cartographer/CartographerEntityPalette';
 import { CartographerElementsPanel } from '@/components/cartographer/CartographerElementsPanel';
+import {
+  detachRoutesFromRef,
+  resolveMapRoutePoints,
+  routeMidpoint,
+} from '@/lib/engines/world/mapRoutes';
 import { CartographerInspector, SelectedMapItem } from '@/components/cartographer/CartographerInspector';
 import { CartographerSelectionBar } from '@/components/cartographer/CartographerSelectionBar';
 import { CartographerAiOracleModal } from '@/components/cartographer/CartographerAiOracleModal';
@@ -208,6 +214,16 @@ export default function CartographerPage() {
         return {
           ...current,
           terrainFeatures: current.terrainFeatures.filter((f) => f.id !== id),
+          routes: detachRoutesFromRef(
+            current.routes ?? [],
+            { kind: 'terrain', id },
+            {
+              locations: story.worldBible.locations,
+              terrainFeatures: current.terrainFeatures,
+              placements: current.placements,
+              placeCategories,
+            }
+          ),
         };
       });
       removeFromSelection([{ kind: 'terrain', id }]);
@@ -244,6 +260,22 @@ export default function CartographerPage() {
   const handleDeleteLocation = (id: string) => {
     commit('Delete location', () => {
       deleteLocation(id);
+      updateMapData((prev) => {
+        const current = prev || mapData;
+        return {
+          ...current,
+          routes: detachRoutesFromRef(
+            current.routes ?? [],
+            { kind: 'location', id },
+            {
+              locations: story.worldBible.locations,
+              terrainFeatures: current.terrainFeatures,
+              placements: current.placements,
+              placeCategories,
+            }
+          ),
+        };
+      });
       removeFromSelection([{ kind: 'location', id }]);
     });
   };
@@ -304,6 +336,65 @@ export default function CartographerPage() {
     });
   };
 
+  // Drawn Roads & Paths (Plan 25)
+  const handleAddRoad = (route: MapRoute) => {
+    commit('Draw road', () => {
+      updateMapData((prev) => {
+        const current = prev || mapData;
+        return {
+          ...current,
+          routes: [...(current.routes ?? []), route],
+        };
+      });
+    });
+    notify.success(isPersian ? 'جاده روی نقشه ترسیم شد' : 'Road added to the map');
+  };
+
+  const handleUpdateRoad = (id: string, updated: Partial<MapRoute>) => {
+    commit('Edit road', () => {
+      updateMapData((prev) => {
+        const current = prev || mapData;
+        return {
+          ...current,
+          routes: (current.routes ?? []).map((route) =>
+            route.id === id ? { ...route, ...updated } : route
+          ),
+        };
+      });
+    });
+  };
+
+  const handleDeleteRoad = (id: string) => {
+    commit('Delete road', () => {
+      updateMapData((prev) => {
+        const current = prev || mapData;
+        return {
+          ...current,
+          routes: (current.routes ?? []).filter((route) => route.id !== id),
+        };
+      });
+      removeFromSelection([{ kind: 'route', id }]);
+    });
+  };
+
+  const handleToggleRoadVisibility = useCallback(
+    (id: string) => {
+      const route = (mapData.routes || []).find((item) => item.id === id);
+      if (!route) return;
+      handleUpdateRoad(id, { visible: route.visible === false });
+    },
+    [handleUpdateRoad, mapData.routes]
+  );
+
+  const handleToggleRoadLock = useCallback(
+    (id: string) => {
+      const route = (mapData.routes || []).find((item) => item.id === id);
+      if (!route) return;
+      handleUpdateRoad(id, { locked: !(route.locked === true) });
+    },
+    [handleUpdateRoad, mapData.routes]
+  );
+
   // Placements Handlers
   const handleAddPlacement = (placement: MapEntityPlacement) => {
     commit('Pin entity', () => {
@@ -325,6 +416,16 @@ export default function CartographerPage() {
         return {
           ...current,
           placements: current.placements.filter((p) => p.id !== id),
+          routes: detachRoutesFromRef(
+            current.routes ?? [],
+            { kind: 'placement', id },
+            {
+              locations: story.worldBible.locations,
+              terrainFeatures: current.terrainFeatures,
+              placements: current.placements,
+              placeCategories,
+            }
+          ),
         };
       });
       removeFromSelection([{ kind: 'placement', id }]);
@@ -497,13 +598,22 @@ export default function CartographerPage() {
         ? resolvePlaceMapAnchor(item.data, mapData.terrainFeatures)
         : item.type === 'placement'
         ? { x: item.data.x, y: item.data.y }
+        : item.type === 'route'
+        ? routeMidpoint(
+            resolveMapRoutePoints(item.data, {
+              locations: story.worldBible.locations,
+              terrainFeatures: mapData.terrainFeatures,
+              placements: mapData.placements,
+              placeCategories,
+            }).points
+          )
         : null;
     if (!point) return;
 
     const screenW = typeof window !== 'undefined' ? window.innerWidth : 1200;
     const screenH = typeof window !== 'undefined' ? window.innerHeight : 800;
     setPan({ x: screenW / 2 - point.x * zoom, y: screenH / 2 - point.y * zoom });
-  }, [mapData.terrainFeatures, setSelection, zoom]);
+  }, [mapData.terrainFeatures, mapData.placements, placeCategories, story.worldBible.locations, setSelection, zoom]);
 
 
   // Station NPC at location
@@ -623,6 +733,8 @@ export default function CartographerPage() {
           onMoveSelection={handleMoveSelection}
           onUpdateTradeRoute={handleUpdateTradeRoute}
           onAddTradeRoute={handleAddTradeRoute}
+          onUpdateRoute={handleUpdateRoad}
+          onAddRoute={handleAddRoad}
           onUpdateTerrain={handleUpdateTerrain}
           onAddTerrain={handleAddTerrain}
           onReplaceTerrain={handleReplaceTerrain}
@@ -672,6 +784,9 @@ export default function CartographerPage() {
             onToggleRouteVisibility={handleToggleRouteVisibility}
             onToggleRouteLock={handleToggleRouteLock}
             onDeleteRoute={handleDeleteTradeRoute}
+            onToggleRoadVisibility={handleToggleRoadVisibility}
+            onToggleRoadLock={handleToggleRoadLock}
+            onDeleteRoad={handleDeleteRoad}
           />
         )}
 
@@ -721,6 +836,10 @@ export default function CartographerPage() {
             onUpdateTerrain={handleUpdateTerrain}
             onDeleteTerrain={handleDeleteTerrain}
             onDeletePlacement={handleDeletePlacement}
+            onUpdateRoute={handleUpdateRoad}
+            onDeleteRoute={handleDeleteRoad}
+            onToggleRouteVisibility={handleToggleRoadVisibility}
+            onToggleRouteLock={handleToggleRoadLock}
             onToggleTerrainVisibility={handleToggleTerrainVisibility}
             onToggleTerrainLock={handleToggleTerrainLock}
             onTogglePlacementVisibility={handleTogglePlacementVisibility}
@@ -730,6 +849,7 @@ export default function CartographerPage() {
             locations={story.worldBible.locations || []}
             placeCategories={placeCategories}
             terrainFeatures={mapData.terrainFeatures}
+            placements={mapData.placements}
             onStationNpc={handleStationNpc}
             isPersian={isPersian}
           />

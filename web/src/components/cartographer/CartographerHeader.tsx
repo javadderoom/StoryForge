@@ -43,6 +43,7 @@ export type CartographerTool =
   | 'terrain_valley'
   | 'terrain_biome'
   | 'place_settlement'
+  | 'draw_route'
   | 'draw_caravan'
   | 'place_npc'
   | 'place_creature'

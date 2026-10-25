@@ -12,11 +12,13 @@ import {
   MapTerrainFeature,
   MapEntityPlacement,
   MapPoint,
+  MapRoute,
   CustomPlaceCategory,
 } from '@/lib/types';
 import {
   mapObjectKey,
   translateLocation,
+  translateMapRoute,
   translatePlacement,
   translateTerrainFeature,
   translateTradeRoute,
@@ -59,6 +61,10 @@ import {
 } from './entitiesRenderer';
 import { renderSelectionOverlay } from './selectionOverlayRenderer';
 import {
+  renderMapRoutes,
+  renderRouteSnapPreview,
+} from './routeRenderer';
+import {
   renderBrushCursor,
   renderBrushPreview,
   renderInteraction,
@@ -100,7 +106,9 @@ export class PixiCartographerEngine {
   private bgGraphics = new Graphics();
   private gridGraphics = new Graphics();
   private terrainGraphics = new Graphics();
+  private mapRouteGraphics = new Graphics();
   private routeGraphics = new Graphics();
+  private routeLabelsContainer = new Container();
   private settlementGraphics = new Graphics();
   private placementGraphics = new Graphics();
   private interactionGraphics = new Graphics();
@@ -141,7 +149,7 @@ export class PixiCartographerEngine {
     this.backgroundLayer.addChild(this.bgGraphics);
     this.gridLayer.addChild(this.gridGraphics);
     this.terrainLayer.addChild(this.terrainGraphics);
-    this.routeLayer.addChild(this.routeGraphics);
+    this.routeLayer.addChild(this.mapRouteGraphics, this.routeLabelsContainer, this.routeGraphics);
     this.settlementLayer.addChild(this.settlementGraphics, this.settlementLabelsContainer);
     this.placementLayer.addChild(this.placementGraphics);
     this.interactionLayer.addChild(
@@ -274,6 +282,7 @@ export class PixiCartographerEngine {
 
     const locations = worldBible.locations || [];
     const tradeRoutes = worldBible.tradeRoutes || [];
+    const mapRoutes = worldBible.mapData?.routes || [];
     const terrainFeatures = normalizeLandWaterFeatures(
       worldBible.mapData?.terrainFeatures || []
     );
@@ -319,6 +328,13 @@ export class PixiCartographerEngine {
             : route
         )
       : tradeRoutes;
+    const viewMapRoutes = hasDelta
+      ? mapRoutes.map((route) =>
+          selectionKeys.has(mapObjectKey('route', route.id))
+            ? translateMapRoute(route, dx, dy)
+            : route
+        )
+      : mapRoutes;
 
     // How strongly the material textures are laid over the flat theme
     // colours. 0 = the classic flat look, 1 = fully textured.
@@ -331,7 +347,14 @@ export class PixiCartographerEngine {
       theme === 'parchment' ? resolveTextureStrength(settings.textureStrength) : 0;
 
     // 1. Re-index interactive spatial elements
-    this.rebuildSpatialIndex(locations, tradeRoutes, terrainFeatures, placements, placeCategories);
+    this.rebuildSpatialIndex(
+      locations,
+      tradeRoutes,
+      mapRoutes,
+      terrainFeatures,
+      placements,
+      placeCategories
+    );
 
     // 2. Render Background & Vintage Frame
     renderBackground(this.bgGraphics, this.fillWithMaterial.bind(this));
@@ -342,7 +365,24 @@ export class PixiCartographerEngine {
     // 4. Render Continents, Biomes, Rivers, Mountains
     renderTerrain(this.terrainGraphics, viewTerrain, settings, this.fillWithMaterial.bind(this));
 
-    // 5. Render Trade Routes & Waypoints
+    // 5. Render drawn roads and paths (Plan 25), then the economic overlay.
+    renderMapRoutes(this.mapRouteGraphics, {
+      routes: viewMapRoutes,
+      source: {
+        locations: viewLocations,
+        terrainFeatures: viewTerrain,
+        placements: viewPlacements,
+        placeCategories,
+      },
+      selectionKeys,
+      draggedNode,
+      transientPos,
+      settings,
+      isPersian,
+      labelsContainer: this.routeLabelsContainer,
+    });
+
+    // 5b. Render Trade Routes & Waypoints
     renderRoutes(this.routeGraphics, {
       tradeRoutes: viewRoutes,
       locations: viewLocations,
@@ -373,6 +413,7 @@ export class PixiCartographerEngine {
       placements: viewPlacements,
       locations: viewLocations,
       tradeRoutes: viewRoutes,
+      mapRoutes: viewMapRoutes,
       draggedNode,
       transientPos,
       settings,
@@ -399,6 +440,7 @@ export class PixiCartographerEngine {
   private rebuildSpatialIndex(
     locations: WorldLocation[],
     tradeRoutes: WorldTradeRoute[],
+    mapRoutes: MapRoute[],
     terrainFeatures: MapTerrainFeature[],
     placements: MapEntityPlacement[],
     placeCategories: CustomPlaceCategory[]
@@ -409,6 +451,7 @@ export class PixiCartographerEngine {
     const candidates = buildMapHitCandidates({
       locations,
       tradeRoutes,
+      mapRoutes,
       terrainFeatures,
       placements,
       placeCategories,
@@ -562,6 +605,11 @@ export class PixiCartographerEngine {
     mode: 'paint' | 'carve'
   ): void {
     renderBrushCursor(this.brushCursorGraphics, point, radius, mode);
+  }
+
+  /** Passive snap indicator while the road tool is armed. */
+  public renderRouteSnapPreview(point: MapPoint | null): void {
+    renderRouteSnapPreview(this.brushGraphics, point);
   }
 
   /**

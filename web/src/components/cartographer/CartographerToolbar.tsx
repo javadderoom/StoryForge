@@ -13,6 +13,7 @@ import {
   Trees,
   Castle,
   Route,
+  Truck,
   User,
   Skull,
   Sparkles,
@@ -149,10 +150,23 @@ export const CartographerToolbar: React.FC<CartographerToolbarProps> = ({
           accentClass: 'hover:text-amber-400',
         },
         {
-          id: 'draw_caravan',
-          name: { en: 'Caravan Route', fa: 'مسیر کاروان' },
-          tooltip: { en: 'Draw trade corridor, roads & waypoints', fa: 'ترسیم مسیر کاروان، شاهراه‌ها و ایستگاه‌ها' },
+          id: 'draw_route',
+          name: { en: 'Roads & Paths', fa: 'جاده‌ها و راه‌ها' },
+          tooltip: {
+            en: 'Draw a road, trail, pass or sea lane between any two elements. Click to start, click-to-add points or drag freehand, finish on an element or with Enter',
+            fa: 'ترسیم جاده، مالرو، گردنه یا گذرگاه دریایی بین هر دو عنصر. کلیک برای شروع، کلیک برای افزودن نقاط یا درگ آزاد، پایان روی عنصر یا با Enter',
+          },
           icon: Route,
+          accentClass: 'hover:text-amber-300',
+        },
+        {
+          id: 'draw_caravan',
+          name: { en: 'Trade Corridor', fa: 'مسیر تجاری' },
+          tooltip: {
+            en: 'Draw an economic caravan corridor between two settlements',
+            fa: 'ترسیم مسیر اقتصادی کاروان بین دو سکونتگاه',
+          },
+          icon: Truck,
           accentClass: 'hover:text-orange-400',
         },
         {

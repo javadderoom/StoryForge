@@ -3,6 +3,7 @@ import type {
   CustomPlaceCategory,
   MapEntityPlacement,
   MapPoint,
+  MapRoute,
   WorldLocation,
   WorldMapSettings,
   WorldTradeRoute,
@@ -22,6 +23,7 @@ import {
   resolvePlaceMapAnchor,
 } from '../placeCategories';
 import type { DraggedNodeData } from './renderTypes';
+import { resolveMapRoutePoints } from '../mapRoutes';
 
 export function renderSelectionOverlay(
   g: Graphics,
@@ -31,6 +33,7 @@ export function renderSelectionOverlay(
     placements: MapEntityPlacement[];
     locations: WorldLocation[];
     tradeRoutes: WorldTradeRoute[];
+    mapRoutes?: MapRoute[];
     draggedNode: DraggedNodeData | null;
     transientPos: MapPoint | null;
     settings: WorldMapSettings;
@@ -44,6 +47,7 @@ export function renderSelectionOverlay(
       placements,
       locations,
       tradeRoutes,
+      mapRoutes,
       draggedNode,
       transientPos,
       settings,
@@ -142,6 +146,27 @@ export function renderSelectionOverlay(
       const anchor = resolvePlaceMapAnchor(location, terrainFeatures);
       if (!anchor) continue;
       strokeLabel(anchor, location.name);
+    }
+
+    // Drawn roads (Plan 25). The source is the live view, so an endpoint that
+    // follows a dragged settlement or a moved terrain resolves correctly.
+    if (settings.visibleLayers.routes !== false) {
+      for (const route of mapRoutes ?? []) {
+        if (!selectionKeys.has(mapObjectKey('route', route.id)) || !isObjectVisible(route)) continue;
+        const transient =
+          draggedNode?.type === 'route_vertex' &&
+          draggedNode.routeId === route.id &&
+          draggedNode.index !== undefined &&
+          transientPos
+            ? { index: draggedNode.index, point: transientPos }
+            : null;
+        const resolved = resolveMapRoutePoints(
+          route,
+          { locations, terrainFeatures, placements, placeCategories },
+          transient
+        );
+        strokePolyline(resolved.points, false);
+      }
     }
 
     // Trade routes (endpoints and waypoints follow a live drag).

@@ -36,6 +36,7 @@ import type {
   CustomPlaceCategory,
   MapEntityPlacement,
   MapPoint,
+  MapRoute,
   MapTerrainFeature,
   WorldLocation,
   WorldMapSettings,
@@ -54,6 +55,7 @@ import {
   PLACE_LABEL_HALF_HEIGHT,
   resolvePlaceMapAnchor,
 } from './placeCategories';
+import { resolveMapRoutePoints } from './mapRoutes';
 
 /** Pick priority tiers — lower wins. */
 export const HIT_TIER = {
@@ -67,7 +69,14 @@ export const HIT_TIER = {
   AREA: 3,
 } as const;
 
-export type MapHitKind = 'location' | 'waypoint' | 'terrain' | 'placement' | 'trade_route';
+export type MapHitKind =
+  | 'location'
+  | 'waypoint'
+  | 'terrain'
+  | 'placement'
+  | 'trade_route'
+  | 'route'
+  | 'route_vertex';
 
 export type MapHitCandidate =
   | {
@@ -86,7 +95,9 @@ export type MapHitCandidate =
   | { kind: 'waypoint'; id: string; routeId: string; index: number; point: MapPoint }
   | { kind: 'terrain'; id: string; feature: MapTerrainFeature }
   | { kind: 'placement'; id: string; placement: MapEntityPlacement }
-  | { kind: 'trade_route'; id: string; route: WorldTradeRoute; points: MapPoint[] };
+  | { kind: 'trade_route'; id: string; route: WorldTradeRoute; points: MapPoint[] }
+  | { kind: 'route'; id: string; route: MapRoute; points: MapPoint[] }
+  | { kind: 'route_vertex'; id: string; routeId: string; index: number; point: MapPoint };
 
 export interface MapHitBase {
   /** Distance in world units; 0 means "inside the shape". */
@@ -210,6 +221,7 @@ export function ringArea(ring: MapPoint[]): number {
 export interface MapHitCandidateInput {
   locations?: WorldLocation[];
   tradeRoutes?: WorldTradeRoute[];
+  mapRoutes?: MapRoute[];
   terrainFeatures?: MapTerrainFeature[];
   placements?: MapEntityPlacement[];
   /** Plan 24: decides whether a place is a pin or a label target. */
@@ -278,6 +290,29 @@ export function buildMapHitCandidates(input: MapHitCandidateInput): MapHitCandid
     });
   }
 
+  // Plan 25: drawn roads. The resolved polyline is indexed as one line target;
+  // each free path vertex is also a pin-tier edit handle.
+  for (const route of input.mapRoutes ?? []) {
+    if (!isObjectVisible(route) || isObjectLocked(route)) continue;
+    const resolved = resolveMapRoutePoints(route, input);
+    if (resolved.points.length < 2) continue;
+    (route.path ?? []).forEach((point, index) => {
+      candidates.push({
+        kind: 'route_vertex',
+        id: `rv_${route.id}_${index}`,
+        routeId: route.id,
+        index,
+        point,
+      });
+    });
+    candidates.push({
+      kind: 'route',
+      id: route.id,
+      route,
+      points: resolved.points,
+    });
+  }
+
   for (const feature of input.terrainFeatures ?? []) {
     candidates.push({ kind: 'terrain', id: feature.id, feature });
   }
@@ -339,9 +374,13 @@ export function hitCandidateBounds(candidate: MapHitCandidate, pad = 0): MapBoun
     }
     case 'waypoint':
       return boundsOfPoints([candidate.point], pad);
+    case 'route_vertex':
+      return boundsOfPoints([candidate.point], pad);
     case 'placement':
       return boundsOfPoints([{ x: candidate.placement.x, y: candidate.placement.y }], pad);
     case 'trade_route':
+      return boundsOfPoints(candidate.points, pad);
+    case 'route':
       return boundsOfPoints(candidate.points, pad);
     case 'terrain': {
       const feature = candidate.feature;
@@ -433,6 +472,21 @@ function hitFor(
       };
     }
 
+    case 'route_vertex': {
+      if (layers && layers.routes === false) return null;
+      const distance = Math.hypot(point.x - candidate.point.x, point.y - candidate.point.y);
+      if (distance > grab) return null;
+      return {
+        kind: 'route_vertex',
+        id: candidate.id,
+        distance,
+        tier: HIT_TIER.PIN,
+        zIndex: 0,
+        area: 0,
+        candidate,
+      };
+    }
+
     case 'placement': {
       const placement = candidate.placement;
       if (!isObjectVisible(placement) || isObjectLocked(placement)) return null;
@@ -460,6 +514,21 @@ function hitFor(
         distance,
         tier: HIT_TIER.LINE,
         zIndex: 0,
+        area: 0,
+        candidate,
+      };
+    }
+
+    case 'route': {
+      if (layers && layers.routes === false) return null;
+      const distance = distanceToPolyline(point, candidate.points);
+      if (distance > grab) return null;
+      return {
+        kind: 'route',
+        id: candidate.id,
+        distance,
+        tier: HIT_TIER.LINE,
+        zIndex: candidate.route.zIndex ?? 0,
         area: 0,
         candidate,
       };

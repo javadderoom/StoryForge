@@ -137,6 +137,7 @@ export const DEFAULT_MAP_SETTINGS: WorldMapSettings = {
     valleys: true,
     biomes: true,
     settlements: true,
+    routes: true,
     caravanRoutes: true,
     npcs: true,
     bestiary: true,
@@ -454,12 +455,14 @@ export function getOrInitializeWorldMapData(
   };
 
   const placements: MapEntityPlacement[] = existingMap?.placements ? [...existingMap.placements] : [];
+  const routes = existingMap?.routes ? [...existingMap.routes] : [];
 
   return {
     version: existingMap?.version || 1,
     settings,
     terrainFeatures: terrain,
     placements,
+    routes,
     notes: existingMap?.notes || '',
   };
 }

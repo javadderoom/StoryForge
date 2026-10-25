@@ -786,6 +786,85 @@ export interface MapEntityPlacement {
   zIndex?: number;
 }
 
+// ---------------------------------------------------------------------------
+// Plan 25 — first-class roads and paths.
+//
+// A `MapRoute` is deliberately separate from `WorldTradeRoute`: a trade route
+// is an economic corridor between two settlements, while a map route is any
+// drawn road, trail, pass or sea lane between any two geo elements. A road may
+// optionally link to the trade corridor it also carries.
+// ---------------------------------------------------------------------------
+
+export type MapRouteKind =
+  | 'highway'
+  | 'road'
+  | 'dirt_road'
+  | 'trail'
+  | 'mountain_pass'
+  | 'bridge'
+  | 'ferry'
+  | 'sea_lane'
+  | 'secret_path'
+  | 'caravan';
+
+/** 1 = easy, 5 = treacherous. Authoring metadata, plus optional mechanics. */
+export type MapRouteDifficulty = 1 | 2 | 3 | 4 | 5;
+
+export type MapRouteLineStyle = 'solid' | 'dashed' | 'dotted' | 'double';
+
+/** The geo element a route end is attached to. */
+export interface MapRouteEndpointRef {
+  kind: 'location' | 'terrain' | 'placement';
+  id: string;
+}
+
+/**
+ * Where on the target the road attaches.
+ *
+ * `point` is a pin or a point feature. `segment` addresses a point on a
+ * polyline or a polygon boundary and is resolved live, so a river that is
+ * redrawn or a mountain that is moved drags the road end along with it.
+ * `segment` may be the closing edge of a ring (`polygon.length - 1`).
+ */
+export type MapRouteAnchor =
+  | { kind: 'point' }
+  | { kind: 'segment'; segment: number; t: number };
+
+export interface MapRouteEndpoint {
+  /** Absent means a free end, e.g. a trail that fades off the map. */
+  ref?: MapRouteEndpointRef;
+  anchor?: MapRouteAnchor;
+  /** Last resolved position; keeps a detached route visible and editable. */
+  fallback: MapPoint;
+  /** Optional label override such as "North Gate". */
+  label?: string;
+}
+
+export interface MapRoute {
+  id: string;
+  name: string;
+  kind: MapRouteKind;
+  difficulty: MapRouteDifficulty;
+  origin: MapRouteEndpoint;
+  destination: MapRouteEndpoint;
+  /** Free-drawn interior vertices; endpoints are resolved, never stored here. */
+  path: MapPoint[];
+  /** Lateral shift in px, used to separate parallel routes on the same pair. */
+  offset?: number;
+  width?: number;
+  color?: string;
+  lineStyle?: MapRouteLineStyle;
+  /** Optional gameplay fields; derived defaults live in the route style table. */
+  travelMultiplier?: number;
+  checkDC?: number;
+  description?: string;
+  /** Optional bridge to the economic corridor this road also carries. */
+  tradeRouteId?: string;
+  visible?: boolean;
+  locked?: boolean;
+  zIndex?: number;
+}
+
 export type MapStyleTheme =
   | 'parchment'      // Antique hand-drawn cartography
   | 'topographic'    // Hypsometric elevation contour map
@@ -817,6 +896,8 @@ export interface WorldMapSettings {
     valleys: boolean;
     biomes: boolean;
     settlements: boolean;
+    /** Plan 25: roads, trails, passes and sea lanes. */
+    routes?: boolean;
     caravanRoutes: boolean;
     npcs: boolean;
     bestiary: boolean;
@@ -834,6 +915,8 @@ export interface WorldMapData {
   settings: WorldMapSettings;
   terrainFeatures: MapTerrainFeature[];
   placements: MapEntityPlacement[];
+  /** Plan 25: drawn roads and paths. Optional so old worlds stay valid. */
+  routes?: MapRoute[];
   notes?: string;
 }
 
@@ -1622,6 +1705,61 @@ export const MapEntityPlacementSchema = z.object({
   zIndex: z.number().optional(),
 });
 
+export const MapRouteEndpointRefSchema = z.object({
+  kind: z.enum(['location', 'terrain', 'placement']),
+  id: z.string().min(1),
+});
+
+export const MapRouteAnchorSchema = z.union([
+  z.object({ kind: z.literal('point') }),
+  z.object({
+    kind: z.literal('segment'),
+    segment: z.number().int().min(0),
+    t: z.number().min(0).max(1),
+  }),
+]);
+
+export const MapRouteEndpointSchema = z.object({
+  ref: MapRouteEndpointRefSchema.optional(),
+  anchor: MapRouteAnchorSchema.optional(),
+  fallback: MapPointSchema,
+  label: z.string().optional(),
+});
+
+export const MapRouteSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  kind: z
+    .enum([
+      'highway',
+      'road',
+      'dirt_road',
+      'trail',
+      'mountain_pass',
+      'bridge',
+      'ferry',
+      'sea_lane',
+      'secret_path',
+      'caravan',
+    ])
+    .default('road'),
+  difficulty: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).default(2),
+  origin: MapRouteEndpointSchema,
+  destination: MapRouteEndpointSchema,
+  path: z.array(MapPointSchema).default([]),
+  offset: z.number().optional(),
+  width: z.number().positive().max(40).optional(),
+  color: z.string().optional(),
+  lineStyle: z.enum(['solid', 'dashed', 'dotted', 'double']).optional(),
+  travelMultiplier: z.number().positive().max(20).optional(),
+  checkDC: z.number().min(1).max(40).optional(),
+  description: z.string().optional(),
+  tradeRouteId: z.string().optional(),
+  visible: z.boolean().optional(),
+  locked: z.boolean().optional(),
+  zIndex: z.number().optional(),
+});
+
 export const WorldMapSettingsSchema = z.object({
   width: z.number().default(2400),
   height: z.number().default(1600),
@@ -1639,6 +1777,7 @@ export const WorldMapDataSchema = z.object({
   settings: WorldMapSettingsSchema,
   terrainFeatures: z.array(MapTerrainFeatureSchema).default([]),
   placements: z.array(MapEntityPlacementSchema).default([]),
+  routes: z.array(MapRouteSchema).default([]),
   notes: z.string().optional(),
 });
 

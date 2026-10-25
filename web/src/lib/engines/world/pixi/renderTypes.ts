@@ -5,10 +5,12 @@ import type { MapObjectRef } from '../mapSelection';
 import type { MapMaterialKey } from '../texturePalette';
 
 export interface DraggedNodeData {
-  type: 'location' | 'waypoint';
+  type: 'location' | 'waypoint' | 'route_vertex';
   id: string;
   routeId?: string;
   index?: number;
+  /** Present when a road endpoint is dragged (reserved for future editing). */
+  endpoint?: 'origin' | 'destination';
   startPoint: MapPoint;
 }
 

@@ -12,7 +12,7 @@ export interface SpatialItem<T = any> {
   maxX: number;
   maxY: number;
   id: string;
-  type: 'location' | 'terrain' | 'trade_route' | 'waypoint' | 'placement';
+  type: 'location' | 'terrain' | 'trade_route' | 'waypoint' | 'placement' | 'route' | 'route_vertex';
   data: T;
 }
 

@@ -23,6 +23,7 @@ import {
 } from '@/lib/engines/world/mapSelection';
 import type { CartographerTool } from '../CartographerHeader';
 import type { SelectedMapItem } from '../CartographerInspector';
+import { detachRoutesFromRef } from '@/lib/engines/world/mapRoutes';
 
 type Commit = (
   label: string,
@@ -68,6 +69,7 @@ export function useCartographerSelection({
     () => ({
       locations: worldBible.locations,
       tradeRoutes: worldBible.tradeRoutes,
+      mapRoutes: mapData.routes,
       terrainFeatures: mapData.terrainFeatures,
       placements: mapData.placements,
       placeCategories,
@@ -79,6 +81,7 @@ export function useCartographerSelection({
   const selectedItems = useMemo<NonNullable<SelectedMapItem>[]>(() => {
     const locations = worldBible.locations ?? [];
     const routes = worldBible.tradeRoutes ?? [];
+    const mapRoutes = mapData.routes ?? [];
     const items: NonNullable<SelectedMapItem>[] = [];
 
     for (const ref of selection) {
@@ -88,6 +91,9 @@ export function useCartographerSelection({
       } else if (ref.kind === 'trade_route') {
         const data = routes.find((route) => route.id === ref.id);
         if (data) items.push({ type: 'trade_route', data });
+      } else if (ref.kind === 'route') {
+        const data = mapRoutes.find((route) => route.id === ref.id);
+        if (data) items.push({ type: 'route', data });
       } else if (ref.kind === 'terrain') {
         const data = mapData.terrainFeatures.find((feature) => feature.id === ref.id);
         if (data) items.push({ type: 'terrain', data });
@@ -140,6 +146,7 @@ export function useCartographerSelection({
       const placementIds = new Set(unique.filter((ref) => ref.kind === 'placement').map((ref) => ref.id));
       const locationIds = new Set(unique.filter((ref) => ref.kind === 'location').map((ref) => ref.id));
       const routeIds = new Set(unique.filter((ref) => ref.kind === 'trade_route').map((ref) => ref.id));
+      const mapRouteIds = new Set(unique.filter((ref) => ref.kind === 'route').map((ref) => ref.id));
 
       const parts: string[] = [];
       const addPart = (count: number, en: string, fa: string) => {
@@ -150,6 +157,7 @@ export function useCartographerSelection({
       addPart(placementIds.size, 'pin', 'سنجاق');
       addPart(locationIds.size, 'location', 'مکان');
       addPart(routeIds.size, 'trade route', 'مسیر کاروان');
+      addPart(mapRouteIds.size, 'road', 'جاده');
 
       const only = unique.length === 1 ? selectedItems[0] : undefined;
       const namedObject =
@@ -187,11 +195,25 @@ export function useCartographerSelection({
               !locationIds.has(route.originLocationId) &&
               !locationIds.has(route.destinationLocationId)
           );
+          let nextRoutes = (previousMap?.routes ?? []).filter(
+            (route) => !mapRouteIds.has(route.id)
+          );
+          for (const id of terrainIds) {
+            nextRoutes = detachRoutesFromRef(nextRoutes, { kind: 'terrain', id }, selectionSource);
+          }
+          for (const id of placementIds) {
+            nextRoutes = detachRoutesFromRef(nextRoutes, { kind: 'placement', id }, selectionSource);
+          }
+          for (const id of locationIds) {
+            nextRoutes = detachRoutesFromRef(nextRoutes, { kind: 'location', id }, selectionSource);
+          }
+
           const nextMap = previousMap
             ? {
                 ...previousMap,
                 terrainFeatures: previousMap.terrainFeatures.filter((feature) => !terrainIds.has(feature.id)),
                 placements: previousMap.placements.filter((placement) => !placementIds.has(placement.id)),
+                routes: nextRoutes,
               }
             : previousMap;
           return {
@@ -233,7 +255,11 @@ export function useCartographerSelection({
         (feature, index) => feature !== previousTerrain[index]
       );
       const touchesMapData =
-        movesTerrain || refs.some((ref) => ref.kind === 'terrain' || ref.kind === 'placement');
+        movesTerrain ||
+        refs.some(
+          (ref) =>
+            ref.kind === 'terrain' || ref.kind === 'placement' || ref.kind === 'route'
+        );
       const touchesLocations = refs.some((ref) => ref.kind === 'location');
       const touchesRoutes = refs.some((ref) => ref.kind === 'trade_route');
 
@@ -247,6 +273,7 @@ export function useCartographerSelection({
                 ...current,
                 terrainFeatures: moved.terrainFeatures,
                 placements: moved.placements,
+                routes: moved.mapRoutes,
               };
             });
           }
@@ -296,6 +323,8 @@ export function useCartographerSelection({
               ? 'pin'
               : kind === 'location'
               ? 'loc'
+              : kind === 'route'
+              ? 'route'
               : 'tr';
           return `${prefix}_${stamp}_${counter++}`;
         },
@@ -309,6 +338,7 @@ export function useCartographerSelection({
             ...current,
             terrainFeatures: [...current.terrainFeatures, ...clones.terrainFeatures],
             placements: [...current.placements, ...clones.placements],
+            routes: [...(current.routes ?? []), ...clones.mapRoutes],
           };
         });
         if (clones.locations.length > 0 || clones.tradeRoutes.length > 0) {

@@ -29,11 +29,13 @@ import {
   WorldMapData,
   MapTerrainFeature,
   MapEntityPlacement,
+  MapRoute,
   WorldLocation,
   WorldTradeRoute,
 } from '@/lib/types';
 import { SelectedMapItem } from './CartographerInspector';
 import { isObjectLocked, isObjectVisible, terrainCenter } from '@/lib/engines/world/mapObjectOrder';
+import { routeDifficultyLabel, routeKindLabel } from '@/lib/engines/world/mapRoutes';
 
 export type ElementCategoryKey =
   | 'landmass'
@@ -43,6 +45,7 @@ export type ElementCategoryKey =
   | 'valley'
   | 'biome'
   | 'settlement'
+  | 'road'
   | 'route'
   | 'pin';
 
@@ -64,6 +67,10 @@ interface CartographerElementsPanelProps {
   onToggleRouteVisibility?: (id: string) => void;
   onToggleRouteLock?: (id: string) => void;
   onDeleteRoute?: (id: string) => void;
+  /** Plan 25 — drawn roads and paths. */
+  onToggleRoadVisibility?: (id: string) => void;
+  onToggleRoadLock?: (id: string) => void;
+  onDeleteRoad?: (id: string) => void;
 }
 
 interface CategoryDefinition {
@@ -125,11 +132,18 @@ const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
     color: 'text-amber-300',
   },
   {
-    key: 'route',
-    label: { en: 'Caravan Routes & Roads', fa: 'مسیرهای تجاری و کاروان‌ها' },
-    emptyMessage: { en: 'No caravan routes linked', fa: 'هیچ مسیر کاروانی متصل نشده است' },
+    key: 'road',
+    label: { en: 'Roads & Paths', fa: 'جاده‌ها و راه‌ها' },
+    emptyMessage: { en: 'No roads drawn yet', fa: 'هنوز جاده‌ای رسم نشده است' },
     icon: Route,
-    color: 'text-amber-500',
+    color: 'text-amber-300',
+  },
+  {
+    key: 'route',
+    label: { en: 'Trade Corridors', fa: 'مسیرهای تجاری کاروان' },
+    emptyMessage: { en: 'No trade corridors linked', fa: 'هیچ مسیر تجاری متصل نشده است' },
+    icon: Route,
+    color: 'text-orange-400',
   },
   {
     key: 'pin',
@@ -169,6 +183,15 @@ type ItemWrapper =
       raw: WorldTradeRoute;
     }
   | {
+      kind: 'road';
+      id: string;
+      name: string;
+      subtitle: string;
+      visible: boolean;
+      locked: boolean;
+      raw: MapRoute;
+    }
+  | {
       kind: 'placement';
       id: string;
       name: string;
@@ -196,6 +219,9 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
   onToggleRouteVisibility,
   onToggleRouteLock,
   onDeleteRoute,
+  onToggleRoadVisibility,
+  onToggleRoadLock,
+  onDeleteRoad,
 }) => {
   // Accordion state: null initially so all categories start collapsed.
   // Opening any category automatically closes all others.
@@ -208,6 +234,7 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
     const placements = mapData.placements || [];
     const locations = worldBible.locations || [];
     const routes = worldBible.tradeRoutes || [];
+    const roads = mapData.routes || [];
 
     const result: Record<ElementCategoryKey, ItemWrapper[]> = {
       landmass: [],
@@ -217,6 +244,7 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
       valley: [],
       biome: [],
       settlement: [],
+      road: [],
       route: [],
       pin: [],
     };
@@ -357,6 +385,23 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
       });
     }
 
+    // Drawn roads and paths (Plan 25)
+    for (const road of roads) {
+      const isVis = isObjectVisible(road);
+      const isLck = isObjectLocked(road);
+      const kindLabel = routeKindLabel(road.kind, isPersian);
+      const difficultyLabel = routeDifficultyLabel(road.difficulty, isPersian);
+      result.road.push({
+        kind: 'road',
+        id: road.id,
+        name: road.name || kindLabel,
+        subtitle: `${kindLabel} · ${difficultyLabel}`,
+        visible: isVis,
+        locked: isLck,
+        raw: road,
+      });
+    }
+
     // Placements / Lore Pins
     for (const p of placements) {
       const isVis = isObjectVisible(p);
@@ -387,7 +432,7 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
     }
 
     return result;
-  }, [mapData.terrainFeatures, mapData.placements, worldBible, isPersian]);
+  }, [mapData.terrainFeatures, mapData.placements, mapData.routes, worldBible, isPersian]);
 
   // Total element count across all categories
   const totalCount = useMemo(() => {
@@ -407,6 +452,7 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
       valley: [],
       biome: [],
       settlement: [],
+      road: [],
       route: [],
       pin: [],
     };
@@ -436,6 +482,8 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
       onToggleLocationVisibility?.(item.id);
     } else if (item.kind === 'route') {
       onToggleRouteVisibility?.(item.id);
+    } else if (item.kind === 'road') {
+      onToggleRoadVisibility?.(item.id);
     }
   };
 
@@ -450,6 +498,8 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
       onToggleLocationLock?.(item.id);
     } else if (item.kind === 'route') {
       onToggleRouteLock?.(item.id);
+    } else if (item.kind === 'road') {
+      onToggleRoadLock?.(item.id);
     }
   };
 
@@ -464,6 +514,8 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
       onDeleteLocation?.(item.id);
     } else if (item.kind === 'route') {
       onDeleteRoute?.(item.id);
+    } else if (item.kind === 'road') {
+      onDeleteRoad?.(item.id);
     }
   };
 
@@ -477,6 +529,8 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
       onSelectMapObject?.({ type: 'location', data: item.raw });
     } else if (item.kind === 'route') {
       onSelectMapObject?.({ type: 'trade_route', data: item.raw });
+    } else if (item.kind === 'road') {
+      onSelectMapObject?.({ type: 'route', data: item.raw });
     }
   };
 
@@ -495,6 +549,7 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
         else if (item.kind === 'placement') onTogglePlacementVisibility?.(item.id);
         else if (item.kind === 'location') onToggleLocationVisibility?.(item.id);
         else if (item.kind === 'route') onToggleRouteVisibility?.(item.id);
+        else if (item.kind === 'road') onToggleRoadVisibility?.(item.id);
       }
     }
   };

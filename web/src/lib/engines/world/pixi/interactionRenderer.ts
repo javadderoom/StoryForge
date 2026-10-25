@@ -2,6 +2,7 @@ import type { Graphics } from 'pixi.js';
 import type { MapPoint } from '@/lib/types';
 import type { CartographerTool } from '@/components/cartographer/CartographerHeader';
 import { VINTAGE_PARCHMENT } from './vintageTheme';
+import { renderRouteDraft } from './routeRenderer';
 
 export function renderInteraction(
   g: Graphics,
@@ -11,11 +12,13 @@ export function renderInteraction(
     activeTool: CartographerTool;
     isPersian: boolean;
   }): void {
-    const { draftPoints, rulerPoints } = options;
+  const { draftPoints, rulerPoints, activeTool } = options;
   g.clear();
 
     // In-Progress Drafting Line / Polygon Preview
-    if (draftPoints.length > 0) {
+    if (activeTool === 'draw_route') {
+      renderRouteDraft(g, draftPoints, false);
+    } else if (draftPoints.length > 0) {
       g.moveTo(draftPoints[0].x, draftPoints[0].y);
       for (let i = 1; i < draftPoints.length; i++) {
         g.lineTo(draftPoints[i].x, draftPoints[i].y);

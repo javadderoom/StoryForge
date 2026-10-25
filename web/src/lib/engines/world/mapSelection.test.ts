@@ -19,6 +19,7 @@ import {
 import type {
   MapEntityPlacement,
   MapPoint,
+  MapRoute,
   MapTerrainFeature,
   WorldLocation,
   WorldMapSettings,
@@ -86,6 +87,19 @@ function route(over: Partial<WorldTradeRoute> = {}): WorldTradeRoute {
   } as WorldTradeRoute;
 }
 
+function mapRoute(over: Partial<MapRoute> = {}): MapRoute {
+  return {
+    id: 'road_1',
+    name: 'Haven Road',
+    kind: 'road',
+    difficulty: 2,
+    origin: { fallback: { x: 0, y: 0 } },
+    destination: { fallback: { x: 100, y: 0 } },
+    path: [{ x: 50, y: 20 }],
+    ...over,
+  } as MapRoute;
+}
+
 function layers(over: Partial<WorldMapSettings['visibleLayers']> = {}): WorldMapSettings['visibleLayers'] {
   return {
     terrain: true,
@@ -94,6 +108,7 @@ function layers(over: Partial<WorldMapSettings['visibleLayers']> = {}): WorldMap
     valleys: true,
     biomes: true,
     settlements: true,
+    routes: true,
     caravanRoutes: true,
     npcs: true,
     bestiary: true,
@@ -589,6 +604,7 @@ describe('mapSelection — clipboard', () => {
           waypoints: [{ x: 5, y: 5 }],
         }),
       ],
+      mapRoutes: [],
       terrainFeatures: [
         terrain({
           id: 'terr_1',
@@ -654,6 +670,7 @@ describe('mapSelection — clipboard', () => {
           }),
         ],
         tradeRoutes: [],
+        mapRoutes: [],
         terrainFeatures: [],
         placements: [],
       },
@@ -668,6 +685,7 @@ describe('mapSelection — clipboard', () => {
       {
         locations: [location({ id: 'loc_1' })],
         tradeRoutes: [],
+        mapRoutes: [],
         terrainFeatures: [terrain({ id: 'terr_1' })],
         placements: [placement({ id: 'pin_1' })],
       },
@@ -684,6 +702,7 @@ describe('mapSelection — clipboard', () => {
     const clipboard = {
       locations: [],
       tradeRoutes: [],
+      mapRoutes: [],
       terrainFeatures: [original],
       placements: [],
     };
@@ -702,6 +721,7 @@ describe('mapSelection — clipboard', () => {
       {
         locations: [location({ id: 'loc_1' })],
         tradeRoutes: [],
+        mapRoutes: [],
         terrainFeatures: [terrain({ id: 'terr_1', locationId: 'loc_1' })],
         placements: [],
       },
@@ -715,11 +735,85 @@ describe('mapSelection — clipboard', () => {
       {
         locations: [],
         tradeRoutes: [],
+        mapRoutes: [],
         terrainFeatures: [terrain({ id: 'terr_1', locationId: 'loc_outside' })],
         placements: [],
       },
       { offsetX: 10, offsetY: 10, copySuffix: ' (copy)', makeId: () => 'terrain_new' }
     );
     assert.equal(clones.terrainFeatures[0].locationId, undefined);
+  });
+});
+
+describe('mapSelection - drawn roads (Plan 25)', () => {
+  it('collects visible, unlocked roads when the routes layer is on', () => {
+    const refs = collectSelectableRefs(
+      { mapRoutes: [mapRoute(), mapRoute({ id: 'road_hidden', visible: false }), mapRoute({ id: 'road_locked', locked: true })] },
+      settings()
+    );
+    assert.deepEqual(refs, [{ kind: 'route', id: 'road_1' }]);
+  });
+
+  it('does not collect roads when the routes layer is off', () => {
+    const refs = collectSelectableRefs(
+      { mapRoutes: [mapRoute()] },
+      settings({ visibleLayers: layers({ routes: false }) })
+    );
+    assert.deepEqual(refs, []);
+  });
+
+  it('marquee-selects a road by intersection', () => {
+    const refs = marqueeSelectRefs(
+      { mapRoutes: [mapRoute()] },
+      { minX: 40, minY: 15, maxX: 60, maxY: 25 },
+      settings()
+    );
+    assert.deepEqual(refs, [{ kind: 'route', id: 'road_1' }]);
+  });
+
+  it('translates the drawn path and free ends but leaves snapped ends anchored', () => {
+    const road = mapRoute({
+      origin: {
+        ref: { kind: 'terrain', id: 'terr_1' },
+        anchor: { kind: 'point' },
+        fallback: { x: 0, y: 0 },
+      },
+      destination: { fallback: { x: 100, y: 0 } },
+    });
+    const moved = translateMapObjects({ mapRoutes: [road] }, [{ kind: 'route', id: road.id }], 10, 20);
+    assert.deepEqual(moved.mapRoutes[0].path, [{ x: 60, y: 40 }]);
+    assert.deepEqual(moved.mapRoutes[0].origin.ref, road.origin.ref);
+    assert.deepEqual(moved.mapRoutes[0].origin.fallback, { x: 0, y: 0 });
+    assert.deepEqual(moved.mapRoutes[0].destination.fallback, { x: 110, y: 20 });
+  });
+
+  it('copies a road and remaps an endpoint to a copied target', () => {
+    const road = mapRoute({
+      origin: {
+        ref: { kind: 'terrain', id: 'terr_1' },
+        anchor: { kind: 'segment', segment: 0, t: 0.5 },
+        fallback: { x: 50, y: 0 },
+      },
+    });
+    const clipboard = buildMapClipboard(
+      { mapRoutes: [road], terrainFeatures: [terrain({ id: 'terr_1' })] },
+      [
+        { kind: 'route', id: 'road_1' },
+        { kind: 'terrain', id: 'terr_1' },
+      ]
+    );
+    assert.equal(clipboard.mapRoutes.length, 1);
+    assert.equal(clipboard.terrainFeatures.length, 1);
+
+    const clones = cloneMapClipboard(clipboard, {
+      offsetX: 10,
+      offsetY: 20,
+      copySuffix: ' (copy)',
+      makeId: (kind) => `${kind}_new`,
+    });
+    assert.equal(clones.mapRoutes[0].origin.ref?.id, 'terrain_new');
+    assert.deepEqual(clones.mapRoutes[0].origin.fallback, { x: 60, y: 20 });
+    assert.deepEqual(clones.mapRoutes[0].path, [{ x: 60, y: 40 }]);
+    assert.equal(clones.mapRoutes[0].name, 'Haven Road (copy)');
   });
 });

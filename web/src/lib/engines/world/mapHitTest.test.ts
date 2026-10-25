@@ -16,6 +16,7 @@ import {
 import type {
   MapEntityPlacement,
   MapPoint,
+  MapRoute,
   MapTerrainFeature,
   WorldLocation,
   WorldMapSettings,
@@ -80,6 +81,7 @@ function layers(
     valleys: true,
     biomes: true,
     settlements: true,
+    routes: true,
     caravanRoutes: true,
     npcs: true,
     bestiary: true,
@@ -600,5 +602,55 @@ describe('mapHitTest — candidate construction', () => {
       { visibleLayers: layers({ labels: false }) }
     );
     assert.equal(hit, null);
+  });
+});
+
+describe('mapHitTest — drawn roads (Plan 25)', () => {
+  const road: MapRoute = {
+    id: 'road_1',
+    name: 'Haven Road',
+    kind: 'road',
+    difficulty: 2,
+    origin: { fallback: { x: 0, y: 0 } },
+    destination: { fallback: { x: 100, y: 0 } },
+    path: [{ x: 50, y: 20 }],
+  };
+
+  it('picks a road by its polyline', () => {
+    const hit = hitTestMapObjectsIn({ x: 25, y: 10 }, { mapRoutes: [road] }, {
+      visibleLayers: layers(),
+    });
+    assert.equal(hit?.kind, 'route');
+    assert.equal(hit?.id, 'road_1');
+  });
+
+  it('picks a free path vertex as an edit handle', () => {
+    const hit = hitTestMapObjectsIn({ x: 50, y: 21 }, { mapRoutes: [road] }, {
+      visibleLayers: layers(),
+    });
+    assert.equal(hit?.kind, 'route_vertex');
+    assert.equal(hit?.candidate.kind, 'route_vertex');
+    if (hit?.candidate.kind === 'route_vertex') {
+      assert.equal(hit.candidate.index, 0);
+    }
+  });
+
+  it('hides roads when the routes layer is off', () => {
+    const hit = hitTestMapObjectsIn({ x: 25, y: 10 }, { mapRoutes: [road] }, {
+      visibleLayers: layers({ routes: false }),
+    });
+    assert.equal(hit, null);
+  });
+
+  it('does not pick a hidden or locked road', () => {
+    const hidden = hitTestMapObjectsIn({ x: 25, y: 10 }, {
+      mapRoutes: [{ ...road, visible: false }],
+    }, { visibleLayers: layers() });
+    assert.equal(hidden, null);
+
+    const locked = hitTestMapObjectsIn({ x: 25, y: 10 }, {
+      mapRoutes: [{ ...road, locked: true }],
+    }, { visibleLayers: layers() });
+    assert.equal(locked, null);
   });
 });

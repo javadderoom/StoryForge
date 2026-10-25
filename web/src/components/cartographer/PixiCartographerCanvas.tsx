@@ -9,6 +9,8 @@ import {
   MapTerrainFeature,
   MapEntityPlacement,
   MapPoint,
+  MapRoute,
+  MapRouteEndpoint,
 } from '@/lib/types';
 import { CartographerTool } from './CartographerHeader';
 import type { DraggedNodeData } from '@/lib/engines/world/pixi/PixiCartographerEngine';
@@ -31,6 +33,13 @@ import {
   generateOrganicStamp,
   applySculptOperation,
 } from '@/lib/engines/world/landSculptEngine';
+import {
+  createMapRoute,
+  resolveRouteEndpointPoint,
+  simplifyRoutePath,
+  snapRouteEndpoint,
+  type MapRouteSource,
+} from '@/lib/engines/world/mapRoutes';
 import { normalizeLandWaterFeatures } from '@/lib/engines/world/landSculpt/waterFeatures';
 import { usePixiEngine } from './canvas/usePixiEngine';
 import { useMapDrafting } from './canvas/useMapDrafting';
@@ -54,6 +63,9 @@ interface PixiCartographerCanvasProps {
   onMoveSelection: (refs: MapObjectRef[], dx: number, dy: number) => void;
   onUpdateTradeRoute: (id: string, updated: Partial<WorldTradeRoute>) => void;
   onAddTradeRoute: (route: WorldTradeRoute) => void;
+  /** Plan 25 — drawn roads and paths. */
+  onUpdateRoute: (id: string, updated: Partial<MapRoute>) => void;
+  onAddRoute: (route: MapRoute) => void;
   onUpdateTerrain: (id: string, updated: Partial<MapTerrainFeature>) => void;
   onAddTerrain: (feature: MapTerrainFeature) => void;
   onReplaceTerrain?: (features: MapTerrainFeature[]) => void;
@@ -103,6 +115,29 @@ interface SelectionDragState {
 const SELECTION_DRAG_THRESHOLD_PX = 3;
 
 /**
+ * A road being drawn (Plan 25).
+ *
+ * The first press captures a snapped or free origin. While the button is down
+ * the pointer samples a freehand middle; between clicks the same structure
+ * accumulates click-to-add vertices. Releasing or clicking on a geo element
+ * finishes the route.
+ */
+interface RouteDraftState {
+  origin: MapRouteEndpoint;
+  path: MapPoint[];
+  press: { start: MapPoint; moved: boolean } | null;
+  /** The first press only creates the origin; its release keeps the draft. */
+  justStarted: boolean;
+}
+
+/** Snap target under the pointer, mirrored for the synchronous mouseup path. */
+interface RouteSnapTarget {
+  endpoint: MapRouteEndpoint;
+  point: MapPoint;
+  label: string;
+}
+
+/**
  * An Alt + left-drag zoom box, in container-relative screen pixels.
  *
  * Released below the threshold it is a no-op: the gesture is navigation, so it
@@ -131,6 +166,8 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   onMoveSelection,
   onUpdateTradeRoute,
   onAddTradeRoute,
+  onUpdateRoute,
+  onAddRoute,
   onAddTerrain,
   onReplaceTerrain,
   onAddLocation,
@@ -231,6 +268,10 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   const draggedNodeRef = useRef<DraggedNodeData | null>(null);
   const transientPosRef = useRef<MapPoint | null>(null);
   const tradeRoutesRef = useRef(worldBible.tradeRoutes || []);
+  const mapRoutesRef = useRef(worldBible.mapData?.routes || []);
+  const routeDraftRef = useRef<RouteDraftState | null>(null);
+  const routeSnapRef = useRef<RouteSnapTarget | null>(null);
+  const routePointerRef = useRef<MapPoint | null>(null);
   const cancelZoomBox = useCallback(() => setZoomRectState(null), [setZoomRectState]);
 
   const {
@@ -284,6 +325,10 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   }, [worldBible.tradeRoutes]);
 
   useEffect(() => {
+    mapRoutesRef.current = worldBible.mapData?.routes || [];
+  }, [worldBible.mapData?.routes]);
+
+  useEffect(() => {
     if (activeTool !== 'land_brush' && engineRef.current) {
       engineRef.current.clearBrushCursor();
       engineRef.current.clearBrushPreview();
@@ -302,6 +347,148 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     },
     [pan, zoom]
   );
+
+  // -----------------------------------------------------------------------
+  // Plan 25 — road drawing
+  // -----------------------------------------------------------------------
+  const getRouteSource = useCallback((): MapRouteSource => {
+    const data = worldBible.mapData ?? worldBible.ontology?.mapData;
+    return {
+      locations: worldBible.locations,
+      terrainFeatures: normalizeLandWaterFeatures(data?.terrainFeatures ?? []),
+      placements: data?.placements,
+      placeCategories: worldBible.ontology?.placeCategories,
+    };
+  }, [
+    worldBible.locations,
+    worldBible.mapData,
+    worldBible.ontology?.mapData,
+    worldBible.ontology?.placeCategories,
+  ]);
+
+  const snapRouteAt = useCallback(
+    (point: MapPoint): RouteSnapTarget | null => {
+      const snap = snapRouteEndpoint(point, getRouteSource());
+      return snap
+        ? { endpoint: snap.endpoint, point: snap.endpoint.fallback, label: snap.label }
+        : null;
+    },
+    [getRouteSource]
+  );
+
+  const updateRoutePreview = useCallback(
+    (draft: RouteDraftState, cursor: MapPoint, snap: RouteSnapTarget | null) => {
+      const origin = resolveRouteEndpointPoint(draft.origin, getRouteSource()).point;
+      const points = [origin, ...draft.path, snap?.point ?? cursor];
+      setDraftPoints(points);
+      engineRef.current?.renderRouteSnapPreview(snap?.point ?? null);
+    },
+    [engineRef, getRouteSource, setDraftPoints]
+  );
+
+  const cancelRouteDraft = useCallback(() => {
+    routeDraftRef.current = null;
+    routeSnapRef.current = null;
+    routePointerRef.current = null;
+    setDraftPoints([]);
+    engineRef.current?.renderRouteSnapPreview(null);
+  }, [engineRef, setDraftPoints]);
+
+  const finishRouteDraft = useCallback(
+    (endPoint: MapPoint, destinationEndpoint?: MapRouteEndpoint) => {
+      const draft = routeDraftRef.current;
+      if (!draft) return;
+
+      const source = getRouteSource();
+      const originPoint = resolveRouteEndpointPoint(draft.origin, source).point;
+      const destination = destinationEndpoint ?? { fallback: endPoint };
+
+      if (
+        !destinationEndpoint &&
+        draft.path.length === 0 &&
+        Math.hypot(endPoint.x - originPoint.x, endPoint.y - originPoint.y) < 2
+      ) {
+        cancelRouteDraft();
+        return;
+      }
+
+      const path = simplifyRoutePath(draft.path, 1.5).filter(
+        (point) =>
+          Math.hypot(point.x - originPoint.x, point.y - originPoint.y) > 0.75
+      );
+
+      const route = createMapRoute({
+        id: `road_${Date.now().toString(36)}_${Math.floor(Math.random() * 1000)}`,
+        origin: draft.origin,
+        destination,
+        path,
+        isPersian,
+        source,
+      });
+
+      onAddRoute(route);
+      onSelectionChange([{ kind: 'route', id: route.id }]);
+      routeDraftRef.current = null;
+      routeSnapRef.current = null;
+      routePointerRef.current = null;
+      setDraftPoints([]);
+      engineRef.current?.renderRouteSnapPreview(null);
+    },
+    [
+      cancelRouteDraft,
+      engineRef,
+      getRouteSource,
+      isPersian,
+      onAddRoute,
+      onSelectionChange,
+      setDraftPoints,
+    ]
+  );
+
+  useEffect(() => {
+    if (activeTool === 'draw_route') return;
+    if (routeDraftRef.current) cancelRouteDraft();
+    engineRef.current?.renderRouteSnapPreview(null);
+  }, [activeTool, cancelRouteDraft, engineRef]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      const draft = routeDraftRef.current;
+      if (!draft) return;
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        cancelRouteDraft();
+        return;
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        const cursor = routePointerRef.current;
+        if (!cursor) return;
+        const snap = snapRouteAt(cursor);
+        finishRouteDraft(cursor, snap?.endpoint);
+        return;
+      }
+      if (event.key === 'Backspace' && draft.path.length > 0) {
+        event.preventDefault();
+        draft.path = draft.path.slice(0, -1);
+        const cursor = routePointerRef.current;
+        if (cursor) updateRoutePreview(draft, cursor, routeSnapRef.current);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [cancelRouteDraft, finishRouteDraft, snapRouteAt, updateRoutePreview]);
 
   /**
    * True when the event happened on the map surface itself.
@@ -460,6 +647,33 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       return;
     }
 
+    // Draw Roads & Paths tool (Plan 25)
+    if (activeTool === 'draw_route') {
+      routePointerRef.current = worldPoint;
+      const snap = snapRouteAt(worldPoint);
+      routeSnapRef.current = snap;
+      const draft = routeDraftRef.current;
+
+      if (!draft) {
+        const nextDraft: RouteDraftState = {
+          origin: snap?.endpoint ?? { fallback: worldPoint },
+          path: [],
+          press: { start: worldPoint, moved: false },
+          justStarted: true,
+        };
+        routeDraftRef.current = nextDraft;
+        updateRoutePreview(nextDraft, worldPoint, snap);
+        return;
+      }
+
+      // A later press is either a freehand stroke or a click-to-add vertex.
+      // The decision is made on mouseup, when movement is known.
+      draft.press = { start: worldPoint, moved: false };
+      draft.justStarted = false;
+      updateRoutePreview(draft, worldPoint, snap);
+      return;
+    }
+
     // Draw Caravan Route tool
     if (activeTool === 'draw_caravan') {
       const locations = worldBible.locations || [];
@@ -524,6 +738,10 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         const hitRef: MapObjectRef =
           hit.kind === 'waypoint'
             ? { kind: 'trade_route', id: hit.candidate.routeId }
+            : hit.kind === 'route_vertex'
+            ? { kind: 'route', id: hit.candidate.routeId }
+            : hit.kind === 'route'
+            ? { kind: 'route', id: hit.candidate.route.id }
             : hit.kind === 'location'
             ? { kind: 'location', id: hit.candidate.location.id }
             : hit.kind === 'terrain'
@@ -534,6 +752,27 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
         if (additive) {
           onSelectionChange(toggleMapObjectRef(selection, hitRef));
+          return;
+        }
+
+        // A road vertex is an edit handle: select the owning road, then drag
+        // only that vertex. The same gesture works for caravan waypoints.
+        if (hit.kind === 'route_vertex') {
+          const alreadySelected = selection.some((ref) => sameMapObjectRef(ref, hitRef));
+          if (!alreadySelected) onSelectionChange([hitRef]);
+
+          const vertex = hit.candidate;
+          const nodeData: DraggedNodeData = {
+            type: 'route_vertex',
+            id: hit.id,
+            routeId: vertex.routeId,
+            index: vertex.index,
+            startPoint: vertex.point,
+          };
+          setDraggedNode(nodeData);
+          draggedNodeRef.current = nodeData;
+          setTransientPos(vertex.point);
+          transientPosRef.current = vertex.point;
           return;
         }
 
@@ -565,6 +804,14 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
         const dragRefs = alreadySelected ? selection : [hitRef];
         const hasMovableGeometry = dragRefs.some((ref) => {
+          if (ref.kind === 'route') {
+            const route = mapRoutesRef.current.find((item) => item.id === ref.id);
+            return Boolean(
+              route &&
+                ((route.path?.length ?? 0) > 0 ||
+                  (!route.origin.ref && !route.destination.ref))
+            );
+          }
           if (ref.kind !== 'trade_route') return true;
           const route = (worldBible.tradeRoutes ?? []).find((r) => r.id === ref.id);
           return Boolean(route?.waypoints?.length);
@@ -746,6 +993,41 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       return;
     }
 
+    // Road drawing: sample the freehand middle while pressed, and keep the
+    // snap ring under the pointer between clicks.
+    if (activeTool === 'draw_route') {
+      routePointerRef.current = worldPoint;
+      const snap = snapRouteAt(worldPoint);
+      routeSnapRef.current = snap;
+      const draft = routeDraftRef.current;
+
+      if (draft) {
+        if (draft.press) {
+          const moved =
+            draft.press.moved ||
+            Math.hypot(
+              worldPoint.x - draft.press.start.x,
+              worldPoint.y - draft.press.start.y
+            ) *
+              zoom >
+              3;
+          if (moved) {
+            draft.press.moved = true;
+            const origin = resolveRouteEndpointPoint(draft.origin, getRouteSource()).point;
+            const last = draft.path[draft.path.length - 1] ?? origin;
+            const minStep = Math.max(1, 2 / zoom);
+            if (Math.hypot(worldPoint.x - last.x, worldPoint.y - last.y) >= minStep) {
+              draft.path.push(worldPoint);
+            }
+          }
+        }
+        updateRoutePreview(draft, worldPoint, snap);
+      } else {
+        engineRef.current?.renderRouteSnapPreview(snap?.point ?? null);
+      }
+      return;
+    }
+
     if (isPanning) {
       setPan({
         x: e.clientX - dragStart.x,
@@ -791,6 +1073,34 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       }
     }
 
+    // Finish a road gesture. A first press only establishes the origin; every
+    // later release either adds a vertex (click) or completes the road (drag).
+    const routeDraft = routeDraftRef.current;
+    if (routeDraft && routeDraft.press) {
+      const press = routeDraft.press;
+      routeDraft.press = null;
+      const cursor = routePointerRef.current ?? press.start;
+      const snap = routeSnapRef.current;
+      const originPoint = resolveRouteEndpointPoint(
+        routeDraft.origin,
+        getRouteSource()
+      ).point;
+
+      if (routeDraft.justStarted && !press.moved) {
+        routeDraft.justStarted = false;
+      } else if (press.moved) {
+        finishRouteDraft(cursor, snap?.endpoint);
+      } else if (
+        snap &&
+        Math.hypot(snap.point.x - originPoint.x, snap.point.y - originPoint.y) > 2
+      ) {
+        finishRouteDraft(snap.point, snap.endpoint);
+      } else {
+        routeDraft.path.push(press.start);
+        updateRoutePreview(routeDraft, cursor, snap);
+      }
+    }
+
     // Finish a group move: one translation for the whole selection, committed
     // once (the page turns it into a single undo step).
     const move = selectionDragRef.current;
@@ -833,6 +1143,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           {
             locations: worldBible.locations,
             tradeRoutes: worldBible.tradeRoutes,
+            mapRoutes: bandMapData?.routes,
             terrainFeatures: normalizeLandWaterFeatures(
               bandMapData?.terrainFeatures ?? []
             ),
@@ -1010,6 +1321,14 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           onUpdateTradeRoute(route.id, { waypoints: updatedWaypoints });
         }
       }
+      if (hasMoved && active.type === 'route_vertex' && active.routeId && active.index !== undefined) {
+        const route = mapRoutesRef.current.find((r) => r.id === active.routeId);
+        if (route) {
+          const updatedPath = [...(route.path ?? [])];
+          updatedPath[active.index] = finalPos;
+          onUpdateRoute(route.id, { path: updatedPath });
+        }
+      }
     }
 
     setIsPanning(false);
@@ -1025,6 +1344,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     engineRef,
     onMoveSelection,
     onUpdateTradeRoute,
+    onUpdateRoute,
     onReplaceTerrain,
     onSelectionChange,
     setMarqueeState,
@@ -1041,10 +1361,26 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     pan,
     zoom,
     sculptMode,
+    getRouteSource,
+    finishRouteDraft,
+    updateRoutePreview,
   ]);
 
   const handleMouseLeave = () => {
     engineRef.current?.clearBrushCursor();
+    if (activeTool === 'draw_route') {
+      engineRef.current?.renderRouteSnapPreview(null);
+    }
+  };
+
+  const handleCanvasDoubleClick = (event: React.MouseEvent) => {
+    if (activeTool === 'draw_route') {
+      const point = clientToWorld(event.clientX, event.clientY);
+      const snap = snapRouteAt(point);
+      finishRouteDraft(point, snap?.endpoint);
+      return;
+    }
+    handleDoubleClick(event);
   };
 
   // Window mouseup listener for off-canvas releases
@@ -1067,7 +1403,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       onMouseMove={handleMouseMove}
       onMouseUp={commitDragEnd}
       onMouseLeave={handleMouseLeave}
-      onDoubleClick={handleDoubleClick}
+      onDoubleClick={handleCanvasDoubleClick}
       onContextMenu={handleContextMenu}
       className={`relative w-full h-full overflow-hidden select-none ${
         isPanning || selectionDrag
