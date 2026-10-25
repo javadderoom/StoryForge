@@ -553,6 +553,7 @@ export function drawRiver(g: Graphics, feat: MapTerrainFeature): void {
     startWidth: 1.2,
     endWidth: feat.width || 11.0,
     meanderRoughness: 0.3,
+    deltaConfig: feat.deltaConfig,
   });
 
   renderProceduralRiverToGraphics(g, river);
@@ -562,6 +563,80 @@ export function drawRiver(g: Graphics, feat: MapTerrainFeature): void {
  * Renders a ProceduralRiver geometry object onto a Pixi Graphics context.
  */
 export function renderProceduralRiverToGraphics(g: Graphics, river: ProceduralRiver): void {
+  // Hydrology V2 Delta Distributary Fan (Plan 27 — Module 1)
+  if (river.delta) {
+    const delta = river.delta;
+
+    // 1. Upstream Trunk River Wash
+    if (delta.trunkWaterPolygon.length >= 3) {
+      g.poly(toFlatPoints(delta.trunkWaterPolygon)).fill({
+        color: VINTAGE_PARCHMENT.riverWash,
+        alpha: 0.6,
+      });
+    }
+
+    // 2. Distributary Branch Washes
+    for (const b of delta.branches) {
+      if (b.waterPolygon.length >= 3) {
+        g.poly(toFlatPoints(b.waterPolygon)).fill({
+          color: VINTAGE_PARCHMENT.riverWash,
+          alpha: 0.6,
+        });
+      }
+    }
+
+    // 3. Alluvial Sediment Islands (Silt & Sandbar Bars)
+    for (const island of delta.islands) {
+      if (island.polygon.length >= 3) {
+        g.poly(toFlatPoints(island.polygon)).fill({
+          color: VINTAGE_PARCHMENT.sandbarFill,
+          alpha: 0.95,
+        });
+        g.poly(toFlatPoints(island.polygon)).stroke({
+          width: 1.1,
+          color: VINTAGE_PARCHMENT.coastlineInk,
+        });
+      }
+
+      // Silt hatch strokes inside island
+      for (const [hA, hB] of island.hatchLines) {
+        g.moveTo(hA.x, hA.y).lineTo(hB.x, hB.y);
+      }
+      if (island.hatchLines.length > 0) {
+        g.stroke({
+          width: 0.8,
+          color: VINTAGE_PARCHMENT.coastlineHatch,
+          alpha: 0.55,
+        });
+      }
+    }
+
+    // 4. Inked Bank Contours
+    const strokeBank = (pts: MapPoint[]) => {
+      if (pts.length < 2) return;
+      g.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) {
+        g.lineTo(pts[i].x, pts[i].y);
+      }
+      g.stroke({
+        width: 1.4,
+        color: VINTAGE_PARCHMENT.riverBankInk,
+        cap: 'round',
+        join: 'round',
+      });
+    };
+
+    strokeBank(delta.trunkLeftBank);
+    strokeBank(delta.trunkRightBank);
+
+    for (const b of delta.branches) {
+      strokeBank(b.leftBank);
+      strokeBank(b.rightBank);
+    }
+
+    return;
+  }
+
   // 1. Soft Watercolor Wash
   if (river.waterPolygon.length >= 3) {
     g.poly(toFlatPoints(river.waterPolygon)).fill({

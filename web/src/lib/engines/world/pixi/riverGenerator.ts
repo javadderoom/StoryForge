@@ -13,8 +13,9 @@
  * 5. Deterministic organic sinuosity modulated by harmonic noise.
  */
 
-import type { MapPoint } from '@/lib/types';
+import type { MapPoint, RiverDeltaConfig } from '@/lib/types';
 import { makeRng, getNoiseFunction } from '../landSculpt/noise';
+import { generateProceduralDelta, type ProceduralDelta } from './deltaGenerator';
 
 export interface ProceduralRiver {
   id: string;
@@ -23,6 +24,7 @@ export interface ProceduralRiver {
   leftBank: MapPoint[];
   rightBank: MapPoint[];
   totalLength: number;
+  delta?: ProceduralDelta;
 }
 
 export interface RiverOptions {
@@ -30,6 +32,7 @@ export interface RiverOptions {
   startWidth?: number; // Width at headwaters in pixels (default: 1.2)
   endWidth?: number; // Width at mouth/estuary in pixels (default: 10.0)
   meanderRoughness?: number; // Sinuosity factor 0..1 (default: 0.3)
+  deltaConfig?: RiverDeltaConfig;
 }
 
 /**
@@ -239,6 +242,17 @@ export function generateProceduralRiver(
     ...[...rightBank].reverse(),
   ];
 
+  // 6. Hydrology V2 Delta Distributary Fan (Plan 27 — Module 1)
+  let delta: ProceduralDelta | undefined = undefined;
+  if (options.deltaConfig?.enabled) {
+    delta =
+      generateProceduralDelta(cleanPoints, {
+        seed: rawSeed,
+        mainWidth: endW,
+        config: options.deltaConfig,
+      }) ?? undefined;
+  }
+
   return {
     id: `river_${Math.round(cleanPoints[0].x)}_${Math.round(cleanPoints[0].y)}`,
     centerline,
@@ -246,6 +260,7 @@ export function generateProceduralRiver(
     leftBank,
     rightBank,
     totalLength,
+    delta,
   };
 }
 

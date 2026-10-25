@@ -723,6 +723,15 @@ export interface MapPoint {
   y: number;
 }
 
+export interface RiverDeltaConfig {
+  enabled?: boolean;
+  apexFraction?: number; // Point along river length (0.70 - 0.95) where delta begins (default: 0.82)
+  spreadAngleDegrees?: number; // Total angular fan spread (30° - 75°, default: 48°)
+  distributariesCount?: number; // Number of terminal mouths (2 - 6, default: 4)
+  islandRoughness?: number; // Organic fractal noise on sediment bars (0..1, default: 0.3)
+  sedimentColor?: string; // Silt/sand bank color (e.g. '#ded2b6')
+}
+
 export interface MapTerrainFeature {
   id: string;
   name: string;
@@ -747,6 +756,8 @@ export interface MapTerrainFeature {
   holes?: MapPoint[][]; // polygon hole loops for inland lakes, inland seas, or carved water cutouts
   description?: string;
   climateZone?: 'polar' | 'temperate' | 'arid' | 'tropical' | 'mystical';
+  /** Plan 27: River delta branching & distributary fan configuration. */
+  deltaConfig?: RiverDeltaConfig;
   /**
    * Per-object layer controls (Plan 21). Left `undefined` on purpose: the
    * meaning is "visible, unlocked, default draw order", and keeping the field
@@ -1668,6 +1679,15 @@ export const MapPointSchema = z.object({
   y: z.number(),
 });
 
+export const RiverDeltaConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  apexFraction: z.number().optional(),
+  spreadAngleDegrees: z.number().optional(),
+  distributariesCount: z.number().optional(),
+  islandRoughness: z.number().optional(),
+  sedimentColor: z.string().optional(),
+});
+
 export const MapTerrainFeatureSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -1684,6 +1704,7 @@ export const MapTerrainFeatureSchema = z.object({
   holes: z.array(z.array(MapPointSchema)).optional(),
   description: z.string().optional(),
   climateZone: z.enum(['polar', 'temperate', 'arid', 'tropical', 'mystical']).optional(),
+  deltaConfig: RiverDeltaConfigSchema.optional(),
   // Plan 21 per-object layer controls. Optional without a default so existing
   // worlds are not rewritten (and stay diff-free) just by being validated.
   visible: z.boolean().optional(),
