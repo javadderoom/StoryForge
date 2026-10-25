@@ -39,6 +39,9 @@ While Plans 25 and 26 introduced 2.5D procedural ridgelines, single-tapered rive
 ├────────────────────────────────┼───────────────────────────┼───────────────────────────┤
 │ 8. Manuscript Furniture        │ Coordinates & simple grid │ Ornate compass rose, title│
 │                                │                           │ cartouche & sea vignette  │
+├────────────────────────────────┼───────────────────────────┼───────────────────────────┤
+│ 9. Interactive Reshaping       │ Bounding selection box    │ Direct vertex anchor points│
+│    & Transform Handles         │ with move-only dragging   │ & 8-point scale/rotate gizmo│
 └────────────────────────────────┴───────────────────────────┴───────────────────────────┘
 ```
 
@@ -208,10 +211,47 @@ In manuscript cartography, geographic titles curve along mountain ranges, rivers
 
 ---
 
+### Module 7: Interactive Direct Manipulation — Vertex Anchor Editing & Transform Gizmo (`vertexTransformGizmo.ts`)
+
+To allow fluid visual editing of rivers, mountain ranges, plateaus, and biomes directly on canvas:
+
+1. **Spatial Representation & Storage Guarantee (How Coordinates are Persisted)**:
+   - **Rivers (`type: 'river'`)**:
+     - **Exact Stored Coordinates**: Stored as an ordered sequence of spine control vertices `points: MapPoint[]` in `worldBible.worldMap.terrainFeatures[i].points`.
+     - **Path Coverage**: Every bend, turn, and waypoint placed by the author is permanently recorded. The continuous micro-geometry (banks, center flow, sediment) is interpolated at 60 FPS using Centripetal Catmull-Rom splines from these exact points.
+     - **Spatial Intersections**: Any gameplay or cartographic calculation (e.g., bridge placement, caravan crossing points, region crossing) tests against this exact polyline and its spline envelope.
+   - **Mountain Ranges (`type: 'mountain_range'`)**:
+     - Stored as a spine ridgeline `points: MapPoint[]` + peak `scale` (height) + `elevation`. The 2.5D ridge peaks, illuminated western slopes, and shaded eastern gullies are stamped deterministically along this spine.
+   - **Plateaus, Lakes, and Biomes (`type: 'plateau' | 'lake' | 'desert' | etc.`)**:
+     - Stored as a closed polygon loop of perimeter vertices `polygon: MapPoint[]` + optional island/hole cutouts `holes: MapPoint[][]`.
+
+2. **Direct Selection / Vertex Anchor Editing Mode (Shortcut: `A` / Subselect Tool)**:
+   - When an element is double-clicked or selected in Subselect mode:
+     - **Vertex Anchor Handles**: Interactive white circular handles with dark ink outlines appear at every coordinate in `points` or `polygon`.
+     - **Interactive Vertex Dragging**: Dragging any anchor moves that specific coordinate in real time while recalculating the spline/polygon curves at 60 FPS.
+     - **Midpoint Insertion Ghost Handles**: Translucent `+` handles appear at the midpoint of every segment. Clicking/dragging a midpoint handle immediately inserts a new vertex into the path.
+     - **Vertex Deletion**: Selecting a vertex and pressing `Delete` or `Backspace` removes it (with a safeguard: minimum 2 points for lines, 3 for polygons).
+     - **Grid & Angle Snapping**: Holding `Shift` snaps vertices to 45°/90° angles or hex grid centers.
+
+3. **Bounding Box Transform Gizmo (Shortcut: `V` / Pointer Tool)**:
+   - When a single element or a multi-selection group is selected:
+     - **8-Handle Bounding Frame**: 4 corner handles and 4 edge midpoint handles.
+     - **Corner Dragging**: Scales the entire element along both axes (uniform scale by default, free-form with `Alt`).
+     - **Edge Midpoint Dragging**: Scales along a single axis (stretching width or height).
+     - **Rotation Arm**: A stalk protruding 24px above the bounding box with a circular rotation handle. Dragging rotates all points around the element's geometric centroid:
+       $$x' = x_c + (x - x_c)\cos\theta - (y - y_c)\sin\theta$$
+       $$y' = y_c + (x - x_c)\sin\theta + (y - y_c)\cos\theta$$
+     - **Interior Drag**: Dragging inside the bounding box translates the entire object (`dx, dy`).
+   - **Non-Destructive Live Preview**: During active dragging, transformations update a transient render preview. The actual `worldBible` state and undo/redo history are committed on `pointerup`.
+
+---
+
 ## 4. UI & Authoring Studio Integration
 
 1. **Cartographer Toolbar Extensions (`CartographerToolbar.tsx`)**:
-   - New tool buttons under Geography:
+   - New tool buttons under Geography & Layout:
+     - **Direct Selection / Reshape Tool (`A`)**: Activates vertex-level anchor editing mode.
+     - **Transform Gizmo Mode (`V`)**: 8-handle bounding box with scale and rotation handles.
      - **Delta Tool**: Click a river terminus to configure alluvial branching.
      - **Curved Text Tool**: Draw a guide line and type a spline-aligned label.
      - **Bridge Tool**: Stamp a bridge crossing over any river/chasm.
@@ -219,6 +259,7 @@ In manuscript cartography, geographic titles curve along mountain ranges, rivers
    - When the Dune tool is active: Slider for *Dune Density* and *Wind Angle*.
    - When the Salt Pan tool is active: Slider for *Crust Brightness* and *Crack Frequency*.
    - When the Delta tool is active: Controls for *Branch Count* and *Fan Spread*.
+   - When in Vertex Reshaping Mode: Quick buttons for *Add Vertex*, *Delete Selected Vertex*, *Smooth/Sharpen Corner*.
 3. **Cartographer Inspector Updates (`CartographerInspector.tsx`)**:
    - Full property inspection and fine-tuning for all new terrain parameters with immediate live canvas preview.
 
@@ -237,22 +278,24 @@ gantt
     Salt Pan Playa Shader (saltPanGenerator.ts)      :p2_1, after p1_2, 2d
     Sinuous Dune Fields (duneFieldGenerator.ts)      :p2_2, after p2_1, 2d
     Dense Canopy Massing (canopyMassGenerator.ts)    :p2_3, after p2_2, 2d
-    section Phase 3: Infrastructure & Typography
-    Masonry Bridges & Crossings (bridgeGenerator.ts) :p3_1, after p2_3, 2d
-    Curved Spline Typography (splineTextRenderer.ts) :p3_2, after p3_1, 3d
-    section Phase 4: Cartographic Furniture
-    Compass Rose & Title Cartouche                   :p4_1, after p3_2, 2d
-    section Phase 5: Verification & Integration
-    Unit & Regression Testing                        :p5_1, after p4_1, 2d
-    Faravand Map Visual Audit                        :p5_2, after p5_1, 1d
+    section Phase 3: Direct Manipulation & Reshaping
+    Vertex Anchor Reshaping (vertexDrag.ts)          :p3_1, after p2_3, 2d
+    8-Point Transform & Rotate Gizmo                 :p3_2, after p3_1, 2d
+    section Phase 4: Infrastructure & Typography
+    Masonry Bridges & Crossings (bridgeGenerator.ts) :p4_1, after p3_2, 2d
+    Curved Spline Typography (splineTextRenderer.ts) :p4_2, after p4_1, 3d
+    section Phase 5: Furniture & Polish
+    Compass Rose, Title Cartouche & Scale Bar        :p5_1, after p4_2, 2d
+    Unit & Regression Testing                        :p5_2, after p5_1, 2d
+    Faravand Map Visual Audit                        :p5_3, after p5_2, 1d
 ```
 
 ### Phase Breakdown
 * **Phase 1: Hydrology & Coastlines**: Implement `deltaGenerator.ts` and `waterliningGenerator.ts`. Connect them to `terrainRenderer.ts`.
 * **Phase 2: Surface Biomes**: Implement `saltPanGenerator.ts`, `duneFieldGenerator.ts`, and `canopyMassGenerator.ts`. Update biome tool settings in Studio.
-* **Phase 3: Civil Infrastructure & Typography**: Implement `bridgeGenerator.ts` and `splineTextRenderer.ts`. Enable bridge stamping at Zarrin-Pol.
-* **Phase 4: Manuscript Furniture**: Add vector compass rose, title cartouche banner, and scale bar overlays to the canvas.
-* **Phase 5: Testing & Visual Calibration**: Full unit test coverage across all new math modules, verify 60 FPS rendering under PixiJS v8, and visually align all Faravand landmarks.
+* **Phase 3: Direct Manipulation & Reshaping**: Implement interactive vertex anchor points, midpoint addition, and the 8-point bounding box transform/rotation gizmo for all terrain elements.
+* **Phase 4: Civil Infrastructure & Typography**: Implement `bridgeGenerator.ts` and `splineTextRenderer.ts`. Enable bridge stamping at Zarrin-Pol.
+* **Phase 5: Manuscript Furniture & Polish**: Add vector compass rose, title cartouche banner, and scale bar overlays. Run full unit testing and calibration against the Faravand map.
 
 ---
 
