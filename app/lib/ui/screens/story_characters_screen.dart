@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/utils/persian_numbers.dart';
+import '../../models/character_creation.dart';
 import '../../models/story.dart';
 import '../../models/story_character_session.dart';
 import '../../providers/game_session_provider.dart';
@@ -37,11 +38,41 @@ class _StoryCharactersScreenState extends ConsumerState<StoryCharactersScreen> {
   String? _errorMessage;
   String? _resumingSessionId;
   String? _deletingSessionId;
+  bool _isQuickStarting = false;
 
   @override
   void initState() {
     super.initState();
     _loadCharacters();
+  }
+
+  Future<void> _handleQuickStart(bool isPersian) async {
+    if (_isQuickStarting) return;
+    setState(() => _isQuickStarting = true);
+
+    try {
+      final payload = CharacterSetupPayload.quickStart(widget.story, isPersian: isPersian);
+      await ref.read(gameSessionProvider.notifier).startStory(
+            widget.story.id,
+            title: widget.story.title,
+            characterSetup: payload,
+          );
+
+      if (mounted) {
+        setState(() => _isQuickStarting = false);
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const ReaderScreen()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isQuickStarting = false);
+        AppToast.error(
+          context,
+          isPersian ? 'خطا در آغاز ماجراجویی: $e' : 'Failed to start adventure: $e',
+        );
+      }
+    }
   }
 
   Future<void> _loadCharacters() async {
@@ -425,36 +456,35 @@ class _StoryCharactersScreenState extends ConsumerState<StoryCharactersScreen> {
                         // Empty State or List of Character Cards
                         if (_characters.isEmpty)
                           _buildEmptyState(isPersian)
-                        else
+                        else ...[
                           for (final char in _characters) ...[
                             _buildCharacterCard(char, isPersian),
                             const SizedBox(height: 14),
                           ],
-
-                        const SizedBox(height: 12),
-
-                        // Add New Character Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFF59E0B),
-                              foregroundColor: Colors.black,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              elevation: 4,
-                            ),
-                            icon: const Icon(Icons.add_rounded, size: 20),
-                            label: Text(
-                              isPersian ? 'ساخت شخصیت جدید' : 'Forge New Character',
-                              style: GoogleFonts.vazirmatn(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
+                          const SizedBox(height: 12),
+                          // Add New Character Button (When slots already exist)
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFF59E0B),
+                                foregroundColor: Colors.black,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                elevation: 4,
                               ),
+                              icon: const Icon(Icons.add_rounded, size: 20),
+                              label: Text(
+                                isPersian ? 'ساخت شخصیت جدید' : 'Forge New Character',
+                                style: GoogleFonts.vazirmatn(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              onPressed: _openCharacterCreation,
                             ),
-                            onPressed: _openCharacterCreation,
                           ),
-                        ),
+                        ],
                       ],
                     ),
         ),
@@ -520,8 +550,12 @@ class _StoryCharactersScreenState extends ConsumerState<StoryCharactersScreen> {
   }
 
   Widget _buildEmptyState(bool isPersian) {
+    final defaultArch = widget.story.archetypes.isNotEmpty ? widget.story.archetypes.first : null;
+    final defaultHeroName = isPersian ? 'برزین' : (defaultArch?.name.isNotEmpty == true ? defaultArch!.name : 'Wanderer');
+    final archName = defaultArch?.name ?? (isPersian ? 'ماجراجو' : 'Adventurer');
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 26),
       decoration: BoxDecoration(
         color: const Color(0xFF121422),
         borderRadius: BorderRadius.circular(20),
@@ -535,13 +569,13 @@ class _StoryCharactersScreenState extends ConsumerState<StoryCharactersScreen> {
               color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.person_add_alt_1_rounded, color: Color(0xFFF59E0B), size: 36),
+            child: const Icon(Icons.bolt_rounded, color: Color(0xFFF59E0B), size: 36),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Text(
-            isPersian ? 'هنوز شخصیتی برای این داستان نساخته‌اید' : 'No characters forged for this story yet',
+            isPersian ? 'شروع فوری ماجراجویی' : 'Instant Adventure Start',
             style: GoogleFonts.vazirmatn(
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
@@ -549,10 +583,53 @@ class _StoryCharactersScreenState extends ConsumerState<StoryCharactersScreen> {
           const SizedBox(height: 6),
           Text(
             isPersian
-                ? 'شما می‌توانید با ساخت چندین شخصیت، مسیرها و انتخاب‌های گوناگون را تجربه کنید.'
-                : 'Forge distinct characters to explore multiple paths, classes, and storylines independently.',
+                ? 'ورود مستقیم به صحنه اول با قهرمان پیش‌فرض «$defaultHeroName» (نقش: $archName) همراه با ۴ امتیاز ویژگی توزیع‌شده.'
+                : 'Jump straight into Scene 1 with "$defaultHeroName" ($archName) and 4 pre-allocated stat points.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.vazirmatn(fontSize: 11.5, color: Colors.white60, height: 1.5),
+            style: GoogleFonts.vazirmatn(fontSize: 12, color: Colors.white70, height: 1.5),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF59E0B),
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 4,
+              ),
+              icon: _isQuickStarting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                    )
+                  : const Icon(Icons.play_arrow_rounded, size: 22),
+              label: Text(
+                isPersian ? 'شروع سریع (کمتر از ۱ ثانیه)' : 'Quick Start (< 1 second)',
+                style: GoogleFonts.vazirmatn(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+              onPressed: _isQuickStarting ? null : () => _handleQuickStart(isPersian),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFD4D4D8),
+                side: const BorderSide(color: Color(0xFF3F3F46)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              icon: const Icon(Icons.tune_rounded, size: 18, color: Color(0xFFF59E0B)),
+              label: Text(
+                isPersian ? 'شخصی‌سازی پیشرفته (انتخاب نقش و ویژگی‌ها)' : 'Custom Character (Choose Class & Stats)',
+                style: GoogleFonts.vazirmatn(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              onPressed: _isQuickStarting ? null : _openCharacterCreation,
+            ),
           ),
         ],
       ),

@@ -146,6 +146,35 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
     }
   }
 
+  Future<void> _handleQuickEmbark(bool isPersian) async {
+    if (_isEmbarking) return;
+    setState(() => _isEmbarking = true);
+
+    try {
+      final payload = CharacterSetupPayload.quickStart(widget.story, isPersian: isPersian);
+
+      await ref.read(gameSessionProvider.notifier).startStory(
+            widget.story.id,
+            title: widget.story.title,
+            characterSetup: payload,
+          );
+
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const ReaderScreen()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isEmbarking = false);
+        AppToast.error(
+          context,
+          isPersian ? 'خطا در ورود به سرگذشت: $e' : 'Failed to embark: $e',
+        );
+      }
+    }
+  }
+
   IconData _getIconData(String? iconName) {
     switch (iconName?.toLowerCase()) {
       case 'colorize':
@@ -259,6 +288,33 @@ class _CharacterCreationScreenState extends ConsumerState<CharacterCreationScree
               ),
             ],
           ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFF59E0B),
+                  backgroundColor: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: const Color(0xFFF59E0B).withValues(alpha: 0.35)),
+                  ),
+                ),
+                icon: _isEmbarking
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFF59E0B)),
+                      )
+                    : const Icon(Icons.bolt_rounded, size: 16),
+                label: Text(
+                  isPersian ? 'شروع سریع' : 'Quick Start',
+                  style: GoogleFonts.vazirmatn(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                onPressed: _isEmbarking ? null : () => _handleQuickEmbark(isPersian),
+              ),
+            ),
+          ],
         ),
         body: Column(
           children: [

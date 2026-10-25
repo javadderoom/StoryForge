@@ -9,6 +9,8 @@ import '../../services/game_api_service.dart';
 import '../widgets/story_cover_image.dart';
 import '../widgets/profile_drawer.dart';
 import '../widgets/app_toast.dart';
+import '../../models/character_creation.dart';
+import 'reader_screen.dart';
 import 'story_characters_screen.dart';
 
 class StoryCatalogScreen extends ConsumerStatefulWidget {
@@ -23,6 +25,7 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
   Set<String> _savedSessionStoryIds = {};
   bool _isLoading = true;
   String? _errorMessage;
+  String? _startingStoryId;
   DateTime? _lastBackPressTime;
 
   @override
@@ -60,6 +63,65 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
           _errorMessage = e.toString();
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _handleQuickStart(StorySummary story, bool isStoryPersian) async {
+    if (_startingStoryId != null) return;
+    setState(() => _startingStoryId = story.id);
+
+    try {
+      final payload = CharacterSetupPayload.quickStart(story, isPersian: isStoryPersian);
+      await ref.read(gameSessionProvider.notifier).startStory(
+            story.id,
+            title: story.title,
+            characterSetup: payload,
+          );
+
+      if (mounted) {
+        setState(() => _startingStoryId = null);
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (context) => const ReaderScreen()),
+        ).then((_) {
+          if (mounted) _loadStories();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _startingStoryId = null);
+        AppToast.error(
+          context,
+          isStoryPersian ? 'خطا در آغاز ماجراجویی: $e' : 'Error starting adventure: $e',
+        );
+      }
+    }
+  }
+
+  Future<void> _handleResumeStory(StorySummary story, bool isStoryPersian) async {
+    if (_startingStoryId != null) return;
+    setState(() => _startingStoryId = story.id);
+
+    try {
+      final ok = await ref.read(gameSessionProvider.notifier).resumeStory(story.id);
+      if (mounted) {
+        setState(() => _startingStoryId = null);
+        if (ok) {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => const ReaderScreen()),
+          ).then((_) {
+            if (mounted) _loadStories();
+          });
+        } else {
+          await StoryCharactersScreen.open(context, story: story);
+          if (mounted) _loadStories();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _startingStoryId = null);
+        await StoryCharactersScreen.open(context, story: story);
+        if (mounted) _loadStories();
       }
     }
   }
@@ -603,39 +665,79 @@ class _StoryCatalogScreenState extends ConsumerState<StoryCatalogScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Action Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isActive ? const Color(0xFF27272A) : const Color(0xFFF59E0B),
-                      foregroundColor: isActive ? const Color(0xFFFDE68A) : Colors.black,
-                      side: isActive ? const BorderSide(color: Color(0xFFF59E0B), width: 1) : null,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: isActive ? 0 : 4,
-                    ),
-                    icon: Icon(
-                      isActive ? Icons.groups_rounded : Icons.play_arrow_rounded,
-                      size: 20,
-                      color: isActive ? const Color(0xFFF59E0B) : Colors.black,
-                    ),
-                    label: Text(
-                      isActive
-                          ? (isPersian ? 'شخصیت‌ها و ادامه ماجراجویی' : 'Characters & Continue')
-                          : (isPersian ? 'آغاز این ماجراجویی' : 'Start This Adventure'),
-                      style: GoogleFonts.vazirmatn(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
+                // Action Buttons (1-Tap Quick Start / Continue + Character Slots)
+                Row(
+                  children: [
+                    // Primary Action Button: Quick Start or Continue
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFF59E0B),
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            elevation: 4,
+                          ),
+                          icon: _startingStoryId == story.id
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.black,
+                                  ),
+                                )
+                              : Icon(
+                                  isActive ? Icons.play_arrow_rounded : Icons.bolt_rounded,
+                                  size: 22,
+                                  color: Colors.black,
+                                ),
+                          label: Text(
+                            isActive
+                                ? (isPersian ? 'ادامه ماجراجویی' : 'Continue Adventure')
+                                : (isPersian ? 'شروع سریع ماجراجویی' : 'Quick Start Adventure'),
+                            style: GoogleFonts.vazirmatn(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          onPressed: _startingStoryId != null
+                              ? null
+                              : () {
+                                  if (isActive) {
+                                    _handleResumeStory(story, isStoryPersian);
+                                  } else {
+                                    _handleQuickStart(story, isStoryPersian);
+                                  }
+                                },
+                        ),
                       ),
                     ),
-                    onPressed: () async {
-                      await StoryCharactersScreen.open(context, story: story);
-                      if (mounted) {
-                        _loadStories();
-                      }
-                    },
-                  ),
+                    const SizedBox(width: 10),
+                    // Secondary Button: Character Slots / Advanced Customization
+                    Container(
+                      height: 48,
+                      width: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E2032),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFF3F3F46), width: 1.2),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.manage_accounts_outlined, color: Color(0xFFF59E0B), size: 22),
+                        tooltip: isPersian ? 'مدیریت و شخصی‌سازی شخصیت‌ها' : 'Character Slots & Customization',
+                        onPressed: _startingStoryId != null
+                            ? null
+                            : () async {
+                                await StoryCharactersScreen.open(context, story: story);
+                                if (mounted) {
+                                  _loadStories();
+                                }
+                              },
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
