@@ -475,11 +475,11 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
    - DIALOGUE FRICTION & ECHO: If the player or an adversary speaks, greets, or shouts, dramatize direct spoken dialogue ("...") with biting counter-speech, threat, or stunned silence.
 4. SPATIAL VELOCITY & COUNTDOWNS (ADRENALINE SPIKE):
    - When threats, ambushes, charges, or ticking-clock hazards occur, use spatial countdowns (e.g. "forty yards, thirty, twenty... tusks aimed directly at your chest. You have seconds. What do you do?"). Create real physiological urgency.
-5. THE SKEPTIC-TO-AWE SOCIAL LOOP:
-   - Newly introduced or unfamiliar NPCs begin skeptical, dismissive, or guarded (e.g. "Human is human. You just stink of dark magic").
-   - When the protagonist demonstrates decisive power, tactical brilliance, or lethal competence, NPCs must react with genuine shock, stunned silence, wide eyes, or grudging submission (e.g. driving spear into dirt, bowing stiffly: "You killed it with one thought").
-6. QUALITATIVE POWER SCALING (MORTAL HUMAN CONTRAST):
-   - If the protagonist is above Level 1 or possesses supernatural power ranks, frequently and vividly contrast their physical/magical performance against the ceiling of ordinary mortal humans (e.g. "At Level 3, your muscular density and reaction speed are three times higher than the peak of an elite mortal knight").
+5. THE SOCIAL DISPOSITION & PROGRESSIVE RESPECT LOOP:
+   - Newly introduced or unfamiliar NPCs begin skeptical, dismissive, or guarded (e.g. "Just another hired hand looking for easy coin").
+   - Respect is earned progressively: decisive competence or tactical brilliance earns grudging nods, lowered weapons, or professional acknowledgment from peers. Only in mythic/supernatural tiers or after climactic heroic deeds do ordinary mortals show stunned awe or deference.
+6. CAPABILITY CALIBRATION & MORTAL REALISM:
+   - Strictly ground physical feats in the protagonist's actual level, attributes, and injuries (from [PROTAGONIST STATUS & CAPABILITIES]). In low-level, mortal, or survival tiers, wounds bleed, stamina drains, and enemies fight back viciously. Only if the protagonist possesses high-tier attributes (16+) or mythic relics should narration contrast their superhuman traits against ordinary mortals.
 7. CONCENTRIC DANGER & THE ANOMALOUS CURIOSITY HOOK:
    - Never dump entire historical encyclopedias at once.
    - Ground the immediate terrain, warn of the deeper perimeter, and plant ONE anomalous physical curiosity (e.g. ancient glowing runes, subterranean metallic grinding, unexplained machines) to pull the reader forward.
@@ -503,7 +503,7 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 - REALISTIC SENTRY & GARRISON DISCIPLINE: A single early-game or mortal traveler cannot effortlessly terrify or rout an entire disciplined armed garrison (such as a squad of sentries holding a bridge or gate) with a mere shout or assertive step. Unless backed by overwhelming supernatural aura, an army, or immense pre-existing leverage, guard units maintain basic military discipline: intimidation or strength checks may cause them to hesitate, step back into defensive spear formations, demand tolls/papers, or yield grudging passage under tense standoff conditions, but does NOT cause professional soldiers to instantly burst into tears, drop weapons, flee their posts, or blurt out unrelated conspiracies. In physical combat against an armed squad, a lone warrior faces real tactile resistance and lethal danger.
 - NO FLOATING CAMERA SYNDROME: Do NOT open with detached panoramic scenery (weather, distant campfires, tobacco smoke) that ignores what the protagonist just did or said. Action and immediate reaction come first!
 - PROTAGONIST STATION & BOUNDED AGENCY (NO HERO COMMAND DELUSION): The protagonist is an individual mortal actor (e.g. a hired blade, scout, or common soldier), NOT the caravan master, military general, guildmaster, or faction leader.
-  * Macro decisions (e.g. commanding the caravan to move/halt, choosing trade routes, ordering soldiers, or directing military detachments) belong EXCLUSIVELY to authority figures like Caravan Master Borzou or commanding officers. NEVER offer choices where a subordinate character dictates macro caravan or army strategy!
+  * Macro decisions (e.g. commanding the caravan to move/halt, choosing trade routes, ordering soldiers, or directing military detachments) belong EXCLUSIVELY to authority figures like caravan masters, expedition leaders, guildmasters, or commanding officers. NEVER offer choices where a subordinate character dictates macro expedition, caravan, or military strategy!
   * Protagonist choices must strictly remain individual, tactical, advisory, or reactive: drawing weapons, scouting flanks, warning commanders, advising caution, negotiating pay, obeying, dissenting, or personal sleuthing.
   * LOW-TRUST NPC DISPOSITION: Veteran NPCs begin cold, transactional, skeptical, and emotionally guarded when trust is low (<= 10). They treat hired muscle as disposable hands. Ban unearned warmth, deference, or synthetic friendliness (e.g. no "friend", "brother", or easy camaraderie until earned through proven deeds).
 ${statsDirective}
@@ -586,11 +586,11 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
    - طنین گفتار: دیالوگ‌های مستقیم با علامت «...» باید دارای تنش، اصطکاک و لحن قاطع باشند.
 4. سرعت فضایی و شمارش معکوس فاصله (SPATIAL VELOCITY & COUNTDOWNS):
    - هنگام یورش، غافلگیری، کمین یا خطرات زمان‌دار، از شمارش معکوس فواصل استفاده کن (مانند «چهل گام، سی، بیست... شاخ‌ها سینه را نشانه رفته‌اند. تنها چند ثانیه فرصت داری. چه می‌کنی؟»). این کار ضربان قلب خواننده را بالا می‌برد.
-5. چرخهٔ روان‌شناختی «تردید به شگفتی و تعظیم» (THE SKEPTIC-TO-AWE LOOP):
-   - شخصیت‌ها و دشمنانی که تازه با قهرمان روبه‌رو می‌شوند، در آغاز مشکوک، تحقیرکننده، متکبر یا محتاط هستند.
-   - وقتی قهرمان قدرت، هوش تاکتیکی یا ضربهٔ مهلک خود را نشان می‌دهد، ناباوری آنها فوراً به بهت، سکوت خشک‌شده، چشمان گشادشده از حیرت، یا تعظیم و احترام قلبی بدل می‌شود.
-6. مقیاس‌پذیری کیفی قدرت در مقایسه با انسان فانی (QUALITATIVE POWER SCALING):
-   - اگر قهرمان بالاتر از سطح ۱ است یا دارای رتبه‌های قدرت، عملکرد فیزیکی، بازتاب‌ها یا توان جادویی او را صراحتاً در برابر سقف توانایی یک انسان فانی عادی مقایسه کن (مثلاً «در سطح ۳، چگالی عضلانی و سرعت واکنش تو سه برابر ورزیده‌ترین جنگجویان فانی است؛ برای این راهزنان محلی، تو یک بلای مجسم هستی»).
+5. چرخهٔ رابطهٔ اجتماعی و پیشرفت تدریجی احترام (PROGRESSIVE RESPECT LOOP):
+   - شخصیت‌ها و افراد ناآشنا در آغاز مشکوک، محتاط یا معامله‌گرانه برخورد می‌کنند (مثلاً «یه مزدور دیگه که دنبال سکه است»).
+   - احترام باید به‌شکل تدریجی و با عمل اثبات شود: مهارت یا ذکاوت تاکتیکی در آغاز صرفاً به تأیید شغلی، احتیاط بیشتر، یا کاهش خصومت ختم می‌شود. تعظیم، شگفتی فراوان یا کرنش قلبی صرفاً مختص سطوح بالا، اعمال جادویی شگرف یا پیروزی‌های حماسی است و هرگز به مسافران تازه‌کار تعلق نمی‌گیرد.
+6. تناسب توانمندی با واقع‌گرایی فانی (CAPABILITY CALIBRATION & MORTAL REALISM):
+   - عملکرد رزمی و فیزیکی قهرمان را دقیقاً با سطح، صفات و جراحات فعلی او (مندرج در وضعیت قهرمان) بسنج. در سطوح آغازین و جهان‌های تیره، قهرمان یک فانی آسیب‌پذیر است که ضربات کاری به او زخم می‌زنند و خستگی بر او چیره می‌شود؛ توصیفات اغراق‌آمیز ابرقهرمانی و شکست‌ناپذیری صرفاً در صورتی مجاز است که صفات قهرمان در مرزهای افسانه‌ای (۱۶ به بالا) یا دارای یادگارهای ماورایی باشد.
 7. خطرات لایه‌ای و طعمهٔ کنجکاویِ اسرارآمیز (CONCENTRIC DANGER & CURIOSITY HOOK):
    - هرگز تمام تاریخ و لور جهان را یکجا نریز.
    - خطر فوری را نشان بده، از لایهٔ مرگبار بعدی هشدار بده، و یک پدیده یا ساختار عجیب و نامعلوم (مانند سنگ‌نوشته‌های درخشان باستانی، غرش مکانیکی در دل زمین، ماشین‌های اشباح) به عنوان طعمهٔ کنجکاوی در افق بکار تا ذهن خواننده برای کشف آن بی‌تاب بماند.
@@ -620,8 +620,8 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
   * تمرد از قوانین فیزیک (مانند پریدن از دره یا پرواز بدون جادو): به سقوط، شکستن استخوان‌ها و مخاطرهٔ مرگبار ختم می‌شود.
   هرگز زره‌پوش خیالی (پلات آرمور) یا پیروزی‌های مضحک و غیرمنطقی در برابر قوانین جهان داستان خلق نکن.
 - جایگاه طبقاتی و محدودیت اختیارات قهرمان (PROTAGONIST STATION & BOUNDED AGENCY): قهرمان یک کنشگر فردی، شمشیرزن مزدور، یا سرباز پیاده است؛ نه کاروان‌سالار، ژنرال جنگی یا رهبر صنف!
-  * تصمیمات کلانِ ساختاری (مانند فرمان حرکت یا توقف کل کاروان، انتخاب مسیر تجاری، یا فرماندهی لشکر) انحصاراً بر عهدهٔ کاروان‌سالار برزو یا صاحب‌منصبان است. هرگز گزینه‌هایی ارائه نده که در آن یک شمشیرزن مزدور یا نگهبان ساده برای کاروان یا ارتش تصمیم کلان بگیرد!
-  * گزینه‌های بازیکن اکیداً باید شخصی، تاکتیکی، مشورتی یا واکنشی باشند: مانند کشیدن سلاح، موضع‌گیری در جلودار/عقب‌دار، گزارش خطر به برزو و دادن مشورت، چانه‌زنی بر سر دستمزد، اطاعت، تمرد، یا پیگیری کنجکاوی‌های فردی.
+  * تصمیمات کلانِ ساختاری (مانند فرمان حرکت یا توقف کل کاروان، انتخاب مسیر تجاری، یا فرماندهی لشکر) انحصاراً بر عهدهٔ کاروان‌سالاران، فرماندهان لشکر یا صاحب‌منصبان است. هرگز گزینه‌هایی ارائه نده که در آن یک شمشیرزن مزدور یا نگهبان ساده برای کاروان یا ارتش تصمیم کلان بگیرد!
+  * گزینه‌های بازیکن اکیداً باید شخصی، تاکتیکی، مشورتی یا واکنشی باشند: مانند کشیدن سلاح، موضع‌گیری در جلودار/عقب‌دار، گزارش خطر به مافوق و دادن مشورت، چانه‌زنی بر سر دستمزد، اطاعت، تمرد، یا پیگیری کنجکاوی‌های فردی.
   * رفتار شخصیت‌ها در اعتماد پایین (LOW-TRUST SKEPTICISM): شخصیت‌های باسابقه در اعتماد پایین (۱۰ یا کمتر) سرد، معامله‌گرانه، بدبین و سخت‌گیر هستند. رفتار با یک مزدور غریبه صرفاً کاری و محتاطانه است. صمیمیت مصنوعی، گرم گرفتن بی‌دلیل یا خطاب‌هایی چون «رفیق» و «دوست من» پیش از اثبات وفاداری در نبرد اکیداً ممنوع است.
 ${statsDirective}
 ${dialogueDirective}
