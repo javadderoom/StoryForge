@@ -715,5 +715,50 @@ describe('mapHitTest — drawn roads (Plan 25)', () => {
         assert.equal(hit.candidate.subType, 'polygon');
       }
     });
+
+    it('picks a terrain midpoint for inserting a new vertex on a selected river', () => {
+      // Points are (100, 100) and (150, 120); midpoint is (125, 110)
+      const hit = hitTestMapObjectsIn(
+        { x: 125, y: 110 },
+        {
+          terrainFeatures: [river],
+          selectedTerrainIds: new Set(['river_edit_1']),
+        }
+      );
+      assert.equal(hit?.kind, 'terrain_midpoint');
+      if (hit?.candidate.kind === 'terrain_midpoint') {
+        assert.equal(hit.candidate.featureId, 'river_edit_1');
+        assert.equal(hit.candidate.insertIndex, 1);
+        assert.equal(hit.candidate.subType, 'points');
+      }
+    });
+
+    it('picks a polygon midpoint for inserting a new vertex on a selected lake', () => {
+      const lake = terrain({
+        id: 'lake_edit_2',
+        name: 'Lake Firouzeh',
+        type: 'lake',
+        polygon: [
+          { x: 200, y: 200 },
+          { x: 300, y: 200 },
+          { x: 300, y: 300 },
+          { x: 200, y: 300 },
+        ],
+      });
+      // Midpoint of first segment (200,200) -> (300,200) is (250, 200)
+      const hit = hitTestMapObjectsIn(
+        { x: 250, y: 200 },
+        {
+          terrainFeatures: [lake],
+          selectedTerrainIds: new Set(['lake_edit_2']),
+        }
+      );
+      assert.equal(hit?.kind, 'terrain_midpoint');
+      if (hit?.candidate.kind === 'terrain_midpoint') {
+        assert.equal(hit.candidate.featureId, 'lake_edit_2');
+        assert.equal(hit.candidate.insertIndex, 1);
+        assert.equal(hit.candidate.subType, 'polygon');
+      }
+    });
   });
 });

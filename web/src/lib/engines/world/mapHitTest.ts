@@ -74,6 +74,7 @@ export type MapHitKind =
   | 'waypoint'
   | 'terrain'
   | 'terrain_vertex'
+  | 'terrain_midpoint'
   | 'placement'
   | 'trade_route'
   | 'route'
@@ -100,6 +101,15 @@ export type MapHitCandidate =
       id: string;
       featureId: string;
       index: number;
+      subType: 'points' | 'polygon';
+      point: MapPoint;
+      feature: MapTerrainFeature;
+    }
+  | {
+      kind: 'terrain_midpoint';
+      id: string;
+      featureId: string;
+      insertIndex: number;
       subType: 'points' | 'polygon';
       point: MapPoint;
       feature: MapTerrainFeature;
@@ -331,7 +341,8 @@ export function buildMapHitCandidates(input: MapHitCandidateInput): MapHitCandid
       !isObjectLocked(feature) &&
       input.selectedTerrainIds?.has(feature.id)
     ) {
-      (feature.points ?? []).forEach((point, index) => {
+      const pts = feature.points ?? [];
+      pts.forEach((point, index) => {
         candidates.push({
           kind: 'terrain_vertex',
           id: `tv_${feature.id}_pts_${index}`,
@@ -342,7 +353,24 @@ export function buildMapHitCandidates(input: MapHitCandidateInput): MapHitCandid
           feature,
         });
       });
-      (feature.polygon ?? []).forEach((point, index) => {
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p1 = pts[i];
+        const p2 = pts[i + 1];
+        if (Math.hypot(p2.x - p1.x, p2.y - p1.y) >= 16) {
+          candidates.push({
+            kind: 'terrain_midpoint',
+            id: `tm_${feature.id}_pts_${i}`,
+            featureId: feature.id,
+            insertIndex: i + 1,
+            subType: 'points',
+            point: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 },
+            feature,
+          });
+        }
+      }
+
+      const poly = feature.polygon ?? [];
+      poly.forEach((point, index) => {
         candidates.push({
           kind: 'terrain_vertex',
           id: `tv_${feature.id}_poly_${index}`,
@@ -353,6 +381,21 @@ export function buildMapHitCandidates(input: MapHitCandidateInput): MapHitCandid
           feature,
         });
       });
+      for (let i = 0; i < poly.length; i++) {
+        const p1 = poly[i];
+        const p2 = poly[(i + 1) % poly.length];
+        if (Math.hypot(p2.x - p1.x, p2.y - p1.y) >= 16) {
+          candidates.push({
+            kind: 'terrain_midpoint',
+            id: `tm_${feature.id}_poly_${i}`,
+            featureId: feature.id,
+            insertIndex: i + 1,
+            subType: 'polygon',
+            point: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 },
+            feature,
+          });
+        }
+      }
     }
     candidates.push({ kind: 'terrain', id: feature.id, feature });
   }
@@ -417,6 +460,8 @@ export function hitCandidateBounds(candidate: MapHitCandidate, pad = 0): MapBoun
     case 'route_vertex':
       return boundsOfPoints([candidate.point], pad);
     case 'terrain_vertex':
+      return boundsOfPoints([candidate.point], pad);
+    case 'terrain_midpoint':
       return boundsOfPoints([candidate.point], pad);
     case 'placement':
       return boundsOfPoints([{ x: candidate.placement.x, y: candidate.placement.y }], pad);
@@ -541,6 +586,23 @@ function hitFor(
         distance,
         tier: HIT_TIER.PIN,
         zIndex: 9999,
+        area: 0,
+        candidate,
+      };
+    }
+
+    case 'terrain_midpoint': {
+      const feature = candidate.feature;
+      if (!isObjectVisible(feature) || isObjectLocked(feature)) return null;
+      if (layers && !isTerrainVisibleInLayers(feature.type, layers)) return null;
+      const distance = Math.hypot(point.x - candidate.point.x, point.y - candidate.point.y);
+      if (distance > grab) return null;
+      return {
+        kind: 'terrain_midpoint',
+        id: candidate.id,
+        distance,
+        tier: HIT_TIER.POINT,
+        zIndex: 9998,
         area: 0,
         candidate,
       };

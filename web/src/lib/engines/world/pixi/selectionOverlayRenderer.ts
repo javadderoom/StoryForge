@@ -118,6 +118,19 @@ export function renderSelectionOverlay(
           return isDragged && transientPos ? transientPos : point;
         });
         strokePolyline(poly, true);
+        // Render midpoint insertion handles
+        for (let i = 0; i < poly.length; i++) {
+          const p1 = poly[i];
+          const p2 = poly[(i + 1) % poly.length];
+          if (Math.hypot(p2.x - p1.x, p2.y - p1.y) >= 16) {
+            const mx = (p1.x + p2.x) / 2;
+            const my = (p1.y + p2.y) / 2;
+            g.circle(mx, my, 3.5)
+              .fill({ color: 0xd97706, alpha: 0.85 })
+              .stroke({ width: 1.2, color: 0xfffbeb });
+          }
+        }
+        // Render primary vertex anchor handles
         poly.forEach((point) => {
           g.circle(point.x, point.y, 4.5)
             .fill({ color: 0xfffbeb })
@@ -133,6 +146,19 @@ export function renderSelectionOverlay(
           return isDragged && transientPos ? transientPos : point;
         });
         strokePolyline(pts, false);
+        // Render midpoint insertion handles
+        for (let i = 0; i < pts.length - 1; i++) {
+          const p1 = pts[i];
+          const p2 = pts[i + 1];
+          if (Math.hypot(p2.x - p1.x, p2.y - p1.y) >= 16) {
+            const mx = (p1.x + p2.x) / 2;
+            const my = (p1.y + p2.y) / 2;
+            g.circle(mx, my, 3.5)
+              .fill({ color: 0xd97706, alpha: 0.85 })
+              .stroke({ width: 1.2, color: 0xfffbeb });
+          }
+        }
+        // Render primary vertex anchor handles
         pts.forEach((point) => {
           g.circle(point.x, point.y, 4.5)
             .fill({ color: 0xfffbeb })

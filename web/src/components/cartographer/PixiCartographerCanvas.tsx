@@ -261,6 +261,29 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         return;
       }
 
+      if ((e.key === 'Delete' || e.key === 'Backspace') && activeVertexRef.current) {
+        const v = activeVertexRef.current;
+        const feature = terrainFeaturesRef.current.find((f) => f.id === v.featureId);
+        if (feature) {
+          if (v.subType === 'points' && feature.points && feature.points.length > 2) {
+            e.preventDefault();
+            const updated = feature.points.filter((_, i) => i !== v.index);
+            onUpdateTerrain(feature.id, { points: updated });
+            setActiveVertex(null);
+            activeVertexRef.current = null;
+            return;
+          }
+          if (v.subType === 'polygon' && feature.polygon && feature.polygon.length > 3) {
+            e.preventDefault();
+            const updated = feature.polygon.filter((_, i) => i !== v.index);
+            onUpdateTerrain(feature.id, { polygon: updated });
+            setActiveVertex(null);
+            activeVertexRef.current = null;
+            return;
+          }
+        }
+      }
+
       if (e.key === 'PageUp' || e.key === 'PageDown') {
         e.preventDefault();
         const isZoomIn = e.key === 'PageUp';
@@ -297,11 +320,21 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     return () => {
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [setZoom, setPan]);
+  }, [setZoom, setPan, onUpdateTerrain]);
 
   // Buffered drag state for zero-server-request 60fps moves
   const [draggedNode, setDraggedNode] = useState<DraggedNodeData | null>(null);
   const [transientPos, setTransientPos] = useState<MapPoint | null>(null);
+  const [activeVertex, setActiveVertex] = useState<{
+    featureId: string;
+    index: number;
+    subType: 'points' | 'polygon';
+  } | null>(null);
+  const activeVertexRef = useRef<{
+    featureId: string;
+    index: number;
+    subType: 'points' | 'polygon';
+  } | null>(null);
 
   // Land Sculpt Brush controls
   const [sculptMode, setSculptMode] = useState<'paint' | 'carve'>('paint');
@@ -811,7 +844,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
             ? { kind: 'trade_route', id: hit.candidate.routeId }
             : hit.kind === 'route_vertex'
             ? { kind: 'route', id: hit.candidate.routeId }
-            : hit.kind === 'terrain_vertex'
+            : hit.kind === 'terrain_vertex' || hit.kind === 'terrain_midpoint'
             ? { kind: 'terrain', id: hit.candidate.featureId }
             : hit.kind === 'route'
             ? { kind: 'route', id: hit.candidate.route.id }
@@ -826,6 +859,41 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         if (additive) {
           onSelectionChange(toggleMapObjectRef(selection, hitRef));
           return;
+        }
+
+        // Clicking a midpoint inserts a new vertex and immediately begins dragging it!
+        if (hit.kind === 'terrain_midpoint') {
+          const alreadySelected = selection.some((ref) => sameMapObjectRef(ref, hitRef));
+          if (!alreadySelected) onSelectionChange([hitRef]);
+
+          const mid = hit.candidate;
+          const feature = terrainFeaturesRef.current.find((f) => f.id === mid.featureId);
+          if (feature) {
+            if (mid.subType === 'points' && feature.points) {
+              const newPoints = [...feature.points];
+              newPoints.splice(mid.insertIndex, 0, mid.point);
+              onUpdateTerrain(feature.id, { points: newPoints });
+            } else if (mid.subType === 'polygon' && feature.polygon) {
+              const newPolygon = [...feature.polygon];
+              newPolygon.splice(mid.insertIndex, 0, mid.point);
+              onUpdateTerrain(feature.id, { polygon: newPolygon });
+            }
+
+            const nodeData: DraggedNodeData = {
+              type: 'terrain_vertex',
+              id: mid.featureId,
+              index: mid.insertIndex,
+              subType: mid.subType,
+              startPoint: mid.point,
+            };
+            setDraggedNode(nodeData);
+            draggedNodeRef.current = nodeData;
+            setTransientPos(mid.point);
+            transientPosRef.current = mid.point;
+            setActiveVertex({ featureId: mid.featureId, index: mid.insertIndex, subType: mid.subType });
+            activeVertexRef.current = { featureId: mid.featureId, index: mid.insertIndex, subType: mid.subType };
+            return;
+          }
         }
 
         // A terrain vertex is an edit handle: select the owning terrain, then drag that vertex.
@@ -845,6 +913,8 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           draggedNodeRef.current = nodeData;
           setTransientPos(vertex.point);
           transientPosRef.current = vertex.point;
+          setActiveVertex({ featureId: vertex.featureId, index: vertex.index, subType: vertex.subType });
+          activeVertexRef.current = { featureId: vertex.featureId, index: vertex.index, subType: vertex.subType };
           return;
         }
 
@@ -926,6 +996,8 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
       // Empty parchment: begin a rubber band. A press-and-release without
       // movement clears the selection when it ends.
+      setActiveVertex(null);
+      activeVertexRef.current = null;
       const container = containerRef.current;
       if (!container) return;
       e.preventDefault();
