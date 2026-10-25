@@ -47,6 +47,8 @@ import {
   type RiverOptions,
 } from './riverGenerator';
 import { applyTransform } from './transformMath';
+import { detectBridges } from './bridgeGenerator';
+import { renderBridgesToGraphics } from './bridgeRenderer';
 import {
   generateProceduralHighland,
   type HighlandOptions,
@@ -107,6 +109,7 @@ export class PixiCartographerEngine {
   private bgGraphics = new Graphics();
   private gridGraphics = new Graphics();
   private terrainGraphics = new Graphics();
+  private bridgeGraphics = new Graphics();
   private mapRouteGraphics = new Graphics();
   private routeGraphics = new Graphics();
   private routeLabelsContainer = new Container();
@@ -150,7 +153,12 @@ export class PixiCartographerEngine {
     this.backgroundLayer.addChild(this.bgGraphics);
     this.gridLayer.addChild(this.gridGraphics);
     this.terrainLayer.addChild(this.terrainGraphics);
-    this.routeLayer.addChild(this.mapRouteGraphics, this.routeLabelsContainer, this.routeGraphics);
+    this.routeLayer.addChild(
+      this.bridgeGraphics,
+      this.mapRouteGraphics,
+      this.routeLabelsContainer,
+      this.routeGraphics
+    );
     this.settlementLayer.addChild(this.settlementGraphics, this.settlementLabelsContainer);
     this.placementLayer.addChild(this.placementGraphics);
     this.interactionLayer.addChild(
@@ -423,7 +431,25 @@ export class PixiCartographerEngine {
     // 4. Render Continents, Biomes, Rivers, Mountains
     renderTerrain(this.terrainGraphics, viewTerrain, settings, this.fillWithMaterial.bind(this));
 
-    // 5. Render drawn roads and paths (Plan 25), then the economic overlay.
+    // 5. Render Civil Infrastructure: Bridges & River Crossings (Plan 27 — Module 5)
+    this.bridgeGraphics.clear();
+    if (settings.visibleLayers.routes !== false || settings.visibleLayers.settlements !== false) {
+      const bridges = detectBridges({
+        locations: viewLocations,
+        mapRoutes: viewMapRoutes,
+        tradeRoutes: viewRoutes,
+        terrainFeatures: viewTerrain,
+        routeSource: {
+          locations: viewLocations,
+          terrainFeatures: viewTerrain,
+          placements: viewPlacements,
+          placeCategories,
+        },
+      });
+      renderBridgesToGraphics(this.bridgeGraphics, bridges);
+    }
+
+    // 6. Render drawn roads and paths (Plan 25), then the economic overlay.
     renderMapRoutes(this.mapRouteGraphics, {
       routes: viewMapRoutes,
       source: {

@@ -37,6 +37,11 @@ export const DEFAULT_PLACE_CATEGORY_META: Record<string, PlaceCategoryRenderMeta
     renderAs: 'settlement',
     mapTerrainTypes: [],
   },
+  bridge: {
+    geometryKind: 'point',
+    renderAs: 'settlement',
+    mapTerrainTypes: [],
+  },
   stronghold: {
     geometryKind: 'point',
     renderAs: 'settlement',
