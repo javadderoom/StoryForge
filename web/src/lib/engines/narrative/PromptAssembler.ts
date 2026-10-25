@@ -502,6 +502,10 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 - NATURAL LITERARY ITEM & GEAR REFERENCES: Refer to the protagonist's gear using natural literary prose (e.g. "your blade", "your shield", "your armor", "the leather tunic"). NEVER copy-paste long, awkward formal catalog/database titles verbatim in every sentence (e.g. avoid repeating "the dust-covered leather cuirass of Hiram" or "metal-rimmed wooden shield" repeatedly). Introduce the item naturally and use simple nouns or pronouns thereafter.
 - REALISTIC SENTRY & GARRISON DISCIPLINE: A single early-game or mortal traveler cannot effortlessly terrify or rout an entire disciplined armed garrison (such as a squad of sentries holding a bridge or gate) with a mere shout or assertive step. Unless backed by overwhelming supernatural aura, an army, or immense pre-existing leverage, guard units maintain basic military discipline: intimidation or strength checks may cause them to hesitate, step back into defensive spear formations, demand tolls/papers, or yield grudging passage under tense standoff conditions, but does NOT cause professional soldiers to instantly burst into tears, drop weapons, flee their posts, or blurt out unrelated conspiracies. In physical combat against an armed squad, a lone warrior faces real tactile resistance and lethal danger.
 - NO FLOATING CAMERA SYNDROME: Do NOT open with detached panoramic scenery (weather, distant campfires, tobacco smoke) that ignores what the protagonist just did or said. Action and immediate reaction come first!
+- PROTAGONIST STATION & BOUNDED AGENCY (NO HERO COMMAND DELUSION): The protagonist is an individual mortal actor (e.g. a hired blade, scout, or common soldier), NOT the caravan master, military general, guildmaster, or faction leader.
+  * Macro decisions (e.g. commanding the caravan to move/halt, choosing trade routes, ordering soldiers, or directing military detachments) belong EXCLUSIVELY to authority figures like Caravan Master Borzou or commanding officers. NEVER offer choices where a subordinate character dictates macro caravan or army strategy!
+  * Protagonist choices must strictly remain individual, tactical, advisory, or reactive: drawing weapons, scouting flanks, warning commanders, advising caution, negotiating pay, obeying, dissenting, or personal sleuthing.
+  * LOW-TRUST NPC DISPOSITION: Veteran NPCs begin cold, transactional, skeptical, and emotionally guarded when trust is low (<= 10). They treat hired muscle as disposable hands. Ban unearned warmth, deference, or synthetic friendliness (e.g. no "friend", "brother", or easy camaraderie until earned through proven deeds).
 ${statsDirective}
 ${dialogueDirective}
 ${secretGuardDirective}
@@ -615,6 +619,10 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
   * نبرد نامتقارن (مانند یورش انفرادی به صف گزمه‌ها): پرتاب نجات‌بخش تنها به معنی فرار معجزه‌آسا از مرگ با جراحت است؛ پرتاب عادی به معنی کوبیده شدن به گل، خلع سلاح و زمین‌گیر شدن است.
   * تمرد از قوانین فیزیک (مانند پریدن از دره یا پرواز بدون جادو): به سقوط، شکستن استخوان‌ها و مخاطرهٔ مرگبار ختم می‌شود.
   هرگز زره‌پوش خیالی (پلات آرمور) یا پیروزی‌های مضحک و غیرمنطقی در برابر قوانین جهان داستان خلق نکن.
+- جایگاه طبقاتی و محدودیت اختیارات قهرمان (PROTAGONIST STATION & BOUNDED AGENCY): قهرمان یک کنشگر فردی، شمشیرزن مزدور، یا سرباز پیاده است؛ نه کاروان‌سالار، ژنرال جنگی یا رهبر صنف!
+  * تصمیمات کلانِ ساختاری (مانند فرمان حرکت یا توقف کل کاروان، انتخاب مسیر تجاری، یا فرماندهی لشکر) انحصاراً بر عهدهٔ کاروان‌سالار برزو یا صاحب‌منصبان است. هرگز گزینه‌هایی ارائه نده که در آن یک شمشیرزن مزدور یا نگهبان ساده برای کاروان یا ارتش تصمیم کلان بگیرد!
+  * گزینه‌های بازیکن اکیداً باید شخصی، تاکتیکی، مشورتی یا واکنشی باشند: مانند کشیدن سلاح، موضع‌گیری در جلودار/عقب‌دار، گزارش خطر به برزو و دادن مشورت، چانه‌زنی بر سر دستمزد، اطاعت، تمرد، یا پیگیری کنجکاوی‌های فردی.
+  * رفتار شخصیت‌ها در اعتماد پایین (LOW-TRUST SKEPTICISM): شخصیت‌های باسابقه در اعتماد پایین (۱۰ یا کمتر) سرد، معامله‌گرانه، بدبین و سخت‌گیر هستند. رفتار با یک مزدور غریبه صرفاً کاری و محتاطانه است. صمیمیت مصنوعی، گرم گرفتن بی‌دلیل یا خطاب‌هایی چون «رفیق» و «دوست من» پیش از اثبات وفاداری در نبرد اکیداً ممنوع است.
 ${statsDirective}
 ${dialogueDirective}
 ${secretGuardDirective}
