@@ -32,10 +32,12 @@ import {
   MapRoute,
   WorldLocation,
   WorldTradeRoute,
+  CustomPlaceCategory,
 } from '@/lib/types';
 import { SelectedMapItem } from './CartographerInspector';
-import { isObjectLocked, isObjectVisible, terrainCenter } from '@/lib/engines/world/mapObjectOrder';
+import { isObjectLocked, isObjectVisible } from '@/lib/engines/world/mapObjectOrder';
 import { routeDifficultyLabel, routeKindLabel } from '@/lib/engines/world/mapRoutes';
+import { resolvePlaceCategoryMeta } from '@/lib/engines/world/placeCategories';
 
 export type ElementCategoryKey =
   | 'landmass'
@@ -71,6 +73,13 @@ interface CartographerElementsPanelProps {
   onToggleRoadVisibility?: (id: string) => void;
   onToggleRoadLock?: (id: string) => void;
   onDeleteRoad?: (id: string) => void;
+  /**
+   * Plan 24 place-category metadata — the same source of truth the renderer,
+   * hit test and inspector use. It decides whether a location is a point
+   * place (settlement bucket) or a semantic line/area place filed under the
+   * matching geographical bucket.
+   */
+  placeCategories?: CustomPlaceCategory[];
 }
 
 interface CategoryDefinition {
@@ -126,7 +135,7 @@ const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
   },
   {
     key: 'settlement',
-    label: { en: 'Settlements & Citadels', fa: 'شهرها، دژها و سکونت‌گاه‌ها' },
+    label: { en: 'Settlements & Sites', fa: 'شهرها، دژها و مکان‌ها' },
     emptyMessage: { en: 'No locations placed on map', fa: 'هیچ مکانی روی نقشه قرار نگرفته است' },
     icon: Castle,
     color: 'text-amber-300',
@@ -222,6 +231,7 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
   onToggleRoadVisibility,
   onToggleRoadLock,
   onDeleteRoad,
+  placeCategories,
 }) => {
   // Accordion state: null initially so all categories start collapsed.
   // Opening any category automatically closes all others.
@@ -338,6 +348,12 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
             ? isPersian ? 'توندرا' : 'Tundra'
             : feat.type === 'oasis'
             ? isPersian ? 'واحه بیابانی' : 'Oasis'
+            : feat.type === 'wasteland'
+            ? isPersian ? 'زمین‌های بایر' : 'Wasteland'
+            : feat.type === 'plains'
+            ? isPersian ? 'دشت' : 'Plains'
+            : feat.type === 'arcane_anomaly'
+            ? isPersian ? 'ناهنجاری اسرارآمیز' : 'Arcane Anomaly'
             : isPersian ? 'اقلیم طبیعی' : 'Biome Wash';
         result.biome.push({
           kind: 'terrain',
@@ -351,21 +367,40 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
       }
     }
 
-    // Settlements & Locations
+    // Settlements & semantic places. Plan 24 metadata is the single source of
+    // truth the renderer and hit test already use, so the list agrees with the
+    // map: a point place (settlement, stronghold, ruin, dungeon, custom pin)
+    // belongs here, while a place drawn as a line/area (waterway, sea, plains
+    // region, anomaly) is filed under its geographical bucket instead of
+    // masquerading as a settlement.
     for (const loc of locations) {
       const isVis = isObjectVisible(loc);
       const isLck = isObjectLocked(loc);
-      result.settlement.push({
-        kind: 'location',
+      const meta = resolvePlaceCategoryMeta(loc.category, placeCategories);
+      const categoryLabel =
+        placeCategories?.find((category) => category.id === loc.category)?.name ||
+        (loc.category
+          ? loc.category.charAt(0).toUpperCase() + loc.category.slice(1)
+          : isPersian ? 'سکونت‌گاه' : 'Settlement');
+      const wrapper = {
+        kind: 'location' as const,
         id: loc.id,
         name: loc.name || (isPersian ? 'مکان نامشخص' : 'Unnamed Location'),
-        subtitle: loc.category
-          ? loc.category.charAt(0).toUpperCase() + loc.category.slice(1)
-          : isPersian ? 'سکونت‌گاه' : 'Settlement',
+        subtitle: categoryLabel,
         visible: isVis,
         locked: isLck,
         raw: loc,
-      });
+      };
+
+      if (meta.renderAs === 'settlement') {
+        result.settlement.push(wrapper);
+      } else if (meta.renderAs === 'water' || meta.renderAs === 'line') {
+        // A waterway or sea is a body of water, not a city.
+        result.water.push(wrapper);
+      } else {
+        // Plains, wilderness regions and arcane anomalies sit with biomes.
+        result.biome.push(wrapper);
+      }
     }
 
     // Caravan Routes
@@ -432,7 +467,7 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
     }
 
     return result;
-  }, [mapData.terrainFeatures, mapData.placements, mapData.routes, worldBible, isPersian]);
+  }, [mapData.terrainFeatures, mapData.placements, mapData.routes, worldBible, placeCategories, isPersian]);
 
   // Total element count across all categories
   const totalCount = useMemo(() => {

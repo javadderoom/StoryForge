@@ -787,6 +787,7 @@ export default function CartographerPage() {
             onToggleRoadVisibility={handleToggleRoadVisibility}
             onToggleRoadLock={handleToggleRoadLock}
             onDeleteRoad={handleDeleteRoad}
+            placeCategories={placeCategories}
           />
         )}
 
