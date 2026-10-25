@@ -388,7 +388,7 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
           <button
             onClick={onZoomOut}
             className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors"
-            title={isPersian ? 'کوچک‌نمایی' : 'Zoom Out'}
+            title={isPersian ? 'کوچک‌نمایی (Page Down)' : 'Zoom Out (Page Down)'}
           >
             <ZoomOut className="w-3.5 h-3.5" />
           </button>
@@ -398,7 +398,7 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
           <button
             onClick={onZoomIn}
             className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors"
-            title={isPersian ? 'بزرگ‌نمایی' : 'Zoom In'}
+            title={isPersian ? 'بزرگ‌نمایی (Page Up)' : 'Zoom In (Page Up)'}
           >
             <ZoomIn className="w-3.5 h-3.5" />
           </button>

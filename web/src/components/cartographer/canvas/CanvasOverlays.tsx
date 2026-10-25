@@ -104,8 +104,8 @@ export const CanvasOverlays: React.FC<CanvasOverlaysProps> = ({
         <span className="text-stone-600">|</span>
         <span className="text-stone-500">
           {isPersian
-            ? 'کشیدن: انتخاب · راست: جابجایی · Alt: بزرگنمایی'
-            : 'Drag: select · Right-drag: pan · Alt-drag: zoom'}
+            ? 'کشیدن: انتخاب · راست: جابجایی · Alt/PgUp/PgDn: بزرگنمایی'
+            : 'Drag: select · Right-drag: pan · Alt-drag / PgUp/PgDn: zoom'}
         </span>
       </div>
     )}

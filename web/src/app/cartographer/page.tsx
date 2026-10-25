@@ -18,6 +18,7 @@ import {
   getOrInitializeWorldMapData,
   ensureLocationCoordinates,
 } from '@/lib/engines/world/cartographerEngine';
+import { clampZoom, calculateZoomPan } from '@/lib/engines/world/pixi/pixiMath';
 import { CartographerHeader, CartographerTool } from '@/components/cartographer/CartographerHeader';
 import { CartographerToolbar } from '@/components/cartographer/CartographerToolbar';
 import { PixiCartographerCanvas } from '@/components/cartographer/PixiCartographerCanvas';
@@ -143,8 +144,30 @@ export default function CartographerPage() {
   }, [story.worldBible.locations, updateWorldBible]);
 
   // View Controls
-  const handleZoomIn = () => setZoom((z) => Math.min(3.0, z * 1.2));
-  const handleZoomOut = () => setZoom((z) => Math.max(0.25, z * 0.8));
+  const handleZoomIn = () => {
+    const newZoom = clampZoom(zoom * 1.2);
+    if (typeof window !== 'undefined') {
+      const w = window.innerWidth;
+      const h = window.innerHeight - 64;
+      const newPan = calculateZoomPan(w / 2, h / 2, pan, zoom, newZoom);
+      setZoom(newZoom);
+      setPan(newPan);
+    } else {
+      setZoom(newZoom);
+    }
+  };
+  const handleZoomOut = () => {
+    const newZoom = clampZoom(zoom / 1.2);
+    if (typeof window !== 'undefined') {
+      const w = window.innerWidth;
+      const h = window.innerHeight - 64;
+      const newPan = calculateZoomPan(w / 2, h / 2, pan, zoom, newZoom);
+      setZoom(newZoom);
+      setPan(newPan);
+    } else {
+      setZoom(newZoom);
+    }
+  };
   const handleResetView = () => {
     setZoom(0.85);
     setPan({ x: 80, y: 40 });

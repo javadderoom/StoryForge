@@ -233,6 +233,71 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     };
   }, []);
 
+  // Track cursor position for anchor-preserving keyboard zoom (PageUp / PageDown)
+  const lastMousePosRef = useRef<{ clientX: number; clientY: number } | null>(null);
+  const zoomRef = useRef(zoom);
+  const panRef = useRef(pan);
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  useEffect(() => {
+    panRef.current = pan;
+  }, [pan]);
+
+  // PageUp / PageDown keyboard shortcuts for zooming in / out
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.key === 'PageUp' || e.key === 'PageDown') {
+        e.preventDefault();
+        const isZoomIn = e.key === 'PageUp';
+        const zoomFactor = isZoomIn ? 1.2 : 1 / 1.2;
+        const currentZoom = zoomRef.current;
+        const currentPan = panRef.current;
+        const newZoom = clampZoom(currentZoom * zoomFactor);
+
+        if (Math.abs(newZoom - currentZoom) < 0.001) return;
+
+        const container = containerRef.current;
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+
+        const lastPos = lastMousePosRef.current;
+        const isCursorInside =
+          lastPos !== null &&
+          lastPos.clientX >= rect.left &&
+          lastPos.clientX <= rect.right &&
+          lastPos.clientY >= rect.top &&
+          lastPos.clientY <= rect.bottom;
+
+        const cursorX = isCursorInside && lastPos ? lastPos.clientX - rect.left : rect.width / 2;
+        const cursorY = isCursorInside && lastPos ? lastPos.clientY - rect.top : rect.height / 2;
+
+        const newPan = calculateZoomPan(cursorX, cursorY, currentPan, currentZoom, newZoom);
+
+        setZoom(newZoom);
+        setPan(newPan);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [setZoom, setPan]);
+
   // Buffered drag state for zero-server-request 60fps moves
   const [draggedNode, setDraggedNode] = useState<DraggedNodeData | null>(null);
   const [transientPos, setTransientPos] = useState<MapPoint | null>(null);
@@ -851,6 +916,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
   // Mouse Move handler (silky 60fps local buffering)
   const handleMouseMove = (e: React.MouseEvent) => {
+    lastMousePosRef.current = { clientX: e.clientX, clientY: e.clientY };
     // A pan or rubber band in progress owns the pointer: keep tracking it even
     // when the drag crosses a floating overlay, otherwise the map (or the
     // band) freezes for as long as the cursor is over the badge.
@@ -1367,6 +1433,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   ]);
 
   const handleMouseLeave = () => {
+    lastMousePosRef.current = null;
     engineRef.current?.clearBrushCursor();
     if (activeTool === 'draw_route') {
       engineRef.current?.renderRouteSnapPreview(null);
