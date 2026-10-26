@@ -44,6 +44,10 @@ import {
   generateLakeWaterlines,
   type ProceduralWaterlining,
 } from './waterliningGenerator';
+import {
+  generateProceduralCanopyMass,
+  type ProceduralCanopyMass,
+} from './canopyMassGenerator';
 
 export function renderTerrain(
   g: Graphics,
@@ -483,7 +487,24 @@ export function drawBiome(g: Graphics, feat: MapTerrainFeature, fill: FillWithMa
   fill(g, flatPoints, material, color, 0.35);
   g.poly(flatPoints).stroke({ width: 1, color, alpha: 0.6 });
 
-  // 2. Sinuous Barchan Sand Dunes for Deserts & Wastelands (Plan 27 — Module 3.B: Hiram Steppe)
+  // 2. Continuous Forest Canopy Massing (Plan 27 — Module 3.C: Jangal-e Shabnam)
+  if (
+    (feat.type === 'forest' || feat.type === 'jungle') &&
+    feat.canopyConfig?.enabled !== false
+  ) {
+    const seed = hashStringToSeed(feat.id || `forest_${feat.polygon[0].x}_${feat.polygon[0].y}`);
+    const canopyMass = generateProceduralCanopyMass(feat.polygon, {
+      seed,
+      treeKind: feat.type === 'jungle' ? 'jungle' : 'deciduous',
+      ...feat.canopyConfig,
+    });
+    if (canopyMass) {
+      renderProceduralCanopyMassToGraphics(g, canopyMass, fill);
+      return;
+    }
+  }
+
+  // 3. Sinuous Barchan Sand Dunes for Deserts & Wastelands (Plan 27 — Module 3.B: Hiram Steppe)
   if (feat.type === 'desert' || feat.type === 'wasteland') {
     const seed = hashStringToSeed(feat.id || `desert_${feat.polygon[0].x}_${feat.polygon[0].y}`);
     const duneField = generateProceduralDuneField(feat.polygon, {
@@ -496,7 +517,7 @@ export function drawBiome(g: Graphics, feat: MapTerrainFeature, fill: FillWithMa
     }
   }
 
-  // 3. Procedural Hand-inked Symbols (Trees, Marsh Reeds)
+  // 4. Procedural Hand-inked Symbols (Trees, Marsh Reeds)
   const seed = hashStringToSeed(feat.id || `biome_${feat.polygon[0].x}_${feat.polygon[0].y}`);
   const symbols = generateBiomeSymbols(feat.polygon, feat.type, {
     seed,
@@ -787,6 +808,142 @@ export function renderWaterliningToGraphics(
         width: ring.strokeWidth,
         color: ring.color,
         alpha: ring.alpha,
+        cap: 'round',
+        join: 'round',
+      });
+    }
+  }
+}
+
+/**
+ * Renders a ProceduralCanopyMass geometry object onto Pixi Graphics.
+ * Renders the scalloped woodland perimeter, sunlit NW crown lobes, shaded SE flanks,
+ * interior billowing canopy crests, and peripheral sentinel trees with trunks.
+ */
+export function renderProceduralCanopyMassToGraphics(
+  g: Graphics,
+  canopy: ProceduralCanopyMass,
+  fill: FillWithMaterial
+): void {
+  const isJungle = canopy.treeKind === 'jungle';
+  const baseWashColor = isJungle ? VINTAGE_PARCHMENT.biomeJungle : VINTAGE_PARCHMENT.biomeForest;
+  const highlightColor = isJungle ? 0x5a8a48 : VINTAGE_PARCHMENT.treeCrownHighlight;
+  const shadowColor = isJungle ? 0x223d1d : VINTAGE_PARCHMENT.treeCrownShadow;
+
+  // 1. Scalloped Outer Boundary Contour
+  if (canopy.scallopedBoundary.length >= 3) {
+    const flatContour = toFlatPoints(canopy.scallopedBoundary);
+    fill(g, flatContour, 'forest', baseWashColor, 0.45);
+    g.poly(flatContour).stroke({
+      width: 1.4,
+      color: VINTAGE_PARCHMENT.primaryInk,
+      alpha: 0.85,
+      cap: 'round',
+      join: 'round',
+    });
+  }
+
+  // 2. Interior Elevated Canopy Groves (sorted Y back-to-front)
+  for (const grove of canopy.groves) {
+    // Grove Base Wash
+    if (grove.perimeterPoly.length >= 3) {
+      g.poly(toFlatPoints(grove.perimeterPoly)).fill({
+        color: baseWashColor,
+        alpha: 0.65,
+      });
+    }
+
+    // Sunlit NW Crown Rim
+    if (grove.sunlitPoly.length >= 3) {
+      g.poly(toFlatPoints(grove.sunlitPoly)).fill({
+        color: highlightColor,
+        alpha: 0.85,
+      });
+    }
+
+    // Shaded SE Flank
+    if (grove.shadowPoly.length >= 3) {
+      g.poly(toFlatPoints(grove.shadowPoly)).fill({
+        color: shadowColor,
+        alpha: 0.72,
+      });
+    }
+
+    // Grove Perimeter Inked Ridge
+    if (grove.perimeterPoly.length >= 3) {
+      g.poly(toFlatPoints(grove.perimeterPoly)).stroke({
+        width: 1.15,
+        color: VINTAGE_PARCHMENT.mountainInk,
+        alpha: 0.82,
+        cap: 'round',
+        join: 'round',
+      });
+    }
+
+    // Interior Billowing Scallop Arcs
+    for (const arc of grove.interiorScallops) {
+      if (arc.length >= 2) {
+        g.moveTo(arc[0].x, arc[0].y);
+        for (let i = 1; i < arc.length; i++) {
+          g.lineTo(arc[i].x, arc[i].y);
+        }
+        g.stroke({
+          width: 0.85,
+          color: VINTAGE_PARCHMENT.mountainInk,
+          alpha: 0.6,
+          cap: 'round',
+          join: 'round',
+        });
+      }
+    }
+
+    // SE Shadow Hatching
+    for (const [start, end] of grove.shadowHatches) {
+      g.moveTo(start.x, start.y).lineTo(end.x, end.y);
+    }
+    if (grove.shadowHatches.length > 0) {
+      g.stroke({
+        width: 0.85,
+        color: VINTAGE_PARCHMENT.mountainInk,
+        alpha: 0.62,
+        cap: 'round',
+      });
+    }
+  }
+
+  // 3. Peripheral Sentinel Trees
+  for (const tree of canopy.sentinelTrees) {
+    // Small Trunk
+    g.moveTo(tree.trunk[0].x, tree.trunk[0].y)
+      .lineTo(tree.trunk[1].x, tree.trunk[1].y)
+      .stroke({
+        width: 1.5,
+        color: VINTAGE_PARCHMENT.treeTrunk,
+        cap: 'round',
+      });
+
+    // Sunlit Crown
+    if (tree.crownPoly.length >= 3) {
+      g.poly(toFlatPoints(tree.crownPoly)).fill({
+        color: highlightColor,
+        alpha: 0.9,
+      });
+    }
+
+    // Shaded Eastern/Southern Lobe
+    if (tree.shadowPoly.length >= 3) {
+      g.poly(toFlatPoints(tree.shadowPoly)).fill({
+        color: shadowColor,
+        alpha: 0.75,
+      });
+    }
+
+    // Crown Contour
+    if (tree.crownPoly.length >= 3) {
+      g.poly(toFlatPoints(tree.crownPoly)).stroke({
+        width: 0.95,
+        color: VINTAGE_PARCHMENT.mountainInk,
+        alpha: 0.85,
         cap: 'round',
         join: 'round',
       });

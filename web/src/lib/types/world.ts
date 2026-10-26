@@ -749,6 +749,15 @@ export interface WaterliningConfig {
   stippledOuter?: boolean; // Whether the outermost ring renders as broken wave crests (default: true)
 }
 
+export interface CanopyMassConfig {
+  enabled?: boolean; // default: true for forest / jungle
+  density?: 'sparse' | 'medium' | 'dense'; // default: 'medium'
+  scallopScale?: number; // lobe diameter multiplier (0.6 - 1.8, default: 1.0)
+  treeKind?: 'deciduous' | 'pine' | 'jungle';
+  hatchShading?: boolean; // southeastern depth hatch strokes (default: true)
+  sentinelTrees?: boolean; // discrete edge trees (default: true)
+}
+
 export interface MapTerrainFeature {
   id: string;
   name: string;
@@ -779,6 +788,8 @@ export interface MapTerrainFeature {
   duneConfig?: DuneFieldConfig;
   /** Plan 27: Coastal & shoreline waterlining concentric wave echo configuration. */
   waterliningConfig?: WaterliningConfig;
+  /** Plan 27: Continuous forest canopy massing & grove configuration (Jangal-e Shabnam / ancient woodlands). */
+  canopyConfig?: CanopyMassConfig;
   /**
    * Per-object layer controls (Plan 21). Left `undefined` on purpose: the
    * meaning is "visible, unlocked, default draw order", and keeping the field
