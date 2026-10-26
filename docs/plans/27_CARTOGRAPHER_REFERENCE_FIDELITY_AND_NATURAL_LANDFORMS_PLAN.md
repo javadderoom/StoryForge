@@ -320,9 +320,9 @@ gantt
   - **D.2 Sinuous Barchan Sand Dunes**: ✅ **Completed (`f64a08d`)** (`duneFieldGenerator.ts` — catenary crescent crests, shaded leeward slip faces, windward ripple striae, and Studio Inspector wind/scale controls for *Hiram Steppe*).
   - **D.3 Coastal & Shoreline Waterlining**: ✅ **Completed** (`waterliningGenerator.ts` — concentric wave echo contours, bisector miter clamping, atmospheric stroke falloff, broken outer crest stipples, and Studio Inspector wave controls for landmasses & lakes).
 * **Phase E: Typography & Manuscript Furniture**: ⏳ **In Progress (Active Milestone)**
-  - **E.1 Continuous Forest Canopy Massing**: ✅ **Completed** (`canopyMassGenerator.ts` — scalloped outer cloud perimeters, elevated woodland groves, sunlit NW rims, shaded SE flanks, depth hatching, and peripheral sentinel trees for *Jangal-e Shabnam*).
-  - **E.2 Curved & Spline-Aligned Typography**: ⏳ **Up Next** (`splineTextRenderer.ts` — spline baseline tracking curving along mountain ranges, rivers, and bays).
-  - **E.3 Manuscript Furniture & Embellishments**: 📅 **Queued** (16-point nautical compass rose, ornamental title cartouche "FARAVAND", and dual-unit scale bar).
+  - **E.1 Continuous Forest Canopy Massing**: ✅ **Completed (`88e91f2`)** (`canopyMassGenerator.ts` — scalloped outer cloud perimeters, elevated woodland groves, sunlit NW rims, shaded SE flanks, depth hatching, and peripheral sentinel trees for *Jangal-e Shabnam*).
+  - **E.2 Curved & Spline-Aligned Typography**: ✅ **Completed** (`splineTextRenderer.ts` — distance-parameterized glyph transformations along Catmull-Rom guide splines, automatic upside-down readability flipping, baseline offsets, uppercase tracking, and Studio Inspector typography controls).
+  - **E.3 Manuscript Furniture & Embellishments**: ⏳ **Up Next** (16-point nautical compass rose, ornamental title cartouche "FARAVAND", and dual-unit scale bar).
 
 ---
 

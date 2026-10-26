@@ -87,6 +87,7 @@ import {
   type MapMaterialKey,
 } from '../texturePalette';
 import { MapTextureLibrary } from './mapTextureLibrary';
+import { renderTerrainCurvedLabels } from './splineTextRenderer';
 
 
 export class PixiCartographerEngine {
@@ -122,6 +123,7 @@ export class PixiCartographerEngine {
 
   // Text label containers to recycle
   private settlementLabelsContainer = new Container();
+  private terrainLabelsContainer = new Container();
 
   // Spatial Index for sub-millisecond point hit-testing
   public spatialIndex = new PixiSpatialIndex();
@@ -152,7 +154,7 @@ export class PixiCartographerEngine {
 
     this.backgroundLayer.addChild(this.bgGraphics);
     this.gridLayer.addChild(this.gridGraphics);
-    this.terrainLayer.addChild(this.terrainGraphics);
+    this.terrainLayer.addChild(this.terrainGraphics, this.terrainLabelsContainer);
     this.routeLayer.addChild(
       this.bridgeGraphics,
       this.mapRouteGraphics,
@@ -430,6 +432,12 @@ export class PixiCartographerEngine {
 
     // 4. Render Continents, Biomes, Rivers, Mountains
     renderTerrain(this.terrainGraphics, viewTerrain, settings, this.fillWithMaterial.bind(this));
+
+    // 4b. Render Curved & Spline-Aligned Geographic Titles (Plan 27 — Module 4)
+    this.terrainLabelsContainer.removeChildren();
+    if (settings.visibleLayers.labels !== false) {
+      renderTerrainCurvedLabels(this.terrainLabelsContainer, viewTerrain);
+    }
 
     // 5. Render Civil Infrastructure: Bridges & River Crossings (Plan 27 — Module 5)
     this.bridgeGraphics.clear();

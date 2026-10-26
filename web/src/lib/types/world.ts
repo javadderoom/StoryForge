@@ -758,6 +758,17 @@ export interface CanopyMassConfig {
   sentinelTrees?: boolean; // discrete edge trees (default: true)
 }
 
+export interface CurvedLabelConfig {
+  enabled?: boolean; // default: false
+  pathPoints?: MapPoint[]; // Custom guide spline (optional; defaults to feature points or principal axis)
+  alignment?: 'center' | 'left' | 'right';
+  letterSpacing?: number; // Extra character tracking in pixels (default: 4px)
+  baselineOffset?: number; // Perpendicular offset from spline in pixels (default: 0)
+  fontSize?: number; // font size in px (default: 15)
+  uppercase?: boolean; // whether to uppercase characters for tracked manuscript titling (default: true)
+  color?: string | number; // optional custom font color
+}
+
 export interface MapTerrainFeature {
   id: string;
   name: string;
@@ -790,6 +801,8 @@ export interface MapTerrainFeature {
   waterliningConfig?: WaterliningConfig;
   /** Plan 27: Continuous forest canopy massing & grove configuration (Jangal-e Shabnam / ancient woodlands). */
   canopyConfig?: CanopyMassConfig;
+  /** Plan 27: Curved spline-aligned typography configuration for geographic titles. */
+  labelConfig?: CurvedLabelConfig;
   /**
    * Per-object layer controls (Plan 21). Left `undefined` on purpose: the
    * meaning is "visible, unlocked, default draw order", and keeping the field
