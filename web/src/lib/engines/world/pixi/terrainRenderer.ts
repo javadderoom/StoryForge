@@ -39,6 +39,11 @@ import {
   generateProceduralDuneField,
   type ProceduralDuneField,
 } from './duneFieldGenerator';
+import {
+  generateCoastlineWaterlines,
+  generateLakeWaterlines,
+  type ProceduralWaterlining,
+} from './waterliningGenerator';
 
 export function renderTerrain(
   g: Graphics,
@@ -115,9 +120,20 @@ function drawLandmass(g: Graphics, feat: MapTerrainFeature, fill: FillWithMateri
   // Hand-inked primary coastline
   g.poly(flatPoints).stroke({ width: 2.2, color: VINTAGE_PARCHMENT.coastlineInk });
 
-  // Automated vintage coastline echo rings
-  g.poly(flatPoints).stroke({ width: 5.5, color: VINTAGE_PARCHMENT.coastlineGlow, alpha: 0.45 });
-  g.poly(flatPoints).stroke({ width: 11, color: VINTAGE_PARCHMENT.coastlineHatch, alpha: 0.15 });
+  // Concentric Shoreline Waterlining (Plan 27 — Module 2)
+  if (feat.waterliningConfig?.enabled !== false) {
+    const seed = hashStringToSeed(feat.id || `coast_${points[0].x}_${points[0].y}`);
+    const waterlines = generateCoastlineWaterlines(points, {
+      seed,
+      ...feat.waterliningConfig,
+    });
+    if (waterlines) {
+      renderWaterliningToGraphics(g, waterlines);
+    }
+  } else {
+    // Subtle fallback glow
+    g.poly(flatPoints).stroke({ width: 4.5, color: VINTAGE_PARCHMENT.coastlineGlow, alpha: 0.35 });
+  }
 
   // Inland water is drawn only by its lake feature. A landmass no longer owns
   // a duplicate water hole, which is what made a carved lake appear twice: once
@@ -211,9 +227,19 @@ export function drawLake(
   // 3. Hand-inked primary dark coastline
   g.poly(flatPoints).stroke({ width: 2.0, color: VINTAGE_PARCHMENT.coastlineInk });
 
-  // 4. Shoreline wave echo rings
-  g.poly(flatPoints).stroke({ width: 4.8, color: VINTAGE_PARCHMENT.coastlineGlow, alpha: 0.4 });
-  g.poly(flatPoints).stroke({ width: 9.5, color: VINTAGE_PARCHMENT.coastlineHatch, alpha: 0.16 });
+  // 4. Concentric Shoreline Waterlining (Plan 27 — Module 2: Lake Veridia, Lake Firouzeh)
+  if (feat.waterliningConfig?.enabled !== false) {
+    const seed = hashStringToSeed(feat.id || `lake_${points[0].x}_${points[0].y}`);
+    const waterlines = generateLakeWaterlines(points, {
+      seed,
+      ...feat.waterliningConfig,
+    });
+    if (waterlines) {
+      renderWaterliningToGraphics(g, waterlines);
+    }
+  } else {
+    g.poly(flatPoints).stroke({ width: 4.5, color: VINTAGE_PARCHMENT.coastlineGlow, alpha: 0.35 });
+  }
 }
 
 /**
@@ -729,6 +755,40 @@ export function renderProceduralDuneFieldToGraphics(
         cap: 'round',
         join: 'round',
         alpha: 0.88,
+      });
+    }
+  }
+}
+
+/**
+ * Renders a ProceduralWaterlining geometry object onto Pixi Graphics.
+ * Draws successive concentric wave echo contours with atmospheric stroke width
+ * and opacity falloff, plus stippled/broken wave crests on the outer ring.
+ */
+export function renderWaterliningToGraphics(
+  g: Graphics,
+  waterlines: ProceduralWaterlining
+): void {
+  for (const ring of waterlines.rings) {
+    if (ring.isStippled && ring.dashSegments && ring.dashSegments.length > 0) {
+      // Outermost broken wave crest stipples
+      for (const [start, end] of ring.dashSegments) {
+        g.moveTo(start.x, start.y).lineTo(end.x, end.y);
+      }
+      g.stroke({
+        width: ring.strokeWidth,
+        color: ring.color,
+        alpha: ring.alpha,
+        cap: 'round',
+      });
+    } else if (ring.polygon.length >= 3) {
+      // Continuous concentric wave contour
+      g.poly(toFlatPoints(ring.polygon)).stroke({
+        width: ring.strokeWidth,
+        color: ring.color,
+        alpha: ring.alpha,
+        cap: 'round',
+        join: 'round',
       });
     }
   }

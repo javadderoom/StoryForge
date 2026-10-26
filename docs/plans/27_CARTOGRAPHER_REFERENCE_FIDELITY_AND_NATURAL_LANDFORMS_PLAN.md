@@ -315,12 +315,14 @@ gantt
 * **Phase C: Story-Critical Landmarks & Hydrology**: ✅ **Completed (`cdec364`, `1ebfeed`)**
   - **C.1 Civil Infrastructure**: Procedural masonry bridge generation (`bridgeGenerator.ts`, `bridgeRenderer.ts`), river crossing detection, and *Zarrin-Pol* bridge snapping.
   - **C.2 Hydrology V2**: River delta branching fan (`deltaGenerator.ts`), discharge-weighted distributary channels, alluvial silt islands, and Studio Inspector controls.
-* **Phase D: Specialized Biomes & Shoreline Waterlining**: ⏳ **In Progress (Active Milestone)**
+* **Phase D: Specialized Biomes & Shoreline Waterlining**: ✅ **Completed (`5522d25`, `f64a08d`)**
   - **D.1 Salt Pan & Halite Seams**: ✅ **Completed (`5522d25`)** (`saltPanGenerator.ts` — Voronoi cracked crust, concentric shrinkage rings, and sun-bleached evaporite flats for *Sepidchal*).
-  - **D.2 Sinuous Barchan Sand Dunes**: ✅ **Completed** (`duneFieldGenerator.ts` — catenary crescent crests, shaded leeward slip faces, windward ripple striae, and Studio Inspector wind/scale controls for *Hiram Steppe*).
-  - **D.3 Coastal & Shoreline Waterlining**: ⏳ **Up Next** (`waterliningGenerator.ts` — concentric wave echo contours with atmospheric stroke falloff).
-* **Phase E: Typography & Manuscript Furniture**: 📅 **Queued**
-  - Implement continuous forest canopy massing (`canopyMassGenerator.ts`), curved spline typography (`splineTextRenderer.ts`), compass rose, title cartouche, and dual-unit scale bar.
+  - **D.2 Sinuous Barchan Sand Dunes**: ✅ **Completed (`f64a08d`)** (`duneFieldGenerator.ts` — catenary crescent crests, shaded leeward slip faces, windward ripple striae, and Studio Inspector wind/scale controls for *Hiram Steppe*).
+  - **D.3 Coastal & Shoreline Waterlining**: ✅ **Completed** (`waterliningGenerator.ts` — concentric wave echo contours, bisector miter clamping, atmospheric stroke falloff, broken outer crest stipples, and Studio Inspector wave controls for landmasses & lakes).
+* **Phase E: Typography & Manuscript Furniture**: ⏳ **In Progress (Active Milestone)**
+  - **E.1 Continuous Forest Canopy Massing**: Continuous cloud-like foliage banks (`canopyMassGenerator.ts`) for ancient woodlands (*Jangal-e Shabnam*).
+  - **E.2 Curved & Spline-Aligned Typography**: Spline text baseline tracking (`splineTextRenderer.ts`) curving along mountain ranges, rivers, and bays.
+  - **E.3 Manuscript Furniture & Embellishments**: 16-point nautical compass rose, ornamental title cartouche ("FARAVAND"), and dual-unit scale bar (*Farsakh* & Miles).
 
 ---
 

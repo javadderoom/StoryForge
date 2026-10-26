@@ -741,6 +741,14 @@ export interface DuneFieldConfig {
   rippleHatching?: boolean; // parallel windward ripple lines (default: true)
 }
 
+export interface WaterliningConfig {
+  enabled?: boolean; // default: true
+  ringCount?: number; // Number of concentric wave echo rings (2 - 6, default: 4)
+  baseDistance?: number; // Distance of the first ring from shoreline in pixels (default: 4)
+  distanceStep?: number; // Step between successive rings in pixels (default: 5)
+  stippledOuter?: boolean; // Whether the outermost ring renders as broken wave crests (default: true)
+}
+
 export interface MapTerrainFeature {
   id: string;
   name: string;
@@ -769,6 +777,8 @@ export interface MapTerrainFeature {
   deltaConfig?: RiverDeltaConfig;
   /** Plan 27: Sinuous barchan sand dune field configuration (Hiram Steppe / deserts). */
   duneConfig?: DuneFieldConfig;
+  /** Plan 27: Coastal & shoreline waterlining concentric wave echo configuration. */
+  waterliningConfig?: WaterliningConfig;
   /**
    * Per-object layer controls (Plan 21). Left `undefined` on purpose: the
    * meaning is "visible, unlocked, default draw order", and keeping the field
