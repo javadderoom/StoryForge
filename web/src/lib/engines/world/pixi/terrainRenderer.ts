@@ -31,6 +31,10 @@ import {
   generateProceduralValley,
   type ProceduralValley,
 } from './valleyGenerator';
+import {
+  generateProceduralSaltPan,
+  type ProceduralSaltPan,
+} from './saltPanGenerator';
 
 export function renderTerrain(
   g: Graphics,
@@ -69,6 +73,9 @@ export function renderTerrain(
       case 'plains':
       case 'oasis':
         drawBiome(g, feat, fill);
+        break;
+      case 'salt_pan':
+        drawSaltPan(g, feat, fill);
         break;
       case 'river':
         drawRiver(g, feat);
@@ -398,6 +405,23 @@ export function renderProceduralHighlandToGraphics(
 /** Biomes: translucent washes laid over the land plus procedural hand-inked flora/symbols. */
 export function drawBiome(g: Graphics, feat: MapTerrainFeature, fill: FillWithMaterial): void {
   if (!feat.polygon || feat.polygon.length <= 2) return;
+
+  // Check if this biome is an authored salt depression (e.g. Sepidchal / سپیدچال)
+  const name = (feat.name || '').toLowerCase();
+  const desc = (feat.description || '').toLowerCase();
+  if (
+    feat.type === 'salt_pan' ||
+    name.includes('سپید') ||
+    name.includes('نمک') ||
+    name.includes('salt') ||
+    desc.includes('نمک') ||
+    desc.includes('salt pan') ||
+    desc.includes('playa')
+  ) {
+    drawSaltPan(g, feat, fill);
+    return;
+  }
+
   const flatPoints = toFlatPoints(feat.polygon);
 
   let color: number = VINTAGE_PARCHMENT.biomeForest;
@@ -538,6 +562,93 @@ export function renderBiomeSymbolsToGraphics(
         cap: 'round',
       });
     }
+  }
+}
+
+/**
+ * Salt Pan Playa (Plan 27 — Module 3.A):
+ * Sun-bleached crystalline white evaporite flats with Voronoi cracked salt plate crusts,
+ * concentric shrinkage rings, and dark halite seams (e.g. Sepidchal / سپیدچال).
+ */
+export function drawSaltPan(
+  g: Graphics,
+  feat: MapTerrainFeature,
+  fill: FillWithMaterial
+): void {
+  if (!feat.polygon || feat.polygon.length <= 2) return;
+  const flatPoints = toFlatPoints(feat.polygon);
+
+  // 1. Soft crystalline white evaporite base wash
+  const saltWashColor = 0xfaf7eb;
+  fill(g, flatPoints, 'desert', saltWashColor, 0.75);
+
+  // Outer inked boundary
+  g.poly(flatPoints).stroke({
+    width: 1.2,
+    color: VINTAGE_PARCHMENT.coastlineInk,
+    alpha: 0.85,
+  });
+
+  // 2. Procedural Voronoi Cracked Salt Crust
+  const seed = hashStringToSeed(feat.id || `salt_pan_${feat.polygon[0].x}_${feat.polygon[0].y}`);
+  const saltPan = generateProceduralSaltPan(feat.polygon, {
+    seed,
+    cellSize: 24,
+    concentricRings: true,
+  });
+
+  if (!saltPan) return;
+
+  renderProceduralSaltPanToGraphics(g, saltPan);
+}
+
+/**
+ * Renders a ProceduralSaltPan geometry object onto Pixi Graphics.
+ */
+export function renderProceduralSaltPanToGraphics(
+  g: Graphics,
+  saltPan: ProceduralSaltPan
+): void {
+  // 1. Individual salt plates with crystalline highlights
+  for (const cell of saltPan.cells) {
+    if (cell.polygon.length >= 3) {
+      g.poly(toFlatPoints(cell.polygon)).fill({
+        color: 0xfffef7, // Crystalline white salt plate
+        alpha: 0.9,
+      });
+    }
+
+    // 2. Concentric evaporation shrinkage rings inside plates
+    for (const ring of cell.shrinkageRings) {
+      if (ring.length >= 3) {
+        g.poly(toFlatPoints(ring)).stroke({
+          width: 0.75,
+          color: 0x7c644f, // Brine contour
+          alpha: 0.35,
+        });
+      }
+    }
+
+    // 3. Salt crystal stipples
+    for (const crystal of cell.saltCrystals) {
+      g.circle(crystal.x, crystal.y, 0.85).fill({
+        color: 0x543f2d,
+        alpha: 0.65,
+      });
+    }
+  }
+
+  // 4. Inked Halite Seam / Crack Lines
+  for (const [pA, pB] of saltPan.crackLines) {
+    g.moveTo(pA.x, pA.y).lineTo(pB.x, pB.y);
+  }
+  if (saltPan.crackLines.length > 0) {
+    g.stroke({
+      width: 1.05,
+      color: 0x4a3726, // Dark dried silt / brine ink
+      alpha: 0.85,
+      cap: 'round',
+    });
   }
 }
 

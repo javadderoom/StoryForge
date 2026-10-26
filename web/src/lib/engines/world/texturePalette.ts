@@ -207,6 +207,7 @@ export const TERRAIN_TYPE_MATERIAL: Partial<Record<MapTerrainType, MapMaterialKe
   tundra: 'tundra',
   plains: 'plains',
   oasis: 'plains',
+  salt_pan: 'desert',
 };
 
 /** The material of a terrain type, or null when the type is ink-only. */

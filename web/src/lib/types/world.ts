@@ -716,6 +716,7 @@ export type MapTerrainType =
   | 'wasteland'
   | 'plains'
   | 'oasis'
+  | 'salt_pan'
   | 'arcane_anomaly';
 
 export interface MapPoint {

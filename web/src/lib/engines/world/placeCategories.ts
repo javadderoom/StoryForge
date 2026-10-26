@@ -60,12 +60,12 @@ export const DEFAULT_PLACE_CATEGORY_META: Record<string, PlaceCategoryRenderMeta
   plains: {
     geometryKind: 'area',
     renderAs: 'label',
-    mapTerrainTypes: ['plains', 'forest', 'desert', 'tundra', 'wasteland'],
+    mapTerrainTypes: ['plains', 'forest', 'desert', 'tundra', 'wasteland', 'salt_pan'],
   },
   wilderness: {
     geometryKind: 'area',
     renderAs: 'label',
-    mapTerrainTypes: ['forest', 'desert', 'tundra', 'swamp', 'wasteland'],
+    mapTerrainTypes: ['forest', 'desert', 'tundra', 'swamp', 'wasteland', 'salt_pan'],
   },
   waterway: {
     geometryKind: 'line',

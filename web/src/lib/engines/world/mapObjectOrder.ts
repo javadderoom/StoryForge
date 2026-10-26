@@ -65,6 +65,7 @@ const BAND_BY_TYPE: Record<MapTerrainType, MapObjectBand> = {
   wasteland: 'biome',
   plains: 'biome',
   oasis: 'biome',
+  salt_pan: 'biome',
   lake: 'water',
   river: 'line',
   valley: 'line',
@@ -117,6 +118,7 @@ const GROUP_BY_TYPE: Record<MapTerrainType, MapObjectGroupKey> = {
   wasteland: 'biome',
   plains: 'biome',
   oasis: 'biome',
+  salt_pan: 'biome',
   arcane_anomaly: 'biome',
 };
 
@@ -213,6 +215,7 @@ export function isTerrainVisibleInLayers(
     case 'wasteland':
     case 'plains':
     case 'oasis':
+    case 'salt_pan':
       return layers.biomes;
     case 'valley':
     case 'canyon':
