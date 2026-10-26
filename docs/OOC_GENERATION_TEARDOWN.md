@@ -471,13 +471,135 @@ Also noted: the opening scene returned **one** choice. An opening with a single 
 - **Prompt auditable and versioned in git.** Its defects can be fixed in minutes; OOC's cannot even be read.
 - **Failure handling is specified.** The `[PRE-RESOLVED...]` section forbids static retries and mandates at least two genuinely different approaches — stricter than anything observable in OOC.
 
-### 13.5 Recommended changes, ranked by leverage
+### 13.5 What actually differs: beats per turn, not words per turn
 
-1. **Raise target length to 300–450 words** (keep the "never pad" clause). Current floor reads thin.
-2. **Enforce paragraph breaks.** Ask for `\n\n` between blocks *and* validate it: a `ProseValidator` rule that rejects any paragraph over 40 words and reparses. Cheap, deterministic, visible.
-3. **Always return 3 choices, in first person, action beat + quoted line** — mirroring the format that drives OOC's 100% adoption.
-4. **Mandate a pressure-bearing final sentence.** "The last sentence must introduce a new threat, cost, deadline, or demand — never end on landscape."
-5. **Instrument the metrics.** Words/turn, paragraphs/turn, choice count, and choice adoption rate. You currently have none of these in production, which is why a 4× length gap went unnoticed.
+The first draft of this section recommended raising the word target to 300–450. That was wrong, and it is left here as a corrected record.
+
+Word count is not the variable. It trades directly against latency, player agency, and revenue-per-turn efficiency — longer turns mean slower generation, more NPC monologue crowding out player consequence, and fewer completed turns per credit. **Volume is a cost, not a feature.**
+
+The real difference is **cut density**. Measure paragraphs as panels:
+
+| | StoryForge | OOC |
+|---|---:|---:|
+| Words per turn | 101 | 413 |
+| Paragraph blocks ("panels") | 1–2 | 26 |
+| **Words per panel** | **~72** | **~16** |
+| Distinct speakers per turn | 2 | 3 |
+| State changes surfaced | 1 (trust +5, XP +10) | MP/HP deltas inline |
+
+OOC delivers roughly **one visual beat every 16 words**; StoryForge delivers **one beat per turn**. Same scene, different cut rhythm. Manhwa pacing is not "more text" — it is many small units, each doing one job, with a hook on the last one.
+
+### 13.6 Why the sampled turn felt flat, mechanically
+
+Turn 1 chose a low-risk diplomatic option. The engine returned:
+
+```
+diceRoll: 20, DC: 0, outcome: "success"
+stateDiff: { xpGained: 10 }
+consequenceSummary: "trust +5"
+```
+
+The player asked for payment, got paid, took the job, and left. **Nothing was spent, nothing was revealed, no clock advanced.** The scene moved but nothing *happened*.
+
+The prompt already forbids this for failures:
+
+> *"Every failure must change the situation concretely: a price paid, a new complication, a revealed fact, a forced change of position, or an advancing threat."*
+
+There is no equivalent clause for success. `[PRE-RESOLVED GAME ENGINE OUTCOME]` governs *movement* (cost / complication / reveal / reposition / escalation) but the engine can still emit `DC: 0, success, no cost`, and the model faithfully narrates a flat win.
+
+**This is the highest-leverage fix in the whole teardown, and it costs zero tokens:** require every outcome — success included — to also advance at least one clock, reveal one fact, or take one thing away. A clean success that changes nothing is a dead turn, and dead turns are what make players stop caring.
+
+### 13.7 What "interesting like manhwa" actually requires
+
+Manhwa and manga hold readers through episode architecture, not sentence beauty:
+
+1. **One reversal per turn.** Plan → obstacle → new information → new decision. A turn with no reversal is a status update.
+2. **Success must cost something.** A free win removes tension from every future choice. Competence is compelling only when it is paid for.
+3. **A visible clock.** Manhwa always shows the reader what is running out — time, trust, a pursuer, a wound. The engine already models threat clocks; the sampled turn surfaced none of them in prose.
+4. **Recognisable voices.** Vashka drops articles (*"You rest here, you safe."*), so a reader knows who is speaking with the name removed. Characterisation by syntax is nearly free and survives long stories.
+5. **Payoff ledger.** OOC plants the seal, the eye, the executed scout, and pays one of them off per turn. StoryForge's turn introduced the caravan and paid nothing off.
+6. **Diegetic status.** OOC writes `*MP: 50 / 600*` as prose inside the scene. Numbers that rise are reward beats; a UI panel is not.
+
+### 13.8 Revised recommendations
+
+| # | Change | Cost | Why |
+|---|---|---|---|
+| 1 | **Enforce paragraph breaks** — request `\n\n`, verify with `ProseValidator` (reject/split any block over ~40 words) | zero tokens | the only change that is purely a defect fix; renderer already expects it |
+| 2 | **Extend the outcome contract to successes** — every outcome advances a clock, reveals a fact, or removes something | zero tokens | kills flat turns without adding length |
+| 3 | **Keep 3–4 choices, but rewrite them in player voice** (`*I do X* 'spoken line'`) | zero tokens | OOC's format is adopted 100%; count is irrelevant |
+| 4 | **Instrument per-turn telemetry**: paragraphs, speakers, clocks advanced, reversals, choice adoption | small dev work | you cannot improve a beat-density you never measure |
+| 5 | **Do not raise the word target.** Target beats: ~3–5 per turn at current length, 8–12 if you ever spend the latency | latency cost | volume is a cost, density is the product |
+
+The question to optimize against is not *"is the prose good?"* but *"did the world visibly move because the player acted, and did it leave something unresolved?"* — which is a validation problem, not a prompt-length problem.
+
+---
+
+## 14. Tension: why the engine cannot currently produce it
+
+### 14.1 The diagnosis is state, not prompts
+
+From the live turn payload:
+
+```json
+"activeTensionClocks": [],
+"sagaLedger": { "keyItems": [], "npcStatuses": [], "openPlotThreads": [],
+                "chapterSummaries": [], "factionReputations": [] }
+```
+
+**Every tension-bearing structure in the engine is empty.** No clock is running, no plot thread is open, no item is at stake, no relationship can be lost. The model is asked to create tension out of a scene where nothing is at risk — so it writes atmosphere instead. That is exactly what it did: a caravan, a payment, a shrug, a long shadow on red earth.
+
+You cannot prompt your way out of this. Tension is not a tone the narrator adopts; it is a property of state the player can lose.
+
+### 14.2 What tension actually is
+
+> **Tension is expected loss.** Not danger described — loss *anticipated*, *specific*, and *unpaid*.
+
+Three conditions, all mechanical:
+
+1. **The reader knows what can be lost** (a named thing: a life, a secret, an ally, a deadline, a reputation).
+2. **The reader believes it can actually be lost** (the system has demonstrated real loss before, and failure is not reversed).
+3. **The cost of avoiding loss is visible and rising** (every turn of delay makes it worse).
+
+Miss any one and you get *robotic* tension — the narrator assuring you something matters while nothing is at stake.
+
+### 14.3 The two robotic modes, and how to avoid both
+
+**Mode A — narrated dread.** The model writes *"a sense of dread fills the air"* / *"something feels wrong"* / *"the tension is palpable"*. The narrator tells the player what to feel. This is the tell: abstract emotional nouns the player never earned.
+
+> **Rule:** ban abstract dread phrasing in `ProseValidator`. If the prose names an emotion, it must be attached to a body doing something — a hand, a breath, a swallow — not to the room.
+
+**Mode B — the escalation treadmill.** Mandating "raise the stakes every turn" teaches the player the rhythm. Every turn is a crescendo, so none is. This is the failure mode the current `[PRE-RESOLVED...]` movement rule risks if extended naively.
+
+> **Rule:** tension must be **conditional and variable**, never scheduled. Quiet turns are mandatory for loud turns to land — but a quiet turn must still *silently tick* a clock.
+
+**You cannot have tension without permission for calm.** OOC does this: the goblin warren scene is calm, and it is the tensest scene in the sample, because the player is disarmed and surrounded and nobody is attacking.
+
+### 14.4 Techniques that produce real tension (each encodable)
+
+| Technique | Mechanism | Encode as |
+|---|---|---|
+| **Dramatic irony** | Reader learns something the character doesn't | `readerKnows` field: one fact per turn shown via a detail the player's character misreads |
+| **Visible clock** | A named countdown the player can act on | `activeTensionClocks` seeded at session start, advanced on every outcome |
+| **Priced success** | Winning costs something, so winning isn't free | `costOnSuccess` on every choice (time, exposure, trust, an item) |
+| **Delayed payoff** | Plant now, pay later | `openPlotThreads` must stay non-empty; one thread opened per chapter, one closed |
+| **Reasonable danger** | A threat that could kill you and chooses not to | NPC dossier flag: capability + restraint + a reason |
+| **Asymmetric choices** | Options differ in *cost*, not just risk level | replace `riskLevel` semantics with explicit `cost` per outcome |
+| **Held breath** | Mundane action under known threat | quiet-turn permission + one silent clock tick |
+
+### 14.5 The principle to build against
+
+> A turn is tense when the player finishes it knowing **something they can still lose**, and **less time to lose it than before**.
+
+That is checkable at runtime without a judge model: does the turn reference a named at-risk thing, and did a clock advance?
+
+### 14.6 Implementation order
+
+1. **Seed three clocks at session start** — one personal (wound, debt), one local (pursuer, faction patience), one distant (prophecy, invasion). Different tick rates. This alone changes output more than any prompt rewrite.
+2. **Extend the outcome contract**: every outcome, success included, returns `clockAdvanced` (which clock, why). Reject turns that advance nothing — the same rule already applied to failure.
+3. **Add `readerKnows`** to the JSON contract. One fact per turn the reader gets and the protagonist doesn't. Dramatic irony is the cheapest true tension available and your dossier data already supports it.
+4. **Replace `riskLevel` with `cost`** in choices: what you pay even on success. Risk without cost is a slot machine, not a story.
+5. **Ban narrated dread** in `ProseValidator`; require emotion to be embodied.
+6. **Telemetry**: clocks advanced per turn, open threads, priced successes, quiet/loud ratio. If every turn is loud, you have no tension.
 
 ---
 

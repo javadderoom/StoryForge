@@ -769,6 +769,75 @@ export interface CurvedLabelConfig {
   color?: string | number; // optional custom font color
 }
 
+/** Plan 27 Phase E.3: 16-point nautical compass rose configuration. */
+export interface CompassRoseConfig {
+  enabled?: boolean;
+  x?: number;
+  y?: number;
+  radius?: number; // outer radius in px (default: 110)
+  rotation?: number; // rotation angle in radians (default: 0)
+  pointsCount?: 8 | 16 | 32; // default: 16
+  style?: 'nautical' | 'renaissance' | 'minimal';
+  showDegreeRing?: boolean;
+  showRhumbLines?: boolean;
+  primaryColor?: string; // dark ink facet (default: '#2c1810')
+  secondaryColor?: string; // light parchment facet (default: '#f4ede2')
+  accentColor?: string; // antique brass / gold highlight (default: '#8c6d3b')
+}
+
+/** Plan 27 Phase E.3: Ornamental Baroque/manuscript strapwork title cartouche. */
+export interface TitleCartoucheConfig {
+  enabled?: boolean;
+  x?: number;
+  y?: number;
+  width?: number; // default: 360
+  height?: number; // default: 160
+  title?: string; // default: 'FARAVAND'
+  subtitle?: string; // default: 'TERRA INCOGNITA'
+  callout?: string; // e.g. 'CHRONICA REGNI'
+  style?: 'baroque_strapwork' | 'scrollwork' | 'classical_tablet';
+  primaryColor?: string; // border ink color (default: '#2c1810')
+  fillColor?: string; // parchment fill (default: '#faf6ee')
+  shadow?: boolean;
+}
+
+/** Plan 27 Phase E.3: Dual-unit linear scale bar (Imperial Parasangs & Miles). */
+export interface ScaleBarConfig {
+  enabled?: boolean;
+  x?: number;
+  y?: number;
+  width?: number; // length of bar in px (default: 320)
+  height?: number; // bar track height in px (default: 20)
+  primaryUnit?: string; // default: 'PARASANGS'
+  secondaryUnit?: string; // default: 'MILES'
+  primaryRatio?: number; // units over bar width (default: 50)
+  secondaryRatio?: number; // secondary units over bar width (default: 175)
+  divisions?: number; // number of main blocks (default: 4)
+  primaryColor?: string; // dark block ink (default: '#2c1810')
+  secondaryColor?: string; // light block fill (default: '#fbf7ee')
+}
+
+/** Plan 27 Phase E.3: Hand-inked maritime illustrations (caravel ship & sea serpent). */
+export interface MaritimeVignette {
+  id: string;
+  type: 'caravel' | 'sea_serpent';
+  x: number;
+  y: number;
+  scale?: number; // default: 1.0
+  rotation?: number; // radians
+  mirror?: boolean;
+  color?: string;
+}
+
+/** Plan 27 Phase E.3: Master manuscript furniture configuration. */
+export interface ManuscriptFurnitureConfig {
+  enabled?: boolean; // master toggle (default: true)
+  compassRose?: CompassRoseConfig;
+  cartouche?: TitleCartoucheConfig;
+  scaleBar?: ScaleBarConfig;
+  vignettes?: MaritimeVignette[];
+}
+
 export interface MapTerrainFeature {
   id: string;
   name: string;
@@ -963,7 +1032,11 @@ export interface WorldMapSettings {
     factionBorders: boolean;
     labels: boolean;
     grid: boolean;
+    /** Plan 27 Phase E.3: Compass rose, cartouche, scale bar, and maritime vignettes. */
+    furniture?: boolean;
   };
+  /** Plan 27 Phase E.3: Configurable manuscript furniture & embellishments. */
+  furniture?: ManuscriptFurnitureConfig;
 }
 
 export interface WorldMapData {

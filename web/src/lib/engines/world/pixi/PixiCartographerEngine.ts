@@ -88,6 +88,7 @@ import {
 } from '../texturePalette';
 import { MapTextureLibrary } from './mapTextureLibrary';
 import { renderTerrainCurvedLabels } from './splineTextRenderer';
+import { renderManuscriptFurniture } from './manuscriptFurnitureRenderer';
 
 
 export class PixiCartographerEngine {
@@ -104,6 +105,7 @@ export class PixiCartographerEngine {
   private routeLayer = new Container();
   private settlementLayer = new Container();
   private placementLayer = new Container();
+  private furnitureLayer = new Container();
   private interactionLayer = new Container();
 
   // Reusable Graphics objects for batch drawing
@@ -116,6 +118,8 @@ export class PixiCartographerEngine {
   private routeLabelsContainer = new Container();
   private settlementGraphics = new Graphics();
   private placementGraphics = new Graphics();
+  private furnitureGraphics = new Graphics();
+  private furnitureTextContainer = new Container();
   private interactionGraphics = new Graphics();
   private selectionGraphics = new Graphics();
   private brushGraphics = new Graphics();
@@ -149,6 +153,7 @@ export class PixiCartographerEngine {
       this.routeLayer,
       this.settlementLayer,
       this.placementLayer,
+      this.furnitureLayer,
       this.interactionLayer
     );
 
@@ -163,6 +168,7 @@ export class PixiCartographerEngine {
     );
     this.settlementLayer.addChild(this.settlementGraphics, this.settlementLabelsContainer);
     this.placementLayer.addChild(this.placementGraphics);
+    this.furnitureLayer.addChild(this.furnitureGraphics, this.furnitureTextContainer);
     this.interactionLayer.addChild(
       this.interactionGraphics,
       this.selectionGraphics,
@@ -497,6 +503,19 @@ export class PixiCartographerEngine {
 
     // 7. Render Placed Lore Pins
     renderPlacements(this.placementGraphics, viewPlacements, settings);
+
+    // 7a. Render Manuscript Furniture & Embellishments (Plan 27 Phase E.3)
+    this.furnitureGraphics.clear();
+    this.furnitureTextContainer.removeChildren();
+    if (settings.visibleLayers.furniture !== false) {
+      renderManuscriptFurniture(
+        this.furnitureGraphics,
+        this.furnitureTextContainer,
+        settings.furniture,
+        settings.width,
+        settings.height
+      );
+    }
 
     // 7b. One selection language for every object kind (Plan 23)
     renderSelectionOverlay(this.selectionGraphics, {

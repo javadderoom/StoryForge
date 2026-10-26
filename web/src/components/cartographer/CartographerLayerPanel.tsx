@@ -21,6 +21,7 @@ import {
   History,
   Grid,
   Tag,
+  Compass,
 } from 'lucide-react';
 import { WorldMapSettings } from '@/lib/types';
 import { resolveTextureStrength } from '@/lib/engines/world/texturePalette';
@@ -131,6 +132,15 @@ export const CartographerLayerPanel: React.FC<CartographerLayerPanelProps> = ({
       label: { en: 'Coordinate Grid', fa: 'شبکه مختصات کارتوگرافی' },
       icon: Grid,
       color: 'text-zinc-400',
+    },
+    {
+      key: 'furniture' as const,
+      label: {
+        en: 'Manuscript Furniture (Compass, Cartouche, Scale)',
+        fa: 'تزئینات نسخه کهن (قطب‌نما، کتیبه و مقیاس)',
+      },
+      icon: Compass,
+      color: 'text-amber-300',
     },
   ];
 
@@ -267,6 +277,109 @@ export const CartographerLayerPanel: React.FC<CartographerLayerPanelProps> = ({
           </div>
         </div>
       )}
+
+      {/* Plan 27 Phase E.3: Manuscript Furniture Controls */}
+      <div className="pt-2 border-t border-zinc-800/80 space-y-2">
+        <div className="flex items-center justify-between text-xs text-zinc-400">
+          <span className="font-semibold text-amber-400/90 flex items-center gap-1.5">
+            <Compass className="w-3.5 h-3.5" />
+            {isPersian ? 'تزئینات کهن نسخه' : 'Manuscript Furniture'}
+          </span>
+          <button
+            onClick={() =>
+              onUpdateSettings({
+                furniture: {
+                  ...settings.furniture,
+                  enabled: !(settings.furniture?.enabled ?? true),
+                },
+              })
+            }
+            className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-all ${
+              (settings.furniture?.enabled ?? true)
+                ? 'bg-amber-500/15 text-amber-300 border-amber-500/40'
+                : 'bg-zinc-800/50 text-zinc-500 border-zinc-700/50'
+            }`}
+          >
+            {(settings.furniture?.enabled ?? true)
+              ? isPersian
+                ? 'روشن'
+                : 'ENABLED'
+              : isPersian
+              ? 'خاموش'
+              : 'DISABLED'}
+          </button>
+        </div>
+
+        {(settings.furniture?.enabled ?? true) && (
+          <div className="space-y-1.5 pl-1 pr-1 text-[11px] text-zinc-400">
+            {/* Title Cartouche Text Field */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="shrink-0">{isPersian ? 'نام کتیبه' : 'Cartouche Title'}:</span>
+              <input
+                type="text"
+                value={settings.furniture?.cartouche?.title ?? 'FARAVAND'}
+                onChange={(e) =>
+                  onUpdateSettings({
+                    furniture: {
+                      ...settings.furniture,
+                      cartouche: {
+                        ...settings.furniture?.cartouche,
+                        title: e.target.value,
+                      },
+                    },
+                  })
+                }
+                className="w-32 px-1.5 py-0.5 bg-zinc-900 border border-zinc-700/80 rounded text-zinc-200 text-xs font-serif"
+                placeholder="FARAVAND"
+              />
+            </div>
+
+            {/* Subtitle Ribbon Text Field */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="shrink-0">{isPersian ? 'زیرنویس' : 'Subtitle'}:</span>
+              <input
+                type="text"
+                value={settings.furniture?.cartouche?.subtitle ?? 'TERRA INCOGNITA'}
+                onChange={(e) =>
+                  onUpdateSettings({
+                    furniture: {
+                      ...settings.furniture,
+                      cartouche: {
+                        ...settings.furniture?.cartouche,
+                        subtitle: e.target.value,
+                      },
+                    },
+                  })
+                }
+                className="w-32 px-1.5 py-0.5 bg-zinc-900 border border-zinc-700/80 rounded text-zinc-200 text-xs font-serif"
+                placeholder="TERRA INCOGNITA"
+              />
+            </div>
+
+            {/* Scale Bar Units */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="shrink-0">{isPersian ? 'واحد مقیاس' : 'Scale Unit'}:</span>
+              <input
+                type="text"
+                value={settings.furniture?.scaleBar?.primaryUnit ?? 'PARASANGS'}
+                onChange={(e) =>
+                  onUpdateSettings({
+                    furniture: {
+                      ...settings.furniture,
+                      scaleBar: {
+                        ...settings.furniture?.scaleBar,
+                        primaryUnit: e.target.value,
+                      },
+                    },
+                  })
+                }
+                className="w-32 px-1.5 py-0.5 bg-zinc-900 border border-zinc-700/80 rounded text-zinc-200 text-[11px]"
+                placeholder="PARASANGS"
+              />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
