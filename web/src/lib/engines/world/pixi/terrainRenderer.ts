@@ -35,6 +35,10 @@ import {
   generateProceduralSaltPan,
   type ProceduralSaltPan,
 } from './saltPanGenerator';
+import {
+  generateProceduralDuneField,
+  type ProceduralDuneField,
+} from './duneFieldGenerator';
 
 export function renderTerrain(
   g: Graphics,
@@ -453,7 +457,20 @@ export function drawBiome(g: Graphics, feat: MapTerrainFeature, fill: FillWithMa
   fill(g, flatPoints, material, color, 0.35);
   g.poly(flatPoints).stroke({ width: 1, color, alpha: 0.6 });
 
-  // 2. Procedural Hand-inked Symbols (Trees, Sand Dunes, Marsh Reeds)
+  // 2. Sinuous Barchan Sand Dunes for Deserts & Wastelands (Plan 27 — Module 3.B: Hiram Steppe)
+  if (feat.type === 'desert' || feat.type === 'wasteland') {
+    const seed = hashStringToSeed(feat.id || `desert_${feat.polygon[0].x}_${feat.polygon[0].y}`);
+    const duneField = generateProceduralDuneField(feat.polygon, {
+      seed,
+      ...feat.duneConfig,
+    });
+    if (duneField) {
+      renderProceduralDuneFieldToGraphics(g, duneField);
+      return;
+    }
+  }
+
+  // 3. Procedural Hand-inked Symbols (Trees, Marsh Reeds)
   const seed = hashStringToSeed(feat.id || `biome_${feat.polygon[0].x}_${feat.polygon[0].y}`);
   const symbols = generateBiomeSymbols(feat.polygon, feat.type, {
     seed,
@@ -649,6 +666,71 @@ export function renderProceduralSaltPanToGraphics(
       alpha: 0.85,
       cap: 'round',
     });
+  }
+}
+
+/**
+ * Renders a ProceduralDuneField geometry object onto Pixi Graphics.
+ * Features illuminated crescent slip-face pockets, leeward cross-hatching,
+ * windward ripple striae, and crisp hand-inked barchan crest ridges.
+ */
+export function renderProceduralDuneFieldToGraphics(
+  g: Graphics,
+  field: ProceduralDuneField
+): void {
+  for (const dune of field.dunes) {
+    // 1. Leeward Slip Face Shadow Pocket
+    if (dune.slipFacePoly.length >= 3) {
+      g.poly(toFlatPoints(dune.slipFacePoly)).fill({
+        color: dune.isMegadune ? 0xa87c42 : VINTAGE_PARCHMENT.duneShade,
+        alpha: dune.isMegadune ? 0.72 : 0.58,
+      });
+    }
+
+    // 2. Slip Face Hatch Lines (Cross-hatching down the steep leeward slope)
+    for (const [start, end] of dune.slipFaceHatches) {
+      g.moveTo(start.x, start.y).lineTo(end.x, end.y);
+    }
+    if (dune.slipFaceHatches.length > 0) {
+      g.stroke({
+        width: 0.85,
+        color: VINTAGE_PARCHMENT.secondaryInk,
+        alpha: 0.65,
+        cap: 'round',
+      });
+    }
+
+    // 3. Parallel Windward Ripple Striae (Stoss slope micro-waves)
+    for (const ripple of dune.windwardRipples) {
+      if (ripple.length >= 2) {
+        g.moveTo(ripple[0].x, ripple[0].y);
+        for (let i = 1; i < ripple.length; i++) {
+          g.lineTo(ripple[i].x, ripple[i].y);
+        }
+        g.stroke({
+          width: 0.75,
+          color: VINTAGE_PARCHMENT.secondaryInk,
+          alpha: 0.42,
+          cap: 'round',
+          join: 'round',
+        });
+      }
+    }
+
+    // 4. Inked Barchan Crest Ridge
+    if (dune.crestSpline.length >= 2) {
+      g.moveTo(dune.crestSpline[0].x, dune.crestSpline[0].y);
+      for (let i = 1; i < dune.crestSpline.length; i++) {
+        g.lineTo(dune.crestSpline[i].x, dune.crestSpline[i].y);
+      }
+      g.stroke({
+        width: dune.isMegadune ? 1.45 : 1.15,
+        color: VINTAGE_PARCHMENT.primaryInk,
+        cap: 'round',
+        join: 'round',
+        alpha: 0.88,
+      });
+    }
   }
 }
 

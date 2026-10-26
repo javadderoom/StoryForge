@@ -316,7 +316,9 @@ gantt
   - **C.1 Civil Infrastructure**: Procedural masonry bridge generation (`bridgeGenerator.ts`, `bridgeRenderer.ts`), river crossing detection, and *Zarrin-Pol* bridge snapping.
   - **C.2 Hydrology V2**: River delta branching fan (`deltaGenerator.ts`), discharge-weighted distributary channels, alluvial silt islands, and Studio Inspector controls.
 * **Phase D: Specialized Biomes & Shoreline Waterlining**: ⏳ **In Progress (Active Milestone)**
-  - Implement `saltPanGenerator.ts` (Voronoi salt crust for Sepidchal), `duneFieldGenerator.ts` (Barchan dunes for Hiram Steppe), and `waterliningGenerator.ts` (concentric wave echoes).
+  - **D.1 Salt Pan & Halite Seams**: ✅ **Completed (`5522d25`)** (`saltPanGenerator.ts` — Voronoi cracked crust, concentric shrinkage rings, and sun-bleached evaporite flats for *Sepidchal*).
+  - **D.2 Sinuous Barchan Sand Dunes**: ✅ **Completed** (`duneFieldGenerator.ts` — catenary crescent crests, shaded leeward slip faces, windward ripple striae, and Studio Inspector wind/scale controls for *Hiram Steppe*).
+  - **D.3 Coastal & Shoreline Waterlining**: ⏳ **Up Next** (`waterliningGenerator.ts` — concentric wave echo contours with atmospheric stroke falloff).
 * **Phase E: Typography & Manuscript Furniture**: 📅 **Queued**
   - Implement continuous forest canopy massing (`canopyMassGenerator.ts`), curved spline typography (`splineTextRenderer.ts`), compass rose, title cartouche, and dual-unit scale bar.
 

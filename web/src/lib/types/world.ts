@@ -733,6 +733,14 @@ export interface RiverDeltaConfig {
   sedimentColor?: string; // Silt/sand bank color (e.g. '#ded2b6')
 }
 
+export interface DuneFieldConfig {
+  enabled?: boolean;
+  density?: 'sparse' | 'medium' | 'dense'; // default: 'medium'
+  windAngleDegrees?: number; // regional prevailing wind angle in degrees (default: 35)
+  duneScale?: number; // scale multiplier for dune crest size (0.6 - 1.8, default: 1.0)
+  rippleHatching?: boolean; // parallel windward ripple lines (default: true)
+}
+
 export interface MapTerrainFeature {
   id: string;
   name: string;
@@ -759,6 +767,8 @@ export interface MapTerrainFeature {
   climateZone?: 'polar' | 'temperate' | 'arid' | 'tropical' | 'mystical';
   /** Plan 27: River delta branching & distributary fan configuration. */
   deltaConfig?: RiverDeltaConfig;
+  /** Plan 27: Sinuous barchan sand dune field configuration (Hiram Steppe / deserts). */
+  duneConfig?: DuneFieldConfig;
   /**
    * Per-object layer controls (Plan 21). Left `undefined` on purpose: the
    * meaning is "visible, unlocked, default draw order", and keeping the field
