@@ -603,6 +603,96 @@ That is checkable at runtime without a judge model: does the turn reference a na
 
 ---
 
+## 15. The Celestine scouts scene: what actually created tension
+
+> **Status: re-confirmation, not a new finding.** The "Kinetic Spatial Countdown" was already documented in [`COMPETITIVE_ANALYSIS_AND_LITRPG_WEBTOON_INTEGRATION.md`](./COMPETITIVE_ANALYSIS_AND_LITRPG_WEBTOON_INTEGRATION.md) (L234, directive at L446) and is already implemented at `PromptAssembler.ts:477`. This section exists because it caught a live **compliance failure** and because it corrects the state-machine framing in §14.
+>
+> **Consolidated summary**: [`OOC_TEARDOWN_FINDINGS.md`](./OOC_TEARDOWN_FINDINGS.md).
+
+Recovered from the full playthrough (`%LOCALAPPDATA%\Temp\opencode\ooc-guard-scene.txt`). One of the player's own turns produced the most tense sequence in the entire sample — no clock subsystem, no state machine, no authored gate. **This section corrects §14**, which over-indexed on engine state.
+
+### 15.0 Tension is not a per-turn requirement
+
+The countdown above is real, but it must not be applied to every turn. Mandated escalation is the failure mode, not the fix — and the current prompt already mandates it (Beat 3, see `OOC_TEARDOWN_FINDINGS.md` §5.2). A scene needs **latent**, **active**, and **peak** turns in that order; a peak must be followed by a latent turn or the stake reads as noise. Full doctrine: `OOC_TEARDOWN_FINDINGS.md` §5.
+
+### 15.1 The countdown was diegetic, not systemic
+
+The scene runs a **physical distance counter** that tightens every beat:
+
+> *"They emerge into view between the trees, maybe **forty feet** from your alcove."*
+> → *"They are **thirty-five feet** away. Closing."*
+> → *"**Twenty-five feet** now."*
+> → *"**Fifteen feet** away. Both combat-ready."*
+
+Then, when distance runs out, it converts into **time**: *"She hasn't checked the rocky outcrop yet, but she will. **Seconds, maybe.**"*
+
+**This is the lesson.** The tension came from a number the reader could track and that was running out. It was invented inside the scene — feet, then seconds — not read from a global clock table. A shared `activeTensionClocks` registry that ticks every turn would have produced the robotic metronome.
+
+> Rule: **every scene must contain one measurable, in-world quantity that changes and can be exhausted** — distance, patrol rotation, torch burn, mana, guards remaining, a door being forced, patience. The model should choose it from the scene's own physics each turn, not read it from a scheduler.
+
+### 15.2 The player's own history became the threat
+
+The scouts are not hunting a generic target. They are reading **the player's leftovers**:
+
+> *"She's looking at the trail of dissolved earth where the Acid Slimes died — the acid burns **you** left behind barely an hour ago."*
+> *"They begin moving again — carefully now, following the trail of destruction **you** left. **Your** acid burns. **Your** shattered bark spider. **Your** obsidian residue."*
+
+That is why it lands. Threat generated from the player's own earlier choices is *earned* tension, and no prompt trick substitutes for it. It requires only that the world remember — which you already do via the saga ledger.
+
+### 15.3 The enemy was competent, and the competence was shown, not asserted
+
+> *"Something killed these slimes. Recently. The acid residue hasn't fully neutralized yet."*
+> *"No claw marks. No teeth. Clean cuts. Almost surgical."*
+> *"Magic. Someone is in this forest ahead of us. Someone with offensive capability."*
+
+The reader watches trained professionals **deduce the player's existence from evidence**. That is more frightening than any described monster, because it is intelligence closing in — and the reader does the deduction alongside them.
+
+> Rule: danger must **reason aloud**. A threat that investigates is tenser than a threat that roars.
+
+### 15.4 Proportional, mundane detail made them real before they mattered
+
+> *"navy-and-silver tabard"* · *"a star within a circle"* · *"The steel **whispers**."* · *"His knuckles are **white** around the mace handle."*
+
+Two uniforms, one crest, one half-drawn sword. Cheap specificity. Then the payoff lands because they were people first:
+
+> *"He was my husband. We had a daughter."*
+> *"She's three. She calls him 'Papa Bear.' She waits by the window every night for him to come home."*
+
+The daughter is introduced **after** the kill, which is what makes the kill retroactively cost something.
+
+### 15.5 Every option had a real price — the §14 instinct, correctly applied
+
+> *"The needle in your mind pulses. Twenty mana. Two corpses. No witnesses.*
+> *But killing Imperial scouts means war will know you're active. Means your classmates will hunt you in earnest.*
+> *Letting them go means they report your location. Your appearance. Your power.*
+> *Talking means risk. But also possibility."*
+
+This is the `costOnSuccess` principle from §14, and here it is done entirely in prose — no schema field required. The player chose violence, paid for it emotionally, then chose to resurrect him and paid in mana and blood.
+
+### 15.6 The system answered back with irony
+
+> *"The kill from last night — Marcus, before you brought him back — still counted."*
+> **LEVEL UP — Level 3**
+
+Killing a man, undoing it, and still banking the XP is a **systemic** irony no prompt can fake. It is the moment the player realizes the world is internally consistent and slightly indifferent to them — which is the actual source of stakes.
+
+### 15.7 What to take from this, concretely
+
+| Instead of | Do |
+|---|---|
+| A global tension-clock registry | Per-scene measurable quantities the model invents from the fiction |
+| "Add tension / raise stakes" | "Name the thing running out, and count it down at least once" |
+| Abstract dread ("the air grows cold") | Observable evidence: residue, footprints, a hand drifting to a hilt |
+| Threats that announce themselves | Threats that **deduce** the player from traces |
+| Escalation every turn | Quiet turns where a professional closes in methodically |
+| Villains with no life | One mundane, sympathetic fact per antagonist, revealed late |
+
+### 15.8 On length, revisited
+
+This scene is **long** — several turns of 300–600 words — and it earns the length because each beat changes the situation. The earlier defect was not that StoryForge writes 100 words; it is that a 100-word turn with no beat change has nothing to justify even those. **Length is a consequence of beat count, never a target.** A 120-word turn with one reversal beats a 400-word turn with none.
+
+---
+
 ## Appendix A — Evidence inventory
 
 | Artefact | Path |

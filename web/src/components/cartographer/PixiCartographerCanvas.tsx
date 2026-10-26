@@ -291,6 +291,14 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         activeVertexRef.current = null;
       }
 
+      if (e.key === 'a' || e.key === 'A') {
+        setIsVertexEditMode(true);
+      }
+
+      if (e.key === 'v' || e.key === 'V') {
+        setIsVertexEditMode(false);
+      }
+
       if (e.key === 'PageUp' || e.key === 'PageDown') {
         e.preventDefault();
         const isZoomIn = e.key === 'PageUp';
