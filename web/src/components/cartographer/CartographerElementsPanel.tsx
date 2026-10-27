@@ -23,6 +23,7 @@ import {
   MapPin,
   ListTree,
   Crosshair,
+  Flame,
 } from 'lucide-react';
 import {
   WorldBible,
@@ -165,10 +166,10 @@ const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
   },
   {
     key: 'pin',
-    label: { en: 'Lore Pins & Entities', fa: 'شخصیت‌ها و نشان‌های داستانی' },
-    emptyMessage: { en: 'No lore markers or NPCs placed', fa: 'هیچ نشان داستانی مستقر نشده است' },
-    icon: MapPin,
-    color: 'text-indigo-400',
+    label: { en: 'Beasts, NPCs & Lore Pins', fa: 'هیولاها، شخصیت‌ها و نشان‌ها' },
+    emptyMessage: { en: 'No beasts, NPCs or lore pins placed', fa: 'هیچ هیولا، شخصیت یا نشانی مستقر نشده است' },
+    icon: Flame,
+    color: 'text-rose-400',
   },
 ];
 
@@ -447,29 +448,54 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
       });
     }
 
-    // Placements / Lore Pins
+    // Placements / Lore Pins & Beasts
     for (const p of placements) {
       const isVis = isObjectVisible(p);
       const isLck = isObjectLocked(p);
       let label = p.customLabel;
-      if (!label) {
-        if (p.entityType === 'npc') {
-          label = worldBible.npcs?.find((n) => n.id === p.entityId)?.name || 'NPC';
-        } else if (p.entityType === 'bestiary') {
-          label = worldBible.bestiary?.find((b) => b.id === p.entityId)?.name || 'Creature';
-        } else if (p.entityType === 'artifact') {
-          label = worldBible.artifacts?.find((a) => a.id === p.entityId)?.name || 'Artifact';
-        } else if (p.entityType === 'deity') {
-          label = worldBible.religions?.find((r) => r.id === p.entityId)?.name || 'Deity / Shrine';
-        } else {
-          label = p.entityType;
-        }
+      let subtitle = p.entityType.toUpperCase();
+
+      if (p.entityType === 'npc') {
+        const npc = worldBible.npcs?.find((n) => n.id === p.entityId);
+        if (!label) label = npc?.name || (isPersian ? 'شخصیت داستانی' : 'NPC');
+        subtitle = npc?.title || (isPersian ? 'پرونده شخصیت' : 'NPC Dossier');
+      } else if (p.entityType === 'bestiary') {
+        const creature = worldBible.bestiary?.find((b) => b.id === p.entityId);
+        if (!label) label = creature?.name || (isPersian ? 'هیولا و جانور' : 'Beast');
+        const dangerStr = creature ? `\u200E${creature.dangerLevel}/5` : '';
+        const speciesStr = creature?.speciesCategory
+          ? isPersian
+            ? creature.speciesCategory === 'beast'
+              ? 'جانور طبیعی'
+              : creature.speciesCategory === 'monstrosity'
+              ? 'هیولای دگرگون‌شده'
+              : creature.speciesCategory === 'draconic'
+              ? 'اژدهاگونه'
+              : creature.speciesCategory
+            : creature.speciesCategory
+          : isPersian ? 'هیولا' : 'Beast';
+        subtitle = isPersian
+          ? `خطر ${dangerStr} · ${speciesStr}`
+          : `Danger ${dangerStr} · ${speciesStr}`;
+      } else if (p.entityType === 'artifact') {
+        const artifact = worldBible.artifacts?.find((a) => a.id === p.entityId);
+        if (!label) label = artifact?.name || (isPersian ? 'اثر باستانی' : 'Artifact');
+        subtitle = artifact?.rarity ? artifact.rarity.toUpperCase() : (isPersian ? 'عتیقه باستانی' : 'Relic');
+      } else if (p.entityType === 'timeline') {
+        const event = worldBible.timeline?.find((t) => t.id === p.entityId);
+        if (!label) label = event?.title || (isPersian ? 'رویداد تاریخی' : 'Historical Event');
+        subtitle = event?.yearOrEra ? `${event.yearOrEra}` : (isPersian ? 'وقایع‌نگاری' : 'Chronicle');
+      } else if (p.entityType === 'deity') {
+        label = worldBible.religions?.find((r) => r.id === p.entityId)?.name || (isPersian ? 'زیارتگاه / ایزد' : 'Deity / Shrine');
+      } else if (!label) {
+        label = p.entityType;
       }
+
       result.pin.push({
         kind: 'placement',
         id: p.id,
         name: label,
-        subtitle: p.entityType.toUpperCase(),
+        subtitle,
         visible: isVis,
         locked: isLck,
         raw: p,
@@ -792,11 +818,23 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
 
                           <div className="min-w-0 flex flex-col">
                             <span
-                              className={`text-xs font-medium truncate ${
+                              className={`text-xs font-medium truncate flex items-center gap-1.5 ${
                                 item.visible ? 'text-zinc-200' : 'text-zinc-500 line-through'
                               }`}
                             >
-                              {item.name}
+                              {item.kind === 'placement' && (item.raw as MapEntityPlacement).entityType === 'bestiary' && (
+                                <span className="text-rose-400 text-xs shrink-0">🐉</span>
+                              )}
+                              {item.kind === 'placement' && (item.raw as MapEntityPlacement).entityType === 'npc' && (
+                                <span className="text-sky-400 text-xs shrink-0">👤</span>
+                              )}
+                              {item.kind === 'placement' && (item.raw as MapEntityPlacement).entityType === 'artifact' && (
+                                <span className="text-amber-400 text-xs shrink-0">✨</span>
+                              )}
+                              {item.kind === 'placement' && (item.raw as MapEntityPlacement).entityType === 'timeline' && (
+                                <span className="text-purple-400 text-xs shrink-0">⚔️</span>
+                              )}
+                              <span className="truncate">{item.name}</span>
                             </span>
                             <span className="text-[10px] text-zinc-500 truncate font-mono">
                               {item.subtitle}

@@ -128,6 +128,7 @@ export class PixiCartographerEngine {
   // Text label containers to recycle
   private settlementLabelsContainer = new Container();
   private terrainLabelsContainer = new Container();
+  private placementLabelsContainer = new Container();
 
   // Spatial Index for sub-millisecond point hit-testing
   public spatialIndex = new PixiSpatialIndex();
@@ -167,7 +168,7 @@ export class PixiCartographerEngine {
       this.routeGraphics
     );
     this.settlementLayer.addChild(this.settlementGraphics, this.settlementLabelsContainer);
-    this.placementLayer.addChild(this.placementGraphics);
+    this.placementLayer.addChild(this.placementGraphics, this.placementLabelsContainer);
     this.furnitureLayer.addChild(this.furnitureGraphics, this.furnitureTextContainer);
     this.interactionLayer.addChild(
       this.interactionGraphics,
@@ -502,7 +503,7 @@ export class PixiCartographerEngine {
     });
 
     // 7. Render Placed Lore Pins
-    renderPlacements(this.placementGraphics, viewPlacements, settings);
+    renderPlacements(this.placementGraphics, viewPlacements, settings, this.placementLabelsContainer);
 
     // 7a. Render Manuscript Furniture & Embellishments (Plan 27 Phase E.3)
     this.furnitureGraphics.clear();

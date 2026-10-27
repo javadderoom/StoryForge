@@ -242,25 +242,118 @@ function drawPlaceLabel(
 export function renderPlacements(
   g: Graphics,
   placements: MapEntityPlacement[],
-  settings: WorldMapSettings
+  settings: WorldMapSettings,
+  labelsContainer?: Container
 ): void {
   g.clear();
+  if (labelsContainer) labelsContainer.removeChildren();
 
-    // Plan 21: pins are drawn in their own draw order, and a hidden pin is
-    // simply not drawn (the category switch still applies on top of it).
-    for (const p of orderPlacementsForRender(placements)) {
-      if (!isObjectVisible(p)) continue;
+  // Plan 21: pins are drawn in their own draw order, and a hidden pin is
+  // simply not drawn (the category switch still applies on top of it).
+  for (const p of orderPlacementsForRender(placements)) {
+    if (!isObjectVisible(p)) continue;
 
-      if (!isPlacementVisibleInLayers(p.entityType, settings.visibleLayers)) continue;
+    if (!isPlacementVisibleInLayers(p.entityType, settings.visibleLayers)) continue;
 
+    const { x, y } = p;
+
+    if (p.entityType === 'bestiary') {
+      // Beast Token: Spiked dark crimson roundel with amber/gold beast core
+      g.circle(x, y, 12)
+        .fill({ color: 0x4c0519 })
+        .stroke({ width: 2, color: 0xe11d48 });
+      g.circle(x, y, 6.5)
+        .fill({ color: 0xbe123c });
+      g.circle(x, y, 2.5)
+        .fill({ color: 0xfef08a });
+
+      // If Danger Level is high, draw warning fang pips around perimeter
+      if (p.notes && /danger [45]|dc 2[0-9]|calamity/i.test(p.notes)) {
+        for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 2) {
+          const px = x + Math.cos(angle) * 14;
+          const py = y + Math.sin(angle) * 14;
+          g.circle(px, py, 1.8).fill({ color: 0xf59e0b });
+        }
+      }
+    } else if (p.entityType === 'npc') {
+      // Stationed NPC: Sapphire shield token
+      g.circle(x, y, 11)
+        .fill({ color: 0x1e3a8a })
+        .stroke({ width: 2, color: 0x3b82f6 });
+      g.circle(x, y, 4.5)
+        .fill({ color: 0x93c5fd });
+    } else if (p.entityType === 'timeline') {
+      // Story Encounter: Amber diamond
+      g.poly([
+        { x, y: y - 11 },
+        { x: x + 9, y },
+        { x, y: y + 11 },
+        { x: x - 9, y },
+      ])
+        .fill({ color: 0x78350f })
+        .stroke({ width: 2, color: 0xf59e0b });
+      g.circle(x, y, 3.5).fill({ color: 0xfef3c7 });
+    } else if (p.entityType === 'artifact') {
+      // Artifact: Amethyst mystic diamond
+      g.poly([
+        { x, y: y - 11 },
+        { x: x + 9, y },
+        { x, y: y + 11 },
+        { x: x - 9, y },
+      ])
+        .fill({ color: 0x581c87 })
+        .stroke({ width: 2, color: 0xa855f7 });
+      g.circle(x, y, 3.5).fill({ color: 0xf5d0fe });
+    } else {
       let pinColor = 0x4f46e5;
-      if (p.entityType === 'npc') pinColor = 0x3b82f6;
-      else if (p.entityType === 'bestiary') pinColor = 0xdc2626;
-      else if (p.entityType === 'artifact') pinColor = 0x9333ea;
-      else if (p.entityType === 'deity') pinColor = 0xeab308;
+      if (p.entityType === 'deity') pinColor = 0xeab308;
 
-      g.circle(p.x, p.y, 9)
+      g.circle(x, y, 9)
         .fill({ color: pinColor })
         .stroke({ width: 1.5, color: 0xffffff });
     }
+
+    // Name label banner beneath the pin
+    if (labelsContainer && settings.visibleLayers.labels !== false && p.customLabel) {
+      const textStyle = new TextStyle({
+        fontSize: 10,
+        fontWeight: p.entityType === 'bestiary' ? 'bold' : 'normal',
+        fill: p.entityType === 'bestiary' ? 0x4c0519 : VINTAGE_PARCHMENT.labelText,
+        fontFamily: 'serif',
+      });
+
+      const iconPrefix =
+        p.entityType === 'bestiary'
+          ? '🐉 '
+          : p.entityType === 'npc'
+          ? '👤 '
+          : p.entityType === 'timeline'
+          ? '⚔️ '
+          : p.entityType === 'artifact'
+          ? '✨ '
+          : '';
+
+      const labelText = new Text({
+        text: `${iconPrefix}${p.customLabel}`,
+        style: textStyle,
+      });
+      labelText.anchor.set(0.5, 0);
+      labelText.x = x;
+      labelText.y = y + 15;
+
+      const textW = labelText.width + 10;
+      const textH = labelText.height + 3;
+      g.roundRect(x - textW / 2, y + 14, textW, textH, 3)
+        .fill({
+          color: p.entityType === 'bestiary' ? 0xfff1f2 : VINTAGE_PARCHMENT.labelBannerBg,
+          alpha: 0.94,
+        })
+        .stroke({
+          width: 1,
+          color: p.entityType === 'bestiary' ? 0xfecdd3 : VINTAGE_PARCHMENT.labelBannerBorder,
+        });
+
+      labelsContainer.addChild(labelText);
+    }
   }
+}

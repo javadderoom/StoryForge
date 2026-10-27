@@ -11,6 +11,10 @@ import {
   MapTerrainFeature,
   MapEntityPlacement,
   MapRoute,
+  WorldCreature,
+  WorldArtifact,
+  TimelineEvent,
+  NPCDossier,
 } from '@/lib/types';
 import {
   CANVAS_WIDTH,
@@ -63,10 +67,17 @@ export default function CartographerPage() {
     hasLocalDraft,
     isPersian,
     editNpc,
+    deleteNpc,
     addNpc,
     addCreature,
+    editCreature,
+    deleteCreature,
     addTimelineEvent,
+    editTimelineEvent,
+    deleteTimelineEvent,
     addArtifact,
+    editArtifact,
+    deleteArtifact,
   } = useStudioStory();
 
   // Active tool and floating panel state.
@@ -458,6 +469,114 @@ export default function CartographerPage() {
       removeFromSelection([{ kind: 'placement', id }]);
     });
   };
+
+  // Bestiary / Creature Handlers
+  const handleUpdateCreature = useCallback(
+    (id: string, updated: Partial<WorldCreature>) => {
+      commit('Edit creature', () => {
+        editCreature(id, updated);
+      });
+    },
+    [commit, editCreature]
+  );
+
+  const handleDeleteCreature = useCallback(
+    (id: string) => {
+      commit('Delete creature', () => {
+        deleteCreature(id);
+        updateMapData((prev) => {
+          const current = prev || mapData;
+          return {
+            ...current,
+            placements: (current.placements || []).filter((p) => p.entityId !== id),
+          };
+        });
+        removeFromSelection([{ kind: 'placement', id }]);
+      });
+    },
+    [commit, deleteCreature, updateMapData, mapData, removeFromSelection]
+  );
+
+  // NPC Handlers
+  const handleUpdateNpc = useCallback(
+    (id: string, updated: Partial<NPCDossier>) => {
+      commit('Edit NPC', () => {
+        editNpc(id, updated);
+      });
+    },
+    [commit, editNpc]
+  );
+
+  const handleDeleteNpc = useCallback(
+    (id: string) => {
+      commit('Delete NPC', () => {
+        deleteNpc(id);
+        updateMapData((prev) => {
+          const current = prev || mapData;
+          return {
+            ...current,
+            placements: (current.placements || []).filter((p) => p.entityId !== id),
+          };
+        });
+        removeFromSelection([{ kind: 'placement', id }]);
+      });
+    },
+    [commit, deleteNpc, updateMapData, mapData, removeFromSelection]
+  );
+
+  // Artifact Handlers
+  const handleUpdateArtifact = useCallback(
+    (id: string, updated: Partial<WorldArtifact>) => {
+      commit('Edit artifact', () => {
+        editArtifact(id, updated);
+      });
+    },
+    [commit, editArtifact]
+  );
+
+  const handleDeleteArtifact = useCallback(
+    (id: string) => {
+      commit('Delete artifact', () => {
+        deleteArtifact(id);
+        updateMapData((prev) => {
+          const current = prev || mapData;
+          return {
+            ...current,
+            placements: (current.placements || []).filter((p) => p.entityId !== id),
+          };
+        });
+        removeFromSelection([{ kind: 'placement', id }]);
+      });
+    },
+    [commit, deleteArtifact, updateMapData, mapData, removeFromSelection]
+  );
+
+  // Timeline Event Handlers
+  const handleUpdateTimelineEvent = useCallback(
+    (id: string, updated: Partial<TimelineEvent>) => {
+      commit('Edit timeline event', () => {
+        editTimelineEvent(id, updated);
+      });
+    },
+    [commit, editTimelineEvent]
+  );
+
+  const handleDeleteTimelineEvent = useCallback(
+    (id: string) => {
+      commit('Delete timeline event', () => {
+        deleteTimelineEvent(id);
+        updateMapData((prev) => {
+          const current = prev || mapData;
+          return {
+            ...current,
+            placements: (current.placements || []).filter((p) => p.entityId !== id),
+          };
+        });
+        removeFromSelection([{ kind: 'placement', id }]);
+      });
+    },
+    [commit, deleteTimelineEvent, updateMapData, mapData, removeFromSelection]
+  );
 
   const handleAddGeneratedElement = useCallback(
     (payload: {
@@ -1015,6 +1134,17 @@ export default function CartographerPage() {
             placeCategories={placeCategories}
             terrainFeatures={mapData.terrainFeatures}
             placements={mapData.placements}
+            bestiary={story.worldBible.bestiary || []}
+            artifacts={story.worldBible.artifacts || []}
+            timeline={story.worldBible.timeline || []}
+            onUpdateCreature={handleUpdateCreature}
+            onDeleteCreature={handleDeleteCreature}
+            onUpdateArtifact={handleUpdateArtifact}
+            onDeleteArtifact={handleDeleteArtifact}
+            onUpdateTimelineEvent={handleUpdateTimelineEvent}
+            onDeleteTimelineEvent={handleDeleteTimelineEvent}
+            onUpdateNpc={handleUpdateNpc}
+            onDeleteNpc={handleDeleteNpc}
             onStationNpc={handleStationNpc}
             isPersian={isPersian}
           />
