@@ -93,6 +93,15 @@ describe('deltaGenerator — Procedural Delta Fan & Alluvial Islands', () => {
       // Silt hatch strokes should exist inside the island
       assert.ok(island.hatchLines.length >= 0);
     }
+
+    // Verify archipelago contains central island, lobes, and offshore islets
+    const kinds = delta.islands.map((i) => i.kind);
+    assert.ok(kinds.includes('central'), 'Must generate central delta island');
+    assert.ok(kinds.includes('islet'), 'Must generate offshore barrier islets');
+
+    // Verify lush delta tree canopy clusters are populated
+    const totalTrees = delta.islands.reduce((acc, i) => acc + (i.trees?.length ?? 0), 0);
+    assert.ok(totalTrees > 0, 'Must generate tree canopy lobes on delta islands');
   });
 
   it('integrates seamlessly with generateProceduralRiver', () => {

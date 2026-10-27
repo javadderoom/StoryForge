@@ -129,7 +129,7 @@ export function buildSubQMomentumRequest(
       story_progressed: {
         type: 'noul',
         instructions:
-          'Did the new candidate scene prose advance the physical plot or resolve the bottleneck forward? Answer FALSE if the narrative keeps the characters frozen in the exact same standoff, obstacle, or conversational loop from previous turns without progressing.',
+          'Did the new candidate scene prose advance the physical plot or resolve the bottleneck forward? Answer FALSE if the narrative keeps the characters frozen in the exact same standoff, obstacle, or conversational loop from previous turns without progressing. A deliberate withdrawal that changes the protagonist\'s position, spends time, or lets the threat advance COUNTS as progression — leaving an obstacle intact on purpose is not a stall.',
       },
       has_repetitive_standoff: {
         type: 'noul',

@@ -466,10 +466,12 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
 2. You MUST strictly depict the pre-calculated outcome. Do NOT contradict or alter the mechanical result.
 3. HIGH-CADENCE WEBTOON CADENCE & KINETIC PROSE ARCHITECTURE:
    - Target Length: Deliver punchy, high-velocity literary prose between 100 and 200 words across short, kinetic 1-to-3 sentence paragraph blocks. Keep the pacing focused, kinetic, and relentless—never pad with rambling scenic filler!
+   - PARAGRAPH SEPARATORS (MANDATORY): Separate every paragraph block with an escaped blank line (the two characters \\n\\n inside the JSON string, which render as a blank line). Never return the whole scene as one unbroken block. A 150-word turn is 3 to 5 blocks, not 1. Keep each block to 1-3 sentences.
    - Dynamic Beat Structure:
      * Beat 1 (Kinetic Execution & Immediate Impact): Open directly with the physical execution of the action, the clash of steel, flesh, or spellcraft, and visceral somatic feedback (recoil, blood spray, pulse pounding).
      * Beat 2 (World Shockwave & NPC Reaction): Depict immediate adversary response, environmental recoil, or bystander reactions.
-     * Beat 3 (The Looming Dilemma & Ticking Threat): Establish the new immediate physical dilemma or escalating danger that immediately sets up the choices.
+     * Beat 3 (The Turn's Exit Condition — escalation is NOT mandatory): Close on the decision the protagonist now owes, or the consequence already in motion. A new immediate physical dilemma or escalating danger is ONE valid exit, not a required one. Escalate only when the scene has earned it: fresh opposition, a failed or costly check, a threat already established, or a clock that advanced.
+   - TENSION VARIANCE (NO METRONOME): Tension is not mandatory every turn. Most turns are LATENT — the threat exists but does not strike, while the prose still moves (a fact surfaces, a position changes, a relationship shifts, a thread is planted). ACTIVE turns carry one live countdown. PEAK turns — open violence, crisis, a clock filling — happen at most once per scene and must be earned by what preceded them. Two consecutive escalation turns are a defect unless the premise is an ongoing battle. A quiet turn MUST still change something concrete; quiet never means static.
    - SENTENCE RHYTHM & DRAMATIC PAUSES: Use rapid sensory motion followed by dramatic single-sentence pauses or punchlines (e.g. "Silence.", "You have seconds."). Never bloat into academic multi-page chapters.
    - SENSORY MICRO-OBSERVATIONS: Weave visceral tactile, auditory, or olfactory details into the prose (the crunch of bone, hiss of burning mana, cold bite of steel, trembling adrenaline).
    - DIALOGUE FRICTION & ECHO: If the player or an adversary speaks, greets, or shouts, dramatize direct spoken dialogue ("...") with biting counter-speech, threat, or stunned silence.
@@ -542,6 +544,7 @@ You MUST respond with a valid JSON object matching this schema:
 - Failure denies the INTENT, never the story. The player's stated goal must NOT be granted, and a failed check must never be narrated as a disguised success.
 - When [PRE-RESOLVED GAME ENGINE OUTCOME] names a Failure Mode and directive, that is BINDING. Depict the primary movement (cost / complication / reveal / reposition / escalation) and any secondary movement it names.
 - Every failure must change the situation concretely: a price paid, a new complication, a revealed fact, a forced change of position, or an advancing threat. The same obstacle may not remain exactly as it was with no new information, pressure, price, or opportunity.
+- PRICED SUCCESS: A success must ALSO change the situation concretely. A clean win that leaves the world exactly as it was — same position, same pressure, no new cost, obligation, or discovery — is FORBIDDEN. Price the win: a resource spent, a debt incurred, a wound taken, time lost, a witness gained, or a door opened that lets something else in. "It worked and nothing changed" is not a scene.
 - Costs must be causal and proportional. HP only for bodily risk. Social/investigative failures cost time, attention, stamina, composure, leverage, or information. NEVER invent a wound, rescuer, hazard, or retroactive fact to justify a cost.
 - At least two offered choices must pursue a genuinely different approach. A static "try again" or a rephrasing of the failed action as the only path is FORBIDDEN.
 - A hard stop is permitted ONLY when the engine marks it as authorized (authored gate or exhausted retries). Then show exactly why the method cannot work, reveal what is required, and offer at least two genuinely different alternatives. Otherwise the protagonist must not remain stuck.
@@ -577,10 +580,12 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
 2. You MUST strictly depict the pre-calculated outcome. Do NOT contradict or alter the mechanical result.
 3. ریتم پرشتاب، جنبشی و ساختار وب‌تونی صحنه (HIGH-CADENCE KINETIC ARCHITECTURE):
    - حجم و طول متن: نثری کوبنده، زنده، گیرا و پرکشش بین ۱۰۰ تا ۲۰۰ کلمه در قالب بندهای کوتاه ۱ تا ۳ جمله‌ای ارائه بده. ریتم روایت باید نفس‌گیر، سریع و بی‌درنگ باشد—از کش دادن، توصیفات فرسایشی منظره و انشای مطول دانشگاهی اکیداً پرهیز کن!
+   - جداکنندهٔ بندها (اجباری): هر بند را با یک خط خالی (دنبالهٔ \\n\\n داخل رشتهٔ JSON که به‌صورت خط خالی نمایش داده می‌شود) از بند بعدی جدا کن. هرگز کل صحنه را یکپارچه و بی‌بند برنگردان. یک نوبت ۱۵۰ کلمه‌ای باید ۳ تا ۵ بند باشد، نه یکی. هر بند ۱ تا ۳ جمله.
    - ساختار ضرباهنگ صحنه:
      * ضربهٔ اول (کنش جنبشی و اصابتِ بلافاصله): صحنه را مستقیماً با خودِ عمل بازیکن، درگیری فیزیکی، طنین برخورد تیغه یا جادو، جهش خون یا پاشیدن گل، و بازخورد جسمانی (تپش نبض، سوزش عضله) آغاز کن.
      * ضربهٔ دوم (بازتاب ضربه و واکنش جهان/شخصیت‌ها): بازتاب فوری دشمن، بهت همراهان یا واکنش محیط به کنش قهرمان را نشان بده.
-     * ضربهٔ سوم (تنگنای فوری و تهدید ثانیه‌ای): وضعیت بحرانی تازه، خطرِ در حال نزدیک شدن یا تعلیقی را رقم بزن که گزینه‌ها بلافاصله بر بستر آن بنشینند.
+     * ضربهٔ سوم (شرط پایان نوبت — تشدید اجباری نیست): نوبت را با تصمیمی که اکنون بر گردن قهرمان است یا پیامدی که در جریان افتاده ببند. تنگنای فیزیکی تازه یا خطر فزاینده یکی از راه‌های مجاز پایان است، نه الزام هر نوبت. تشدید را تنها وقتی رقم بزن که صحنه آن را سزاوار کرده باشد: دشمن تازه، بررسی شکست‌خورده یا پرهزینه، تهدیدی که از پیش برپا شده، یا ساعتی که پیش رفته است.
+   - نوسان تنش (بدون مترونوم): تنش در هر نوبت اجباری نیست. بیشتر نوبت‌ها «نهفته»اند — تهدید هست ولی ضربه نمی‌زند، و در همان حال صحنه باید حرکت کند (حقیقتی آشکار شود، موقعیتی جابه‌جا شود، رابطه‌ای تغییر کند، نخی کاشته شود). نوبت «فعال» یک شمارش معکوس زنده دارد. نوبت «اوج» — خشونت آشکار، بحران، پر شدن یک ساعت — حداکثر یک بار در هر صحنه و تنها با پشتوانهٔ آنچه پیش از آن آمده رخ می‌دهد. دو نوبت تشدید پیاپی نقص است، مگر آنکه پیش‌فرض صحنه نبردی پیوسته باشد. نوبت آرام هم باید چیزی را عینی تغییر دهد؛ آرام هرگز به معنای بی‌حرکت نیست.
    - موسیقی جملات و مکث‌های دراماتیک: از جملات پرشتاب به همراه مکث‌های تک‌جمله‌ای یا تک‌کلمه‌ای غافلگیرکننده (مانند «سکوت.» یا «تنها چند ثانیه فرصت داری.») استفاده کن.
    - ریزمشاهدات حسی ملموس (Sensory Crunch): جزئیات زنده و گزندهٔ حسی (طنین خرد شدن استخوان، جلزولز جادو، سرمای فولاد، لرزش آدرنالین) را در تاروپود متن بنشان.
    - طنین گفتار: دیالوگ‌های مستقیم با علامت «...» باید دارای تنش، اصطکاک و لحن قاطع باشند.
@@ -659,6 +664,7 @@ You MUST respond with a valid JSON object matching this schema:
 - شکست، «قصد» را رد می‌کند، نه داستان را. هدف اعلام‌شدهٔ بازیکن هرگز محقق نمی‌شود و شکست هرگز نباید به‌شکل موفقیت پنهان روایت شود.
 - وقتی [نتیجه محاسباتی موتور بازی] «حالت شکست» و دستور آن را مشخص می‌کند، همان الزام‌آور است. حرکت اصلی (هزینه / پیچیدگی / افشا / جابه‌جایی / تشدید) و هر حرکت ثانویه را در نثر نشان بده.
 - هر شکست باید وضعیت را عینی تغییر دهد: بهای پرداخت‌شده، پیچیدگی تازه، حقیقت آشکارشده، تغییر اجباری موقعیت، یا پیشروی تهدید. همان مانع نمی‌تواند بدون هیچ اطلاعات، فشار، بها یا فرصت تازه‌ای دقیقاً سر جایش بماند.
+- پیروزیِ بهای‌دار: موفقیت هم باید وضعیت را عینی تغییر دهد. پیروزی پاکی که جهان را دقیقاً همان‌گونه که بود رها کند — همان موقعیت، همان فشار، بدون هزینه، تعهد یا کشف تازه — ممنوع است. بهای پیروزی را بپرداز: منبعی مصرف‌شده، دینی بر گردن، زخمی برداشته، زمانی از دست رفته، شاهدی تازه، یا دری که گشوده می‌شود و چیز دیگری را به درون می‌آورد. «کار کرد و هیچ چیز تغییر نکرد» صحنه نیست.
 - هزینه باید علت‌ومعلول و متناسب باشد. کاهش سلامت فقط برای خطر جسمی. شکست اجتماعی/تحقیقی به‌صورت زمان، توجه، استقامت، عزم، اهرم یا اطلاعات هزینه می‌شود. هرگز برای توجیه هزینه، زخم، نجات‌دهنده، خطر یا واقعیتِ از پیش‌وجودنیامده اختراع نکن.
 - دست‌کم دو گزینه باید رویکردی واقعاً متفاوت را دنبال کنند. «دوباره تلاش کن» ثابت یا بازنویسی همان اقدام شکست‌خورده به‌عنوان تنها مسیر ممنوع است.
 - توقف کامل فقط وقتی مجاز است که موتور آن را مجاز اعلام کند (دروازهٔ نویسنده یا تلاش‌های تکراری تمام‌شده). در آن صورت دقیقاً نشان بده چرا این روش کار نمی‌کند، چه چیزی لازم است و دست‌کم دو جایگزین واقعاً متفاوت پیشنهاد بده. در غیر این صورت قهرمان نباید درجا بزند.
@@ -1275,9 +1281,11 @@ Return ONLY a valid JSON object matching this schema:
         `1. STRICT SCENE GROUNDING: Every choice must directly stem from the characters, environment, tension, and dilemma established in the scene prose above.\n` +
         `2. ONLY PRESENT NPCS: Only name characters who are explicitly introduced and physically present in the established prose.\n` +
         `3. NO SECRET LEAKS: Do NOT offer choices that presume or reveal undiscovered secrets or off-screen lore.\n` +
-        `4. VARIED INTENTS: Offer 3 to 4 distinct options (tactical, cautious, conversational/diplomatic, bold).\n` +
-        `5. STAT CALIBRATION: Provide 1-2 diceless options and 1-2 options testing valid stats: [${validStatIds.join(', ')}]. DCs should be reasonable (10-14).\n` +
-        `6. LITERARY PROSE: Clean narrative prose with NO dice tags, roll labels, or parenthetical annotations in the choice text.`
+        `4. VARIED INTENTS: Offer 3 to 4 distinct options. At least one must be an EXIT rather than an attempt: "withdraw" (disengage, retreat, refuse the encounter) or "observe" (wait, watch, gather without acting). Cautious is NOT withdrawal — cautious is a careful attempt at the same objective; withdrawal declines the objective. Other intents are tactical, diplomatic, and bold. Set "style" to one of: tactical, cautious, bold, diplomatic, withdraw, observe.\n` +
+        `5. WITHDRAWAL IS NOT A DEAD END: A withdrawal option must name what leaving buys — time, safety, distance, information, or a plan to return — and the engine will spend that time. Never frame it as an admission of defeat.\n` +
+        `6. THREAT READOUT: When the opposition clearly outclasses the protagonist (an armed patrol, a beast far above their tier, a fortified position), at least one option MUST be a withdrawal or an observation. Never present a choice set in which every option is a doomed assault.\n` +
+        `7. STAT CALIBRATION: Provide 1-2 diceless options and 1-2 options testing valid stats: [${validStatIds.join(', ')}]. DCs should be reasonable (10-14). A withdrawal that nothing is actively pursuing is diceless; a withdrawal from active pursuit may roll.\n` +
+        `8. LITERARY PROSE: Clean narrative prose with NO dice tags, roll labels, or parenthetical annotations in the choice text.`
       );
     } else {
       parts.push(`[عنوان داستان]\n${context.storyTitle || 'داستان'}`);
@@ -1317,9 +1325,11 @@ Return ONLY a valid JSON object matching this schema:
         `۱. انطباق کامل با صحنه: گزینه‌ها باید منحصراً از وضعیت، اشخاص، تنش و عناصر توصیف‌شده در متن فوق مشتق شوند.\n` +
         `۲. تنها اشخاص حاضر: فقط نام اشخاصی را در گزینه‌ها بیاورید که در متن صحنهٔ بالا صریحاً حضور دارند.\n` +
         `۳. منع افشای اسرار: از ارائهٔ گزینه‌هایی که بر اساس اسرار کشف‌نشده یا دانش خارج از صحنه است خودداری کنید.\n` +
-        `۴. تنوع رویکردها: ۳ تا ۴ گزینه با سبک‌های متمایز (هوشمندانه، محتاطانه، گفت‌وگو/دیپلماتیک، جسورانه).\n` +
-        `۵. تعادل تاس: حداقل ۱ گزینه بدون تاس (DICELESS) و گزینه‌های دارای بررسی مهارت بر اساس صفات معتبر ([${validStatIds.join('، ')}] با نام‌های: ${statDescriptors}). درجه سختی معقول (۱۰ تا ۱۴).\n` +
-        `۶. نثر ادبی ناب: از درج هرگونه پرانتز، برچسب بررسی مهارت یا شماره در متن گزینه‌ها خودداری کن. خروجی صرفاً JSON معتبر باشد.`
+        `۴. تنوع رویکردها: ۳ تا ۴ گزینهٔ متمایز بده. دست‌کم یکی از آن‌ها باید «خروج» باشد نه «اقدام»: عقب‌نشینی (رها کردن، کنار کشیدن، رد کردن این رویارویی) یا مشاهده (انتظار، زیر نظر گرفتن، گردآوری اطلاعات بدون درگیر شدن). «محتاطانه» عقب‌نشینی نیست — محتاطانه یعنی تلاش سنجیده برای همان هدف؛ عقب‌نشینی یعنی رد کردن هدف. رویکردهای دیگر: هوشمندانه، گفت‌وگو/دیپلماتیک، جسورانه. مقدار style را یکی از این‌ها بگذار: tactical، cautious، bold، diplomatic، withdraw، observe.\n` +
+        `۵. عقب‌نشینی هرگز بن‌بست نیست: گزینهٔ عقب‌نشینی باید بگوید بازیکن با رفتن چه به دست می‌آورد — زمان، ایمنی، فاصله، اطلاعات، یا نقشه‌ای برای بازگشت — و موتور بازی همان زمان را خرج می‌کند. آن را به‌شکل اعتراف به شکست ارائه نکن.\n` +
+        `۶. سنجش تهدید: وقتی دشمن صحنه آشکارا از قهرمان قوی‌تر است (گزمهٔ مسلح، هیولایی بسیار فراتر از سطح او، موضعی استحکام‌شده)، دست‌کم یک گزینه باید عقب‌نشینی یا مشاهده باشد. هرگز مجموعه‌ای نساز که همهٔ گزینه‌هایش یورشِ محکوم‌به‌شکست باشند.\n` +
+        `۷. تعادل تاس: حداقل ۱ گزینه بدون تاس (DICELESS) و گزینه‌های دارای بررسی مهارت بر اساس صفات معتبر ([${validStatIds.join('، ')}] با نام‌های: ${statDescriptors}). درجه سختی معقول (۱۰ تا ۱۴). عقب‌نشینی‌ای که چیزی او را تعقیب نمی‌کند بدون تاس است؛ عقب‌نشینی از تعقیب فعال می‌تواند تاس بخواهد.\n` +
+        `۸. نثر ادبی ناب: از درج هرگونه پرانتز، برچسب بررسی مهارت یا شماره در متن گزینه‌ها خودداری کن. خروجی صرفاً JSON معتبر باشد.`
       );
     }
 

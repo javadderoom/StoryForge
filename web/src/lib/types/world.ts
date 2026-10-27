@@ -731,6 +731,7 @@ export interface RiverDeltaConfig {
   distributariesCount?: number; // Number of terminal mouths (2 - 6, default: 4)
   islandRoughness?: number; // Organic fractal noise on sediment bars (0..1, default: 0.3)
   sedimentColor?: string; // Silt/sand bank color (e.g. '#ded2b6')
+  showVegetation?: boolean; // Whether to render lush green canopy massing across delta islands (default: true)
 }
 
 export interface DuneFieldConfig {

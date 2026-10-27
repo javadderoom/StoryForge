@@ -3,7 +3,7 @@ import type { CheckResolution } from '@/lib/types/gameplay';
 
 export interface ProseFinding {
   severity: 'error' | 'warning';
-  category: 'resurrection' | 'new_entity' | 'outcome_mismatch' | 'lore_violation' | 'script_leak' | 'stalling' | 'prose_length' | 'condition_conflict';
+  category: 'resurrection' | 'new_entity' | 'outcome_mismatch' | 'lore_violation' | 'script_leak' | 'stalling' | 'prose_length' | 'prose_structure' | 'condition_conflict';
   detail: string;
 }
 

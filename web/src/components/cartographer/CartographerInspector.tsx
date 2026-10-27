@@ -1420,6 +1420,37 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
                         className="w-full accent-cyan-500 cursor-pointer"
                       />
                     </div>
+
+                    {/* Lush Delta Canopy Groves Toggle */}
+                    <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
+                      <span className="text-[11px] text-zinc-400">
+                        {isPersian ? 'پوشش گیاهی و بیشه‌های دلتا' : 'Delta Canopy Groves'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateTerrain(feature.id, {
+                            deltaConfig: {
+                              ...feature.deltaConfig,
+                              showVegetation: !(feature.deltaConfig?.showVegetation ?? true),
+                            },
+                          })
+                        }
+                        className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-all ${
+                          (feature.deltaConfig?.showVegetation ?? true)
+                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+                            : 'bg-zinc-800/50 text-zinc-500 border-zinc-700/50'
+                        }`}
+                      >
+                        {(feature.deltaConfig?.showVegetation ?? true)
+                          ? isPersian
+                            ? 'روشن'
+                            : 'ENABLED'
+                          : isPersian
+                          ? 'خاموش'
+                          : 'DISABLED'}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

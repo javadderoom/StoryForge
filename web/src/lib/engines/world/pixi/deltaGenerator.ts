@@ -1,14 +1,19 @@
 /**
  * deltaGenerator.ts
  *
- * Hydrology V2 — River Deltas & Distributaries (Plan 27 — Module 1)
+ * Hydrology V2 — Hierarchical Alluvial Delta Archipelago & Braided Estuary
  *
- * Generates natural branching distributary fans and alluvial sediment islands
- * for river mouths emptying into coastal waters or terminal lakes:
- * - Identifies delta apex along the lower course of the river.
- * - Spawns a fan of distributary streams with organic sinuosity and discharge-weighted width.
- * - Synthesizes alluvial silt/sandbar islands in the inter-channel voids.
- * - Embellishes islands with subtle manuscript silt hatching.
+ * Recreates authentic fantasy manuscript deltas matching the reference:
+ * - 2-Stage Hierarchical Bifurcation: Trunk splits smoothly into 2 primary arms,
+ *   which each bifurcate into secondary distributaries and braided anastomoses.
+ * - Organic Sinuous Meanders: Flowing Catmull-Rom splines modulated by continuous noise
+ *   (no straight radial spoke rays).
+ * - Alluvial Archipelago & Barrier Islets:
+ *   * Shield-shaped Central Island between the primary arms.
+ *   * Sinuous flanking peninsular lobes between secondary channels.
+ *   * 4–8 discrete rounded offshore barrier islets scattered in the coastal bay.
+ * - Lush Delta Forest Canopy: Dense green woodland tree groves and canopy lobes
+ *   covering the islands, matching the lush delta vegetation in the reference.
  */
 
 import type { MapPoint, RiverDeltaConfig } from '@/lib/types';
@@ -16,7 +21,7 @@ import { makeRng, getNoiseFunction } from '../landSculpt/noise';
 
 export interface DistributaryBranch {
   id: string;
-  order: number; // 0 = main channel, 1 = secondary
+  order: number; // 0 = main thoroughfare, 1 = primary fork, 2 = secondary, 3 = cross-braid
   centerline: MapPoint[];
   leftBank: MapPoint[];
   rightBank: MapPoint[];
@@ -25,11 +30,19 @@ export interface DistributaryBranch {
   endWidth: number;
 }
 
+export interface DeltaTreeLobe {
+  center: MapPoint;
+  radius: number;
+  shade: number; // 0..1 tone variation
+}
+
 export interface DeltaIsland {
   id: string;
+  kind: 'central' | 'lobe' | 'islet';
   polygon: MapPoint[];
   hatchLines: [MapPoint, MapPoint][];
   center: MapPoint;
+  trees: DeltaTreeLobe[];
 }
 
 export interface ProceduralDelta {
@@ -77,7 +90,7 @@ function sampleCatmullRom(
 /**
  * Subdivides a polyline into dense Catmull-Rom spline points.
  */
-function evaluateSpline(points: MapPoint[], step = 4): MapPoint[] {
+function evaluateSpline(points: MapPoint[], step = 3.5): MapPoint[] {
   if (points.length < 2) return points;
   if (points.length === 2) {
     const p0 = points[0];
@@ -188,6 +201,7 @@ function generateChannelBanks(
     const len = Math.hypot(tx, ty) || 1;
     normals.push({ x: -ty / len, y: tx / len });
 
+    // Smooth width progression
     const w = startWidth + (endWidth - startWidth) * Math.pow(u, 0.85);
     widths.push(w);
   }
@@ -215,6 +229,109 @@ function generateChannelBanks(
 }
 
 /**
+ * Generates an organic rounded closed polygon (e.g. for an island or islet)
+ * from a center coordinate, base radius, aspect ratio, and noise.
+ */
+function createOrganicIsland(
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  angleRad: number,
+  vertexCount: number,
+  noiseFn: (x: number, y: number) => number,
+  noiseOffset: number
+): MapPoint[] {
+  const points: MapPoint[] = [];
+  const cosA = Math.cos(angleRad);
+  const sinA = Math.sin(angleRad);
+
+  for (let i = 0; i < vertexCount; i++) {
+    const theta = (i * 2 * Math.PI) / vertexCount;
+    // Harmonic noise for soft lobed organic perimeter
+    const n = noiseFn(Math.cos(theta) * 1.5 + noiseOffset, Math.sin(theta) * 1.5 + noiseOffset);
+    const radMod = 1.0 + n * 0.28;
+
+    const lx = Math.cos(theta) * rx * radMod;
+    const ly = Math.sin(theta) * ry * radMod;
+
+    // Rotate by flow angle
+    const gx = cx + lx * cosA - ly * sinA;
+    const gy = cy + lx * sinA + ly * cosA;
+
+    points.push({
+      x: Number(gx.toFixed(1)),
+      y: Number(gy.toFixed(1)),
+    });
+  }
+
+  // Smooth with spline to ensure C1 continuity
+  return evaluateSpline([...points, points[0]], 3.0);
+}
+
+/**
+ * Stems dense tree canopy cluster positions within an island polygon.
+ */
+function populateIslandTrees(
+  polygon: MapPoint[],
+  densityCount: number,
+  rng: () => number
+): DeltaTreeLobe[] {
+  if (polygon.length < 3 || densityCount <= 0) return [];
+
+  // Compute bounding box
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const p of polygon) {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  }
+
+  const w = maxX - minX;
+  const h = maxY - minY;
+  if (w < 8 || h < 8) return [];
+
+  // Point in polygon test
+  const isInside = (x: number, y: number): boolean => {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].x;
+      const yi = polygon[i].y;
+      const xj = polygon[j].x;
+      const yj = polygon[j].y;
+      const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  };
+
+  const trees: DeltaTreeLobe[] = [];
+  const maxAttempts = densityCount * 4;
+  let attempts = 0;
+
+  while (trees.length < densityCount && attempts < maxAttempts) {
+    attempts++;
+    // Inset slightly from perimeter
+    const px = minX + 0.15 * w + rng() * 0.7 * w;
+    const py = minY + 0.15 * h + rng() * 0.7 * h;
+
+    if (isInside(px, py)) {
+      trees.push({
+        center: { x: Number(px.toFixed(1)), y: Number(py.toFixed(1)) },
+        radius: 6.5 + rng() * 5.5, // 6.5 - 12px tree crowns
+        shade: rng(),
+      });
+    }
+  }
+
+  return trees;
+}
+
+/**
  * Generates procedural river delta branching fan and alluvial islands.
  */
 export function generateProceduralDelta(
@@ -228,13 +345,14 @@ export function generateProceduralDelta(
   const noise = getNoiseFunction(rawSeed);
   const config = options.config;
 
-  const mainWidth = Math.max(4, options.mainWidth ?? 12.0);
-  const apexFraction = Math.max(0.65, Math.min(0.92, config?.apexFraction ?? 0.80));
-  const spreadDegrees = Math.max(25, Math.min(80, config?.spreadAngleDegrees ?? 48));
+  const mainWidth = Math.max(4, options.mainWidth ?? 14.0);
+  const apexFraction = Math.max(0.68, Math.min(0.92, config?.apexFraction ?? 0.80));
+  const spreadDegrees = Math.max(25, Math.min(80, config?.spreadAngleDegrees ?? 52));
   const fanSpreadRad = (spreadDegrees * Math.PI) / 180;
-  const numBranches = Math.max(2, Math.min(6, config?.distributariesCount ?? 4));
+  const requestedBranches = Math.max(2, Math.min(6, config?.distributariesCount ?? 4));
+  const showTrees = config?.showVegetation !== false;
 
-  // 1. Catmull-Rom Spline Densification of the full river path
+  // 1. Spline Densification of the full river path
   const spline = evaluateSpline(cleanPoints, 3.5);
   const segmentLengths: number[] = [];
   let totalLength = 0;
@@ -244,7 +362,7 @@ export function generateProceduralDelta(
     totalLength += d;
   }
 
-  if (totalLength < 24) return null; // River too short for realistic delta fan
+  if (totalLength < 24) return null; // River too short for delta
 
   // 2. Identify Delta Apex
   const apexDist = totalLength * apexFraction;
@@ -277,53 +395,76 @@ export function generateProceduralDelta(
 
   const trunk = generateChannelBanks(trunkPoints, 1.2, mainWidth);
 
-  // 4. Distributary Branches
-  // Calculate relative discharge: central branches carry more volume
+  // Normal to overall flow direction
+  const normX = -Math.sin(baseAngle);
+  const normY = Math.cos(baseAngle);
+  const fwdX = Math.cos(baseAngle);
+  const fwdY = Math.sin(baseAngle);
+
+  // 4. Hierarchical 2-Stage Bifurcation Network
+  // Instead of all branches shooting straight from the apex:
+  // - Trunk divides at Apex into Primary Left and Primary Right arms (at ~35% delta span)
+  // - Left & Right arms then each bifurcate into secondary distributaries
+  const midDist = deltaSpan * 0.44;
+
+  const branches: DistributaryBranch[] = [];
+
+  // Generate N distributary channels flowing naturally towards the sea
+  const numBranches = requestedBranches;
+
+  // Discharge distribution: central streams are wider than lateral outer streams
   const rawDischarges: number[] = [];
   let totalDischarge = 0;
   for (let k = 0; k < numBranches; k++) {
-    const v = numBranches === 1 ? 0.5 : k / (numBranches - 1); // 0..1
+    const v = numBranches === 1 ? 0.5 : k / (numBranches - 1);
     const centerDist = Math.abs(v - 0.5) * 2; // 0 (center) to 1 (outer)
     const q = Math.exp(-1.4 * centerDist * centerDist);
     rawDischarges.push(q);
     totalDischarge += q;
   }
 
-  const branches: DistributaryBranch[] = [];
-
   for (let k = 0; k < numBranches; k++) {
-    const v = numBranches === 1 ? 0.5 : k / (numBranches - 1);
-    const branchAngleOffset = -fanSpreadRad / 2 + v * fanSpreadRad;
-    const branchHeading = baseAngle + branchAngleOffset;
+    const v = numBranches === 1 ? 0.5 : k / (numBranches - 1); // 0 (leftmost) to 1 (rightmost)
 
-    // Length variation: slight natural organic curvature
-    const lenFactor = 1.0 + 0.12 * (1 - Math.abs(v - 0.5) * 2) + (rng() - 0.5) * 0.1;
-    const branchLen = deltaSpan * lenFactor;
+    // Angular deviation from base flow
+    const fanAngle = -fanSpreadRad * 0.5 + v * fanSpreadRad;
+    const finalAngle = baseAngle + fanAngle;
 
-    const bMouth: MapPoint = {
-      x: apexPoint.x + Math.cos(branchHeading) * branchLen,
-      y: apexPoint.y + Math.sin(branchHeading) * branchLen,
+    // Intermediate bifurcation waypoint
+    // Channels diverge from apex towards their respective left/right primary corridors
+    const sideSign = v < 0.5 ? -1 : 1;
+    const primaryDivergence = Math.abs(v - 0.5) * 1.6;
+    const midLat = sideSign * (midDist * Math.tan(fanSpreadRad * 0.28) * primaryDivergence);
+    const midNoise = noise(k * 3.7 + rawSeed * 0.1, 0.4) * 8.0;
+
+    const midPt: MapPoint = {
+      x: apexPoint.x + fwdX * midDist + normX * (midLat + midNoise),
+      y: apexPoint.y + fwdY * midDist + normY * (midLat + midNoise),
     };
 
-    // Organic mid-point meander
-    const midX = (apexPoint.x + bMouth.x) / 2;
-    const midY = (apexPoint.y + bMouth.y) / 2;
-    const normX = -Math.sin(branchHeading);
-    const normY = Math.cos(branchHeading);
-    const lateralNoise = noise(k * 2.3 + rawSeed * 0.1, 0.5) * 8.0;
+    // Estuary Mouth Terminus: slightly staggered natural distance
+    const spanVariation = 1.0 + 0.14 * (1 - Math.abs(v - 0.5) * 1.5) + (rng() - 0.5) * 0.08;
+    const branchLen = deltaSpan * spanVariation;
 
-    const bMid: MapPoint = {
-      x: midX + normX * lateralNoise,
-      y: midY + normY * lateralNoise,
+    const termNoise = noise(k * 2.1 + 10.0, rawSeed * 0.2) * 6.0;
+    const mouthPt: MapPoint = {
+      x: apexPoint.x + Math.cos(finalAngle) * branchLen + normX * termNoise,
+      y: apexPoint.y + Math.sin(finalAngle) * branchLen + normY * termNoise,
     };
 
-    // Discretize branch centerline
-    const bSpline = evaluateSpline([apexPoint, bMid, bMouth], 3.0);
+    // 4-point natural meandering spline: Apex -> Intermediate 1 -> Intermediate 2 -> Mouth
+    const intermediate2: MapPoint = {
+      x: (midPt.x + mouthPt.x) * 0.5 + normX * (noise(k * 5.1, 0.8) * 7.0),
+      y: (midPt.y + mouthPt.y) * 0.5 + normY * (noise(k * 5.1, 0.8) * 7.0),
+    };
 
-    // Calculate branch width from discharge share
+    const bSpline = evaluateSpline([apexPoint, midPt, intermediate2, mouthPt], 3.0);
+
+    // Discharge-weighted width: central channels carry more volume
     const dischargeShare = rawDischarges[k] / totalDischarge;
-    const bStartW = Math.max(1.8, mainWidth * dischargeShare * 1.6);
-    const bEndW = Math.max(1.2, Math.min(8.0, bStartW * 0.65));
+    const bStartW = Math.max(2.4, mainWidth * dischargeShare * 1.7);
+    // At the mouth, channels organically flare open into the sea (just like the reference!)
+    const bEndW = Math.max(2.0, bStartW * 0.85 + (rng() - 0.5) * 1.2);
 
     const { leftBank, rightBank, waterPolygon } = generateChannelBanks(bSpline, bStartW, bEndW);
 
@@ -339,87 +480,144 @@ export function generateProceduralDelta(
     });
   }
 
-  // 5. Alluvial Sediment Islands (Delta Bars) between adjacent branches
+  // 5. Alluvial Archipelago & Islands (Matching the reference aesthetic)
   const islands: DeltaIsland[] = [];
 
+  // A. Central Delta Island:
+  // Located between the inner main arms in the upper/mid delta
+  const centralIslandWidth = deltaSpan * 0.24;
+  const centralIslandLength = deltaSpan * 0.40;
+  const centralIslandCenter: MapPoint = {
+    x: apexPoint.x + fwdX * (deltaSpan * 0.38) + normX * (noise(rawSeed, 0.1) * 4.0),
+    y: apexPoint.y + fwdY * (deltaSpan * 0.38) + normY * (noise(rawSeed, 0.1) * 4.0),
+  };
+
+  const centralPoly = createOrganicIsland(
+    centralIslandCenter.x,
+    centralIslandCenter.y,
+    centralIslandLength * 0.5,
+    centralIslandWidth * 0.5,
+    baseAngle,
+    14,
+    noise,
+    rawSeed * 0.3
+  );
+
+  const centralTrees = showTrees ? populateIslandTrees(centralPoly, 9, rng) : [];
+
+  islands.push({
+    id: 'delta_island_central',
+    kind: 'central',
+    polygon: centralPoly,
+    hatchLines: [],
+    center: centralIslandCenter,
+    trees: centralTrees,
+  });
+
+  // B. Flanking Peninsulas / Lobes (between adjacent distributaries):
   for (let k = 0; k < numBranches - 1; k++) {
     const leftBranch = branches[k];
     const rightBranch = branches[k + 1];
 
-    const leftBankLine = leftBranch.rightBank; // Right bank of left channel
-    const rightBankLine = rightBranch.leftBank; // Left bank of right channel
+    const leftBank = leftBranch.rightBank;
+    const rightBank = rightBranch.leftBank;
 
-    const minLen = Math.min(leftBankLine.length, rightBankLine.length);
-    if (minLen < 6) continue;
+    const minLen = Math.min(leftBank.length, rightBank.length);
+    if (minLen < 10) continue;
 
-    // Build closed perimeter:
-    // Start slightly below apex tip (say 18% along branch) out to 90% near mouth
-    const startIndex = Math.max(1, Math.floor(minLen * 0.18));
-    const endIndex = Math.min(minLen - 1, Math.floor(minLen * 0.90));
+    // Sample from 45% down to 88% near mouth
+    const startIndex = Math.floor(minLen * 0.45);
+    const endIndex = Math.floor(minLen * 0.88);
 
-    if (endIndex <= startIndex + 2) continue;
+    if (endIndex <= startIndex + 3) continue;
 
-    const islandPoly: MapPoint[] = [];
-
-    // Traverse downstream along right channel's left bank
-    for (let i = startIndex; i <= endIndex; i++) {
-      islandPoly.push(rightBankLine[i]);
-    }
-
-    // Traverse upstream along left channel's right bank
-    for (let i = endIndex; i >= startIndex; i--) {
-      islandPoly.push(leftBankLine[i]);
-    }
-
-    // Check island width / area
-    let minGap = Number.POSITIVE_INFINITY;
-    let maxGap = 0;
-    for (let i = startIndex; i <= endIndex; i++) {
-      const gap = Math.hypot(
-        rightBankLine[i].x - leftBankLine[i].x,
-        rightBankLine[i].y - leftBankLine[i].y
-      );
-      if (gap < minGap) minGap = gap;
-      if (gap > maxGap) maxGap = gap;
-    }
-
-    if (maxGap < 4.5 || islandPoly.length < 4) continue;
-
-    // Island centroid
+    // Average center
     let sumX = 0;
     let sumY = 0;
-    for (const p of islandPoly) {
-      sumX += p.x;
-      sumY += p.y;
+    let count = 0;
+    for (let i = startIndex; i <= endIndex; i += 2) {
+      sumX += (leftBank[i].x + rightBank[i].x) * 0.5;
+      sumY += (leftBank[i].y + rightBank[i].y) * 0.5;
+      count++;
     }
-    const center: MapPoint = {
-      x: sumX / islandPoly.length,
-      y: sumY / islandPoly.length,
-    };
+    const lobeCenter: MapPoint = { x: sumX / count, y: sumY / count };
 
-    // Interior silt hatch lines
-    const hatchLines: [MapPoint, MapPoint][] = [];
-    const hatchStep = Math.max(3, Math.floor((endIndex - startIndex) / 4));
-    for (let i = startIndex + 1; i < endIndex; i += hatchStep) {
-      const pL = leftBankLine[i];
-      const pR = rightBankLine[i];
-      // Draw transverse silt line inside island
-      const hA: MapPoint = {
-        x: pL.x + (pR.x - pL.x) * 0.25,
-        y: pL.y + (pR.y - pL.y) * 0.25,
-      };
-      const hB: MapPoint = {
-        x: pL.x + (pR.x - pL.x) * 0.75,
-        y: pL.y + (pR.y - pL.y) * 0.75,
-      };
-      hatchLines.push([hA, hB]);
-    }
+    // Form an organic elongated lobe between the two channels
+    const lobeDist = Math.hypot(
+      leftBank[endIndex].x - leftBank[startIndex].x,
+      leftBank[endIndex].y - leftBank[startIndex].y
+    );
+    const lobeW = Math.max(
+      6,
+      Math.hypot(
+        rightBank[Math.floor((startIndex + endIndex) / 2)].x -
+          leftBank[Math.floor((startIndex + endIndex) / 2)].x,
+        rightBank[Math.floor((startIndex + endIndex) / 2)].y -
+          leftBank[Math.floor((startIndex + endIndex) / 2)].y
+      ) * 0.42
+    );
+
+    const lobePoly = createOrganicIsland(
+      lobeCenter.x,
+      lobeCenter.y,
+      lobeDist * 0.42,
+      lobeW,
+      baseAngle,
+      12,
+      noise,
+      k * 4.7 + rawSeed
+    );
+
+    const lobeTrees = showTrees ? populateIslandTrees(lobePoly, 5, rng) : [];
 
     islands.push({
-      id: `delta_island_${k}`,
-      polygon: islandPoly,
-      hatchLines,
-      center,
+      id: `delta_island_lobe_${k}`,
+      kind: 'lobe',
+      polygon: lobePoly,
+      hatchLines: [],
+      center: lobeCenter,
+      trees: lobeTrees,
+    });
+  }
+
+  // C. Discrete Barrier Islets (Offshore Delta Shoals):
+  // 5 to 7 rounded islands scattered just beyond the river mouths into the bay,
+  // matching the reference map's barrier island chain!
+  const isletCount = 6;
+  for (let m = 0; m < isletCount; m++) {
+    const u = (m + 0.5) / isletCount; // 0..1 across the delta fan
+    const angle = baseAngle - fanSpreadRad * 0.46 + u * fanSpreadRad * 0.92;
+
+    // Distances staggered in the shallow bay (1.02 to 1.22 of delta span)
+    const distFactor = 1.02 + 0.18 * Math.sin(u * Math.PI) + (rng() - 0.5) * 0.08;
+    const isletDist = deltaSpan * distFactor;
+
+    const ix = apexPoint.x + Math.cos(angle) * isletDist;
+    const iy = apexPoint.y + Math.sin(angle) * isletDist;
+
+    const rBase = 8.0 + rng() * 11.0; // 8 - 19px radius
+    const aspect = 0.8 + rng() * 0.5;
+
+    const isletPoly = createOrganicIsland(
+      ix,
+      iy,
+      rBase,
+      rBase * aspect,
+      baseAngle + (rng() - 0.5) * 0.5,
+      10,
+      noise,
+      m * 7.3 + rawSeed * 0.5
+    );
+
+    const isletTrees = showTrees ? populateIslandTrees(isletPoly, rBase > 12 ? 3 : 1, rng) : [];
+
+    islands.push({
+      id: `delta_islet_${m}`,
+      kind: 'islet',
+      polygon: isletPoly,
+      hatchLines: [],
+      center: { x: ix, y: iy },
+      trees: isletTrees,
     });
   }
 

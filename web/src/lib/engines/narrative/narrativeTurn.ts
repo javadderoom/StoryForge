@@ -1,5 +1,6 @@
 import { PromptAssembler } from './PromptAssembler';
 import { validateProse, buildProseRepairInstruction, ProseFinding } from './ProseValidator';
+import { normalizeParagraphs } from './proseParagraphs';
 import { buildWorldContextBlocks, resolveAccompanyingIds, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatTraitsForContext, formatItemInteractionsCatalogForContext } from './worldContext';
 import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
 import { travelProgress, travelTimeline, type TravelProgress } from '@/lib/engines/game/travelEngine';
@@ -728,6 +729,11 @@ export async function generateValidatedScene(
       usedAuthoredBeat: false, raw, proseInvalidReason: 'unrepairable',
     };
   }
+  // Structural repair, deliberately after validation and before persistence:
+  // paragraph breaks are presentational, so a missing blank line must never
+  // burn a repair round-trip. The validator already recorded how often the
+  // model ignored the instruction (category 'prose_structure').
+  candidate.narrative = normalizeParagraphs(candidate.narrative);
   // Keep prose, choices and extracted memories from the same validated draft.
   Object.assign(aiResponse, candidate);
   const proseFindings = check.findings;

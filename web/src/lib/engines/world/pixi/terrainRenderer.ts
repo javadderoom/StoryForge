@@ -995,15 +995,25 @@ export function renderProceduralRiverToGraphics(g: Graphics, river: ProceduralRi
       }
     }
 
-    // 3. Alluvial Sediment Islands (Silt & Sandbar Bars)
+    // 3. Alluvial Sediment Islands & Archipelago (Lush Green Delta Lobes)
     for (const island of delta.islands) {
       if (island.polygon.length >= 3) {
-        g.poly(toFlatPoints(island.polygon)).fill({
-          color: VINTAGE_PARCHMENT.sandbarFill,
-          alpha: 0.95,
+        const flatPts = toFlatPoints(island.polygon);
+        // Base land parchment fill (matches mainland terrain)
+        g.poly(flatPts).fill({
+          color: VINTAGE_PARCHMENT.landFill,
+          alpha: 1.0,
         });
-        g.poly(toFlatPoints(island.polygon)).stroke({
-          width: 1.1,
+
+        // Fertile delta wetland wash overlay (soft olive-green tint)
+        g.poly(flatPts).fill({
+          color: VINTAGE_PARCHMENT.biomeForest,
+          alpha: island.kind === 'islet' ? 0.38 : 0.28,
+        });
+
+        // Inked coastline outline
+        g.poly(flatPts).stroke({
+          width: island.kind === 'islet' ? 1.0 : 1.25,
           color: VINTAGE_PARCHMENT.coastlineInk,
         });
       }
@@ -1018,6 +1028,26 @@ export function renderProceduralRiverToGraphics(g: Graphics, river: ProceduralRi
           color: VINTAGE_PARCHMENT.coastlineHatch,
           alpha: 0.55,
         });
+      }
+
+      // 3b. Lush Delta Tree Canopy Groves (matching the reference!)
+      if (island.trees && island.trees.length > 0) {
+        for (const tree of island.trees) {
+          const treeGreen = 0x425832; // Rich woodland olive green
+          const highlightGreen = 0x6e8e54; // Sunlit northwest crown rim
+          const shadowInk = 0x24331a; // Dark shadow outline
+
+          // Base tree crown dome
+          g.circle(tree.center.x, tree.center.y, tree.radius)
+            .fill({ color: treeGreen, alpha: 0.92 })
+            .stroke({ color: shadowInk, width: 0.75, alpha: 0.85 });
+
+          // Northwest sunlit highlight crescent
+          const hlX = tree.center.x - tree.radius * 0.25;
+          const hlY = tree.center.y - tree.radius * 0.25;
+          g.circle(hlX, hlY, tree.radius * 0.55)
+            .fill({ color: highlightGreen, alpha: 0.65 });
+        }
       }
     }
 
