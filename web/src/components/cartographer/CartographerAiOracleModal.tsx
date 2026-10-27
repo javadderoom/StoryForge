@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { WorldBible, WorldTradeRoute, MapTerrainFeature } from '@/lib/types';
 import { notify } from '@/lib/notify';
+import { FloatingPanel } from './canvas/FloatingPanel';
 
 interface CartographerAiOracleModalProps {
   worldBible: WorldBible;
@@ -144,10 +145,19 @@ export const CartographerAiOracleModal: React.FC<CartographerAiOracleModalProps>
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm select-none animate-fadeIn">
-      <div className="w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-3xl p-6 shadow-2xl flex flex-col gap-5">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+    <FloatingPanel
+      variant="centered"
+      theme="plain"
+      width={512}
+      backdrop
+      backdropClassName="bg-black/80 backdrop-blur-sm animate-fadeIn"
+      onClose={onClose}
+      dir={isPersian ? 'rtl' : 'ltr'}
+      ariaLabel={isPersian ? 'نقشه‌نگار هوشمند' : 'AI Cartographer Oracle'}
+      className="rounded-3xl border border-zinc-800 bg-zinc-950"
+      bodyClassName="flex flex-col gap-5 px-6 py-5"
+      header={
+        <div className="flex items-center justify-between border-b border-zinc-800/80 px-6 pb-3 pt-6">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-violet-500/10 border border-violet-500/30 flex items-center justify-center text-violet-400">
               <Sparkles className="w-4.5 h-4.5" />
@@ -168,8 +178,31 @@ export const CartographerAiOracleModal: React.FC<CartographerAiOracleModalProps>
             <X className="w-4 h-4" />
           </button>
         </div>
-
-        {/* Mode Selector */}
+      }
+      footer={
+        <div className="flex items-center justify-end gap-2.5 border-t border-zinc-800/80 px-6 pb-6 pt-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 transition-colors"
+          >
+            {isPersian ? 'انصراف' : 'Cancel'}
+          </button>
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-violet-950/50 transition-all disabled:opacity-50"
+          >
+            {isGenerating ? (
+              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Wand2 className="w-3.5 h-3.5" />
+            )}
+            <span>{isGenerating ? (isPersian ? 'در حال پردازش...' : 'Synthesizing...') : (isPersian ? 'تولید و اعمال روی نقشه' : 'Generate & Apply')}</span>
+          </button>
+        </div>
+      }
+    >
+      {/* Mode Selector */}
         <div className="grid grid-cols-2 gap-2 text-xs">
           <button
             onClick={() => setSelectedPromptMode('trade_network')}
@@ -227,29 +260,6 @@ export const CartographerAiOracleModal: React.FC<CartographerAiOracleModalProps>
             className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500/50"
           />
         </div>
-
-        {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-zinc-800/80">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 transition-colors"
-          >
-            {isPersian ? 'انصراف' : 'Cancel'}
-          </button>
-          <button
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-violet-950/50 transition-all disabled:opacity-50"
-          >
-            {isGenerating ? (
-              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Wand2 className="w-3.5 h-3.5" />
-            )}
-            <span>{isGenerating ? (isPersian ? 'در حال پردازش...' : 'Synthesizing...') : (isPersian ? 'تولید و اعمال روی نقشه' : 'Generate & Apply')}</span>
-          </button>
-        </div>
-      </div>
-    </div>
+    </FloatingPanel>
   );
 };

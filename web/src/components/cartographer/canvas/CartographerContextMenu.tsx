@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   EnvironmentalContext,
 } from '@/lib/engines/world/environmentalContext';
 import { WorldBible, MapEntityPlacement, Faction } from '@/lib/types/world';
 import { notify } from '@/lib/notify';
+import { FloatingPanel } from './FloatingPanel';
 import {
   Sparkles,
   User,
@@ -67,7 +68,6 @@ export function CartographerContextMenu({
   onAskOracle,
   onAddGeneratedElement,
 }: CartographerContextMenuProps) {
-  const menuRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState<MenuSection>(initialSection ?? 'main');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStatus, setGenerationStatus] = useState<string>('');
@@ -97,47 +97,6 @@ export function CartographerContextMenu({
 
   // Custom prompt
   const [customPrompt, setCustomPrompt] = useState<string>('');
-
-  // Adjust menu position so it stays within viewport
-  const [adjustedPos, setAdjustedPos] = useState({ left: x, top: y });
-
-  useEffect(() => {
-    if (!menuRef.current) return;
-    const rect = menuRef.current.getBoundingClientRect();
-    const padding = 12;
-    let left = x;
-    let top = y;
-
-    if (left + rect.width > window.innerWidth - padding) {
-      left = window.innerWidth - rect.width - padding;
-    }
-    if (top + rect.height > window.innerHeight - padding) {
-      top = window.innerHeight - rect.height - padding;
-    }
-    left = Math.max(padding, left);
-    top = Math.max(padding, top);
-
-    setAdjustedPos({ left, top });
-  }, [x, y, activeSection]);
-
-  // Close on outside click or escape
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    const handlePointerDown = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('mousedown', handlePointerDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('mousedown', handlePointerDown);
-    };
-  }, [onClose]);
 
   const handleGenerate = async (
     entityType: 'beast' | 'npc' | 'story_event' | 'timeline' | 'artifact' | 'settlement',
@@ -199,16 +158,17 @@ export function CartographerContextMenu({
   const ArrowIcon = isPersian ? ChevronLeft : ChevronRight;
 
   return (
-    <div
-      ref={menuRef}
+    <FloatingPanel
+      anchor={{ x, y }}
+      width={320}
+      onClose={onClose}
       dir={isPersian ? 'rtl' : 'ltr'}
-      style={{ left: adjustedPos.left, top: adjustedPos.top }}
-      className={`fixed z-50 w-80 max-h-[85vh] flex flex-col bg-[#1a1410]/95 backdrop-blur-md border border-[#4a392a] text-[#eedec8] rounded-xl shadow-2xl overflow-hidden text-xs select-none animate-in fade-in zoom-in-95 duration-100 ${
-        isPersian ? 'font-[Vazirmatn]' : ''
-      }`}
-    >
-      {/* Header: Environment Badge */}
-      <div className="bg-[#241c16] border-b border-[#3d2f23] p-2.5 flex flex-col gap-1">
+      ariaLabel={isPersian ? 'منوی نقشه' : 'Map menu'}
+      className={`animate-in fade-in zoom-in-95 duration-100 ${isPersian ? 'font-[Vazirmatn]' : ''}`}
+      header={
+        <>
+          {/* Header: Environment Badge */}
+          <div className="shrink-0 bg-[#241c16] border-b border-[#3d2f23] p-2.5 flex flex-col gap-1">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 font-semibold text-[#f1d6b0] text-[13px] truncate">
             <span>{environmentalContext.biomeEmoji}</span>
@@ -293,7 +253,9 @@ export function CartographerContextMenu({
           </div>
         </div>
       )}
-
+        </>
+      }
+    >
       {/* Generation Loading Overlay */}
       {isGenerating ? (
         <div className="p-6 flex flex-col items-center justify-center gap-3 text-center bg-[#18130f]">
@@ -306,7 +268,7 @@ export function CartographerContextMenu({
           </p>
         </div>
       ) : (
-        <div className="overflow-y-auto max-h-[60vh] p-1.5 flex flex-col gap-1">
+        <div className="p-1.5 flex flex-col gap-1">
           {/* MAIN MENU */}
           {activeSection === 'main' && (
             <>
@@ -1098,6 +1060,6 @@ export function CartographerContextMenu({
           )}
         </div>
       )}
-    </div>
+    </FloatingPanel>
   );
 }
