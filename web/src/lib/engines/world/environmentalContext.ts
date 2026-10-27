@@ -24,12 +24,14 @@ export interface NearestSettlementInfo {
   distanceKm: number;
   distancePx: number;
   cardinalDirection: string; // e.g. "North", "South-East"
+  cardinalDirectionFa: string; // e.g. "شمال", "جنوب‌شرقی"
 }
 
 export interface EnvironmentalContext {
   point: MapPoint;
   biome: string;
   biomeLabel: string;
+  biomeLabelFa: string;
   biomeEmoji: string;
   featureName?: string;
   matchedFeature?: MapTerrainFeature;
@@ -39,6 +41,7 @@ export interface EnvironmentalContext {
   nearbyFeatures: string[];
   nearestSettlement: NearestSettlementInfo | null;
   badgeText: string;
+  badgeTextFa: string;
   promptContext: string;
 }
 
@@ -69,31 +72,34 @@ const BIOME_SPECIFICITY_RANK: Record<string, number> = {
   continent: 0,
 };
 
-const BIOME_META: Record<string, { label: string; emoji: string; defaultElevation: number; isWater: boolean }> = {
-  desert: { label: 'Arid Desert & Sand Dunes', emoji: '🌵', defaultElevation: 250, isWater: false },
-  oasis: { label: 'Fertile Oasis & Springs', emoji: '🌴', defaultElevation: 220, isWater: false },
-  salt_pan: { label: 'Crusted Salt Pan & Playa', emoji: '🧂', defaultElevation: 180, isWater: false },
-  forest: { label: 'Dense Canopy Woodland', emoji: '🌲', defaultElevation: 300, isWater: false },
-  jungle: { label: 'Primeval Tropical Rainforest', emoji: '🌿', defaultElevation: 150, isWater: false },
-  mountain_range: { label: 'Rugged Mountain Peaks', emoji: '🏔️', defaultElevation: 2100, isWater: false },
-  peak: { label: 'Alpine Summit', emoji: '⛰️', defaultElevation: 3400, isWater: false },
-  volcano: { label: 'Smoldering Volcanic Crag', emoji: '🌋', defaultElevation: 2800, isWater: false },
-  highland: { label: 'Windswept Highland Steppe', emoji: '🌾', defaultElevation: 950, isWater: false },
-  plateau: { label: 'Elevated Tableland', emoji: '🪨', defaultElevation: 1100, isWater: false },
-  valley: { label: 'Sheltered River Valley', emoji: '🏞️', defaultElevation: 120, isWater: false },
-  canyon: { label: 'Sunken Rocky Gorge', emoji: '🏜️', defaultElevation: 80, isWater: false },
-  chasm: { label: 'Abyssal Chasm', emoji: '🕳️', defaultElevation: -100, isWater: false },
-  tundra: { label: 'Glacial Tundra & Permafrost', emoji: '❄️', defaultElevation: 400, isWater: false },
-  swamp: { label: 'Mist-Veiled Mire & Bog', emoji: '🐊', defaultElevation: 30, isWater: false },
-  wasteland: { label: 'Scorched Ash Wasteland', emoji: '💀', defaultElevation: 200, isWater: false },
-  arcane_anomaly: { label: 'Aetheric Anomaly & Ley Tear', emoji: '🔮', defaultElevation: 500, isWater: false },
-  plains: { label: 'Rolling Grasslands & Savanna', emoji: '🌾', defaultElevation: 150, isWater: false },
-  river: { label: 'Freshwater Riverbank', emoji: '💧', defaultElevation: 60, isWater: true },
-  lake: { label: 'Freshwater Inland Lake', emoji: '🛶', defaultElevation: 90, isWater: true },
-  sea: { label: 'Coastal Sea & Bay', emoji: '🌊', defaultElevation: 0, isWater: true },
-  ocean: { label: 'Open Ocean Depths', emoji: '🌊', defaultElevation: -50, isWater: true },
-  island: { label: 'Secluded Offshore Islet', emoji: '🏝️', defaultElevation: 80, isWater: false },
-  continent: { label: 'Mainland Terrestrial Realm', emoji: '🗺️', defaultElevation: 200, isWater: false },
+const BIOME_META: Record<
+  string,
+  { label: string; labelFa: string; emoji: string; defaultElevation: number; isWater: boolean }
+> = {
+  desert: { label: 'Arid Desert & Sand Dunes', labelFa: 'کویر و ریگزار خشک', emoji: '🌵', defaultElevation: 250, isWater: false },
+  oasis: { label: 'Fertile Oasis & Springs', labelFa: 'واحه سرسبز و چشمه‌سار', emoji: '🌴', defaultElevation: 220, isWater: false },
+  salt_pan: { label: 'Crusted Salt Pan & Playa', labelFa: 'کویر نمک و دق بلورین', emoji: '🧂', defaultElevation: 180, isWater: false },
+  forest: { label: 'Dense Canopy Woodland', labelFa: 'جنگل انبوه کهنسال', emoji: '🌲', defaultElevation: 300, isWater: false },
+  jungle: { label: 'Primeval Tropical Rainforest', labelFa: 'جنگل بارانی و بیشه گرمسیری', emoji: '🌿', defaultElevation: 150, isWater: false },
+  mountain_range: { label: 'Rugged Mountain Peaks', labelFa: 'رشته‌کوه‌های ناهموار', emoji: '🏔️', defaultElevation: 2100, isWater: false },
+  peak: { label: 'Alpine Summit', labelFa: 'قله مرتفع سپیدپوش', emoji: '⛰️', defaultElevation: 3400, isWater: false },
+  volcano: { label: 'Smoldering Volcanic Crag', labelFa: 'کوه آتشفشانی خروشان', emoji: '🌋', defaultElevation: 2800, isWater: false },
+  highland: { label: 'Windswept Highland Steppe', labelFa: 'استپ کوهپایه‌ای و فلات', emoji: '🌾', defaultElevation: 950, isWater: false },
+  plateau: { label: 'Elevated Tableland', labelFa: 'تخت‌کوه و فلات سنگی', emoji: '🪨', defaultElevation: 1100, isWater: false },
+  valley: { label: 'Sheltered River Valley', labelFa: 'دره سرسبز و پناه‌یافته', emoji: '🏞️', defaultElevation: 120, isWater: false },
+  canyon: { label: 'Sunken Rocky Gorge', labelFa: 'تنگه و ژرف‌دره صخره‌ای', emoji: '🏜️', defaultElevation: 80, isWater: false },
+  chasm: { label: 'Abyssal Chasm', labelFa: 'شکاف عمیق و پرتگاه مهیب', emoji: '🕳️', defaultElevation: -100, isWater: false },
+  tundra: { label: 'Glacial Tundra & Permafrost', labelFa: 'توندرا و دشت یخبندان', emoji: '❄️', defaultElevation: 400, isWater: false },
+  swamp: { label: 'Mist-Veiled Mire & Bog', labelFa: 'مرداب مه‌آلود و باتلاق', emoji: '🐊', defaultElevation: 30, isWater: false },
+  wasteland: { label: 'Scorched Ash Wasteland', labelFa: 'برهوت خاکستر و ویرانی', emoji: '💀', defaultElevation: 200, isWater: false },
+  arcane_anomaly: { label: 'Aetheric Anomaly & Ley Tear', labelFa: 'ناهنجاری اثیری و شکاف مانا', emoji: '🔮', defaultElevation: 500, isWater: false },
+  plains: { label: 'Rolling Grasslands & Savanna', labelFa: 'دشت فراخ و علفزار', emoji: '🌾', defaultElevation: 150, isWater: false },
+  river: { label: 'Freshwater Riverbank', labelFa: 'کرانه رود زلال', emoji: '💧', defaultElevation: 60, isWater: true },
+  lake: { label: 'Freshwater Inland Lake', labelFa: 'دریاچه آب شیرین', emoji: '🛶', defaultElevation: 90, isWater: true },
+  sea: { label: 'Coastal Sea & Bay', labelFa: 'دریای ساحلی و خلیج', emoji: '🌊', defaultElevation: 0, isWater: true },
+  ocean: { label: 'Open Ocean Depths', labelFa: 'اعماق اقیانوس بیکران', emoji: '🌊', defaultElevation: -50, isWater: true },
+  island: { label: 'Secluded Offshore Islet', labelFa: 'جزیره منزوی دوردست', emoji: '🏝️', defaultElevation: 80, isWater: false },
+  continent: { label: 'Mainland Terrestrial Realm', labelFa: 'سرزمین پهناور قاره‌ای', emoji: '🗺️', defaultElevation: 200, isWater: false },
 };
 
 function polygonArea(ring: MapPoint[]): number {
@@ -105,20 +111,20 @@ function polygonArea(ring: MapPoint[]): number {
   return Math.abs(area / 2);
 }
 
-function calculateCardinalDirection(origin: MapPoint, target: MapPoint): string {
+function calculateCardinalDirection(origin: MapPoint, target: MapPoint): { en: string; fa: string } {
   // In canvas coords, y goes down, so target.y > origin.y is South
   const dx = target.x - origin.x;
   const dy = target.y - origin.y;
   const deg = (Math.atan2(dy, dx) * 180) / Math.PI;
 
-  if (deg >= -22.5 && deg < 22.5) return 'East';
-  if (deg >= 22.5 && deg < 67.5) return 'South-East';
-  if (deg >= 67.5 && deg < 112.5) return 'South';
-  if (deg >= 112.5 && deg < 157.5) return 'South-West';
-  if (deg >= 157.5 || deg < -157.5) return 'West';
-  if (deg >= -157.5 && deg < -112.5) return 'North-West';
-  if (deg >= -112.5 && deg < -67.5) return 'North';
-  return 'North-East';
+  if (deg >= -22.5 && deg < 22.5) return { en: 'East', fa: 'خاور (شرق)' };
+  if (deg >= 22.5 && deg < 67.5) return { en: 'South-East', fa: 'جنوب‌شرقی' };
+  if (deg >= 67.5 && deg < 112.5) return { en: 'South', fa: 'جنوب' };
+  if (deg >= 112.5 && deg < 157.5) return { en: 'South-West', fa: 'جنوب‌غربی' };
+  if (deg >= 157.5 || deg < -157.5) return { en: 'West', fa: 'باختر (غرب)' };
+  if (deg >= -157.5 && deg < -112.5) return { en: 'North-West', fa: 'شمال‌غربی' };
+  if (deg >= -112.5 && deg < -67.5) return { en: 'North', fa: 'شمال' };
+  return { en: 'North-East', fa: 'شمال‌شرقی' };
 }
 
 export function extractEnvironmentalContext(
@@ -172,7 +178,7 @@ export function extractEnvironmentalContext(
       if (dist <= PROXIMITY_THRESHOLD_PX) {
         const featName = feature.name || feature.type.replace('_', ' ');
         nearbyFeatures.push(`${featName} (~${Math.round(dist * kmPerSpatialUnit)}km)`);
-        // If we are right beside a river (<15px) and not already inside a high-priority feature, riverbank context applies
+        // If we are right beside a river (<18px) and not already inside a high-priority feature, riverbank context applies
         if (feature.type === 'river' && dist < 18 && (!matchedFeature || (BIOME_SPECIFICITY_RANK[matchedFeature.type] ?? 0) < 3)) {
           matchedFeature = feature;
         }
@@ -195,6 +201,7 @@ export function extractEnvironmentalContext(
   const biomeKey = matchedFeature?.type ?? 'plains';
   const meta = BIOME_META[biomeKey] ?? {
     label: biomeKey.replace(/_/g, ' '),
+    labelFa: biomeKey.replace(/_/g, ' '),
     emoji: '🧭',
     defaultElevation: 150,
     isWater: false,
@@ -223,18 +230,25 @@ export function extractEnvironmentalContext(
         name: loc.name,
         distanceKm: distKm,
         distancePx: Math.round(distPx),
-        cardinalDirection: direction,
+        cardinalDirection: direction.en,
+        cardinalDirectionFa: direction.fa,
       };
     }
   }
 
-  // 5. Build UI badge text
+  // 5. Build UI badge text (English and Persian)
   const featureTitle = matchedFeature?.name ? matchedFeature.name : meta.label;
+  const featureTitleFa = matchedFeature?.name ? matchedFeature.name : meta.labelFa;
+
   let badgeText = `${meta.emoji} ${featureTitle}`;
+  let badgeTextFa = `${meta.emoji} ${featureTitleFa}`;
+
   if (nearestSettlement) {
     badgeText += ` • ${nearestSettlement.distanceKm}km ${nearestSettlement.cardinalDirection} of ${nearestSettlement.name}`;
+    badgeTextFa += ` • \u200E${nearestSettlement.distanceKm} کیلومتری ${nearestSettlement.cardinalDirectionFa} از ${nearestSettlement.name}`;
   } else {
     badgeText += ` • Elevation ${elevation}m`;
+    badgeTextFa += ` • ارتفاع \u200E${elevation} متر`;
   }
 
   // 6. Build LLM prompt injection context
@@ -268,6 +282,7 @@ export function extractEnvironmentalContext(
     point,
     biome: biomeKey,
     biomeLabel: meta.label,
+    biomeLabelFa: meta.labelFa,
     biomeEmoji: meta.emoji,
     featureName: matchedFeature?.name,
     matchedFeature,
@@ -277,6 +292,7 @@ export function extractEnvironmentalContext(
     nearbyFeatures,
     nearestSettlement,
     badgeText,
+    badgeTextFa,
     promptContext,
   };
 }
