@@ -79,6 +79,8 @@ interface CartographerInspectorProps {
   onClose: () => void;
   onUpdateLocation: (id: string, updated: Partial<WorldLocation>) => void;
   onDeleteLocation: (id: string) => void;
+  onToggleLocationVisibility?: (id: string) => void;
+  onToggleLocationLock?: (id: string) => void;
   onUpdateTradeRoute: (id: string, updated: Partial<WorldTradeRoute>) => void;
   onDeleteTradeRoute: (id: string) => void;
   onUpdateTerrain: (id: string, updated: Partial<MapTerrainFeature>) => void;
@@ -137,6 +139,8 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
   onClose,
   onUpdateLocation,
   onDeleteLocation,
+  onToggleLocationVisibility,
+  onToggleLocationLock,
   onUpdateTradeRoute,
   onDeleteTradeRoute,
   onUpdateTerrain,
@@ -263,6 +267,40 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
                 onChange={(e) => onUpdateLocation(loc.id, { name: e.target.value })}
                 className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500/50"
               />
+            </div>
+
+            {/* Per-object layer controls */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onToggleLocationVisibility?.(loc.id)}
+                title={isPersian ? 'نمایش یا پنهان‌سازی' : 'Show or hide'}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-medium border transition-all ${
+                  loc.visible === false
+                    ? 'bg-zinc-900/60 border-zinc-800 text-zinc-500'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                }`}
+              >
+                {loc.visible === false ? (
+                  <EyeOff className="w-3.5 h-3.5" />
+                ) : (
+                  <Eye className="w-3.5 h-3.5" />
+                )}
+                <span>{isPersian ? 'نمایش' : 'Visible'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onToggleLocationLock?.(loc.id)}
+                title={isPersian ? 'قفل کردن' : 'Lock or unlock'}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-medium border transition-all ${
+                  loc.locked
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                    : 'bg-zinc-900/60 border-zinc-800 text-zinc-500'
+                }`}
+              >
+                {loc.locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                <span>{isPersian ? 'قفل' : 'Lock'}</span>
+              </button>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -410,11 +448,11 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
                             <button
                               key={candidate.feature.id}
                               onClick={() => {
-                                onUpdateTerrain(candidate.feature.id, { locationId: loc.id });
+                                onUpdateTerrain(candidate.feature.id, { locationId: loc.id, name: loc.name });
                                 notify.success(
                                   isPersian
-                                    ? `عارضه «${candidate.feature.name}» به این مکان متصل شد`
-                                    : `"${candidate.feature.name}" linked to this place`
+                                    ? `عارضه «${loc.name}» به این مکان متصل شد`
+                                    : `"${loc.name}" linked to this place`
                                 );
                                 setCandidatePickerLocationId(null);
                               }}
@@ -1193,9 +1231,14 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
               </label>
               <select
                 value={feature.locationId || ''}
-                onChange={(e) =>
-                  onUpdateTerrain(feature.id, { locationId: e.target.value || undefined })
-                }
+                onChange={(e) => {
+                  const targetLocId = e.target.value || undefined;
+                  const targetLoc = targetLocId ? locations.find((l) => l.id === targetLocId) : undefined;
+                  onUpdateTerrain(feature.id, {
+                    locationId: targetLocId,
+                    ...(targetLoc ? { name: targetLoc.name } : {}),
+                  });
+                }}
                 className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500/50 cursor-pointer"
               >
                 <option value="">{isPersian ? 'بدون مکان روایی' : 'No narrative place'}</option>

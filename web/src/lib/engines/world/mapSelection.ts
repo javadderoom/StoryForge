@@ -566,10 +566,6 @@ export function translateMapObjects(
   const routeIds = new Set(refs.filter((r) => r.kind === 'trade_route').map((r) => r.id));
   const mapRouteIds = new Set(refs.filter((r) => r.kind === 'route').map((r) => r.id));
 
-  // Plan 24: moving a non-point place means moving the terrain that draws it.
-  // The place has no pin of its own; translating its coordinates instead would
-  // leave the label behind. A non-point place with no linked terrain still has
-  // a label anchored to its own coordinates, so that fallback keeps moving.
   const selectedNonPointLocationIds = new Set(
     locations
       .filter(
@@ -579,6 +575,8 @@ export function translateMapObjects(
       )
       .map((location) => location.id)
   );
+
+  // Terrain features whose linked non-point place is being moved:
   const linkedTerrainIds = new Set(
     terrainFeatures
       .filter(
@@ -587,12 +585,15 @@ export function translateMapObjects(
       )
       .map((feature) => feature.id)
   );
-  const movedTerrainIds = new Set([...terrainIds, ...linkedTerrainIds]);
-  const linkedPlaceIds = new Set(
+
+  // Locations whose linked terrain is being moved:
+  const linkedLocationsOfMovedTerrain = new Set(
     terrainFeatures
-      .map((feature) => feature.locationId)
-      .filter((id): id is string => Boolean(id))
+      .filter((f) => terrainIds.has(f.id) && Boolean(f.locationId))
+      .map((f) => f.locationId!)
   );
+
+  const movedTerrainIds = new Set([...terrainIds, ...linkedTerrainIds]);
 
   return {
     terrainFeatures: terrainFeatures.map((feature) =>
@@ -601,12 +602,25 @@ export function translateMapObjects(
     placements: (source.placements ?? []).map((placement) =>
       placementIds.has(placement.id) ? translatePlacement(placement, dx, dy) : placement
     ),
-    locations: locations.map((location) =>
-      locationIds.has(location.id) &&
-      !(selectedNonPointLocationIds.has(location.id) && linkedPlaceIds.has(location.id))
-        ? translateLocation(location, dx, dy)
-        : location
-    ),
+    locations: locations.map((location) => {
+      const isSelected = locationIds.has(location.id);
+      const isLinkedToMovedTerrain = linkedLocationsOfMovedTerrain.has(location.id);
+      const isNonPointWithTerrain =
+        selectedNonPointLocationIds.has(location.id) &&
+        terrainFeatures.some((f) => f.locationId === location.id);
+
+      // If it's a non-point place with linked terrain, keep coordinates untouched (Plan 24 anchor)
+      if (isSelected && isNonPointWithTerrain) {
+        return location;
+      }
+
+      // If selected directly or linked to moved terrain (point places), translate coordinates
+      if (isSelected || (isLinkedToMovedTerrain && isPointPlaceCategory(location.category, source.placeCategories))) {
+        return translateLocation(location, dx, dy);
+      }
+
+      return location;
+    }),
     tradeRoutes: (source.tradeRoutes ?? []).map((route) =>
       routeIds.has(route.id) ? translateTradeRoute(route, dx, dy) : route
     ),

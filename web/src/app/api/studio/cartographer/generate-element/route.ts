@@ -141,7 +141,11 @@ Return JSON in this EXACT structure:
         dangerLevel: (data.dangerLevel || dangerLevel) as 1 | 2 | 3 | 4 | 5,
         rarity: data.rarity || rarity,
         isDomesticated: data.isDomesticated ?? false,
-        habitatLocationIds: environmentalContext.nearestSettlement ? [environmentalContext.nearestSettlement.id] : [],
+        habitatLocationIds: environmentalContext.linkedLocation
+          ? [environmentalContext.linkedLocation.id]
+          : environmentalContext.nearestSettlement
+          ? [environmentalContext.nearestSettlement.id]
+          : [],
         behavioralTactics: data.behavioralTactics || 'Fierce and territorial.',
         weaknesses: Array.isArray(data.weaknesses) ? data.weaknesses : [],
         resistances: Array.isArray(data.resistances) ? data.resistances : [],
@@ -225,7 +229,7 @@ Return JSON in this EXACT structure:
         role: data.role || role,
         kind: 'individual',
         factionId: parameters.factionId,
-        currentLocationId: environmentalContext.nearestSettlement?.id || '',
+        currentLocationId: environmentalContext.linkedLocation?.id || environmentalContext.nearestSettlement?.id || '',
         initialTrust: 0,
         personalityTraits: Array.isArray(data.personalityTraits) ? data.personalityTraits : ['Resilient', 'Vigilant'],
         speechStyle: data.speechStyle || 'Speaks slowly, conserving breath.',
@@ -374,6 +378,7 @@ Return JSON in this EXACT structure:
       }
 
       const artifactId = `art_${uniqueSuffix}`;
+      const holderId = environmentalContext.linkedLocation?.id || environmentalContext.nearestSettlement?.id || '';
       const artifact: WorldArtifact = {
         id: artifactId,
         name: data.name || 'Ancient Relic',
@@ -384,8 +389,8 @@ Return JSON in this EXACT structure:
         powers: Array.isArray(data.powers) ? data.powers : ['Grants passage across treacherous terrain.'],
         curseOrCost: data.curseOrCost || 'Demands a sacrifice of water.',
         attunementRules: data.attunementRules || `DC ${targetDc}`,
-        currentHolderType: 'unknown',
-        currentHolderId: '',
+        currentHolderType: holderId ? 'location' : 'unknown',
+        currentHolderId: holderId,
       };
 
       const placement: MapEntityPlacement = {
@@ -451,11 +456,15 @@ Return JSON in this EXACT structure:
       const location: WorldLocation = {
         id: locationId,
         name: data.name || 'Frontier Post',
-        region: data.region || environmentalContext.featureName || 'Uncharted Expanse',
+        region: data.region || environmentalContext.linkedLocation?.name || environmentalContext.featureName || 'Uncharted Expanse',
         description: data.description || 'A rugged settlement built to endure.',
         atmosphere: data.atmosphere || 'Dusty winds and quiet vigilance.',
         dangerLevel: (data.dangerLevel || dangerLevel) as 1 | 2 | 3 | 4 | 5,
-        connectedLocationIds: environmentalContext.nearestSettlement ? [environmentalContext.nearestSettlement.id] : [],
+        connectedLocationIds: environmentalContext.linkedLocation
+          ? [environmentalContext.linkedLocation.id]
+          : environmentalContext.nearestSettlement
+          ? [environmentalContext.nearestSettlement.id]
+          : [],
         coordinates: { x: Math.round(coordinates.x), y: Math.round(coordinates.y) },
         elevation: environmentalContext.elevation,
         category: data.category || category,

@@ -443,7 +443,7 @@ export class PixiCartographerEngine {
     // 4b. Render Curved & Spline-Aligned Geographic Titles (Plan 27 — Module 4)
     this.terrainLabelsContainer.removeChildren();
     if (settings.visibleLayers.labels !== false) {
-      renderTerrainCurvedLabels(this.terrainLabelsContainer, viewTerrain);
+      renderTerrainCurvedLabels(this.terrainLabelsContainer, viewTerrain, viewLocations);
     }
 
     // 5. Render Civil Infrastructure: Bridges & River Crossings (Plan 27 — Module 5)

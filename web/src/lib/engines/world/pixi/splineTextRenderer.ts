@@ -15,10 +15,11 @@
  */
 
 import { Container, Text, TextStyle } from 'pixi.js';
-import type { MapPoint, CurvedLabelConfig, MapTerrainFeature } from '@/lib/types';
+import type { MapPoint, CurvedLabelConfig, MapTerrainFeature, WorldLocation } from '@/lib/types';
 import { VINTAGE_PARCHMENT } from './vintageTheme';
 import { getBoundingBox, getPolygonCentroid } from '../landSculpt/geometry';
 import { isObjectVisible } from '../mapObjectOrder';
+import { prepareSplineGlyphs, isRtlText } from './persianReshaper';
 
 export interface GlyphPlacement {
   char: string;
@@ -112,13 +113,16 @@ export function layoutCurvedText(
   const rawText = options.uppercase !== false ? text.toUpperCase() : text;
   if (rawText.length === 0) return null;
 
+  const { glyphs: shapedGlyphs, isRtl } = prepareSplineGlyphs(rawText);
+  if (shapedGlyphs.length === 0) return null;
+
   const fontSize = options.fontSize ?? 15;
   const alignment = options.alignment ?? 'center';
   const baselineOffset = options.baselineOffset ?? 0;
   const maxCurvatureDeg = options.maxCurvatureDegPerChar ?? 25;
   const maxCurvatureRad = (maxCurvatureDeg * Math.PI) / 180;
 
-  // 1. Check path direction and ensure readable left-to-right flow
+  // 1. Check path direction and ensure readable flow
   let pts = sanitizePathPoints(pathPoints);
   if (pts.length < 2) return null;
 
@@ -140,22 +144,22 @@ export function layoutCurvedText(
   // 3. Measure glyph advance widths
   const charWidths: number[] = [];
   let totalCharsWidth = 0;
-  for (let i = 0; i < rawText.length; i++) {
-    const w = measureCharWidth(rawText[i], fontSize, options.fontFamily);
+  for (let i = 0; i < shapedGlyphs.length; i++) {
+    const w = measureCharWidth(shapedGlyphs[i], fontSize, options.fontFamily);
     charWidths.push(w);
     totalCharsWidth += w;
   }
 
-  let letterSpacing = options.letterSpacing ?? 4;
+  let letterSpacing = options.letterSpacing ?? (isRtl ? 1 : 4);
   let textWidth =
-    totalCharsWidth + (rawText.length - 1) * letterSpacing;
+    totalCharsWidth + (shapedGlyphs.length - 1) * letterSpacing;
 
   // If text exceeds spline arc length, gracefully compress letter spacing
-  if (textWidth > totalArcLength && rawText.length > 1) {
+  if (textWidth > totalArcLength && shapedGlyphs.length > 1) {
     const excess = textWidth - totalArcLength;
-    const compression = excess / (rawText.length - 1);
-    letterSpacing = Math.max(1, letterSpacing - compression);
-    textWidth = totalCharsWidth + (rawText.length - 1) * letterSpacing;
+    const compression = excess / (shapedGlyphs.length - 1);
+    letterSpacing = Math.max(0, letterSpacing - compression);
+    textWidth = totalCharsWidth + (shapedGlyphs.length - 1) * letterSpacing;
   }
 
   // 4. Determine starting offset along arc length based on alignment
@@ -172,8 +176,8 @@ export function layoutCurvedText(
   let currentDist = startDist;
   let prevAngle: number | null = null;
 
-  for (let i = 0; i < rawText.length; i++) {
-    const char = rawText[i];
+  for (let i = 0; i < shapedGlyphs.length; i++) {
+    const char = shapedGlyphs[i];
     const w = charWidths[i];
     const centerDist = currentDist + w * 0.5;
 
@@ -328,14 +332,22 @@ export function deriveFeatureGuideSpline(
 
 /**
  * Renders curved, tracked geographic titles for all prominent and configured terrain features.
+ * When a feature is linked to a WorldLocation (via locationId), prioritizes the canonical location's name.
  */
 export function renderTerrainCurvedLabels(
   targetContainer: Container,
-  terrainFeatures: MapTerrainFeature[]
+  terrainFeatures: MapTerrainFeature[],
+  locations?: WorldLocation[]
 ): void {
   for (const feat of terrainFeatures) {
     if (!isObjectVisible(feat)) continue;
-    if (!feat.name || feat.name.trim().length === 0) continue;
+
+    // Canonical location name: if linked to a WorldLocation, prioritize the canonical location's name!
+    const linkedLoc =
+      feat.locationId && locations ? locations.find((l) => l.id === feat.locationId) : null;
+    const displayName = linkedLoc?.name || feat.name;
+
+    if (!displayName || displayName.trim().length === 0) continue;
 
     const config = feat.labelConfig;
     const isExplicitlyEnabled = config?.enabled === true;
@@ -373,7 +385,7 @@ export function renderTerrainCurvedLabels(
       color = 0x223d1d;
     }
 
-    const layout = layoutCurvedText(feat.name, spline, {
+    const layout = layoutCurvedText(displayName, spline, {
       ...config,
       baselineOffset,
       fontSize:

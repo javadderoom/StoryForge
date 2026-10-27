@@ -235,13 +235,25 @@ export default function CartographerPage() {
 
   const handleUpdateTerrain = (id: string, updated: Partial<MapTerrainFeature>) => {
     commit('Edit terrain', () => {
+      let targetLocationId: string | undefined;
       updateMapData((prev) => {
         const current = prev || mapData;
+        const target = current.terrainFeatures.find((f) => f.id === id);
+        targetLocationId = updated.locationId !== undefined ? updated.locationId : target?.locationId;
         return {
           ...current,
           terrainFeatures: current.terrainFeatures.map((f) => (f.id === id ? { ...f, ...updated } : f)),
         };
       });
+      if (targetLocationId) {
+        const locPatch: Partial<WorldLocation> = {};
+        if (updated.name !== undefined) locPatch.name = updated.name;
+        if (updated.locked !== undefined) locPatch.locked = updated.locked;
+        if (updated.visible !== undefined) locPatch.visible = updated.visible;
+        if (Object.keys(locPatch).length > 0) {
+          editLocation(targetLocationId, locPatch);
+        }
+      }
     });
   };
 
@@ -292,6 +304,24 @@ export default function CartographerPage() {
   const handleUpdateLocation = (id: string, updated: Partial<WorldLocation>) => {
     commit(updated.coordinates ? 'Move pin' : 'Edit location', () => {
       editLocation(id, updated);
+      const terrainPatch: Partial<MapTerrainFeature> = {};
+      if (updated.name !== undefined) terrainPatch.name = updated.name;
+      if (updated.locked !== undefined) terrainPatch.locked = updated.locked;
+      if (updated.visible !== undefined) terrainPatch.visible = updated.visible;
+
+      if (Object.keys(terrainPatch).length > 0) {
+        updateMapData((prev) => {
+          const current = prev || mapData;
+          const hasLinked = current.terrainFeatures.some((f) => f.locationId === id);
+          if (!hasLinked) return current;
+          return {
+            ...current,
+            terrainFeatures: current.terrainFeatures.map((f) =>
+              f.locationId === id ? { ...f, ...terrainPatch } : f
+            ),
+          };
+        });
+      }
     });
   };
 
@@ -654,8 +684,11 @@ export default function CartographerPage() {
   const handleSetTerrainState = useCallback(
     (id: string, patch: Partial<MapTerrainFeature>, label: string) => {
       commit(label, () => {
+        let linkedLocId: string | undefined;
         updateMapData((prev) => {
           const current = prev || mapData;
+          const target = current.terrainFeatures.find((f) => f.id === id);
+          linkedLocId = target?.locationId;
           return {
             ...current,
             terrainFeatures: current.terrainFeatures.map((f) =>
@@ -663,9 +696,17 @@ export default function CartographerPage() {
             ),
           };
         });
+        if (linkedLocId) {
+          const locPatch: Partial<WorldLocation> = {};
+          if (patch.locked !== undefined) locPatch.locked = patch.locked;
+          if (patch.visible !== undefined) locPatch.visible = patch.visible;
+          if (Object.keys(locPatch).length > 0) {
+            editLocation(linkedLocId, locPatch);
+          }
+        }
       });
     },
-    [commit, mapData, updateMapData]
+    [commit, mapData, updateMapData, editLocation]
   );
 
   const handleSetPlacementState = useCallback(
@@ -1126,6 +1167,8 @@ export default function CartographerPage() {
             onToggleRouteLock={handleToggleRoadLock}
             onToggleTerrainVisibility={handleToggleTerrainVisibility}
             onToggleTerrainLock={handleToggleTerrainLock}
+            onToggleLocationVisibility={handleToggleLocationVisibility}
+            onToggleLocationLock={handleToggleLocationLock}
             onTogglePlacementVisibility={handleTogglePlacementVisibility}
             onTogglePlacementLock={handleTogglePlacementLock}
             npcs={story.worldBible.npcs || []}

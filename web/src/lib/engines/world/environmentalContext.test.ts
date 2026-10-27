@@ -163,3 +163,68 @@ test('environmentalContext - detects river proximity when near polyline river', 
   assert.equal(ctx.featureName, 'Zarrin River');
   assert.equal(ctx.isWater, true);
 });
+
+test('environmentalContext - resolves linkedLocation and overrides featureName and promptContext', () => {
+  const desert: MapTerrainFeature = {
+    id: 'feat_desert_hiram',
+    name: 'Old Terrain Name',
+    type: 'desert',
+    polygon: [
+      { x: 0, y: 0 },
+      { x: 500, y: 0 },
+      { x: 500, y: 500 },
+      { x: 0, y: 500 },
+    ],
+    elevation: 320,
+    locationId: 'loc_hiram_plains',
+  };
+
+  const hiramLocation = {
+    id: 'loc_hiram_plains',
+    name: 'Hiram Plains',
+    description: 'An ancient expanse of amber sand and howling winds.',
+    category: 'wilderness',
+  };
+
+  const settlementLocation = {
+    id: 'loc_oasis_outpost',
+    name: 'Oasis Outpost',
+    category: 'settlement',
+    coordinates: { x: 600, y: 250 },
+  };
+
+  const mockBible = {
+    worldId: 'test_world',
+    worldName: 'Faravand',
+    summary: 'A desert fantasy world',
+    themeNotes: 'Rich sand dunes',
+    laws: [],
+    factions: [],
+    locations: [hiramLocation, settlementLocation],
+    timeline: [],
+    npcs: [],
+    mapData: {
+      version: 1,
+      settings: {
+        width: 2000,
+        height: 2000,
+        theme: 'vintage',
+        gridType: 'none',
+        gridSize: 50,
+        showGridCoordinates: false,
+        kmPerSpatialUnit: 1.0,
+      },
+      terrainFeatures: [desert],
+      placements: [],
+    },
+  } as unknown as WorldBible;
+
+  const ctx = extractEnvironmentalContext({ x: 250, y: 250 }, mockBible);
+  assert.equal(ctx.biome, 'desert');
+  assert.equal(ctx.featureName, 'Hiram Plains');
+  assert.equal(ctx.linkedLocation?.id, 'loc_hiram_plains');
+  assert.match(ctx.badgeText, /Hiram Plains/);
+  assert.match(ctx.promptContext, /Canonical Territory \/ World Location: "Hiram Plains"/);
+  assert.match(ctx.promptContext, /An ancient expanse of amber sand/);
+  assert.equal(ctx.nearestSettlement?.id, 'loc_oasis_outpost');
+});

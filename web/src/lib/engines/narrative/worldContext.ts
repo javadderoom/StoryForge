@@ -902,8 +902,11 @@ export function buildWorldContextBlocks(
         ? ` — Description: ${c.loreDescription.replace(/\s+/g, ' ').slice(0, 160)}...`
         : '';
       const idTag = c.id ? ` [ID: ${c.id}]` : '';
+      const habitats = (c.habitatLocationIds ?? [])
+        .map((h) => (wb.locations ?? []).find((l) => l.id === h)?.name || h)
+        .join('/');
       return `${c.name}${idTag} (danger ${c.dangerLevel}, ${c.speciesCategory}${c.isDomesticated ? ', domesticated' : ''})${descSnippet} | habitat: ${
-        c.habitatLocationIds?.join('/') || 'unknown'
+        habitats || 'unknown'
       } | weakness: ${c.weaknesses?.join(', ') || 'unknown'}`;
     },
     caps.bestiary
@@ -937,9 +940,13 @@ export function buildWorldContextBlocks(
       const hierarchyPath = ancestry.length > 0
         ? `inside: ${ancestry.map((a) => a.name).join(' ⊂ ')}`
         : l.region || 'unknown region';
+      const linkedTerrains = (wb.mapData?.terrainFeatures ?? []).filter((f) => f.locationId === l.id);
+      const terrainSnippet = linkedTerrains.length > 0
+        ? ` [Cartographic Terrain: ${linkedTerrains.map((t) => t.type.replace(/_/g, ' ')).join(', ')}]`
+        : '';
       return `${l.name} (${hierarchyPath}, danger ${l.dangerLevel}${
         l.category ? `, ${l.category}` : ''
-      }) — ${l.description}`;
+      }${terrainSnippet}) — ${l.description}`;
     },
     caps.locations,
     pinLocs,

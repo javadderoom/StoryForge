@@ -35,6 +35,7 @@ export interface EnvironmentalContext {
   biomeEmoji: string;
   featureName?: string;
   matchedFeature?: MapTerrainFeature;
+  linkedLocation?: WorldLocation | null;
   elevation: number;
   isWater: boolean;
   waterBodyType?: 'ocean' | 'sea' | 'lake' | 'river';
@@ -218,8 +219,16 @@ export function extractEnvironmentalContext(
   let nearestSettlement: NearestSettlementInfo | null = null;
   let minSettlementDist = Infinity;
 
+  // Resolve linked location if matchedFeature is tied to a canonical WorldLocation
+  const linkedLocationId = matchedFeature?.locationId;
+  const linkedLocation: WorldLocation | null = linkedLocationId
+    ? locations.find((l) => l.id === linkedLocationId) ?? null
+    : null;
+
   for (const loc of locations) {
     if (!loc.coordinates) continue;
+    // Don't treat the linked location itself as an external "nearest settlement" distance if we are inside it
+    if (linkedLocation && loc.id === linkedLocation.id) continue;
     const distPx = Math.hypot(loc.coordinates.x - point.x, loc.coordinates.y - point.y);
     if (distPx < minSettlementDist) {
       minSettlementDist = distPx;
@@ -237,8 +246,9 @@ export function extractEnvironmentalContext(
   }
 
   // 5. Build UI badge text (English and Persian)
-  const featureTitle = matchedFeature?.name ? matchedFeature.name : meta.label;
-  const featureTitleFa = matchedFeature?.name ? matchedFeature.name : meta.labelFa;
+  const canonicalName = linkedLocation ? linkedLocation.name : matchedFeature?.name;
+  const featureTitle = canonicalName || meta.label;
+  const featureTitleFa = canonicalName || meta.labelFa;
 
   let badgeText = `${meta.emoji} ${featureTitle}`;
   let badgeTextFa = `${meta.emoji} ${featureTitleFa}`;
@@ -255,9 +265,15 @@ export function extractEnvironmentalContext(
   const promptParts: string[] = [];
   promptParts.push(`GEOGRAPHIC & ENVIRONMENTAL SETTING:`);
   promptParts.push(`- Map Coordinates: (X: ${Math.round(point.x)}, Y: ${Math.round(point.y)})`);
+  if (linkedLocation) {
+    promptParts.push(`- Canonical Territory / World Location: "${linkedLocation.name}" (ID: ${linkedLocation.id})`);
+    if (linkedLocation.description) {
+      promptParts.push(`- Territory Lore & Narrative: ${linkedLocation.description}`);
+    }
+  }
   promptParts.push(`- Primary Biome: ${meta.label} [Category: ${biomeKey}]`);
-  if (matchedFeature?.name) {
-    promptParts.push(`- Regional Name: "${matchedFeature.name}"`);
+  if (matchedFeature?.name && matchedFeature.name !== linkedLocation?.name) {
+    promptParts.push(`- Cartographic Terrain Feature: "${matchedFeature.name}"`);
   }
   if (matchedFeature?.description) {
     promptParts.push(`- Terrain Lore: ${matchedFeature.description}`);
@@ -270,7 +286,7 @@ export function extractEnvironmentalContext(
   }
   if (nearestSettlement) {
     promptParts.push(
-      `- Proximity to Civilization: Located approximately ${nearestSettlement.distanceKm} kilometers to the ${nearestSettlement.cardinalDirection} of the settlement "${nearestSettlement.name}".`
+      `- Proximity to Nearby Settlement: Located approximately ${nearestSettlement.distanceKm} kilometers to the ${nearestSettlement.cardinalDirection} of "${nearestSettlement.name}".`
     );
   } else {
     promptParts.push(`- Proximity to Civilization: Isolated deep wilderness, far from established cities.`);
@@ -284,8 +300,9 @@ export function extractEnvironmentalContext(
     biomeLabel: meta.label,
     biomeLabelFa: meta.labelFa,
     biomeEmoji: meta.emoji,
-    featureName: matchedFeature?.name,
+    featureName: canonicalName,
     matchedFeature,
+    linkedLocation,
     elevation,
     isWater,
     waterBodyType,

@@ -552,6 +552,35 @@ describe('mapSelection — translation (group move)', () => {
     assert.deepEqual(moved.locations[0].coordinates, { x: 10, y: 10 });
   });
 
+  it('moves linked point location coordinates when its terrain is moved', () => {
+    const source: MapSelectionSource = {
+      locations: [
+        location({
+          id: 'loc_settlement',
+          category: 'settlement',
+          coordinates: { x: 50, y: 50 },
+        }),
+      ],
+      terrainFeatures: [
+        terrain({
+          id: 'terr_haven',
+          locationId: 'loc_settlement',
+          polygon: [
+            { x: 40, y: 40 },
+            { x: 60, y: 40 },
+            { x: 60, y: 60 },
+            { x: 40, y: 60 },
+          ],
+        }),
+      ],
+      placeCategories: [],
+    };
+
+    const moved = translateMapObjects(source, [{ kind: 'terrain', id: 'terr_haven' }], 15, -10);
+    assert.deepEqual(moved.locations[0].coordinates, { x: 65, y: 40 });
+    assert.deepEqual(moved.terrainFeatures[0].polygon![0], { x: 55, y: 30 });
+  });
+
   it('moves an unlinked non-point place by its coordinates', () => {
     const source: MapSelectionSource = {
       locations: [

@@ -248,11 +248,15 @@ export function useCartographerSelection({
 
       const moved = translateMapObjects(selectionSource, refs, dx, dy);
       const previousTerrain = selectionSource.terrainFeatures ?? [];
+      const previousLocations = selectionSource.locations ?? [];
       // A non-point place has no pin: moving it moves its linked terrain, so
       // the map-data slice must be committed even when no terrain ref is in
       // the selection.
       const movesTerrain = moved.terrainFeatures.some(
         (feature, index) => feature !== previousTerrain[index]
+      );
+      const movesLocations = moved.locations.some(
+        (location, index) => location !== previousLocations[index]
       );
       const touchesMapData =
         movesTerrain ||
@@ -260,7 +264,7 @@ export function useCartographerSelection({
           (ref) =>
             ref.kind === 'terrain' || ref.kind === 'placement' || ref.kind === 'route'
         );
-      const touchesLocations = refs.some((ref) => ref.kind === 'location');
+      const touchesLocations = movesLocations || refs.some((ref) => ref.kind === 'location');
       const touchesRoutes = refs.some((ref) => ref.kind === 'trade_route');
 
       commit(
