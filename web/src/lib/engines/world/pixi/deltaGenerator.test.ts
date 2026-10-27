@@ -1,8 +1,26 @@
 import test, { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateProceduralDelta } from './deltaGenerator';
+import {
+  buildDeltaShorelineRuns,
+  buildDeltaWaterRings,
+  generateProceduralDelta,
+} from './deltaGenerator';
 import { generateProceduralRiver } from './riverGenerator';
 import type { MapPoint } from '@/lib/types';
+
+function pointInPolygon(polygon: MapPoint[], x: number, y: number): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x;
+    const yi = polygon[i].y;
+    const xj = polygon[j].x;
+    const yj = polygon[j].y;
+    const intersect =
+      yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
 
 describe('deltaGenerator — Procedural Delta Fan & Alluvial Islands', () => {
   const riverPoints: MapPoint[] = [
@@ -102,6 +120,88 @@ describe('deltaGenerator — Procedural Delta Fan & Alluvial Islands', () => {
     // Verify lush delta tree canopy clusters are populated
     const totalTrees = delta.islands.reduce((acc, i) => acc + (i.trees?.length ?? 0), 0);
     assert.ok(totalTrees > 0, 'Must generate tree canopy lobes on delta islands');
+  });
+
+  it('merges the distributary water into one drawable surface', () => {
+    const delta = generateProceduralDelta(riverPoints, {
+      seed: 42,
+      mainWidth: 16,
+      config: { enabled: true, distributariesCount: 4 },
+    });
+    assert.ok(delta !== null);
+
+    const rings = buildDeltaWaterRings(delta);
+    assert.ok(rings.length >= 1, 'Union should produce at least one ring');
+    for (const ring of rings) {
+      assert.ok(ring.length >= 4);
+      for (const p of ring) {
+        assert.ok(Number.isFinite(p.x) && Number.isFinite(p.y));
+      }
+    }
+
+    // The union must not swallow the whole fan: it should stay well under the
+    // bounding box of the delta, otherwise the channels merged into a lake.
+    const all = rings.flat();
+    const minX = Math.min(...all.map((p) => p.x));
+    const maxX = Math.max(...all.map((p) => p.x));
+    const minY = Math.min(...all.map((p) => p.y));
+    const maxY = Math.max(...all.map((p) => p.y));
+    assert.ok((maxX - minX) * (maxY - minY) > 0);
+  });
+
+  it('leaves channel mouths open when tracing the shoreline', () => {
+    const delta = generateProceduralDelta(riverPoints, {
+      seed: 42,
+      mainWidth: 16,
+      config: { enabled: true, distributariesCount: 4 },
+    });
+    assert.ok(delta !== null);
+
+    const runs = buildDeltaShorelineRuns(delta);
+    assert.ok(runs.length > 0, 'Shoreline must produce at least one run');
+
+    // A mouth cap is the chord joining a branch's final bank points. No
+    // shoreline run may contain both of them, or the river ends in a wall.
+    const mouths = delta.branches.map((b) => [
+      b.leftBank[b.leftBank.length - 1],
+      b.rightBank[b.rightBank.length - 1],
+    ]);
+    for (const run of runs) {
+      for (let i = 1; i < run.length; i++) {
+        const p = run[i - 1];
+        const q = run[i];
+        for (const [a, b] of mouths) {
+          const closesMouth =
+            Math.hypot(p.x - a.x, p.y - a.y) < 1.6 &&
+            Math.hypot(q.x - b.x, q.y - b.y) < 1.6;
+          const closesMouthReversed =
+            Math.hypot(p.x - b.x, p.y - b.y) < 1.6 &&
+            Math.hypot(q.x - a.x, q.y - a.y) < 1.6;
+          assert.ok(!closesMouth && !closesMouthReversed, 'Mouth must stay open');
+        }
+      }
+    }
+  });
+
+  it('keeps islands inside the gaps between channels', () => {
+    const delta = generateProceduralDelta(riverPoints, {
+      seed: 42,
+      mainWidth: 16,
+      config: { enabled: true, distributariesCount: 4 },
+    });
+    assert.ok(delta !== null);
+
+    for (const island of delta.islands) {
+      // The island centre must not sit in any distributary's water.
+      for (const b of delta.branches) {
+        if (b.waterPolygon.length < 3) continue;
+        assert.equal(
+          pointInPolygon(b.waterPolygon, island.center.x, island.center.y),
+          false,
+          `${island.id} centre lies inside ${b.id}`
+        );
+      }
+    }
   });
 
   it('integrates seamlessly with generateProceduralRiver', () => {
