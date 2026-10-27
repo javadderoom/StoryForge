@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateStructuredJson } from '@/lib/ai/geminiClient';
+import { generateDeepSeekStructuredJson as generateStructuredJson } from '@/lib/ai/aiPrimeClient';
 import { requireStudioWrite } from '@/lib/auth/studioAuth';
 import {
   GenesisWorldSchema,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateChat } from '@/lib/ai/geminiClient';
+import { generateDeepSeekChat } from '@/lib/ai/aiPrimeClient';
 import { requireStudioWrite } from '@/lib/auth/studioAuth';
 import {
   buildAdviserSystemPrompt,
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
         directives,
       });
 
-    const result = await generateChat(messages, systemInstruction, {
+    const result = await generateDeepSeekChat(messages, systemInstruction, {
       temperature: 0.85,
       taskType: 'default',
     });

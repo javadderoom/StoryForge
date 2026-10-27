@@ -63,6 +63,10 @@ export default function CartographerPage() {
     hasLocalDraft,
     isPersian,
     editNpc,
+    addNpc,
+    addCreature,
+    addTimelineEvent,
+    addArtifact,
   } = useStudioStory();
 
   // Active tool and floating panel state.
@@ -455,6 +459,73 @@ export default function CartographerPage() {
     });
   };
 
+  const handleAddGeneratedElement = useCallback(
+    (payload: {
+      entityType: 'bestiary' | 'npc' | 'timeline' | 'artifact' | 'location';
+      entity: any;
+      placement: MapEntityPlacement;
+    }) => {
+      commit(`Spawn ${payload.entityType} with AI`, () => {
+        if (payload.entityType === 'bestiary') {
+          addCreature(payload.entity);
+          updateMapData((prev) => ({
+            ...(prev || mapData),
+            placements: [...(prev?.placements || mapData.placements || []), payload.placement],
+          }));
+        } else if (payload.entityType === 'npc') {
+          addNpc(payload.entity);
+          updateMapData((prev) => ({
+            ...(prev || mapData),
+            placements: [...(prev?.placements || mapData.placements || []), payload.placement],
+          }));
+        } else if (payload.entityType === 'timeline') {
+          addTimelineEvent(payload.entity);
+          updateMapData((prev) => ({
+            ...(prev || mapData),
+            placements: [...(prev?.placements || mapData.placements || []), payload.placement],
+          }));
+        } else if (payload.entityType === 'artifact') {
+          addArtifact(payload.entity);
+          updateMapData((prev) => ({
+            ...(prev || mapData),
+            placements: [...(prev?.placements || mapData.placements || []), payload.placement],
+          }));
+        } else if (payload.entityType === 'location') {
+          addLocation(payload.entity);
+          updateMapData((prev) => ({
+            ...(prev || mapData),
+            placements: [...(prev?.placements || mapData.placements || []), payload.placement],
+          }));
+        }
+      });
+
+      // Automatically select the newly spawned pin
+      setSelection([{ kind: 'placement', id: payload.placement.id }]);
+    },
+    [
+      commit,
+      addCreature,
+      addNpc,
+      addTimelineEvent,
+      addArtifact,
+      addLocation,
+      updateMapData,
+      mapData,
+      setSelection,
+    ]
+  );
+
+  const handleDeleteObject = useCallback(
+    (ref: { kind: string; id: string }) => {
+      if (ref.kind === 'location') handleDeleteLocation(ref.id);
+      else if (ref.kind === 'placement') handleDeletePlacement(ref.id);
+      else if (ref.kind === 'terrain') handleDeleteTerrain(ref.id);
+      else if (ref.kind === 'route') handleDeleteRoad(ref.id);
+      else if (ref.kind === 'trade_route') handleDeleteTradeRoute(ref.id);
+    },
+    [handleDeleteLocation, handleDeletePlacement, handleDeleteTerrain, handleDeleteRoad, handleDeleteTradeRoute]
+  );
+
   // -----------------------------------------------------------------------
   // Plan 21 — per-object layer controls
   //
@@ -829,6 +900,9 @@ export default function CartographerPage() {
           onReplaceTerrain={handleReplaceTerrain}
           onAddLocation={handleAddLocation}
           onAddPlacement={handleAddPlacement}
+          onAddGeneratedElement={handleAddGeneratedElement}
+          onDeleteObject={handleDeleteObject}
+          onAskOracle={() => setIsAiOracleOpen(true)}
           isPersian={isPersian}
           zoom={zoom}
           setZoom={setZoom}

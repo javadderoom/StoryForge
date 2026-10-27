@@ -47,6 +47,13 @@ import { useMapDrafting } from './canvas/useMapDrafting';
 import { CanvasOverlays } from './canvas/CanvasOverlays';
 import { LandSculptHud } from './canvas/LandSculptHud';
 import {
+  CartographerContextMenu,
+} from './canvas/CartographerContextMenu';
+import {
+  extractEnvironmentalContext,
+  EnvironmentalContext,
+} from '@/lib/engines/world/environmentalContext';
+import {
   GeoToolHud,
   type HighlandMode,
   type BiomeType,
@@ -72,6 +79,13 @@ interface PixiCartographerCanvasProps {
   onReplaceTerrain?: (features: MapTerrainFeature[]) => void;
   onAddLocation: (location: WorldLocation) => void;
   onAddPlacement: (placement: MapEntityPlacement) => void;
+  onAddGeneratedElement?: (payload: {
+    entityType: 'bestiary' | 'npc' | 'timeline' | 'artifact' | 'location';
+    entity: any;
+    placement: MapEntityPlacement;
+  }) => void;
+  onAskOracle?: (coord: MapPoint, envContext: EnvironmentalContext) => void;
+  onDeleteObject?: (ref: { kind: string; id: string }) => void;
   isPersian: boolean;
   zoom: number;
   setZoom: React.Dispatch<React.SetStateAction<number>>;
@@ -173,6 +187,10 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   onAddTerrain,
   onReplaceTerrain,
   onAddLocation,
+  onAddPlacement,
+  onAddGeneratedElement,
+  onAskOracle,
+  onDeleteObject,
   isPersian,
   zoom,
   setZoom,
@@ -186,6 +204,16 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   const [isPanning, setIsPanning] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hoveredCoord, setHoveredCoord] = useState<MapPoint | null>(null);
+
+  // Right-click context menu and click-vs-drag detection (<5px threshold)
+  const rightClickStartRef = useRef<{ clientX: number; clientY: number } | null>(null);
+  const [contextMenuState, setContextMenuState] = useState<{
+    clientX: number;
+    clientY: number;
+    worldPoint: MapPoint;
+    environmentalContext: EnvironmentalContext;
+    targetHitObject?: { kind: string; id: string; name?: string } | null;
+  } | null>(null);
 
   // Rubber-band selection (Plan 23). The ref mirrors the state so the mouseup
   // path can read the band synchronously without re-binding global listeners
@@ -684,6 +712,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     if (e.button === 1 || e.button === 2) {
       // Also stops Chrome's middle-click autoscroll and any native drag.
       e.preventDefault();
+      if (e.button === 2) {
+        rightClickStartRef.current = { clientX: e.clientX, clientY: e.clientY };
+      }
       setIsPanning(true);
       setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
       return;
@@ -1247,7 +1278,42 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   };
 
   // Commit drag on mouse release
-  const commitDragEnd = useCallback(() => {
+  const commitDragEnd = useCallback((e?: React.MouseEvent | MouseEvent) => {
+    // Check right-click click vs drag (<5px threshold)
+    if (rightClickStartRef.current) {
+      const start = rightClickStartRef.current;
+      rightClickStartRef.current = null;
+      const pos = e
+        ? { clientX: e.clientX, clientY: e.clientY }
+        : lastMousePosRef.current;
+      if (pos) {
+        const dist = Math.hypot(pos.clientX - start.clientX, pos.clientY - start.clientY);
+        if (dist < 5) {
+          // Pure right click without drag: Open In-Map Context Menu
+          const worldPoint = clientToWorld(pos.clientX, pos.clientY);
+          const envContext = extractEnvironmentalContext(worldPoint, worldBible);
+          let targetHitObject: { kind: string; id: string; name?: string } | null = null;
+          if (engineRef.current) {
+            const hit = engineRef.current.pickAt(worldPoint, settings.visibleLayers);
+            if (hit) {
+              targetHitObject = {
+                kind: hit.kind,
+                id: hit.id,
+                name: (hit as any).candidate?.name || (hit as any).location?.name || hit.id,
+              };
+            }
+          }
+          setContextMenuState({
+            clientX: pos.clientX,
+            clientY: pos.clientY,
+            worldPoint,
+            environmentalContext: envContext,
+            targetHitObject,
+          });
+        }
+      }
+    }
+
     // Finish an Alt-drag zoom box: fit that area into the viewport. A box that
     // never cleared the threshold is a click, not a zoom, and leaves the view
     // untouched.
@@ -1739,6 +1805,28 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         riverWidth={riverWidth}
         onRiverWidthChange={setRiverWidth}
       />
+
+      {contextMenuState && (
+        <CartographerContextMenu
+          x={contextMenuState.clientX}
+          y={contextMenuState.clientY}
+          worldPoint={contextMenuState.worldPoint}
+          environmentalContext={contextMenuState.environmentalContext}
+          worldBible={worldBible}
+          targetHitObject={contextMenuState.targetHitObject}
+          isPersian={isPersian}
+          onClose={() => setContextMenuState(null)}
+          onSelectObject={(ref) => onSelectionChange([{ kind: ref.kind as any, id: ref.id }])}
+          onDeleteObject={onDeleteObject}
+          onAskOracle={onAskOracle}
+          onAddGeneratedElement={(payload) => {
+            if (onAddGeneratedElement) {
+              onAddGeneratedElement(payload);
+            }
+            setContextMenuState(null);
+          }}
+        />
+      )}
     </div>
   );
 };
