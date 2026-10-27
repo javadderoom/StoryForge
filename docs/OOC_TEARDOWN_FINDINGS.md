@@ -342,11 +342,24 @@ Replay an existing long session through `buildNarrativePrompt` and print the act
 | # | Action | Cost | Why first |
 |---|---|---|---|
 | 1 | **Measure StoryForge compliance** — classify last 50 generated turns for Beat 1/2/3, paragraph count, panel size, choice shape | free | you cannot fix a prompt you can't measure obeying |
-| 2 | **Fix `\n\n`** — prompt asks for blocks, model returns one blob; add a validator rule | free | pure defect, already agreed |
-| 3 | **Add the `withdraw` choice kind** — unrolled when nothing pursues, rolled when hunted; failure still exits at a price; mandatory when the encounter outclasses the player | free | restores player agency *and* hands the player the tension dial (see §5.5) |
-| 4 | **Make Beat 3 conditional** — allow latent turns; require escalation only when the scene has earned it | free | removes the metronome at its source |
-| 5 | **Priced successes** — extend the "must change the situation" clause from failure to success | free | kills flat turns like the caravan sample |
+| 2 | ✅ **Fix `\n\n`** — prompt now names the delimiter; `normalizeParagraphs()` repairs blobs deterministically; `prose_structure` warning counts non-compliance | free | pure defect, already agreed |
+| 3 | ✅ **Add the `withdraw` choice kind** — `withdraw`/`observe` styles, mandatory when outclassed; unrolled unless pursued; failure still exits at a price | free | restores player agency *and* hands the player the tension dial (see §5.5) |
+| 4 | ✅ **Make Beat 3 conditional** — latent turns allowed; escalation only when earned; quiet turns must still change something | free | removes the metronome at its source |
+| 5 | ✅ **Change on success** (not "priced") — a success must move the world, but cost is not mandatory and no wound may be invented to price it | free | kills flat turns like the caravan sample without taxing every win |
 | 6 | **Intensity telemetry** — log latent/active/peak per turn and the loud:quiet ratio | small | the only way to keep tension variable on purpose |
+
+**Where items 2–5 live in code:**
+
+| Change | File |
+|---|---|
+| Paragraph delimiter instruction (EN + FA) | `web/src/lib/engines/narrative/PromptAssembler.ts` §3 |
+| Tension variance + conditional Beat 3 (EN + FA) | `PromptAssembler.ts` §3, Beat list |
+| Change-on-success clause (EN + FA) | `PromptAssembler.ts` `[FAILURE FORWARD CONTRACT]` |
+| `withdraw` / `observe` choice intents + threat readout (EN + FA) | `PromptAssembler.ts` `[INSTRUCTIONS FOR NEW CHOICES]` |
+| Deterministic block repair | `web/src/lib/engines/narrative/proseParagraphs.ts` (`normalizeParagraphs`) |
+| Applied after validation, before persistence | `web/src/lib/engines/narrative/narrativeTurn.ts` |
+| Non-compliance telemetry (`prose_structure`, warning only) | `web/src/lib/engines/narrative/ProseValidator.ts` |
+| Momentum judge no longer scores withdrawal as a stall | `web/src/lib/engines/narrative/momentumGuardrail.ts` |
 
 ---
 
