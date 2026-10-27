@@ -70,6 +70,7 @@ export function CartographerContextMenu({
   const [beastDanger, setBeastDanger] = useState<number>(3);
   const [beastDc, setBeastDc] = useState<number>(15);
   const [beastRole, setBeastRole] = useState<string>('Apex Predator');
+  const [beastRarity, setBeastRarity] = useState<'common' | 'uncommon' | 'rare' | 'legendary'>('rare');
 
   // NPC parameters
   const [npcRole, setNpcRole] = useState<string>('Hermit / Dweller');
@@ -488,7 +489,21 @@ export function CartographerContextMenu({
                     <button
                       key={lvl}
                       type="button"
-                      onClick={() => setBeastDanger(lvl)}
+                      onClick={() => {
+                        setBeastDanger(lvl);
+                        if (lvl === 5) {
+                          setBeastRarity('legendary');
+                          if (beastDc < 20) setBeastDc(22);
+                          setBeastRole('Ancient Calamity');
+                        } else if (lvl === 4) {
+                          if (beastRarity === 'common') setBeastRarity('rare');
+                          if (beastDc < 16) setBeastDc(18);
+                        } else if (lvl === 1) {
+                          setBeastRarity('common');
+                          setBeastDc(10);
+                          setBeastRole('Docile Herbivore');
+                        }
+                      }}
                       className={`py-1 rounded text-center font-bold text-[11px] border transition-colors ${
                         beastDanger === lvl
                           ? 'bg-[#d8ab6c] text-[#1a1410] border-[#f1d6b0]'
@@ -496,6 +511,43 @@ export function CartographerContextMenu({
                       }`}
                     >
                       {lvl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Rarity & Abundance */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium flex items-center justify-between">
+                  <span>{isPersian ? 'سطح فراوانی و کمیابی:' : 'Rarity & Abundance:'}</span>
+                  <span className="text-[#baa48d] text-[10px] font-medium">
+                    {beastRarity === 'legendary'
+                      ? (isPersian ? 'افسانه‌ای / فاجعه‌بار' : 'Mythic Calamity')
+                      : beastRarity === 'rare'
+                      ? (isPersian ? 'کمیاب و درنده' : 'Rare Apex')
+                      : beastRarity === 'uncommon'
+                      ? (isPersian ? 'نامتداول' : 'Uncommon')
+                      : (isPersian ? 'رایج' : 'Common')}
+                  </span>
+                </label>
+                <div className="grid grid-cols-4 gap-1">
+                  {[
+                    { id: 'common', en: 'Common', fa: 'رایج' },
+                    { id: 'uncommon', en: 'Uncommon', fa: 'نامتداول' },
+                    { id: 'rare', en: 'Rare', fa: 'کمیاب' },
+                    { id: 'legendary', en: 'Legendary', fa: 'افسانه‌ای' },
+                  ].map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setBeastRarity(r.id as any)}
+                      className={`py-1 rounded text-center text-[10px] border transition-colors ${
+                        beastRarity === r.id
+                          ? 'bg-[#d8ab6c] text-[#1a1410] font-bold border-[#f1d6b0]'
+                          : 'bg-[#241c16] text-[#baa48d] border-[#3d2f23] hover:border-[#7c6a5a]'
+                      }`}
+                    >
+                      {isPersian ? r.fa : r.en}
                     </button>
                   ))}
                 </div>
@@ -509,13 +561,13 @@ export function CartographerContextMenu({
                     \u200EDC {beastDc}
                   </span>
                 </label>
-                <div className="grid grid-cols-6 gap-1" dir="ltr">
-                  {[10, 12, 14, 16, 18, 20].map((dc) => (
+                <div className="grid grid-cols-7 gap-1" dir="ltr">
+                  {[10, 12, 14, 16, 18, 20, 22].map((dc) => (
                     <button
                       key={dc}
                       type="button"
                       onClick={() => setBeastDc(dc)}
-                      className={`py-1 rounded text-center font-semibold text-[10.5px] border transition-colors ${
+                      className={`py-1 rounded text-center font-semibold text-[10px] border transition-colors ${
                         beastDc === dc
                           ? 'bg-[#d8ab6c] text-[#1a1410] border-[#f1d6b0]'
                           : 'bg-[#241c16] text-[#baa48d] border-[#3d2f23] hover:border-[#7c6a5a]'
@@ -539,6 +591,9 @@ export function CartographerContextMenu({
                 >
                   <option value="Apex Predator">
                     {isPersian ? 'شکارچی راس هرم غذایی' : 'Apex Predator'}
+                  </option>
+                  <option value="Ancient Calamity">
+                    {isPersian ? 'بلای باستانی / لویاتان دست‌نیافتنی' : 'Ancient Calamity / Unapproachable Titan'}
                   </option>
                   <option value="Pack Hunter">
                     {isPersian ? 'شکارچی گروهی و گله‌ای' : 'Pack Hunter'}
@@ -567,6 +622,7 @@ export function CartographerContextMenu({
                       dangerLevel: beastDanger,
                       dc: beastDc,
                       role: beastRole,
+                      rarity: beastRarity,
                     })
                   }
                   className="w-full py-1.5 bg-[#d8ab6c] hover:bg-[#e4bb7e] text-[#1a1410] font-semibold rounded-lg flex items-center justify-center gap-1.5 shadow transition-colors"
@@ -579,9 +635,10 @@ export function CartographerContextMenu({
                   type="button"
                   onClick={() =>
                     handleGenerate('beast', {
-                      dangerLevel: 3,
-                      dc: 15,
-                      role: 'Wild Beast',
+                      dangerLevel: beastDanger,
+                      dc: beastDc,
+                      role: beastRole,
+                      rarity: beastRarity,
                     })
                   }
                   className="w-full py-1 bg-[#2e231a] hover:bg-[#3d2f23] text-[#baa48d] hover:text-[#eedec8] font-medium rounded-lg flex items-center justify-center gap-1.5 text-[11px] border border-[#4a392a] transition-colors"

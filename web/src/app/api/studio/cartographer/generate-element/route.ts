@@ -73,34 +73,49 @@ Respond ONLY with a valid JSON object matching the requested schema.`;
       const dangerLevel = (parameters.dangerLevel && parameters.dangerLevel >= 1 && parameters.dangerLevel <= 5)
         ? parameters.dangerLevel
         : 3;
-      const targetDc = parameters.dc || 15;
-      const role = parameters.role || 'Apex Predator';
-      const rarity = parameters.rarity || 'uncommon';
+      const targetDc = parameters.dc || (dangerLevel === 5 ? 22 : dangerLevel === 4 ? 18 : 15);
+      const role = parameters.role || (dangerLevel >= 5 ? 'Ancient Calamity' : 'Apex Predator');
+      const rarity = parameters.rarity || (dangerLevel >= 5 ? 'legendary' : dangerLevel === 4 ? 'rare' : 'uncommon');
+
+      const dangerScaleDirective =
+        dangerLevel === 5
+          ? `CRITICAL REQUIREMENT - DANGER LEVEL 5 (UNAPPROACHABLE MYTHIC CALAMITY / CATASTROPHIC LEVIATHAN):
+- ABSOLUTE LETHALITY & AURA: This is NOT a mundane wild animal or standard predator. It is an unapproachable primeval force of nature, an ancient monstrosity or dread leviathan that mortals cannot casually approach without imminent death. Merely being in its presence warps the local atmosphere (seismic tremors, suffocating heat, freezing dread, or toxic miasma).
+- IMPENETRABLE DEFENSES: Conventional iron, steel, and common arrows bounce off its hide. Mortals cannot duel it in close quarters without being crushed or obliterated.
+- NO TRIVIAL WEAKNESSES: Do NOT give it petty mundane animal flaws (DO NOT write: afraid of campfire smoke, blind spot under jaw, sluggish in daytime, or easily tricked). Its weaknesses must require epic scale, ancient lost relics, sacred incantations, or massive military siege sacrifice to exploit.
+- TERRIFYING SCALE: Make its physiology and presence colossal, majestic, and terrifying.`
+          : dangerLevel === 4
+          ? `DANGER LEVEL 4 (Regional Apex Terror): A colossal monstrosity or dreaded apex beast capable of wiping out fortified outposts and caravans. Requires seasoned heroes and high-level preparation.`
+          : dangerLevel === 3
+          ? `DANGER LEVEL 3 (Lethal Monster): A fierce predator or territorial alpha dangerous to armed adventurers.`
+          : `DANGER LEVEL ${dangerLevel} (Mild / Standard Wilderness Creature): Local native fauna adapted to the climate.`;
 
       const userPrompt = `${environmentalContext.promptContext}
 
-REQUESTED ENTITY: Wild Creature / Beast
+REQUESTED ENTITY: Wild Creature / Monster
 - Ecological Role / Niche: ${role}
 - Target Danger Level: ${dangerLevel}/5
 - Target Encounter DC: ${targetDc}
 - Target Rarity: ${rarity}
 ${parameters.customPrompt ? `- Author's Custom Note: "${parameters.customPrompt}"` : ''}
 
-Generate a creature specifically adapted to survive and hunt in this ${environmentalContext.biomeLabel}.
-Explain its camouflage, heat/cold management, sensory adaptations, and behavioral tactics.
+${dangerScaleDirective}
+
+Generate a creature specifically adapted to survive and rule in this ${environmentalContext.biomeLabel}.
+Explain its physiology, hunting or devastation tactics, supernatural or evolutionary presence, and extreme adaptations.
 
 Return JSON in this EXACT structure:
 {
   "name": "Creature Name",
-  "speciesCategory": "beast" | "monstrosity" | "undead" | "elemental" | "flora" | "mineral" | "draconic",
+  "speciesCategory": "beast" | "monstrosity" | "draconic" | "elemental" | "undead" | "flora" | "mineral",
   "dangerLevel": ${dangerLevel},
   "rarity": "${rarity}",
   "isDomesticated": false,
   "behavioralTactics": "Tactics in combat and hunting...",
-  "weaknesses": ["Weakness 1", "Weakness 2"],
-  "resistances": ["Resistance 1"],
-  "harvestableLoot": [{"name": "Pelt / Venom / Fang", "dropRate": "common"}],
-  "loreDescription": "Rich literary description of physiology and presence...",
+  "weaknesses": ["Profound or mythic weakness 1", "Weakness 2"],
+  "resistances": ["Resistance 1", "Resistance 2"],
+  "harvestableLoot": [{"name": "Pelt / Scale / Essence / Core", "dropRate": "${rarity}"}],
+  "loreDescription": "Rich literary description of physiology, dreadful scale, and terrifying presence...",
   "predatorPreyNiche": "${role} of the ${environmentalContext.biomeLabel}"
 }`;
 
