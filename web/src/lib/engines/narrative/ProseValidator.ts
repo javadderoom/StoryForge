@@ -177,6 +177,24 @@ export function validateProse(
     }
   }
 
+  // Paragraph structure — measured, never enforced. A repair call for a missing
+  // blank line costs a full regeneration, so `normalizeParagraphs` repairs the
+  // output deterministically downstream instead. This warning exists so the
+  // model's compliance with the block instruction stays visible in telemetry.
+  if (text.trim().length > 0 && !text.includes('\n')) {
+    const blockWords = text.trim().split(/\s+/).filter(Boolean).length;
+    if (blockWords > 90) {
+      const isPersianBlock = /^(fa(?:[-_].*)?|persian|farsi)$/i.test(opts.language?.trim() ?? '');
+      findings.push({
+        severity: 'warning',
+        category: 'prose_structure',
+        detail: isPersianBlock
+          ? `نثر صحنه (${blockWords} کلمه) بدون هیچ جداکنندهٔ بند و به‌صورت یک پاراگراف یکپارچه برگشت؛ دستور، ۳ تا ۵ بند می‌خواهد. ساختار به‌صورت قطعی ترمیم شد.`
+          : `Scene prose (${blockWords} words) returned as one block with no paragraph separators; the prompt asks for 3-5 blocks. Structure was repaired deterministically.`,
+      });
+    }
+  }
+
   // Minimum scene word count check: triggers automated expansion if prose is too sparse
   if (typeof opts.minWordCount === 'number' && opts.minWordCount > 0 && text.trim().length > 0) {
     const words = text.trim().split(/\s+/).filter(Boolean);

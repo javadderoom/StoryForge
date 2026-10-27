@@ -138,4 +138,27 @@ describe('ProseValidator — minimum word count enforcement', () => {
   });
 });
 
+describe('ProseValidator — paragraph structure telemetry', () => {
+  const blob = Array(120).fill('word').join(' ');
+
+  it('warns instead of erroring when a long scene arrives as one block', () => {
+    const result = validateProse(blob, { language: 'en' });
+    assert.equal(result.ok, true, 'structure must never trigger a repair call');
+    const finding = result.findings.find((f) => f.category === 'prose_structure');
+    assert.ok(finding);
+    assert.equal(finding?.severity, 'warning');
+    assert.match(finding?.detail ?? '', /3-5 blocks/);
+  });
+
+  it('stays silent when the prose already has paragraph separators', () => {
+    const result = validateProse(`${blob}\n\n${blob}`, { language: 'en' });
+    assert.equal(result.findings.some((f) => f.category === 'prose_structure'), false);
+  });
+
+  it('stays silent for a short single-block scene', () => {
+    const result = validateProse(Array(60).fill('word').join(' '), { language: 'en' });
+    assert.equal(result.findings.some((f) => f.category === 'prose_structure'), false);
+  });
+});
+
 
