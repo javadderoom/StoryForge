@@ -7,6 +7,7 @@ import {
   effectiveTerrainZIndex,
   isObjectLocked,
   isObjectVisible,
+  isPlacementVisibleInLayers,
   orderPlacementsForRender,
   orderTerrainForRender,
   reorderPlacementByZ,
@@ -16,7 +17,7 @@ import {
   terrainBandBase,
   terrainGroup,
 } from './mapObjectOrder';
-import type { MapTerrainFeature, MapTerrainType } from '@/lib/types/world';
+import type { MapTerrainFeature, MapTerrainType, WorldMapSettings } from '@/lib/types/world';
 
 function feature(type: MapTerrainType, over: Partial<MapTerrainFeature> = {}): MapTerrainFeature {
   return { id: `f_${type}`, name: type, type, ...over } as MapTerrainFeature;
@@ -127,6 +128,45 @@ describe('mapObjectOrder — per-object state', () => {
     assert.equal(isObjectVisible({}), true);
     assert.equal(isObjectVisible({ visible: true }), true);
     assert.equal(isObjectVisible({ visible: false }), false);
+  });
+
+  it('gates every lore pin kind on its own layer switch', () => {
+    const all: WorldMapSettings['visibleLayers'] = {
+      terrain: true,
+      water: true,
+      mountains: true,
+      valleys: true,
+      biomes: true,
+      settlements: true,
+      routes: true,
+      caravanRoutes: true,
+      npcs: true,
+      bestiary: true,
+      relics: true,
+      deities: true,
+      timeline: true,
+      factionBorders: true,
+      labels: true,
+      grid: true,
+    };
+
+    // Every kind answers to the switch the layer panel shows for it.
+    const cases: Array<[Parameters<typeof isPlacementVisibleInLayers>[0], keyof typeof all]> = [
+      ['npc', 'npcs'],
+      ['bestiary', 'bestiary'],
+      ['artifact', 'relics'],
+      ['deity', 'deities'],
+      ['timeline', 'timeline'],
+    ];
+
+    for (const [kind, layer] of cases) {
+      assert.equal(isPlacementVisibleInLayers(kind, all), true, `${kind} visible`);
+      assert.equal(
+        isPlacementVisibleInLayers(kind, { ...all, [layer]: false }),
+        false,
+        `${kind} hidden by ${layer}`
+      );
+    }
   });
 
   it('treats an undefined locked flag as unlocked', () => {

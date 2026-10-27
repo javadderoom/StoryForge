@@ -253,6 +253,8 @@ export function isPlacementVisibleInLayers(
       return layers.relics;
     case 'deity':
       return layers.deities;
+    case 'timeline':
+      return layers.timeline;
     default:
       return true;
   }

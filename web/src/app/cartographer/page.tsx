@@ -1137,6 +1137,7 @@ export default function CartographerPage() {
             bestiary={story.worldBible.bestiary || []}
             artifacts={story.worldBible.artifacts || []}
             timeline={story.worldBible.timeline || []}
+            religions={story.worldBible.religions || []}
             onUpdateCreature={handleUpdateCreature}
             onDeleteCreature={handleDeleteCreature}
             onUpdateArtifact={handleUpdateArtifact}

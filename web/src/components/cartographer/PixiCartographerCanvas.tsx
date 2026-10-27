@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import {
   WorldBible,
   WorldMapSettings,
@@ -49,10 +49,19 @@ import { LandSculptHud } from './canvas/LandSculptHud';
 import {
   CartographerContextMenu,
 } from './canvas/CartographerContextMenu';
+import { LorePlacementPicker } from './canvas/LorePlacementPicker';
 import {
   extractEnvironmentalContext,
   EnvironmentalContext,
 } from '@/lib/engines/world/environmentalContext';
+import {
+  buildLorePlacement,
+  loreKindForTool,
+  loreKindLabel,
+  makeLorePlacementId,
+  type LorePinCandidate,
+  type LorePinKind,
+} from '@/lib/engines/world/lorePlacement';
 import {
   GeoToolHud,
   type HighlandMode,
@@ -213,6 +222,17 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     worldPoint: MapPoint;
     environmentalContext: EnvironmentalContext;
     targetHitObject?: { kind: string; id: string; name?: string } | null;
+    /** Which generator submenu to open first (lore tools jump straight in). */
+    initialSection?: 'main' | 'beast' | 'npc' | 'event' | 'artifact' | 'settlement' | 'custom';
+  } | null>(null);
+
+  // Civilization & Lore: a lore tool click asks which canon entity lives here
+  // before it drops a pin, instead of stamping an anonymous token.
+  const [loreDraft, setLoreDraft] = useState<{
+    kind: LorePinKind;
+    worldPoint: MapPoint;
+    clientX: number;
+    clientY: number;
   } | null>(null);
 
   // Rubber-band selection (Plan 23). The ref mirrors the state so the mouseup
@@ -773,6 +793,20 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     // Multi-point drafting tool for continents
     if (activeTool === 'terrain_continent') {
       setDraftPoints((prev) => [...prev, worldPoint]);
+      return;
+    }
+
+    // Civilization & Lore tools: the map asks which canon entity goes here,
+    // then drops a labelled pin. Tools without a picker (settlement, roads,
+    // caravans) keep their own semantics below.
+    const loreKind = loreKindForTool(activeTool);
+    if (loreKind) {
+      setLoreDraft({
+        kind: loreKind,
+        worldPoint,
+        clientX: e.clientX,
+        clientY: e.clientY,
+      });
       return;
     }
 
@@ -1689,6 +1723,91 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // Civilization & Lore pins
+  // ---------------------------------------------------------------------------
+
+  const placements = worldBible.mapData?.placements ?? [];
+
+  /** Places the chosen canon entity at the point the author clicked. */
+  const handlePlaceLore = (candidate: LorePinCandidate) => {
+    const draft = loreDraft;
+    if (!draft) return;
+
+    const pin = buildLorePlacement(
+      makeLorePlacementId(),
+      draft.kind,
+      candidate.id,
+      candidate.name,
+      draft.worldPoint
+    );
+    onAddPlacement(pin);
+    // Open the pin in the Inspector, the same way an AI-generated entity does.
+    onSelectionChange([{ kind: 'placement', id: pin.id }]);
+    setLoreDraft(null);
+  };
+
+  /**
+   * The AI generator lives in the right-click menu; a lore tool opens the same
+   * menu at the same point, on the matching submenu, so the author gets an
+   * entity drafted for this exact stretch of terrain.
+   */
+  const handleGenerateLore = () => {
+    const draft = loreDraft;
+    if (!draft) return;
+
+    const sectionByKind: Partial<Record<LorePinKind, 'beast' | 'npc' | 'event' | 'artifact'>> = {
+      bestiary: 'beast',
+      npc: 'npc',
+      timeline: 'event',
+      artifact: 'artifact',
+    };
+    const section = sectionByKind[draft.kind];
+    // Deities have no generator: the picker hides the button instead.
+    if (!section) return;
+
+    setContextMenuState({
+      clientX: draft.clientX,
+      clientY: draft.clientY,
+      worldPoint: draft.worldPoint,
+      environmentalContext: extractEnvironmentalContext(draft.worldPoint, worldBible),
+      targetHitObject: null,
+      initialSection: section,
+    });
+    setLoreDraft(null);
+  };
+
+  /** Deities have no AI generator yet: the picker links to Studio instead. */
+  const canGenerateHere = loreDraft ? loreDraft.kind !== 'deity' : false;
+
+  // A one-line instruction for tools whose click target is not obvious: a
+  // caravan corridor only starts on a settlement, and a lore tool opens a
+  // picker rather than stamping a token.
+  const toolHint = useMemo(() => {
+    if (activeTool === 'draw_caravan') {
+      return draftPoints.length === 0
+        ? isPersian
+          ? 'برای آغاز مسیر تجاری روی یک سکونتگاه کلیک کنید'
+          : 'Click a settlement to start a trade corridor'
+        : isPersian
+          ? 'روی سکونتگاه مقصد کلیک کنید تا مسیر کامل شود'
+          : 'Click the destination settlement to finish the corridor';
+    }
+    const kind = loreKindForTool(activeTool);
+    if (kind) {
+      return isPersian
+        ? `${loreKindLabel(kind, true)} — روی نقشه کلیک کنید تا جای آن را برگزینید`
+        : `${loreKindLabel(kind, false)} — click the map to choose the spot`;
+    }
+    return null;
+  }, [activeTool, draftPoints.length, isPersian]);
+
+  // Switching tools dismisses a picker that was opened by the old tool.
+  useEffect(() => {
+    if (!loreDraft) return;
+    if (loreKindForTool(activeTool) !== loreDraft.kind) setLoreDraft(null);
+  }, [activeTool, loreDraft]);
+
   const handleCanvasDoubleClick = (event: React.MouseEvent) => {
     if (activeTool === 'select' && engineRef.current) {
       const worldPoint = clientToWorld(event.clientX, event.clientY);
@@ -1747,6 +1866,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         hoveredCoord={hoveredCoord}
         zoom={zoom}
         draftPointCount={draftPoints.length}
+        toolHint={toolHint}
         isPersian={isPersian}
         marqueeThresholdPx={MARQUEE_THRESHOLD_PX}
         zoomRectThresholdPx={ZOOM_RECT_THRESHOLD_PX}
@@ -1814,6 +1934,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           environmentalContext={contextMenuState.environmentalContext}
           worldBible={worldBible}
           targetHitObject={contextMenuState.targetHitObject}
+          initialSection={contextMenuState.initialSection}
           isPersian={isPersian}
           onClose={() => setContextMenuState(null)}
           onSelectObject={(ref) => onSelectionChange([{ kind: ref.kind as any, id: ref.id }])}
@@ -1825,6 +1946,21 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
             }
             setContextMenuState(null);
           }}
+        />
+      )}
+
+      {loreDraft && (
+        <LorePlacementPicker
+          kind={loreDraft.kind}
+          worldPoint={loreDraft.worldPoint}
+          clientX={loreDraft.clientX}
+          clientY={loreDraft.clientY}
+          worldBible={worldBible}
+          placements={placements}
+          isPersian={isPersian}
+          onPlace={handlePlaceLore}
+          onGenerateWithAi={canGenerateHere ? handleGenerateLore : undefined}
+          onClose={() => setLoreDraft(null)}
         />
       )}
     </div>

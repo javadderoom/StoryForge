@@ -33,6 +33,11 @@ export interface CartographerContextMenuProps {
     id: string;
     name?: string;
   } | null;
+  /**
+   * Open straight into one generator instead of the main menu. The lore tools
+   * use this so "generate with AI" lands on the right submenu.
+   */
+  initialSection?: MenuSection;
   isPersian: boolean;
   onClose: () => void;
   onSelectObject?: (ref: { kind: string; id: string }) => void;
@@ -54,6 +59,7 @@ export function CartographerContextMenu({
   environmentalContext,
   worldBible,
   targetHitObject,
+  initialSection,
   isPersian,
   onClose,
   onSelectObject,
@@ -62,7 +68,7 @@ export function CartographerContextMenu({
   onAddGeneratedElement,
 }: CartographerContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const [activeSection, setActiveSection] = useState<MenuSection>('main');
+  const [activeSection, setActiveSection] = useState<MenuSection>(initialSection ?? 'main');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStatus, setGenerationStatus] = useState<string>('');
 

@@ -17,6 +17,8 @@ interface CanvasOverlaysProps {
   hoveredCoord: MapPoint | null;
   zoom: number;
   draftPointCount: number;
+  /** A one-line instruction for the armed tool, shown when a click is not obvious. */
+  toolHint?: string | null;
   isPersian: boolean;
   marqueeThresholdPx: number;
   zoomRectThresholdPx: number;
@@ -33,6 +35,7 @@ export const CanvasOverlays: React.FC<CanvasOverlaysProps> = ({
   hoveredCoord,
   zoom,
   draftPointCount,
+  toolHint,
   isPersian,
   marqueeThresholdPx,
   zoomRectThresholdPx,
@@ -124,6 +127,20 @@ export const CanvasOverlays: React.FC<CanvasOverlaysProps> = ({
             ? `${draftPointCount} نقطه — برای ثبت دوبار کلیک کنید یا Enter بزنید · Esc برای لغو`
             : `${draftPointCount} point${draftPointCount === 1 ? '' : 's'} — double-click or press Enter to commit · Esc to cancel`}
         </span>
+      </div>
+    )}
+
+    {/* Armed-tool hint. A tool whose click silently does nothing (a caravan
+        corridor that must start on a settlement) needs to say so up front. */}
+    {toolHint && draftPointCount === 0 && (
+      <div
+        onMouseDown={stopOverlayMouse}
+        onMouseMove={stopOverlayMouse}
+        onMouseUp={stopOverlayMouse}
+        className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-950/85 backdrop-blur-sm border border-amber-800/60 text-[11px] text-amber-100 shadow-lg pointer-events-none"
+      >
+        <MousePointer className="w-3 h-3 text-amber-400" />
+        <span>{toolHint}</span>
       </div>
     )}
   </>
