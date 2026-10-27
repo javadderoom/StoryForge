@@ -533,7 +533,7 @@ You MUST respond with a valid JSON object matching this schema:
     { "clockName": "Exact clock name from the active clocks list", "delta": 1, "reason": "you push the caravan through the night instead of making camp" }
   ],
   "choices": [
-    { "id": "choice_1", "text": "Carefully inspect the masonry around the threshold for a hidden lever or latch", "style": "inquisitive", "riskLevel": "low" },
+    { "id": "choice_1", "text": "Carefully inspect the masonry around the threshold for a hidden lever or latch", "style": "cautious", "riskLevel": "low" },
     { "id": "choice_2", "text": "Quietly draw the dagger and step behind the granite pillar", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
   ],
   "extractedMemories": [
