@@ -12,14 +12,7 @@ import {
   MapRoute,
 } from '@/lib/types';
 import { CartographerTool } from './CartographerHeader';
-import type { DraggedNodeData } from '@/lib/engines/world/pixi/PixiCartographerEngine';
-import {
-  marqueeSelectRefs,
-  mergeMapObjectRefs,
-  sameMapObjectRef,
-  toggleMapObjectRef,
-  type MapObjectRef,
-} from '@/lib/engines/world/mapSelection';
+import type { MapObjectRef } from '@/lib/engines/world/mapSelection';
 import {
   screenToWorld,
   calculateZoomPan,
@@ -27,37 +20,32 @@ import {
   clampZoom,
 } from '@/lib/engines/world/pixi/pixiMath';
 import { VINTAGE_PARCHMENT } from '@/lib/engines/world/pixi/vintageTheme';
-import { normalizeLandWaterFeatures } from '@/lib/engines/world/landSculpt/waterFeatures';
-import { applyTransform } from '@/lib/engines/world/pixi/transformMath';
 import { usePixiEngine } from './canvas/usePixiEngine';
 import { useMapDrafting } from './canvas/useMapDrafting';
 import { CanvasOverlays } from './canvas/CanvasOverlays';
 import { LandSculptHud } from './canvas/LandSculptHud';
-import {
-  CartographerContextMenu,
-} from './canvas/CartographerContextMenu';
+import { CartographerContextMenu } from './canvas/CartographerContextMenu';
 import { LorePlacementPicker } from './canvas/LorePlacementPicker';
+import { EnvironmentalContext } from '@/lib/engines/world/environmentalContext';
 import {
-  extractEnvironmentalContext,
-  EnvironmentalContext,
-} from '@/lib/engines/world/environmentalContext';
-import {
-  buildLorePlacement,
   loreKindForTool,
   loreKindLabel,
-  makeLorePlacementId,
-  type LorePinCandidate,
-  type LorePinKind,
 } from '@/lib/engines/world/lorePlacement';
-import {
-  GeoToolHud,
-  type HighlandMode,
-  type BiomeType,
-  type BiomeDensity,
-} from './canvas/GeoToolHud';
+import { GeoToolHud } from './canvas/GeoToolHud';
 import { useRoadDrafting } from './canvas/hooks/useRoadDrafting';
 import { useLandSculptBrush } from './canvas/hooks/useLandSculptBrush';
 import { useGeoStrokeDrafting } from './canvas/hooks/useGeoStrokeDrafting';
+import {
+  useCanvasGestures,
+  MARQUEE_THRESHOLD_PX,
+  SELECTION_DRAG_THRESHOLD_PX,
+  ZOOM_RECT_THRESHOLD_PX,
+} from './canvas/hooks/useCanvasGestures';
+import { useVertexEditing } from './canvas/hooks/useVertexEditing';
+import { useGeoHudSettings } from './canvas/hooks/useGeoHudSettings';
+import { useCanvasContextMenu } from './canvas/hooks/useCanvasContextMenu';
+import { useCanvasNodeDrag } from './canvas/hooks/useCanvasNodeDrag';
+import { useCanvasSelectTool } from './canvas/hooks/useCanvasSelectTool';
 
 interface PixiCartographerCanvasProps {
   worldBible: WorldBible;
@@ -92,58 +80,6 @@ interface PixiCartographerCanvasProps {
   setPan: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
 }
 
-/**
- * A rubber band in progress, in container-relative screen pixels.
- *
- * `base` is the selection the band started from when Shift/Ctrl is held, so
- * an additive band unions with what was already selected instead of replacing
- * it.
- */
-interface MarqueeState {
-  x0: number;
-  y0: number;
-  x1: number;
-  y1: number;
-  additive: boolean;
-  base: MapObjectRef[];
-}
-
-/** A click that never moved further than this is not a rubber band. */
-const MARQUEE_THRESHOLD_PX = 3;
-
-/**
- * A group move in progress.
- *
- * `origin` and `delta` are world-space. The world is not mutated while the
- * pointer moves: the engine draws the selected objects translated by `delta`,
- * and only mouseup commits the move (one undo step, one world update).
- */
-interface SelectionDragState {
-  refs: MapObjectRef[];
-  origin: MapPoint;
-  delta: MapPoint;
-  moved: boolean;
-}
-
-/** Screen-space distance before a press becomes a drag. */
-const SELECTION_DRAG_THRESHOLD_PX = 3;
-
-/**
- * An Alt + left-drag zoom box, in container-relative screen pixels.
- *
- * Released below the threshold it is a no-op: the gesture is navigation, so it
- * must never be mistaken for a selection click.
- */
-interface ZoomRectState {
-  x0: number;
-  y0: number;
-  x1: number;
-  y1: number;
-}
-
-/** Both axes must clear this before a zoom box is worth applying. */
-const ZOOM_RECT_THRESHOLD_PX = 8;
-
 /** Draft state that must survive the handler's local scope while a route is being drawn. */
 type DraftWindow = Window & { __pixiDraftOriginLocId?: string };
 const draftWindow = (): DraftWindow => window as DraftWindow;
@@ -176,221 +112,85 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Pan and drag states
-  const [isPanning, setIsPanning] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hoveredCoord, setHoveredCoord] = useState<MapPoint | null>(null);
 
-  // Right-click context menu and click-vs-drag detection (<5px threshold)
-  const rightClickStartRef = useRef<{ clientX: number; clientY: number } | null>(null);
-  const [contextMenuState, setContextMenuState] = useState<{
-    clientX: number;
-    clientY: number;
-    worldPoint: MapPoint;
-    environmentalContext: EnvironmentalContext;
-    targetHitObject?: { kind: string; id: string; name?: string } | null;
-    /** Which generator submenu to open first (lore tools jump straight in). */
-    initialSection?: 'main' | 'beast' | 'npc' | 'event' | 'artifact' | 'settlement' | 'custom';
-  } | null>(null);
-
-  // Civilization & Lore: a lore tool click asks which canon entity lives here
-  // before it drops a pin, instead of stamping an anonymous token.
-  const [loreDraft, setLoreDraft] = useState<{
-    kind: LorePinKind;
-    worldPoint: MapPoint;
-    clientX: number;
-    clientY: number;
-  } | null>(null);
-
-  // Rubber-band selection (Plan 23). The ref mirrors the state so the mouseup
-  // path can read the band synchronously without re-binding global listeners
-  // on every pointer move.
-  const [marquee, setMarquee] = useState<MarqueeState | null>(null);
-  const marqueeRef = useRef<MarqueeState | null>(null);
-  const setMarqueeState = useCallback((next: MarqueeState | null) => {
-    marqueeRef.current = next;
-    setMarquee(next);
-  }, []);
-
-  // Group move in progress (Plan 23). Same ref-mirror trick: the mouseup path
-  // needs the live delta without re-binding the global mouseup listener.
-  const [selectionDrag, setSelectionDrag] = useState<SelectionDragState | null>(null);
-  const selectionDragRef = useRef<SelectionDragState | null>(null);
-  const setSelectionDragState = useCallback((next: SelectionDragState | null) => {
-    selectionDragRef.current = next;
-    setSelectionDrag(next);
-  }, []);
-
-  // Alt + left-drag zoom box. The ref mirror lets mouseup read the final
-  // rectangle without rebinding the global listener on every pixel.
-  const [zoomRect, setZoomRect] = useState<ZoomRectState | null>(null);
-  const zoomRectRef = useRef<ZoomRectState | null>(null);
-  const setZoomRectState = useCallback((next: ZoomRectState | null) => {
-    zoomRectRef.current = next;
-    setZoomRect(next);
-  }, []);
-
-  // Show the zoom cursor while Alt is held, even before the drag starts.
-  const [isAltHeld, setIsAltHeld] = useState(false);
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Alt') setIsAltHeld(true);
-    };
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Alt') setIsAltHeld(false);
-    };
-    const onBlur = () => setIsAltHeld(false);
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('blur', onBlur);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('blur', onBlur);
-    };
-  }, []);
-
-  // Track cursor position for anchor-preserving keyboard zoom (PageUp / PageDown)
-  const lastMousePosRef = useRef<{ clientX: number; clientY: number } | null>(null);
-  const zoomRef = useRef(zoom);
-  const panRef = useRef(pan);
-
-  useEffect(() => {
-    zoomRef.current = zoom;
-  }, [zoom]);
-
-  useEffect(() => {
-    panRef.current = pan;
-  }, [pan]);
-
-  // PageUp / PageDown keyboard shortcuts for zooming in / out
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-
-      if ((e.key === 'Delete' || e.key === 'Backspace') && activeVertexRef.current) {
-        const v = activeVertexRef.current;
-        const feature = terrainFeaturesRef.current.find((f) => f.id === v.featureId);
-        if (feature) {
-          if (v.subType === 'points' && feature.points && feature.points.length > 2) {
-            e.preventDefault();
-            const updated = feature.points.filter((_, i) => i !== v.index);
-            onUpdateTerrain(feature.id, { points: updated });
-            setActiveVertex(null);
-            activeVertexRef.current = null;
-            return;
-          }
-          if (v.subType === 'polygon' && feature.polygon && feature.polygon.length > 3) {
-            e.preventDefault();
-            const updated = feature.polygon.filter((_, i) => i !== v.index);
-            onUpdateTerrain(feature.id, { polygon: updated });
-            setActiveVertex(null);
-            activeVertexRef.current = null;
-            return;
-          }
-        }
-      }
-
-      if (e.key === 'Escape') {
-        setIsVertexEditMode(false);
-        setActiveVertex(null);
-        activeVertexRef.current = null;
-      }
-
-      if (e.key === 'a' || e.key === 'A') {
-        setIsVertexEditMode(true);
-      }
-
-      if (e.key === 'v' || e.key === 'V') {
-        setIsVertexEditMode(false);
-      }
-
-      if (e.key === 'PageUp' || e.key === 'PageDown') {
-        e.preventDefault();
-        const isZoomIn = e.key === 'PageUp';
-        const zoomFactor = isZoomIn ? 1.2 : 1 / 1.2;
-        const currentZoom = zoomRef.current;
-        const currentPan = panRef.current;
-        const newZoom = clampZoom(currentZoom * zoomFactor);
-
-        if (Math.abs(newZoom - currentZoom) < 0.001) return;
-
-        const container = containerRef.current;
-        if (!container) return;
-        const rect = container.getBoundingClientRect();
-
-        const lastPos = lastMousePosRef.current;
-        const isCursorInside =
-          lastPos !== null &&
-          lastPos.clientX >= rect.left &&
-          lastPos.clientX <= rect.right &&
-          lastPos.clientY >= rect.top &&
-          lastPos.clientY <= rect.bottom;
-
-        const cursorX = isCursorInside && lastPos ? lastPos.clientX - rect.left : rect.width / 2;
-        const cursorY = isCursorInside && lastPos ? lastPos.clientY - rect.top : rect.height / 2;
-
-        const newPan = calculateZoomPan(cursorX, cursorY, currentPan, currentZoom, newZoom);
-
-        setZoom(newZoom);
-        setPan(newPan);
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [setZoom, setPan, onUpdateTerrain]);
-
-  // Buffered drag state for zero-server-request 60fps moves
-  const [draggedNode, setDraggedNode] = useState<DraggedNodeData | null>(null);
-  const [transientPos, setTransientPos] = useState<MapPoint | null>(null);
-  const [activeVertex, setActiveVertex] = useState<{
-    featureId: string;
-    index: number;
-    subType: 'points' | 'polygon';
-  } | null>(null);
-  const activeVertexRef = useRef<{
-    featureId: string;
-    index: number;
-    subType: 'points' | 'polygon';
-  } | null>(null);
-  const [isVertexEditMode, setIsVertexEditMode] = useState(false);
-
-  // Land Sculpt Brush controls
-  const [sculptMode, setSculptMode] = useState<'paint' | 'carve'>('paint');
-  const [brushSize, setBrushSize] = useState<number>(65);
-  const [brushRoughness, setBrushRoughness] = useState<number>(0.35);
-
-  // Geographical tools live HUD state
-  const [highlandMode, setHighlandMode] = useState<HighlandMode>('plateau');
-  const [cliffHeight, setCliffHeight] = useState<number>(36);
-  const [terraceTiers, setTerraceTiers] = useState<number>(1);
-  const [activeBiome, setActiveBiome] = useState<BiomeType>('forest');
-  const [biomeDensity, setBiomeDensity] = useState<BiomeDensity>('medium');
-  const [valleyWidth, setValleyWidth] = useState<number>(28);
-  const [mountainScale, setMountainScale] = useState<number>(55);
-  const [isMountainElevationLinked, setIsMountainElevationLinked] = useState<boolean>(true);
-  const [mountainElevation, setMountainElevation] = useState<number>(2750);
-  const [hasSnowcaps, setHasSnowcaps] = useState<boolean>(true);
-  const [riverWidth, setRiverWidth] = useState<number>(11);
-
-  const draggedNodeRef = useRef<DraggedNodeData | null>(null);
-  const transientPosRef = useRef<MapPoint | null>(null);
   const tradeRoutesRef = useRef(worldBible.tradeRoutes || []);
   const mapRoutesRef = useRef(worldBible.mapData?.routes || []);
   const terrainFeaturesRef = useRef(worldBible.mapData?.terrainFeatures || []);
-  const cancelZoomBox = useCallback(() => setZoomRectState(null), [setZoomRectState]);
+
+  useEffect(() => {
+    tradeRoutesRef.current = worldBible.tradeRoutes || [];
+  }, [worldBible.tradeRoutes]);
+
+  useEffect(() => {
+    mapRoutesRef.current = worldBible.mapData?.routes || [];
+  }, [worldBible.mapData?.routes]);
+
+  useEffect(() => {
+    terrainFeaturesRef.current = worldBible.mapData?.terrainFeatures || [];
+  }, [worldBible.mapData?.terrainFeatures]);
+
+  // Convert client coordinates to World Map coordinates
+  const clientToWorld = useCallback(
+    (clientX: number, clientY: number): MapPoint => {
+      if (!containerRef.current) return { x: 0, y: 0 };
+      const rect = containerRef.current.getBoundingClientRect();
+      const screenX = clientX - rect.left;
+      const screenY = clientY - rect.top;
+      return screenToWorld(screenX, screenY, pan, zoom);
+    },
+    [pan, zoom]
+  );
+
+  // Viewport gestures: panning, rubber-band selection, group move, the
+  // Alt-drag zoom box and the keyboard zoom.
+  const {
+    isPanning,
+    setIsPanning,
+    dragStart,
+    setDragStart,
+    marquee,
+    marqueeRef,
+    setMarqueeState,
+    selectionDrag,
+    selectionDragRef,
+    setSelectionDragState,
+    zoomRect,
+    zoomRectRef,
+    setZoomRectState,
+    isAltHeld,
+    lastMousePosRef,
+    cancelZoomBox,
+  } = useCanvasGestures({ zoom, pan, setZoom, setPan, containerRef });
+
+  // Vertex edit mode: A toggles it, V leaves it, Delete removes a vertex.
+  const {
+    selectVertex,
+    clearActiveVertex,
+    isVertexEditMode,
+    setIsVertexEditMode,
+  } = useVertexEditing({ terrainFeaturesRef, onUpdateTerrain });
+
+  // Live HUD settings and sliders
+  const geoHud = useGeoHudSettings();
+
+  // Node dragging and transient 60fps moves
+  const {
+    draggedNode,
+    transientPos,
+    draggedNodeRef,
+    updateTransientPos,
+    startDraggingNode,
+    commitNodeDragEnd,
+  } = useCanvasNodeDrag({
+    tradeRoutesRef,
+    mapRoutesRef,
+    terrainFeaturesRef,
+    onUpdateTradeRoute,
+    onUpdateRoute,
+    onUpdateTerrain,
+    selectVertex,
+  });
 
   const {
     draftPoints,
@@ -404,13 +204,13 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     onAddTerrain,
     onSelectionChange,
     onCancelZoom: cancelZoomBox,
-    activeBiome,
-    highlandMode,
-    cliffHeight,
-    terraceTiers,
-    valleyWidth,
-    mountainScale,
-    hasSnowcaps,
+    activeBiome: geoHud.activeBiome,
+    highlandMode: geoHud.highlandMode,
+    cliffHeight: geoHud.cliffHeight,
+    terraceTiers: geoHud.terraceTiers,
+    valleyWidth: geoHud.valleyWidth,
+    mountainScale: geoHud.mountainScale,
+    hasSnowcaps: geoHud.hasSnowcaps,
   });
 
   const engineRef = usePixiEngine({
@@ -432,34 +232,61 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   });
 
   useEffect(() => {
-    draggedNodeRef.current = draggedNode;
-  }, [draggedNode]);
-
-  useEffect(() => {
-    transientPosRef.current = transientPos;
-  }, [transientPos]);
-
-  useEffect(() => {
-    tradeRoutesRef.current = worldBible.tradeRoutes || [];
-  }, [worldBible.tradeRoutes]);
-
-  useEffect(() => {
-    mapRoutesRef.current = worldBible.mapData?.routes || [];
-  }, [worldBible.mapData?.routes]);
-
-  useEffect(() => {
-    terrainFeaturesRef.current = worldBible.mapData?.terrainFeatures || [];
-  }, [worldBible.mapData?.terrainFeatures]);
-
-  useEffect(() => {
     if (activeTool !== 'land_brush' && engineRef.current) {
       engineRef.current.clearBrushCursor();
       engineRef.current.clearBrushPreview();
     }
   }, [activeTool, engineRef]);
 
+  // Context menu and canon entity placement
+  const {
+    contextMenuState,
+    setContextMenuState,
+    loreDraft,
+    setLoreDraft,
+    loreDraftIsLive,
+    canGenerateHere,
+    recordRightClickStart,
+    checkRightClickRelease,
+    handlePlaceLore,
+    handleGenerateLore,
+  } = useCanvasContextMenu({
+    worldBible,
+    settings,
+    activeTool,
+    engineRef,
+    clientToWorld,
+    onAddPlacement,
+    onSelectionChange,
+  });
+
+  // Select tool hit-testing, vertex drag start, group move & marquee commits
+  const {
+    handleSelectMouseDown,
+    commitSelectionDragEnd,
+    commitMarqueeEnd,
+  } = useCanvasSelectTool({
+    engineRef,
+    settings,
+    selection,
+    worldBible,
+    terrainFeaturesRef,
+    mapRoutesRef,
+    containerRef,
+    pan,
+    zoom,
+    onSelectionChange,
+    onMoveSelection,
+    onUpdateTerrain,
+    selectVertex,
+    clearActiveVertex,
+    startDraggingNode,
+    setSelectionDragState,
+    setMarqueeState,
+  });
+
   // -----------------------------------------------------------------------
-  // Extracted gestures
+  // Extracted gesture hooks
   // -----------------------------------------------------------------------
   const {
     handleRoadMouseDown,
@@ -467,7 +294,6 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     handleRoadMouseUp,
     finishRouteDraft,
     snapRouteAt,
-    getRouteSource,
   } = useRoadDrafting({
     activeTool,
     worldBible,
@@ -503,55 +329,26 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     setDraftPoints,
     onAddTerrain,
     onSelectionChange,
-    mountainScale,
-    isMountainElevationLinked,
-    mountainElevation,
-    hasSnowcaps,
-    highlandMode,
-    cliffHeight,
-    terraceTiers,
-    valleyWidth,
-    riverWidth,
-    activeBiome,
+    mountainScale: geoHud.mountainScale,
+    isMountainElevationLinked: geoHud.isMountainElevationLinked,
+    mountainElevation: geoHud.mountainElevation,
+    hasSnowcaps: geoHud.hasSnowcaps,
+    highlandMode: geoHud.highlandMode,
+    cliffHeight: geoHud.cliffHeight,
+    terraceTiers: geoHud.terraceTiers,
+    valleyWidth: geoHud.valleyWidth,
+    riverWidth: geoHud.riverWidth,
+    activeBiome: geoHud.activeBiome,
   });
 
-  // Convert client coordinates to World Map coordinates
-  const clientToWorld = useCallback(
-    (clientX: number, clientY: number): MapPoint => {
-      if (!containerRef.current) return { x: 0, y: 0 };
-      const rect = containerRef.current.getBoundingClientRect();
-      const screenX = clientX - rect.left;
-      const screenY = clientY - rect.top;
-      return screenToWorld(screenX, screenY, pan, zoom);
-    },
-    [pan, zoom]
-  );
-
-  /**
-   * True when the event happened on the map surface itself.
-   *
-   * The floating overlays (brush HUD, coordinate readout, engine badge) live
-   * INSIDE the canvas container, so their events bubble into the container's
-   * handlers. Without this guard, dragging the brush-size slider painted land
-   * and clicking the HUD started a sculpt stroke.
-   */
   const isCanvasSurface = useCallback((e: React.MouseEvent | React.WheelEvent): boolean => {
     return e.target === canvasRef.current;
   }, []);
 
-  /** Stops an overlay's mouse events from reaching the canvas handlers. */
   const stopOverlayMouse = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
   }, []);
 
-  /**
-   * Right-click belongs to the map, not to the browser.
-   *
-   * Without this the canvas behaves like an image: the browser menu ("Save
-   * image as…", "Reload", "Inspect") opens in the middle of drawing and would
-   * also fire at the end of a right-drag pan. Suppressing it is what lets the
-   * secondary button be a navigation gesture.
-   */
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
   }, []);
@@ -576,13 +373,10 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
   // Mouse Down handler
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Overlays (brush HUD, HUD badges) are children of this container — a click
-    // on them must never start a stroke, a drag, or a pan.
     if (!isCanvasSurface(e)) return;
     const worldPoint = clientToWorld(e.clientX, e.clientY);
 
-    // Alt + left-drag is the design-tool zoom box. It runs before every tool,
-    // so holding Alt can never drop a vertex or start a sculpt stroke.
+    // Alt + left-drag zoom box
     if (e.button === 0 && e.altKey) {
       const container = containerRef.current;
       if (!container) return;
@@ -593,28 +387,22 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       return;
     }
 
-    // Pan with the middle or right button. Suppressing the browser menu hands
-    // the secondary button to the map, and right-drag to pan is the map-editor
-    // convention — it also means the gesture a user reaches for first works,
-    // instead of silently doing nothing.
+    // Pan with middle or right button
     if (e.button === 1 || e.button === 2) {
-      // Also stops Chrome's middle-click autoscroll and any native drag.
       e.preventDefault();
       if (e.button === 2) {
-        rightClickStartRef.current = { clientX: e.clientX, clientY: e.clientY };
+        recordRightClickStart(e.clientX, e.clientY);
       }
       setIsPanning(true);
       setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
       return;
     }
 
-    // Only the primary button runs a tool; the side buttons stay inert here, so
-    // a mis-click cannot drop a vertex or a settlement.
     if (e.button !== 0) return;
 
     // Land Sculpt Brush continuous drag
     if (activeTool === 'land_brush') {
-      if (e.button === 0 && !e.altKey) {
+      if (!e.altKey) {
         handleBrushMouseDown(worldPoint);
         return;
       }
@@ -637,16 +425,13 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       return;
     }
 
-
     // Multi-point drafting tool for continents
     if (activeTool === 'terrain_continent') {
       setDraftPoints((prev) => [...prev, worldPoint]);
       return;
     }
 
-    // Civilization & Lore tools: the map asks which canon entity goes here,
-    // then drops a labelled pin. Tools without a picker (settlement, roads,
-    // caravans) keep their own semantics below.
+    // Civilization & Lore tools
     const loreKind = loreKindForTool(activeTool);
     if (loreKind) {
       setLoreDraft({
@@ -731,224 +516,16 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       return;
     }
 
-    // Select Tool: pick the map object under the cursor.
-    //
-    // Plan 21: the pick is geometry-accurate (point-in-polygon for landmasses,
-    // distance-to-segment for rivers and routes), so every authored shape can
-    // be selected — and therefore opened in the Inspector and deleted.
-    //
-    // Plan 23: Shift/Ctrl-click toggles one object in the selection, and a
-    // drag that starts on empty parchment draws a rubber band. Panning is on
-    // the middle/right button, and Alt + left-drag is the zoom box, so the
-    // primary button is free for the design-tool gestures authors expect.
-    if (activeTool === 'select' && engineRef.current) {
-      // Layer switches hide objects visually; they must hide them from the
-      // picker too, otherwise clicking their empty spot still selects them.
-      const hit = engineRef.current.pickAt(worldPoint, settings.visibleLayers);
-      const additive = e.shiftKey || e.ctrlKey || e.metaKey;
-
-      if (hit) {
-        const hitRef: MapObjectRef =
-          hit.kind === 'waypoint'
-            ? { kind: 'trade_route', id: hit.candidate.routeId }
-            : hit.kind === 'route_vertex'
-            ? { kind: 'route', id: hit.candidate.routeId }
-            : hit.kind === 'terrain_vertex' || hit.kind === 'terrain_midpoint' || hit.kind === 'transform_handle'
-            ? { kind: 'terrain', id: hit.candidate.featureId }
-            : hit.kind === 'route'
-            ? { kind: 'route', id: hit.candidate.route.id }
-            : hit.kind === 'location'
-            ? { kind: 'location', id: hit.candidate.location.id }
-            : hit.kind === 'terrain'
-            ? { kind: 'terrain', id: hit.candidate.feature.id }
-            : hit.kind === 'placement'
-            ? { kind: 'placement', id: hit.candidate.placement.id }
-            : { kind: 'trade_route', id: hit.candidate.route.id };
-
-        if (additive) {
-          onSelectionChange(toggleMapObjectRef(selection, hitRef));
-          return;
-        }
-
-        // Clicking a midpoint inserts a new vertex and immediately begins dragging it!
-        if (hit.kind === 'terrain_midpoint') {
-          const alreadySelected = selection.some((ref) => sameMapObjectRef(ref, hitRef));
-          if (!alreadySelected) onSelectionChange([hitRef]);
-
-          const mid = hit.candidate;
-          const feature = terrainFeaturesRef.current.find((f) => f.id === mid.featureId);
-          if (feature) {
-            if (mid.subType === 'points' && feature.points) {
-              const newPoints = [...feature.points];
-              newPoints.splice(mid.insertIndex, 0, mid.point);
-              onUpdateTerrain(feature.id, { points: newPoints });
-            } else if (mid.subType === 'polygon' && feature.polygon) {
-              const newPolygon = [...feature.polygon];
-              newPolygon.splice(mid.insertIndex, 0, mid.point);
-              onUpdateTerrain(feature.id, { polygon: newPolygon });
-            }
-
-            const nodeData: DraggedNodeData = {
-              type: 'terrain_vertex',
-              id: mid.featureId,
-              index: mid.insertIndex,
-              subType: mid.subType,
-              startPoint: mid.point,
-            };
-            setDraggedNode(nodeData);
-            draggedNodeRef.current = nodeData;
-            setTransientPos(mid.point);
-            transientPosRef.current = mid.point;
-            setActiveVertex({ featureId: mid.featureId, index: mid.insertIndex, subType: mid.subType });
-            activeVertexRef.current = { featureId: mid.featureId, index: mid.insertIndex, subType: mid.subType };
-            return;
-          }
-        }
-
-        // A transform handle (scale / rotate) scales or spins the entire feature.
-        if (hit.kind === 'transform_handle') {
-          const alreadySelected = selection.some((ref) => sameMapObjectRef(ref, hitRef));
-          if (!alreadySelected) onSelectionChange([hitRef]);
-
-          const th = hit.candidate;
-          const nodeData: DraggedNodeData = {
-            type: 'transform_handle',
-            id: th.featureId,
-            handleType: th.handleType,
-            originBox: th.box,
-            startPoint: th.point,
-          };
-          setDraggedNode(nodeData);
-          draggedNodeRef.current = nodeData;
-          setTransientPos(th.point);
-          transientPosRef.current = th.point;
-          return;
-        }
-
-        // A terrain vertex is an edit handle: select the owning terrain, then drag that vertex.
-        if (hit.kind === 'terrain_vertex') {
-          const alreadySelected = selection.some((ref) => sameMapObjectRef(ref, hitRef));
-          if (!alreadySelected) onSelectionChange([hitRef]);
-
-          const vertex = hit.candidate;
-          const nodeData: DraggedNodeData = {
-            type: 'terrain_vertex',
-            id: vertex.featureId,
-            index: vertex.index,
-            subType: vertex.subType,
-            startPoint: vertex.point,
-          };
-          setDraggedNode(nodeData);
-          draggedNodeRef.current = nodeData;
-          setTransientPos(vertex.point);
-          transientPosRef.current = vertex.point;
-          setActiveVertex({ featureId: vertex.featureId, index: vertex.index, subType: vertex.subType });
-          activeVertexRef.current = { featureId: vertex.featureId, index: vertex.index, subType: vertex.subType };
-          return;
-        }
-
-        // A road vertex is an edit handle: select the owning road, then drag
-        // only that vertex. The same gesture works for caravan waypoints.
-        if (hit.kind === 'route_vertex') {
-          const alreadySelected = selection.some((ref) => sameMapObjectRef(ref, hitRef));
-          if (!alreadySelected) onSelectionChange([hitRef]);
-
-          const vertex = hit.candidate;
-          const nodeData: DraggedNodeData = {
-            type: 'route_vertex',
-            id: hit.id,
-            routeId: vertex.routeId,
-            index: vertex.index,
-            startPoint: vertex.point,
-          };
-          setDraggedNode(nodeData);
-          draggedNodeRef.current = nodeData;
-          setTransientPos(vertex.point);
-          transientPosRef.current = vertex.point;
-          return;
-        }
-
-        // A waypoint is an edit handle, not a selection member: select the
-        // owning route, then drag only that vertex.
-        if (hit.kind === 'waypoint') {
-          const alreadySelected = selection.some((ref) => sameMapObjectRef(ref, hitRef));
-          if (!alreadySelected) onSelectionChange([hitRef]);
-
-          const wpData = hit.candidate;
-          const nodeData: DraggedNodeData = {
-            type: 'waypoint',
-            id: hit.id,
-            routeId: wpData.routeId,
-            index: wpData.index,
-            startPoint: wpData.point,
-          };
-          setDraggedNode(nodeData);
-          draggedNodeRef.current = nodeData;
-          setTransientPos(wpData.point);
-          transientPosRef.current = wpData.point;
-          return;
-        }
-
-        const alreadySelected = selection.some((ref) => sameMapObjectRef(ref, hitRef));
-        // Plan 23: a member of a multi-selection stays selected when pressed,
-        // because dragging now moves the whole set — the design-tool behaviour.
-        if (!alreadySelected) onSelectionChange([hitRef]);
-
-        const dragRefs = alreadySelected ? selection : [hitRef];
-        const hasMovableGeometry = dragRefs.some((ref) => {
-          if (ref.kind === 'route') {
-            const route = mapRoutesRef.current.find((item) => item.id === ref.id);
-            return Boolean(
-              route &&
-                ((route.path?.length ?? 0) > 0 ||
-                  (!route.origin.ref && !route.destination.ref))
-            );
-          }
-          if (ref.kind !== 'trade_route') return true;
-          const route = (worldBible.tradeRoutes ?? []).find((r) => r.id === ref.id);
-          return Boolean(route?.waypoints?.length);
-        });
-        // A route with no waypoints has nothing of its own to move (its ends
-        // are towns). Leave it selected without starting a dead drag.
-        if (!hasMovableGeometry) return;
-
-        // No preventDefault: pressing the map should blur a focused Inspector
-        // field so arrow-key nudges reach the map again.
-        setSelectionDragState({
-          refs: dragRefs,
-          origin: worldPoint,
-          delta: { x: 0, y: 0 },
-          moved: false,
-        });
-        return;
-      }
-
-      // Empty parchment: begin a rubber band. A press-and-release without
-      // movement clears the selection when it ends.
-      setActiveVertex(null);
-      activeVertexRef.current = null;
-      const container = containerRef.current;
-      if (!container) return;
-      e.preventDefault();
-      const rect = container.getBoundingClientRect();
-      setMarqueeState({
-        x0: e.clientX - rect.left,
-        y0: e.clientY - rect.top,
-        x1: e.clientX - rect.left,
-        y1: e.clientY - rect.top,
-        additive,
-        base: additive ? selection : [],
-      });
-      return;
+    // Select Tool: pick the map object under the cursor
+    if (activeTool === 'select') {
+      handleSelectMouseDown(e, worldPoint);
     }
   };
 
   // Mouse Move handler (silky 60fps local buffering)
   const handleMouseMove = (e: React.MouseEvent) => {
     lastMousePosRef.current = { clientX: e.clientX, clientY: e.clientY };
-    // A pan or rubber band in progress owns the pointer: keep tracking it even
-    // when the drag crosses a floating overlay, otherwise the map (or the
-    // band) freezes for as long as the cursor is over the badge.
+
     if (
       !isPanning &&
       !marqueeRef.current &&
@@ -961,7 +538,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     const worldPoint = clientToWorld(e.clientX, e.clientY);
     setHoveredCoord(worldPoint);
 
-    // Zoom box in progress: track it even when the pointer crosses an overlay.
+    // Zoom box in progress
     if (zoomRectRef.current) {
       const container = containerRef.current;
       if (!container) return;
@@ -974,6 +551,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       return;
     }
 
+    // Marquee band in progress
     if (marqueeRef.current) {
       const container = containerRef.current;
       if (!container) return;
@@ -986,8 +564,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       return;
     }
 
-    // Group move in progress: track the delta; the world is untouched until
-    // mouseup and the engine renders the selected objects translated.
+    // Group move in progress
     if (selectionDragRef.current) {
       const move = selectionDragRef.current;
       const delta = {
@@ -1007,14 +584,13 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       if (isSculptingRef.current) return;
     }
 
-    // Continuous drag-to-draw accumulation (60 FPS local preview for all elements)
+    // Continuous drag-to-draw accumulation
     if (isDraggingGeoStrokeRef.current && isGeoStrokeTool && engineRef.current) {
       handleGeoStrokeMouseMove(worldPoint);
       return;
     }
 
-    // Road drawing: sample the freehand middle while pressed, and keep the
-    // snap ring under the pointer between clicks.
+    // Road drawing
     if (activeTool === 'draw_route') {
       handleRoadMouseMove(worldPoint);
       return;
@@ -1028,251 +604,87 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       return;
     }
 
-    // Update transient drag position locally without sending network requests
+    // Update transient drag position locally
     if (draggedNode) {
-      setTransientPos(worldPoint);
-      transientPosRef.current = worldPoint;
+      updateTransientPos(worldPoint);
     }
   };
 
   // Commit drag on mouse release
-  const commitDragEnd = useCallback((e?: React.MouseEvent | MouseEvent) => {
-    // Check right-click click vs drag (<5px threshold)
-    if (rightClickStartRef.current) {
-      const start = rightClickStartRef.current;
-      rightClickStartRef.current = null;
+  const commitDragEnd = useCallback(
+    (e?: React.MouseEvent | MouseEvent) => {
+      // Check right-click stationary click (<5px) vs drag
       const pos = e
         ? { clientX: e.clientX, clientY: e.clientY }
         : lastMousePosRef.current;
-      if (pos) {
-        const dist = Math.hypot(pos.clientX - start.clientX, pos.clientY - start.clientY);
-        if (dist < 5) {
-          // Pure right click without drag: Open In-Map Context Menu
-          const worldPoint = clientToWorld(pos.clientX, pos.clientY);
-          const envContext = extractEnvironmentalContext(worldPoint, worldBible);
-          let targetHitObject: { kind: string; id: string; name?: string } | null = null;
-          if (engineRef.current) {
-            const hit = engineRef.current.pickAt(worldPoint, settings.visibleLayers);
-            if (hit) {
-              targetHitObject = {
-                kind: hit.kind,
-                id: hit.id,
-                name: (hit as any).candidate?.name || (hit as any).location?.name || hit.id,
-              };
-            }
-          }
-          setContextMenuState({
-            clientX: pos.clientX,
-            clientY: pos.clientY,
-            worldPoint,
-            environmentalContext: envContext,
-            targetHitObject,
-          });
-        }
-      }
-    }
+      checkRightClickRelease(pos);
 
-    // Finish an Alt-drag zoom box: fit that area into the viewport. A box that
-    // never cleared the threshold is a click, not a zoom, and leaves the view
-    // untouched.
-    const box = zoomRectRef.current;
-    if (box) {
-      setZoomRectState(null);
-      const container = containerRef.current;
-      const boxWidth = Math.abs(box.x1 - box.x0);
-      const boxHeight = Math.abs(box.y1 - box.y0);
-      if (
-        container &&
-        boxWidth >= ZOOM_RECT_THRESHOLD_PX &&
-        boxHeight >= ZOOM_RECT_THRESHOLD_PX
-      ) {
-        const rect = container.getBoundingClientRect();
-        const view = calculateZoomToRect(
-          box,
-          { width: rect.width, height: rect.height },
-          pan,
-          zoom
-        );
-        if (view) {
-          setZoom(view.zoom);
-          setPan(view.pan);
-        }
-      }
-    }
-
-    // Finish a road gesture. A first press only establishes the origin; every
-    // later release either adds a vertex (click) or completes the road (drag).
-    handleRoadMouseUp();
-
-    // Finish a group move: one translation for the whole selection, committed
-    // once (the page turns it into a single undo step).
-    const move = selectionDragRef.current;
-    if (move) {
-      setSelectionDragState(null);
-      if (move.moved) {
-        const dx = Math.round(move.delta.x);
-        const dy = Math.round(move.delta.y);
-        if (dx !== 0 || dy !== 0) onMoveSelection(move.refs, dx, dy);
-      }
-    }
-
-    // Finish a rubber-band selection first: it is a viewport gesture and must
-    // not fall through to the sculpt/drag cleanup below.
-    const band = marqueeRef.current;
-    if (band) {
-      setMarqueeState(null);
-      const moved =
-        Math.abs(band.x1 - band.x0) > MARQUEE_THRESHOLD_PX ||
-        Math.abs(band.y1 - band.y0) > MARQUEE_THRESHOLD_PX;
-
-      if (!moved) {
-        // A plain click on empty parchment clears; Shift/Ctrl-click keeps it.
-        if (!band.additive) onSelectionChange([]);
-      } else {
-        const topLeft = screenToWorld(
-          Math.min(band.x0, band.x1),
-          Math.min(band.y0, band.y1),
-          pan,
-          zoom
-        );
-        const bottomRight = screenToWorld(
-          Math.max(band.x0, band.x1),
-          Math.max(band.y0, band.y1),
-          pan,
-          zoom
-        );
-        const bandMapData = worldBible.mapData ?? worldBible.ontology?.mapData;
-        const hits = marqueeSelectRefs(
-          {
-            locations: worldBible.locations,
-            tradeRoutes: worldBible.tradeRoutes,
-            mapRoutes: bandMapData?.routes,
-            terrainFeatures: normalizeLandWaterFeatures(
-              bandMapData?.terrainFeatures ?? []
-            ),
-            placements: bandMapData?.placements,
-            placeCategories: worldBible.ontology?.placeCategories,
-          },
-          {
-            minX: topLeft.x,
-            minY: topLeft.y,
-            maxX: bottomRight.x,
-            maxY: bottomRight.y,
-          },
-          settings
-        );
-        onSelectionChange(band.additive ? mergeMapObjectRefs(band.base, hits) : hits);
-      }
-    }
-
-    // Finalize Land Sculpt stroke
-    handleBrushMouseUp();
-
-    // Finalize Mountain, River, Valley, or Highland continuous drag stroke
-    handleGeoStrokeMouseUp();
-
-    const active = draggedNodeRef.current;
-    const finalPos = transientPosRef.current;
-
-    if (active && finalPos) {
-      const hasMoved = active.startPoint.x !== finalPos.x || active.startPoint.y !== finalPos.y;
-      if (hasMoved && active.type === 'waypoint' && active.routeId && active.index !== undefined) {
-        const route = tradeRoutesRef.current.find((r) => r.id === active.routeId);
-        if (route && route.waypoints) {
-          const updatedWaypoints = [...route.waypoints];
-          updatedWaypoints[active.index] = finalPos;
-          onUpdateTradeRoute(route.id, { waypoints: updatedWaypoints });
-        }
-      }
-      if (hasMoved && active.type === 'route_vertex' && active.routeId && active.index !== undefined) {
-        const route = mapRoutesRef.current.find((r) => r.id === active.routeId);
-        if (route) {
-          const updatedPath = [...(route.path ?? [])];
-          updatedPath[active.index] = finalPos;
-          onUpdateRoute(route.id, { path: updatedPath });
-        }
-      }
-      if (hasMoved && active.type === 'terrain_vertex' && active.id && active.index !== undefined) {
-        const feature = terrainFeaturesRef.current.find((f) => f.id === active.id);
-        if (feature) {
-          if (active.subType === 'points' && feature.points) {
-            const updatedPoints = [...feature.points];
-            updatedPoints[active.index] = finalPos;
-            onUpdateTerrain(feature.id, { points: updatedPoints });
-          } else if (active.subType === 'polygon' && feature.polygon) {
-            const updatedPolygon = [...feature.polygon];
-            updatedPolygon[active.index] = finalPos;
-            onUpdateTerrain(feature.id, { polygon: updatedPolygon });
+      // Finish an Alt-drag zoom box
+      const box = zoomRectRef.current;
+      if (box) {
+        setZoomRectState(null);
+        const container = containerRef.current;
+        const boxWidth = Math.abs(box.x1 - box.x0);
+        const boxHeight = Math.abs(box.y1 - box.y0);
+        if (
+          container &&
+          boxWidth >= ZOOM_RECT_THRESHOLD_PX &&
+          boxHeight >= ZOOM_RECT_THRESHOLD_PX
+        ) {
+          const rect = container.getBoundingClientRect();
+          const view = calculateZoomToRect(
+            box,
+            { width: rect.width, height: rect.height },
+            pan,
+            zoom
+          );
+          if (view) {
+            setZoom(view.zoom);
+            setPan(view.pan);
           }
         }
       }
-      if (
-        hasMoved &&
-        active.type === 'transform_handle' &&
-        active.id &&
-        active.originBox &&
-        active.handleType
-      ) {
-        const feature = terrainFeaturesRef.current.find((f) => f.id === active.id);
-        if (feature) {
-          if (feature.points && feature.points.length >= 2) {
-            const transformed = applyTransform(
-              feature.points,
-              active.handleType,
-              active.originBox,
-              active.startPoint,
-              finalPos,
-              false
-            );
-            onUpdateTerrain(feature.id, { points: transformed });
-          } else if (feature.polygon && feature.polygon.length >= 3) {
-            const transformed = applyTransform(
-              feature.polygon,
-              active.handleType,
-              active.originBox,
-              active.startPoint,
-              finalPos,
-              false
-            );
-            onUpdateTerrain(feature.id, { polygon: transformed });
-          }
-        }
-      }
-    }
 
-    setIsPanning(false);
-    setDraggedNode(null);
-    setTransientPos(null);
-    draggedNodeRef.current = null;
-    transientPosRef.current = null;
-  }, [
-    onAddTerrain,
-    activeTool,
-    isPersian,
-    setDraftPoints,
-    engineRef,
-    onMoveSelection,
-    onUpdateTradeRoute,
-    onUpdateRoute,
-    onReplaceTerrain,
-    onSelectionChange,
-    setMarqueeState,
-    setSelectionDragState,
-    setZoomRectState,
-    setZoom,
-    setPan,
-    worldBible.locations,
-    worldBible.tradeRoutes,
-    worldBible.mapData,
-    worldBible.ontology?.mapData,
-    worldBible.ontology?.placeCategories,
-    settings,
-    pan,
-    zoom,
-    sculptMode,
-    getRouteSource,
-    finishRouteDraft,
-  ]);
+      // Finish road gesture
+      handleRoadMouseUp();
+
+      // Finish group move
+      commitSelectionDragEnd(selectionDragRef.current);
+
+      // Finish marquee selection
+      commitMarqueeEnd(marqueeRef.current);
+
+      // Finalize Land Sculpt stroke
+      handleBrushMouseUp();
+
+      // Finalize Mountain, River, Valley, or Highland continuous drag stroke
+      handleGeoStrokeMouseUp();
+
+      // Commit node drag (waypoint, route vertex, terrain vertex, transform handle)
+      commitNodeDragEnd();
+
+      setIsPanning(false);
+    },
+    [
+      checkRightClickRelease,
+      commitMarqueeEnd,
+      commitNodeDragEnd,
+      commitSelectionDragEnd,
+      handleBrushMouseUp,
+      handleGeoStrokeMouseUp,
+      handleRoadMouseUp,
+      lastMousePosRef,
+      marqueeRef,
+      pan,
+      selectionDragRef,
+      setIsPanning,
+      setPan,
+      setZoom,
+      setZoomRectState,
+      zoom,
+      zoomRectRef,
+    ]
+  );
 
   const handleMouseLeave = () => {
     lastMousePosRef.current = null;
@@ -1282,66 +694,8 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // Civilization & Lore pins
-  // ---------------------------------------------------------------------------
-
   const placements = worldBible.mapData?.placements ?? [];
 
-  /** Places the chosen canon entity at the point the author clicked. */
-  const handlePlaceLore = (candidate: LorePinCandidate) => {
-    const draft = loreDraft;
-    if (!draft) return;
-
-    const pin = buildLorePlacement(
-      makeLorePlacementId(),
-      draft.kind,
-      candidate.id,
-      candidate.name,
-      draft.worldPoint
-    );
-    onAddPlacement(pin);
-    // Open the pin in the Inspector, the same way an AI-generated entity does.
-    onSelectionChange([{ kind: 'placement', id: pin.id }]);
-    setLoreDraft(null);
-  };
-
-  /**
-   * The AI generator lives in the right-click menu; a lore tool opens the same
-   * menu at the same point, on the matching submenu, so the author gets an
-   * entity drafted for this exact stretch of terrain.
-   */
-  const handleGenerateLore = () => {
-    const draft = loreDraft;
-    if (!draft) return;
-
-    const sectionByKind: Partial<Record<LorePinKind, 'beast' | 'npc' | 'event' | 'artifact'>> = {
-      bestiary: 'beast',
-      npc: 'npc',
-      timeline: 'event',
-      artifact: 'artifact',
-    };
-    const section = sectionByKind[draft.kind];
-    // Deities have no generator: the picker hides the button instead.
-    if (!section) return;
-
-    setContextMenuState({
-      clientX: draft.clientX,
-      clientY: draft.clientY,
-      worldPoint: draft.worldPoint,
-      environmentalContext: extractEnvironmentalContext(draft.worldPoint, worldBible),
-      targetHitObject: null,
-      initialSection: section,
-    });
-    setLoreDraft(null);
-  };
-
-  /** Deities have no AI generator yet: the picker links to Studio instead. */
-  const canGenerateHere = loreDraft ? loreDraft.kind !== 'deity' : false;
-
-  // A one-line instruction for tools whose click target is not obvious: a
-  // caravan corridor only starts on a settlement, and a lore tool opens a
-  // picker rather than stamping a token.
   const toolHint = useMemo(() => {
     if (activeTool === 'draw_caravan') {
       return draftPoints.length === 0
@@ -1360,12 +714,6 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     }
     return null;
   }, [activeTool, draftPoints.length, isPersian]);
-
-  // Switching tools dismisses a picker that was opened by the old tool.
-  useEffect(() => {
-    if (!loreDraft) return;
-    if (loreKindForTool(activeTool) !== loreDraft.kind) setLoreDraft(null);
-  }, [activeTool, loreDraft]);
 
   const handleCanvasDoubleClick = (event: React.MouseEvent) => {
     if (activeTool === 'select' && engineRef.current) {
@@ -1435,12 +783,12 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       {activeTool === 'land_brush' && (
         <LandSculptHud
           isPersian={isPersian}
-          sculptMode={sculptMode}
-          onModeChange={setSculptMode}
-          brushSize={brushSize}
-          onBrushSizeChange={setBrushSize}
-          brushRoughness={brushRoughness}
-          onBrushRoughnessChange={setBrushRoughness}
+          sculptMode={geoHud.sculptMode}
+          onModeChange={geoHud.setSculptMode}
+          brushSize={geoHud.brushSize}
+          onBrushSizeChange={geoHud.setBrushSize}
+          brushRoughness={geoHud.brushRoughness}
+          onBrushRoughnessChange={geoHud.setBrushRoughness}
           terrainFeatures={worldBible.mapData?.terrainFeatures ?? []}
           onReplaceTerrain={onReplaceTerrain}
           stopOverlayMouse={stopOverlayMouse}
@@ -1451,38 +799,28 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         activeTool={activeTool}
         isPersian={isPersian}
         stopOverlayMouse={stopOverlayMouse}
-        highlandMode={highlandMode}
-        onHighlandModeChange={setHighlandMode}
-        cliffHeight={cliffHeight}
-        onCliffHeightChange={setCliffHeight}
-        terraceTiers={terraceTiers}
-        onTerraceTiersChange={setTerraceTiers}
-        activeBiome={activeBiome}
-        onBiomeChange={setActiveBiome}
-        biomeDensity={biomeDensity}
-        onBiomeDensityChange={setBiomeDensity}
-        valleyWidth={valleyWidth}
-        onValleyWidthChange={setValleyWidth}
-        mountainScale={mountainScale}
-        onMountainScaleChange={(val) => {
-          setMountainScale(val);
-          if (isMountainElevationLinked) {
-            setMountainElevation(Math.round(val * 50));
-          }
-        }}
-        isElevationLinked={isMountainElevationLinked}
-        onToggleElevationLink={() => setIsMountainElevationLinked((v) => !v)}
-        mountainElevation={mountainElevation}
-        onMountainElevationChange={(elev) => {
-          setMountainElevation(elev);
-          if (isMountainElevationLinked) {
-            setMountainScale(Math.max(14, Math.min(100, Math.round(elev / 50))));
-          }
-        }}
-        hasSnowcaps={hasSnowcaps}
-        onToggleSnowcaps={() => setHasSnowcaps((v) => !v)}
-        riverWidth={riverWidth}
-        onRiverWidthChange={setRiverWidth}
+        highlandMode={geoHud.highlandMode}
+        onHighlandModeChange={geoHud.setHighlandMode}
+        cliffHeight={geoHud.cliffHeight}
+        onCliffHeightChange={geoHud.setCliffHeight}
+        terraceTiers={geoHud.terraceTiers}
+        onTerraceTiersChange={geoHud.setTerraceTiers}
+        activeBiome={geoHud.activeBiome}
+        onBiomeChange={geoHud.setActiveBiome}
+        biomeDensity={geoHud.biomeDensity}
+        onBiomeDensityChange={geoHud.setBiomeDensity}
+        valleyWidth={geoHud.valleyWidth}
+        onValleyWidthChange={geoHud.setValleyWidth}
+        mountainScale={geoHud.mountainScale}
+        onMountainScaleChange={geoHud.handleMountainScaleChange}
+        isElevationLinked={geoHud.isMountainElevationLinked}
+        onToggleElevationLink={geoHud.toggleElevationLink}
+        mountainElevation={geoHud.mountainElevation}
+        onMountainElevationChange={geoHud.handleMountainElevationChange}
+        hasSnowcaps={geoHud.hasSnowcaps}
+        onToggleSnowcaps={geoHud.toggleSnowcaps}
+        riverWidth={geoHud.riverWidth}
+        onRiverWidthChange={geoHud.setRiverWidth}
       />
 
       {contextMenuState && (
@@ -1508,7 +846,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         />
       )}
 
-      {loreDraft && (
+      {loreDraftIsLive && loreDraft && (
         <LorePlacementPicker
           kind={loreDraft.kind}
           worldPoint={loreDraft.worldPoint}
