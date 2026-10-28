@@ -232,7 +232,7 @@ export const CartographerLayerPanel: React.FC<CartographerLayerPanelProps> = ({
         <div className="flex items-center gap-2">
           <input
             type="range"
-            min={30}
+            min={10}
             max={100}
             step={5}
             value={settings.gridSize}

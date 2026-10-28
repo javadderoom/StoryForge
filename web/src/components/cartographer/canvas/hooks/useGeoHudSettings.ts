@@ -34,7 +34,7 @@ export function useGeoHudSettings() {
     (elev: number) => {
       setMountainElevation(elev);
       if (isMountainElevationLinked) {
-        setMountainScale(Math.max(14, Math.min(100, Math.round(elev / 50))));
+        setMountainScale(Math.max(5, Math.min(100, Math.round(elev / 50))));
       }
     },
     [isMountainElevationLinked]

@@ -97,7 +97,7 @@ export function useGeoStrokeDrafting({
     } else if (activeTool === 'terrain_river') {
       engineRef.current.renderRiverStrokePreview(pts, {
         seed: geoStrokeSeedRef.current,
-        startWidth: 1.2,
+        startWidth: Math.min(1.2, Math.max(0.4, riverWidth * 0.25)),
         endWidth: riverWidth,
         meanderRoughness: 0.3,
       });

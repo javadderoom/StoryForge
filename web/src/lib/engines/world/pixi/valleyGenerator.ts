@@ -47,7 +47,7 @@ export function generateProceduralValley(
   const rng = makeRng(rawSeed);
   const noise = getNoiseFunction(rawSeed);
 
-  const gorgeWidth = Math.max(12, Math.min(80, options.width ?? 28));
+  const gorgeWidth = Math.max(5, Math.min(80, options.width ?? 28));
   const halfW = gorgeWidth * 0.5;
 
   const leftRim: MapPoint[] = [];

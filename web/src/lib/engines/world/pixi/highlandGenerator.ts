@@ -92,7 +92,7 @@ export function generateProceduralHighland(
   const rng = makeRng(rawSeed);
   const noise = getNoiseFunction(rawSeed);
 
-  const cliffHeight = Math.max(10, Math.min(90, options.cliffHeight ?? 36));
+  const cliffHeight = Math.max(5, Math.min(90, options.cliffHeight ?? 36));
   const terraceTiers = Math.max(1, Math.min(3, options.terraceTiers ?? 1));
 
   // Determine if input is a closed polygon or a line escarpment.
@@ -179,7 +179,7 @@ function generateOrganicClosedPlateau(
 
   // 5b. Broad outward cliff apron. The reference upland is a massif, not a
   // line drawing: the escarpment belt must read from a distance.
-  const apronWidth = Math.max(32, cliffHeight * 2);
+  const apronWidth = Math.max(10, cliffHeight * 2);
   const apronFractions = [1, 0.88, 0.76, 0.64, 0.52, 0.4, 0.28, 0.16, 0.06];
   const apronRings = apronFractions.map((fraction) =>
     offsetRing(organicRim, apronWidth * fraction, noise)

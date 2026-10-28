@@ -67,7 +67,7 @@ export const TerrainCurvedTextSection: React.FC<TerrainCurvedTextSectionProps> =
             </div>
             <input
               type="range"
-              min={11}
+              min={5}
               max={26}
               step={1}
               value={feature.labelConfig?.fontSize ?? 15}

@@ -66,7 +66,7 @@ export function useLandSculptBrush({
       worldPoint.x - lastStrokePointRef.current.x,
       worldPoint.y - lastStrokePointRef.current.y
     );
-    const stepSize = Math.max(10, brushSize * 0.35);
+    const stepSize = Math.max(2, brushSize * 0.35);
     if (dist < stepSize) return;
 
     const subPoints = interpolateStrokePoints(
@@ -103,9 +103,9 @@ export function useLandSculptBrush({
         accumulatedStampsRef.current,
         sculptMode,
         {
-          simplifyTolerance: 1.5,
-          minArea: 15,
-          minHoleArea: 25,
+          simplifyTolerance: Math.min(1.5, Math.max(0.5, brushSize * 0.25)),
+          minArea: Math.max(3, Math.min(15, brushSize * brushSize * 0.2)),
+          minHoleArea: Math.max(5, Math.min(25, brushSize * brushSize * 0.3)),
         }
       );
       onReplaceTerrain(nextFeatures);

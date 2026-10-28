@@ -89,14 +89,16 @@ export function renderBrushCursor(
     const strokeColor = mode === 'paint' ? VINTAGE_PARCHMENT.coastlineInk : 0xdc2626;
 
     // Outer guide circle
+    const strokeWidth = Math.max(1, Math.min(1.5, radius * 0.2));
     g.circle(point.x, point.y, radius).stroke({
-      width: 1.5,
+      width: strokeWidth,
       color: strokeColor,
       alpha: 0.65,
     });
 
     // Center reticle dot
-    g.circle(point.x, point.y, 2.5).fill({
+    const dotRadius = Math.max(0.75, Math.min(2.5, radius * 0.25));
+    g.circle(point.x, point.y, dotRadius).fill({
       color: strokeColor,
       alpha: 0.8,
     });

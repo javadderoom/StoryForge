@@ -78,8 +78,8 @@ export function generateProceduralRiver(
   const rng = makeRng(rawSeed);
   const noise = getNoiseFunction(rawSeed);
 
-  const startW = Math.max(0.8, Math.min(6, options.startWidth ?? 1.2));
-  const endW = Math.max(startW + 2, Math.min(35, options.endWidth ?? 11.0));
+  const startW = Math.max(0.4, Math.min(6, options.startWidth ?? 1.2));
+  const endW = Math.max(startW + 0.5, Math.min(35, options.endWidth ?? 11.0));
   const meanderRoughness = Math.max(0, Math.min(1, options.meanderRoughness ?? 0.3));
 
   // 1. Catmull-Rom Spline Densification

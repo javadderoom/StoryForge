@@ -302,12 +302,8 @@ export const TerrainInspector: React.FC<TerrainInspectorProps> = ({
               type="range"
               min={
                 feature.type === 'river'
-                  ? 4
-                  : feature.type === 'mountain_range'
-                  ? 14
-                  : feature.type === 'highland' || feature.type === 'plateau'
-                  ? 16
-                  : 10
+                  ? 2
+                  : 5
               }
               max={
                 feature.type === 'river'
@@ -318,7 +314,7 @@ export const TerrainInspector: React.FC<TerrainInspectorProps> = ({
                   ? 90
                   : 75
               }
-              step={feature.type === 'mountain_range' ? 2 : 1}
+              step={1}
               value={
                 feature.type === 'mountain_range'
                   ? feature.scale || (feature.width ? Math.round(feature.width / 0.58) : 55)

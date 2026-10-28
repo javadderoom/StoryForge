@@ -74,7 +74,7 @@ export const TerrainWaterliningSection: React.FC<TerrainWaterliningSectionProps>
             </div>
             <input
               type="range"
-              min={2}
+              min={1}
               max={6}
               step={1}
               value={feature.waterliningConfig?.ringCount ?? 4}
@@ -99,7 +99,7 @@ export const TerrainWaterliningSection: React.FC<TerrainWaterliningSectionProps>
             </div>
             <input
               type="range"
-              min={2}
+              min={1}
               max={8}
               step={0.5}
               value={feature.waterliningConfig?.baseDistance ?? 4}
@@ -124,7 +124,7 @@ export const TerrainWaterliningSection: React.FC<TerrainWaterliningSectionProps>
             </div>
             <input
               type="range"
-              min={3}
+              min={1}
               max={10}
               step={0.5}
               value={feature.waterliningConfig?.distanceStep ?? 5}

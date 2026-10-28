@@ -110,9 +110,9 @@ export const TerrainCanopySection: React.FC<TerrainCanopySectionProps> = ({
             </div>
             <input
               type="range"
-              min={0.6}
+              min={0.2}
               max={1.8}
-              step={0.1}
+              step={0.05}
               value={feature.canopyConfig?.scallopScale ?? 1.0}
               onChange={(e) =>
                 onUpdateTerrain(feature.id, {

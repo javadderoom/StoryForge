@@ -71,7 +71,7 @@ export function generateProceduralDuneField(
   const noise = getNoiseFunction(seed);
 
   const density = options.density ?? 'medium';
-  const duneScale = Math.max(0.4, Math.min(2.5, options.duneScale ?? 1.0));
+  const duneScale = Math.max(0.2, Math.min(2.5, options.duneScale ?? 1.0));
   const rippleHatching = options.rippleHatching !== false;
 
   // Prevailing wind direction in radians (default: 35°, blowing north-east)

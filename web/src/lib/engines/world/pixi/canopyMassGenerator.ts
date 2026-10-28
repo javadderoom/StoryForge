@@ -77,7 +77,7 @@ export function generateProceduralCanopyMass(
   const noise = getNoiseFunction(seed);
 
   const density = options.density ?? 'medium';
-  const scallopScale = Math.max(0.5, Math.min(2.0, options.scallopScale ?? 1.0));
+  const scallopScale = Math.max(0.2, Math.min(2.0, options.scallopScale ?? 1.0));
   const treeKind = options.treeKind ?? 'deciduous';
   const includeHatches = options.hatchShading !== false;
   const includeSentinelTrees = options.sentinelTrees !== false;

@@ -291,7 +291,7 @@ export function generateNetworkGeometry(network: RiverNetwork): {
     procRivers.push(
       generateProceduralRiver(feat.points, {
         seed,
-        startWidth: 1.2,
+        startWidth: Math.min(1.2, Math.max(0.4, (feat.width || 11.0) * 0.25)),
         endWidth: feat.width || 11.0,
         meanderRoughness: 0.3,
       })

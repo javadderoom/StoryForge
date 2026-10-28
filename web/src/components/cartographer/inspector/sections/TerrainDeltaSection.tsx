@@ -110,9 +110,9 @@ export const TerrainDeltaSection: React.FC<TerrainDeltaSectionProps> = ({
             </div>
             <input
               type="range"
-              min={25}
+              min={10}
               max={75}
-              step={5}
+              step={1}
               value={feature.deltaConfig.spreadAngleDegrees ?? 48}
               onChange={(e) =>
                 onUpdateTerrain(feature.id, {

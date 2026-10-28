@@ -101,9 +101,9 @@ export const LandSculptHud: React.FC<LandSculptHudProps> = ({
         </span>
         <input
           type="range"
-          min={20}
+          min={5}
           max={180}
-          step={5}
+          step={1}
           value={brushSize}
           onChange={(event) => onBrushSizeChange(Number(event.target.value))}
           className="w-24 accent-amber-500 cursor-pointer"

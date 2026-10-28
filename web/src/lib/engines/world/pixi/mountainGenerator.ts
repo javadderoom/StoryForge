@@ -67,8 +67,8 @@ export function generateProceduralMountainRange(
   const rawSeed = options.seed ?? 42;
   const rng = makeRng(rawSeed);
 
-  const baseHmax = Math.max(12, Math.min(120, options.scale ?? 55));
-  const rangeWidth = Math.max(6, Math.min(100, options.rangeWidth ?? 32));
+  const baseHmax = Math.max(5, Math.min(120, options.scale ?? 55));
+  const rangeWidth = Math.max(3, Math.min(100, options.rangeWidth ?? 32));
   const hasSnowcaps = options.hasSnowcaps ?? true;
   const foothillDensity = Math.max(0, Math.min(1, options.foothillDensity ?? 0.4));
 
@@ -92,7 +92,7 @@ export function generateProceduralMountainRange(
     totalLength += d;
   }
 
-  if (totalLength < 12) {
+  if (totalLength < 4) {
     const singlePeak = generateStandalonePeak(
       points[0],
       baseHmax * 0.75,
@@ -104,7 +104,7 @@ export function generateProceduralMountainRange(
 
   // 2. Sample along the spine with natural overlapping intervals
   // Peak stepping step size is ~0.45 * average peak base width
-  const stepDist = Math.max(10, Math.min(45, baseHmax * 0.5));
+  const stepDist = Math.max(3, Math.min(45, baseHmax * 0.5));
   const numSteps = Math.max(2, Math.ceil(totalLength / stepDist));
 
   const peaks: ProceduralPeak[] = [];
@@ -216,7 +216,7 @@ function createIsometricPeak({
   isVolcano = false,
   hasSnowcaps = false,
 }: CreatePeakParams): ProceduralPeak {
-  const safeHeight = Math.max(12, height);
+  const safeHeight = Math.max(3, height);
   // Base width ratio: 1.25 to 1.75 times the height
   const baseWidth = safeHeight * (1.25 + 0.45 * rng());
 

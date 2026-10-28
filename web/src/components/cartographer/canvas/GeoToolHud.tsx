@@ -141,9 +141,9 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
             </span>
             <input
               type="range"
-              min={16}
+              min={5}
               max={90}
-              step={2}
+              step={1}
               value={cliffHeight}
               onChange={(e) => onCliffHeightChange(Number(e.target.value))}
               className="w-20 accent-amber-500 cursor-pointer"
@@ -264,9 +264,9 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
             </span>
             <input
               type="range"
-              min={16}
+              min={5}
               max={64}
-              step={2}
+              step={1}
               value={valleyWidth}
               onChange={(e) => onValleyWidthChange(Number(e.target.value))}
               className="w-24 accent-stone-400 cursor-pointer"
@@ -293,9 +293,9 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
             </span>
             <input
               type="range"
-              min={14}
+              min={5}
               max={85}
-              step={2}
+              step={1}
               value={mountainScale}
               onChange={(e) => {
                 const val = Number(e.target.value);
@@ -391,9 +391,9 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
             </span>
             <input
               type="range"
-              min={6}
+              min={2}
               max={26}
-              step={2}
+              step={1}
               value={riverWidth}
               onChange={(e) => onRiverWidthChange(Number(e.target.value))}
               className="w-24 accent-cyan-500 cursor-pointer"
