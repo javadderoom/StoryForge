@@ -10,7 +10,6 @@ import {
   MapEntityPlacement,
   MapPoint,
   MapRoute,
-  MapRouteEndpoint,
 } from '@/lib/types';
 import { CartographerTool } from './CartographerHeader';
 import type { DraggedNodeData } from '@/lib/engines/world/pixi/PixiCartographerEngine';
@@ -28,18 +27,6 @@ import {
   clampZoom,
 } from '@/lib/engines/world/pixi/pixiMath';
 import { VINTAGE_PARCHMENT } from '@/lib/engines/world/pixi/vintageTheme';
-import {
-  interpolateStrokePoints,
-  generateOrganicStamp,
-  applySculptOperation,
-} from '@/lib/engines/world/landSculptEngine';
-import {
-  createMapRoute,
-  resolveRouteEndpointPoint,
-  simplifyRoutePath,
-  snapRouteEndpoint,
-  type MapRouteSource,
-} from '@/lib/engines/world/mapRoutes';
 import { normalizeLandWaterFeatures } from '@/lib/engines/world/landSculpt/waterFeatures';
 import { applyTransform } from '@/lib/engines/world/pixi/transformMath';
 import { usePixiEngine } from './canvas/usePixiEngine';
@@ -68,6 +55,9 @@ import {
   type BiomeType,
   type BiomeDensity,
 } from './canvas/GeoToolHud';
+import { useRoadDrafting } from './canvas/hooks/useRoadDrafting';
+import { useLandSculptBrush } from './canvas/hooks/useLandSculptBrush';
+import { useGeoStrokeDrafting } from './canvas/hooks/useGeoStrokeDrafting';
 
 interface PixiCartographerCanvasProps {
   worldBible: WorldBible;
@@ -137,29 +127,6 @@ interface SelectionDragState {
 
 /** Screen-space distance before a press becomes a drag. */
 const SELECTION_DRAG_THRESHOLD_PX = 3;
-
-/**
- * A road being drawn (Plan 25).
- *
- * The first press captures a snapped or free origin. While the button is down
- * the pointer samples a freehand middle; between clicks the same structure
- * accumulates click-to-add vertices. Releasing or clicking on a geo element
- * finishes the route.
- */
-interface RouteDraftState {
-  origin: MapRouteEndpoint;
-  path: MapPoint[];
-  press: { start: MapPoint; moved: boolean } | null;
-  /** The first press only creates the origin; its release keeps the draft. */
-  justStarted: boolean;
-}
-
-/** Snap target under the pointer, mirrored for the synchronous mouseup path. */
-interface RouteSnapTarget {
-  endpoint: MapRouteEndpoint;
-  point: MapPoint;
-  label: string;
-}
 
 /**
  * An Alt + left-drag zoom box, in container-relative screen pixels.
@@ -405,16 +372,6 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   const [brushSize, setBrushSize] = useState<number>(65);
   const [brushRoughness, setBrushRoughness] = useState<number>(0.35);
 
-  const isSculptingRef = useRef(false);
-  const accumulatedStampsRef = useRef<MapPoint[][]>([]);
-  const lastStrokePointRef = useRef<MapPoint | null>(null);
-  const strokeSeedRef = useRef<number>(42);
-
-  // Drag-to-Generate geography strokes (Mountains & Rivers)
-  const isDraggingGeoStrokeRef = useRef(false);
-  const geoStrokePointsRef = useRef<MapPoint[]>([]);
-  const geoStrokeSeedRef = useRef<number>(42);
-
   // Geographical tools live HUD state
   const [highlandMode, setHighlandMode] = useState<HighlandMode>('plateau');
   const [cliffHeight, setCliffHeight] = useState<number>(36);
@@ -433,9 +390,6 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   const tradeRoutesRef = useRef(worldBible.tradeRoutes || []);
   const mapRoutesRef = useRef(worldBible.mapData?.routes || []);
   const terrainFeaturesRef = useRef(worldBible.mapData?.terrainFeatures || []);
-  const routeDraftRef = useRef<RouteDraftState | null>(null);
-  const routeSnapRef = useRef<RouteSnapTarget | null>(null);
-  const routePointerRef = useRef<MapPoint | null>(null);
   const cancelZoomBox = useCallback(() => setZoomRectState(null), [setZoomRectState]);
 
   const {
@@ -504,6 +458,62 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     }
   }, [activeTool, engineRef]);
 
+  // -----------------------------------------------------------------------
+  // Extracted gestures
+  // -----------------------------------------------------------------------
+  const {
+    handleRoadMouseDown,
+    handleRoadMouseMove,
+    handleRoadMouseUp,
+    finishRouteDraft,
+    snapRouteAt,
+    getRouteSource,
+  } = useRoadDrafting({
+    activeTool,
+    worldBible,
+    isPersian,
+    zoom,
+    engineRef,
+    setDraftPoints,
+    onAddRoute,
+    onSelectionChange,
+  });
+
+  const {
+    isSculptingRef,
+    handleBrushMouseDown,
+    handleBrushMouseMove,
+    handleBrushMouseUp,
+  } = useLandSculptBrush({
+    engineRef,
+    terrainFeatures: worldBible.mapData?.terrainFeatures ?? [],
+    onReplaceTerrain,
+  });
+
+  const {
+    isGeoStrokeTool,
+    isDraggingGeoStrokeRef,
+    handleGeoStrokeMouseDown,
+    handleGeoStrokeMouseMove,
+    handleGeoStrokeMouseUp,
+  } = useGeoStrokeDrafting({
+    activeTool,
+    isPersian,
+    engineRef,
+    setDraftPoints,
+    onAddTerrain,
+    onSelectionChange,
+    mountainScale,
+    isMountainElevationLinked,
+    mountainElevation,
+    hasSnowcaps,
+    highlandMode,
+    cliffHeight,
+    terraceTiers,
+    valleyWidth,
+    riverWidth,
+    activeBiome,
+  });
 
   // Convert client coordinates to World Map coordinates
   const clientToWorld = useCallback(
@@ -516,148 +526,6 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     },
     [pan, zoom]
   );
-
-  // -----------------------------------------------------------------------
-  // Plan 25 — road drawing
-  // -----------------------------------------------------------------------
-  const getRouteSource = useCallback((): MapRouteSource => {
-    const data = worldBible.mapData ?? worldBible.ontology?.mapData;
-    return {
-      locations: worldBible.locations,
-      terrainFeatures: normalizeLandWaterFeatures(data?.terrainFeatures ?? []),
-      placements: data?.placements,
-      placeCategories: worldBible.ontology?.placeCategories,
-    };
-  }, [
-    worldBible.locations,
-    worldBible.mapData,
-    worldBible.ontology?.mapData,
-    worldBible.ontology?.placeCategories,
-  ]);
-
-  const snapRouteAt = useCallback(
-    (point: MapPoint): RouteSnapTarget | null => {
-      const snap = snapRouteEndpoint(point, getRouteSource());
-      return snap
-        ? { endpoint: snap.endpoint, point: snap.endpoint.fallback, label: snap.label }
-        : null;
-    },
-    [getRouteSource]
-  );
-
-  const updateRoutePreview = useCallback(
-    (draft: RouteDraftState, cursor: MapPoint, snap: RouteSnapTarget | null) => {
-      const origin = resolveRouteEndpointPoint(draft.origin, getRouteSource()).point;
-      const points = [origin, ...draft.path, snap?.point ?? cursor];
-      setDraftPoints(points);
-      engineRef.current?.renderRouteSnapPreview(snap?.point ?? null);
-    },
-    [engineRef, getRouteSource, setDraftPoints]
-  );
-
-  const cancelRouteDraft = useCallback(() => {
-    routeDraftRef.current = null;
-    routeSnapRef.current = null;
-    routePointerRef.current = null;
-    setDraftPoints([]);
-    engineRef.current?.renderRouteSnapPreview(null);
-  }, [engineRef, setDraftPoints]);
-
-  const finishRouteDraft = useCallback(
-    (endPoint: MapPoint, destinationEndpoint?: MapRouteEndpoint) => {
-      const draft = routeDraftRef.current;
-      if (!draft) return;
-
-      const source = getRouteSource();
-      const originPoint = resolveRouteEndpointPoint(draft.origin, source).point;
-      const destination = destinationEndpoint ?? { fallback: endPoint };
-
-      if (
-        !destinationEndpoint &&
-        draft.path.length === 0 &&
-        Math.hypot(endPoint.x - originPoint.x, endPoint.y - originPoint.y) < 2
-      ) {
-        cancelRouteDraft();
-        return;
-      }
-
-      const path = simplifyRoutePath(draft.path, 1.5).filter(
-        (point) =>
-          Math.hypot(point.x - originPoint.x, point.y - originPoint.y) > 0.75
-      );
-
-      const route = createMapRoute({
-        id: `road_${Date.now().toString(36)}_${Math.floor(Math.random() * 1000)}`,
-        origin: draft.origin,
-        destination,
-        path,
-        isPersian,
-        source,
-      });
-
-      onAddRoute(route);
-      onSelectionChange([{ kind: 'route', id: route.id }]);
-      routeDraftRef.current = null;
-      routeSnapRef.current = null;
-      routePointerRef.current = null;
-      setDraftPoints([]);
-      engineRef.current?.renderRouteSnapPreview(null);
-    },
-    [
-      cancelRouteDraft,
-      engineRef,
-      getRouteSource,
-      isPersian,
-      onAddRoute,
-      onSelectionChange,
-      setDraftPoints,
-    ]
-  );
-
-  useEffect(() => {
-    if (activeTool === 'draw_route') return;
-    if (routeDraftRef.current) cancelRouteDraft();
-    engineRef.current?.renderRouteSnapPreview(null);
-  }, [activeTool, cancelRouteDraft, engineRef]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-      const draft = routeDraftRef.current;
-      if (!draft) return;
-
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        cancelRouteDraft();
-        return;
-      }
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        const cursor = routePointerRef.current;
-        if (!cursor) return;
-        const snap = snapRouteAt(cursor);
-        finishRouteDraft(cursor, snap?.endpoint);
-        return;
-      }
-      if (event.key === 'Backspace' && draft.path.length > 0) {
-        event.preventDefault();
-        draft.path = draft.path.slice(0, -1);
-        const cursor = routePointerRef.current;
-        if (cursor) updateRoutePreview(draft, cursor, routeSnapRef.current);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [cancelRouteDraft, finishRouteDraft, snapRouteAt, updateRoutePreview]);
 
   /**
    * True when the event happened on the map surface itself.
@@ -747,18 +615,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     // Land Sculpt Brush continuous drag
     if (activeTool === 'land_brush') {
       if (e.button === 0 && !e.altKey) {
-        isSculptingRef.current = true;
-        strokeSeedRef.current = Math.floor(Math.random() * 10000);
-        const stamp = generateOrganicStamp(
-          worldPoint.x,
-          worldPoint.y,
-          brushSize,
-          brushRoughness,
-          strokeSeedRef.current
-        );
-        accumulatedStampsRef.current = [stamp];
-        lastStrokePointRef.current = worldPoint;
-        engineRef.current?.renderBrushPreview(accumulatedStampsRef.current, sculptMode);
+        handleBrushMouseDown(worldPoint);
         return;
       }
     }
@@ -774,21 +631,12 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     }
 
     // Continuous drag-to-draw for ALL geographical elements
-    const isDragGeoTool =
-      activeTool === 'terrain_mountain' ||
-      activeTool === 'terrain_river' ||
-      activeTool === 'terrain_valley' ||
-      activeTool === 'terrain_highland' ||
-      activeTool === 'terrain_lake' ||
-      activeTool === 'terrain_biome';
-
-    if (isDragGeoTool) {
-      isDraggingGeoStrokeRef.current = true;
-      geoStrokeSeedRef.current = Math.floor(Math.random() * 100000);
-      geoStrokePointsRef.current = [worldPoint];
+    if (isGeoStrokeTool) {
+      handleGeoStrokeMouseDown(worldPoint);
       setDraftPoints([worldPoint]);
       return;
     }
+
 
     // Multi-point drafting tool for continents
     if (activeTool === 'terrain_continent') {
@@ -835,28 +683,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
     // Draw Roads & Paths tool (Plan 25)
     if (activeTool === 'draw_route') {
-      routePointerRef.current = worldPoint;
-      const snap = snapRouteAt(worldPoint);
-      routeSnapRef.current = snap;
-      const draft = routeDraftRef.current;
-
-      if (!draft) {
-        const nextDraft: RouteDraftState = {
-          origin: snap?.endpoint ?? { fallback: worldPoint },
-          path: [],
-          press: { start: worldPoint, moved: false },
-          justStarted: true,
-        };
-        routeDraftRef.current = nextDraft;
-        updateRoutePreview(nextDraft, worldPoint, snap);
-        return;
-      }
-
-      // A later press is either a freehand stroke or a click-to-add vertex.
-      // The decision is made on mouseup, when movement is known.
-      draft.press = { start: worldPoint, moved: false };
-      draft.justStarted = false;
-      updateRoutePreview(draft, worldPoint, snap);
+      handleRoadMouseDown(worldPoint);
       return;
     }
 
@@ -1176,123 +1003,20 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
     // Land Sculpt Brush cursor and continuous stroke accumulation
     if (activeTool === 'land_brush' && engineRef.current) {
-      engineRef.current.renderBrushCursor(worldPoint, brushSize, sculptMode);
-
-      if (isSculptingRef.current && lastStrokePointRef.current) {
-        const dist = Math.hypot(
-          worldPoint.x - lastStrokePointRef.current.x,
-          worldPoint.y - lastStrokePointRef.current.y
-        );
-        const stepSize = Math.max(10, brushSize * 0.35);
-        if (dist >= stepSize) {
-          const subPoints = interpolateStrokePoints(
-            lastStrokePointRef.current,
-            worldPoint,
-            stepSize,
-            false
-          );
-          for (const pt of subPoints) {
-            strokeSeedRef.current = (strokeSeedRef.current + 1) % 10000;
-            accumulatedStampsRef.current.push(
-              generateOrganicStamp(
-                pt.x,
-                pt.y,
-                brushSize,
-                brushRoughness,
-                strokeSeedRef.current
-              )
-            );
-          }
-          lastStrokePointRef.current = worldPoint;
-          engineRef.current.renderBrushPreview(accumulatedStampsRef.current, sculptMode);
-        }
-        return;
-      }
+      handleBrushMouseMove(worldPoint);
+      if (isSculptingRef.current) return;
     }
 
     // Continuous drag-to-draw accumulation (60 FPS local preview for all elements)
-    if (
-      isDraggingGeoStrokeRef.current &&
-      (activeTool === 'terrain_mountain' ||
-        activeTool === 'terrain_river' ||
-        activeTool === 'terrain_valley' ||
-        activeTool === 'terrain_highland' ||
-        activeTool === 'terrain_lake' ||
-        activeTool === 'terrain_biome') &&
-      engineRef.current
-    ) {
-      const pts = geoStrokePointsRef.current;
-      const lastPt = pts[pts.length - 1];
-      const dist = lastPt ? Math.hypot(worldPoint.x - lastPt.x, worldPoint.y - lastPt.y) : 999;
-      if (dist >= 12) {
-        pts.push(worldPoint);
-        if (activeTool === 'terrain_mountain') {
-          engineRef.current.renderMountainStrokePreview(pts, {
-            seed: geoStrokeSeedRef.current,
-            scale: mountainScale,
-            rangeWidth: Math.round(mountainScale * 0.58),
-            hasSnowcaps,
-          });
-        } else if (activeTool === 'terrain_river') {
-          engineRef.current.renderRiverStrokePreview(pts, {
-            seed: geoStrokeSeedRef.current,
-            startWidth: 1.2,
-            endWidth: riverWidth,
-            meanderRoughness: 0.3,
-          });
-        } else if (activeTool === 'terrain_valley') {
-          engineRef.current.renderValleyStrokePreview(pts, {
-            seed: geoStrokeSeedRef.current,
-            width: valleyWidth,
-          });
-        } else if (activeTool === 'terrain_highland') {
-          engineRef.current.renderHighlandStrokePreview(pts, {
-            seed: geoStrokeSeedRef.current,
-            cliffHeight,
-            terraceTiers,
-            isPolygon: highlandMode === 'plateau',
-          });
-        } else if (activeTool === 'terrain_lake') {
-          engineRef.current.renderLakeStrokePreview(pts);
-        } else if (activeTool === 'terrain_biome') {
-          engineRef.current.renderBiomeStrokePreview(pts, activeBiome);
-        }
-      }
+    if (isDraggingGeoStrokeRef.current && isGeoStrokeTool && engineRef.current) {
+      handleGeoStrokeMouseMove(worldPoint);
       return;
     }
 
     // Road drawing: sample the freehand middle while pressed, and keep the
     // snap ring under the pointer between clicks.
     if (activeTool === 'draw_route') {
-      routePointerRef.current = worldPoint;
-      const snap = snapRouteAt(worldPoint);
-      routeSnapRef.current = snap;
-      const draft = routeDraftRef.current;
-
-      if (draft) {
-        if (draft.press) {
-          const moved =
-            draft.press.moved ||
-            Math.hypot(
-              worldPoint.x - draft.press.start.x,
-              worldPoint.y - draft.press.start.y
-            ) *
-              zoom >
-              3;
-          if (moved) {
-            draft.press.moved = true;
-            const origin = resolveRouteEndpointPoint(draft.origin, getRouteSource()).point;
-            const last = draft.path[draft.path.length - 1] ?? origin;
-            const minStep = Math.max(1, 2 / zoom);
-            if (Math.hypot(worldPoint.x - last.x, worldPoint.y - last.y) >= minStep) {
-              draft.path.push(worldPoint);
-            }
-          }
-        }
-        updateRoutePreview(draft, worldPoint, snap);
-      } else {
-        engineRef.current?.renderRouteSnapPreview(snap?.point ?? null);
-      }
+      handleRoadMouseMove(worldPoint);
       return;
     }
 
@@ -1378,31 +1102,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
     // Finish a road gesture. A first press only establishes the origin; every
     // later release either adds a vertex (click) or completes the road (drag).
-    const routeDraft = routeDraftRef.current;
-    if (routeDraft && routeDraft.press) {
-      const press = routeDraft.press;
-      routeDraft.press = null;
-      const cursor = routePointerRef.current ?? press.start;
-      const snap = routeSnapRef.current;
-      const originPoint = resolveRouteEndpointPoint(
-        routeDraft.origin,
-        getRouteSource()
-      ).point;
-
-      if (routeDraft.justStarted && !press.moved) {
-        routeDraft.justStarted = false;
-      } else if (press.moved) {
-        finishRouteDraft(cursor, snap?.endpoint);
-      } else if (
-        snap &&
-        Math.hypot(snap.point.x - originPoint.x, snap.point.y - originPoint.y) > 2
-      ) {
-        finishRouteDraft(snap.point, snap.endpoint);
-      } else {
-        routeDraft.path.push(press.start);
-        updateRoutePreview(routeDraft, cursor, snap);
-      }
-    }
+    handleRoadMouseUp();
 
     // Finish a group move: one translation for the whole selection, committed
     // once (the page turns it into a single undo step).
@@ -1466,150 +1166,10 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     }
 
     // Finalize Land Sculpt stroke
-    if (isSculptingRef.current) {
-      isSculptingRef.current = false;
-      lastStrokePointRef.current = null;
-      engineRef.current?.clearBrushPreview();
-
-      const stamps = [...accumulatedStampsRef.current];
-      accumulatedStampsRef.current = [];
-
-      if (stamps.length > 0 && onReplaceTerrain) {
-        const currentTerrain = worldBible.mapData?.terrainFeatures || [];
-        const updated = applySculptOperation(
-          currentTerrain,
-          stamps,
-          sculptMode,
-          {
-            simplifyTolerance: 1.5,
-            minArea: 15,
-            minHoleArea: 25,
-          }
-        );
-        onReplaceTerrain(updated);
-      }
-    }
+    handleBrushMouseUp();
 
     // Finalize Mountain, River, Valley, or Highland continuous drag stroke
-    if (isDraggingGeoStrokeRef.current) {
-      isDraggingGeoStrokeRef.current = false;
-      engineRef.current?.clearBrushPreview();
-
-      const strokePts = [...geoStrokePointsRef.current];
-      geoStrokePointsRef.current = [];
-
-      let totalStrokeDist = 0;
-      for (let i = 0; i < strokePts.length - 1; i++) {
-        totalStrokeDist += Math.hypot(strokePts[i + 1].x - strokePts[i].x, strokePts[i + 1].y - strokePts[i].y);
-      }
-
-      if (strokePts.length >= 2 && totalStrokeDist > 20) {
-        const isMountain = activeTool === 'terrain_mountain';
-        const isRiver = activeTool === 'terrain_river';
-        const isValley = activeTool === 'terrain_valley';
-        const isHighlandRidge = activeTool === 'terrain_highland' && highlandMode === 'ridge';
-        const isHighlandPlateau = activeTool === 'terrain_highland' && highlandMode === 'plateau';
-        const isLake = activeTool === 'terrain_lake';
-        const isBiome = activeTool === 'terrain_biome';
-
-        // Closed loop for area shapes
-        const closedPts = [...strokePts];
-        if (
-          Math.hypot(
-            closedPts[0].x - closedPts[closedPts.length - 1].x,
-            closedPts[0].y - closedPts[closedPts.length - 1].y
-          ) > 5
-        ) {
-          closedPts.push({ ...closedPts[0] });
-        }
-
-        if (isMountain || isRiver || isValley || isHighlandRidge) {
-          const newFeature: MapTerrainFeature = {
-            id: `terr_${Date.now().toString(36)}`,
-            name: isMountain
-              ? (isPersian ? 'رشته‌کوه کهن' : 'Ancient Mountain Ridge')
-              : isRiver
-              ? (isPersian ? 'رودخانه خروشان' : 'Winding River')
-              : isValley
-              ? (isPersian ? 'دره و شکاف زمین' : 'Rift Valley')
-              : (isPersian ? 'دیواره صخره‌ای و فلات' : 'Highland Escarpment'),
-            type: isMountain
-              ? 'mountain_range'
-              : isRiver
-              ? 'river'
-              : isValley
-              ? 'valley'
-              : 'highland',
-            points: strokePts,
-            elevation: isMountain
-              ? (isMountainElevationLinked ? Math.round(mountainScale * 50) : mountainElevation)
-              : isRiver
-              ? 150
-              : isValley
-              ? -200
-              : (terraceTiers > 1 ? 1800 : 800),
-            syncElevationScale: isMountain ? isMountainElevationLinked : undefined,
-            scale: isMountain ? mountainScale : undefined,
-            hasSnowcaps: isMountain ? hasSnowcaps : undefined,
-            width: isMountain
-              ? Math.round(mountainScale * 0.58)
-              : isRiver
-              ? riverWidth
-              : isValley
-              ? valleyWidth
-              : cliffHeight,
-          };
-          onAddTerrain(newFeature);
-          onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
-          setDraftPoints([]);
-        } else if (isHighlandPlateau) {
-          const newFeature: MapTerrainFeature = {
-            id: `terr_${Date.now().toString(36)}`,
-            name: isPersian ? 'فلات مرتفع' : 'Elevated Plateau',
-            type: 'plateau',
-            polygon: closedPts,
-            elevation: terraceTiers > 1 ? 1800 : 800,
-            width: cliffHeight,
-            description: isPersian ? 'زمین‌های مرتفع با سقف صاف' : 'Elevated flat-topped tablelands',
-          };
-          onAddTerrain(newFeature);
-          onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
-          setDraftPoints([]);
-        } else if (isLake) {
-          const newFeature: MapTerrainFeature = {
-            id: `terr_${Date.now().toString(36)}`,
-            name: isPersian ? 'دریاچه لاجوردی' : 'Inland Lake',
-            type: 'lake',
-            polygon: closedPts,
-            color: '#5a7b91',
-            description: isPersian ? 'دریاچه عمیق آب شیرین' : 'Deep inland freshwater lake',
-          };
-          onAddTerrain(newFeature);
-          onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
-          setDraftPoints([]);
-        } else if (isBiome) {
-          const biomeNames: Record<string, { en: string; fa: string }> = {
-            forest: { en: 'Ancient Forest', fa: 'جنگل کهن' },
-            jungle: { en: 'Primeval Jungle', fa: 'جنگل گرمسیری' },
-            desert: { en: 'Sand Dune Desert', fa: 'کویر و ریگزار' },
-            swamp: { en: 'Foul Marshland', fa: 'مرداب و لجنزار' },
-            tundra: { en: 'Frozen Tundra', fa: 'تندرای یخی' },
-            plains: { en: 'Golden Plains', fa: 'دشت بی‌کران' },
-          };
-          const selectedName = biomeNames[activeBiome];
-          const newFeature: MapTerrainFeature = {
-            id: `terr_${Date.now().toString(36)}`,
-            name: isPersian ? selectedName?.fa || 'ناحیه اقلیمی' : selectedName?.en || 'Biome Region',
-            type: activeBiome,
-            polygon: closedPts,
-            description: isPersian ? 'عنصر جغرافیایی ترسیم‌شده' : 'User-created geographical feature',
-          };
-          onAddTerrain(newFeature);
-          onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
-          setDraftPoints([]);
-        }
-      }
-    }
+    handleGeoStrokeMouseUp();
 
     const active = draggedNodeRef.current;
     const finalPos = transientPosRef.current;
@@ -1712,7 +1272,6 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     sculptMode,
     getRouteSource,
     finishRouteDraft,
-    updateRoutePreview,
   ]);
 
   const handleMouseLeave = () => {
