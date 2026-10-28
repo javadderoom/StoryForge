@@ -49,7 +49,7 @@ export const ContextMenuBeastSection: React.FC<ContextMenuBeastSectionProps> = (
         <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium flex items-center justify-between">
           <span>{isPersian ? 'سطح خطر:' : 'Danger Level:'}</span>
           <span dir="ltr" className="font-mono text-[#d8ab6c] font-bold">
-            \u200E{beastDanger}/5
+            {beastDanger}/5
           </span>
         </label>
         <div className="grid grid-cols-5 gap-1" dir="ltr">
@@ -126,7 +126,7 @@ export const ContextMenuBeastSection: React.FC<ContextMenuBeastSectionProps> = (
         <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium flex items-center justify-between">
           <span>{isPersian ? 'درجه سختی چالش (DC):' : 'Challenge DC:'}</span>
           <span dir="ltr" className="font-mono text-[#d8ab6c] font-bold">
-            \u200EDC {beastDc}
+            DC {beastDc}
           </span>
         </label>
         <div className="grid grid-cols-7 gap-1" dir="ltr">

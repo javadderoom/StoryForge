@@ -7,6 +7,7 @@ import {
 import { WorldBible, MapEntityPlacement, Faction } from '@/lib/types/world';
 import { notify } from '@/lib/notify';
 import { FloatingPanel } from './FloatingPanel';
+import { toPersianDigits } from '@/lib/play/persianNumbers';
 import {
   Trash2,
   Eye,
@@ -167,7 +168,7 @@ export function CartographerContextMenu({
                 <span className="bg-[#15100c] px-1.5 py-0.5 rounded border border-[#3d2f23]/60">
                   {isPersian ? (
                     <>
-                      🧭 \u200E{environmentalContext.nearestSettlement.distanceKm} کیلومتری{' '}
+                      🧭 {toPersianDigits(environmentalContext.nearestSettlement.distanceKm)} کیلومتری{' '}
                       {environmentalContext.nearestSettlement.cardinalDirectionFa} از{' '}
                       {environmentalContext.nearestSettlement.name}
                     </>
@@ -185,7 +186,7 @@ export function CartographerContextMenu({
                 </span>
               )}
               <span className="bg-[#15100c] px-1.5 py-0.5 rounded border border-[#3d2f23]/60">
-                ⛰️ \u200E{environmentalContext.elevation} {isPersian ? 'متر' : 'm'}
+                ⛰️ {isPersian ? toPersianDigits(environmentalContext.elevation) : environmentalContext.elevation} {isPersian ? 'متر' : 'm'}
               </span>
               <span dir="ltr" className="text-[#847160] font-mono text-[9.5px]">
                 ({Math.round(worldPoint.x)}, {Math.round(worldPoint.y)})

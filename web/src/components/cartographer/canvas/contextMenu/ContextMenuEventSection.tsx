@@ -69,7 +69,7 @@ export const ContextMenuEventSection: React.FC<ContextMenuEventSectionProps> = (
         <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium flex items-center justify-between">
           <span>{isPersian ? 'درجه سختی رفع بحران (DC):' : 'Resolution DC:'}</span>
           <span dir="ltr" className="font-mono text-[#d8ab6c] font-bold">
-            \u200EDC {eventDc}
+            DC {eventDc}
           </span>
         </label>
         <div className="grid grid-cols-6 gap-1" dir="ltr">

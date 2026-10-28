@@ -76,7 +76,7 @@ export const ContextMenuNpcSection: React.FC<ContextMenuNpcSectionProps> = ({
         <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium flex items-center justify-between">
           <span>{isPersian ? 'درجه سختی تعامل (DC):' : 'Interaction DC:'}</span>
           <span dir="ltr" className="font-mono text-[#d8ab6c] font-bold">
-            \u200EDC {npcDc}
+            DC {npcDc}
           </span>
         </label>
         <div className="grid grid-cols-5 gap-1" dir="ltr">
