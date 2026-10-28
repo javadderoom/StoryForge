@@ -8,20 +8,19 @@ import { WorldBible, MapEntityPlacement, Faction } from '@/lib/types/world';
 import { notify } from '@/lib/notify';
 import { FloatingPanel } from './FloatingPanel';
 import {
-  Sparkles,
-  User,
-  Swords,
-  Sparkle,
-  Castle,
-  PenTool,
   Trash2,
   Eye,
   Loader2,
-  ChevronRight,
-  ChevronLeft,
-  Dice5,
   X,
 } from 'lucide-react';
+import type { MenuSection } from './contextMenu/types';
+import { ContextMenuMain } from './contextMenu/ContextMenuMain';
+import { ContextMenuBeastSection } from './contextMenu/ContextMenuBeastSection';
+import { ContextMenuNpcSection } from './contextMenu/ContextMenuNpcSection';
+import { ContextMenuEventSection } from './contextMenu/ContextMenuEventSection';
+import { ContextMenuArtifactSection } from './contextMenu/ContextMenuArtifactSection';
+import { ContextMenuSettlementSection } from './contextMenu/ContextMenuSettlementSection';
+import { ContextMenuCustomSection } from './contextMenu/ContextMenuCustomSection';
 
 export interface CartographerContextMenuProps {
   x: number;
@@ -46,12 +45,10 @@ export interface CartographerContextMenuProps {
   onAskOracle?: (coord: { x: number; y: number }, envContext: EnvironmentalContext) => void;
   onAddGeneratedElement: (payload: {
     entityType: 'bestiary' | 'npc' | 'timeline' | 'artifact' | 'location';
-    entity: any;
+    entity: unknown;
     placement: MapEntityPlacement;
   }) => void;
 }
-
-type MenuSection = 'main' | 'beast' | 'npc' | 'event' | 'artifact' | 'settlement' | 'custom';
 
 export function CartographerContextMenu({
   x,
@@ -72,35 +69,9 @@ export function CartographerContextMenu({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStatus, setGenerationStatus] = useState<string>('');
 
-  // Beast parameters
-  const [beastDanger, setBeastDanger] = useState<number>(3);
-  const [beastDc, setBeastDc] = useState<number>(15);
-  const [beastRole, setBeastRole] = useState<string>('Apex Predator');
-  const [beastRarity, setBeastRarity] = useState<'common' | 'uncommon' | 'rare' | 'legendary'>('rare');
-
-  // NPC parameters
-  const [npcRole, setNpcRole] = useState<string>('Hermit / Dweller');
-  const [npcDc, setNpcDc] = useState<number>(14);
-  const [npcFactionId, setNpcFactionId] = useState<string>('');
-
-  // Story Event parameters
-  const [eventCategory, setEventCategory] = useState<string>('Ambush & Hazard');
-  const [eventDc, setEventDc] = useState<number>(15);
-
-  // Artifact parameters
-  const [artifactRarity, setArtifactRarity] = useState<string>('rare');
-  const [artifactDc, setArtifactDc] = useState<number>(16);
-
-  // Settlement parameters
-  const [settlementCategory, setSettlementCategory] = useState<string>('oasis_camp');
-  const [settlementDanger, setSettlementDanger] = useState<number>(2);
-
-  // Custom prompt
-  const [customPrompt, setCustomPrompt] = useState<string>('');
-
   const handleGenerate = async (
     entityType: 'beast' | 'npc' | 'story_event' | 'timeline' | 'artifact' | 'settlement',
-    params: any
+    params: Record<string, unknown>
   ) => {
     setIsGenerating(true);
     setGenerationStatus(
@@ -124,12 +95,17 @@ export function CartographerContextMenu({
       });
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
+        const errorData = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(errorData.error || `Generation failed with status ${res.status}`);
       }
 
-      const data = await res.json();
-      if (!data.success || !data.entity || !data.placement) {
+      const data = (await res.json()) as {
+        success?: boolean;
+        entity?: { name?: string; title?: string };
+        placement?: MapEntityPlacement;
+        entityType?: 'bestiary' | 'npc' | 'timeline' | 'artifact' | 'location';
+      };
+      if (!data.success || !data.entity || !data.placement || !data.entityType) {
         throw new Error('Invalid response structure received from generation endpoint.');
       }
 
@@ -145,17 +121,17 @@ export function CartographerContextMenu({
           : `Spawned ${data.entity.name || data.entity.title} at (${Math.round(worldPoint.x)}, ${Math.round(worldPoint.y)})`
       );
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Cartographer Context Menu Generation Error]:', err);
-      notify.error(err?.message || (isPersian ? 'خطا در ایجاد عنصر' : 'Failed to generate element.'));
+      const message = err instanceof Error ? err.message : undefined;
+      notify.error(message || (isPersian ? 'خطا در ایجاد عنصر' : 'Failed to generate element.'));
     } finally {
       setIsGenerating(false);
       setGenerationStatus('');
     }
   };
 
-  const factions = worldBible.factions ?? [];
-  const ArrowIcon = isPersian ? ChevronLeft : ChevronRight;
+  const factions: Faction[] = worldBible.factions ?? [];
 
   return (
     <FloatingPanel
@@ -169,90 +145,93 @@ export function CartographerContextMenu({
         <>
           {/* Header: Environment Badge */}
           <div className="shrink-0 bg-[#241c16] border-b border-[#3d2f23] p-2.5 flex flex-col gap-1">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 font-semibold text-[#f1d6b0] text-[13px] truncate">
-            <span>{environmentalContext.biomeEmoji}</span>
-            <span className="truncate">
-              {environmentalContext.featureName ||
-                (isPersian ? environmentalContext.biomeLabelFa : environmentalContext.biomeLabel)}
-            </span>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-[#96806e] hover:text-[#eedec8] p-0.5 rounded transition-colors"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 font-semibold text-[#f1d6b0] text-[13px] truncate">
+                <span>{environmentalContext.biomeEmoji}</span>
+                <span className="truncate">
+                  {environmentalContext.featureName ||
+                    (isPersian ? environmentalContext.biomeLabelFa : environmentalContext.biomeLabel)}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-[#96806e] hover:text-[#eedec8] p-0.5 rounded transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 text-[10.5px] text-[#baa48d]">
-          {environmentalContext.nearestSettlement ? (
-            <span className="bg-[#15100c] px-1.5 py-0.5 rounded border border-[#3d2f23]/60">
-              {isPersian ? (
-                <>
-                  🧭 \u200E{environmentalContext.nearestSettlement.distanceKm} کیلومتری{' '}
-                  {environmentalContext.nearestSettlement.cardinalDirectionFa} از{' '}
-                  {environmentalContext.nearestSettlement.name}
-                </>
+            <div className="flex flex-wrap items-center gap-1.5 text-[10.5px] text-[#baa48d]">
+              {environmentalContext.nearestSettlement ? (
+                <span className="bg-[#15100c] px-1.5 py-0.5 rounded border border-[#3d2f23]/60">
+                  {isPersian ? (
+                    <>
+                      🧭 \u200E{environmentalContext.nearestSettlement.distanceKm} کیلومتری{' '}
+                      {environmentalContext.nearestSettlement.cardinalDirectionFa} از{' '}
+                      {environmentalContext.nearestSettlement.name}
+                    </>
+                  ) : (
+                    <>
+                      🧭 {environmentalContext.nearestSettlement.distanceKm}km{' '}
+                      {environmentalContext.nearestSettlement.cardinalDirection} of{' '}
+                      {environmentalContext.nearestSettlement.name}
+                    </>
+                  )}
+                </span>
               ) : (
-                <>
-                  🧭 {environmentalContext.nearestSettlement.distanceKm}km{' '}
-                  {environmentalContext.nearestSettlement.cardinalDirection} of{' '}
-                  {environmentalContext.nearestSettlement.name}
-                </>
+                <span className="bg-[#15100c] px-1.5 py-0.5 rounded border border-[#3d2f23]/60">
+                  {isPersian ? '🏕️ برهوت بکر و دورافتاده' : '🏕️ Deep Wilderness'}
+                </span>
               )}
-            </span>
-          ) : (
-            <span className="bg-[#15100c] px-1.5 py-0.5 rounded border border-[#3d2f23]/60">
-              {isPersian ? '🏕️ برهوت بکر و دورافتاده' : '🏕️ Deep Wilderness'}
-            </span>
-          )}
-          <span className="bg-[#15100c] px-1.5 py-0.5 rounded border border-[#3d2f23]/60">
-            ⛰️ \u200E{environmentalContext.elevation} {isPersian ? 'متر' : 'm'}
-          </span>
-          <span dir="ltr" className="text-[#847160] font-mono text-[9.5px]">
-            ({Math.round(worldPoint.x)}, {Math.round(worldPoint.y)})
-          </span>
-        </div>
-      </div>
+              <span className="bg-[#15100c] px-1.5 py-0.5 rounded border border-[#3d2f23]/60">
+                ⛰️ \u200E{environmentalContext.elevation} {isPersian ? 'متر' : 'm'}
+              </span>
+              <span dir="ltr" className="text-[#847160] font-mono text-[9.5px]">
+                ({Math.round(worldPoint.x)}, {Math.round(worldPoint.y)})
+              </span>
+            </div>
+          </div>
 
-      {/* Target Hit Object Actions (if right-clicked on existing pin/feature) */}
-      {targetHitObject && (
-        <div className="bg-[#2c2118]/80 border-b border-[#3d2f23] px-2 py-1.5 flex items-center justify-between gap-1">
-          <div className="flex items-center gap-1 text-[11px] text-[#f1d6b0] truncate">
-            <span className="text-[#96806e]">{isPersian ? 'هدف:' : 'Target:'}</span>
-            <span className="font-medium truncate">{targetHitObject.name || targetHitObject.id}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            {onSelectObject && (
-              <button
-                onClick={() => {
-                  onSelectObject({ kind: targetHitObject.kind, id: targetHitObject.id });
-                  onClose();
-                }}
-                className="px-1.5 py-0.5 rounded bg-[#3b2d20] hover:bg-[#4a3928] text-[#eedec8] flex items-center gap-1"
-                title={isPersian ? 'بررسی و ویرایش در نوار بازرس' : 'Select and inspect'}
-              >
-                <Eye className="w-3 h-3 text-[#d1b084]" />
-                <span>{isPersian ? 'بررسی' : 'Inspect'}</span>
-              </button>
-            )}
-            {onDeleteObject && (
-              <button
-                onClick={() => {
-                  onDeleteObject({ kind: targetHitObject.kind, id: targetHitObject.id });
-                  onClose();
-                }}
-                className="px-1.5 py-0.5 rounded bg-red-950/40 hover:bg-red-900/60 text-red-300 flex items-center gap-1"
-                title={isPersian ? 'حذف عنصر' : 'Delete object'}
-              >
-                <Trash2 className="w-3 h-3 text-red-400" />
-                <span>{isPersian ? 'حذف' : 'Delete'}</span>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+          {/* Target Hit Object Actions (if right-clicked on existing pin/feature) */}
+          {targetHitObject && (
+            <div className="bg-[#2c2118]/80 border-b border-[#3d2f23] px-2 py-1.5 flex items-center justify-between gap-1">
+              <div className="flex items-center gap-1 text-[11px] text-[#f1d6b0] truncate">
+                <span className="text-[#96806e]">{isPersian ? 'هدف:' : 'Target:'}</span>
+                <span className="font-medium truncate">{targetHitObject.name || targetHitObject.id}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {onSelectObject && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectObject({ kind: targetHitObject.kind, id: targetHitObject.id });
+                      onClose();
+                    }}
+                    className="px-1.5 py-0.5 rounded bg-[#3b2d20] hover:bg-[#4a3928] text-[#eedec8] flex items-center gap-1"
+                    title={isPersian ? 'بررسی و ویرایش در نوار بازرس' : 'Select and inspect'}
+                  >
+                    <Eye className="w-3 h-3 text-[#d1b084]" />
+                    <span>{isPersian ? 'بررسی' : 'Inspect'}</span>
+                  </button>
+                )}
+                {onDeleteObject && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDeleteObject({ kind: targetHitObject.kind, id: targetHitObject.id });
+                      onClose();
+                    }}
+                    className="px-1.5 py-0.5 rounded bg-red-950/40 hover:bg-red-900/60 text-red-300 flex items-center gap-1"
+                    title={isPersian ? 'حذف عنصر' : 'Delete object'}
+                  >
+                    <Trash2 className="w-3 h-3 text-red-400" />
+                    <span>{isPersian ? 'حذف' : 'Delete'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </>
       }
     >
@@ -269,794 +248,64 @@ export function CartographerContextMenu({
         </div>
       ) : (
         <div className="p-1.5 flex flex-col gap-1">
-          {/* MAIN MENU */}
           {activeSection === 'main' && (
-            <>
-              <div className="text-[10px] font-semibold text-[#8e7a68] uppercase tracking-wider px-2 py-0.5">
-                {isPersian ? 'تولید هوشمند روی نقشه (دیپ‌سیک)' : 'AI In-Map Generation (DeepSeek)'}
-              </div>
-
-              {/* Beasts Submenu Entry */}
-              <button
-                onClick={() => setActiveSection('beast')}
-                className="w-full text-start px-2.5 py-1.5 rounded-lg hover:bg-[#2e231a] text-[#eedec8] flex items-center justify-between group transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-base">🐉</span>
-                  <div>
-                    <div className="font-medium text-[#f5ebd9] group-hover:text-[#ffd9a6]">
-                      {isPersian ? 'هیولا و جانور وحشی' : 'Beast & Monster'}
-                    </div>
-                    <div className="text-[10px] text-[#9c8774]">
-                      {isPersian
-                        ? 'شکارچی سازگار با اقلیم، گله یا جانور وحشی'
-                        : 'Adapted predator, pack, or wild creature'}
-                    </div>
-                  </div>
-                </div>
-                <ArrowIcon className="w-3.5 h-3.5 text-[#7c6a5a] group-hover:text-[#eedec8]" />
-              </button>
-
-              {/* Stationed NPC Submenu Entry */}
-              <button
-                onClick={() => setActiveSection('npc')}
-                className="w-full text-start px-2.5 py-1.5 rounded-lg hover:bg-[#2e231a] text-[#eedec8] flex items-center justify-between group transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-base">👤</span>
-                  <div>
-                    <div className="font-medium text-[#f5ebd9] group-hover:text-[#ffd9a6]">
-                      {isPersian ? 'شخصیت مستقر (NPC)' : 'Stationed NPC'}
-                    </div>
-                    <div className="text-[10px] text-[#9c8774]">
-                      {isPersian
-                        ? 'گوشه‌نشین، کوچ‌نشین، دیده‌بان یا بازرگان'
-                        : 'Hermit, nomad, scout, or trader'}
-                    </div>
-                  </div>
-                </div>
-                <ArrowIcon className="w-3.5 h-3.5 text-[#7c6a5a] group-hover:text-[#eedec8]" />
-              </button>
-
-              {/* Story Event Submenu Entry */}
-              <button
-                onClick={() => setActiveSection('event')}
-                className="w-full text-start px-2.5 py-1.5 rounded-lg hover:bg-[#2e231a] text-[#eedec8] flex items-center justify-between group transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-base">⚔️</span>
-                  <div>
-                    <div className="font-medium text-[#f5ebd9] group-hover:text-[#ffd9a6]">
-                      {isPersian ? 'رویداد داستانی و رویارویی' : 'Story Encounter & Dilemma'}
-                    </div>
-                    <div className="text-[10px] text-[#9c8774]">
-                      {isPersian
-                        ? 'کمینگاه، پدیده طبیعی یا معمای باستانی'
-                        : 'Ambush, natural hazard, or ancient mystery'}
-                    </div>
-                  </div>
-                </div>
-                <ArrowIcon className="w-3.5 h-3.5 text-[#7c6a5a] group-hover:text-[#eedec8]" />
-              </button>
-
-              {/* Relic & Artifact Submenu Entry */}
-              <button
-                onClick={() => setActiveSection('artifact')}
-                className="w-full text-start px-2.5 py-1.5 rounded-lg hover:bg-[#2e231a] text-[#eedec8] flex items-center justify-between group transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-base">✨</span>
-                  <div>
-                    <div className="font-medium text-[#f5ebd9] group-hover:text-[#ffd9a6]">
-                      {isPersian ? 'عتیقه و یادگار مدفون' : 'Buried Relic & Artifact'}
-                    </div>
-                    <div className="text-[10px] text-[#9c8774]">
-                      {isPersian
-                        ? 'دست‌سازه کهن، سلاح افسانه‌ای یا گنجینه'
-                        : 'Enshrined wonder or hidden antiquity'}
-                    </div>
-                  </div>
-                </div>
-                <ArrowIcon className="w-3.5 h-3.5 text-[#7c6a5a] group-hover:text-[#eedec8]" />
-              </button>
-
-              {/* Frontier Settlement Submenu Entry */}
-              <button
-                onClick={() => setActiveSection('settlement')}
-                className="w-full text-start px-2.5 py-1.5 rounded-lg hover:bg-[#2e231a] text-[#eedec8] flex items-center justify-between group transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-base">🏰</span>
-                  <div>
-                    <div className="font-medium text-[#f5ebd9] group-hover:text-[#ffd9a6]">
-                      {isPersian ? 'سکونتگاه و پایگاه مرزی' : 'Frontier Settlement'}
-                    </div>
-                    <div className="text-[10px] text-[#9c8774]">
-                      {isPersian
-                        ? 'اردوگاه واحه، برج دیده‌بانی یا کاروانسرا'
-                        : 'Oasis camp, watchtower, or haven'}
-                    </div>
-                  </div>
-                </div>
-                <ArrowIcon className="w-3.5 h-3.5 text-[#7c6a5a] group-hover:text-[#eedec8]" />
-              </button>
-
-              <div className="my-1 border-t border-[#3d2f23]/70" />
-
-              {/* Custom Prompt */}
-              <button
-                onClick={() => setActiveSection('custom')}
-                className="w-full text-start px-2.5 py-1.5 rounded-lg hover:bg-[#2e231a] text-[#eedec8] flex items-center justify-between group transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <PenTool className="w-3.5 h-3.5 text-[#d8ab6c]" />
-                  <div>
-                    <div className="font-medium text-[#f5ebd9] group-hover:text-[#ffd9a6]">
-                      {isPersian ? 'دستور و توصیف دلخواه...' : 'Custom Prompt...'}
-                    </div>
-                    <div className="text-[10px] text-[#9c8774]">
-                      {isPersian
-                        ? 'توصیف آزاد هر نوع موجود، نشانه یا پدیده'
-                        : 'Describe any specific creature or landmark'}
-                    </div>
-                  </div>
-                </div>
-                <ArrowIcon className="w-3.5 h-3.5 text-[#7c6a5a] group-hover:text-[#eedec8]" />
-              </button>
-
-              {/* Ask Oracle Here */}
-              {onAskOracle && (
-                <button
-                  onClick={() => {
-                    onAskOracle(worldPoint, environmentalContext);
-                    onClose();
-                  }}
-                  className="w-full text-start px-2.5 py-1.5 rounded-lg hover:bg-[#2e231a] text-[#eedec8] flex items-center gap-2 group transition-colors"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-[#d48b4b]" />
-                  <div>
-                    <div className="font-medium text-[#f5ebd9] group-hover:text-[#ffd9a6]">
-                      {isPersian ? 'پرسش از هاتف غیب درباره این نقطه' : 'Ask Oracle About This Spot'}
-                    </div>
-                    <div className="text-[10px] text-[#9c8774]">
-                      {isPersian
-                        ? 'مشورت با هوش جهان همراه با داده‌های اقلیمی'
-                        : 'Consult world intelligence with local context'}
-                    </div>
-                  </div>
-                </button>
-              )}
-            </>
+            <ContextMenuMain
+              isPersian={isPersian}
+              worldPoint={worldPoint}
+              environmentalContext={environmentalContext}
+              setActiveSection={setActiveSection}
+              onAskOracle={onAskOracle}
+              onClose={onClose}
+            />
           )}
 
-          {/* SUBMENU: BEAST */}
           {activeSection === 'beast' && (
-            <div className="flex flex-col gap-2 p-1">
-              <div className="flex items-center justify-between border-b border-[#3d2f23] pb-1.5">
-                <button
-                  onClick={() => setActiveSection('main')}
-                  className="text-[#baa48d] hover:text-[#eedec8] text-[11px] flex items-center gap-1"
-                >
-                  {isPersian ? 'بازگشت →' : '← Back'}
-                </button>
-                <div className="font-semibold text-[#f1d6b0]">
-                  {isPersian ? '🐉 تنظیمات جانور و هیولا' : '🐉 Beast Configuration'}
-                </div>
-              </div>
-
-              {/* Danger Level */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium flex items-center justify-between">
-                  <span>{isPersian ? 'سطح خطر:' : 'Danger Level:'}</span>
-                  <span dir="ltr" className="font-mono text-[#d8ab6c] font-bold">
-                    \u200E{beastDanger}/5
-                  </span>
-                </label>
-                <div className="grid grid-cols-5 gap-1" dir="ltr">
-                  {[1, 2, 3, 4, 5].map((lvl) => (
-                    <button
-                      key={lvl}
-                      type="button"
-                      onClick={() => {
-                        setBeastDanger(lvl);
-                        if (lvl === 5) {
-                          setBeastRarity('legendary');
-                          if (beastDc < 20) setBeastDc(22);
-                          setBeastRole('Ancient Calamity');
-                        } else if (lvl === 4) {
-                          if (beastRarity === 'common') setBeastRarity('rare');
-                          if (beastDc < 16) setBeastDc(18);
-                        } else if (lvl === 1) {
-                          setBeastRarity('common');
-                          setBeastDc(10);
-                          setBeastRole('Docile Herbivore');
-                        }
-                      }}
-                      className={`py-1 rounded text-center font-bold text-[11px] border transition-colors ${
-                        beastDanger === lvl
-                          ? 'bg-[#d8ab6c] text-[#1a1410] border-[#f1d6b0]'
-                          : 'bg-[#241c16] text-[#baa48d] border-[#3d2f23] hover:border-[#7c6a5a]'
-                      }`}
-                    >
-                      {lvl}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Rarity & Abundance */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium flex items-center justify-between">
-                  <span>{isPersian ? 'سطح فراوانی و کمیابی:' : 'Rarity & Abundance:'}</span>
-                  <span className="text-[#baa48d] text-[10px] font-medium">
-                    {beastRarity === 'legendary'
-                      ? (isPersian ? 'افسانه‌ای / فاجعه‌بار' : 'Mythic Calamity')
-                      : beastRarity === 'rare'
-                      ? (isPersian ? 'کمیاب و درنده' : 'Rare Apex')
-                      : beastRarity === 'uncommon'
-                      ? (isPersian ? 'نامتداول' : 'Uncommon')
-                      : (isPersian ? 'رایج' : 'Common')}
-                  </span>
-                </label>
-                <div className="grid grid-cols-4 gap-1">
-                  {[
-                    { id: 'common', en: 'Common', fa: 'رایج' },
-                    { id: 'uncommon', en: 'Uncommon', fa: 'نامتداول' },
-                    { id: 'rare', en: 'Rare', fa: 'کمیاب' },
-                    { id: 'legendary', en: 'Legendary', fa: 'افسانه‌ای' },
-                  ].map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      onClick={() => setBeastRarity(r.id as any)}
-                      className={`py-1 rounded text-center text-[10px] border transition-colors ${
-                        beastRarity === r.id
-                          ? 'bg-[#d8ab6c] text-[#1a1410] font-bold border-[#f1d6b0]'
-                          : 'bg-[#241c16] text-[#baa48d] border-[#3d2f23] hover:border-[#7c6a5a]'
-                      }`}
-                    >
-                      {isPersian ? r.fa : r.en}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Encounter DC */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium flex items-center justify-between">
-                  <span>{isPersian ? 'درجه سختی چالش (DC):' : 'Challenge DC:'}</span>
-                  <span dir="ltr" className="font-mono text-[#d8ab6c] font-bold">
-                    \u200EDC {beastDc}
-                  </span>
-                </label>
-                <div className="grid grid-cols-7 gap-1" dir="ltr">
-                  {[10, 12, 14, 16, 18, 20, 22].map((dc) => (
-                    <button
-                      key={dc}
-                      type="button"
-                      onClick={() => setBeastDc(dc)}
-                      className={`py-1 rounded text-center font-semibold text-[10px] border transition-colors ${
-                        beastDc === dc
-                          ? 'bg-[#d8ab6c] text-[#1a1410] border-[#f1d6b0]'
-                          : 'bg-[#241c16] text-[#baa48d] border-[#3d2f23] hover:border-[#7c6a5a]'
-                      }`}
-                    >
-                      {dc}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Ecological Role */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium">
-                  {isPersian ? 'نقش در بوم‌سازگان (اکوسیستم)' : 'Ecological Niche'}
-                </label>
-                <select
-                  value={beastRole}
-                  onChange={(e) => setBeastRole(e.target.value)}
-                  className="bg-[#241c16] border border-[#3d2f23] rounded p-1.5 text-xs text-[#eedec8] focus:border-[#d8ab6c] outline-none"
-                >
-                  <option value="Apex Predator">
-                    {isPersian ? 'شکارچی راس هرم غذایی' : 'Apex Predator'}
-                  </option>
-                  <option value="Ancient Calamity">
-                    {isPersian ? 'بلای باستانی / لویاتان دست‌نیافتنی' : 'Ancient Calamity / Unapproachable Titan'}
-                  </option>
-                  <option value="Pack Hunter">
-                    {isPersian ? 'شکارچی گروهی و گله‌ای' : 'Pack Hunter'}
-                  </option>
-                  <option value="Ambush Lurker">
-                    {isPersian ? 'کمین‌کننده پنهان در شن / شاخسار' : 'Ambush Lurker'}
-                  </option>
-                  <option value="Subterranean Burrower">
-                    {isPersian ? 'موجود نقب‌زن زیرزمینی' : 'Subterranean Burrower'}
-                  </option>
-                  <option value="Venomous Stalker">
-                    {isPersian ? 'ردیاب زهرآگین' : 'Venomous Stalker'}
-                  </option>
-                  <option value="Docile Herbivore">
-                    {isPersian ? 'گیاه‌خوار آرام / رام‌شدنی' : 'Docile Herbivore'}
-                  </option>
-                </select>
-              </div>
-
-              {/* Buttons */}
-              <div className="flex flex-col gap-1.5 pt-1">
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleGenerate('beast', {
-                      dangerLevel: beastDanger,
-                      dc: beastDc,
-                      role: beastRole,
-                      rarity: beastRarity,
-                    })
-                  }
-                  className="w-full py-1.5 bg-[#d8ab6c] hover:bg-[#e4bb7e] text-[#1a1410] font-semibold rounded-lg flex items-center justify-center gap-1.5 shadow transition-colors"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>{isPersian ? 'تولید جانور سازگار با اقلیم' : 'Generate Adapted Beast'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleGenerate('beast', {
-                      dangerLevel: beastDanger,
-                      dc: beastDc,
-                      role: beastRole,
-                      rarity: beastRarity,
-                    })
-                  }
-                  className="w-full py-1 bg-[#2e231a] hover:bg-[#3d2f23] text-[#baa48d] hover:text-[#eedec8] font-medium rounded-lg flex items-center justify-center gap-1.5 text-[11px] border border-[#4a392a] transition-colors"
-                >
-                  <Dice5 className="w-3.5 h-3.5 text-[#d8ab6c]" />
-                  <span>{isPersian ? '🎲 زایش آنی هیولای غافلگیرکننده' : '🎲 Instant Surprise Beast'}</span>
-                </button>
-              </div>
-            </div>
+            <ContextMenuBeastSection
+              isPersian={isPersian}
+              onBack={() => setActiveSection('main')}
+              onGenerate={handleGenerate}
+            />
           )}
 
-          {/* SUBMENU: NPC */}
           {activeSection === 'npc' && (
-            <div className="flex flex-col gap-2 p-1">
-              <div className="flex items-center justify-between border-b border-[#3d2f23] pb-1.5">
-                <button
-                  onClick={() => setActiveSection('main')}
-                  className="text-[#baa48d] hover:text-[#eedec8] text-[11px] flex items-center gap-1"
-                >
-                  {isPersian ? 'بازگشت →' : '← Back'}
-                </button>
-                <div className="font-semibold text-[#f1d6b0]">
-                  {isPersian ? '👤 تنظیمات شخصیت مستقر' : '👤 Stationed NPC'}
-                </div>
-              </div>
-
-              {/* Role */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium">
-                  {isPersian ? 'کهن‌الگو / نقش' : 'Archetype / Role'}
-                </label>
-                <select
-                  value={npcRole}
-                  onChange={(e) => setNpcRole(e.target.value)}
-                  className="bg-[#241c16] border border-[#3d2f23] rounded p-1.5 text-xs text-[#eedec8] focus:border-[#d8ab6c] outline-none"
-                >
-                  <option value="Hermit / Dweller">
-                    {isPersian ? 'زاهد / گوشه‌نشین تنها' : 'Hermit / Dweller'}
-                  </option>
-                  <option value="Nomad Outrider">
-                    {isPersian ? 'کوچ‌نشین بیابان‌گرد' : 'Nomad Outrider'}
-                  </option>
-                  <option value="Caravan Merchant">
-                    {isPersian ? 'بازرگان کاروان' : 'Caravan Merchant'}
-                  </option>
-                  <option value="Desert Mystic">
-                    {isPersian ? 'عارف / پیشگوی زیست‌بوم' : 'Biome Mystic / Shaman'}
-                  </option>
-                  <option value="Outlaw / Bandit Scout">
-                    {isPersian ? 'دیده‌بان راهزنان / یاغی' : 'Outlaw / Bandit Scout'}
-                  </option>
-                  <option value="Frontier Guard">
-                    {isPersian ? 'نگهبان و دیده‌بان مرزی' : 'Frontier Guard'}
-                  </option>
-                  <option value="Expedition Scholar">
-                    {isPersian ? 'پژوهشگر و نگارنده کهن' : 'Expedition Scholar'}
-                  </option>
-                </select>
-              </div>
-
-              {/* Interaction DC */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium flex items-center justify-between">
-                  <span>{isPersian ? 'درجه سختی تعامل (DC):' : 'Interaction DC:'}</span>
-                  <span dir="ltr" className="font-mono text-[#d8ab6c] font-bold">
-                    \u200EDC {npcDc}
-                  </span>
-                </label>
-                <div className="grid grid-cols-5 gap-1" dir="ltr">
-                  {[10, 12, 14, 16, 18].map((dc) => (
-                    <button
-                      key={dc}
-                      type="button"
-                      onClick={() => setNpcDc(dc)}
-                      className={`py-1 rounded text-center font-semibold text-[10.5px] border transition-colors ${
-                        npcDc === dc
-                          ? 'bg-[#d8ab6c] text-[#1a1410] border-[#f1d6b0]'
-                          : 'bg-[#241c16] text-[#baa48d] border-[#3d2f23] hover:border-[#7c6a5a]'
-                      }`}
-                    >
-                      {dc}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Faction Allegiance */}
-              {factions.length > 0 && (
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium">
-                    {isPersian ? 'وابستگی گروهی / فرقه' : 'Faction Allegiance'}
-                  </label>
-                  <select
-                    value={npcFactionId}
-                    onChange={(e) => setNpcFactionId(e.target.value)}
-                    className="bg-[#241c16] border border-[#3d2f23] rounded p-1.5 text-xs text-[#eedec8] focus:border-[#d8ab6c] outline-none"
-                  >
-                    <option value="">{isPersian ? 'مستقل / بی‌پناه' : 'Independent / Solitary'}</option>
-                    {factions.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Button */}
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const matchedFaction = factions.find((f) => f.id === npcFactionId);
-                    handleGenerate('npc', {
-                      role: npcRole,
-                      dc: npcDc,
-                      factionId: npcFactionId || undefined,
-                      factionName: matchedFaction?.name,
-                    });
-                  }}
-                  className="w-full py-1.5 bg-[#d8ab6c] hover:bg-[#e4bb7e] text-[#1a1410] font-semibold rounded-lg flex items-center justify-center gap-1.5 shadow transition-colors"
-                >
-                  <User className="w-3.5 h-3.5" />
-                  <span>{isPersian ? 'تولید شخصیت مستقر' : 'Generate Stationed NPC'}</span>
-                </button>
-              </div>
-            </div>
+            <ContextMenuNpcSection
+              isPersian={isPersian}
+              factions={factions}
+              onBack={() => setActiveSection('main')}
+              onGenerate={handleGenerate}
+            />
           )}
 
-          {/* SUBMENU: EVENT / ENCOUNTER */}
           {activeSection === 'event' && (
-            <div className="flex flex-col gap-2 p-1">
-              <div className="flex items-center justify-between border-b border-[#3d2f23] pb-1.5">
-                <button
-                  onClick={() => setActiveSection('main')}
-                  className="text-[#baa48d] hover:text-[#eedec8] text-[11px] flex items-center gap-1"
-                >
-                  {isPersian ? 'بازگشت →' : '← Back'}
-                </button>
-                <div className="font-semibold text-[#f1d6b0]">
-                  {isPersian ? '⚔️ تنظیمات رویداد و رویارویی' : '⚔️ Story Encounter'}
-                </div>
-              </div>
-
-              {/* Category */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium">
-                  {isPersian ? 'نوع رویارویی' : 'Encounter Type'}
-                </label>
-                <select
-                  value={eventCategory}
-                  onChange={(e) => setEventCategory(e.target.value)}
-                  className="bg-[#241c16] border border-[#3d2f23] rounded p-1.5 text-xs text-[#eedec8] focus:border-[#d8ab6c] outline-none"
-                >
-                  <option value="Ambush & Threat">
-                    {isPersian ? 'شبیخون و تهدید رزمی' : 'Ambush & Combat Threat'}
-                  </option>
-                  <option value="Ancient Mystery">
-                    {isPersian ? 'معمای زمین‌شناختی کهن' : 'Ancient Geological Mystery'}
-                  </option>
-                  <option value="Moral Dilemma">
-                    {isPersian ? 'دوراهی اخلاقی / یاران درمانده' : 'Moral Dilemma / Stranded Party'}
-                  </option>
-                  <option value="Arcane Ritual">
-                    {isPersian ? 'آیین کهن / فوران جادو' : 'Arcane Ritual / Ley Flare'}
-                  </option>
-                  <option value="Forgotten Ruins">
-                    {isPersian ? 'خرابه‌های فراموش‌شده و تله' : 'Forgotten Ruins & Trap'}
-                  </option>
-                  <option value="Environmental Hazard">
-                    {isPersian ? 'خطر طبیعی و گودال فرونشست' : 'Environmental Hazard & Sinkhole'}
-                  </option>
-                </select>
-              </div>
-
-              {/* Challenge DC */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium flex items-center justify-between">
-                  <span>{isPersian ? 'درجه سختی رفع بحران (DC):' : 'Resolution DC:'}</span>
-                  <span dir="ltr" className="font-mono text-[#d8ab6c] font-bold">
-                    \u200EDC {eventDc}
-                  </span>
-                </label>
-                <div className="grid grid-cols-6 gap-1" dir="ltr">
-                  {[10, 12, 14, 16, 18, 20].map((dc) => (
-                    <button
-                      key={dc}
-                      type="button"
-                      onClick={() => setEventDc(dc)}
-                      className={`py-1 rounded text-center font-semibold text-[10.5px] border transition-colors ${
-                        eventDc === dc
-                          ? 'bg-[#d8ab6c] text-[#1a1410] border-[#f1d6b0]'
-                          : 'bg-[#241c16] text-[#baa48d] border-[#3d2f23] hover:border-[#7c6a5a]'
-                      }`}
-                    >
-                      {dc}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Button */}
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleGenerate('story_event', {
-                      category: eventCategory,
-                      dc: eventDc,
-                    })
-                  }
-                  className="w-full py-1.5 bg-[#d8ab6c] hover:bg-[#e4bb7e] text-[#1a1410] font-semibold rounded-lg flex items-center justify-center gap-1.5 shadow transition-colors"
-                >
-                  <Swords className="w-3.5 h-3.5" />
-                  <span>{isPersian ? 'ترسیم سنجاق رویداد' : 'Generate Encounter Pin'}</span>
-                </button>
-              </div>
-            </div>
+            <ContextMenuEventSection
+              isPersian={isPersian}
+              onBack={() => setActiveSection('main')}
+              onGenerate={handleGenerate}
+            />
           )}
 
-          {/* SUBMENU: ARTIFACT */}
           {activeSection === 'artifact' && (
-            <div className="flex flex-col gap-2 p-1">
-              <div className="flex items-center justify-between border-b border-[#3d2f23] pb-1.5">
-                <button
-                  onClick={() => setActiveSection('main')}
-                  className="text-[#baa48d] hover:text-[#eedec8] text-[11px] flex items-center gap-1"
-                >
-                  {isPersian ? 'بازگشت →' : '← Back'}
-                </button>
-                <div className="font-semibold text-[#f1d6b0]">
-                  {isPersian ? '✨ یادگار و دست‌سازه کهن' : '✨ Relic & Artifact'}
-                </div>
-              </div>
-
-              {/* Rarity */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium">
-                  {isPersian ? 'مرتبه کمیابی' : 'Rarity Tier'}
-                </label>
-                <select
-                  value={artifactRarity}
-                  onChange={(e) => setArtifactRarity(e.target.value)}
-                  className="bg-[#241c16] border border-[#3d2f23] rounded p-1.5 text-xs text-[#eedec8] focus:border-[#d8ab6c] outline-none"
-                >
-                  <option value="uncommon">{isPersian ? 'نامتداول (Uncommon)' : 'Uncommon'}</option>
-                  <option value="rare">{isPersian ? 'کمیاب (Rare)' : 'Rare'}</option>
-                  <option value="epic">{isPersian ? 'حماسی (Epic)' : 'Epic'}</option>
-                  <option value="legendary">{isPersian ? 'افسانه‌ای (Legendary)' : 'Legendary'}</option>
-                  <option value="mythic">{isPersian ? 'اسطوره‌ای (Mythic)' : 'Mythic'}</option>
-                </select>
-              </div>
-
-              {/* Attunement DC */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium flex items-center justify-between">
-                  <span>{isPersian ? 'درجه سختی رام‌کردن/کشف (DC):' : 'Attunement DC:'}</span>
-                  <span dir="ltr" className="font-mono text-[#d8ab6c] font-bold">
-                    \u200EDC {artifactDc}
-                  </span>
-                </label>
-                <div className="grid grid-cols-5 gap-1" dir="ltr">
-                  {[12, 14, 16, 18, 20].map((dc) => (
-                    <button
-                      key={dc}
-                      type="button"
-                      onClick={() => setArtifactDc(dc)}
-                      className={`py-1 rounded text-center font-semibold text-[10.5px] border transition-colors ${
-                        artifactDc === dc
-                          ? 'bg-[#d8ab6c] text-[#1a1410] border-[#f1d6b0]'
-                          : 'bg-[#241c16] text-[#baa48d] border-[#3d2f23] hover:border-[#7c6a5a]'
-                      }`}
-                    >
-                      {dc}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Button */}
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleGenerate('artifact', {
-                      rarity: artifactRarity,
-                      dc: artifactDc,
-                    })
-                  }
-                  className="w-full py-1.5 bg-[#d8ab6c] hover:bg-[#e4bb7e] text-[#1a1410] font-semibold rounded-lg flex items-center justify-center gap-1.5 shadow transition-colors"
-                >
-                  <Sparkle className="w-3.5 h-3.5" />
-                  <span>{isPersian ? 'تولید دست‌سازه باستانی' : 'Generate Buried Relic'}</span>
-                </button>
-              </div>
-            </div>
+            <ContextMenuArtifactSection
+              isPersian={isPersian}
+              onBack={() => setActiveSection('main')}
+              onGenerate={handleGenerate}
+            />
           )}
 
-          {/* SUBMENU: SETTLEMENT */}
           {activeSection === 'settlement' && (
-            <div className="flex flex-col gap-2 p-1">
-              <div className="flex items-center justify-between border-b border-[#3d2f23] pb-1.5">
-                <button
-                  onClick={() => setActiveSection('main')}
-                  className="text-[#baa48d] hover:text-[#eedec8] text-[11px] flex items-center gap-1"
-                >
-                  {isPersian ? 'بازگشت →' : '← Back'}
-                </button>
-                <div className="font-semibold text-[#f1d6b0]">
-                  {isPersian ? '🏰 سکونتگاه و پایگاه' : '🏰 Frontier Settlement'}
-                </div>
-              </div>
-
-              {/* Category */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium">
-                  {isPersian ? 'نوع سکونتگاه' : 'Settlement Type'}
-                </label>
-                <select
-                  value={settlementCategory}
-                  onChange={(e) => setSettlementCategory(e.target.value)}
-                  className="bg-[#241c16] border border-[#3d2f23] rounded p-1.5 text-xs text-[#eedec8] focus:border-[#d8ab6c] outline-none"
-                >
-                  <option value="oasis_camp">
-                    {isPersian ? 'اردوگاه واحه / پناهگاه کاروان' : 'Oasis Camp / Caravan Haven'}
-                  </option>
-                  <option value="watchtower">
-                    {isPersian ? 'برج دیده‌بانی مرزی' : 'Border Watchtower'}
-                  </option>
-                  <option value="caravanserai">
-                    {isPersian ? 'کاروانسرای حصین' : 'Walled Caravanserai'}
-                  </option>
-                  <option value="mining_post">
-                    {isPersian ? 'پایگاه معدن‌کاوی' : 'Mining Outpost / Quarry'}
-                  </option>
-                  <option value="fortified_citadel">
-                    {isPersian ? 'دژ و باروی استوار' : 'Fortified Citadel'}
-                  </option>
-                </select>
-              </div>
-
-              {/* Danger Level */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium flex items-center justify-between">
-                  <span>{isPersian ? 'سطح خطر محیط:' : 'Danger Level:'}</span>
-                  <span dir="ltr" className="font-mono text-[#d8ab6c] font-bold">
-                    \u200E{settlementDanger}/5
-                  </span>
-                </label>
-                <div className="grid grid-cols-5 gap-1" dir="ltr">
-                  {[1, 2, 3, 4, 5].map((lvl) => (
-                    <button
-                      key={lvl}
-                      type="button"
-                      onClick={() => setSettlementDanger(lvl)}
-                      className={`py-1 rounded text-center font-bold text-[11px] border transition-colors ${
-                        settlementDanger === lvl
-                          ? 'bg-[#d8ab6c] text-[#1a1410] border-[#f1d6b0]'
-                          : 'bg-[#241c16] text-[#baa48d] border-[#3d2f23] hover:border-[#7c6a5a]'
-                      }`}
-                    >
-                      {lvl}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Button */}
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleGenerate('settlement', {
-                      category: settlementCategory,
-                      dangerLevel: settlementDanger,
-                    })
-                  }
-                  className="w-full py-1.5 bg-[#d8ab6c] hover:bg-[#e4bb7e] text-[#1a1410] font-semibold rounded-lg flex items-center justify-center gap-1.5 shadow transition-colors"
-                >
-                  <Castle className="w-3.5 h-3.5" />
-                  <span>{isPersian ? 'بنیان‌گذاری سکونتگاه' : 'Establish Settlement'}</span>
-                </button>
-              </div>
-            </div>
+            <ContextMenuSettlementSection
+              isPersian={isPersian}
+              onBack={() => setActiveSection('main')}
+              onGenerate={handleGenerate}
+            />
           )}
 
-          {/* SUBMENU: CUSTOM PROMPT */}
           {activeSection === 'custom' && (
-            <div className="flex flex-col gap-2 p-1">
-              <div className="flex items-center justify-between border-b border-[#3d2f23] pb-1.5">
-                <button
-                  onClick={() => setActiveSection('main')}
-                  className="text-[#baa48d] hover:text-[#eedec8] text-[11px] flex items-center gap-1"
-                >
-                  {isPersian ? 'بازگشت →' : '← Back'}
-                </button>
-                <div className="font-semibold text-[#f1d6b0]">
-                  {isPersian ? '✍️ دستور و ایده سفارشی' : '✍️ Custom Prompt'}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-[#9c8774] font-medium">
-                  {isPersian
-                    ? 'مایلید چه چیزی در این نقطه پدید آید؟'
-                    : 'What would you like to spawn here?'}
-                </label>
-                <textarea
-                  value={customPrompt}
-                  onChange={(e) => setCustomPrompt(e.target.value)}
-                  placeholder={
-                    isPersian
-                      ? 'مثلاً: سوسک اسکلتی غول‌پیکر از جنس ابسیدین که طوفان‌های شن را می‌بلعد...'
-                      : 'e.g. A colossal obsidian scarab that burrows under sand dunes...'
-                  }
-                  rows={3}
-                  className="w-full bg-[#241c16] border border-[#3d2f23] rounded-lg p-2 text-xs text-[#eedec8] placeholder:text-[#6e5d4e] focus:border-[#d8ab6c] outline-none resize-none"
-                >
-                </textarea>
-              </div>
-
-              <div className="grid grid-cols-2 gap-1.5 pt-1">
-                <button
-                  type="button"
-                  disabled={!customPrompt.trim()}
-                  onClick={() =>
-                    handleGenerate('beast', {
-                      customPrompt,
-                      dangerLevel: 3,
-                    })
-                  }
-                  className="py-1.5 bg-[#3b2d20] hover:bg-[#4a3928] disabled:opacity-50 text-[#eedec8] font-medium rounded-lg text-center transition-colors"
-                >
-                  {isPersian ? '🐉 به عنوان جانور' : '🐉 As Beast'}
-                </button>
-                <button
-                  type="button"
-                  disabled={!customPrompt.trim()}
-                  onClick={() =>
-                    handleGenerate('story_event', {
-                      customPrompt,
-                      category: 'Custom Event',
-                    })
-                  }
-                  className="py-1.5 bg-[#3b2d20] hover:bg-[#4a3928] disabled:opacity-50 text-[#eedec8] font-medium rounded-lg text-center transition-colors"
-                >
-                  {isPersian ? '⚔️ به عنوان رویداد' : '⚔️ As Encounter'}
-                </button>
-              </div>
-            </div>
+            <ContextMenuCustomSection
+              isPersian={isPersian}
+              onBack={() => setActiveSection('main')}
+              onGenerate={handleGenerate}
+            />
           )}
         </div>
       )}
