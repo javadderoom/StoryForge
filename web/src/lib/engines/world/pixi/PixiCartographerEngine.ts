@@ -438,7 +438,10 @@ export class PixiCartographerEngine {
     renderGrid(this.gridGraphics, settings);
 
     // 4. Render Continents, Biomes, Rivers, Mountains
-    renderTerrain(this.terrainGraphics, viewTerrain, settings, this.fillWithMaterial.bind(this));
+    renderTerrain(this.terrainGraphics, viewTerrain, settings, this.fillWithMaterial.bind(this), {
+      locations: viewLocations,
+      placements: viewPlacements,
+    });
 
     // 4b. Render Curved & Spline-Aligned Geographic Titles (Plan 27 — Module 4)
     this.terrainLabelsContainer.removeChildren();

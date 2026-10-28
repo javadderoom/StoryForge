@@ -161,6 +161,12 @@ export function renderSettlements(
     if (isCapital) fillColor = VINTAGE_PARCHMENT.capitalGold;
     else if (isDungeon) fillColor = VINTAGE_PARCHMENT.dungeonCrimson;
 
+    // Soft parchment under-halo to guarantee sharp contrast over textured terrain
+    g.circle(x, y, radius + 3).fill({
+      color: VINTAGE_PARCHMENT.bgParchment,
+      alpha: 0.88,
+    });
+
     // Outer Shield / Roundel (the selection ring is drawn by the shared
     // overlay, so every kind of map object is highlighted the same way)
     g.circle(x, y, radius)
@@ -256,6 +262,13 @@ export function renderPlacements(
     if (!isPlacementVisibleInLayers(p.entityType, settings.visibleLayers)) continue;
 
     const { x, y } = p;
+
+    // Soft parchment under-halo to guarantee sharp contrast over textured terrain (dunes, canopies, hatching)
+    const haloRadius = p.entityType === 'bestiary' ? 16 : 14;
+    g.circle(x, y, haloRadius).fill({
+      color: VINTAGE_PARCHMENT.bgParchment,
+      alpha: 0.88,
+    });
 
     if (p.entityType === 'bestiary') {
       // Beast Token: Spiked dark crimson roundel with amber/gold beast core

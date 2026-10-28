@@ -1,5 +1,11 @@
 import type { Graphics } from 'pixi.js';
-import type { MapPoint, MapTerrainFeature, WorldMapSettings } from '@/lib/types';
+import type {
+  MapEntityPlacement,
+  MapPoint,
+  MapTerrainFeature,
+  WorldLocation,
+  WorldMapSettings,
+} from '@/lib/types';
 import { VINTAGE_PARCHMENT } from './vintageTheme';
 import { generateOrganicParchmentContours } from './pixiMath';
 import {
@@ -54,11 +60,17 @@ import {
   type ProceduralCanopyMass,
 } from './canopyMassGenerator';
 
+export interface TerrainRenderContext {
+  locations?: WorldLocation[];
+  placements?: MapEntityPlacement[];
+}
+
 export function renderTerrain(
   g: Graphics,
   terrainFeatures: MapTerrainFeature[],
   settings: WorldMapSettings,
-  fill: FillWithMaterial
+  fill: FillWithMaterial,
+  context?: TerrainRenderContext
 ): void {
   g.clear();
 
@@ -90,7 +102,7 @@ export function renderTerrain(
       case 'wasteland':
       case 'plains':
       case 'oasis':
-        drawBiome(g, feat, fill);
+        drawBiome(g, feat, fill, context);
         break;
       case 'salt_pan':
         drawSaltPan(g, feat, fill);
@@ -442,7 +454,12 @@ export function renderProceduralHighlandToGraphics(
 }
 
 /** Biomes: translucent washes laid over the land plus procedural hand-inked flora/symbols. */
-export function drawBiome(g: Graphics, feat: MapTerrainFeature, fill: FillWithMaterial): void {
+export function drawBiome(
+  g: Graphics,
+  feat: MapTerrainFeature,
+  fill: FillWithMaterial,
+  context?: TerrainRenderContext
+): void {
   if (!feat.polygon || feat.polygon.length <= 2) return;
 
   // Check if this biome is an authored salt depression (e.g. Sepidchal / سپیدچال)
@@ -512,9 +529,24 @@ export function drawBiome(g: Graphics, feat: MapTerrainFeature, fill: FillWithMa
   // 3. Sinuous Barchan Sand Dunes for Deserts & Wastelands (Plan 27 — Module 3.B: Hiram Steppe)
   if (feat.type === 'desert' || feat.type === 'wasteland') {
     const seed = hashStringToSeed(feat.id || `desert_${feat.polygon[0].x}_${feat.polygon[0].y}`);
+    const exclusionZones: Array<{ x: number; y: number; radius?: number }> = [];
+    if (context?.locations) {
+      for (const loc of context.locations) {
+        if (loc.coordinates && loc.coordinates.x > 0) {
+          exclusionZones.push({ x: loc.coordinates.x, y: loc.coordinates.y, radius: 46 });
+        }
+      }
+    }
+    if (context?.placements) {
+      for (const pl of context.placements) {
+        exclusionZones.push({ x: pl.x, y: pl.y, radius: 38 });
+      }
+    }
+
     const duneField = generateProceduralDuneField(feat.polygon, {
       seed,
       ...feat.duneConfig,
+      exclusionZones,
     });
     if (duneField) {
       renderProceduralDuneFieldToGraphics(g, duneField);
@@ -735,7 +767,7 @@ export function renderProceduralDuneFieldToGraphics(
     if (dune.slipFacePoly.length >= 3) {
       g.poly(toFlatPoints(dune.slipFacePoly)).fill({
         color: dune.isMegadune ? 0xa87c42 : VINTAGE_PARCHMENT.duneShade,
-        alpha: dune.isMegadune ? 0.72 : 0.58,
+        alpha: dune.isMegadune ? 0.32 : 0.22,
       });
     }
 
@@ -745,9 +777,9 @@ export function renderProceduralDuneFieldToGraphics(
     }
     if (dune.slipFaceHatches.length > 0) {
       g.stroke({
-        width: 0.85,
+        width: 0.65,
         color: VINTAGE_PARCHMENT.secondaryInk,
-        alpha: 0.65,
+        alpha: 0.24,
         cap: 'round',
       });
     }
@@ -760,9 +792,9 @@ export function renderProceduralDuneFieldToGraphics(
           g.lineTo(ripple[i].x, ripple[i].y);
         }
         g.stroke({
-          width: 0.75,
+          width: 0.6,
           color: VINTAGE_PARCHMENT.secondaryInk,
-          alpha: 0.42,
+          alpha: 0.20,
           cap: 'round',
           join: 'round',
         });
@@ -776,11 +808,11 @@ export function renderProceduralDuneFieldToGraphics(
         g.lineTo(dune.crestSpline[i].x, dune.crestSpline[i].y);
       }
       g.stroke({
-        width: dune.isMegadune ? 1.45 : 1.15,
-        color: VINTAGE_PARCHMENT.primaryInk,
+        width: dune.isMegadune ? 1.25 : 1.0,
+        color: 0x6e4e30,
         cap: 'round',
         join: 'round',
-        alpha: 0.88,
+        alpha: dune.isMegadune ? 0.68 : 0.52,
       });
     }
   }

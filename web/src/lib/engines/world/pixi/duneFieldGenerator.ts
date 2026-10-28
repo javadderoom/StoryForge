@@ -47,6 +47,11 @@ export interface ProceduralDuneField {
 
 export interface DuneFieldOptions extends DuneFieldConfig {
   seed?: number;
+  /**
+   * Geographic anchors (settlements, pins, icons) where dunes should not generate,
+   * keeping labels and tokens crystal clear and uncluttered.
+   */
+  exclusionZones?: Array<{ x: number; y: number; radius?: number }>;
 }
 
 /**
@@ -84,13 +89,13 @@ export function generateProceduralDuneField(
   const normY = cosW;
 
   // Spacing parameters based on density
-  let baseSpacing = 32;
-  let baseWidth = 30;
+  let baseSpacing = 48;
+  let baseWidth = 32;
   if (density === 'dense') {
-    baseSpacing = 22;
-    baseWidth = 24;
+    baseSpacing = 32;
+    baseWidth = 26;
   } else if (density === 'sparse') {
-    baseSpacing = 46;
+    baseSpacing = 68;
     baseWidth = 42;
   }
 
@@ -131,6 +136,17 @@ export function generateProceduralDuneField(
       // Check center containment
       if (!isPointInPolygon(duneCenter, boundary)) {
         continue;
+      }
+
+      // Check exclusion zones (settlements, beast pins, NPC tokens, landmarks)
+      if (options.exclusionZones && options.exclusionZones.length > 0) {
+        const inExclusionZone = options.exclusionZones.some((zone) => {
+          const r = zone.radius ?? 40;
+          return Math.hypot(duneCenter.x - zone.x, duneCenter.y - zone.y) < r;
+        });
+        if (inExclusionZone) {
+          continue;
+        }
       }
 
       // Occasional "megadune" (prominent barchan ridge)

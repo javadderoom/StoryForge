@@ -154,4 +154,30 @@ describe('duneFieldGenerator — Sinuous Barchan Sand Dunes', () => {
 
     assert.deepEqual(run1, run2);
   });
+
+  it('clears dunes from exclusion zones around settlements or pins', () => {
+    const centerPin = { x: 220, y: 190 };
+    const fieldWithoutExclusion = generateProceduralDuneField(desertBoundary, {
+      seed: 42,
+      density: 'dense',
+    });
+    const fieldWithExclusion = generateProceduralDuneField(desertBoundary, {
+      seed: 42,
+      density: 'dense',
+      exclusionZones: [{ x: centerPin.x, y: centerPin.y, radius: 45 }],
+    });
+
+    assert.ok(fieldWithoutExclusion !== null && fieldWithExclusion !== null);
+    assert.ok(
+      fieldWithExclusion.dunes.length < fieldWithoutExclusion.dunes.length,
+      'Exclusion zone should remove dunes from the area'
+    );
+    for (const dune of fieldWithExclusion.dunes) {
+      const dist = Math.hypot(dune.center.x - centerPin.x, dune.center.y - centerPin.y);
+      assert.ok(
+        dist >= 45,
+        `Dune at ${dune.center.x}, ${dune.center.y} should be outside 45px exclusion radius (dist=${dist})`
+      );
+    }
+  });
 });
