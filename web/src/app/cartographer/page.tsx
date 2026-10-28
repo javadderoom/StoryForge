@@ -1,20 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { normalizeOntology, useStudioStory } from '@/lib/context/StudioStoryContext';
 import {
   WorldMapData,
   WorldMapSettings,
-  WorldLocation,
-  WorldTradeRoute,
-  MapTerrainFeature,
   MapEntityPlacement,
-  MapRoute,
-  WorldCreature,
-  WorldArtifact,
-  TimelineEvent,
-  NPCDossier,
 } from '@/lib/types';
 import {
   CANVAS_WIDTH,
@@ -29,21 +21,17 @@ import { PixiCartographerCanvas } from '@/components/cartographer/PixiCartograph
 import { CartographerLayerPanel } from '@/components/cartographer/CartographerLayerPanel';
 import { CartographerEntityPalette } from '@/components/cartographer/CartographerEntityPalette';
 import { CartographerElementsPanel } from '@/components/cartographer/CartographerElementsPanel';
-import {
-  detachRoutesFromRef,
-  resolveMapRoutePoints,
-  routeMidpoint,
-} from '@/lib/engines/world/mapRoutes';
-import { CartographerInspector, SelectedMapItem } from '@/components/cartographer/CartographerInspector';
+import { CartographerInspector } from '@/components/cartographer/CartographerInspector';
 import { CartographerSelectionBar } from '@/components/cartographer/CartographerSelectionBar';
 import { CartographerAiOracleModal } from '@/components/cartographer/CartographerAiOracleModal';
 import { notify } from '@/lib/notify';
-import { reorderPlacementByZ, reorderTerrainByZ, terrainCenter } from '@/lib/engines/world/mapObjectOrder';
 import { resolvePlaceMapAnchor } from '@/lib/engines/world/placeCategories';
 import { peekRedoLabel, peekUndoLabel } from '@/lib/engines/world/cartographerHistory';
 import { useCartographerHistory } from '@/components/cartographer/hooks/useCartographerHistory';
 import { useCartographerAutoFit } from '@/components/cartographer/hooks/useCartographerAutoFit';
 import { useCartographerSelection } from '@/components/cartographer/hooks/useCartographerSelection';
+import { useCartographerCrud } from '@/components/cartographer/hooks/useCartographerCrud';
+import { useCartographerObjectLayers } from '@/components/cartographer/hooks/useCartographerObjectLayers';
 
 export default function CartographerPage() {
   const router = useRouter();
@@ -219,135 +207,6 @@ export default function CartographerPage() {
     }));
   };
 
-  // Terrain CRUD
-  const handleAddTerrain = (feature: MapTerrainFeature) => {
-    commit('Add terrain', () => {
-      updateMapData((prev) => {
-        const current = prev || mapData;
-        return {
-          ...current,
-          terrainFeatures: [...current.terrainFeatures, feature],
-        };
-      });
-    });
-    notify.success(isPersian ? 'عارضه طبیعی به نقشه افزوده شد' : 'Terrain feature added');
-  };
-
-  const handleUpdateTerrain = (id: string, updated: Partial<MapTerrainFeature>) => {
-    commit('Edit terrain', () => {
-      let targetLocationId: string | undefined;
-      updateMapData((prev) => {
-        const current = prev || mapData;
-        const target = current.terrainFeatures.find((f) => f.id === id);
-        targetLocationId = updated.locationId !== undefined ? updated.locationId : target?.locationId;
-        return {
-          ...current,
-          terrainFeatures: current.terrainFeatures.map((f) => (f.id === id ? { ...f, ...updated } : f)),
-        };
-      });
-      if (targetLocationId) {
-        const locPatch: Partial<WorldLocation> = {};
-        if (updated.name !== undefined) locPatch.name = updated.name;
-        if (updated.locked !== undefined) locPatch.locked = updated.locked;
-        if (updated.visible !== undefined) locPatch.visible = updated.visible;
-        if (Object.keys(locPatch).length > 0) {
-          editLocation(targetLocationId, locPatch);
-        }
-      }
-    });
-  };
-
-  const handleDeleteTerrain = (id: string) => {
-    commit('Delete terrain', () => {
-      updateMapData((prev) => {
-        const current = prev || mapData;
-        return {
-          ...current,
-          terrainFeatures: current.terrainFeatures.filter((f) => f.id !== id),
-          routes: detachRoutesFromRef(
-            current.routes ?? [],
-            { kind: 'terrain', id },
-            {
-              locations: story.worldBible.locations,
-              terrainFeatures: current.terrainFeatures,
-              placements: current.placements,
-              placeCategories,
-            }
-          ),
-        };
-      });
-      removeFromSelection([{ kind: 'terrain', id }]);
-    });
-    notify.info(isPersian ? 'عارضه طبیعی حذف شد' : 'Terrain feature deleted');
-  };
-
-  const handleReplaceTerrain = useCallback(
-    (features: MapTerrainFeature[]) => {
-      commit('Sculpt terrain', () => {
-        updateMapData((prev) => {
-          const current = prev || mapData;
-          return {
-            ...current,
-            terrainFeatures: features,
-          };
-        });
-      });
-    },
-    [commit, mapData, updateMapData]
-  );
-
-  // Location Handlers
-  const handleAddLocation = (loc: WorldLocation) => {
-    commit('Add location', () => addLocation(loc));
-  };
-
-  const handleUpdateLocation = (id: string, updated: Partial<WorldLocation>) => {
-    commit(updated.coordinates ? 'Move pin' : 'Edit location', () => {
-      editLocation(id, updated);
-      const terrainPatch: Partial<MapTerrainFeature> = {};
-      if (updated.name !== undefined) terrainPatch.name = updated.name;
-      if (updated.locked !== undefined) terrainPatch.locked = updated.locked;
-      if (updated.visible !== undefined) terrainPatch.visible = updated.visible;
-
-      if (Object.keys(terrainPatch).length > 0) {
-        updateMapData((prev) => {
-          const current = prev || mapData;
-          const hasLinked = current.terrainFeatures.some((f) => f.locationId === id);
-          if (!hasLinked) return current;
-          return {
-            ...current,
-            terrainFeatures: current.terrainFeatures.map((f) =>
-              f.locationId === id ? { ...f, ...terrainPatch } : f
-            ),
-          };
-        });
-      }
-    });
-  };
-
-  const handleDeleteLocation = (id: string) => {
-    commit('Delete location', () => {
-      deleteLocation(id);
-      updateMapData((prev) => {
-        const current = prev || mapData;
-        return {
-          ...current,
-          routes: detachRoutesFromRef(
-            current.routes ?? [],
-            { kind: 'location', id },
-            {
-              locations: story.worldBible.locations,
-              terrainFeatures: current.terrainFeatures,
-              placements: current.placements,
-              placeCategories,
-            }
-          ),
-        };
-      });
-      removeFromSelection([{ kind: 'location', id }]);
-    });
-  };
-
   const handleDeleteCurrentWorld = async () => {
     const worldId = selectedWorldId || story.worldId;
     if (!worldId) return;
@@ -385,555 +244,93 @@ export default function CartographerPage() {
     }
   };
 
+  const {
+    handleAddTerrain,
+    handleUpdateTerrain,
+    handleDeleteTerrain,
+    handleReplaceTerrain,
+    handleAddLocation,
+    handleUpdateLocation,
+    handleDeleteLocation,
+    handleAddTradeRoute,
+    handleUpdateTradeRoute,
+    handleDeleteTradeRoute,
+    handleAddRoad,
+    handleUpdateRoad,
+    handleDeleteRoad,
+    handleToggleRoadVisibility,
+    handleToggleRoadLock,
+    handleAddPlacement,
+    handleDeletePlacement,
+    handleUpdateCreature,
+    handleDeleteCreature,
+    handleUpdateNpc,
+    handleDeleteNpc,
+    handleUpdateArtifact,
+    handleDeleteArtifact,
+    handleUpdateTimelineEvent,
+    handleDeleteTimelineEvent,
+    handleAddGeneratedElement,
+    handleDeleteObject,
+  } = useCartographerCrud({
+    story,
+    mapData,
+    placeCategories,
+    isPersian,
+    commit,
+    updateMapData,
+    removeFromSelection,
+    setSelection,
+    addLocation,
+    editLocation,
+    deleteLocation,
+    addTradeRoute,
+    editTradeRoute,
+    deleteTradeRoute,
+    addCreature,
+    editCreature,
+    deleteCreature,
+    addNpc,
+    editNpc,
+    deleteNpc,
+    addArtifact,
+    editArtifact,
+    deleteArtifact,
+    addTimelineEvent,
+    editTimelineEvent,
+    deleteTimelineEvent,
+  });
 
-  // Trade Route Handlers
-  const handleAddTradeRoute = (route: WorldTradeRoute) => {
-    commit('Add trade route', () => addTradeRoute(route));
-  };
-
-  const handleUpdateTradeRoute = (id: string, updated: Partial<WorldTradeRoute>) => {
-    commit(updated.waypoints ? 'Move waypoint' : 'Edit trade route', () => {
-      editTradeRoute(id, updated);
-    });
-  };
-
-  const handleDeleteTradeRoute = (id: string) => {
-    commit('Delete trade route', () => {
-      deleteTradeRoute(id);
-      removeFromSelection([{ kind: 'trade_route', id }]);
-    });
-  };
-
-  // Drawn Roads & Paths (Plan 25)
-  const handleAddRoad = (route: MapRoute) => {
-    commit('Draw road', () => {
-      updateMapData((prev) => {
-        const current = prev || mapData;
-        return {
-          ...current,
-          routes: [...(current.routes ?? []), route],
-        };
-      });
-    });
-    notify.success(isPersian ? 'جاده روی نقشه ترسیم شد' : 'Road added to the map');
-  };
-
-  const handleUpdateRoad = (id: string, updated: Partial<MapRoute>) => {
-    commit('Edit road', () => {
-      updateMapData((prev) => {
-        const current = prev || mapData;
-        return {
-          ...current,
-          routes: (current.routes ?? []).map((route) =>
-            route.id === id ? { ...route, ...updated } : route
-          ),
-        };
-      });
-    });
-  };
-
-  const handleDeleteRoad = (id: string) => {
-    commit('Delete road', () => {
-      updateMapData((prev) => {
-        const current = prev || mapData;
-        return {
-          ...current,
-          routes: (current.routes ?? []).filter((route) => route.id !== id),
-        };
-      });
-      removeFromSelection([{ kind: 'route', id }]);
-    });
-  };
-
-  const handleToggleRoadVisibility = useCallback(
-    (id: string) => {
-      const route = (mapData.routes || []).find((item) => item.id === id);
-      if (!route) return;
-      handleUpdateRoad(id, { visible: route.visible === false });
-    },
-    [handleUpdateRoad, mapData.routes]
-  );
-
-  const handleToggleRoadLock = useCallback(
-    (id: string) => {
-      const route = (mapData.routes || []).find((item) => item.id === id);
-      if (!route) return;
-      handleUpdateRoad(id, { locked: !(route.locked === true) });
-    },
-    [handleUpdateRoad, mapData.routes]
-  );
-
-  // Placements Handlers
-  const handleAddPlacement = (placement: MapEntityPlacement) => {
-    commit('Pin entity', () => {
-      updateMapData((prev) => {
-        const current = prev || mapData;
-        return {
-          ...current,
-          placements: [...current.placements, placement],
-        };
-      });
-    });
-    notify.success(isPersian ? 'سنجاق روی نقشه ثبت شد' : 'Entity pinned to map');
-  };
-
-  const handleDeletePlacement = (id: string) => {
-    commit('Remove pin', () => {
-      updateMapData((prev) => {
-        const current = prev || mapData;
-        return {
-          ...current,
-          placements: current.placements.filter((p) => p.id !== id),
-          routes: detachRoutesFromRef(
-            current.routes ?? [],
-            { kind: 'placement', id },
-            {
-              locations: story.worldBible.locations,
-              terrainFeatures: current.terrainFeatures,
-              placements: current.placements,
-              placeCategories,
-            }
-          ),
-        };
-      });
-      removeFromSelection([{ kind: 'placement', id }]);
-    });
-  };
-
-  // Bestiary / Creature Handlers
-  const handleUpdateCreature = useCallback(
-    (id: string, updated: Partial<WorldCreature>) => {
-      commit('Edit creature', () => {
-        editCreature(id, updated);
-      });
-    },
-    [commit, editCreature]
-  );
-
-  const handleDeleteCreature = useCallback(
-    (id: string) => {
-      commit('Delete creature', () => {
-        deleteCreature(id);
-        updateMapData((prev) => {
-          const current = prev || mapData;
-          return {
-            ...current,
-            placements: (current.placements || []).filter((p) => p.entityId !== id),
-          };
-        });
-        removeFromSelection([{ kind: 'placement', id }]);
-      });
-    },
-    [commit, deleteCreature, updateMapData, mapData, removeFromSelection]
-  );
-
-  // NPC Handlers
-  const handleUpdateNpc = useCallback(
-    (id: string, updated: Partial<NPCDossier>) => {
-      commit('Edit NPC', () => {
-        editNpc(id, updated);
-      });
-    },
-    [commit, editNpc]
-  );
-
-  const handleDeleteNpc = useCallback(
-    (id: string) => {
-      commit('Delete NPC', () => {
-        deleteNpc(id);
-        updateMapData((prev) => {
-          const current = prev || mapData;
-          return {
-            ...current,
-            placements: (current.placements || []).filter((p) => p.entityId !== id),
-          };
-        });
-        removeFromSelection([{ kind: 'placement', id }]);
-      });
-    },
-    [commit, deleteNpc, updateMapData, mapData, removeFromSelection]
-  );
-
-  // Artifact Handlers
-  const handleUpdateArtifact = useCallback(
-    (id: string, updated: Partial<WorldArtifact>) => {
-      commit('Edit artifact', () => {
-        editArtifact(id, updated);
-      });
-    },
-    [commit, editArtifact]
-  );
-
-  const handleDeleteArtifact = useCallback(
-    (id: string) => {
-      commit('Delete artifact', () => {
-        deleteArtifact(id);
-        updateMapData((prev) => {
-          const current = prev || mapData;
-          return {
-            ...current,
-            placements: (current.placements || []).filter((p) => p.entityId !== id),
-          };
-        });
-        removeFromSelection([{ kind: 'placement', id }]);
-      });
-    },
-    [commit, deleteArtifact, updateMapData, mapData, removeFromSelection]
-  );
-
-  // Timeline Event Handlers
-  const handleUpdateTimelineEvent = useCallback(
-    (id: string, updated: Partial<TimelineEvent>) => {
-      commit('Edit timeline event', () => {
-        editTimelineEvent(id, updated);
-      });
-    },
-    [commit, editTimelineEvent]
-  );
-
-  const handleDeleteTimelineEvent = useCallback(
-    (id: string) => {
-      commit('Delete timeline event', () => {
-        deleteTimelineEvent(id);
-        updateMapData((prev) => {
-          const current = prev || mapData;
-          return {
-            ...current,
-            placements: (current.placements || []).filter((p) => p.entityId !== id),
-          };
-        });
-        removeFromSelection([{ kind: 'placement', id }]);
-      });
-    },
-    [commit, deleteTimelineEvent, updateMapData, mapData, removeFromSelection]
-  );
-
-  const handleAddGeneratedElement = useCallback(
-    (payload: {
-      entityType: 'bestiary' | 'npc' | 'timeline' | 'artifact' | 'location';
-      entity: any;
-      placement: MapEntityPlacement;
-    }) => {
-      commit(`Spawn ${payload.entityType} with AI`, () => {
-        if (payload.entityType === 'bestiary') {
-          addCreature(payload.entity);
-          updateMapData((prev) => ({
-            ...(prev || mapData),
-            placements: [...(prev?.placements || mapData.placements || []), payload.placement],
-          }));
-        } else if (payload.entityType === 'npc') {
-          addNpc(payload.entity);
-          updateMapData((prev) => ({
-            ...(prev || mapData),
-            placements: [...(prev?.placements || mapData.placements || []), payload.placement],
-          }));
-        } else if (payload.entityType === 'timeline') {
-          addTimelineEvent(payload.entity);
-          updateMapData((prev) => ({
-            ...(prev || mapData),
-            placements: [...(prev?.placements || mapData.placements || []), payload.placement],
-          }));
-        } else if (payload.entityType === 'artifact') {
-          addArtifact(payload.entity);
-          updateMapData((prev) => ({
-            ...(prev || mapData),
-            placements: [...(prev?.placements || mapData.placements || []), payload.placement],
-          }));
-        } else if (payload.entityType === 'location') {
-          addLocation(payload.entity);
-          updateMapData((prev) => ({
-            ...(prev || mapData),
-            placements: [...(prev?.placements || mapData.placements || []), payload.placement],
-          }));
-        }
-      });
-
-      // Automatically select the newly spawned pin
-      setSelection([{ kind: 'placement', id: payload.placement.id }]);
-    },
-    [
-      commit,
-      addCreature,
-      addNpc,
-      addTimelineEvent,
-      addArtifact,
-      addLocation,
-      updateMapData,
-      mapData,
-      setSelection,
-    ]
-  );
-
-  const handleDeleteObject = useCallback(
-    (ref: { kind: string; id: string }) => {
-      if (ref.kind === 'location') handleDeleteLocation(ref.id);
-      else if (ref.kind === 'placement') handleDeletePlacement(ref.id);
-      else if (ref.kind === 'terrain') handleDeleteTerrain(ref.id);
-      else if (ref.kind === 'route') handleDeleteRoad(ref.id);
-      else if (ref.kind === 'trade_route') handleDeleteTradeRoute(ref.id);
-    },
-    [handleDeleteLocation, handleDeletePlacement, handleDeleteTerrain, handleDeleteRoad, handleDeleteTradeRoute]
-  );
-
-  // -----------------------------------------------------------------------
-  // Plan 21 — per-object layer controls
-  //
-  // Every one of these goes through `commit()`, so each is a single undoable
-  // step rather than a silent mutation of the world.
-  // -----------------------------------------------------------------------
-  const handleSetTerrainState = useCallback(
-    (id: string, patch: Partial<MapTerrainFeature>, label: string) => {
-      commit(label, () => {
-        let linkedLocId: string | undefined;
-        updateMapData((prev) => {
-          const current = prev || mapData;
-          const target = current.terrainFeatures.find((f) => f.id === id);
-          linkedLocId = target?.locationId;
-          return {
-            ...current,
-            terrainFeatures: current.terrainFeatures.map((f) =>
-              f.id === id ? { ...f, ...patch } : f
-            ),
-          };
-        });
-        if (linkedLocId) {
-          const locPatch: Partial<WorldLocation> = {};
-          if (patch.locked !== undefined) locPatch.locked = patch.locked;
-          if (patch.visible !== undefined) locPatch.visible = patch.visible;
-          if (Object.keys(locPatch).length > 0) {
-            editLocation(linkedLocId, locPatch);
-          }
-        }
-      });
-    },
-    [commit, mapData, updateMapData, editLocation]
-  );
-
-  const handleSetPlacementState = useCallback(
-    (id: string, patch: Partial<MapEntityPlacement>, label: string) => {
-      commit(label, () => {
-        updateMapData((prev) => {
-          const current = prev || mapData;
-          return {
-            ...current,
-            placements: current.placements.map((p) => (p.id === id ? { ...p, ...patch } : p)),
-          };
-        });
-      });
-    },
-    [commit, mapData, updateMapData]
-  );
-
-  /**
-   * Sets one visibility state across many elements as a single action:
-   * one undo step and one notification. Map objects are batched into one
-   * map-data write; locations and trade routes are batched into one
-   * world-bible write — bypassing the per-item CRUD notifications that
-   * would otherwise stack a toast per element.
-   */
-  const handleSetElementsVisibility = useCallback(
-    (
-      targets: Array<{ kind: 'terrain' | 'placement' | 'location' | 'route' | 'road'; id: string }>,
-      visible: boolean
-    ) => {
-      if (targets.length === 0) return;
-
-      const terrainIds = new Set(targets.filter((t) => t.kind === 'terrain').map((t) => t.id));
-      const placementIds = new Set(targets.filter((t) => t.kind === 'placement').map((t) => t.id));
-      const roadIds = new Set(targets.filter((t) => t.kind === 'road').map((t) => t.id));
-      const locationIds = new Set(targets.filter((t) => t.kind === 'location').map((t) => t.id));
-      const tradeRouteIds = new Set(targets.filter((t) => t.kind === 'route').map((t) => t.id));
-
-      const touchesMapData = terrainIds.size + placementIds.size + roadIds.size > 0;
-      const touchesWorldBible = locationIds.size + tradeRouteIds.size > 0;
-      if (!touchesMapData && !touchesWorldBible) return;
-
-      commit(visible ? 'Show elements' : 'Hide elements', () => {
-        if (touchesMapData) {
-          updateMapData((prev) => {
-            const current = prev || mapData;
-            return {
-              ...current,
-              terrainFeatures: current.terrainFeatures.map((f) =>
-                terrainIds.has(f.id) ? { ...f, visible } : f
-              ),
-              placements: current.placements.map((p) =>
-                placementIds.has(p.id) ? { ...p, visible } : p
-              ),
-              routes: (current.routes ?? []).map((r) =>
-                roadIds.has(r.id) ? { ...r, visible } : r
-              ),
-            };
-          });
-        }
-        if (touchesWorldBible) {
-          updateWorldBible((prev) => ({
-            ...prev,
-            locations: (prev.locations ?? []).map((l) =>
-              locationIds.has(l.id) ? { ...l, visible } : l
-            ),
-            tradeRoutes: (prev.tradeRoutes ?? []).map((r) =>
-              tradeRouteIds.has(r.id) ? { ...r, visible } : r
-            ),
-          }));
-        }
-      });
-
-      notify.info(
-        isPersian
-          ? `${targets.length} عنصر ${visible ? 'نمایش' : 'پنهان'} شد`
-          : `${targets.length} element${targets.length === 1 ? '' : 's'} ${
-              visible ? 'shown' : 'hidden'
-            }`
-      );
-    },
-    [commit, mapData, updateMapData, updateWorldBible, isPersian]
-  );
-
-  const handleToggleTerrainVisibility = useCallback(
-    (id: string) => {
-      const feature = (mapData.terrainFeatures || []).find((f) => f.id === id);
-      if (!feature) return;
-      handleSetTerrainState(id, { visible: feature.visible === false }, 'Toggle layer visibility');
-    },
-    [handleSetTerrainState, mapData]
-  );
-
-  const handleToggleTerrainLock = useCallback(
-    (id: string) => {
-      const feature = (mapData.terrainFeatures || []).find((f) => f.id === id);
-      if (!feature) return;
-      handleSetTerrainState(id, { locked: !(feature.locked === true) }, 'Toggle layer lock');
-    },
-    [handleSetTerrainState, mapData]
-  );
-
-  const handleTogglePlacementVisibility = useCallback(
-    (id: string) => {
-      const pin = (mapData.placements || []).find((p) => p.id === id);
-      if (!pin) return;
-      handleSetPlacementState(id, { visible: pin.visible === false }, 'Toggle pin visibility');
-    },
-    [handleSetPlacementState, mapData]
-  );
-
-  const handleTogglePlacementLock = useCallback(
-    (id: string) => {
-      const pin = (mapData.placements || []).find((p) => p.id === id);
-      if (!pin) return;
-      handleSetPlacementState(id, { locked: !(pin.locked === true) }, 'Toggle pin lock');
-    },
-    [handleSetPlacementState, mapData]
-  );
-
-  const handleToggleLocationVisibility = useCallback(
-    (id: string) => {
-      const loc = (story.worldBible.locations || []).find((l) => l.id === id);
-      if (!loc) return;
-      handleUpdateLocation(id, { visible: loc.visible === false });
-    },
-    [handleUpdateLocation, story.worldBible.locations]
-  );
-
-  const handleToggleLocationLock = useCallback(
-    (id: string) => {
-      const loc = (story.worldBible.locations || []).find((l) => l.id === id);
-      if (!loc) return;
-      handleUpdateLocation(id, { locked: !(loc.locked === true) });
-    },
-    [handleUpdateLocation, story.worldBible.locations]
-  );
-
-  const handleToggleRouteVisibility = useCallback(
-    (id: string) => {
-      const route = (story.worldBible.tradeRoutes || []).find((r) => r.id === id);
-      if (!route) return;
-      handleUpdateTradeRoute(id, { visible: route.visible === false });
-    },
-    [handleUpdateTradeRoute, story.worldBible.tradeRoutes]
-  );
-
-  const handleToggleRouteLock = useCallback(
-    (id: string) => {
-      const route = (story.worldBible.tradeRoutes || []).find((r) => r.id === id);
-      if (!route) return;
-      handleUpdateTradeRoute(id, { locked: !(route.locked === true) });
-    },
-    [handleUpdateTradeRoute, story.worldBible.tradeRoutes]
-  );
-
-  const handleReorderTerrain = useCallback(
-    (id: string, direction: 'forward' | 'backward') => {
-      commit(direction === 'forward' ? 'Bring layer forward' : 'Send layer backward', () => {
-        updateMapData((prev) => {
-          const current = prev || mapData;
-          return {
-            ...current,
-            terrainFeatures: reorderTerrainByZ(current.terrainFeatures, id, direction),
-          };
-        });
-      });
-    },
-    [commit, mapData, updateMapData]
-  );
-
-  const handleReorderPlacement = useCallback(
-    (id: string, direction: 'forward' | 'backward') => {
-      commit(direction === 'forward' ? 'Bring pin forward' : 'Send pin backward', () => {
-        updateMapData((prev) => {
-          const current = prev || mapData;
-          return {
-            ...current,
-            placements: reorderPlacementByZ(current.placements, id, direction),
-          };
-        });
-      });
-    },
-    [commit, mapData, updateMapData]
-  );
-
-  const handleRenameTerrain = useCallback(
-    (id: string, name: string) => {
-      handleSetTerrainState(id, { name }, 'Rename feature');
-    },
-    [handleSetTerrainState]
-  );
-
-  const handleRenamePlacement = useCallback(
-    (id: string, label: string) => {
-      handleSetPlacementState(id, { customLabel: label }, 'Rename pin');
-    },
-    [handleSetPlacementState]
-  );
-
-  /** Selects a map object from the object list and centres the camera on it. */
-  const handleSelectMapObject = useCallback((item: SelectedMapItem) => {
-    if (!item) return;
-    setSelection([{ kind: item.type, id: item.data.id }]);
-
-    const point =
-      item.type === 'terrain'
-        ? terrainCenter(item.data)
-        : item.type === 'location'
-        ? resolvePlaceMapAnchor(item.data, mapData.terrainFeatures)
-        : item.type === 'placement'
-        ? { x: item.data.x, y: item.data.y }
-        : item.type === 'route'
-        ? routeMidpoint(
-            resolveMapRoutePoints(item.data, {
-              locations: story.worldBible.locations,
-              terrainFeatures: mapData.terrainFeatures,
-              placements: mapData.placements,
-              placeCategories,
-            }).points
-          )
-        : null;
-    if (!point) return;
-
-    const screenW = typeof window !== 'undefined' ? window.innerWidth : 1200;
-    const screenH = typeof window !== 'undefined' ? window.innerHeight : 800;
-    setPan({ x: screenW / 2 - point.x * zoom, y: screenH / 2 - point.y * zoom });
-  }, [mapData.terrainFeatures, mapData.placements, placeCategories, story.worldBible.locations, setSelection, zoom]);
+  const {
+    handleSetElementsVisibility,
+    handleToggleTerrainVisibility,
+    handleToggleTerrainLock,
+    handleTogglePlacementVisibility,
+    handleTogglePlacementLock,
+    handleToggleLocationVisibility,
+    handleToggleLocationLock,
+    handleToggleRouteVisibility,
+    handleToggleRouteLock,
+    handleReorderTerrain,
+    handleReorderPlacement,
+    handleRenameTerrain,
+    handleRenamePlacement,
+    handleSelectMapObject,
+  } = useCartographerObjectLayers({
+    story,
+    mapData,
+    isPersian,
+    commit,
+    updateMapData,
+    updateWorldBible,
+    editLocation,
+    handleUpdateLocation,
+    handleUpdateTradeRoute,
+    setSelection,
+    placeCategories,
+    setPan,
+    zoom,
+  });
 
 
   // Station NPC at location
