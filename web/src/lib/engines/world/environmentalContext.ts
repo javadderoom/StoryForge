@@ -220,7 +220,24 @@ export function extractEnvironmentalContext(
   let minSettlementDist = Infinity;
 
   // Resolve linked location if matchedFeature is tied to a canonical WorldLocation
-  const linkedLocationId = matchedFeature?.locationId;
+  let linkedLocationId = matchedFeature?.locationId;
+
+  // Plan 28: If matchedFeature is part of a Unified Story Entity group, inherit the group's location
+  if (!linkedLocationId && matchedFeature?.groupId && mapData?.groups) {
+    const group = mapData.groups.find((g) => g.id === matchedFeature.groupId);
+    if (group?.mode === 'unified_entity' && group.locationId) {
+      linkedLocationId = group.locationId;
+    }
+  }
+
+  // If still unlinked, check if this is an interconnected river (delta distributary or confluence tributary)
+  if (!linkedLocationId && matchedFeature?.connectedRiverId) {
+    const parentRiver = terrainFeatures.find((f) => f.id === matchedFeature.connectedRiverId);
+    if (parentRiver?.locationId) {
+      linkedLocationId = parentRiver.locationId;
+    }
+  }
+
   const linkedLocation: WorldLocation | null = linkedLocationId
     ? locations.find((l) => l.id === linkedLocationId) ?? null
     : null;
@@ -269,6 +286,12 @@ export function extractEnvironmentalContext(
     promptParts.push(`- Canonical Territory / World Location: "${linkedLocation.name}" (ID: ${linkedLocation.id})`);
     if (linkedLocation.description) {
       promptParts.push(`- Territory Lore & Narrative: ${linkedLocation.description}`);
+    }
+  }
+  if (matchedFeature?.groupId && mapData?.groups) {
+    const group = mapData.groups.find((g) => g.id === matchedFeature.groupId);
+    if (group?.mode === 'unified_entity') {
+      promptParts.push(`- Unified Story Entity Group: "${group.name}" (${group.memberRefs.length} interconnected segments)`);
     }
   }
   promptParts.push(`- Primary Biome: ${meta.label} [Category: ${biomeKey}]`);

@@ -10,11 +10,14 @@ import {
   Snowflake,
   Link2,
   Unlink,
+  Layers,
+  Folder,
 } from 'lucide-react';
 import type {
   MapTerrainFeature,
   WorldLocation,
   CustomPlaceCategory,
+  MapGroup,
 } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import { placeAcceptsTerrainType } from '@/lib/engines/world/terrainPlacePairing';
@@ -37,6 +40,8 @@ export interface TerrainInspectorProps {
   onAddTerrain?: (feature: MapTerrainFeature) => void;
   allFeatures?: MapTerrainFeature[];
   onSelectFeature?: (id: string) => void;
+  groups?: MapGroup[];
+  onSelectGroup?: (groupId: string) => void;
 }
 
 export const TerrainInspector: React.FC<TerrainInspectorProps> = ({
@@ -52,7 +57,13 @@ export const TerrainInspector: React.FC<TerrainInspectorProps> = ({
   onAddTerrain,
   allFeatures,
   onSelectFeature,
+  groups,
+  onSelectGroup,
 }) => {
+  const owningGroup = feature.groupId
+    ? groups?.find((g) => g.id === feature.groupId)
+    : undefined;
+
   const compatibleLocations = locations.filter((location) =>
     placeAcceptsTerrainType(location, feature.type, placeCategories)
   );
@@ -71,6 +82,38 @@ export const TerrainInspector: React.FC<TerrainInspectorProps> = ({
 
   return (
     <div className="space-y-4 text-xs">
+      {/* Group / Unified Entity Membership Banner */}
+      {owningGroup && (
+        <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2 shadow-sm">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {owningGroup.mode === 'unified_entity' ? (
+              <Layers className="w-4 h-4 text-amber-400 shrink-0" />
+            ) : (
+              <Folder className="w-4 h-4 text-stone-300 shrink-0" />
+            )}
+            <div className="min-w-0">
+              <span className="text-[10px] uppercase tracking-wider text-amber-400 font-semibold block">
+                {owningGroup.mode === 'unified_entity'
+                  ? isPersian ? 'عضو انتینتی واحد داستان' : 'Unified Story Entity'
+                  : isPersian ? 'عضو پوشه سازمانی' : 'Folder Group'}
+              </span>
+              <p className="text-xs font-semibold text-zinc-100 truncate">
+                {owningGroup.name}
+              </p>
+            </div>
+          </div>
+          {onSelectGroup && (
+            <button
+              type="button"
+              onClick={() => onSelectGroup(owningGroup.id)}
+              className="shrink-0 px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-medium transition-all"
+            >
+              {isPersian ? 'بازرسی گروه' : 'Inspect Group'}
+            </button>
+          )}
+        </div>
+      )}
+
       <div>
         <label className="text-[11px] text-zinc-400 mb-1 block font-medium">
           {isPersian ? 'نام عارضه طبیعی' : 'Feature Name'}

@@ -7,6 +7,8 @@ import type {
   WorldBible,
   WorldMapData,
   WorldMapSettings,
+  MapGroup,
+  MapGroupMode,
 } from '@/lib/types';
 import { getDefaultOntology } from '@/lib/context/StudioStoryContext';
 import { notify } from '@/lib/notify';
@@ -24,6 +26,16 @@ import {
 import type { CartographerTool } from '../CartographerHeader';
 import type { SelectedMapItem } from '../CartographerInspector';
 import { detachRoutesFromRef } from '@/lib/engines/world/mapRoutes';
+import {
+  createMapGroup,
+  ungroupMapGroup,
+  setMapGroupMode,
+  setMapGroupLocation,
+  updateMapGroup,
+  findGroupById,
+  areRefsInSameGroup,
+  type MapGroupSource,
+} from '@/lib/engines/world/mapGroups';
 
 type Commit = (
   label: string,
@@ -118,9 +130,28 @@ export function useCartographerSelection({
     setSelection(selectedItems.map((item) => ({ kind: item.type, id: item.data.id })));
   }, [selection.length, selectedItems]);
 
-  /** The Inspector only opens for a single object, exactly as before. */
-  const selectedItem: SelectedMapItem =
-    selectedItems.length === 1 ? selectedItems[0] : null;
+  /** Groups current selection if all selected items belong to the same group */
+  const currentGroup = useMemo(() => {
+    return areRefsInSameGroup(mapData.groups, selection);
+  }, [mapData.groups, selection]);
+
+  /**
+   * The Inspector opens for a single object, OR for a group when all selected
+   * items belong to that group.
+   */
+  const selectedItem: SelectedMapItem = useMemo(() => {
+    if (selectedItems.length === 1) {
+      return selectedItems[0];
+    }
+    if (currentGroup && selectedItems.length > 1) {
+      return {
+        type: 'group',
+        data: currentGroup,
+        members: selectedItems,
+      };
+    }
+    return null;
+  }, [selectedItems, currentGroup]);
 
   /** Removes refs that a singular handler just deleted. */
   const removeFromSelection = useCallback((refs: MapObjectRef[]) => {
@@ -208,12 +239,21 @@ export function useCartographerSelection({
             nextRoutes = detachRoutesFromRef(nextRoutes, { kind: 'location', id }, selectionSource);
           }
 
+          const deletedKeys = new Set(unique.map((ref) => `${ref.kind}:${ref.id}`));
+          const nextGroups = (previousMap?.groups ?? [])
+            .map((g) => ({
+              ...g,
+              memberRefs: g.memberRefs.filter((m) => !deletedKeys.has(`${m.kind}:${m.id}`)),
+            }))
+            .filter((g) => g.memberRefs.length > 0);
+
           const nextMap = previousMap
             ? {
                 ...previousMap,
                 terrainFeatures: previousMap.terrainFeatures.filter((feature) => !terrainIds.has(feature.id)),
                 placements: previousMap.placements.filter((placement) => !placementIds.has(placement.id)),
                 routes: nextRoutes,
+                groups: nextGroups,
               }
             : previousMap;
           return {
@@ -416,6 +456,230 @@ export function useCartographerSelection({
     }
   }, [isPersian, mapSettings, selectionSource, setActiveTool]);
 
+  const handleSelectGroup = useCallback(
+    (groupId: string) => {
+      const group = findGroupById(mapData.groups, groupId);
+      if (group && group.memberRefs.length > 0) {
+        setSelection(group.memberRefs);
+      }
+    },
+    [mapData.groups]
+  );
+
+  const handleGroupSelection = useCallback(
+    (mode: MapGroupMode, customName?: string) => {
+      if (selection.length < 2) return;
+
+      const defaultName =
+        mode === 'unified_entity'
+          ? isPersian ? 'انتینتی واحد داستان' : 'Unified Story Entity'
+          : isPersian ? 'پوشه جدید' : 'New Group Folder';
+      const name = customName?.trim() || defaultName;
+
+      commit(
+        `Group objects (${mode === 'unified_entity' ? 'Unified Story Entity' : 'Folder'})`,
+        () => {
+          const source: MapGroupSource = {
+            terrainFeatures: mapData.terrainFeatures,
+            placements: mapData.placements,
+            locations: worldBible.locations,
+            routes: mapData.routes,
+            groups: mapData.groups,
+          };
+
+          const { updatedSource, group } = createMapGroup(source, selection, {
+            name,
+            mode,
+            isPersian,
+          });
+
+          // Update mapData
+          updateMapData((prev) => {
+            if (!prev) return prev as any;
+            return {
+              ...prev,
+              terrainFeatures: updatedSource.terrainFeatures ?? prev.terrainFeatures,
+              placements: updatedSource.placements ?? prev.placements,
+              routes: updatedSource.routes ?? prev.routes,
+              groups: updatedSource.groups ?? prev.groups,
+            };
+          });
+
+          // Update worldBible if locations changed
+          if (updatedSource.locations) {
+            updateWorldBible((prev) => ({
+              ...prev,
+              locations: updatedSource.locations!,
+            }));
+          }
+
+          // Reselect the group members
+          setSelection(group.memberRefs);
+
+          notify.success(
+            mode === 'unified_entity'
+              ? isPersian
+                ? `گروه‌بندی انتینتی واحد ایجاد شد: ${group.name}`
+                : `Created Unified Story Entity: ${group.name}`
+              : isPersian
+              ? `پوشه سازمانی ایجاد شد: ${group.name}`
+              : `Created Folder Group: ${group.name}`
+          );
+        }
+      );
+    },
+    [selection, isPersian, commit, mapData, worldBible.locations, updateMapData, updateWorldBible]
+  );
+
+  const handleUngroup = useCallback(
+    (groupId: string) => {
+      const group = findGroupById(mapData.groups, groupId);
+      if (!group) return;
+
+      commit('Ungroup objects', () => {
+        const source: MapGroupSource = {
+          terrainFeatures: mapData.terrainFeatures,
+          placements: mapData.placements,
+          locations: worldBible.locations,
+          routes: mapData.routes,
+          groups: mapData.groups,
+        };
+
+        const updatedSource = ungroupMapGroup(source, groupId);
+
+        updateMapData((prev) => {
+          if (!prev) return prev as any;
+          return {
+            ...prev,
+            terrainFeatures: updatedSource.terrainFeatures ?? prev.terrainFeatures,
+            placements: updatedSource.placements ?? prev.placements,
+            routes: updatedSource.routes ?? prev.routes,
+            groups: updatedSource.groups ?? [],
+          };
+        });
+
+        if (updatedSource.locations) {
+          updateWorldBible((prev) => ({
+            ...prev,
+            locations: updatedSource.locations!,
+          }));
+        }
+
+        notify.info(
+          isPersian ? 'گروه منحل شد و عناصر مستقل شدند.' : 'Group dissolved into independent objects.'
+        );
+      });
+    },
+    [mapData, worldBible.locations, commit, updateMapData, updateWorldBible, isPersian]
+  );
+
+  const handleSetGroupMode = useCallback(
+    (groupId: string, mode: MapGroupMode) => {
+      commit('Change group mode', () => {
+        const source: MapGroupSource = {
+          terrainFeatures: mapData.terrainFeatures,
+          placements: mapData.placements,
+          locations: worldBible.locations,
+          routes: mapData.routes,
+          groups: mapData.groups,
+        };
+
+        const updatedSource = setMapGroupMode(source, groupId, mode);
+
+        updateMapData((prev) => {
+          if (!prev) return prev as any;
+          return {
+            ...prev,
+            terrainFeatures: updatedSource.terrainFeatures ?? prev.terrainFeatures,
+            placements: updatedSource.placements ?? prev.placements,
+            routes: updatedSource.routes ?? prev.routes,
+            groups: updatedSource.groups ?? prev.groups,
+          };
+        });
+
+        if (updatedSource.locations) {
+          updateWorldBible((prev) => ({
+            ...prev,
+            locations: updatedSource.locations!,
+          }));
+        }
+      });
+    },
+    [mapData, worldBible.locations, commit, updateMapData, updateWorldBible]
+  );
+
+  const handleSetGroupLocation = useCallback(
+    (groupId: string, locationId: string | undefined) => {
+      commit('Set group location', () => {
+        const source: MapGroupSource = {
+          terrainFeatures: mapData.terrainFeatures,
+          placements: mapData.placements,
+          locations: worldBible.locations,
+          routes: mapData.routes,
+          groups: mapData.groups,
+        };
+
+        const updatedSource = setMapGroupLocation(source, groupId, locationId);
+
+        updateMapData((prev) => {
+          if (!prev) return prev as any;
+          return {
+            ...prev,
+            terrainFeatures: updatedSource.terrainFeatures ?? prev.terrainFeatures,
+            placements: updatedSource.placements ?? prev.placements,
+            routes: updatedSource.routes ?? prev.routes,
+            groups: updatedSource.groups ?? prev.groups,
+          };
+        });
+      });
+    },
+    [mapData, worldBible.locations, commit, updateMapData]
+  );
+
+  const handleUpdateGroup = useCallback(
+    (groupId: string, patch: Partial<MapGroup>) => {
+      commit('Update group', () => {
+        const source: MapGroupSource = {
+          terrainFeatures: mapData.terrainFeatures,
+          placements: mapData.placements,
+          locations: worldBible.locations,
+          routes: mapData.routes,
+          groups: mapData.groups,
+        };
+
+        const updatedSource = updateMapGroup(source, groupId, patch);
+
+        updateMapData((prev) => {
+          if (!prev) return prev as any;
+          return {
+            ...prev,
+            terrainFeatures: updatedSource.terrainFeatures ?? prev.terrainFeatures,
+            placements: updatedSource.placements ?? prev.placements,
+            routes: updatedSource.routes ?? prev.routes,
+            groups: updatedSource.groups ?? prev.groups,
+          };
+        });
+
+        if (updatedSource.locations) {
+          updateWorldBible((prev) => ({
+            ...prev,
+            locations: updatedSource.locations!,
+          }));
+        }
+      });
+    },
+    [mapData, worldBible.locations, commit, updateMapData, updateWorldBible]
+  );
+
+  const handleDeleteGroup = useCallback(
+    (groupId: string) => {
+      const group = findGroupById(mapData.groups, groupId);
+      if (!group) return;
+      void handleDeleteSelection(group.memberRefs);
+    },
+    [mapData.groups, handleDeleteSelection]
+  );
+
   // Plan 23 authoring shortcuts — ignored while typing in a field.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -473,18 +737,28 @@ export function useCartographerSelection({
       } else if (key === 'd') {
         event.preventDefault();
         handleDuplicateSelection();
+      } else if (key === 'g') {
+        event.preventDefault();
+        if (event.shiftKey) {
+          if (currentGroup) handleUngroup(currentGroup.id);
+        } else {
+          if (selection.length >= 2) handleGroupSelection('unified_entity');
+        }
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
     selection,
+    currentGroup,
     handleDeleteSelection,
     handleSelectAll,
     handleCopy,
     handlePaste,
     handleDuplicateSelection,
     handleNudgeSelection,
+    handleGroupSelection,
+    handleUngroup,
   ]);
 
   return {
@@ -492,6 +766,14 @@ export function useCartographerSelection({
     setSelection,
     selectedItems,
     selectedItem,
+    currentGroup,
+    handleSelectGroup,
+    handleGroupSelection,
+    handleUngroup,
+    handleSetGroupMode,
+    handleSetGroupLocation,
+    handleUpdateGroup,
+    handleDeleteGroup,
     removeFromSelection,
     handleDeleteSelection,
     handleMoveSelection,

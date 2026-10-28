@@ -4,6 +4,8 @@ import type {
   MapTerrainFeature,
   MapEntityPlacement,
   MapRoute,
+  MapGroup,
+  MapGroupMode,
   NPCDossier,
   WorldCreature,
   WorldArtifact,
@@ -20,6 +22,7 @@ export type SelectedMapItem =
   | { type: 'route'; data: MapRoute }
   | { type: 'terrain'; data: MapTerrainFeature }
   | { type: 'placement'; data: MapEntityPlacement }
+  | { type: 'group'; data: MapGroup; members: NonNullable<SelectedMapItem>[] }
   | null;
 
 export interface CartographerInspectorProps {
@@ -58,6 +61,13 @@ export interface CartographerInspectorProps {
   timeline?: TimelineEvent[];
   /** Deity pins (Shrine tool) resolve their dossier from here. */
   religions?: WorldDeity[];
+  groups?: MapGroup[];
+  onUpdateGroup?: (id: string, updated: Partial<MapGroup>) => void;
+  onSetGroupLocation?: (groupId: string, locationId: string | undefined) => void;
+  onSetGroupMode?: (groupId: string, mode: MapGroupMode) => void;
+  onUngroup?: (groupId: string) => void;
+  onDeleteGroup?: (groupId: string) => void;
+  onSelectGroup?: (groupId: string) => void;
   onUpdateCreature?: (id: string, updated: Partial<WorldCreature>) => void;
   onDeleteCreature?: (id: string) => void;
   onUpdateArtifact?: (id: string, updated: Partial<WorldArtifact>) => void;

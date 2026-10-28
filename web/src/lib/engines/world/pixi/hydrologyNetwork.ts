@@ -476,5 +476,8 @@ export function createDistributaryBranch(
     width: branchWidth,
     elevation: Math.max(20, (parentRiver.elevation || 150) - 40),
     connectedRiverId: parentRiver.id,
+    locationId: parentRiver.locationId,
+    groupId: parentRiver.groupId,
+    labelConfig: { enabled: false },
   };
 }

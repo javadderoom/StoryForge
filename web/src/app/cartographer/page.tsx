@@ -112,6 +112,14 @@ export default function CartographerPage() {
     setSelection,
     selectedItems,
     selectedItem,
+    currentGroup,
+    handleSelectGroup,
+    handleGroupSelection,
+    handleUngroup,
+    handleSetGroupMode,
+    handleSetGroupLocation,
+    handleUpdateGroup,
+    handleDeleteGroup,
     removeFromSelection,
     handleDeleteSelection,
     handleMoveSelection,
@@ -534,8 +542,7 @@ export default function CartographerPage() {
           />
         )}
 
-        {/* Multi-selection actions (Plan 23). A single object keeps the full
-            Inspector; two or more get the compact floating bar instead. */}
+        {/* Multi-selection actions (Plan 23 & Plan 28). */}
         {selectedItems.length > 1 && (
           <CartographerSelectionBar
             count={selectedItems.length}
@@ -543,6 +550,9 @@ export default function CartographerPage() {
             onDelete={() => void handleDeleteSelection(selection)}
             onClear={() => setSelection([])}
             isPersian={isPersian}
+            currentGroup={currentGroup}
+            onGroup={handleGroupSelection}
+            onUngroup={currentGroup ? () => handleUngroup(currentGroup.id) : undefined}
           />
         )}
 
@@ -589,6 +599,13 @@ export default function CartographerPage() {
             onStationNpc={handleStationNpc}
             onAddTerrain={handleAddTerrain}
             onSelectFeature={(id) => setSelection([{ kind: 'terrain', id }])}
+            groups={mapData.groups}
+            onUpdateGroup={handleUpdateGroup}
+            onSetGroupLocation={handleSetGroupLocation}
+            onSetGroupMode={handleSetGroupMode}
+            onUngroup={handleUngroup}
+            onDeleteGroup={handleDeleteGroup}
+            onSelectGroup={handleSelectGroup}
             isPersian={isPersian}
           />
         )}

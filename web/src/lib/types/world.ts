@@ -211,6 +211,8 @@ export interface WorldLocation {
   visible?: boolean;
   /** Per-object lock toggle on the map canvas. Default false. */
   locked?: boolean;
+  /** Plan 28: Group membership ID (unified entity vs. folder). */
+  groupId?: string;
 }
 
 /**
@@ -867,6 +869,8 @@ export interface MapTerrainFeature {
   deltaConfig?: RiverDeltaConfig;
   /** Hydrology network parent/connected river link for confluences & delta distributaries. */
   connectedRiverId?: string;
+  /** Group membership ID (Plan 28: Unified Story Entity vs. Folder Group). */
+  groupId?: string;
   /** Plan 27: Sinuous barchan sand dune field configuration (Hiram Steppe / deserts). */
   duneConfig?: DuneFieldConfig;
   /** Plan 27: Coastal & shoreline waterlining concentric wave echo configuration. */
@@ -910,6 +914,8 @@ export interface MapEntityPlacement {
   visible?: boolean;
   /** Locked pins cannot be picked or edited on the canvas. */
   locked?: boolean;
+  /** Plan 28: Group membership ID. */
+  groupId?: string;
   /** Draw order. Defaults to the pin's index in the array. */
   zIndex?: number;
 }
@@ -990,7 +996,30 @@ export interface MapRoute {
   tradeRouteId?: string;
   visible?: boolean;
   locked?: boolean;
+  /** Plan 28: Group membership ID. */
+  groupId?: string;
   zIndex?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Plan 28 — Universal Map Grouping: Unified Story Entities vs. Folder Groups
+// ---------------------------------------------------------------------------
+
+export type MapGroupMode = 'unified_entity' | 'folder';
+
+export interface MapGroup {
+  id: string;
+  name: string;
+  mode: MapGroupMode;
+  /** Canonical WorldLocation ID (authoritative in 'unified_entity' mode). */
+  locationId?: string;
+  /** Primary stem / anchor member reference. */
+  primaryRef?: { kind: 'location' | 'terrain' | 'placement' | 'trade_route' | 'route'; id: string };
+  /** All member element references in this group. */
+  memberRefs: Array<{ kind: 'location' | 'terrain' | 'placement' | 'trade_route' | 'route'; id: string }>;
+  visible?: boolean;
+  locked?: boolean;
+  collapsed?: boolean;
 }
 
 export type MapStyleTheme =
@@ -1049,6 +1078,8 @@ export interface WorldMapData {
   placements: MapEntityPlacement[];
   /** Plan 25: drawn roads and paths. Optional so old worlds stay valid. */
   routes?: MapRoute[];
+  /** Plan 28: Universal Map Groups (Unified Story Entities vs. Folder Groups). */
+  groups?: MapGroup[];
   notes?: string;
 }
 
@@ -1760,6 +1791,8 @@ export interface WorldTradeRoute {
   visible?: boolean;
   /** Per-object lock toggle on the map canvas. Default false. */
   locked?: boolean;
+  /** Plan 28: Group membership ID (unified entity vs. folder). */
+  groupId?: string;
 }
 
 export const PowerRankAdvancementCostSchema = z.object({
@@ -1827,10 +1860,12 @@ export const MapTerrainFeatureSchema = z.object({
   climateZone: z.enum(['polar', 'temperate', 'arid', 'tropical', 'mystical']).optional(),
   deltaConfig: RiverDeltaConfigSchema.optional(),
   connectedRiverId: z.string().optional(),
+  groupId: z.string().optional(),
   // Plan 21 per-object layer controls. Optional without a default so existing
   // worlds are not rewritten (and stay diff-free) just by being validated.
   visible: z.boolean().optional(),
   locked: z.boolean().optional(),
+  groupId: z.string().optional(),
   zIndex: z.number().optional(),
 });
 
@@ -1845,6 +1880,7 @@ export const MapEntityPlacementSchema = z.object({
   notes: z.string().optional(),
   visible: z.boolean().optional(),
   locked: z.boolean().optional(),
+  groupId: z.string().optional(),
   zIndex: z.number().optional(),
 });
 
@@ -1900,6 +1936,7 @@ export const MapRouteSchema = z.object({
   tradeRouteId: z.string().optional(),
   visible: z.boolean().optional(),
   locked: z.boolean().optional(),
+  groupId: z.string().optional(),
   zIndex: z.number().optional(),
 });
 
@@ -1915,12 +1952,32 @@ export const WorldMapSettingsSchema = z.object({
   visibleLayers: z.record(z.boolean()).default({}),
 });
 
+export const MapGroupModeSchema = z.enum(['unified_entity', 'folder']);
+
+export const MapGroupMemberRefSchema = z.object({
+  kind: z.enum(['location', 'terrain', 'placement', 'trade_route', 'route']),
+  id: z.string().min(1),
+});
+
+export const MapGroupSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  mode: MapGroupModeSchema.default('unified_entity'),
+  locationId: z.string().optional(),
+  primaryRef: MapGroupMemberRefSchema.optional(),
+  memberRefs: z.array(MapGroupMemberRefSchema).default([]),
+  visible: z.boolean().optional(),
+  locked: z.boolean().optional(),
+  collapsed: z.boolean().optional(),
+});
+
 export const WorldMapDataSchema = z.object({
   version: z.number().default(1),
   settings: WorldMapSettingsSchema,
   terrainFeatures: z.array(MapTerrainFeatureSchema).default([]),
   placements: z.array(MapEntityPlacementSchema).default([]),
   routes: z.array(MapRouteSchema).default([]),
+  groups: z.array(MapGroupSchema).default([]),
   notes: z.string().optional(),
 });
 

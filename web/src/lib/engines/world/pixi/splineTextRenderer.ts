@@ -354,6 +354,11 @@ export function renderTerrainCurvedLabels(
     const isOptedOut = config?.enabled === false;
     if (isOptedOut) continue;
 
+    // Suppress automatic labels for connected river tributaries & delta distributaries
+    if (feat.connectedRiverId && !isExplicitlyEnabled) {
+      continue;
+    }
+
     const isProminentFeature =
       feat.type === 'mountain_range' ||
       feat.type === 'river' ||

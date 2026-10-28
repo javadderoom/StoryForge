@@ -11,6 +11,8 @@ import {
   Shield,
   Sparkles,
   Swords,
+  Layers,
+  Folder,
 } from 'lucide-react';
 import {
   type SelectedMapItem,
@@ -21,6 +23,7 @@ import { CaravanRouteInspector } from './inspector/CaravanRouteInspector';
 import { RoadRouteInspector } from './inspector/RoadRouteInspector';
 import { TerrainInspector } from './inspector/TerrainInspector';
 import { PlacementInspector } from './inspector/PlacementInspector';
+import { GroupInspector } from './inspector/GroupInspector';
 
 export type { SelectedMapItem, CartographerInspectorProps };
 
@@ -65,6 +68,13 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
   isPersian,
   onAddTerrain,
   onSelectFeature,
+  groups,
+  onUpdateGroup,
+  onSetGroupLocation,
+  onSetGroupMode,
+  onUngroup,
+  onDeleteGroup,
+  onSelectGroup,
 }) => {
   if (!selectedItem) return null;
 
@@ -77,6 +87,13 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
           {selectedItem.type === 'trade_route' && <Route className="w-4 h-4 text-orange-400" />}
           {selectedItem.type === 'route' && <Route className="w-4 h-4 text-amber-300" />}
           {selectedItem.type === 'terrain' && <Mountain className="w-4 h-4 text-emerald-400" />}
+          {selectedItem.type === 'group' && (
+            selectedItem.data.mode === 'unified_entity' ? (
+              <Layers className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Folder className="w-4 h-4 text-stone-300" />
+            )
+          )}
           {selectedItem.type === 'placement' && (() => {
             const pin = selectedItem.data;
             if (pin.entityType === 'bestiary') return <Flame className="w-4 h-4 text-rose-500" />;
@@ -90,6 +107,11 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
             {selectedItem.type === 'trade_route' && (isPersian ? 'شاهراه کاروان تجاری' : 'Caravan Route Inspector')}
             {selectedItem.type === 'route' && (isPersian ? 'جاده و گذرگاه نقشه' : 'Road & Path Inspector')}
             {selectedItem.type === 'terrain' && (isPersian ? 'عنصر فیزیکی جغرافیایی' : 'Terrain Feature Inspector')}
+            {selectedItem.type === 'group' && (
+              selectedItem.data.mode === 'unified_entity'
+                ? (isPersian ? 'بازرس انتینتی واحد داستان' : 'Unified Story Entity Inspector')
+                : (isPersian ? 'بازرس پوشه سازمانی' : 'Folder Group Inspector')
+            )}
             {selectedItem.type === 'placement' && (() => {
               const pin = selectedItem.data;
               if (pin.entityType === 'bestiary') return isPersian ? 'شناسنامه جانور و هیولا' : 'Beast & Monster Dossier';
@@ -167,6 +189,23 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
           onAddTerrain={onAddTerrain}
           allFeatures={terrainFeatures}
           onSelectFeature={onSelectFeature}
+          groups={groups}
+          onSelectGroup={onSelectGroup}
+        />
+      )}
+
+      {selectedItem.type === 'group' && onUpdateGroup && onSetGroupLocation && onSetGroupMode && onUngroup && (
+        <GroupInspector
+          group={selectedItem.data}
+          members={selectedItem.members}
+          locations={locations}
+          isPersian={isPersian}
+          onUpdateGroup={onUpdateGroup}
+          onSetGroupLocation={onSetGroupLocation}
+          onSetGroupMode={onSetGroupMode}
+          onUngroup={onUngroup}
+          onDeleteGroup={onDeleteGroup}
+          onClose={onClose}
         />
       )}
 
