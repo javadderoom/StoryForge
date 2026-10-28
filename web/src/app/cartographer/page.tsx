@@ -517,6 +517,9 @@ export default function CartographerPage() {
             onDeleteRoad={handleDeleteRoad}
             placeCategories={placeCategories}
             onSetElementsVisibility={handleSetElementsVisibility}
+            selection={selection}
+            onSelectionChange={setSelection}
+            onGroupSelection={handleGroupSelection}
           />
         )}
 
@@ -606,6 +609,9 @@ export default function CartographerPage() {
             onUngroup={handleUngroup}
             onDeleteGroup={handleDeleteGroup}
             onSelectGroup={handleSelectGroup}
+            onGroup={handleGroupSelection}
+            onDuplicateSelection={handleDuplicateSelection}
+            onDeleteSelection={() => void handleDeleteSelection(selection)}
             isPersian={isPersian}
           />
         )}

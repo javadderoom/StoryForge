@@ -6,7 +6,8 @@ import { ItemWrapper } from './types';
 interface ElementItemRowProps {
   item: ItemWrapper;
   isPersian: boolean;
-  onSelect: (item: ItemWrapper) => void;
+  isSelected?: boolean;
+  onSelect: (item: ItemWrapper, additive?: boolean) => void;
   onToggleVisibility: (e: React.MouseEvent, item: ItemWrapper) => void;
   onToggleLock: (e: React.MouseEvent, item: ItemWrapper) => void;
   onDelete: (e: React.MouseEvent, item: ItemWrapper) => void;
@@ -15,6 +16,7 @@ interface ElementItemRowProps {
 export const ElementItemRow: React.FC<ElementItemRowProps> = ({
   item,
   isPersian,
+  isSelected,
   onSelect,
   onToggleVisibility,
   onToggleLock,
@@ -22,13 +24,19 @@ export const ElementItemRow: React.FC<ElementItemRowProps> = ({
 }) => {
   return (
     <div
-      onClick={() => onSelect(item)}
+      onClick={(e) => onSelect(item, e.shiftKey || e.ctrlKey || e.metaKey)}
       className={`group px-2 py-1.5 rounded-xl border flex items-center justify-between gap-2 cursor-pointer transition-all ${
-        item.visible
+        isSelected
+          ? 'bg-amber-500/15 border-amber-500/50 shadow-sm ring-1 ring-amber-500/30'
+          : item.visible
           ? 'bg-zinc-950/60 border-zinc-800/60 hover:bg-zinc-900/90 hover:border-zinc-700'
           : 'bg-zinc-950/30 border-zinc-800/30 opacity-60 hover:opacity-80'
       }`}
-      title={isPersian ? 'کلیک برای زوم و انتخاب' : 'Click to select and center on map'}
+      title={
+        isPersian
+          ? 'کلیک برای انتخاب (Shift+Click برای انتخاب چندگانه)'
+          : 'Click to select (Shift+Click to multi-select)'
+      }
     >
       {/* Left: Eye Visibility Toggle + Name & Subtitle */}
       <div className="flex items-center gap-2 min-w-0">

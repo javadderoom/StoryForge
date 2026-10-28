@@ -10,12 +10,16 @@ import {
   ChevronRight,
   ChevronLeft,
   ListTree,
+  Layers,
+  Folder,
 } from 'lucide-react';
 import {
   WorldBible,
   WorldMapData,
   CustomPlaceCategory,
+  MapGroupMode,
 } from '@/lib/types';
+import type { MapObjectRef } from '@/lib/engines/world/mapSelection';
 import { SelectedMapItem } from './CartographerInspector';
 import {
   ElementCategoryKey,
@@ -65,6 +69,9 @@ interface CartographerElementsPanelProps {
     targets: Array<{ kind: ItemWrapper['kind']; id: string }>,
     visible: boolean
   ) => void;
+  selection?: MapObjectRef[];
+  onSelectionChange?: (refs: MapObjectRef[]) => void;
+  onGroupSelection?: (mode: MapGroupMode) => void;
 }
 
 export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps> = ({
@@ -90,6 +97,9 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
   onDeleteRoad,
   placeCategories,
   onSetElementsVisibility,
+  selection,
+  onSelectionChange,
+  onGroupSelection,
 }) => {
   // Accordion state: null initially so all categories start collapsed.
   // Opening any category automatically closes all others.
@@ -157,8 +167,31 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
     }
   };
 
-  // Select and focus on the map
-  const handleSelectItem = (item: ItemWrapper) => {
+  const itemToRef = (item: ItemWrapper): MapObjectRef => {
+    const kindMap: Record<ItemWrapper['kind'], MapObjectRef['kind']> = {
+      terrain: 'terrain',
+      placement: 'placement',
+      location: 'location',
+      route: 'trade_route',
+      road: 'route',
+    };
+    return { kind: kindMap[item.kind], id: item.id };
+  };
+
+  // Select and focus on the map (supports Shift/Ctrl multi-selection)
+  const handleSelectItem = (item: ItemWrapper, additive = false) => {
+    const ref = itemToRef(item);
+
+    if (additive && selection && onSelectionChange) {
+      const exists = selection.some((r) => r.kind === ref.kind && r.id === ref.id);
+      if (exists) {
+        onSelectionChange(selection.filter((r) => !(r.kind === ref.kind && r.id === ref.id)));
+      } else {
+        onSelectionChange([...selection, ref]);
+      }
+      return;
+    }
+
     if (item.kind === 'terrain') {
       onSelectMapObject?.({ type: 'terrain', data: item.raw });
     } else if (item.kind === 'placement') {
@@ -267,6 +300,42 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
         )}
       </div>
 
+      {/* Quick Grouping Bar inside Elements Panel when multiple items selected */}
+      {selection && selection.length > 1 && onGroupSelection && (
+        <div className="p-2.5 rounded-2xl bg-amber-500/15 border border-amber-500/35 flex items-center justify-between gap-2 shadow-sm animate-fadeIn">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 animate-pulse" />
+            <span className="text-xs font-semibold text-amber-200 truncate">
+              {selection.length} {isPersian ? 'مورد انتخاب‌شده' : 'items selected'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => onGroupSelection('unified_entity')}
+              className="px-2.5 py-1 rounded-xl bg-amber-500/25 hover:bg-amber-500/40 text-amber-200 border border-amber-500/40 text-[11px] font-medium flex items-center gap-1 transition-all"
+              title={
+                isPersian
+                  ? 'گروه‌بندی به عنوان انتینتی واحد داستان'
+                  : 'Group into Unified Story Entity'
+              }
+            >
+              <Layers className="w-3 h-3 text-amber-300" />
+              <span>{isPersian ? 'انتینتی واحد' : 'Unified'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onGroupSelection('folder')}
+              className="px-2 py-1 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-[11px] font-medium flex items-center gap-1 transition-all"
+              title={isPersian ? 'گروه‌بندی در پوشه سازمانی' : 'Group into Folder'}
+            >
+              <Folder className="w-3 h-3 text-stone-300" />
+              <span>{isPersian ? 'پوشه' : 'Folder'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Accordion Categories Container */}
       <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
         {CATEGORY_DEFINITIONS.map((def) => {
@@ -351,6 +420,7 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
                         key={item.id}
                         item={item}
                         isPersian={isPersian}
+                        isSelected={selection?.some((r) => r.kind === itemToRef(item).kind && r.id === item.id)}
                         onSelect={handleSelectItem}
                         onToggleVisibility={handleToggleItemVisibility}
                         onToggleLock={handleToggleItemLock}

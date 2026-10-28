@@ -24,6 +24,7 @@ import { RoadRouteInspector } from './inspector/RoadRouteInspector';
 import { TerrainInspector } from './inspector/TerrainInspector';
 import { PlacementInspector } from './inspector/PlacementInspector';
 import { GroupInspector } from './inspector/GroupInspector';
+import { MultiSelectionInspector } from './inspector/MultiSelectionInspector';
 
 export type { SelectedMapItem, CartographerInspectorProps };
 
@@ -75,6 +76,9 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
   onUngroup,
   onDeleteGroup,
   onSelectGroup,
+  onGroup,
+  onDuplicateSelection,
+  onDeleteSelection,
 }) => {
   if (!selectedItem) return null;
 
@@ -87,6 +91,7 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
           {selectedItem.type === 'trade_route' && <Route className="w-4 h-4 text-orange-400" />}
           {selectedItem.type === 'route' && <Route className="w-4 h-4 text-amber-300" />}
           {selectedItem.type === 'terrain' && <Mountain className="w-4 h-4 text-emerald-400" />}
+          {selectedItem.type === 'multiple' && <Layers className="w-4 h-4 text-amber-400" />}
           {selectedItem.type === 'group' && (
             selectedItem.data.mode === 'unified_entity' ? (
               <Layers className="w-4 h-4 text-amber-400" />
@@ -107,6 +112,11 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
             {selectedItem.type === 'trade_route' && (isPersian ? 'شاهراه کاروان تجاری' : 'Caravan Route Inspector')}
             {selectedItem.type === 'route' && (isPersian ? 'جاده و گذرگاه نقشه' : 'Road & Path Inspector')}
             {selectedItem.type === 'terrain' && (isPersian ? 'عنصر فیزیکی جغرافیایی' : 'Terrain Feature Inspector')}
+            {selectedItem.type === 'multiple' && (
+              isPersian
+                ? `انتخاب چندگانه (${selectedItem.members.length} شیء)`
+                : `Multiple Selection (${selectedItem.members.length} items)`
+            )}
             {selectedItem.type === 'group' && (
               selectedItem.data.mode === 'unified_entity'
                 ? (isPersian ? 'بازرس انتینتی واحد داستان' : 'Unified Story Entity Inspector')
@@ -205,6 +215,17 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
           onSetGroupMode={onSetGroupMode}
           onUngroup={onUngroup}
           onDeleteGroup={onDeleteGroup}
+          onClose={onClose}
+        />
+      )}
+
+      {selectedItem.type === 'multiple' && onGroup && onDuplicateSelection && onDeleteSelection && (
+        <MultiSelectionInspector
+          members={selectedItem.members}
+          isPersian={isPersian}
+          onGroup={onGroup}
+          onDuplicate={onDuplicateSelection}
+          onDelete={onDeleteSelection}
           onClose={onClose}
         />
       )}

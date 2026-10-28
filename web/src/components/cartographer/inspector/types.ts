@@ -23,11 +23,15 @@ export type SelectedMapItem =
   | { type: 'terrain'; data: MapTerrainFeature }
   | { type: 'placement'; data: MapEntityPlacement }
   | { type: 'group'; data: MapGroup; members: NonNullable<SelectedMapItem>[] }
+  | { type: 'multiple'; members: NonNullable<SelectedMapItem>[] }
   | null;
 
 export interface CartographerInspectorProps {
   selectedItem: SelectedMapItem;
   onClose: () => void;
+  onGroup?: (mode: MapGroupMode) => void;
+  onDuplicateSelection?: () => void;
+  onDeleteSelection?: () => void;
   onUpdateLocation: (id: string, updated: Partial<WorldLocation>) => void;
   onDeleteLocation: (id: string) => void;
   onToggleLocationVisibility?: (id: string) => void;

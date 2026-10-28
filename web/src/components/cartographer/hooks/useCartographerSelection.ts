@@ -137,7 +137,8 @@ export function useCartographerSelection({
 
   /**
    * The Inspector opens for a single object, OR for a group when all selected
-   * items belong to that group.
+   * items belong to that group, OR for a multi-selection when multiple items
+   * are selected and not yet grouped!
    */
   const selectedItem: SelectedMapItem = useMemo(() => {
     if (selectedItems.length === 1) {
@@ -147,6 +148,12 @@ export function useCartographerSelection({
       return {
         type: 'group',
         data: currentGroup,
+        members: selectedItems,
+      };
+    }
+    if (selectedItems.length > 1) {
+      return {
+        type: 'multiple',
         members: selectedItems,
       };
     }
