@@ -5,6 +5,7 @@ import {
   Layers,
   Folder,
   Unlink,
+  Check,
   Eye,
   EyeOff,
   Lock,
@@ -127,30 +128,32 @@ export const GroupInspector: React.FC<GroupInspectorProps> = ({
         <label className="text-[11px] text-zinc-400 mb-1.5 block font-medium">
           {isPersian ? 'ماهیت گروه در انجین بازی' : 'Engine Grouping Semantics'}
         </label>
-        <div className="grid grid-cols-2 gap-1.5 p-1 bg-zinc-900 border border-zinc-800 rounded-xl">
+        <div className="grid grid-cols-2 gap-2 p-1.5 bg-zinc-900 border border-zinc-800 rounded-xl">
           <button
             type="button"
             onClick={() => handleModeChange('unified_entity')}
-            className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-medium transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-[11px] font-medium transition-all ${
               isUnified
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold'
-                : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
+                ? 'bg-amber-500/25 text-amber-200 border border-amber-400 ring-1 ring-amber-400/50 shadow-sm font-bold'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
             }`}
           >
-            <Layers className="w-3.5 h-3.5" />
+            <Layers className="w-3.5 h-3.5 text-amber-400" />
             <span>{isPersian ? 'انتینتی واحد داستان' : 'Unified Entity'}</span>
+            {isUnified && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0 ml-auto" />}
           </button>
           <button
             type="button"
             onClick={() => handleModeChange('folder')}
-            className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-medium transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-[11px] font-medium transition-all ${
               !isUnified
-                ? 'bg-stone-500/20 text-stone-200 border border-stone-500/40 font-semibold'
-                : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
+                ? 'bg-sky-500/25 text-sky-200 border border-sky-400 ring-1 ring-sky-400/50 shadow-sm font-bold'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
             }`}
           >
-            <Folder className="w-3.5 h-3.5" />
+            <Folder className="w-3.5 h-3.5 text-sky-400" />
             <span>{isPersian ? 'پوشه سازمانی' : 'Folder Group'}</span>
+            {!isUnified && <Check className="w-3.5 h-3.5 text-sky-400 shrink-0 ml-auto" />}
           </button>
         </div>
 

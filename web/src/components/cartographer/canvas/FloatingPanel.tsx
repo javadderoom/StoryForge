@@ -104,6 +104,26 @@ export function FloatingPanel({
     onCloseRef.current = onClose;
   });
 
+  const mountTimeRef = useRef<number>(Date.now());
+  useEffect(() => {
+    mountTimeRef.current = Date.now();
+  }, []);
+
+  const handleBackdropAction = useCallback((e: React.SyntheticEvent) => {
+    // If the event arrives within the first 250ms of mounting, it was part of
+    // the opening pointer/mouse/contextmenu gesture and should not dismiss the panel.
+    if (Date.now() - mountTimeRef.current < 250) {
+      if (e.type === 'contextmenu') {
+        e.preventDefault();
+      }
+      return;
+    }
+    if (e.type === 'contextmenu') {
+      e.preventDefault();
+    }
+    onCloseRef.current?.();
+  }, []);
+
   // Anchor deps stay primitive: the callers build the object inline, so
   // depending on it would re-run the placement effect on every render.
   const anchorX = anchor?.x;
@@ -247,12 +267,9 @@ export function FloatingPanel({
         <div
           className={`fixed inset-0 z-40 bg-transparent ${backdropClassName}`}
           aria-hidden="true"
-          onPointerDown={() => onCloseRef.current?.()}
-          onMouseDown={() => onCloseRef.current?.()}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            onCloseRef.current?.();
-          }}
+          onPointerDown={handleBackdropAction}
+          onMouseDown={handleBackdropAction}
+          onContextMenu={handleBackdropAction}
         />
       )}
       {panel}

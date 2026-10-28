@@ -34,6 +34,7 @@ import {
   updateMapGroup,
   findGroupById,
   areRefsInSameGroup,
+  expandSelectionToGroups,
   type MapGroupSource,
 } from '@/lib/engines/world/mapGroups';
 
@@ -74,7 +75,17 @@ export function useCartographerSelection({
   isPersian,
   setActiveTool,
 }: UseCartographerSelectionOptions) {
-  const [selection, setSelection] = useState<MapObjectRef[]>([]);
+  const [selection, setSelectionRaw] = useState<MapObjectRef[]>([]);
+
+  const setSelection = useCallback(
+    (action: SetStateAction<MapObjectRef[]>) => {
+      setSelectionRaw((prev) => {
+        const next = typeof action === 'function' ? action(prev) : action;
+        return expandSelectionToGroups(next, mapData.groups);
+      });
+    },
+    [mapData.groups]
+  );
 
   /** Everything the map can currently select, in one shape. */
   const selectionSource = useMemo(
@@ -128,7 +139,7 @@ export function useCartographerSelection({
     if (selection.length === 0 || selectedItems.length === selection.length) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelection(selectedItems.map((item) => ({ kind: item.type, id: item.data.id })));
-  }, [selection.length, selectedItems]);
+  }, [selection.length, selectedItems, setSelection]);
 
   /** Groups current selection if all selected items belong to the same group */
   const currentGroup = useMemo(() => {
@@ -141,15 +152,15 @@ export function useCartographerSelection({
    * are selected and not yet grouped!
    */
   const selectedItem: SelectedMapItem = useMemo(() => {
-    if (selectedItems.length === 1) {
-      return selectedItems[0];
-    }
-    if (currentGroup && selectedItems.length > 1) {
+    if (currentGroup && selectedItems.length >= 1) {
       return {
         type: 'group',
         data: currentGroup,
         members: selectedItems,
       };
+    }
+    if (selectedItems.length === 1) {
+      return selectedItems[0];
     }
     if (selectedItems.length > 1) {
       return {
@@ -164,7 +175,7 @@ export function useCartographerSelection({
   const removeFromSelection = useCallback((refs: MapObjectRef[]) => {
     if (refs.length === 0) return;
     const keys = new Set(refs.map(mapObjectRefKey));
-    setSelection((previous) => previous.filter((ref) => !keys.has(mapObjectRefKey(ref))));
+    setSelectionRaw((previous) => previous.filter((ref) => !keys.has(mapObjectRefKey(ref))));
   }, []);
 
   /**
@@ -732,20 +743,27 @@ export function useCartographerSelection({
       if (!(event.ctrlKey || event.metaKey)) return;
 
       const key = event.key.toLowerCase();
-      if (key === 'a') {
+      const isKey = (k: string, code: string) => key === k || event.code === code;
+
+      if (isKey('a', 'KeyA')) {
         event.preventDefault();
+        event.stopPropagation();
         handleSelectAll();
-      } else if (key === 'c') {
+      } else if (isKey('c', 'KeyC')) {
         event.preventDefault();
+        event.stopPropagation();
         handleCopy();
-      } else if (key === 'v') {
+      } else if (isKey('v', 'KeyV')) {
         event.preventDefault();
+        event.stopPropagation();
         handlePaste();
-      } else if (key === 'd') {
+      } else if (isKey('d', 'KeyD')) {
         event.preventDefault();
+        event.stopPropagation();
         handleDuplicateSelection();
-      } else if (key === 'g') {
+      } else if (isKey('g', 'KeyG')) {
         event.preventDefault();
+        event.stopPropagation();
         if (event.shiftKey) {
           if (currentGroup) handleUngroup(currentGroup.id);
         } else {

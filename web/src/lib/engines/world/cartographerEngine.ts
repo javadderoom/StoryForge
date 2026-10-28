@@ -9,6 +9,7 @@ import {
   MapTerrainType,
   MapPoint,
   MapEntityPlacement,
+  MapGroup,
   MapStyleTheme,
 } from '@/lib/types';
 import { normalizeLandWaterFeatures } from './landSculpt/waterFeatures';
@@ -456,6 +457,7 @@ export function getOrInitializeWorldMapData(
 
   const placements: MapEntityPlacement[] = existingMap?.placements ? [...existingMap.placements] : [];
   const routes = existingMap?.routes ? [...existingMap.routes] : [];
+  const groups: MapGroup[] = existingMap?.groups ? [...existingMap.groups] : [];
 
   return {
     version: existingMap?.version || 1,
@@ -463,6 +465,7 @@ export function getOrInitializeWorldMapData(
     terrainFeatures: terrain,
     placements,
     routes,
+    groups,
     notes: existingMap?.notes || '',
   };
 }

@@ -9,6 +9,7 @@ import {
   findGroupForRef,
   areRefsInSameGroup,
   expandSelectionToGroups,
+  toggleMapObjectRefWithGroups,
   type MapGroupSource,
 } from './mapGroups';
 import type { MapTerrainFeature, MapEntityPlacement, WorldLocation } from '@/lib/types/world';
@@ -220,5 +221,40 @@ describe('mapGroups — Universal Map Grouping: Unified Story Entity vs. Folder 
     assert.equal(expanded.length, 2, 'Should expand to both riverMain and branchEast');
     assert.ok(expanded.some((r) => r.id === riverMain.id));
     assert.ok(expanded.some((r) => r.id === branchEast.id));
+  });
+
+  it('toggleMapObjectRefWithGroups selects and deselects all group members as an atomic cohesive unit', () => {
+    const source: MapGroupSource = {
+      terrainFeatures: [riverMain, branchEast],
+      groups: [],
+    };
+
+    const refs = [
+      { kind: 'terrain' as const, id: riverMain.id },
+      { kind: 'terrain' as const, id: branchEast.id },
+    ];
+
+    const { group } = createMapGroup(source, refs, {
+      name: 'کارون',
+      mode: 'unified_entity',
+    });
+
+    const groups = [group];
+
+    // 1. Initially selection is empty. Clicking branchEast should select ALL members of the group
+    const initialSelection: typeof refs = [];
+    const afterFirstClick = toggleMapObjectRefWithGroups(initialSelection, { kind: 'terrain', id: branchEast.id }, groups);
+    assert.equal(afterFirstClick.length, 2);
+    assert.ok(afterFirstClick.some((r) => r.id === riverMain.id));
+    assert.ok(afterFirstClick.some((r) => r.id === branchEast.id));
+
+    // 2. Clicking riverMain while the group is selected should DESELECT all members of the group
+    const afterSecondClick = toggleMapObjectRefWithGroups(afterFirstClick, { kind: 'terrain', id: riverMain.id }, groups);
+    assert.equal(afterSecondClick.length, 0, 'Group must be completely deselected');
+
+    // 3. Independent object not in group is toggled independently
+    const independentRef = { kind: 'placement' as const, id: 'pin_watchtower' };
+    const withIndependent = toggleMapObjectRefWithGroups(afterFirstClick, independentRef, groups);
+    assert.equal(withIndependent.length, 3);
   });
 });

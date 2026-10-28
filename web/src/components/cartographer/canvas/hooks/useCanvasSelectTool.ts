@@ -5,15 +5,20 @@ import type {
   MapTerrainFeature,
   MapRoute,
   MapPoint,
+  MapGroup,
 } from '@/lib/types';
 import type { PixiCartographerEngine } from '@/lib/engines/world/pixi/PixiCartographerEngine';
 import {
   marqueeSelectRefs,
   mergeMapObjectRefs,
   sameMapObjectRef,
-  toggleMapObjectRef,
   type MapObjectRef,
 } from '@/lib/engines/world/mapSelection';
+import {
+  findGroupForRef,
+  expandSelectionToGroups,
+  toggleMapObjectRefWithGroups,
+} from '@/lib/engines/world/mapGroups';
 import { screenToWorld } from '@/lib/engines/world/pixi/pixiMath';
 import { normalizeLandWaterFeatures } from '@/lib/engines/world/landSculpt/waterFeatures';
 import type { MarqueeState, SelectionDragState } from './useCanvasGestures';
@@ -26,6 +31,7 @@ export interface UseCanvasSelectToolOptions {
   settings: WorldMapSettings;
   selection: MapObjectRef[];
   worldBible: WorldBible;
+  groupsRef?: React.RefObject<MapGroup[] | undefined>;
   terrainFeaturesRef: React.RefObject<MapTerrainFeature[]>;
   mapRoutesRef: React.RefObject<MapRoute[]>;
   containerRef: React.RefObject<HTMLDivElement | null>;
@@ -46,6 +52,7 @@ export function useCanvasSelectTool({
   settings,
   selection,
   worldBible,
+  groupsRef,
   terrainFeaturesRef,
   mapRoutesRef,
   containerRef,
@@ -93,7 +100,7 @@ export function useCanvasSelectTool({
             : { kind: 'trade_route', id: hit.candidate.route.id };
 
         if (additive) {
-          onSelectionChange(toggleMapObjectRef(selection, hitRef));
+          onSelectionChange(toggleMapObjectRefWithGroups(selection, hitRef, groupsRef?.current));
           return;
         }
 
@@ -200,11 +207,13 @@ export function useCanvasSelectTool({
         }
 
         const alreadySelected = selection.some((ref) => sameMapObjectRef(ref, hitRef));
-        // Plan 23: a member of a multi-selection stays selected when pressed,
-        // because dragging now moves the whole set — the design-tool behaviour.
-        if (!alreadySelected) onSelectionChange([hitRef]);
+        // Plan 28: A member of a group selects the entire group as an atomic unit
+        const group = findGroupForRef(groupsRef?.current, hitRef);
+        const targetRefs = group ? group.memberRefs : [hitRef];
 
-        const dragRefs = alreadySelected ? selection : [hitRef];
+        if (!alreadySelected) onSelectionChange(targetRefs);
+
+        const dragRefs = alreadySelected ? selection : targetRefs;
         const hasMovableGeometry = dragRefs.some((ref) => {
           if (ref.kind === 'route') {
             const route = mapRoutesRef.current.find((item) => item.id === ref.id);
@@ -330,7 +339,8 @@ export function useCanvasSelectTool({
           },
           settings
         );
-        onSelectionChange(band.additive ? mergeMapObjectRefs(band.base, hits) : hits);
+        const expandedHits = expandSelectionToGroups(hits, groupsRef?.current);
+        onSelectionChange(band.additive ? mergeMapObjectRefs(band.base, expandedHits) : expandedHits);
       }
     },
     [

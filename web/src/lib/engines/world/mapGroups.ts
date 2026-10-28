@@ -26,7 +26,7 @@ import type {
   WorldLocation,
   MapRoute,
 } from '@/lib/types/world';
-import type { MapObjectRef } from './mapSelection';
+import { type MapObjectRef, mapObjectRefKey, toggleMapObjectRef } from './mapSelection';
 
 export interface MapGroupSource {
   terrainFeatures?: MapTerrainFeature[];
@@ -105,6 +105,37 @@ export function expandSelectionToGroups(
   }
 
   return Array.from(resultSet.values());
+}
+
+/**
+ * Toggles a ref with group-level cohesion (Shift/Ctrl click).
+ * If the clicked ref belongs to a group and any of its members are currently selected,
+ * the entire group is deselected. If none are selected, the entire group is added.
+ */
+export function toggleMapObjectRefWithGroups(
+  refs: MapObjectRef[],
+  ref: MapObjectRef,
+  groups: MapGroup[] | undefined
+): MapObjectRef[] {
+  if (!groups || groups.length === 0) {
+    return toggleMapObjectRef(refs, ref);
+  }
+  const group = findGroupForRef(groups, ref);
+  if (!group) {
+    return toggleMapObjectRef(refs, ref);
+  }
+  const groupKeys = new Set(group.memberRefs.map(mapObjectRefKey));
+  const hasMember = refs.some((r) => groupKeys.has(mapObjectRefKey(r)));
+  if (hasMember) {
+    return refs.filter((r) => !groupKeys.has(mapObjectRefKey(r)));
+  }
+  const next = [...refs];
+  for (const member of group.memberRefs) {
+    if (!next.some((r) => mapObjectRefKey(r) === mapObjectRefKey(member))) {
+      next.push(member);
+    }
+  }
+  return next;
 }
 
 /**

@@ -126,11 +126,14 @@ export function useCartographerHistory({
       }
       if (!(event.ctrlKey || event.metaKey)) return;
       const key = event.key.toLowerCase();
-      if (key === 'z' && !event.shiftKey) {
+      const isKey = (k: string, code: string) => key === k || event.code === code;
+      if (isKey('z', 'KeyZ') && !event.shiftKey) {
         event.preventDefault();
+        event.stopPropagation();
         handleUndo();
-      } else if ((key === 'z' && event.shiftKey) || key === 'y') {
+      } else if ((isKey('z', 'KeyZ') && event.shiftKey) || isKey('y', 'KeyY')) {
         event.preventDefault();
+        event.stopPropagation();
         handleRedo();
       }
     };

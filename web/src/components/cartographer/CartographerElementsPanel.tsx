@@ -20,6 +20,7 @@ import {
   MapGroupMode,
 } from '@/lib/types';
 import type { MapObjectRef } from '@/lib/engines/world/mapSelection';
+import { findGroupForRef, toggleMapObjectRefWithGroups } from '@/lib/engines/world/mapGroups';
 import { SelectedMapItem } from './CartographerInspector';
 import {
   ElementCategoryKey,
@@ -178,17 +179,18 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
     return { kind: kindMap[item.kind], id: item.id };
   };
 
-  // Select and focus on the map (supports Shift/Ctrl multi-selection)
+  // Select and focus on the map (supports Shift/Ctrl multi-selection and atomic group selection)
   const handleSelectItem = (item: ItemWrapper, additive = false) => {
     const ref = itemToRef(item);
 
     if (additive && selection && onSelectionChange) {
-      const exists = selection.some((r) => r.kind === ref.kind && r.id === ref.id);
-      if (exists) {
-        onSelectionChange(selection.filter((r) => !(r.kind === ref.kind && r.id === ref.id)));
-      } else {
-        onSelectionChange([...selection, ref]);
-      }
+      onSelectionChange(toggleMapObjectRefWithGroups(selection, ref, mapData?.groups));
+      return;
+    }
+
+    const group = findGroupForRef(mapData?.groups, ref);
+    if (group && onSelectionChange) {
+      onSelectionChange(group.memberRefs);
       return;
     }
 

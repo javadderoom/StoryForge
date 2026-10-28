@@ -103,6 +103,16 @@ test('Cartographer Engine - Map Initialization & Defaults', async (t) => {
         },
         terrainFeatures: customTerrain,
         placements: [],
+        groups: [
+          {
+            id: 'grp_test_1',
+            name: 'Test Group',
+            mode: 'unified_entity',
+            memberRefs: [{ kind: 'terrain', id: 'terr_custom_1' }],
+            visible: true,
+            locked: false,
+          },
+        ],
       },
     };
 
@@ -111,6 +121,8 @@ test('Cartographer Engine - Map Initialization & Defaults', async (t) => {
     assert.equal(mapData.settings.theme, 'dark_fantasy');
     assert.equal(mapData.terrainFeatures.length, 1);
     assert.equal(mapData.terrainFeatures[0].id, 'terr_custom_1');
+    assert.equal(mapData.groups?.length, 1);
+    assert.equal(mapData.groups?.[0].id, 'grp_test_1');
   });
 
   await t.test('migrates legacy land-hole water into selectable lake features on load', () => {

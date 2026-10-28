@@ -10,6 +10,7 @@ import {
   MapEntityPlacement,
   MapPoint,
   MapRoute,
+  MapGroup,
 } from '@/lib/types';
 import { CartographerTool } from './CartographerHeader';
 import type { MapObjectRef } from '@/lib/engines/world/mapSelection';
@@ -46,6 +47,7 @@ import { useGeoHudSettings } from './canvas/hooks/useGeoHudSettings';
 import { useCanvasContextMenu } from './canvas/hooks/useCanvasContextMenu';
 import { useCanvasNodeDrag } from './canvas/hooks/useCanvasNodeDrag';
 import { useCanvasSelectTool } from './canvas/hooks/useCanvasSelectTool';
+import { findGroupForRef } from '@/lib/engines/world/mapGroups';
 
 interface PixiCartographerCanvasProps {
   worldBible: WorldBible;
@@ -261,6 +263,10 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   });
 
   // Select tool hit-testing, vertex drag start, group move & marquee commits
+  const groups = worldBible.mapData?.groups ?? worldBible.ontology?.mapData?.groups;
+  const groupsRef = useRef<MapGroup[] | undefined>(groups);
+  groupsRef.current = groups;
+
   const {
     handleSelectMouseDown,
     commitSelectionDragEnd,
@@ -270,6 +276,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     settings,
     selection,
     worldBible,
+    groupsRef,
     terrainFeaturesRef,
     mapRoutesRef,
     containerRef,
@@ -845,7 +852,11 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           initialSection={contextMenuState.initialSection}
           isPersian={isPersian}
           onClose={handleCloseContextMenu}
-          onSelectObject={(ref) => onSelectionChange([{ kind: ref.kind as any, id: ref.id }])}
+          onSelectObject={(ref) => {
+            const hitRef: MapObjectRef = { kind: ref.kind as any, id: ref.id };
+            const group = findGroupForRef(groupsRef.current, hitRef);
+            onSelectionChange(group ? group.memberRefs : [hitRef]);
+          }}
           onDeleteObject={onDeleteObject}
           onAskOracle={onAskOracle}
           onAddGeneratedElement={(payload) => {
