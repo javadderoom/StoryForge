@@ -377,6 +377,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
   // Mouse Down handler
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (contextMenuState) {
+      setContextMenuState(null);
+    }
     if (!isCanvasSurface(e)) return;
     const worldPoint = clientToWorld(e.clientX, e.clientY);
 
@@ -749,6 +752,10 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     };
   }, [commitDragEnd]);
 
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenuState(null);
+  }, [setContextMenuState]);
+
   return (
     <div
       ref={containerRef}
@@ -837,7 +844,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           targetHitObject={contextMenuState.targetHitObject}
           initialSection={contextMenuState.initialSection}
           isPersian={isPersian}
-          onClose={() => setContextMenuState(null)}
+          onClose={handleCloseContextMenu}
           onSelectObject={(ref) => onSelectionChange([{ kind: ref.kind as any, id: ref.id }])}
           onDeleteObject={onDeleteObject}
           onAskOracle={onAskOracle}

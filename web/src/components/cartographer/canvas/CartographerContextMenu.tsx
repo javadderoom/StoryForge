@@ -139,6 +139,8 @@ export function CartographerContextMenu({
       anchor={{ x, y }}
       width={320}
       onClose={onClose}
+      backdrop={true}
+      closeOnOutsideClick={true}
       dir={isPersian ? 'rtl' : 'ltr'}
       ariaLabel={isPersian ? 'منوی نقشه' : 'Map menu'}
       className={`animate-in fade-in zoom-in-95 duration-100 ${isPersian ? 'font-[Vazirmatn]' : ''}`}

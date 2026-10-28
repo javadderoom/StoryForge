@@ -99,6 +99,11 @@ export function FloatingPanel({
   const panelRef = useRef<HTMLDivElement>(null);
   const [layout, setLayout] = useState<PanelPlacement | null>(null);
 
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   // Anchor deps stay primitive: the callers build the object inline, so
   // depending on it would re-run the placement effect on every render.
   const anchorX = anchor?.x;
@@ -159,7 +164,7 @@ export function FloatingPanel({
     if (!onClose) return;
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (closeOnEscape && e.key === 'Escape') onClose();
+      if (closeOnEscape && e.key === 'Escape') onCloseRef.current?.();
     };
     window.addEventListener('keydown', onKeyDown);
 
@@ -167,19 +172,24 @@ export function FloatingPanel({
     // listener as well would race the click that opened the panel.
     let detachOutsideClick: (() => void) | undefined;
     if (!backdrop && closeOnOutsideClick) {
-      const onPointerDown = (e: MouseEvent) => {
+      const onOutsideAction = (e: Event) => {
         if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-          onClose();
+          onCloseRef.current?.();
         }
       };
-      // Deferred one task: a panel opened by mousedown must not receive its
-      // own opening click as an outside click.
+
+      // Deferred one task so the gesture that opened the panel does not immediately close it
       const timer = window.setTimeout(() => {
-        window.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('pointerdown', onOutsideAction, true);
+        window.addEventListener('mousedown', onOutsideAction, true);
+        window.addEventListener('contextmenu', onOutsideAction, true);
       }, 0);
+
       detachOutsideClick = () => {
         window.clearTimeout(timer);
-        window.removeEventListener('mousedown', onPointerDown);
+        window.removeEventListener('pointerdown', onOutsideAction, true);
+        window.removeEventListener('mousedown', onOutsideAction, true);
+        window.removeEventListener('contextmenu', onOutsideAction, true);
       };
     }
 
@@ -235,9 +245,14 @@ export function FloatingPanel({
     <>
       {backdrop && (
         <div
-          className={`fixed inset-0 z-40 ${backdropClassName}`}
+          className={`fixed inset-0 z-40 bg-transparent ${backdropClassName}`}
           aria-hidden="true"
-          onMouseDown={() => onClose?.()}
+          onPointerDown={() => onCloseRef.current?.()}
+          onMouseDown={() => onCloseRef.current?.()}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            onCloseRef.current?.();
+          }}
         />
       )}
       {panel}
