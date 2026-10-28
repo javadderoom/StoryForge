@@ -130,6 +130,9 @@ export function useCanvasGestures({
   const zoomRef = useRef(zoom);
   const panRef = useRef(pan);
 
+  zoomRef.current = zoom;
+  panRef.current = pan;
+
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
@@ -137,6 +140,17 @@ export function useCanvasGestures({
   useEffect(() => {
     panRef.current = pan;
   }, [pan]);
+
+  // Window-level mouse tracking so lastMousePosRef is never stale even if hovering over toolbars/overlays
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      lastMousePosRef.current = { clientX: e.clientX, clientY: e.clientY };
+    };
+    window.addEventListener('mousemove', onMouseMove, { passive: true });
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+    };
+  }, []);
 
   // PageUp / PageDown keyboard shortcuts for zooming in / out
   useEffect(() => {
@@ -152,10 +166,22 @@ export function useCanvasGestures({
         return;
       }
 
-      if (e.key !== 'PageUp' && e.key !== 'PageDown') return;
+      const isZoomIn =
+        e.key === 'PageUp' ||
+        e.code === 'PageUp' ||
+        e.key === 'Prior' ||
+        (e.code === 'Numpad9' && !e.getModifierState?.('NumLock'));
+      const isZoomOut =
+        e.key === 'PageDown' ||
+        e.code === 'PageDown' ||
+        e.key === 'Next' ||
+        (e.code === 'Numpad3' && !e.getModifierState?.('NumLock'));
+
+      if (!isZoomIn && !isZoomOut) return;
 
       e.preventDefault();
-      const isZoomIn = e.key === 'PageUp';
+      e.stopPropagation();
+
       const zoomFactor = isZoomIn ? 1.2 : 1 / 1.2;
       const currentZoom = zoomRef.current;
       const currentPan = panRef.current;
@@ -163,8 +189,16 @@ export function useCanvasGestures({
       if (Math.abs(newZoom - currentZoom) < 0.001) return;
 
       const container = containerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
+      const rect = container
+        ? container.getBoundingClientRect()
+        : {
+            left: 0,
+            top: 0,
+            right: typeof window !== 'undefined' ? window.innerWidth : 2400,
+            bottom: typeof window !== 'undefined' ? window.innerHeight : 1600,
+            width: typeof window !== 'undefined' ? window.innerWidth : 2400,
+            height: typeof window !== 'undefined' ? window.innerHeight : 1600,
+          };
 
       const lastPos = lastMousePosRef.current;
       const isCursorInside =
@@ -179,13 +213,16 @@ export function useCanvasGestures({
 
       const newPan = calculateZoomPan(cursorX, cursorY, currentPan, currentZoom, newZoom);
 
+      zoomRef.current = newZoom;
+      panRef.current = newPan;
+
       setZoom(newZoom);
       setPan(newPan);
     };
 
-    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', onKeyDown, { capture: true });
     return () => {
-      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keydown', onKeyDown, { capture: true });
     };
   }, [containerRef, setZoom, setPan]);
 
