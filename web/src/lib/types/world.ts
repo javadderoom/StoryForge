@@ -1865,7 +1865,6 @@ export const MapTerrainFeatureSchema = z.object({
   // worlds are not rewritten (and stay diff-free) just by being validated.
   visible: z.boolean().optional(),
   locked: z.boolean().optional(),
-  groupId: z.string().optional(),
   zIndex: z.number().optional(),
 });
 

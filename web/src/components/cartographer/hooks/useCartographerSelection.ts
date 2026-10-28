@@ -552,7 +552,7 @@ export function useCartographerSelection({
           groups: mapData.groups,
         };
 
-        const updatedSource = ungroupMapGroup(source, groupId);
+        const { updatedSource } = ungroupMapGroup(source, groupId);
 
         updateMapData((prev) => {
           if (!prev) return prev as any;
@@ -591,7 +591,7 @@ export function useCartographerSelection({
           groups: mapData.groups,
         };
 
-        const updatedSource = setMapGroupMode(source, groupId, mode);
+        const { updatedSource } = setMapGroupMode(source, groupId, mode);
 
         updateMapData((prev) => {
           if (!prev) return prev as any;
@@ -626,7 +626,7 @@ export function useCartographerSelection({
           groups: mapData.groups,
         };
 
-        const updatedSource = setMapGroupLocation(source, groupId, locationId);
+        const { updatedSource } = setMapGroupLocation(source, groupId, locationId);
 
         updateMapData((prev) => {
           if (!prev) return prev as any;
@@ -654,7 +654,7 @@ export function useCartographerSelection({
           groups: mapData.groups,
         };
 
-        const updatedSource = updateMapGroup(source, groupId, patch);
+        const { updatedSource } = updateMapGroup(source, groupId, patch);
 
         updateMapData((prev) => {
           if (!prev) return prev as any;
