@@ -339,6 +339,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     valleyWidth: geoHud.valleyWidth,
     riverWidth: geoHud.riverWidth,
     activeBiome: geoHud.activeBiome,
+    mapData: worldBible.mapData,
   });
 
   const isCanvasSurface = useCallback((e: React.MouseEvent | React.WheelEvent): boolean => {

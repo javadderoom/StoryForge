@@ -63,6 +63,8 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
   onUpdateNpc,
   onDeleteNpc,
   isPersian,
+  onAddTerrain,
+  onSelectFeature,
 }) => {
   if (!selectedItem) return null;
 
@@ -162,6 +164,9 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
           onToggleTerrainVisibility={onToggleTerrainVisibility}
           onToggleTerrainLock={onToggleTerrainLock}
           onClose={onClose}
+          onAddTerrain={onAddTerrain}
+          allFeatures={terrainFeatures}
+          onSelectFeature={onSelectFeature}
         />
       )}
 

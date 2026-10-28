@@ -865,6 +865,8 @@ export interface MapTerrainFeature {
   climateZone?: 'polar' | 'temperate' | 'arid' | 'tropical' | 'mystical';
   /** Plan 27: River delta branching & distributary fan configuration. */
   deltaConfig?: RiverDeltaConfig;
+  /** Hydrology network parent/connected river link for confluences & delta distributaries. */
+  connectedRiverId?: string;
   /** Plan 27: Sinuous barchan sand dune field configuration (Hiram Steppe / deserts). */
   duneConfig?: DuneFieldConfig;
   /** Plan 27: Coastal & shoreline waterlining concentric wave echo configuration. */
@@ -1824,6 +1826,7 @@ export const MapTerrainFeatureSchema = z.object({
   description: z.string().optional(),
   climateZone: z.enum(['polar', 'temperate', 'arid', 'tropical', 'mystical']).optional(),
   deltaConfig: RiverDeltaConfigSchema.optional(),
+  connectedRiverId: z.string().optional(),
   // Plan 21 per-object layer controls. Optional without a default so existing
   // worlds are not rewritten (and stay diff-free) just by being validated.
   visible: z.boolean().optional(),

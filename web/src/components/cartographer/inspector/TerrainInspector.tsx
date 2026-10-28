@@ -34,6 +34,9 @@ export interface TerrainInspectorProps {
   onToggleTerrainVisibility?: (id: string) => void;
   onToggleTerrainLock?: (id: string) => void;
   onClose: () => void;
+  onAddTerrain?: (feature: MapTerrainFeature) => void;
+  allFeatures?: MapTerrainFeature[];
+  onSelectFeature?: (id: string) => void;
 }
 
 export const TerrainInspector: React.FC<TerrainInspectorProps> = ({
@@ -46,6 +49,9 @@ export const TerrainInspector: React.FC<TerrainInspectorProps> = ({
   onToggleTerrainVisibility,
   onToggleTerrainLock,
   onClose,
+  onAddTerrain,
+  allFeatures,
+  onSelectFeature,
 }) => {
   const compatibleLocations = locations.filter((location) =>
     placeAcceptsTerrainType(location, feature.type, placeCategories)
@@ -405,6 +411,9 @@ export const TerrainInspector: React.FC<TerrainInspectorProps> = ({
         feature={feature}
         isPersian={isPersian}
         onUpdateTerrain={onUpdateTerrain}
+        onAddTerrain={onAddTerrain}
+        allFeatures={allFeatures}
+        onSelectFeature={onSelectFeature}
       />
 
       <TerrainDuneSection

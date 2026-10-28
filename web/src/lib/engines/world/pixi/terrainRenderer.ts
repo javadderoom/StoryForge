@@ -26,6 +26,11 @@ import {
   renderDeltaToGraphics,
 } from './renderers/riverTerrainRenderer';
 import {
+  findConnectedRiverNetworks,
+  renderRiverNetworkToGraphics,
+  type RiverNetwork,
+} from './hydrologyNetwork';
+import {
   drawHighland,
   renderProceduralHighlandToGraphics,
   drawValley,
@@ -82,7 +87,25 @@ export function renderTerrain(
 ): void {
   g.clear();
 
-  for (const feat of orderTerrainForRender(terrainFeatures)) {
+  const ordered = orderTerrainForRender(terrainFeatures);
+
+  // Group visible rivers into connected hydrology networks (confluences, bifurcations, deltas)
+  const visibleRivers = ordered.filter(
+    (f) =>
+      f.type === 'river' &&
+      isObjectVisible(f) &&
+      isTerrainVisibleInLayers(f.type, settings.visibleLayers)
+  );
+  const riverNetworks = findConnectedRiverNetworks(visibleRivers);
+  const riverIdToNetwork = new Map<string, RiverNetwork>();
+  for (const net of riverNetworks) {
+    for (const r of net.rivers) {
+      riverIdToNetwork.set(r.id, net);
+    }
+  }
+  const renderedNetworkIds = new Set<string>();
+
+  for (const feat of ordered) {
     if (!isObjectVisible(feat)) continue;
     if (!isTerrainVisibleInLayers(feat.type, settings.visibleLayers)) continue;
 
@@ -115,9 +138,18 @@ export function renderTerrain(
       case 'salt_pan':
         drawSaltPan(g, feat, fill);
         break;
-      case 'river':
-        drawRiver(g, feat);
+      case 'river': {
+        const net = riverIdToNetwork.get(feat.id);
+        if (net && net.rivers.length > 1) {
+          if (!renderedNetworkIds.has(net.id)) {
+            renderedNetworkIds.add(net.id);
+            renderRiverNetworkToGraphics(g, net);
+          }
+        } else {
+          drawRiver(g, feat);
+        }
         break;
+      }
       case 'valley':
       case 'canyon':
       case 'chasm':

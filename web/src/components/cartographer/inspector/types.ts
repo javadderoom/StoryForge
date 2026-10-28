@@ -67,6 +67,8 @@ export interface CartographerInspectorProps {
   onUpdateNpc?: (id: string, updated: Partial<NPCDossier>) => void;
   onDeleteNpc?: (id: string) => void;
   onStationNpc: (npcId: string, locationId: string) => void;
+  onAddTerrain?: (feature: MapTerrainFeature) => void;
+  onSelectFeature?: (id: string) => void;
   isPersian: boolean;
 }
 

@@ -587,6 +587,8 @@ export default function CartographerPage() {
             onUpdateNpc={handleUpdateNpc}
             onDeleteNpc={handleDeleteNpc}
             onStationNpc={handleStationNpc}
+            onAddTerrain={handleAddTerrain}
+            onSelectFeature={(id) => setSelection([{ kind: 'terrain', id }])}
             isPersian={isPersian}
           />
         )}

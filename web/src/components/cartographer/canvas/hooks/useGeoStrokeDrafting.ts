@@ -1,9 +1,10 @@
 import { useRef } from 'react';
-import type { MapPoint, MapTerrainFeature } from '@/lib/types';
+import type { MapPoint, MapTerrainFeature, WorldMapData } from '@/lib/types';
 import type { MapObjectRef } from '@/lib/engines/world/mapSelection';
 import type { PixiCartographerEngine } from '@/lib/engines/world/pixi/PixiCartographerEngine';
 import type { CartographerTool } from '../../CartographerHeader';
 import type { BiomeType, HighlandMode } from '../GeoToolHud';
+import { distToPolyline } from '@/lib/engines/world/pixi/hydrologyNetwork';
 
 export interface UseGeoStrokeDraftingOptions {
   activeTool: CartographerTool;
@@ -12,6 +13,7 @@ export interface UseGeoStrokeDraftingOptions {
   setDraftPoints: React.Dispatch<React.SetStateAction<MapPoint[]>>;
   onAddTerrain: (feature: MapTerrainFeature) => void;
   onSelectionChange: (refs: MapObjectRef[]) => void;
+  mapData?: WorldMapData;
 
   // Mountain settings
   mountainScale: number;
@@ -61,6 +63,7 @@ export function useGeoStrokeDrafting({
   valleyWidth,
   riverWidth,
   activeBiome,
+  mapData,
 }: UseGeoStrokeDraftingOptions) {
   const isDraggingGeoStrokeRef = useRef(false);
   const geoStrokePointsRef = useRef<MapPoint[]>([]);
@@ -155,6 +158,22 @@ export function useGeoStrokeDrafting({
     }
 
     if (isMountain || isRiver || isValley || isHighlandRidge) {
+      let connectedRiverId: string | undefined = undefined;
+      if (isRiver && mapData?.terrainFeatures && strokePts.length >= 2) {
+        const otherRivers = mapData.terrainFeatures.filter((f) => f.type === 'river');
+        for (const other of otherRivers) {
+          if (!other.points || other.points.length < 2) continue;
+          if (distToPolyline(strokePts[0], other.points) <= 22) {
+            connectedRiverId = other.id;
+            break;
+          }
+          if (distToPolyline(strokePts[strokePts.length - 1], other.points) <= 22) {
+            connectedRiverId = other.id;
+            break;
+          }
+        }
+      }
+
       const newFeature: MapTerrainFeature = {
         id: `terr_${Date.now().toString(36)}`,
         name: isMountain
@@ -189,6 +208,7 @@ export function useGeoStrokeDrafting({
           : isValley
           ? valleyWidth
           : cliffHeight,
+        connectedRiverId,
       };
       onAddTerrain(newFeature);
       onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
