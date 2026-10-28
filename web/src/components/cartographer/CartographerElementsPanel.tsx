@@ -1,56 +1,31 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   X,
   Search,
   Eye,
   EyeOff,
-  Lock,
-  Unlock,
-  Trash2,
   ChevronDown,
   ChevronRight,
   ChevronLeft,
-  Globe,
-  Layers,
-  Mountain,
-  Waves,
-  Split,
-  Trees,
-  Castle,
-  Route,
-  MapPin,
   ListTree,
-  Crosshair,
-  Flame,
 } from 'lucide-react';
 import {
   WorldBible,
   WorldMapData,
-  MapTerrainFeature,
-  MapEntityPlacement,
-  MapRoute,
-  WorldLocation,
-  WorldTradeRoute,
   CustomPlaceCategory,
 } from '@/lib/types';
 import { SelectedMapItem } from './CartographerInspector';
-import { isObjectLocked, isObjectVisible } from '@/lib/engines/world/mapObjectOrder';
-import { routeDifficultyLabel, routeKindLabel } from '@/lib/engines/world/mapRoutes';
-import { resolvePlaceCategoryMeta } from '@/lib/engines/world/placeCategories';
+import {
+  ElementCategoryKey,
+  ItemWrapper,
+  CATEGORY_DEFINITIONS,
+} from './elements/types';
+import { useCategorizedElements } from './elements/useCategorizedElements';
+import { ElementItemRow } from './elements/ElementItemRow';
 
-export type ElementCategoryKey =
-  | 'landmass'
-  | 'highland'
-  | 'mountain'
-  | 'water'
-  | 'valley'
-  | 'biome'
-  | 'settlement'
-  | 'road'
-  | 'route'
-  | 'pin';
+export type { ElementCategoryKey };
 
 interface CartographerElementsPanelProps {
   worldBible: WorldBible;
@@ -92,134 +67,6 @@ interface CartographerElementsPanelProps {
   ) => void;
 }
 
-interface CategoryDefinition {
-  key: ElementCategoryKey;
-  label: { en: string; fa: string };
-  emptyMessage: { en: string; fa: string };
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-}
-
-const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
-  {
-    key: 'landmass',
-    label: { en: 'Landmasses & Islands', fa: 'قاره‌ها و جزایر' },
-    emptyMessage: { en: 'No landmasses drawn yet', fa: 'هنوز خشکی رسم نشده است' },
-    icon: Globe,
-    color: 'text-amber-400',
-  },
-  {
-    key: 'highland',
-    label: { en: 'Highlands & Plateaus', fa: 'فلات‌ها و زمین‌های مرتفع' },
-    emptyMessage: { en: 'No highlands or plateaus drawn', fa: 'هنوز فلات یا بلندی رسم نشده است' },
-    icon: Layers,
-    color: 'text-stone-300',
-  },
-  {
-    key: 'mountain',
-    label: { en: 'Mountains & Peaks', fa: 'رشته‌کوه‌ها و قله‌ها' },
-    emptyMessage: { en: 'No mountains or peaks placed', fa: 'هنوز کوهستانی افزوده نشده است' },
-    icon: Mountain,
-    color: 'text-orange-400',
-  },
-  {
-    key: 'water',
-    label: { en: 'Rivers, Lakes & Waters', fa: 'رودخانه‌ها، دریاچه‌ها و آب‌ها' },
-    emptyMessage: { en: 'No rivers or lakes drawn', fa: 'هنوز رود یا دریاچه‌ای رسم نشده است' },
-    icon: Waves,
-    color: 'text-cyan-400',
-  },
-  {
-    key: 'valley',
-    label: { en: 'Valleys & Chasms', fa: 'دره‌ها و شکاف‌ها' },
-    emptyMessage: { en: 'No valleys or canyons drawn', fa: 'هنوز دره یا شکافی رسم نشده است' },
-    icon: Split,
-    color: 'text-zinc-400',
-  },
-  {
-    key: 'biome',
-    label: { en: 'Biomes & Vegetation', fa: 'اقلیم‌ها و پوشش گیاهی' },
-    emptyMessage: { en: 'No biomes (forests, deserts) painted', fa: 'هنوز اقلیم یا جنگلی رنگ‌آمیزی نشده است' },
-    icon: Trees,
-    color: 'text-emerald-400',
-  },
-  {
-    key: 'settlement',
-    label: { en: 'Settlements & Sites', fa: 'شهرها، دژها و مکان‌ها' },
-    emptyMessage: { en: 'No locations placed on map', fa: 'هیچ مکانی روی نقشه قرار نگرفته است' },
-    icon: Castle,
-    color: 'text-amber-300',
-  },
-  {
-    key: 'road',
-    label: { en: 'Roads & Paths', fa: 'جاده‌ها و راه‌ها' },
-    emptyMessage: { en: 'No roads drawn yet', fa: 'هنوز جاده‌ای رسم نشده است' },
-    icon: Route,
-    color: 'text-amber-300',
-  },
-  {
-    key: 'route',
-    label: { en: 'Trade Corridors', fa: 'مسیرهای تجاری کاروان' },
-    emptyMessage: { en: 'No trade corridors linked', fa: 'هیچ مسیر تجاری متصل نشده است' },
-    icon: Route,
-    color: 'text-orange-400',
-  },
-  {
-    key: 'pin',
-    label: { en: 'Beasts, NPCs & Lore Pins', fa: 'هیولاها، شخصیت‌ها و نشان‌ها' },
-    emptyMessage: { en: 'No beasts, NPCs or lore pins placed', fa: 'هیچ هیولا، شخصیت یا نشانی مستقر نشده است' },
-    icon: Flame,
-    color: 'text-rose-400',
-  },
-];
-
-type ItemWrapper =
-  | {
-      kind: 'terrain';
-      id: string;
-      name: string;
-      subtitle: string;
-      visible: boolean;
-      locked: boolean;
-      raw: MapTerrainFeature;
-    }
-  | {
-      kind: 'location';
-      id: string;
-      name: string;
-      subtitle: string;
-      visible: boolean;
-      locked: boolean;
-      raw: WorldLocation;
-    }
-  | {
-      kind: 'route';
-      id: string;
-      name: string;
-      subtitle: string;
-      visible: boolean;
-      locked: boolean;
-      raw: WorldTradeRoute;
-    }
-  | {
-      kind: 'road';
-      id: string;
-      name: string;
-      subtitle: string;
-      visible: boolean;
-      locked: boolean;
-      raw: MapRoute;
-    }
-  | {
-      kind: 'placement';
-      id: string;
-      name: string;
-      subtitle: string;
-      visible: boolean;
-      locked: boolean;
-      raw: MapEntityPlacement;
-    };
-
 export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps> = ({
   worldBible,
   mapData,
@@ -249,293 +96,13 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
   const [expandedCategory, setExpandedCategory] = useState<ElementCategoryKey | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Classify all elements into their respective categories
-  const categorizedItems = useMemo<Record<ElementCategoryKey, ItemWrapper[]>>(() => {
-    const terrainFeatures = mapData.terrainFeatures || [];
-    const placements = mapData.placements || [];
-    const locations = worldBible.locations || [];
-    const routes = worldBible.tradeRoutes || [];
-    const roads = mapData.routes || [];
-
-    const result: Record<ElementCategoryKey, ItemWrapper[]> = {
-      landmass: [],
-      highland: [],
-      mountain: [],
-      water: [],
-      valley: [],
-      biome: [],
-      settlement: [],
-      road: [],
-      route: [],
-      pin: [],
-    };
-
-    // Classify terrain features
-    for (const feat of terrainFeatures) {
-      const isVis = isObjectVisible(feat);
-      const isLck = isObjectLocked(feat);
-      const label = feat.name || feat.type;
-
-      if (feat.type === 'continent' || feat.type === 'island') {
-        result.landmass.push({
-          kind: 'terrain',
-          id: feat.id,
-          name: label,
-          subtitle: feat.type === 'continent' ? (isPersian ? 'قاره' : 'Continent') : (isPersian ? 'جزیره' : 'Island'),
-          visible: isVis,
-          locked: isLck,
-          raw: feat,
-        });
-      } else if (feat.type === 'highland' || feat.type === 'plateau') {
-        result.highland.push({
-          kind: 'terrain',
-          id: feat.id,
-          name: label,
-          subtitle: feat.type === 'highland' ? (isPersian ? 'زمین مرتفع' : 'Highland') : (isPersian ? 'فلات کوهستانی' : 'Plateau'),
-          visible: isVis,
-          locked: isLck,
-          raw: feat,
-        });
-      } else if (feat.type === 'mountain_range' || feat.type === 'peak' || feat.type === 'volcano') {
-        const sub =
-          feat.type === 'volcano'
-            ? isPersian ? 'آتشفشان' : 'Volcano'
-            : feat.type === 'peak'
-            ? isPersian ? 'قله منفرد' : 'Peak'
-            : isPersian ? 'رشته‌کوه' : 'Mountain Range';
-        result.mountain.push({
-          kind: 'terrain',
-          id: feat.id,
-          name: label,
-          subtitle: sub,
-          visible: isVis,
-          locked: isLck,
-          raw: feat,
-        });
-      } else if (feat.type === 'river' || feat.type === 'lake' || feat.type === 'ocean' || feat.type === 'sea') {
-        const sub =
-          feat.type === 'river'
-            ? isPersian ? 'رودخانه' : 'River'
-            : feat.type === 'lake'
-            ? isPersian ? 'دریاچه' : 'Lake'
-            : isPersian ? 'پهنه آبی' : 'Sea / Ocean';
-        result.water.push({
-          kind: 'terrain',
-          id: feat.id,
-          name: label,
-          subtitle: sub,
-          visible: isVis,
-          locked: isLck,
-          raw: feat,
-        });
-      } else if (feat.type === 'valley' || feat.type === 'canyon' || feat.type === 'chasm') {
-        const sub =
-          feat.type === 'chasm'
-            ? isPersian ? 'شکاف عمیق' : 'Chasm'
-            : feat.type === 'canyon'
-            ? isPersian ? 'دره تنگ (کنیون)' : 'Canyon'
-            : isPersian ? 'دره' : 'Valley';
-        result.valley.push({
-          kind: 'terrain',
-          id: feat.id,
-          name: label,
-          subtitle: sub,
-          visible: isVis,
-          locked: isLck,
-          raw: feat,
-        });
-      } else {
-        // Biomes: forest, jungle, desert, tundra, swamp, wasteland, plains, oasis, arcane_anomaly
-        const sub =
-          feat.type === 'forest'
-            ? isPersian ? 'جنگل معتدل' : 'Forest'
-            : feat.type === 'jungle'
-            ? isPersian ? 'جنگل بارانی' : 'Jungle'
-            : feat.type === 'desert'
-            ? isPersian ? 'بیابان / کویر' : 'Desert'
-            : feat.type === 'swamp'
-            ? isPersian ? 'مرداب / باتلاق' : 'Swamp'
-            : feat.type === 'tundra'
-            ? isPersian ? 'توندرا' : 'Tundra'
-            : feat.type === 'oasis'
-            ? isPersian ? 'واحه بیابانی' : 'Oasis'
-            : feat.type === 'wasteland'
-            ? isPersian ? 'زمین‌های بایر' : 'Wasteland'
-            : feat.type === 'plains'
-            ? isPersian ? 'دشت' : 'Plains'
-            : feat.type === 'arcane_anomaly'
-            ? isPersian ? 'ناهنجاری اسرارآمیز' : 'Arcane Anomaly'
-            : isPersian ? 'اقلیم طبیعی' : 'Biome Wash';
-        result.biome.push({
-          kind: 'terrain',
-          id: feat.id,
-          name: label,
-          subtitle: sub,
-          visible: isVis,
-          locked: isLck,
-          raw: feat,
-        });
-      }
-    }
-
-    // Settlements & semantic places. Plan 24 metadata is the single source of
-    // truth the renderer and hit test already use, so the list agrees with the
-    // map: a point place (settlement, stronghold, ruin, dungeon, custom pin)
-    // belongs here, while a place drawn as a line/area (waterway, sea, plains
-    // region, anomaly) is filed under its geographical bucket instead of
-    // masquerading as a settlement.
-    for (const loc of locations) {
-      const isVis = isObjectVisible(loc);
-      const isLck = isObjectLocked(loc);
-      const meta = resolvePlaceCategoryMeta(loc.category, placeCategories);
-      const categoryLabel =
-        placeCategories?.find((category) => category.id === loc.category)?.name ||
-        (loc.category
-          ? loc.category.charAt(0).toUpperCase() + loc.category.slice(1)
-          : isPersian ? 'سکونت‌گاه' : 'Settlement');
-      const wrapper = {
-        kind: 'location' as const,
-        id: loc.id,
-        name: loc.name || (isPersian ? 'مکان نامشخص' : 'Unnamed Location'),
-        subtitle: categoryLabel,
-        visible: isVis,
-        locked: isLck,
-        raw: loc,
-      };
-
-      if (meta.renderAs === 'settlement') {
-        result.settlement.push(wrapper);
-      } else if (meta.renderAs === 'water' || meta.renderAs === 'line') {
-        // A waterway or sea is a body of water, not a city.
-        result.water.push(wrapper);
-      } else {
-        // Plains, wilderness regions and arcane anomalies sit with biomes.
-        result.biome.push(wrapper);
-      }
-    }
-
-    // Caravan Routes
-    for (const r of routes) {
-      const isVis = isObjectVisible(r);
-      const isLck = isObjectLocked(r);
-      result.route.push({
-        kind: 'route',
-        id: r.id,
-        name: r.name || (isPersian ? 'مسیر کاروان' : 'Trade Route'),
-        subtitle: r.status
-          ? r.status.charAt(0).toUpperCase() + r.status.slice(1)
-          : isPersian ? 'مسیر کاروان' : 'Trade Route',
-        visible: isVis,
-        locked: isLck,
-        raw: r,
-      });
-    }
-
-    // Drawn roads and paths (Plan 25)
-    for (const road of roads) {
-      const isVis = isObjectVisible(road);
-      const isLck = isObjectLocked(road);
-      const kindLabel = routeKindLabel(road.kind, isPersian);
-      const difficultyLabel = routeDifficultyLabel(road.difficulty, isPersian);
-      result.road.push({
-        kind: 'road',
-        id: road.id,
-        name: road.name || kindLabel,
-        subtitle: `${kindLabel} · ${difficultyLabel}`,
-        visible: isVis,
-        locked: isLck,
-        raw: road,
-      });
-    }
-
-    // Placements / Lore Pins & Beasts
-    for (const p of placements) {
-      const isVis = isObjectVisible(p);
-      const isLck = isObjectLocked(p);
-      let label = p.customLabel;
-      let subtitle = p.entityType.toUpperCase();
-
-      if (p.entityType === 'npc') {
-        const npc = worldBible.npcs?.find((n) => n.id === p.entityId);
-        if (!label) label = npc?.name || (isPersian ? 'شخصیت داستانی' : 'NPC');
-        subtitle = npc?.title || (isPersian ? 'پرونده شخصیت' : 'NPC Dossier');
-      } else if (p.entityType === 'bestiary') {
-        const creature = worldBible.bestiary?.find((b) => b.id === p.entityId);
-        if (!label) label = creature?.name || (isPersian ? 'هیولا و جانور' : 'Beast');
-        const dangerStr = creature ? `\u200E${creature.dangerLevel}/5` : '';
-        const speciesStr = creature?.speciesCategory
-          ? isPersian
-            ? creature.speciesCategory === 'beast'
-              ? 'جانور طبیعی'
-              : creature.speciesCategory === 'monstrosity'
-              ? 'هیولای دگرگون‌شده'
-              : creature.speciesCategory === 'draconic'
-              ? 'اژدهاگونه'
-              : creature.speciesCategory
-            : creature.speciesCategory
-          : isPersian ? 'هیولا' : 'Beast';
-        subtitle = isPersian
-          ? `خطر ${dangerStr} · ${speciesStr}`
-          : `Danger ${dangerStr} · ${speciesStr}`;
-      } else if (p.entityType === 'artifact') {
-        const artifact = worldBible.artifacts?.find((a) => a.id === p.entityId);
-        if (!label) label = artifact?.name || (isPersian ? 'اثر باستانی' : 'Artifact');
-        subtitle = artifact?.rarity ? artifact.rarity.toUpperCase() : (isPersian ? 'عتیقه باستانی' : 'Relic');
-      } else if (p.entityType === 'timeline') {
-        const event = worldBible.timeline?.find((t) => t.id === p.entityId);
-        if (!label) label = event?.title || (isPersian ? 'رویداد تاریخی' : 'Historical Event');
-        subtitle = event?.yearOrEra ? `${event.yearOrEra}` : (isPersian ? 'وقایع‌نگاری' : 'Chronicle');
-      } else if (p.entityType === 'deity') {
-        label = worldBible.religions?.find((r) => r.id === p.entityId)?.name || (isPersian ? 'زیارتگاه / ایزد' : 'Deity / Shrine');
-      } else if (!label) {
-        label = p.entityType;
-      }
-
-      result.pin.push({
-        kind: 'placement',
-        id: p.id,
-        name: label,
-        subtitle,
-        visible: isVis,
-        locked: isLck,
-        raw: p,
-      });
-    }
-
-    return result;
-  }, [mapData.terrainFeatures, mapData.placements, mapData.routes, worldBible, placeCategories, isPersian]);
-
-  // Total element count across all categories
-  const totalCount = useMemo(() => {
-    return Object.values(categorizedItems).reduce((sum, list) => sum + list.length, 0);
-  }, [categorizedItems]);
-
-  // Filter items per category according to search query
-  const filteredCategories = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return categorizedItems;
-
-    const filtered: Record<ElementCategoryKey, ItemWrapper[]> = {
-      landmass: [],
-      highland: [],
-      mountain: [],
-      water: [],
-      valley: [],
-      biome: [],
-      settlement: [],
-      road: [],
-      route: [],
-      pin: [],
-    };
-
-    for (const [key, items] of Object.entries(categorizedItems) as [ElementCategoryKey, ItemWrapper[]][]) {
-      filtered[key] = items.filter(
-        (it) => it.name.toLowerCase().includes(q) || it.subtitle.toLowerCase().includes(q)
-      );
-    }
-
-    return filtered;
-  }, [categorizedItems, searchQuery]);
+  const { categorizedItems, filteredCategories, totalCount } = useCategorizedElements({
+    worldBible,
+    mapData,
+    placeCategories,
+    isPersian,
+    searchQuery,
+  });
 
   // Accordion toggle: clicking an open category closes it; clicking any other opens it and closes others
   const handleToggleCategory = (categoryKey: ElementCategoryKey) => {
@@ -780,117 +347,15 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
                     </div>
                   ) : (
                     items.map((item) => (
-                      <div
+                      <ElementItemRow
                         key={item.id}
-                        onClick={() => handleSelectItem(item)}
-                        className={`group px-2 py-1.5 rounded-xl border flex items-center justify-between gap-2 cursor-pointer transition-all ${
-                          item.visible
-                            ? 'bg-zinc-950/60 border-zinc-800/60 hover:bg-zinc-900/90 hover:border-zinc-700'
-                            : 'bg-zinc-950/30 border-zinc-800/30 opacity-60 hover:opacity-80'
-                        }`}
-                        title={isPersian ? 'کلیک برای زوم و انتخاب' : 'Click to select and center on map'}
-                      >
-                        {/* Left: Eye Visibility Toggle + Name & Subtitle */}
-                        <div className="flex items-center gap-2 min-w-0">
-                          <button
-                            onClick={(e) => handleToggleItemVisibility(e, item)}
-                            className={`p-1 rounded-md transition-colors shrink-0 ${
-                              item.visible
-                                ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10'
-                                : 'text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800'
-                            }`}
-                            title={
-                              isPersian
-                                ? item.visible
-                                  ? 'پنهان‌سازی این المنت'
-                                  : 'نمایش این المنت'
-                                : item.visible
-                                ? 'Hide this element'
-                                : 'Show this element'
-                            }
-                          >
-                            {item.visible ? (
-                              <Eye className="w-3.5 h-3.5" />
-                            ) : (
-                              <EyeOff className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-
-                          <div className="min-w-0 flex flex-col">
-                            <span
-                              className={`text-xs font-medium truncate flex items-center gap-1.5 ${
-                                item.visible ? 'text-zinc-200' : 'text-zinc-500 line-through'
-                              }`}
-                            >
-                              {item.kind === 'placement' && (item.raw as MapEntityPlacement).entityType === 'bestiary' && (
-                                <span className="text-rose-400 text-xs shrink-0">🐉</span>
-                              )}
-                              {item.kind === 'placement' && (item.raw as MapEntityPlacement).entityType === 'npc' && (
-                                <span className="text-sky-400 text-xs shrink-0">👤</span>
-                              )}
-                              {item.kind === 'placement' && (item.raw as MapEntityPlacement).entityType === 'artifact' && (
-                                <span className="text-amber-400 text-xs shrink-0">✨</span>
-                              )}
-                              {item.kind === 'placement' && (item.raw as MapEntityPlacement).entityType === 'timeline' && (
-                                <span className="text-purple-400 text-xs shrink-0">⚔️</span>
-                              )}
-                              <span className="truncate">{item.name}</span>
-                            </span>
-                            <span className="text-[10px] text-zinc-500 truncate font-mono">
-                              {item.subtitle}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Right: Quick Lock, Focus & Delete Actions */}
-                        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {/* Center / Focus Button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSelectItem(item);
-                            }}
-                            className="p-1 text-zinc-500 hover:text-amber-300 hover:bg-zinc-800 rounded-md transition-colors"
-                            title={isPersian ? 'نمایش در مرکز نقشه' : 'Focus on map'}
-                          >
-                            <Crosshair className="w-3 h-3" />
-                          </button>
-
-                          {/* Lock / Unlock Button */}
-                          <button
-                            onClick={(e) => handleToggleItemLock(e, item)}
-                            className={`p-1 rounded-md transition-colors ${
-                              item.locked
-                                ? 'text-amber-400 hover:text-amber-300 bg-amber-500/10'
-                                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'
-                            }`}
-                            title={
-                              isPersian
-                                ? item.locked
-                                  ? 'بازکردن قفل'
-                                  : 'قفل کردن جهت جلوگیری از جابجایی'
-                                : item.locked
-                                ? 'Unlock element'
-                                : 'Lock element position'
-                            }
-                          >
-                            {item.locked ? (
-                              <Lock className="w-3 h-3" />
-                            ) : (
-                              <Unlock className="w-3 h-3" />
-                            )}
-                          </button>
-
-                          {/* Delete Button */}
-                          <button
-                            onClick={(e) => handleDeleteItem(e, item)}
-                            className="p-1 text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-colors"
-                            title={isPersian ? 'حذف المنت' : 'Delete element'}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
+                        item={item}
+                        isPersian={isPersian}
+                        onSelect={handleSelectItem}
+                        onToggleVisibility={handleToggleItemVisibility}
+                        onToggleLock={handleToggleItemLock}
+                        onDelete={handleDeleteItem}
+                      />
                     ))
                   )}
                 </div>
