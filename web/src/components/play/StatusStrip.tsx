@@ -47,43 +47,29 @@ export function StatusStrip({
   let travelBadge: React.ReactNode = null;
 
   if (travel) {
-    const elapsed = Math.min(travel.totalTurns, Math.max(0, turnNumber - travel.departedTurn));
-    const turnsRemaining = Math.max(0, travel.totalTurns - elapsed);
-    const progress = travel.totalTurns > 0 ? (travel.totalTurns - turnsRemaining) / travel.totalTurns : 1;
-    const progressPercent = Math.round(progress * 100);
-
     const destLoc = loreLocations.find((l) => l.id === travel.destinationLocationId);
     const destName = destLoc?.name || travel.destinationLocationId;
 
     const originLoc = loreLocations.find((l) => l.id === travel.originLocationId);
     const originName = originLoc?.name || travel.originLocationId;
 
-    const dayOnRoad = elapsed + 1;
-    const totalDays = travel.totalTurns + 1;
+    const distStr = travel.distanceKm ? ` (${travel.distanceKm} ${isRtl ? 'کیلومتر' : 'km'})` : '';
 
     const label = isRtl
-      ? `در راه «${destName}» • ${turnsRemaining} نوبت مانده`
-      : `En route to “${destName}” • ${turnsRemaining} turns left`;
+      ? `در راه «${destName}»${distStr}`
+      : `En route to “${destName}”${distStr}`;
 
     const tooltip = isRtl
-      ? `از «${originName}» به «${destName}» • روز ${dayOnRoad} از ${totalDays}`
-      : `From “${originName}” to “${destName}” • Day ${dayOnRoad} of ${totalDays}`;
+      ? `از «${originName}» به «${destName}»${travel.distanceKm ? ` • ${travel.distanceKm} کیلومتر` : ''}`
+      : `From “${originName}” to “${destName}”${travel.distanceKm ? ` • ${travel.distanceKm} km` : ''}`;
 
     travelBadge = (
       <div
         title={tooltip}
-        className="group relative inline-flex flex-col rounded-full border border-amber-500/60 bg-amber-950/70 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.25)] backdrop-blur-md px-2.5 py-0.5 text-[11px] font-semibold transition-all hover:scale-105 select-none overflow-hidden"
+        className="group relative inline-flex items-center gap-1.5 rounded-full border border-amber-500/60 bg-amber-950/70 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.25)] backdrop-blur-md px-2.5 py-0.5 text-[11px] font-semibold transition-all hover:scale-105 select-none overflow-hidden"
       >
-        <div className="flex items-center gap-1.5 pb-0.5">
-          <Navigation className="h-3 w-3 shrink-0 text-amber-400" />
-          <span>{label}</span>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-amber-950/90 overflow-hidden">
-          <div
-            className="h-full bg-amber-400 transition-all duration-300"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
+        <Navigation className="h-3 w-3 shrink-0 text-amber-400" />
+        <span>{label}</span>
       </div>
     );
   }

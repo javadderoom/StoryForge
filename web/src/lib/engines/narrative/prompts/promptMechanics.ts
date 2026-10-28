@@ -206,9 +206,10 @@ export function journeyBlock(
           : '';
         const road = travel.roadNote ? ` Road conditions: ${travel.roadNote}.` : '';
         const next = travel.nextStopName ? ` Next stop: "${travel.nextStopName}".` : '';
+        const dist = travel.distanceKm ? ` (${travel.distanceKm} km)` : '';
         parts.push(
           `[JOURNEY EN ROUTE — سفر در راه]\n` +
-            `• The protagonist is ON THE ROAD: from "${travel.originName}" to "${travel.destinationName}"${travel.routeName ? ` via the "${travel.routeName}"` : ''} (${travel.mode}) — day ${travel.dayOnRoad} of ${travel.totalTurns}; ${travel.turnsRemaining} turn(s) of road remain. Current stop: "${travel.currentStopName}".${next}${companions}${road}\n` +
+            `• The protagonist is ON THE ROAD: from "${travel.originName}" to "${travel.destinationName}"${travel.routeName ? ` via the "${travel.routeName}"` : ''} (${travel.mode})${dist}. Current stop: "${travel.currentStopName}".${next}${companions}${road}\n` +
             (travel.dayOnRoad === 1
               ? `• DEPARTURE: the journey begins this turn — open at "${travel.originName}" (its gates, packing and provisions, the caravan or mounts forming up, farewells or the plain resolve of the road ahead).\n`
               : '') +
@@ -266,9 +267,10 @@ export function journeyBlock(
         : '';
       const road = travel.roadNote ? ` وضعیت جاده: ${travel.roadNote}.` : '';
       const next = travel.nextStopName ? ` ایستگاه بعدی: «${travel.nextStopName}».` : '';
+      const dist = travel.distanceKm ? ` (${travel.distanceKm} کیلومتر)` : '';
       parts.push(
         `[سفر در راه / JOURNEY EN ROUTE]\n` +
-          `• قهرمان در راه است: از «${travel.originName}» به «${travel.destinationName}»${travel.routeName ? ` از مسیر «${travel.routeName}»` : ''} (${modeFa}) — روز ${travel.dayOnRoad} از ${travel.totalTurns}؛ ${travel.turnsRemaining} نوبت دیگر راه مانده است. ایستگاه فعلی: «${travel.currentStopName}».${next}${companions}${road}\n` +
+          `• قهرمان در راه است: از «${travel.originName}» به «${travel.destinationName}»${travel.routeName ? ` از مسیر «${travel.routeName}»` : ''} (${modeFa})${dist}. ایستگاه فعلی: «${travel.currentStopName}».${next}${companions}${road}\n` +
           (travel.dayOnRoad === 1
             ? `• آغاز سفر: کاروان/مرکب همین نوبت راه می‌افتد — صحنه را کنار دروازه‌های «${travel.originName}» بگشا (باروبنه، آماده‌سازی، صف بستن کاروان یا زین کردن مرکب، بدرقه یا دل کندن و ارادهٔ راه).\n`
             : '') +

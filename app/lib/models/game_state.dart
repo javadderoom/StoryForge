@@ -485,6 +485,8 @@ class ActiveTravel {
   final int departedTurn;
   final int totalTurns;
   final List<String> caravanNpcIds;
+  final int? distanceKm;
+  final int? calendarDays;
 
   const ActiveTravel({
     required this.originLocationId,
@@ -495,6 +497,8 @@ class ActiveTravel {
     required this.departedTurn,
     required this.totalTurns,
     this.caravanNpcIds = const [],
+    this.distanceKm,
+    this.calendarDays,
   });
 
   factory ActiveTravel.fromJson(Map<String, dynamic> json) {
@@ -509,6 +513,8 @@ class ActiveTravel {
       departedTurn: (json['departedTurn'] as num?)?.toInt() ?? 0,
       totalTurns: (json['totalTurns'] as num?)?.toInt() ?? 2,
       caravanNpcIds: rawCaravan.map((e) => e.toString()).toList(),
+      distanceKm: (json['distanceKm'] as num?)?.toInt(),
+      calendarDays: (json['calendarDays'] as num?)?.toInt(),
     );
   }
 
@@ -521,6 +527,8 @@ class ActiveTravel {
         'departedTurn': departedTurn,
         'totalTurns': totalTurns,
         'caravanNpcIds': caravanNpcIds,
+        if (distanceKm != null) 'distanceKm': distanceKm,
+        if (calendarDays != null) 'calendarDays': calendarDays,
       };
 
   /// Pure derived progress. Returns 0 when the journey is complete.

@@ -128,18 +128,20 @@ void main() {
         turnNumber: 2,
       );
 
-      // Travel badge rendered with destination and turns remaining (3 - (2-1) = 2 turns left)
-      expect(find.text('در راه «ارگ سنگخورشید» • 2 نوبت مانده'), findsOneWidget);
+      // Travel badge rendered with destination without turn countdown
+      expect(find.text('در راه «ارگ سنگخورشید»'), findsOneWidget);
+      expect(find.textContaining('نوبت مانده'), findsNothing);
       expect(find.text('دروازه سرخ'), findsOneWidget);
       expect(find.text('هوشیار و مراقب'), findsOneWidget);
     });
 
-    testWidgets('derives remaining turns accurately from turnNumber', (tester) async {
+    testWidgets('renders travel badge with distance and without turn countdown', (tester) async {
       final travel = ActiveTravel(
         originLocationId: 'loc_a',
         destinationLocationId: 'loc_citadel',
         departedTurn: 5,
         totalTurns: 4,
+        distanceKm: 120,
       );
       final player = _makePlayer(travel: travel);
       final lore = {
@@ -148,7 +150,6 @@ void main() {
         ]
       };
 
-      // At turn 8: elapsed = 3, remaining = 1
       await _pumpBar(
         tester,
         playerState: player,
@@ -157,7 +158,8 @@ void main() {
         isPersian: false,
       );
 
-      expect(find.text('En route to "Sunstone Citadel" • 1 turns left'), findsOneWidget);
+      expect(find.text('En route to "Sunstone Citadel" (\u200E120 km)'), findsOneWidget);
+      expect(find.textContaining('turns left'), findsNothing);
     });
   });
 }

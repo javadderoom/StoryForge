@@ -207,31 +207,29 @@ class VitalityPresenceBar extends StatelessWidget {
   }
 
   /// Plan 17 Phase 6: Active travel status badge, derived purely from
-  /// authoritative travel state + turnNumber.
+  /// authoritative travel state without mechanical turn countdowns.
   Widget _buildTravelBadge(BuildContext context, ActiveTravel travel, int currentTurn) {
-    final turnsLeft = travel.turnsRemaining(currentTurn);
     final destName = GameSessionState.locationName(lore, travel.destinationLocationId) ??
         travel.destinationLocationId;
     final originName = GameSessionState.locationName(lore, travel.originLocationId) ??
         travel.originLocationId;
 
+    final dist = travel.distanceKm != null
+        ? ' (\u200E${travel.distanceKm} ${isPersian ? 'کیلومتر' : 'km'})'
+        : '';
+
     final label = isPersian
-        ? 'در راه «$destName» • $turnsLeft نوبت مانده'
-        : 'En route to "$destName" • $turnsLeft turns left';
+        ? 'در راه «$destName»$dist'
+        : 'En route to "$destName"$dist';
 
-    final daysElapsed = (currentTurn - travel.departedTurn).clamp(0, travel.totalTurns) + 1;
     final tooltip = isPersian
-        ? 'از «$originName» به «$destName» • روز $daysElapsed از ${travel.totalTurns + 1}'
-        : 'From "$originName" to "$destName" • Day $daysElapsed of ${travel.totalTurns + 1}';
-
-    final progress = travel.totalTurns > 0
-        ? ((travel.totalTurns - turnsLeft) / travel.totalTurns).clamp(0.0, 1.0)
-        : 1.0;
+        ? 'از «$originName» به «$destName»${travel.distanceKm != null ? ' • \u200E${travel.distanceKm} کیلومتر' : ''}'
+        : 'From "$originName" to "$destName"${travel.distanceKm != null ? ' • ${travel.distanceKm} km' : ''}';
 
     return Tooltip(
       message: tooltip,
       child: Container(
-        clipBehavior: Clip.antiAlias,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
         decoration: BoxDecoration(
           color: const Color(0xFF451A03).withValues(alpha: 0.75),
           borderRadius: BorderRadius.circular(14),
@@ -244,45 +242,23 @@ class VitalityPresenceBar extends StatelessWidget {
             ),
           ],
         ),
-        child: IntrinsicWidth(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.explore_outlined, size: 13, color: Color(0xFFFBBF24)),
-                    const SizedBox(width: 5),
-                    Directionality(
-                      textDirection: isPersian ? TextDirection.rtl : TextDirection.ltr,
-                      child: Text(
-                        label,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFFEF3C7),
-                        ),
-                      ),
-                    ),
-                  ],
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.explore_outlined, size: 13, color: Color(0xFFFBBF24)),
+            const SizedBox(width: 5),
+            Directionality(
+              textDirection: isPersian ? TextDirection.rtl : TextDirection.ltr,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFFEF3C7),
                 ),
               ),
-              Container(
-                height: 2,
-                color: const Color(0xFF78350F).withValues(alpha: 0.5),
-                alignment: isPersian ? Alignment.centerRight : Alignment.centerLeft,
-                child: FractionallySizedBox(
-                  widthFactor: progress,
-                  child: Container(
-                    color: const Color(0xFFF59E0B),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

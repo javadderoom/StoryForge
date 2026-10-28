@@ -496,7 +496,8 @@ describe('PromptAssembler - Plan 17 journey blocks', () => {
       })
     );
     assert.ok(userPrompt.includes('سفر در راه'));
-    assert.ok(userPrompt.includes('روز 3 از 5'));
+    assert.ok(userPrompt.includes('قهرمان در راه است: از «Ashen Gate» به «Salt Mine»'));
+    assert.ok(!userPrompt.includes('نوبت دیگر راه مانده'));
     assert.ok(userPrompt.includes('ایستگاه بعدی: «Way Station»'));
     assert.ok(userPrompt.includes('انضباط ورود'));
     assert.ok(userPrompt.includes('همسفران راه: Farid the Caravan Master'));

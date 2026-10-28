@@ -426,10 +426,10 @@ describe('Plan 17 travel engine — per-turn lifecycle', () => {
     assert.match(out.note, /Salt Mine/);
   });
 
-  it('formats the journey status line with day and next stop', () => {
+  it('formats the journey status line with next stop and destination (without turn countdown)', () => {
     const line = formatTravelLine(trip, makeWb(), 'fa', 11);
     assert.match(line, /در راه/);
-    assert.match(line, /روز 2 از 4/);
+    assert.doesNotMatch(line, /روز \d+ از \d+/);
     assert.match(line, /ایستگاه بعدی/);
     assert.ok(line.includes('Dune Keep'));
   });

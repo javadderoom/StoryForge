@@ -417,10 +417,11 @@ export function planJourney(
         ? `سفر آغاز شد — مقصد: «${dest.name}» • ${distanceKm} کیلومتر (~${duration})${route ? ` (راه: «${route.name}»)` : ''}`
         : `Journey begins — destination: "${dest.name}" • ${distanceKm} km (~${duration})${route ? ` (via "${route.name}")` : ''}`;
   } else {
+    const distPart = distanceKm > 0 ? (lang === 'fa' ? ` • ${distanceKm} کیلومتر` : ` • ${distanceKm} km`) : '';
     note =
       lang === 'fa'
-        ? `سفر آغاز شد — مقصد: «${dest.name}» • ${totalTurns} نوبت${route ? ` (راه: «${route.name}»)` : ''}`
-        : `Journey begins — destination: "${dest.name}" • ${totalTurns} turns${route ? ` (via "${route.name}")` : ''}`;
+        ? `سفر آغاز شد — مقصد: «${dest.name}»${distPart}${route ? ` (راه: «${route.name}»)` : ''}`
+        : `Journey begins — destination: "${dest.name}"${distPart}${route ? ` (via "${route.name}")` : ''}`;
   }
 
   return {
@@ -622,20 +623,20 @@ export function formatTravelLine(
   const nextName = locName(wb, timeline[nextIndex]);
   const route = travel.routeId ? (wb.tradeRoutes ?? []).find((r) => r.id === travel.routeId) : undefined;
 
+  const dist = travel.distanceKm
+    ? (lang === 'fa' ? ` (${travel.distanceKm} کیلومتر)` : ` (${travel.distanceKm} km)`)
+    : '';
+
   if (lang === 'fa') {
-    const timing = progress
-      ? ` • روز ${progress.dayOnRoad} از ${travel.totalTurns}${progress.arriving ? ' (پایان راه)' : ''}`
-      : '';
     const next = nextName && !progress?.arrived ? ` • ایستگاه بعدی: «${nextName}»` : '';
     const via = route ? ` • راه «${route.name}»` : '';
-    return `در راه «${from}» ← «${to}»${timing}${next}${via}`;
+    const arriving = progress?.arriving ? ' • پایان راه' : '';
+    return `در راه «${from}» ← «${to}»${dist}${arriving}${next}${via}`;
   }
-  const timing = progress
-    ? ` • day ${progress.dayOnRoad} of ${travel.totalTurns}${progress.arriving ? ' (final leg)' : ''}`
-    : '';
   const next = nextName && !progress?.arrived ? ` • next stop: "${nextName}"` : '';
   const via = route ? ` • route "${route.name}"` : '';
-  return `En route "${from}" → "${to}"${timing}${next}${via}`;
+  const arriving = progress?.arriving ? ' • final leg' : '';
+  return `En route "${from}" → "${to}"${dist}${arriving}${next}${via}`;
 }
 
 /**
