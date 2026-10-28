@@ -21,13 +21,13 @@ import {
   Info,
 } from 'lucide-react';
 import type { MapGroup, MapGroupMode, WorldLocation } from '@/lib/types/world';
-import type { SelectedMapItem } from './types';
+import type { SingleSelectedMapItem } from './types';
 import { SearchableCombobox, type ComboboxOption } from '@/components/studio/SearchableCombobox';
 import { notify } from '@/lib/notify';
 
 export interface GroupInspectorProps {
   group: MapGroup;
-  members: NonNullable<SelectedMapItem>[];
+  members: SingleSelectedMapItem[];
   locations: WorldLocation[];
   isPersian: boolean;
   onUpdateGroup: (groupId: string, patch: Partial<MapGroup>) => void;
@@ -68,7 +68,7 @@ export const GroupInspector: React.FC<GroupInspectorProps> = ({
     onSetGroupMode(group.id, newMode);
   };
 
-  const renderMemberIcon = (item: NonNullable<SelectedMapItem>) => {
+  const renderMemberIcon = (item: SingleSelectedMapItem) => {
     switch (item.type) {
       case 'terrain':
         return <Mountain className="w-3.5 h-3.5 text-emerald-400" />;
@@ -90,7 +90,7 @@ export const GroupInspector: React.FC<GroupInspectorProps> = ({
     }
   };
 
-  const getMemberTitle = (item: NonNullable<SelectedMapItem>) => {
+  const getMemberTitle = (item: SingleSelectedMapItem) => {
     switch (item.type) {
       case 'terrain':
         return item.data.name || (isPersian ? 'عنصر فیزیکی' : 'Terrain Feature');

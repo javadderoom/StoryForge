@@ -24,7 +24,7 @@ import {
   type MapObjectRef,
 } from '@/lib/engines/world/mapSelection';
 import type { CartographerTool } from '../CartographerHeader';
-import type { SelectedMapItem } from '../CartographerInspector';
+import type { SelectedMapItem, SingleSelectedMapItem } from '../CartographerInspector';
 import { detachRoutesFromRef } from '@/lib/engines/world/mapRoutes';
 import {
   createMapGroup,
@@ -90,11 +90,11 @@ export function useCartographerSelection({
   );
 
   /** Resolves selection refs against the live world (never against a copy). */
-  const selectedItems = useMemo<NonNullable<SelectedMapItem>[]>(() => {
+  const selectedItems = useMemo<SingleSelectedMapItem[]>(() => {
     const locations = worldBible.locations ?? [];
     const routes = worldBible.tradeRoutes ?? [];
     const mapRoutes = mapData.routes ?? [];
-    const items: NonNullable<SelectedMapItem>[] = [];
+    const items: SingleSelectedMapItem[] = [];
 
     for (const ref of selection) {
       if (ref.kind === 'location') {

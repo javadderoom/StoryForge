@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import {
   type SelectedMapItem,
+  type SingleSelectedMapItem,
   type CartographerInspectorProps,
 } from './inspector/types';
 import { LocationInspector } from './inspector/LocationInspector';
@@ -26,7 +27,7 @@ import { PlacementInspector } from './inspector/PlacementInspector';
 import { GroupInspector } from './inspector/GroupInspector';
 import { MultiSelectionInspector } from './inspector/MultiSelectionInspector';
 
-export type { SelectedMapItem, CartographerInspectorProps };
+export type { SelectedMapItem, SingleSelectedMapItem, CartographerInspectorProps };
 
 export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
   selectedItem,

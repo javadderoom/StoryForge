@@ -16,14 +16,17 @@ import type {
   CustomPlaceCategory,
 } from '@/lib/types';
 
-export type SelectedMapItem =
+export type SingleSelectedMapItem =
   | { type: 'location'; data: WorldLocation }
   | { type: 'trade_route'; data: WorldTradeRoute }
   | { type: 'route'; data: MapRoute }
   | { type: 'terrain'; data: MapTerrainFeature }
-  | { type: 'placement'; data: MapEntityPlacement }
-  | { type: 'group'; data: MapGroup; members: NonNullable<SelectedMapItem>[] }
-  | { type: 'multiple'; members: NonNullable<SelectedMapItem>[] }
+  | { type: 'placement'; data: MapEntityPlacement };
+
+export type SelectedMapItem =
+  | SingleSelectedMapItem
+  | { type: 'group'; data: MapGroup; members: SingleSelectedMapItem[] }
+  | { type: 'multiple'; members: SingleSelectedMapItem[] }
   | null;
 
 export interface CartographerInspectorProps {

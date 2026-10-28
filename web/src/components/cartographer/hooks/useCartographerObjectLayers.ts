@@ -278,6 +278,17 @@ export function useCartographerObjectLayers({
   /** Selects a map object from the object list and centres the camera on it. */
   const handleSelectMapObject = useCallback((item: SelectedMapItem) => {
     if (!item) return;
+
+    if (item.type === 'multiple') {
+      setSelection(item.members.map((m) => ({ kind: m.type, id: m.data.id })));
+      return;
+    }
+
+    if (item.type === 'group') {
+      setSelection(item.data.memberRefs);
+      return;
+    }
+
     setSelection([{ kind: item.type, id: item.data.id }]);
 
     const point =

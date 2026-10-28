@@ -18,10 +18,10 @@ import {
   MapPin,
 } from 'lucide-react';
 import type { MapGroupMode } from '@/lib/types/world';
-import type { SelectedMapItem } from './types';
+import type { SingleSelectedMapItem } from './types';
 
 export interface MultiSelectionInspectorProps {
-  members: NonNullable<SelectedMapItem>[];
+  members: SingleSelectedMapItem[];
   isPersian: boolean;
   onGroup: (mode: MapGroupMode) => void;
   onDuplicate: () => void;
@@ -37,7 +37,7 @@ export const MultiSelectionInspector: React.FC<MultiSelectionInspectorProps> = (
   onDelete,
   onClose,
 }) => {
-  const renderMemberIcon = (item: NonNullable<SelectedMapItem>) => {
+  const renderMemberIcon = (item: SingleSelectedMapItem) => {
     switch (item.type) {
       case 'terrain':
         return <Mountain className="w-3.5 h-3.5 text-emerald-400" />;
@@ -59,7 +59,7 @@ export const MultiSelectionInspector: React.FC<MultiSelectionInspectorProps> = (
     }
   };
 
-  const getMemberTitle = (item: NonNullable<SelectedMapItem>) => {
+  const getMemberTitle = (item: SingleSelectedMapItem) => {
     switch (item.type) {
       case 'terrain':
         return item.data.name || (isPersian ? 'عارضه طبیعی' : 'Terrain Feature');
