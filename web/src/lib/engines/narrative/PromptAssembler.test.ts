@@ -548,6 +548,66 @@ describe('PromptAssembler - Plan 17 journey blocks', () => {
     assert.ok(userPrompt.includes('قهرمان به «معدن نمک» درآمده است'));
   });
 
+  it('renders the cinematic ellipsis block with time-passage montage and arrival threshold (EN)', () => {
+    const { userPrompt } = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'en',
+        travel: {
+          ...baseTravel,
+          isElliptical: true,
+          distanceKm: 360,
+          calendarDays: 14,
+        },
+      })
+    );
+    assert.ok(userPrompt.includes('[JOURNEY ELLIPSIS — TIME & DISTANCE MONTAGE]'));
+    assert.ok(userPrompt.includes('360 km'));
+    assert.ok(userPrompt.includes('14 days'));
+    assert.ok(userPrompt.includes('COMPRESS PASSAGE OF TIME'));
+    assert.ok(userPrompt.includes('NO TRIVIAL STALLS'));
+    assert.ok(userPrompt.includes('ARRIVAL AT OUTSKIRTS / GATES'));
+    assert.ok(!userPrompt.includes('[JOURNEY EN ROUTE'));
+  });
+
+  it('renders the cinematic ellipsis block in Persian with distance and duration (FA)', () => {
+    const { userPrompt } = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'fa',
+        travel: {
+          ...baseTravel,
+          isElliptical: true,
+          distanceKm: 500,
+          calendarDays: 30,
+        },
+      })
+    );
+    assert.ok(userPrompt.includes('[گذر زمان و خلاصهٔ سفر / JOURNEY ELLIPSIS]'));
+    assert.ok(userPrompt.includes('500 کیلومتر'));
+    assert.ok(userPrompt.includes('30 روز'));
+    assert.ok(userPrompt.includes('فشردن زمان و مسافت'));
+    assert.ok(userPrompt.includes('منع درنگ‌های پیش‌پاافتاده'));
+    assert.ok(userPrompt.includes('فرود در آستانهٔ مقصد'));
+    assert.ok(!userPrompt.includes('[سفر در راه / JOURNEY EN ROUTE]'));
+  });
+
+  it('renders the arrival block with duration and distance in EN and FA', () => {
+    const en = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'en',
+        travelArrival: { destinationName: 'Salt Mine', calendarDays: 14, distanceKm: 360 },
+      })
+    );
+    assert.ok(en.userPrompt.includes('after 14 days (360 km) on the road'));
+
+    const fa = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'fa',
+        travelArrival: { destinationName: 'معدن نمک', calendarDays: 30, distanceKm: 500 },
+      })
+    );
+    assert.ok(fa.userPrompt.includes('پس از 30 روز (500 کیلومتر) راه'));
+  });
+
   it('omits every journey block for grounded turns', () => {
     const { userPrompt } = PromptAssembler.buildNarrativePrompt(makeEnvelope({}));
     assert.ok(!userPrompt.includes('[JOURNEY EN ROUTE'));

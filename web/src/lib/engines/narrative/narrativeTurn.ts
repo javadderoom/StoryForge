@@ -79,7 +79,7 @@ export interface SceneTurnInput {
   /** Plan 17: absolute turn number — journey math derives from it (never stored). */
   turnNumber?: number;
   /** Plan 17: the journey reached its destination this turn (arrival scene). */
-  travelArrival?: { locationId: string; name: string };
+  travelArrival?: { locationId: string; name: string; calendarDays?: number; distanceKm?: number };
   /** Real-time callback invoked with narrative token deltas as they stream from the LLM. */
   onTextDelta?: (delta: string) => void;
 }
@@ -379,6 +379,11 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
       caravanNpcNames: caravanNpcNames.length ? caravanNpcNames : undefined,
       roadNote: roadParts.length ? roadParts.join(' • ') : undefined,
       arriving: travelDerived.arriving || undefined,
+      calendarDays: activeTravel.calendarDays,
+      distanceKm: activeTravel.distanceKm,
+      isElliptical:
+        activeTravel.pacingMode === 'cinematic_ellipsis' ||
+        (activeTravel.totalTurns === 1 && (activeTravel.calendarDays ?? 0) > 1),
     };
   })();
 
@@ -535,7 +540,15 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
     // Plan 17 (§4.5): the road is real — journey leg block + arrival input.
     travel: travelEnvelope,
     travelArrival: input.travelArrival
-      ? { destinationName: input.travelArrival.name || input.travelArrival.locationId }
+      ? {
+          destinationName: input.travelArrival.name || input.travelArrival.locationId,
+          ...(input.travelArrival.calendarDays !== undefined
+            ? { calendarDays: input.travelArrival.calendarDays }
+            : {}),
+          ...(input.travelArrival.distanceKm !== undefined
+            ? { distanceKm: input.travelArrival.distanceKm }
+            : {}),
+        }
       : undefined,
     inventoryTerms: inventoryTerms.length ? inventoryTerms : undefined,
     environmentInteractables: environmentInteractables.length ? environmentInteractables : undefined,

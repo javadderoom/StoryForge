@@ -21,6 +21,7 @@ import {
   formatTravelLine,
   clampJourneyTurns,
   isTravelStateEnabled,
+  formatTravelCalendarDuration,
 } from './travelEngine';
 
 // ---------------------------------------------------------------------------
@@ -437,6 +438,78 @@ describe('Plan 17 travel engine — per-turn lifecycle', () => {
     assert.equal(isTravelStateEnabled({ ENABLE_TRAVEL_STATE: 'false' }), false);
     assert.equal(isTravelStateEnabled({ ENABLE_TRAVEL_STATE: 'true' }), true);
     assert.equal(isTravelStateEnabled({}), true);
+  });
+});
+
+describe('Event-Driven Dynamic Pacing & Narrative Ellipsis', () => {
+  it('formats calendar duration labels in Persian and English (days, weeks, months)', () => {
+    assert.equal(formatTravelCalendarDuration(3, 'en'), '3 days');
+    assert.equal(formatTravelCalendarDuration(14, 'en'), '2 weeks');
+    assert.equal(formatTravelCalendarDuration(60, 'en'), '2 months');
+
+    assert.equal(formatTravelCalendarDuration(3, 'fa'), '3 روز');
+    assert.equal(formatTravelCalendarDuration(14, 'fa'), '2 هفته');
+    assert.equal(formatTravelCalendarDuration(60, 'fa'), '2 ماه');
+  });
+
+  it('compresses uneventful long-distance travel into 1 turn in cinematic_ellipsis mode', () => {
+    const wb = makeWb();
+    // CITY_A (0,0) to CITY_C (360,0) = 360 km at danger 3 → 10 calendar days
+    const plan = planJourney('city_a', 'city_c', wb, 'caravan', {
+      lang: 'en',
+      pacingMode: 'cinematic_ellipsis',
+    });
+
+    assert.ok(plan);
+    assert.equal(plan!.distanceKm, 360);
+    assert.equal(plan!.calendarDays, 9);
+    assert.equal(plan!.pacingMode, 'cinematic_ellipsis');
+    assert.equal(plan!.isElliptical, true);
+    assert.equal(plan!.totalTurns, 1);
+    assert.match(plan!.note, /360 km/);
+    assert.match(plan!.note, /1 week/); // 9 days rounds to 1 week
+    assert.doesNotMatch(plan!.note, /6 turns/);
+  });
+
+  it('compresses uneventful long-distance travel in Persian with km and duration', () => {
+    const wb = makeWb();
+    const plan = planJourney('city_a', 'city_c', wb, 'caravan', {
+      lang: 'fa',
+      pacingMode: 'cinematic_ellipsis',
+    });
+
+    assert.ok(plan);
+    assert.equal(plan!.isElliptical, true);
+    assert.equal(plan!.totalTurns, 1);
+    assert.match(plan!.note, /۳۶۰|360 کیلومتر/);
+    assert.match(plan!.note, /هفته|روز/);
+  });
+
+  it('decelerates into multiple turns when hasEncounter is true', () => {
+    const wb = makeWb();
+    const plan = planJourney('city_a', 'city_c', wb, 'caravan', {
+      lang: 'en',
+      pacingMode: 'cinematic_ellipsis',
+      hasEncounter: true,
+    });
+
+    assert.ok(plan);
+    assert.equal(plan!.isElliptical, false);
+    assert.ok(plan!.totalTurns >= 2, 'Should have multiple turns for encounter resolution');
+  });
+
+  it('startTravel persists distanceKm, calendarDays, and pacingMode onto ActiveTravel', () => {
+    const wb = makeWb();
+    const plan = planJourney('city_a', 'city_c', wb, 'caravan', {
+      pacingMode: 'cinematic_ellipsis',
+    });
+    assert.ok(plan);
+
+    const active = startTravel(plan!, 'city_a', 15);
+    assert.equal(active.distanceKm, 360);
+    assert.equal(active.calendarDays, 9);
+    assert.equal(active.pacingMode, 'cinematic_ellipsis');
+    assert.equal(active.totalTurns, 1);
   });
 });
 

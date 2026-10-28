@@ -21,7 +21,7 @@
 // ---------------------------------------------------------------------------
 
 import { WorldBible, WorldLocation, WorldTradeRoute, getLocationAncestry } from '@/lib/types/world';
-import { ActiveTravel, TravelMode } from '@/lib/types/gameplay';
+import { ActiveTravel, TravelMode, TravelPacingMode } from '@/lib/types/gameplay';
 import {
   calculateCaravanTravelDays,
   calculateMapDistance,
@@ -241,6 +241,18 @@ export function estimateTravelTurns(
   return turns;
 }
 
+export function formatTravelCalendarDuration(days: number, lang: 'fa' | 'en'): string {
+  if (days >= 30) {
+    const months = Math.max(1, Math.round(days / 30));
+    return lang === 'fa' ? `${months} ماه` : `${months} month${months > 1 ? 's' : ''}`;
+  }
+  if (days >= 7) {
+    const weeks = Math.max(1, Math.round(days / 7));
+    return lang === 'fa' ? `${weeks} هفته` : `${weeks} week${weeks > 1 ? 's' : ''}`;
+  }
+  return lang === 'fa' ? `${days} روز` : `${days} day${days > 1 ? 's' : ''}`;
+}
+
 export interface JourneyPlan {
   destinationLocationId: string;
   routeId?: string;
@@ -248,12 +260,22 @@ export interface JourneyPlan {
   mode: TravelMode;
   totalTurns: number;
   dangerLevel: number;
+  /** In-universe cartographic travel distance in kilometers. */
+  distanceKm: number;
+  /** In-universe simulated travel duration in calendar days (e.g. 14 days, 30 days). */
+  calendarDays: number;
+  /** Pacing mode: 'cinematic_ellipsis' (default) vs 'per_leg'. */
+  pacingMode: TravelPacingMode;
+  /** True when uneventful travel across distance is compressed into an elliptical montage. */
+  isElliptical: boolean;
   /** True when the raw ETA is a one-day hop with no intermediate stops: the
    * caller applies an immediate `locationChange` instead of travel state. */
   immediateHop: boolean;
   /** Prose-ready summary line (localized). */
   note: string;
-}/** BFS shortest path over connected + parent/child + non-blockaded route edges. */
+}
+
+/** BFS shortest path over connected + parent/child + non-blockaded route edges. */
 function shortestPath(originId: string, destId: string, wb: WorldBible): string[] | null {
   const adj = new Map<string, Set<string>>();
   const addEdge = (a?: string, b?: string) => {
@@ -306,15 +328,19 @@ function shortestPath(originId: string, destId: string, wb: WorldBible): string[
  *
  * - Shared route → that route's stops between the endpoints become waypoints.
  * - Otherwise BFS over connected/parent/route edges; intermediates are waypoints.
- * - ETA: raw `estimateTravelTurns` clamped to 2..6; `immediateHop` marks the
- *   one-day no-waypoint case.
+ * - ETA: in 'cinematic_ellipsis' mode, uneventful journeys take 1 turn with
+ *   calendar duration and distance reported in the prompt.
  */
 export function planJourney(
   originId: string,
   destId: string,
   wb: WorldBible,
   mode: TravelMode = 'foot',
-  opts: { lang?: 'fa' | 'en' } = {}
+  opts: {
+    lang?: 'fa' | 'en';
+    pacingMode?: TravelPacingMode;
+    hasEncounter?: boolean;
+  } = {}
 ): JourneyPlan | null {
   const origin = (wb.locations ?? []).find((l) => l.id === originId);
   const dest = (wb.locations ?? []).find((l) => l.id === destId);
@@ -347,14 +373,55 @@ export function planJourney(
       ?.mapData?.settings?.kmPerSpatialUnit ??
     1;
   const rawEta = estimateTravelTurns(origin, dest, { route, hops, kmPerSpatialUnit });
-  const totalTurns = clampJourneyTurns(rawEta);
+
+  let distanceKm = 0;
+  if (origin.coordinates && dest.coordinates) {
+    distanceKm = Math.round(calculateMapDistance(origin.coordinates, dest.coordinates) * kmPerSpatialUnit);
+  } else {
+    distanceKm = Math.max(35, hops * 35);
+  }
+  const calendarDays = Math.max(1, calculateCaravanTravelDays(distanceKm, dangerLevel));
+
+  const pacingMode: TravelPacingMode =
+    opts.pacingMode ??
+    (wb.mapData?.settings as any)?.travelPacingProfile ??
+    'per_leg';
+
   const immediateHop = rawEta <= 1 && waypointIds.length === 0;
 
+  let totalTurns: number;
+  let isElliptical = false;
+
+  if (immediateHop) {
+    totalTurns = 1;
+    isElliptical = false;
+  } else if (pacingMode === 'cinematic_ellipsis') {
+    if (opts.hasEncounter) {
+      totalTurns = Math.min(3, Math.max(2, Math.round(rawEta)));
+      isElliptical = false;
+    } else {
+      totalTurns = 1;
+      isElliptical = true;
+    }
+  } else {
+    totalTurns = clampJourneyTurns(rawEta);
+    isElliptical = false;
+  }
+
   const lang = opts.lang ?? 'fa';
-  const note =
-    lang === 'fa'
-      ? `سفر آغاز شد — مقصد: «${dest.name}» • ${totalTurns} نوبت${route ? ` (راه: «${route.name}»)` : ''}`
-      : `Journey begins — destination: "${dest.name}" • ${totalTurns} turns${route ? ` (via "${route.name}")` : ''}`;
+  let note: string;
+  if (isElliptical) {
+    const duration = formatTravelCalendarDuration(calendarDays, lang);
+    note =
+      lang === 'fa'
+        ? `سفر آغاز شد — مقصد: «${dest.name}» • ${distanceKm} کیلومتر (~${duration})${route ? ` (راه: «${route.name}»)` : ''}`
+        : `Journey begins — destination: "${dest.name}" • ${distanceKm} km (~${duration})${route ? ` (via "${route.name}")` : ''}`;
+  } else {
+    note =
+      lang === 'fa'
+        ? `سفر آغاز شد — مقصد: «${dest.name}» • ${totalTurns} نوبت${route ? ` (راه: «${route.name}»)` : ''}`
+        : `Journey begins — destination: "${dest.name}" • ${totalTurns} turns${route ? ` (via "${route.name}")` : ''}`;
+  }
 
   return {
     destinationLocationId: destId,
@@ -363,6 +430,10 @@ export function planJourney(
     mode,
     totalTurns,
     dangerLevel,
+    distanceKm,
+    calendarDays,
+    pacingMode,
+    isElliptical,
     immediateHop,
     note,
   };
@@ -382,6 +453,9 @@ export function startTravel(
     mode: plan.mode,
     departedTurn: turnNumber,
     totalTurns: plan.totalTurns,
+    distanceKm: plan.distanceKm,
+    calendarDays: plan.calendarDays,
+    pacingMode: plan.pacingMode,
   };
 }
 

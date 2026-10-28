@@ -91,6 +91,7 @@ export interface TensionClock {
 // pure function of (departedTurn, session turn number, totalTurns), so remakes
 // and rewinds never need to roll a countdown back.
 export type TravelMode = 'foot' | 'mount' | 'caravan' | 'ship';
+export type TravelPacingMode = 'cinematic_ellipsis' | 'per_leg';
 
 export interface ActiveTravel {
   originLocationId: string;
@@ -102,10 +103,16 @@ export interface ActiveTravel {
   mode: TravelMode;
   /** Absolute session turn number when the journey began. */
   departedTurn: number;
-  /** Total legs of the journey; clamped to 2..6 by the pacing rule. */
+  /** Total legs of the journey; in cinematic_ellipsis mode this is 1 for uneventful journeys. */
   totalTurns: number;
   /** Caravan / escort NPC ids travelling with the protagonist on this journey. */
   caravanNpcIds?: string[];
+  /** In-universe simulated travel duration in calendar days (e.g. 14 days, 30 days). */
+  calendarDays?: number;
+  /** In-universe cartographic travel distance in kilometers. */
+  distanceKm?: number;
+  /** Travel pacing profile: 'cinematic_ellipsis' (default) vs 'per_leg'. */
+  pacingMode?: TravelPacingMode;
 }
 
 // Plan 17: the writer's condition-lifecycle contract. Entries mirror the

@@ -185,30 +185,50 @@ export function journeyBlock(
 
   if (isEnglish) {
     if (travel) {
-      const companions = travel.caravanNpcNames?.length
-        ? ` Travelling companions: ${travel.caravanNpcNames.join(', ')}.`
-        : '';
-      const road = travel.roadNote ? ` Road conditions: ${travel.roadNote}.` : '';
-      const next = travel.nextStopName ? ` Next stop: "${travel.nextStopName}".` : '';
-      parts.push(
-        `[JOURNEY EN ROUTE — سفر در راه]\n` +
-          `• The protagonist is ON THE ROAD: from "${travel.originName}" to "${travel.destinationName}"${travel.routeName ? ` via the "${travel.routeName}"` : ''} (${travel.mode}) — day ${travel.dayOnRoad} of ${travel.totalTurns}; ${travel.turnsRemaining} turn(s) of road remain. Current stop: "${travel.currentStopName}".${next}${companions}${road}\n` +
-          (travel.dayOnRoad === 1
-            ? `• DEPARTURE: the journey begins this turn — open at "${travel.originName}" (its gates, packing and provisions, the caravan or mounts forming up, farewells or the plain resolve of the road ahead).\n`
-            : '') +
-          (travel.arriving
-            ? `• FINAL LEG: the destination appears on the horizon this turn; you may bring the traveller right up to the gates and end the scene inside them. Any life inside "${travel.destinationName}" opens only after this leg.\n`
-            : `• ARRIVAL DISCIPLINE: the protagonist must NOT be placed inside "${travel.destinationName}" — no inns, markets, courts, or residents — until the final leg. Keep every scene on the corridor between the current stop and the road ahead.\n`) +
-          `• THE SCENE IS THE ROAD: terrain in motion (dust, salt, rain, heat), pack animals and wagon noise, way-station life, camp at dusk, lantern glow at a caravanserai. Anchor scene elements to the corridor between these stops.\n` +
-          `• DESTINATION CONTACTS: no residents, rulers, or guilds of "${travel.destinationName}" appear before arrival — only route-legitimate contacts (caravan masters, mounted patrols, fellow travellers already on this road).\n` +
-          `• CHOICE MATERIAL for the road: push on, make camp for the night, scout ahead, talk with travelling companions, trade at a caravanserai, tend wounds and gear.\n` +
-          `• PACE: a forced march or a deliberately slow pace is allowed — narrate it; the engine adjusts the schedule. NEVER invent an early arrival.`
-      );
+      if (travel.isElliptical) {
+        const companions = travel.caravanNpcNames?.length
+          ? ` Travelling companions: ${travel.caravanNpcNames.join(', ')}.`
+          : '';
+        const road = travel.roadNote ? ` Route notes: ${travel.roadNote}.` : '';
+        const distanceStr = travel.distanceKm ? `${travel.distanceKm} km` : 'a long distance';
+        const daysStr = travel.calendarDays ? `${travel.calendarDays} days` : 'several days';
+
+        parts.push(
+          `[JOURNEY ELLIPSIS — TIME & DISTANCE MONTAGE]\n` +
+            `• NARRATIVE ELLIPSIS: The journey from "${travel.originName}" to "${travel.destinationName}"${travel.routeName ? ` via the "${travel.routeName}"` : ''} covers ~${distanceStr} and spans ~${daysStr} of travel (${travel.mode}).${companions}${road}\n` +
+            `• COMPRESS PASSAGE OF TIME: This stretch of the road is uneventful (no ambushes or sudden crises). Do NOT narrate day-by-day micro-steps. Instead, write 1-2 evocative, cinematic paragraphs summarizing the passage of time, the changing sky and landscape, night camps under unfamiliar stars, the rhythm of beasts and boots, and the weathering of gear.\n` +
+            `• NO TRIVIAL STALLS: Strictly do NOT pause the narrative for routine camping chores, cooking, or sleeping choices. Forbid mundane road choices.\n` +
+            `• ARRIVAL AT OUTSKIRTS / GATES: Conclude the scene as the traveller approaches the visible horizon, outskirts, or gates of "${travel.destinationName}". Let the sensory reality of the destination loom directly ahead so the player is primed to take their first meaningful action upon arrival.`
+        );
+      } else {
+        const companions = travel.caravanNpcNames?.length
+          ? ` Travelling companions: ${travel.caravanNpcNames.join(', ')}.`
+          : '';
+        const road = travel.roadNote ? ` Road conditions: ${travel.roadNote}.` : '';
+        const next = travel.nextStopName ? ` Next stop: "${travel.nextStopName}".` : '';
+        parts.push(
+          `[JOURNEY EN ROUTE — سفر در راه]\n` +
+            `• The protagonist is ON THE ROAD: from "${travel.originName}" to "${travel.destinationName}"${travel.routeName ? ` via the "${travel.routeName}"` : ''} (${travel.mode}) — day ${travel.dayOnRoad} of ${travel.totalTurns}; ${travel.turnsRemaining} turn(s) of road remain. Current stop: "${travel.currentStopName}".${next}${companions}${road}\n` +
+            (travel.dayOnRoad === 1
+              ? `• DEPARTURE: the journey begins this turn — open at "${travel.originName}" (its gates, packing and provisions, the caravan or mounts forming up, farewells or the plain resolve of the road ahead).\n`
+              : '') +
+            (travel.arriving
+              ? `• FINAL LEG: the destination appears on the horizon this turn; you may bring the traveller right up to the gates and end the scene inside them. Any life inside "${travel.destinationName}" opens only after this leg.\n`
+              : `• ARRIVAL DISCIPLINE: the protagonist must NOT be placed inside "${travel.destinationName}" — no inns, markets, courts, or residents — until the final leg. Keep every scene on the corridor between the current stop and the road ahead.\n`) +
+            `• THE SCENE IS THE ROAD: terrain in motion (dust, salt, rain, heat), pack animals and wagon noise, way-station life, camp at dusk, lantern glow at a caravanserai. Anchor scene elements to the corridor between these stops.\n` +
+            `• DESTINATION CONTACTS: no residents, rulers, or guilds of "${travel.destinationName}" appear before arrival — only route-legitimate contacts (caravan masters, mounted patrols, fellow travellers already on this road).\n` +
+            `• CHOICE MATERIAL for the road: push on, make camp for the night, scout ahead, talk with travelling companions, trade at a caravanserai, tend wounds and gear.\n` +
+            `• PACE: a forced march or a deliberately slow pace is allowed — narrate it; the engine adjusts the schedule. NEVER invent an early arrival.`
+        );
+      }
     }
     if (travelArrival) {
+      const durationNote = travelArrival.calendarDays
+        ? ` after ${travelArrival.calendarDays} days${travelArrival.distanceKm ? ` (${travelArrival.distanceKm} km)` : ''} on the road`
+        : '';
       parts.push(
         `[JOURNEY ARRIVED — پایان راه]\n` +
-          `• The journey ended this turn: the protagonist has entered "${travelArrival.destinationName}". Open the scene with the destination washing over the senses (crowds, smells, sound, road-dust still on them) and treat it as the new grounded setting — continue seamlessly from the final leg of the road.`
+          `• The journey ended this turn${durationNote}: the protagonist has entered "${travelArrival.destinationName}". Open the scene with the destination washing over the senses (crowds, smells, sound, road-dust still on them) and treat it as the new grounded setting — continue seamlessly from the final leg of the road.`
       );
     }
     return parts.join('\n');
@@ -224,30 +244,51 @@ export function journeyBlock(
           : travel.mode === 'mount'
             ? 'سواره'
             : 'پیاده';
-    const companions = travel.caravanNpcNames?.length
-      ? ` همسفران راه: ${travel.caravanNpcNames.join('، ')}.`
-      : '';
-    const road = travel.roadNote ? ` وضعیت جاده: ${travel.roadNote}.` : '';
-    const next = travel.nextStopName ? ` ایستگاه بعدی: «${travel.nextStopName}».` : '';
-    parts.push(
-      `[سفر در راه / JOURNEY EN ROUTE]\n` +
-        `• قهرمان در راه است: از «${travel.originName}» به «${travel.destinationName}»${travel.routeName ? ` از مسیر «${travel.routeName}»` : ''} (${modeFa}) — روز ${travel.dayOnRoad} از ${travel.totalTurns}؛ ${travel.turnsRemaining} نوبت دیگر راه مانده است. ایستگاه فعلی: «${travel.currentStopName}».${next}${companions}${road}\n` +
-        (travel.dayOnRoad === 1
-          ? `• آغاز سفر: کاروان/مرکب همین نوبت راه می‌افتد — صحنه را کنار دروازه‌های «${travel.originName}» بگشا (باروبنه، آماده‌سازی، صف بستن کاروان یا زین کردن مرکب، بدرقه یا دل کندن و ارادهٔ راه).\n`
-          : '') +
-        (travel.arriving
-          ? `• پایان راه: مقصد همین نوبت در افق نمایان می‌شود؛ می‌توانی قهرمان را تا دروازه‌ها برسانی و صحنه را داخل دروازه‌ها ببندی. هر صحنه‌ای در دلِ «${travel.destinationName}» فقط پس از همین نوبت آغاز می‌شود.\n`
-          : `• انضباط ورود: تا نوبت پایان راه، هرگز قهرمان را داخل «${travel.destinationName}» مگذار — نه کاروانسرا، نه بازار، نه دربار و نه میان مردمانش. هر صحنه باید در کریدور جاده میان ایستگاه فعلی و راه پیش رو بماند.\n`) +
-        `• صحنه همان جاده است: زمین در حرکت (گرد و نمک، باران، گرما)، هیاهوی چارپایان و ارابه‌ها، زندگی میان‌راهی، اتراق در غروب، نور فانوس کاروانسرا. عناصر صحنه را به کریدور میان این ایستگاه‌ها گره بزن.\n` +
-        `• آشنایان مقصد: تا پیش از رسیدن، هیچ‌یک از ساکنان، بزرگان یا صنف‌های «${travel.destinationName}» در صحنه ظاهر نمی‌شوند — تنها آشنایان مجاز راه (سالار کاروان، گشت‌های سواره، همسفرانی که همین حالا بر جاده‌اند).\n` +
-        `• مواد انتخاب برای جاده: ادامه دادن، اتراق شبانه، پیشاهنگی و شناسایی مسیر، گفت‌وگو با همسفران، داد و ستد در کاروانسرا، رسیدگی به زخم و توشه.\n` +
-        `• آهنگ سفر: تاختِ تند یا پیمودن آهسته آزاد است — آن را روایت کن؛ زمان‌بندی به دست موتور بازی است. هرگز رسیدن زودهنگام از خودت نساز.`
-    );
+
+    if (travel.isElliptical) {
+      const companions = travel.caravanNpcNames?.length
+        ? ` همسفران راه: ${travel.caravanNpcNames.join('، ')}.`
+        : '';
+      const road = travel.roadNote ? ` وضعیت جاده: ${travel.roadNote}.` : '';
+      const distanceStr = travel.distanceKm ? `${travel.distanceKm} کیلومتر` : 'مسافتی طولانی';
+      const daysStr = travel.calendarDays ? `${travel.calendarDays} روز` : 'چندین روز';
+
+      parts.push(
+        `[گذر زمان و خلاصهٔ سفر / JOURNEY ELLIPSIS]\n` +
+          `• خلاصه و گذر زمان سفر (Narrative Ellipsis): سفر از «${travel.originName}» به «${travel.destinationName}»${travel.routeName ? ` از مسیر «${travel.routeName}»` : ''} نزدیک به ${distanceStr} مسافت داشته و حدود ${daysStr} (${modeFa}) به طول انجامیده است.${companions}${road}\n` +
+          `• فشردن زمان و مسافت: این پهنه از مسیر بدون درگیری بحرانی یا کمین مستقیم طی شده است. از روایت گام‌به‌گام و روزمره بپرهیز. گذر زمان، تغییر اقلیم و مناظر، اتراق‌های شبانه زیر آسمان پرستاره، سوز سرما یا داغی آفتاب، و خستگی سفر را در ۱ تا ۲ پاراگراف فضاساز و سینمایی خلاصه کن.\n` +
+          `• منع درنگ‌های پیش‌پاافتاده: هرگز صحنه را برای کارهای روزمره (آب خوردن، پختن غذا، برپا کردن چادر) متوقف نکن و انتخاب‌های روزمره نساز.\n` +
+          `• فرود در آستانهٔ مقصد: صحنه باید در آستانه، دروازه‌ها یا مدخل «${travel.destinationName}» به پایان برسد و هیاهو و نشانه‌های مقصد نمایان شود تا قهرمان آماده اولین کنش هدفمند در این مکان جدید باشد.`
+      );
+    } else {
+      const companions = travel.caravanNpcNames?.length
+        ? ` همسفران راه: ${travel.caravanNpcNames.join('، ')}.`
+        : '';
+      const road = travel.roadNote ? ` وضعیت جاده: ${travel.roadNote}.` : '';
+      const next = travel.nextStopName ? ` ایستگاه بعدی: «${travel.nextStopName}».` : '';
+      parts.push(
+        `[سفر در راه / JOURNEY EN ROUTE]\n` +
+          `• قهرمان در راه است: از «${travel.originName}» به «${travel.destinationName}»${travel.routeName ? ` از مسیر «${travel.routeName}»` : ''} (${modeFa}) — روز ${travel.dayOnRoad} از ${travel.totalTurns}؛ ${travel.turnsRemaining} نوبت دیگر راه مانده است. ایستگاه فعلی: «${travel.currentStopName}».${next}${companions}${road}\n` +
+          (travel.dayOnRoad === 1
+            ? `• آغاز سفر: کاروان/مرکب همین نوبت راه می‌افتد — صحنه را کنار دروازه‌های «${travel.originName}» بگشا (باروبنه، آماده‌سازی، صف بستن کاروان یا زین کردن مرکب، بدرقه یا دل کندن و ارادهٔ راه).\n`
+            : '') +
+          (travel.arriving
+            ? `• پایان راه: مقصد همین نوبت در افق نمایان می‌شود؛ می‌توانی قهرمان را تا دروازه‌ها برسانی و صحنه را داخل دروازه‌ها ببندی. هر صحنه‌ای در دلِ «${travel.destinationName}» فقط پس از همین نوبت آغاز می‌شود.\n`
+            : `• انضباط ورود: تا نوبت پایان راه، هرگز قهرمان را داخل «${travel.destinationName}» مگذار — نه کاروانسرا، نه بازار، نه دربار و نه میان مردمانش. هر صحنه باید در کریدور جاده میان ایستگاه فعلی و راه پیش رو بماند.\n`) +
+          `• صحنه همان جاده است: زمین در حرکت (گرد و نمک، باران، گرما)، هیاهوی چارپایان و ارابه‌ها، زندگی میان‌راهی، اتراق در غروب، نور فانوس کاروانسرا. عناصر صحنه را به کریدور میان این ایستگاه‌ها گره بزن.\n` +
+          `• آشنایان مقصد: تا پیش از رسیدن، هیچ‌یک از ساکنان، بزرگان یا صنف‌های «${travel.destinationName}» در صحنه ظاهر نمی‌شوند — تنها آشنایان مجاز راه (سالار کاروان، گشت‌های سواره، همسفرانی که همین حالا بر جاده‌اند).\n` +
+          `• مواد انتخاب برای جاده: ادامه دادن، اتراق شبانه، پیشاهنگی و شناسایی مسیر، گفت‌وگو با همسفران، داد و ستد در کاروانسرا، رسیدگی به زخم و توشه.\n` +
+          `• آهنگ سفر: تاختِ تند یا پیمودن آهسته آزاد است — آن را روایت کن؛ زمان‌بندی به دست موتور بازی است. هرگز رسیدن زودهنگام از خودت نساز.`
+      );
+    }
   }
   if (travelArrival) {
+    const durationNote = travelArrival.calendarDays
+      ? ` پس از ${travelArrival.calendarDays} روز${travelArrival.distanceKm ? ` (${travelArrival.distanceKm} کیلومتر)` : ''} راه`
+      : '';
     parts.push(
       `[رسیدن به مقصد / JOURNEY ARRIVED]\n` +
-        `• سفر همین نوبت به پایان رسید: قهرمان به «${travelArrival.destinationName}» درآمده است. صحنه را با سرریز حس‌های مقصد بگشا (هیاهو، بو، صدا؛ گردِ راه هنوز بر تن او) و اینجا را قرارگاه تازهٔ او بدان — پیوسته و بی‌درز از پایان راه پیش ببر.`
+        `• سفر همین نوبت${durationNote} به پایان رسید: قهرمان به «${travelArrival.destinationName}» درآمده است. صحنه را با سرریز حس‌های مقصد بگشا (هیاهو، بو، صدا؛ گردِ راه هنوز بر تن او) و اینجا را قرارگاه تازهٔ او بدان — پیوسته و بی‌درز از پایان راه پیش ببر.`
     );
   }
   return parts.join('\n');

@@ -1040,6 +1040,8 @@ export interface WorldMapSettings {
    * behavior: 1 canvas unit ≙ 1 km). Tune per world once Plan 19 refit pins
    * are meaningful (typical 0.3–0.6 for a regional map). */
   kmPerSpatialUnit?: number;
+  /** Travel pacing profile: 'cinematic_ellipsis' (default) compresses uneventful distance into 1 scene. */
+  travelPacingProfile?: 'cinematic_ellipsis' | 'per_leg';
   /**
    * Plan 22: how strongly the material textures are laid over the flat theme
    * colours. 0 = the classic flat-cartography look, 1 = fully textured.
@@ -1947,6 +1949,7 @@ export const WorldMapSettingsSchema = z.object({
   gridSize: z.number().default(40),
   showGridCoordinates: z.boolean().default(false),
   kmPerSpatialUnit: z.number().positive().max(1000).optional(),
+  travelPacingProfile: z.enum(['cinematic_ellipsis', 'per_leg']).optional(),
   textureStrength: z.number().min(0).max(1).optional(),
   visibleLayers: z.record(z.boolean()).default({}),
 });

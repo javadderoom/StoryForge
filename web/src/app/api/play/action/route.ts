@@ -754,6 +754,10 @@ async function processTurnAction(
     // skipped). Precedence: hazard displacement + authored beats (§3½) +
     // defeat relocation (§3b) override travel when they fire later this turn.
     const travelLang: 'fa' | 'en' = isPersianStory ? 'fa' : 'en';
+    const travelPacingMode =
+      (story.worldBible.mapData?.settings as any)?.travelPacingProfile ??
+      ((story.worldBible.ontology as any)?.mapData?.settings as any)?.travelPacingProfile ??
+      'cinematic_ellipsis';
     const travelStateActive = GameEngine.isTravelStateEnabled();
     const travelIntentActive = travelStateActive && GameEngine.detectTravelIntent(playerActionText, isPersianStory);
     const travelDestination =
@@ -781,7 +785,7 @@ async function processTurnAction(
           travelDestination.id,
           story.worldBible,
           GameEngine.detectTravelMode(playerActionText),
-          { lang: travelLang }
+          { lang: travelLang, pacingMode: travelPacingMode }
         );
         if (plan) {
           resolution.stateDiff.travel = GameEngine.startTravel(
@@ -802,7 +806,7 @@ async function processTurnAction(
         travelDestination.id,
         story.worldBible,
         GameEngine.detectTravelMode(playerActionText),
-        { lang: travelLang }
+        { lang: travelLang, pacingMode: travelPacingMode }
       );
       if (plan) {
         if (plan.immediateHop) {
@@ -928,7 +932,9 @@ async function processTurnAction(
     // §3½ — so this turn's scene is scoped to the destination and carries the
     // `travelArrived` flag; intermediate stops move the pointer to the current
     // node; plain road turns leave everything to the derived timeline.
-    let travelArrived: { locationId: string; name: string } | undefined;
+    let travelArrived:
+      | { locationId: string; name: string; calendarDays?: number; distanceKm?: number }
+      | undefined;
     if (displacementTarget || authoredMoveTargetId) {
       if (updatedPlayerState.travel) updatedPlayerState.travel = null;
     }
@@ -940,6 +946,8 @@ async function processTurnAction(
         travelArrived = {
           locationId: advance.arrivedAt,
           name: advance.arrivedAtName || advance.arrivedAt,
+          calendarDays: updatedPlayerState.travel?.calendarDays,
+          distanceKm: updatedPlayerState.travel?.distanceKm,
         };
         updatedPlayerState.travel = null;
         if (updatedPlayerState.currentLocationId !== advance.arrivedAt) {

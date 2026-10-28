@@ -156,9 +156,15 @@ export interface WorkingContextEnvelope {
     roadNote?: string;
     /** True on the final leg — the destination appears on the horizon. */
     arriving?: boolean;
+    /** In-universe simulated travel duration in calendar days (e.g. 14 days, 30 days). */
+    calendarDays?: number;
+    /** In-universe cartographic travel distance in kilometers. */
+    distanceKm?: number;
+    /** True when uneventful travel across distance is being compressed into an elliptical montage. */
+    isElliptical?: boolean;
   };
   /** Plan 17 (§4.5): the journey reached its destination this turn. */
-  travelArrival?: { destinationName: string };
+  travelArrival?: { destinationName: string; calendarDays?: number; distanceKm?: number };
 }
 
 export const MemoryEntrySchema = z.object({
