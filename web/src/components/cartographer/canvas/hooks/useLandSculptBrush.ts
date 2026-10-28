@@ -11,6 +11,9 @@ export interface UseLandSculptBrushOptions {
   engineRef: React.RefObject<PixiCartographerEngine | null>;
   terrainFeatures: MapTerrainFeature[];
   onReplaceTerrain?: (features: MapTerrainFeature[]) => void;
+  sculptMode?: 'paint' | 'carve';
+  brushSize?: number;
+  brushRoughness?: number;
 }
 
 /**
@@ -22,10 +25,17 @@ export function useLandSculptBrush({
   engineRef,
   terrainFeatures,
   onReplaceTerrain,
+  sculptMode: externalSculptMode,
+  brushSize: externalBrushSize,
+  brushRoughness: externalBrushRoughness,
 }: UseLandSculptBrushOptions) {
-  const [sculptMode, setSculptMode] = useState<'paint' | 'carve'>('paint');
-  const [brushSize, setBrushSize] = useState<number>(45);
-  const [brushRoughness, setBrushRoughness] = useState<number>(0.35);
+  const [internalSculptMode, setSculptMode] = useState<'paint' | 'carve'>('paint');
+  const [internalBrushSize, setBrushSize] = useState<number>(65);
+  const [internalBrushRoughness, setBrushRoughness] = useState<number>(0.35);
+
+  const sculptMode = externalSculptMode ?? internalSculptMode;
+  const brushSize = externalBrushSize ?? internalBrushSize;
+  const brushRoughness = externalBrushRoughness ?? internalBrushRoughness;
 
   const isSculptingRef = useRef(false);
   const accumulatedStampsRef = useRef<MapPoint[][]>([]);

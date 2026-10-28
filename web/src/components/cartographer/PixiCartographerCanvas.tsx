@@ -314,6 +314,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     engineRef,
     terrainFeatures: worldBible.mapData?.terrainFeatures ?? [],
     onReplaceTerrain,
+    sculptMode: geoHud.sculptMode,
+    brushSize: geoHud.brushSize,
+    brushRoughness: geoHud.brushRoughness,
   });
 
   const {
