@@ -33,6 +33,7 @@ import {
   loreKindLabel,
 } from '@/lib/engines/world/lorePlacement';
 import { GeoToolHud } from './canvas/GeoToolHud';
+import { GeoSpeciesPickerModal } from './canvas/GeoSpeciesPickerModal';
 import { useRoadDrafting } from './canvas/hooks/useRoadDrafting';
 import { useLandSculptBrush } from './canvas/hooks/useLandSculptBrush';
 import { useGeoStrokeDrafting } from './canvas/hooks/useGeoStrokeDrafting';
@@ -366,6 +367,8 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     biomeDrawMode: geoHud.biomeDrawMode,
     biomeCorridorWidth: geoHud.biomeCorridorWidth,
     biomeDensity: geoHud.biomeDensity,
+    equippedTreeFamily: geoHud.equippedTreeFamily,
+    equippedMountainFamily: geoHud.equippedMountainFamily,
     mapData: worldBible.mapData,
   });
 
@@ -876,6 +879,28 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         onToggleSnowcaps={geoHud.toggleSnowcaps}
         riverWidth={geoHud.riverWidth}
         onRiverWidthChange={geoHud.setRiverWidth}
+        equippedTreeFamily={geoHud.equippedTreeFamily}
+        equippedMountainFamily={geoHud.equippedMountainFamily}
+        onOpenSpeciesPicker={geoHud.openSpeciesPicker}
+      />
+
+      <GeoSpeciesPickerModal
+        isOpen={geoHud.isSpeciesPickerOpen}
+        onClose={geoHud.closeSpeciesPicker}
+        categoryFilter={geoHud.speciesPickerCategory}
+        currentlySelectedFamily={
+          geoHud.speciesPickerCategory === 'mountain'
+            ? geoHud.equippedMountainFamily
+            : geoHud.equippedTreeFamily
+        }
+        onSelectFamily={(familyId) => {
+          if (geoHud.speciesPickerCategory === 'mountain' || activeTool === 'terrain_mountain') {
+            geoHud.setEquippedMountainFamily(familyId);
+          } else {
+            geoHud.setEquippedTreeFamily(familyId);
+          }
+        }}
+        isPersian={isPersian}
       />
 
       {contextMenuState && (

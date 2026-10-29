@@ -841,6 +841,18 @@ export interface ManuscriptFurnitureConfig {
   vignettes?: MaritimeVignette[];
 }
 
+export interface GeoScatterInstance {
+  id: string;
+  symbolId: string;
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  tint?: number;
+  alpha?: number;
+  zIndex: number;
+}
+
 export interface MapTerrainFeature {
   id: string;
   name: string;
@@ -877,6 +889,14 @@ export interface MapTerrainFeature {
   waterliningConfig?: WaterliningConfig;
   /** Plan 27: Continuous forest canopy massing & grove configuration (Jangal-e Shabnam / ancient woodlands). */
   canopyConfig?: CanopyMassConfig;
+  /** Selected species / symbol family ID from GeoSymbolPalette (e.g. 'oak', 'conifer', 'alpine_massif', 'sand_dunes', etc.) */
+  symbolFamily?: string;
+  /** Override scale multiplier for scattered symbol instances. */
+  symbolScale?: number;
+  /** Override density/spacing (in world pixels) between scattered symbol instances. */
+  symbolSpacing?: number;
+  /** Cached deterministic scattered symbol instances for instant GPU rendering without per-frame recomputation. */
+  scatterInstances?: GeoScatterInstance[];
   /** Plan 27: Curved spline-aligned typography configuration for geographic titles. */
   labelConfig?: CurvedLabelConfig;
   /**

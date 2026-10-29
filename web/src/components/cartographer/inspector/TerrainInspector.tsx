@@ -26,6 +26,7 @@ import { placeAcceptsTerrainType } from '@/lib/engines/world/terrainPlacePairing
 import { SearchableCombobox, type ComboboxOption } from '@/components/studio/SearchableCombobox';
 import { simplifyPoints, simplifyPolygon } from '@/lib/engines/world/pixi/pathSimplification';
 import { TerrainDeltaSection } from './sections/TerrainDeltaSection';
+import { TerrainSpeciesSection } from './sections/TerrainSpeciesSection';
 import { TerrainDuneSection } from './sections/TerrainDuneSection';
 import { TerrainWaterliningSection } from './sections/TerrainWaterliningSection';
 import { TerrainCanopySection } from './sections/TerrainCanopySection';
@@ -459,6 +460,13 @@ export const TerrainInspector: React.FC<TerrainInspectorProps> = ({
           </button>
         </div>
       )}
+
+      {/* Cartography Species & Symbol Section */}
+      <TerrainSpeciesSection
+        feature={feature}
+        isPersian={isPersian}
+        onUpdateTerrain={onUpdateTerrain}
+      />
 
       {/* Plan 27 feature sub-sections */}
       <TerrainDeltaSection

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { HighlandMode, BiomeType, BiomeDensity, BiomeDrawMode } from '../GeoToolHud';
+import type { GeoSymbolCategory } from '@/lib/engines/world/pixi/symbolPalette';
 
 export function useGeoHudSettings() {
   // Land Sculpt Brush controls
@@ -21,6 +22,21 @@ export function useGeoHudSettings() {
   const [mountainElevation, setMountainElevation] = useState<number>(2750);
   const [hasSnowcaps, setHasSnowcaps] = useState<boolean>(true);
   const [riverWidth, setRiverWidth] = useState<number>(11);
+
+  // Ready-to-use Cartography Species Library state
+  const [equippedTreeFamily, setEquippedTreeFamily] = useState<string>('oak');
+  const [equippedMountainFamily, setEquippedMountainFamily] = useState<string>('alpine_massif');
+  const [isSpeciesPickerOpen, setIsSpeciesPickerOpen] = useState<boolean>(false);
+  const [speciesPickerCategory, setSpeciesPickerCategory] = useState<GeoSymbolCategory | 'all'>('all');
+
+  const openSpeciesPicker = useCallback((cat: GeoSymbolCategory | 'all' = 'all') => {
+    setSpeciesPickerCategory(cat);
+    setIsSpeciesPickerOpen(true);
+  }, []);
+
+  const closeSpeciesPicker = useCallback(() => {
+    setIsSpeciesPickerOpen(false);
+  }, []);
 
   const handleMountainScaleChange = useCallback(
     (val: number) => {
@@ -86,5 +102,13 @@ export function useGeoHudSettings() {
     handleMountainElevationChange,
     toggleElevationLink,
     toggleSnowcaps,
+    equippedTreeFamily,
+    setEquippedTreeFamily,
+    equippedMountainFamily,
+    setEquippedMountainFamily,
+    isSpeciesPickerOpen,
+    speciesPickerCategory,
+    openSpeciesPicker,
+    closeSpeciesPicker,
   };
 }

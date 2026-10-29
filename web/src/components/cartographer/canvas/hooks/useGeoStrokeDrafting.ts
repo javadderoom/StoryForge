@@ -6,6 +6,8 @@ import type { CartographerTool } from '../../CartographerHeader';
 import type { BiomeType, HighlandMode, BiomeDrawMode, BiomeDensity } from '../GeoToolHud';
 import { distToPolyline } from '@/lib/engines/world/pixi/hydrologyNetwork';
 import { simplifyPoints, simplifyPolygon } from '@/lib/engines/world/pixi/pathSimplification';
+import { generateScatterInstances } from '@/lib/engines/world/pixi/symbolScatterRenderer';
+import { resolveDefaultFamilyForTerrain } from '@/lib/engines/world/pixi/symbolPalette';
 
 export interface UseGeoStrokeDraftingOptions {
   activeTool: CartographerTool;
@@ -34,6 +36,10 @@ export interface UseGeoStrokeDraftingOptions {
   biomeDrawMode?: BiomeDrawMode;
   biomeCorridorWidth?: number;
   biomeDensity?: BiomeDensity;
+
+  // Ready-to-use Cartography Species Library
+  equippedTreeFamily?: string;
+  equippedMountainFamily?: string;
 }
 
 const GEO_STROKE_TOOLS: CartographerTool[] = [
@@ -70,6 +76,8 @@ export function useGeoStrokeDrafting({
   biomeDrawMode = 'area',
   biomeCorridorWidth = 30,
   biomeDensity = 'medium',
+  equippedTreeFamily,
+  equippedMountainFamily,
   mapData,
 }: UseGeoStrokeDraftingOptions) {
   const isDraggingGeoStrokeRef = useRef(false);
@@ -165,6 +173,7 @@ export function useGeoStrokeDrafting({
           plains: { en: 'Prairie Copse', fa: 'بیشه بوته‌زار' },
         };
         const selectedName = biomeNames[activeBiome];
+        const targetFamily = equippedTreeFamily || resolveDefaultFamilyForTerrain(activeBiome);
         const newFeature: MapTerrainFeature = {
           id: `terr_${Date.now().toString(36)}`,
           name: isPersian
@@ -173,10 +182,12 @@ export function useGeoStrokeDrafting({
           type: activeBiome,
           points: [strokePts[0]],
           width: biomeCorridorWidth,
+          symbolFamily: targetFamily,
           description: isPersian
             ? 'نماد تک‌افتاده اقلیمی'
             : 'Standalone flora symbol',
         };
+        newFeature.scatterInstances = generateScatterInstances(newFeature);
         onAddTerrain(newFeature);
         onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
         setDraftPoints([]);
@@ -194,6 +205,7 @@ export function useGeoStrokeDrafting({
           plains: { en: 'Grassland Fringe', fa: 'حاشیه دشت' },
         };
         const selectedName = biomeNames[activeBiome];
+        const targetFamily = equippedTreeFamily || resolveDefaultFamilyForTerrain(activeBiome);
         const newFeature: MapTerrainFeature = {
           id: `terr_${Date.now().toString(36)}`,
           name: isPersian
@@ -202,10 +214,12 @@ export function useGeoStrokeDrafting({
           type: activeBiome,
           points: simplifiedPoints,
           width: biomeCorridorWidth,
+          symbolFamily: targetFamily,
           description: isPersian
             ? 'بیشه و خط نمادهای اقلیمی'
             : 'Linear biome copse and flora ribbon',
         };
+        newFeature.scatterInstances = generateScatterInstances(newFeature);
         onAddTerrain(newFeature);
         onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
         setDraftPoints([]);
@@ -246,6 +260,7 @@ export function useGeoStrokeDrafting({
 
       const simplifiedPoints = simplifyPoints(strokePts, isRiver ? 5 : 7);
 
+      const mountainTargetFamily = equippedMountainFamily || (hasSnowcaps ? 'snow_massif' : 'alpine_massif');
       const newFeature: MapTerrainFeature = {
         id: `terr_${Date.now().toString(36)}`,
         name: isMountain
@@ -273,6 +288,7 @@ export function useGeoStrokeDrafting({
         syncElevationScale: isMountain ? isMountainElevationLinked : undefined,
         scale: isMountain ? mountainScale : undefined,
         hasSnowcaps: isMountain ? hasSnowcaps : undefined,
+        symbolFamily: isMountain ? mountainTargetFamily : undefined,
         width: isMountain
           ? Math.round(mountainScale * 0.58)
           : isRiver
@@ -282,6 +298,9 @@ export function useGeoStrokeDrafting({
           : cliffHeight,
         connectedRiverId,
       };
+      if (isMountain) {
+        newFeature.scatterInstances = generateScatterInstances(newFeature);
+      }
       onAddTerrain(newFeature);
       onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
       setDraftPoints([]);
@@ -323,6 +342,7 @@ export function useGeoStrokeDrafting({
         plains: { en: 'Golden Plains', fa: 'دشت بی‌کران' },
       };
       const selectedName = biomeNames[activeBiome];
+      const targetFamily = equippedTreeFamily || resolveDefaultFamilyForTerrain(activeBiome);
       const newFeature: MapTerrainFeature = {
         id: `terr_${Date.now().toString(36)}`,
         name: isPersian
@@ -330,10 +350,12 @@ export function useGeoStrokeDrafting({
           : selectedName?.en || 'Biome Region',
         type: activeBiome,
         polygon: simplifiedPolygon,
+        symbolFamily: targetFamily,
         description: isPersian
           ? 'عنصر جغرافیایی ترسیم‌شده'
           : 'User-created geographical feature',
       };
+      newFeature.scatterInstances = generateScatterInstances(newFeature);
       onAddTerrain(newFeature);
       onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
       setDraftPoints([]);

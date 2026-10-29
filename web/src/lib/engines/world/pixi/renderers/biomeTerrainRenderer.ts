@@ -41,6 +41,9 @@ export function drawBiome(
 ): void {
   // 1. Linear / Stroke or Single-Point Feature (e.g. tree belts, coastal palm lines, copses)
   if (feat.points && feat.points.length > 0) {
+    if (feat.symbolFamily || (feat.scatterInstances && feat.scatterInstances.length > 0)) {
+      return; // High-res flora sprites rendered via GPU symbolLayer
+    }
     const seed = hashStringToSeed(feat.id || `biome_stroke_${feat.points[0].x}_${feat.points[0].y}`);
     const symbols = generateBiomeStrokeSymbols(feat.points, feat.type, {
       seed,
@@ -147,6 +150,10 @@ export function drawBiome(
   }
 
   // 4. Procedural Hand-inked Symbols (Trees, Marsh Reeds)
+  if (feat.symbolFamily || (feat.scatterInstances && feat.scatterInstances.length > 0)) {
+    return; // High-res flora & relief symbols rendered via GPU symbolLayer
+  }
+
   const seed = hashStringToSeed(feat.id || `biome_${feat.polygon[0].x}_${feat.polygon[0].y}`);
   const symbols = generateBiomeSymbols(feat.polygon, feat.type, {
     seed,

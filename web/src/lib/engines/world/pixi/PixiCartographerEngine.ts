@@ -87,6 +87,8 @@ import {
   type MapMaterialKey,
 } from '../texturePalette';
 import { MapTextureLibrary } from './mapTextureLibrary';
+import { MapSymbolLibrary } from './MapSymbolLibrary';
+import { renderSymbolsToContainer } from './symbolScatterRenderer';
 import { renderTerrainCurvedLabels } from './splineTextRenderer';
 import { renderManuscriptFurniture } from './manuscriptFurnitureRenderer';
 import {
@@ -174,6 +176,8 @@ export class PixiCartographerEngine {
    * colours, which is exactly how it looked before textures existed.
    */
   private textureLibrary = new MapTextureLibrary();
+  private symbolLibrary = new MapSymbolLibrary();
+  private symbolLayer = new Container();
   private textureStrength = 0;
   private materialMatrices = new Map<MapMaterialKey, Matrix>();
   /** The options of the last render, so a late texture load can re-render. */
@@ -209,7 +213,8 @@ export class PixiCartographerEngine {
       this.terrainLabelsTier2,
       this.terrainLabelsTier3
     );
-    this.terrainLayer.addChild(this.terrainGraphics, this.terrainLabelsContainer);
+    this.symbolLayer.sortableChildren = true;
+    this.terrainLayer.addChild(this.terrainGraphics, this.symbolLayer, this.terrainLabelsContainer);
 
     this.routeLayer.addChild(
       this.bridgeGraphics,
@@ -274,6 +279,12 @@ export class PixiCartographerEngine {
     // Material tiles load in the background: the map is on screen immediately
     // with its flat colours and upgrades to the textured look a moment later.
     void this.textureLibrary.load().then(() => {
+      if (!this.lastRenderOptions) return;
+      this.renderAll(this.lastRenderOptions);
+    });
+
+    // Vector SVG and PNG symbols preload in the background for GPU instancing
+    void this.symbolLibrary.loadAll().then(() => {
       if (!this.lastRenderOptions) return;
       this.renderAll(this.lastRenderOptions);
     });
@@ -580,7 +591,19 @@ export class PixiCartographerEngine {
       placements: viewPlacements,
     });
 
-    // 4b. Render Curved & Spline-Aligned Geographic Titles (Plan 27 — Module 4)
+    // 4b. Render High-Performance GPU Map Symbols (Flora, Relief Massifs, Stones, Landmarks)
+    const canvasWidth = this.canvas?.clientWidth || 1920;
+    const canvasHeight = this.canvas?.clientHeight || 1080;
+    const zoom = Math.max(0.01, this.currentZoom);
+    const viewportBounds = {
+      minX: -this.currentPan.x / zoom,
+      minY: -this.currentPan.y / zoom,
+      maxX: (-this.currentPan.x + canvasWidth) / zoom,
+      maxY: (-this.currentPan.y + canvasHeight) / zoom,
+    };
+    renderSymbolsToContainer(this.symbolLayer, viewTerrain, this.symbolLibrary, viewportBounds);
+
+    // 4c. Render Curved & Spline-Aligned Geographic Titles (Plan 27 — Module 4)
     if (settings.visibleLayers.labels !== false) {
       renderTerrainCurvedLabels(this.terrainLabelsContainer, viewTerrain, viewLocations, {
         zoom: this.currentZoom,
@@ -979,6 +1002,7 @@ export class PixiCartographerEngine {
       this.resolutionRefreshTimer = null;
     }
     this.textureLibrary.destroy();
+    this.symbolLibrary.destroy();
     if (this.app) {
       this.app.destroy(true, { children: true });
       this.app = null;

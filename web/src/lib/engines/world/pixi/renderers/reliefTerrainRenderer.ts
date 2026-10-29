@@ -299,6 +299,9 @@ export function renderProceduralValleyToGraphics(g: Graphics, valley: Procedural
  */
 export function drawRange(g: Graphics, feat: MapTerrainFeature): void {
   if (!feat.points || feat.points.length === 0) return;
+  if (feat.symbolFamily || (feat.scatterInstances && feat.scatterInstances.length > 0)) {
+    return; // Mountain massifs rendered via GPU symbolLayer
+  }
 
   const seed = hashStringToSeed(feat.id || `mountain_${feat.points[0].x}_${feat.points[0].y}`);
   // If feat.scale is provided, respect it directly!
@@ -328,6 +331,9 @@ export function drawRange(g: Graphics, feat: MapTerrainFeature): void {
  */
 export function drawPeak(g: Graphics, feat: MapTerrainFeature): void {
   if (typeof feat.x !== 'number' || typeof feat.y !== 'number') return;
+  if (feat.symbolFamily || (feat.scatterInstances && feat.scatterInstances.length > 0)) {
+    return; // Standalone peak/volcano rendered via GPU symbolLayer
+  }
   const radius = feat.radius || 30;
   const seed = hashStringToSeed(feat.id || `peak_${feat.x}_${feat.y}`);
   const isVolcano = feat.type === 'volcano';
