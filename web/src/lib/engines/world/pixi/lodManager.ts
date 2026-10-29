@@ -168,14 +168,15 @@ export function isCandidateVisibleAtLOD(
 
 /**
  * Dynamic resolution allocator for PixiJS text glyphs.
- * Prevents bilinear texture blur when zooming in to 2x - 4x.
+ * Prevents bilinear texture blur when zooming in to 2x - 4x while capping
+ * texture size to prevent GPU memory bloat and garbage collection thrashing.
  *
  * @param zoom Camera zoom factor
- * @param maxRes Maximum resolution ceiling to prevent excessive GPU memory usage (default 3.5)
+ * @param maxRes Maximum resolution ceiling to prevent excessive GPU memory usage (default 2.2)
  */
-export function getDynamicTextResolution(zoom: number, maxRes = 3.5): number {
+export function getDynamicTextResolution(zoom: number, maxRes = 2.2): number {
   const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
-  const base = dpr * Math.max(1, zoom);
+  const base = dpr * Math.max(1, Math.min(2.0, zoom));
   return Math.min(maxRes, Math.max(1, Math.round(base * 10) / 10));
 }
 

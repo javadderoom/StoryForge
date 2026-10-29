@@ -24,6 +24,12 @@ import {
   isElementVisibleAtZoom,
 } from './lodManager';
 
+export interface RouteTierTargets {
+  tier1: Graphics;
+  tier2: Graphics;
+  tier3: Graphics;
+}
+
 export function renderRoutes(
   g: Graphics,
   options: {
@@ -34,87 +40,107 @@ export function renderRoutes(
     transientPos: MapPoint | null;
     settings: WorldMapSettings;
     zoom?: number;
-  }): void {
-    const {
-      tradeRoutes,
-      locations,
-      selectionKeys,
-      draggedNode,
-      transientPos,
-      settings,
-      zoom = 1.0,
-    } = options;
+    tierTargets?: RouteTierTargets;
+  }
+): void {
+  const {
+    tradeRoutes,
+    locations,
+    selectionKeys,
+    draggedNode,
+    transientPos,
+    settings,
+    zoom = 1.0,
+    tierTargets,
+  } = options;
   g.clear();
+  if (tierTargets) {
+    tierTargets.tier1.clear();
+    tierTargets.tier2.clear();
+    tierTargets.tier3.clear();
+  }
 
-    if (!settings.visibleLayers.caravanRoutes) return;
+  if (!settings.visibleLayers.caravanRoutes) return;
 
-    const isRegionalOrCloser = isElementVisibleAtZoom(2, zoom, false);
-    const counterScale = calculateCounterScale(zoom);
+  const isRegionalOrCloser = isElementVisibleAtZoom(2, zoom, false);
+  const counterScale = calculateCounterScale(zoom);
 
-    for (const route of tradeRoutes) {
-      if (!isObjectVisible(route)) continue;
-      const isSelected = selectionKeys.has(mapObjectKey('trade_route', route.id));
+  for (const route of tradeRoutes) {
+    if (!isObjectVisible(route)) continue;
+    const isSelected = selectionKeys.has(mapObjectKey('trade_route', route.id));
+
+    let targetG = g;
+    if (tierTargets) {
+      targetG = isSelected ? tierTargets.tier1 : tierTargets.tier2;
+    } else {
       if (!isRegionalOrCloser && !isSelected) continue;
+    }
 
-      const orig = locations.find((l) => l.id === route.originLocationId);
-      const dest = locations.find((l) => l.id === route.destinationLocationId);
-      if (!orig?.coordinates || !dest?.coordinates) continue;
+    const orig = locations.find((l) => l.id === route.originLocationId);
+    const dest = locations.find((l) => l.id === route.destinationLocationId);
+    if (!orig?.coordinates || !dest?.coordinates) continue;
 
-      const originCoords =
-        draggedNode?.type === 'location' && draggedNode.id === orig.id && transientPos
-          ? transientPos
-          : orig.coordinates;
+    const originCoords =
+      draggedNode?.type === 'location' && draggedNode.id === orig.id && transientPos
+        ? transientPos
+        : orig.coordinates;
 
-      const destCoords =
-        draggedNode?.type === 'location' && draggedNode.id === dest.id && transientPos
-          ? transientPos
-          : dest.coordinates;
+    const destCoords =
+      draggedNode?.type === 'location' && draggedNode.id === dest.id && transientPos
+        ? transientPos
+        : dest.coordinates;
 
-      const waypoints = (route.waypoints || []).map((wp, idx) => {
-        if (
-          draggedNode?.type === 'waypoint' &&
-          draggedNode.routeId === route.id &&
-          draggedNode.index === idx &&
-          transientPos
-        ) {
-          return transientPos;
-        }
-        return wp;
-      });
-
-      const fullPoints: MapPoint[] = [originCoords, ...waypoints, destCoords];
-
-      let strokeColor: number = VINTAGE_PARCHMENT.caravanActive;
-      if (route.status === 'raided') strokeColor = VINTAGE_PARCHMENT.caravanRaided;
-      else if (route.status === 'blockaded') strokeColor = VINTAGE_PARCHMENT.caravanBlockaded;
-      else if (route.status === 'secret') strokeColor = VINTAGE_PARCHMENT.caravanSecret;
-      else if (route.status === 'seasonal') strokeColor = VINTAGE_PARCHMENT.caravanSeasonal;
-
-      // Draw Main Route Line
-      g.moveTo(fullPoints[0].x, fullPoints[0].y);
-      for (let i = 1; i < fullPoints.length; i++) {
-        g.lineTo(fullPoints[i].x, fullPoints[i].y);
+    const waypoints = (route.waypoints || []).map((wp, idx) => {
+      if (
+        draggedNode?.type === 'waypoint' &&
+        draggedNode.routeId === route.id &&
+        draggedNode.index === idx &&
+        transientPos
+      ) {
+        return transientPos;
       }
-      g.stroke({
-        width: isSelected ? Math.max(2, 4 * counterScale) : Math.max(1.5, 2.5 * counterScale),
-        color: strokeColor,
-        cap: 'round',
-        join: 'round',
-      });
+      return wp;
+    });
 
-      // Draggable Intermediate Waypoints
-      // Shown when route is selected OR at Tactical zoom (zoom >= 1.75)
-      const showWaypoints = isSelected || isElementVisibleAtZoom(4, zoom, false);
-      if (showWaypoints) {
-        const wpRadius = Math.max(3.5, 7 * counterScale);
-        for (const wp of waypoints) {
-          g.circle(wp.x, wp.y, wpRadius)
-            .fill({ color: VINTAGE_PARCHMENT.caravanWaypoint })
-            .stroke({ width: Math.max(1, 2 * counterScale), color: 0xffffff });
-        }
+    const fullPoints: MapPoint[] = [originCoords, ...waypoints, destCoords];
+
+    let strokeColor: number = VINTAGE_PARCHMENT.caravanActive;
+    if (route.status === 'raided') strokeColor = VINTAGE_PARCHMENT.caravanRaided;
+    else if (route.status === 'blockaded') strokeColor = VINTAGE_PARCHMENT.caravanBlockaded;
+    else if (route.status === 'secret') strokeColor = VINTAGE_PARCHMENT.caravanSecret;
+    else if (route.status === 'seasonal') strokeColor = VINTAGE_PARCHMENT.caravanSeasonal;
+
+    // Draw Main Route Line
+    targetG.moveTo(fullPoints[0].x, fullPoints[0].y);
+    for (let i = 1; i < fullPoints.length; i++) {
+      targetG.lineTo(fullPoints[i].x, fullPoints[i].y);
+    }
+    targetG.stroke({
+      width: isSelected ? Math.max(2, 4 * counterScale) : Math.max(1.5, 2.5 * counterScale),
+      color: strokeColor,
+      cap: 'round',
+      join: 'round',
+    });
+
+    // Draggable Intermediate Waypoints
+    // Shown when route is selected OR at Tactical zoom (zoom >= 1.75)
+    const showWaypoints = isSelected || isElementVisibleAtZoom(4, zoom, false);
+    if (showWaypoints) {
+      const wpRadius = Math.max(3.5, 7 * counterScale);
+      for (const wp of waypoints) {
+        targetG.circle(wp.x, wp.y, wpRadius)
+          .fill({ color: VINTAGE_PARCHMENT.caravanWaypoint })
+          .stroke({ width: Math.max(1, 2 * counterScale), color: 0xffffff });
       }
     }
   }
+}
+
+export interface SettlementTierTargets {
+  tier1: { g: Graphics; labels: Container };
+  tier2: { g: Graphics; labels: Container };
+  tier3: { g: Graphics; labels: Container };
+}
 
 export function renderSettlements(
   g: Graphics,
@@ -129,6 +155,7 @@ export function renderSettlements(
     terrainFeatures?: MapTerrainFeature[];
     zoom?: number;
     selectionKeys?: Set<string>;
+    tierTargets?: SettlementTierTargets;
   }
 ): void {
   const {
@@ -140,9 +167,19 @@ export function renderSettlements(
     terrainFeatures,
     zoom = 1.0,
     selectionKeys,
+    tierTargets,
   } = options;
   g.clear();
   labelsContainer.removeChildren();
+
+  if (tierTargets) {
+    tierTargets.tier1.g.clear();
+    tierTargets.tier1.labels.removeChildren();
+    tierTargets.tier2.g.clear();
+    tierTargets.tier2.labels.removeChildren();
+    tierTargets.tier3.g.clear();
+    tierTargets.tier3.labels.removeChildren();
+  }
 
   if (!settings.visibleLayers.settlements && !settings.visibleLayers.labels) return;
 
@@ -158,8 +195,24 @@ export function renderSettlements(
 
     // Semantic LOD filter: only show if current zoom matches settlement tier OR if selected
     const tier = getSettlementLODTier(loc.category);
-    if (!isElementVisibleAtZoom(tier, zoom, isSelected)) {
-      continue;
+    let targetG = g;
+    let targetLabels = labelsContainer;
+
+    if (tierTargets) {
+      if (isSelected || tier === 1) {
+        targetG = tierTargets.tier1.g;
+        targetLabels = tierTargets.tier1.labels;
+      } else if (tier === 2) {
+        targetG = tierTargets.tier2.g;
+        targetLabels = tierTargets.tier2.labels;
+      } else {
+        targetG = tierTargets.tier3.g;
+        targetLabels = tierTargets.tier3.labels;
+      }
+    } else {
+      if (!isElementVisibleAtZoom(tier, zoom, isSelected)) {
+        continue;
+      }
     }
 
     // Plan 24: a river/steppe/sea is a semantic place, not a settlement. Its
@@ -171,8 +224,8 @@ export function renderSettlements(
       const anchor = resolvePlaceMapAnchor(loc, terrainFeatures);
       if (!anchor) continue;
       drawPlaceLabel(
-        g,
-        labelsContainer,
+        targetG,
+        targetLabels,
         loc.name,
         anchor,
         meta.renderAs === 'settlement' ? 'label' : meta.renderAs,
@@ -199,14 +252,14 @@ export function renderSettlements(
     else if (isDungeon) fillColor = VINTAGE_PARCHMENT.dungeonCrimson;
 
     // Soft parchment under-halo to guarantee sharp contrast over textured terrain
-    g.circle(x, y, radius + 3 * counterScale).fill({
+    targetG.circle(x, y, radius + 3 * counterScale).fill({
       color: VINTAGE_PARCHMENT.bgParchment,
       alpha: 0.88,
     });
 
     // Outer Shield / Roundel (the selection ring is drawn by the shared
     // overlay, so every kind of map object is highlighted the same way)
-    g.circle(x, y, radius)
+    targetG.circle(x, y, radius)
       .fill({ color: fillColor })
       .stroke({
         width: Math.max(1, 2 * counterScale),
@@ -214,7 +267,7 @@ export function renderSettlements(
       });
 
     // Inner heraldic core
-    g.circle(x, y, radius * 0.45).fill({
+    targetG.circle(x, y, radius * 0.45).fill({
       color: 0xffffff,
     });
 
@@ -240,7 +293,7 @@ export function renderSettlements(
       // Background banner rect
       const textW = labelText.width + 12 * counterScale;
       const textH = labelText.height + 4 * counterScale;
-      g.roundRect(
+      targetG.roundRect(
         x - textW / 2,
         y + radius + 2.5 * counterScale,
         textW,
@@ -253,7 +306,7 @@ export function renderSettlements(
           color: VINTAGE_PARCHMENT.labelBannerBorder,
         });
 
-      labelsContainer.addChild(labelText);
+      targetLabels.addChild(labelText);
     }
   }
 }
@@ -297,6 +350,11 @@ function drawPlaceLabel(
     .stroke({ width: Math.max(0.6, 0.8 * counterScale), color, alpha: 0.45 });
 }
 
+export interface PlacementTierTargets {
+  tier3: { g: Graphics; labels?: Container };
+  selected: { g: Graphics; labels?: Container };
+}
+
 export function renderPlacements(
   g: Graphics,
   placements: MapEntityPlacement[],
@@ -305,10 +363,19 @@ export function renderPlacements(
   options?: {
     zoom?: number;
     selectionKeys?: Set<string>;
+    tierTargets?: PlacementTierTargets;
   }
 ): void {
+  const tierTargets = options?.tierTargets;
   g.clear();
   if (labelsContainer) labelsContainer.removeChildren();
+
+  if (tierTargets) {
+    tierTargets.tier3.g.clear();
+    tierTargets.tier3.labels?.removeChildren();
+    tierTargets.selected.g.clear();
+    tierTargets.selected.labels?.removeChildren();
+  }
 
   const zoom = options?.zoom ?? 1.0;
   const selectionKeys = options?.selectionKeys;
@@ -327,15 +394,28 @@ export function renderPlacements(
     if (!isPlacementVisibleInLayers(p.entityType, settings.visibleLayers)) continue;
 
     const isSelected = selectionKeys?.has(mapObjectKey('placement', p.id)) ?? false;
-    // Declutter when zooming out: hide lore pins unless selected or in Provincial/Tactical view
-    if (!isProvincialOrCloser && !isSelected) continue;
+    let targetG = g;
+    let targetLabels = labelsContainer;
+
+    if (tierTargets) {
+      if (isSelected) {
+        targetG = tierTargets.selected.g;
+        targetLabels = tierTargets.selected.labels;
+      } else {
+        targetG = tierTargets.tier3.g;
+        targetLabels = tierTargets.tier3.labels;
+      }
+    } else {
+      // Declutter when zooming out: hide lore pins unless selected or in Provincial/Tactical view
+      if (!isProvincialOrCloser && !isSelected) continue;
+    }
 
     const { x, y } = p;
 
     // Soft parchment under-halo to guarantee sharp contrast over textured terrain
     const haloBase = p.entityType === 'bestiary' ? 16 : 14;
     const haloRadius = Math.max(5, haloBase * counterScale);
-    g.circle(x, y, haloRadius).fill({
+    targetG.circle(x, y, haloRadius).fill({
       color: VINTAGE_PARCHMENT.bgParchment,
       alpha: 0.88,
     });
@@ -346,31 +426,31 @@ export function renderPlacements(
     if (p.entityType === 'bestiary') {
       // Beast Token: Spiked dark crimson roundel with amber/gold beast core
       const bestiaryRadius = Math.max(4.5, 12 * counterScale);
-      g.circle(x, y, bestiaryRadius)
+      targetG.circle(x, y, bestiaryRadius)
         .fill({ color: 0x4c0519 })
         .stroke({ width: strokeW, color: 0xe11d48 });
-      g.circle(x, y, Math.max(2.5, 6.5 * counterScale)).fill({ color: 0xbe123c });
-      g.circle(x, y, Math.max(1, 2.5 * counterScale)).fill({ color: 0xfef08a });
+      targetG.circle(x, y, Math.max(2.5, 6.5 * counterScale)).fill({ color: 0xbe123c });
+      targetG.circle(x, y, Math.max(1, 2.5 * counterScale)).fill({ color: 0xfef08a });
 
       // If Danger Level is high, draw warning fang pips in Tactical view (zoom >= 1.75) or when selected
       if ((isTactical || isSelected) && p.notes && /danger [45]|dc 2[0-9]|calamity/i.test(p.notes)) {
         for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 2) {
           const px = x + Math.cos(angle) * (bestiaryRadius + 2 * counterScale);
           const py = y + Math.sin(angle) * (bestiaryRadius + 2 * counterScale);
-          g.circle(px, py, Math.max(0.8, 1.8 * counterScale)).fill({ color: 0xf59e0b });
+          targetG.circle(px, py, Math.max(0.8, 1.8 * counterScale)).fill({ color: 0xf59e0b });
         }
       }
     } else if (p.entityType === 'npc') {
       // Stationed NPC: Sapphire shield token
-      g.circle(x, y, tokenRadius)
+      targetG.circle(x, y, tokenRadius)
         .fill({ color: 0x1e3a8a })
         .stroke({ width: strokeW, color: 0x3b82f6 });
-      g.circle(x, y, Math.max(1.8, 4.5 * counterScale)).fill({ color: 0x93c5fd });
+      targetG.circle(x, y, Math.max(1.8, 4.5 * counterScale)).fill({ color: 0x93c5fd });
     } else if (p.entityType === 'timeline') {
       // Story Encounter: Amber diamond
       const dy = 11 * counterScale;
       const dx = 9 * counterScale;
-      g.poly([
+      targetG.poly([
         { x, y: y - dy },
         { x: x + dx, y },
         { x, y: y + dy },
@@ -378,12 +458,12 @@ export function renderPlacements(
       ])
         .fill({ color: 0x78350f })
         .stroke({ width: strokeW, color: 0xf59e0b });
-      g.circle(x, y, Math.max(1.5, 3.5 * counterScale)).fill({ color: 0xfef3c7 });
+      targetG.circle(x, y, Math.max(1.5, 3.5 * counterScale)).fill({ color: 0xfef3c7 });
     } else if (p.entityType === 'artifact') {
       // Artifact: Amethyst mystic diamond
       const dy = 11 * counterScale;
       const dx = 9 * counterScale;
-      g.poly([
+      targetG.poly([
         { x, y: y - dy },
         { x: x + dx, y },
         { x, y: y + dy },
@@ -391,18 +471,18 @@ export function renderPlacements(
       ])
         .fill({ color: 0x581c87 })
         .stroke({ width: strokeW, color: 0xa855f7 });
-      g.circle(x, y, Math.max(1.5, 3.5 * counterScale)).fill({ color: 0xf5d0fe });
+      targetG.circle(x, y, Math.max(1.5, 3.5 * counterScale)).fill({ color: 0xf5d0fe });
     } else {
       let pinColor = 0x4f46e5;
       if (p.entityType === 'deity') pinColor = 0xeab308;
 
-      g.circle(x, y, Math.max(3.5, 9 * counterScale))
+      targetG.circle(x, y, Math.max(3.5, 9 * counterScale))
         .fill({ color: pinColor })
         .stroke({ width: Math.max(0.8, 1.5 * counterScale), color: 0xffffff });
     }
 
     // Name label banner beneath the pin
-    if (labelsContainer && settings.visibleLayers.labels !== false && p.customLabel) {
+    if (targetLabels && settings.visibleLayers.labels !== false && p.customLabel) {
       const textStyle = new TextStyle({
         fontSize: 10,
         fontWeight: p.entityType === 'bestiary' ? 'bold' : 'normal',
@@ -433,7 +513,7 @@ export function renderPlacements(
 
       const textW = labelText.width + 10 * counterScale;
       const textH = labelText.height + 3 * counterScale;
-      g.roundRect(
+      targetG.roundRect(
         x - textW / 2,
         y + 14 * counterScale,
         textW,
@@ -449,7 +529,7 @@ export function renderPlacements(
           color: p.entityType === 'bestiary' ? 0xfecdd3 : VINTAGE_PARCHMENT.labelBannerBorder,
         });
 
-      labelsContainer.addChild(labelText);
+      targetLabels.addChild(labelText);
     }
   }
 }

@@ -339,6 +339,12 @@ export function deriveFeatureGuideSpline(
   return null;
 }
 
+export interface TerrainLabelTierContainers {
+  tier1: Container;
+  tier2: Container;
+  tier3: Container;
+}
+
 /**
  * Renders curved, tracked geographic titles for all prominent and configured terrain features.
  * When a feature is linked to a WorldLocation (via locationId), prioritizes the canonical location's name.
@@ -350,17 +356,33 @@ export function renderTerrainCurvedLabels(
   options?: {
     zoom?: number;
     selectionKeys?: Set<string>;
+    tierContainers?: TerrainLabelTierContainers;
   }
 ): void {
   const zoom = options?.zoom ?? 1.0;
   const selectionKeys = options?.selectionKeys;
+  const tierContainers = options?.tierContainers;
+
+  if (tierContainers) {
+    tierContainers.tier1.removeChildren();
+    tierContainers.tier2.removeChildren();
+    tierContainers.tier3.removeChildren();
+  }
 
   for (const feat of terrainFeatures) {
     if (!isObjectVisible(feat)) continue;
 
     const isSelected = feat.id && selectionKeys ? selectionKeys.has(mapObjectKey('terrain', feat.id)) : false;
     const tier = getTerrainLabelLODTier(feat.type);
-    if (!isElementVisibleAtZoom(tier, zoom, isSelected)) continue;
+
+    let destContainer = targetContainer;
+    if (tierContainers) {
+      if (isSelected || tier === 1) destContainer = tierContainers.tier1;
+      else if (tier === 2) destContainer = tierContainers.tier2;
+      else destContainer = tierContainers.tier3;
+    } else {
+      if (!isElementVisibleAtZoom(tier, zoom, isSelected)) continue;
+    }
 
     // Canonical location name: if linked to a WorldLocation, prioritize the canonical location's name!
     const linkedLoc =
@@ -429,7 +451,7 @@ export function renderTerrainCurvedLabels(
           ? parseInt(config.color.slice(1), 16)
           : color;
 
-      renderCurvedTextToContainer(targetContainer, layout, {
+      renderCurvedTextToContainer(destContainer, layout, {
         ...config,
         color: customColor,
         zoom,

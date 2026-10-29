@@ -118,6 +118,15 @@ function drawEndpointCap(
   g.stroke({ width: 1.2, color: dangling ? 0xb91c1c : 0x2b1e16 });
 }
 
+export interface MapRouteTierTargets {
+  tier1: Graphics;
+  tier2: Graphics;
+  tier3: Graphics;
+  labelsTier1: Container;
+  labelsTier2: Container;
+  labelsTier3: Container;
+}
+
 export interface MapRouteRenderOptions {
   routes: MapRoute[];
   source: MapRouteSource;
@@ -128,6 +137,7 @@ export interface MapRouteRenderOptions {
   isPersian: boolean;
   labelsContainer: Container;
   zoom?: number;
+  tierTargets?: MapRouteTierTargets;
 }
 
 /**
@@ -146,10 +156,20 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
     isPersian,
     labelsContainer,
     zoom = 1.0,
+    tierTargets,
   } = options;
 
   g.clear();
   labelsContainer.removeChildren();
+
+  if (tierTargets) {
+    tierTargets.tier1.clear();
+    tierTargets.tier2.clear();
+    tierTargets.tier3.clear();
+    tierTargets.labelsTier1.removeChildren();
+    tierTargets.labelsTier2.removeChildren();
+    tierTargets.labelsTier3.removeChildren();
+  }
 
   if (settings.visibleLayers.routes === false) return;
 
@@ -166,8 +186,25 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
 
     const selected = selectionKeys.has(mapObjectKey('route', route.id));
     const routeTier = getRouteLODTier(route.kind);
-    // At Continental zoom (< 0.55), only highways/caravans or selected routes appear
-    if (!isElementVisibleAtZoom(routeTier, zoom, selected)) continue;
+
+    let targetG = g;
+    let targetLabels = labelsContainer;
+
+    if (tierTargets) {
+      if (selected || routeTier === 1) {
+        targetG = tierTargets.tier1;
+        targetLabels = tierTargets.labelsTier1;
+      } else if (routeTier === 2) {
+        targetG = tierTargets.tier2;
+        targetLabels = tierTargets.labelsTier2;
+      } else {
+        targetG = tierTargets.tier3;
+        targetLabels = tierTargets.labelsTier3;
+      }
+    } else {
+      // At Continental zoom (< 0.55), only highways/caravans or selected routes appear
+      if (!isElementVisibleAtZoom(routeTier, zoom, selected)) continue;
+    }
 
     const transient =
       draggedNode?.type === 'route_vertex' &&
@@ -188,9 +225,9 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
     // Selection halo sits under the ink, the same language as every other
     // selected object.
     if (selected) {
-      g.moveTo(points[0].x, points[0].y);
-      for (let i = 1; i < points.length; i++) g.lineTo(points[i].x, points[i].y);
-      g.stroke({
+      targetG.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) targetG.lineTo(points[i].x, points[i].y);
+      targetG.stroke({
         width: width + 7 * counterScale,
         color: 0xfbbf24,
         alpha: 0.45,
@@ -200,9 +237,9 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
     }
 
     // Casing: a dark under-stroke keeps the road readable on textured paper.
-    g.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) g.lineTo(points[i].x, points[i].y);
-    g.stroke({
+    targetG.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) targetG.lineTo(points[i].x, points[i].y);
+    targetG.stroke({
       width: width + 2.4 * counterScale,
       color: meta.casing,
       alpha: 0.32,
@@ -219,31 +256,31 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
       const half = width * 0.32;
       for (const side of [-half, half]) {
         const shifted = offsetPolyline(points, side);
-        g.moveTo(shifted[0].x, shifted[0].y);
-        for (let i = 1; i < shifted.length; i++) g.lineTo(shifted[i].x, shifted[i].y);
-        g.stroke({ width: 1.35, color: difficultyColor, cap: 'round', join: 'round' });
+        targetG.moveTo(shifted[0].x, shifted[0].y);
+        for (let i = 1; i < shifted.length; i++) targetG.lineTo(shifted[i].x, shifted[i].y);
+        targetG.stroke({ width: 1.35, color: difficultyColor, cap: 'round', join: 'round' });
       }
     } else if (lineStyle === 'dashed') {
-      drawDashedPolyline(g, points, Math.max(6, width * 2.4), Math.max(4, width * 1.4));
-      g.stroke({ width, color: difficultyColor, cap: 'round', join: 'round' });
+      drawDashedPolyline(targetG, points, Math.max(6, width * 2.4), Math.max(4, width * 1.4));
+      targetG.stroke({ width, color: difficultyColor, cap: 'round', join: 'round' });
     } else if (lineStyle === 'dotted') {
-      drawDottedPolyline(g, points, Math.max(6, width * 3), Math.max(1, width * 0.32));
-      g.fill({ color: difficultyColor, alpha: 0.92 });
+      drawDottedPolyline(targetG, points, Math.max(6, width * 3), Math.max(1, width * 0.32));
+      targetG.fill({ color: difficultyColor, alpha: 0.92 });
     } else {
-      g.moveTo(points[0].x, points[0].y);
-      for (let i = 1; i < points.length; i++) g.lineTo(points[i].x, points[i].y);
-      g.stroke({ width, color: difficultyColor, cap: 'round', join: 'round' });
+      targetG.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) targetG.lineTo(points[i].x, points[i].y);
+      targetG.stroke({ width, color: difficultyColor, cap: 'round', join: 'round' });
     }
 
     drawEndpointCap(
-      g,
+      targetG,
       resolved.origin,
       difficultyColor,
       resolved.danglingOrigin,
       Boolean(route.origin.ref)
     );
     drawEndpointCap(
-      g,
+      targetG,
       resolved.destination,
       difficultyColor,
       resolved.danglingDestination,
@@ -254,7 +291,7 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
     if (selected && (isTactical || draggedNode?.type === 'route_vertex')) {
       (route.path ?? []).forEach((point, index) => {
         const shown = transient && transient.index === index ? transient.point : point;
-        g.circle(shown.x, shown.y, Math.max(3, 4.5 * counterScale))
+        targetG.circle(shown.x, shown.y, Math.max(3, 4.5 * counterScale))
           .fill({ color: 0xfffbeb })
           .stroke({ width: Math.max(1, 1.5 * counterScale), color: 0xb45309 });
       });
@@ -285,7 +322,7 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
       label.scale.set(counterScale);
       label.x = anchor.x;
       label.y = anchor.y - 5 * counterScale;
-      labelsContainer.addChild(label);
+      targetLabels.addChild(label);
     }
   }
 }
