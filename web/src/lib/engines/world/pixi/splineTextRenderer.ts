@@ -19,7 +19,13 @@ import type { MapPoint, CurvedLabelConfig, MapTerrainFeature, WorldLocation } fr
 import { VINTAGE_PARCHMENT } from './vintageTheme';
 import { getBoundingBox, getPolygonCentroid } from '../landSculpt/geometry';
 import { isObjectVisible } from '../mapObjectOrder';
+import { mapObjectKey } from '../mapSelection';
 import { prepareSplineGlyphs, isRtlText } from './persianReshaper';
+import {
+  getDynamicTextResolution,
+  getTerrainLabelLODTier,
+  isElementVisibleAtZoom,
+} from './lodManager';
 
 export interface GlyphPlacement {
   char: string;
@@ -45,6 +51,7 @@ export interface CurvedTextOptions extends Omit<CurvedLabelConfig, 'color'> {
   fontStyle?: 'normal' | 'italic';
   fontWeight?: 'normal' | 'bold';
   maxCurvatureDegPerChar?: number;
+  zoom?: number;
 }
 
 /**
@@ -250,6 +257,7 @@ export function renderCurvedTextToContainer(
   const fontFamily = options.fontFamily ?? 'Cinzel, "Times New Roman", Georgia, serif';
   const fontStyle = options.fontStyle ?? 'normal';
   const fontWeight = options.fontWeight ?? 'bold';
+  const resolution = getDynamicTextResolution(options.zoom ?? 1.0);
 
   const baseStyle = new TextStyle({
     fontFamily,
@@ -272,6 +280,7 @@ export function renderCurvedTextToContainer(
     const t = new Text({
       text: glyph.char,
       style: baseStyle,
+      resolution,
     });
     t.anchor.set(0.5, 0.5);
     t.x = glyph.x;
@@ -337,10 +346,21 @@ export function deriveFeatureGuideSpline(
 export function renderTerrainCurvedLabels(
   targetContainer: Container,
   terrainFeatures: MapTerrainFeature[],
-  locations?: WorldLocation[]
+  locations?: WorldLocation[],
+  options?: {
+    zoom?: number;
+    selectionKeys?: Set<string>;
+  }
 ): void {
+  const zoom = options?.zoom ?? 1.0;
+  const selectionKeys = options?.selectionKeys;
+
   for (const feat of terrainFeatures) {
     if (!isObjectVisible(feat)) continue;
+
+    const isSelected = feat.id && selectionKeys ? selectionKeys.has(mapObjectKey('terrain', feat.id)) : false;
+    const tier = getTerrainLabelLODTier(feat.type);
+    if (!isElementVisibleAtZoom(tier, zoom, isSelected)) continue;
 
     // Canonical location name: if linked to a WorldLocation, prioritize the canonical location's name!
     const linkedLoc =
@@ -412,6 +432,7 @@ export function renderTerrainCurvedLabels(
       renderCurvedTextToContainer(targetContainer, layout, {
         ...config,
         color: customColor,
+        zoom,
       });
     }
   }

@@ -13,6 +13,12 @@ import {
   type MapRouteSource,
 } from '../mapRoutes';
 import type { DraggedNodeData } from './renderTypes';
+import {
+  calculateCounterScale,
+  getDynamicTextResolution,
+  getRouteLODTier,
+  isElementVisibleAtZoom,
+} from './lodManager';
 
 function parseColor(value: string | undefined): number | null {
   if (!value) return null;
@@ -121,6 +127,7 @@ export interface MapRouteRenderOptions {
   settings: WorldMapSettings;
   isPersian: boolean;
   labelsContainer: Container;
+  zoom?: number;
 }
 
 /**
@@ -138,6 +145,7 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
     settings,
     isPersian,
     labelsContainer,
+    zoom = 1.0,
   } = options;
 
   g.clear();
@@ -145,12 +153,21 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
 
   if (settings.visibleLayers.routes === false) return;
 
+  const counterScale = calculateCounterScale(zoom);
+  const textResolution = getDynamicTextResolution(zoom);
+  const isTactical = isElementVisibleAtZoom(4, zoom, false);
+
   const ordered = [...routes].sort(
     (a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0)
   );
 
   for (const route of ordered) {
     if (!isObjectVisible(route)) continue;
+
+    const selected = selectionKeys.has(mapObjectKey('route', route.id));
+    const routeTier = getRouteLODTier(route.kind);
+    // At Continental zoom (< 0.55), only highways/caravans or selected routes appear
+    if (!isElementVisibleAtZoom(routeTier, zoom, selected)) continue;
 
     const transient =
       draggedNode?.type === 'route_vertex' &&
@@ -167,7 +184,6 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
     const color = parseColor(route.color) ?? meta.color;
     const width = route.width ?? meta.width;
     const lineStyle = route.lineStyle ?? meta.lineStyle;
-    const selected = selectionKeys.has(mapObjectKey('route', route.id));
 
     // Selection halo sits under the ink, the same language as every other
     // selected object.
@@ -175,7 +191,7 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
       g.moveTo(points[0].x, points[0].y);
       for (let i = 1; i < points.length; i++) g.lineTo(points[i].x, points[i].y);
       g.stroke({
-        width: width + 7,
+        width: width + 7 * counterScale,
         color: 0xfbbf24,
         alpha: 0.45,
         cap: 'round',
@@ -187,7 +203,7 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
     g.moveTo(points[0].x, points[0].y);
     for (let i = 1; i < points.length; i++) g.lineTo(points[i].x, points[i].y);
     g.stroke({
-      width: width + 2.4,
+      width: width + 2.4 * counterScale,
       color: meta.casing,
       alpha: 0.32,
       cap: 'round',
@@ -234,23 +250,23 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
       Boolean(route.destination.ref)
     );
 
-    // Free vertices are editable handles, only shown while selected so the
-    // parchment stays clean. The dragged handle follows the pointer.
-    if (selected) {
+    // Free vertices are editable handles, only shown while selected AND in tactical view
+    if (selected && (isTactical || draggedNode?.type === 'route_vertex')) {
       (route.path ?? []).forEach((point, index) => {
         const shown = transient && transient.index === index ? transient.point : point;
-        g.circle(shown.x, shown.y, 4.5)
+        g.circle(shown.x, shown.y, Math.max(3, 4.5 * counterScale))
           .fill({ color: 0xfffbeb })
-          .stroke({ width: 1.5, color: 0xb45309 });
+          .stroke({ width: Math.max(1, 1.5 * counterScale), color: 0xb45309 });
       });
     }
 
     // A small label keeps the road readable without turning the map into a
-    // list. Only selected routes and named long-distance kinds get one.
+    // list. Road labels are hidden at Continental zoom (< 0.55) unless selected
     const showLabel =
       settings.visibleLayers.labels &&
       Boolean(route.name) &&
-      (selected || route.kind === 'highway' || route.kind === 'caravan' || route.kind === 'sea_lane');
+      (selected || route.kind === 'highway' || route.kind === 'caravan' || route.kind === 'sea_lane') &&
+      isElementVisibleAtZoom(3, zoom, selected);
     if (showLabel) {
       const middle = Math.floor(points.length / 2);
       const anchor = points[middle];
@@ -263,10 +279,12 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
           fontFamily: 'serif',
           stroke: { color: 0xf5ecd5, width: 3 },
         }),
+        resolution: textResolution,
       });
       label.anchor.set(0.5, 1);
+      label.scale.set(counterScale);
       label.x = anchor.x;
-      label.y = anchor.y - 5;
+      label.y = anchor.y - 5 * counterScale;
       labelsContainer.addChild(label);
     }
   }

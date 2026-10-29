@@ -89,6 +89,11 @@ import {
 import { MapTextureLibrary } from './mapTextureLibrary';
 import { renderTerrainCurvedLabels } from './splineTextRenderer';
 import { renderManuscriptFurniture } from './manuscriptFurnitureRenderer';
+import {
+  getLODTier,
+  isCandidateVisibleAtLOD,
+  type LODTier,
+} from './lodManager';
 
 
 export class PixiCartographerEngine {
@@ -143,6 +148,13 @@ export class PixiCartographerEngine {
   private materialMatrices = new Map<MapMaterialKey, Matrix>();
   /** The options of the last render, so a late texture load can re-render. */
   private lastRenderOptions: RenderAllOptions | null = null;
+
+  // Google Maps-style Semantic LOD & Vector Typography
+  private currentZoom = 1.0;
+  private currentPan: MapPoint = { x: 0, y: 0 };
+  private currentSelectionKeys = new Set<string>();
+  private lastRenderedResolutionZoom = 1.0;
+  private resolutionRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
   private isInitialized = false;
 
@@ -262,12 +274,42 @@ export class PixiCartographerEngine {
   }
 
   /**
-   * Updates camera pan and zoom transform
+   * Updates camera pan and zoom transform with Google Maps-style Semantic LOD switching
    */
   public setTransform(pan: { x: number; y: number }, zoom: number): void {
+    const previousTier = getLODTier(this.currentZoom);
+    this.currentPan = pan;
+    this.currentZoom = zoom;
     this.worldContainer.x = pan.x;
     this.worldContainer.y = pan.y;
     this.worldContainer.scale.set(zoom);
+
+    const newTier = getLODTier(zoom);
+
+    // If camera altitude crosses an LOD threshold, immediately re-render at the new tier
+    if (newTier !== previousTier && this.lastRenderOptions) {
+      this.lastRenderedResolutionZoom = zoom;
+      this.renderAll(this.lastRenderOptions);
+    } else if (
+      this.lastRenderOptions &&
+      Math.abs(zoom - this.lastRenderedResolutionZoom) / Math.max(0.1, this.lastRenderedResolutionZoom) > 0.25
+    ) {
+      // Inside tier, but zoom changed significantly (> 25%): debounce text resolution refresh
+      if (this.resolutionRefreshTimer) {
+        clearTimeout(this.resolutionRefreshTimer);
+      }
+      this.resolutionRefreshTimer = setTimeout(() => {
+        if (
+          this.lastRenderOptions &&
+          Math.abs(this.currentZoom - this.lastRenderedResolutionZoom) /
+            Math.max(0.1, this.lastRenderedResolutionZoom) >
+            0.2
+        ) {
+          this.lastRenderedResolutionZoom = this.currentZoom;
+          this.renderAll(this.lastRenderOptions);
+        }
+      }, 150);
+    }
   }
 
   /**
@@ -315,6 +357,7 @@ export class PixiCartographerEngine {
     // endpoint settlement is selected follows automatically because the route
     // renderer resolves endpoints from the view's location list.
     const selectionKeys = new Set(selection.map((ref) => mapObjectKey(ref.kind, ref.id)));
+    this.currentSelectionKeys = selectionKeys;
     const dx = selectionDelta?.x ?? 0;
     const dy = selectionDelta?.y ?? 0;
     const hasDelta = dx !== 0 || dy !== 0;
@@ -446,7 +489,10 @@ export class PixiCartographerEngine {
     // 4b. Render Curved & Spline-Aligned Geographic Titles (Plan 27 — Module 4)
     this.terrainLabelsContainer.removeChildren();
     if (settings.visibleLayers.labels !== false) {
-      renderTerrainCurvedLabels(this.terrainLabelsContainer, viewTerrain, viewLocations);
+      renderTerrainCurvedLabels(this.terrainLabelsContainer, viewTerrain, viewLocations, {
+        zoom: this.currentZoom,
+        selectionKeys,
+      });
     }
 
     // 5. Render Civil Infrastructure: Bridges & River Crossings (Plan 27 — Module 5)
@@ -482,6 +528,7 @@ export class PixiCartographerEngine {
       settings,
       isPersian,
       labelsContainer: this.routeLabelsContainer,
+      zoom: this.currentZoom,
     });
 
     // 5b. Render Trade Routes & Waypoints
@@ -492,6 +539,7 @@ export class PixiCartographerEngine {
       draggedNode,
       transientPos,
       settings,
+      zoom: this.currentZoom,
     });
 
     // 6. Render Settlements & Heraldic Labels
@@ -503,10 +551,21 @@ export class PixiCartographerEngine {
       isPersian,
       placeCategories,
       terrainFeatures: viewTerrain,
+      zoom: this.currentZoom,
+      selectionKeys,
     });
 
     // 7. Render Placed Lore Pins
-    renderPlacements(this.placementGraphics, viewPlacements, settings, this.placementLabelsContainer);
+    renderPlacements(
+      this.placementGraphics,
+      viewPlacements,
+      settings,
+      this.placementLabelsContainer,
+      {
+        zoom: this.currentZoom,
+        selectionKeys,
+      }
+    );
 
     // 7a. Render Manuscript Furniture & Embellishments (Plan 27 Phase E.3)
     this.furnitureGraphics.clear();
@@ -617,7 +676,25 @@ export class PixiCartographerEngine {
       point.y + PAD
     );
     const candidates = rough.map((item) => item.data as MapHitCandidate);
-    return hitTestMapObjects(point, candidates, { visibleLayers });
+    const activeTier = getLODTier(this.currentZoom);
+    const lodFiltered = candidates.filter((c) => {
+      const isSelected =
+        c.kind === 'location' ||
+        c.kind === 'placement' ||
+        c.kind === 'route' ||
+        c.kind === 'trade_route' ||
+        c.kind === 'terrain'
+          ? this.currentSelectionKeys.has(mapObjectKey(c.kind, c.id))
+          : c.kind === 'waypoint'
+          ? this.currentSelectionKeys.has(mapObjectKey('trade_route', c.routeId))
+          : c.kind === 'route_vertex'
+          ? this.currentSelectionKeys.has(mapObjectKey('route', c.routeId))
+          : c.kind === 'terrain_vertex' || c.kind === 'terrain_midpoint'
+          ? this.currentSelectionKeys.has(mapObjectKey('terrain', c.featureId))
+          : false;
+      return isCandidateVisibleAtLOD(c, activeTier, isSelected);
+    });
+    return hitTestMapObjects(point, lodFiltered, { visibleLayers });
   }
 
 
@@ -750,6 +827,10 @@ export class PixiCartographerEngine {
    * Cleans up PixiJS application and graphics on component unmount
    */
   public destroy(): void {
+    if (this.resolutionRefreshTimer) {
+      clearTimeout(this.resolutionRefreshTimer);
+      this.resolutionRefreshTimer = null;
+    }
     this.textureLibrary.destroy();
     if (this.app) {
       this.app.destroy(true, { children: true });

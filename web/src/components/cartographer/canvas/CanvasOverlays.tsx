@@ -3,6 +3,7 @@
 import React from 'react';
 import { MousePointer, Navigation, Sparkles } from 'lucide-react';
 import type { MapPoint } from '@/lib/types';
+import { getLODTier, getLODTierName } from '@/lib/engines/world/pixi/lodManager';
 
 interface ScreenRect {
   x0: number;
@@ -103,7 +104,12 @@ export const CanvasOverlays: React.FC<CanvasOverlaysProps> = ({
           X: {hoveredCoord.x} | Y: {hoveredCoord.y}
         </span>
         <span className="text-stone-600">|</span>
-        <span>Zoom: {Math.round(zoom * 100)}%</span>
+        <span className="flex items-center gap-1.5">
+          <span>Zoom: {Math.round(zoom * 100)}%</span>
+          <span className="px-1.5 py-0.5 rounded bg-amber-950/70 text-amber-300/90 border border-amber-800/40 text-[10px] font-sans font-medium">
+            {getLODTierName(getLODTier(zoom), isPersian)}
+          </span>
+        </span>
         <span className="text-stone-600">|</span>
         <span className="text-stone-500">
           {isPersian
