@@ -32,11 +32,6 @@ export const TerrainSpeciesSection: React.FC<TerrainSpeciesSectionProps> = ({
     feature.type === 'swamp' ||
     feature.type === 'tundra' ||
     feature.type === 'plains' ||
-    feature.type === 'mountain_range' ||
-    feature.type === 'peak' ||
-    feature.type === 'volcano' ||
-    feature.type === 'highland' ||
-    feature.type === 'plateau' ||
     Boolean(feature.symbolFamily);
 
   if (!isFloraOrRelief) return null;

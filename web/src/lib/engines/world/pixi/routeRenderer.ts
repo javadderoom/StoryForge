@@ -1,4 +1,5 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
+import { clearContainer } from './renderers/shared';
 import type {
   MapPoint,
   MapRoute,
@@ -160,15 +161,15 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
   } = options;
 
   g.clear();
-  labelsContainer.removeChildren();
+  clearContainer(labelsContainer);
 
   if (tierTargets) {
     tierTargets.tier1.clear();
     tierTargets.tier2.clear();
     tierTargets.tier3.clear();
-    tierTargets.labelsTier1.removeChildren();
-    tierTargets.labelsTier2.removeChildren();
-    tierTargets.labelsTier3.removeChildren();
+    clearContainer(tierTargets.labelsTier1);
+    clearContainer(tierTargets.labelsTier2);
+    clearContainer(tierTargets.labelsTier3);
   }
 
   if (settings.visibleLayers.routes === false) return;

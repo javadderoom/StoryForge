@@ -279,17 +279,20 @@ export function renderSymbolsToContainer(
   const activeInstances: GeoScatterInstance[] = [];
 
   for (const feat of features) {
-    // Check if feature should have symbols
+    // Mountain ranges, solitary peaks, and volcanoes are rendered via the Faravand
+    // procedural hand-inked peak generator in terrainGraphics, never as flat SVG sprites.
+    if (feat.type === 'mountain_range' || feat.type === 'peak' || feat.type === 'volcano') {
+      continue;
+    }
+
+    // Check if flora/biome/landmark feature should have symbols
     const hasFamily = Boolean(feat.symbolFamily);
     const isSymbolEligible =
       hasFamily ||
       feat.type === 'forest' ||
       feat.type === 'jungle' ||
       feat.type === 'tundra' ||
-      feat.type === 'swamp' ||
-      feat.type === 'mountain_range' ||
-      feat.type === 'peak' ||
-      feat.type === 'volcano';
+      feat.type === 'swamp';
 
     if (!isSymbolEligible) continue;
 

@@ -260,7 +260,6 @@ export function useGeoStrokeDrafting({
 
       const simplifiedPoints = simplifyPoints(strokePts, isRiver ? 5 : 7);
 
-      const mountainTargetFamily = equippedMountainFamily || (hasSnowcaps ? 'snow_massif' : 'alpine_massif');
       const newFeature: MapTerrainFeature = {
         id: `terr_${Date.now().toString(36)}`,
         name: isMountain
@@ -288,7 +287,6 @@ export function useGeoStrokeDrafting({
         syncElevationScale: isMountain ? isMountainElevationLinked : undefined,
         scale: isMountain ? mountainScale : undefined,
         hasSnowcaps: isMountain ? hasSnowcaps : undefined,
-        symbolFamily: isMountain ? mountainTargetFamily : undefined,
         width: isMountain
           ? Math.round(mountainScale * 0.58)
           : isRiver
@@ -298,9 +296,6 @@ export function useGeoStrokeDrafting({
           : cliffHeight,
         connectedRiverId,
       };
-      if (isMountain) {
-        newFeature.scatterInstances = generateScatterInstances(newFeature);
-      }
       onAddTerrain(newFeature);
       onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
       setDraftPoints([]);

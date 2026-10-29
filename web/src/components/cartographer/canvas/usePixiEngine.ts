@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { MapPoint, WorldBible, WorldMapSettings } from '@/lib/types';
-import type { MapObjectRef } from '@/lib/engines/world/mapSelection';
+import { mapObjectKey, type MapObjectRef } from '@/lib/engines/world/mapSelection';
 import {
   PixiCartographerEngine,
   type DraggedNodeData,
@@ -103,7 +103,9 @@ export function usePixiEngine({
     engineRef.current?.setTransform(pan, zoom);
   }, [pan, zoom]);
 
-  // Re-render when data or interaction state changes.
+  const hasFullRenderedRef = useRef(false);
+
+  // 1. Full re-render when underlying map data, settings, or locale changes
   useEffect(() => {
     engineRef.current?.renderAll({
       worldBible,
@@ -118,19 +120,53 @@ export function usePixiEngine({
       isPersian,
       vertexEditMode,
     });
+    hasFullRenderedRef.current = true;
   }, [
     worldBible,
     settings,
-    selection,
-    selectionDelta,
-    activeTool,
-    draggedNode,
-    transientPos,
-    draftPoints,
-    rulerPoints,
     isPersian,
-    vertexEditMode,
   ]);
+
+  // 2. Selection overlay updates (handles node dragging & transient moves)
+  useEffect(() => {
+    if (!hasFullRenderedRef.current) return;
+    if (draggedNode || transientPos || selectionDelta) {
+      // During active node drag, full render ensures connected paths/settlements track smoothly
+      engineRef.current?.renderAll({
+        worldBible,
+        settings,
+        selection,
+        selectionDelta,
+        activeTool,
+        draggedNode,
+        transientPos,
+        draftPoints,
+        rulerPoints,
+        isPersian,
+        vertexEditMode,
+      });
+    } else {
+      const selectionKeys = new Set<string>();
+      for (const ref of selection) {
+        selectionKeys.add(mapObjectKey(ref.kind as any, ref.id));
+      }
+      engineRef.current?.renderSelectionOnly({
+        selectionKeys,
+        vertexEditMode,
+      });
+    }
+  }, [selection, selectionDelta, draggedNode, transientPos, vertexEditMode]);
+
+  // 3. Fast-path interaction tools (activeTool changes, drafting clicks, ruler moves)
+  useEffect(() => {
+    if (!hasFullRenderedRef.current) return;
+    engineRef.current?.renderInteractionOnly({
+      activeTool,
+      draftPoints,
+      rulerPoints,
+      isPersian,
+    });
+  }, [activeTool, draftPoints, rulerPoints, isPersian]);
 
   return engineRef;
 }

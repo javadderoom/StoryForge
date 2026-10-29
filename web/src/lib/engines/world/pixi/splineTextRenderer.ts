@@ -17,6 +17,7 @@
 import { Container, Text, TextStyle } from 'pixi.js';
 import type { MapPoint, CurvedLabelConfig, MapTerrainFeature, WorldLocation } from '@/lib/types';
 import { VINTAGE_PARCHMENT } from './vintageTheme';
+import { clearContainer } from './renderers/shared';
 import { getBoundingBox, getPolygonCentroid } from '../landSculpt/geometry';
 import { isObjectVisible } from '../mapObjectOrder';
 import { mapObjectKey } from '../mapSelection';
@@ -364,9 +365,11 @@ export function renderTerrainCurvedLabels(
   const tierContainers = options?.tierContainers;
 
   if (tierContainers) {
-    tierContainers.tier1.removeChildren();
-    tierContainers.tier2.removeChildren();
-    tierContainers.tier3.removeChildren();
+    clearContainer(tierContainers.tier1);
+    clearContainer(tierContainers.tier2);
+    clearContainer(tierContainers.tier3);
+  } else {
+    clearContainer(targetContainer);
   }
 
   for (const feat of terrainFeatures) {

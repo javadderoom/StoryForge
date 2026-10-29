@@ -1,4 +1,5 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
+import { clearContainer } from './renderers/shared';
 import type {
   CustomPlaceCategory,
   MapEntityPlacement,
@@ -170,15 +171,15 @@ export function renderSettlements(
     tierTargets,
   } = options;
   g.clear();
-  labelsContainer.removeChildren();
+  clearContainer(labelsContainer);
 
   if (tierTargets) {
     tierTargets.tier1.g.clear();
-    tierTargets.tier1.labels.removeChildren();
+    clearContainer(tierTargets.tier1.labels);
     tierTargets.tier2.g.clear();
-    tierTargets.tier2.labels.removeChildren();
+    clearContainer(tierTargets.tier2.labels);
     tierTargets.tier3.g.clear();
-    tierTargets.tier3.labels.removeChildren();
+    clearContainer(tierTargets.tier3.labels);
   }
 
   if (!settings.visibleLayers.settlements && !settings.visibleLayers.labels) return;
@@ -368,13 +369,13 @@ export function renderPlacements(
 ): void {
   const tierTargets = options?.tierTargets;
   g.clear();
-  if (labelsContainer) labelsContainer.removeChildren();
+  clearContainer(labelsContainer);
 
   if (tierTargets) {
     tierTargets.tier3.g.clear();
-    tierTargets.tier3.labels?.removeChildren();
+    clearContainer(tierTargets.tier3.labels);
     tierTargets.selected.g.clear();
-    tierTargets.selected.labels?.removeChildren();
+    clearContainer(tierTargets.selected.labels);
   }
 
   const zoom = options?.zoom ?? 1.0;

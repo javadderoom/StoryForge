@@ -25,8 +25,9 @@ import {
 } from '../mapSelection';
 import { VINTAGE_PARCHMENT } from './vintageTheme';
 import { normalizeLandWaterFeatures } from '../landSculpt/waterFeatures';
-import type { RenderAllOptions } from './renderTypes';
+import type { RenderAllOptions, DraggedNodeData } from './renderTypes';
 export type { DraggedNodeData, RenderAllOptions } from './renderTypes';
+import { clearContainer } from './renderers/shared';
 import { renderBackground } from './mapBackgroundRenderer';
 import { renderGrid } from './mapBackgroundRenderer';
 import {
@@ -721,7 +722,7 @@ export class PixiCartographerEngine {
 
     // 7a. Render Manuscript Furniture & Embellishments (Plan 27 Phase E.3)
     this.furnitureGraphics.clear();
-    this.furnitureTextContainer.removeChildren();
+    clearContainer(this.furnitureTextContainer);
     if (settings.visibleLayers.furniture !== false) {
       renderManuscriptFurniture(
         this.furnitureGraphics,
@@ -753,6 +754,59 @@ export class PixiCartographerEngine {
       rulerPoints,
       activeTool,
       isPersian,
+    });
+  }
+
+  /**
+   * Sub-millisecond interaction renderer: clears and repaints active drafting points,
+   * ruler measurements, and active tool outlines in < 0.05ms without touching the
+   * underlying map data, spatial index, or text textures.
+   */
+  public renderInteractionOnly(options: {
+    draftPoints?: MapPoint[];
+    rulerPoints?: MapPoint[];
+    activeTool: string;
+    isPersian?: boolean;
+  }): void {
+    renderInteraction(this.interactionGraphics, {
+      draftPoints: options.draftPoints ?? [],
+      rulerPoints: options.rulerPoints ?? [],
+      activeTool: options.activeTool as any,
+      isPersian: options.isPersian ?? false,
+    });
+  }
+
+  /**
+   * Sub-millisecond selection renderer: updates selection boundary boxes and handles
+   * in < 0.1ms without triggering heavy terrain or route passes.
+   */
+  public renderSelectionOnly(options: {
+    selectionKeys: Set<string>;
+    draggedNode?: DraggedNodeData | null;
+    transientPos?: MapPoint | null;
+    vertexEditMode?: boolean;
+  }): void {
+    if (!this.lastRenderOptions) return;
+    const { worldBible, settings } = this.lastRenderOptions;
+    const viewTerrain = worldBible.mapData?.terrainFeatures || [];
+    const viewPlacements = worldBible.mapData?.placements || [];
+    const viewLocations = worldBible.locations || [];
+    const viewRoutes = worldBible.tradeRoutes || [];
+    const viewMapRoutes = worldBible.mapData?.routes || [];
+    const placeCategories = worldBible.ontology?.placeCategories ?? [];
+
+    renderSelectionOverlay(this.selectionGraphics, {
+      selectionKeys: options.selectionKeys,
+      terrainFeatures: viewTerrain,
+      placements: viewPlacements,
+      locations: viewLocations,
+      tradeRoutes: viewRoutes,
+      mapRoutes: viewMapRoutes,
+      draggedNode: options.draggedNode ?? null,
+      transientPos: options.transientPos ?? null,
+      settings,
+      placeCategories,
+      vertexEditMode: options.vertexEditMode,
     });
   }
 

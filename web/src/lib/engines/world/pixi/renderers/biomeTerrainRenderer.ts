@@ -104,6 +104,12 @@ export function drawBiome(
   fill(g, flatPoints, material, color, 0.35);
   g.poly(flatPoints).stroke({ width: 1, color, alpha: 0.6 });
 
+  // If this biome feature has dedicated flora species / symbol scattering,
+  // suppress procedural canopy blobs and legacy wireframe symbols so they never collide!
+  if (feat.symbolFamily || (feat.scatterInstances && feat.scatterInstances.length > 0)) {
+    return;
+  }
+
   // 2. Continuous Forest Canopy Massing (Plan 27 — Module 3.C: Jangal-e Shabnam)
   if (
     (feat.type === 'forest' || feat.type === 'jungle') &&

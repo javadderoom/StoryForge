@@ -44,7 +44,7 @@ export const GEO_SYMBOL_FAMILIES: Record<string, GeoSymbolFamily> = {
     name: { en: 'Ancient Oak & Broadleaf', fa: 'بلوط کهنسال و پهن‌برگ' },
     description: { en: 'Lush deciduous copse with deep foliage and gnarled trunks', fa: 'بیشه بلوط سرسبز با سایه‌روشن طبیعی' },
     thumbnail: '/symbols/cartography/trees/deciduous-1.svg',
-    defaultSpacing: 32,
+    defaultSpacing: 52,
     defaultScale: 42,
     variants: [
       {
@@ -67,16 +67,6 @@ export const GEO_SYMBOL_FAMILIES: Record<string, GeoSymbolFamily> = {
         baseHeight: 50,
         anchor: { x: 0.5, y: 0.95 },
       },
-      {
-        id: 'tree_tall',
-        name: { en: 'Tall Oak Stand', fa: 'تک‌درخت بلند' },
-        category: 'tree',
-        family: 'oak',
-        src: '/symbols/cartography/trees/treeTall.png',
-        baseWidth: 42,
-        baseHeight: 52,
-        anchor: { x: 0.5, y: 0.95 },
-      },
     ],
   },
 
@@ -86,7 +76,7 @@ export const GEO_SYMBOL_FAMILIES: Record<string, GeoSymbolFamily> = {
     name: { en: 'Alpine Pine & Conifer', fa: 'کاج و صنوبر کوهستانی' },
     description: { en: 'Tiered dark-green conifer spires with crag shadow facets', fa: 'کاج‌های دندانه‌دار کوهستانی با سایه دوقطبی' },
     thumbnail: '/symbols/cartography/trees/conifer-1.svg',
-    defaultSpacing: 26,
+    defaultSpacing: 48,
     defaultScale: 38,
     variants: [
       {
@@ -99,26 +89,6 @@ export const GEO_SYMBOL_FAMILIES: Record<string, GeoSymbolFamily> = {
         baseHeight: 46,
         anchor: { x: 0.5, y: 0.95 },
       },
-      {
-        id: 'tree_pine',
-        name: { en: 'Pine Sentinel', fa: 'تک‌کاج تیره' },
-        category: 'tree',
-        family: 'conifer',
-        src: '/symbols/cartography/trees/treePine.png',
-        baseWidth: 38,
-        baseHeight: 48,
-        anchor: { x: 0.5, y: 0.95 },
-      },
-      {
-        id: 'tree_pines',
-        name: { en: 'Pine Cluster', fa: 'خوشه کاج' },
-        category: 'tree',
-        family: 'conifer',
-        src: '/symbols/cartography/trees/treePines.png',
-        baseWidth: 52,
-        baseHeight: 48,
-        anchor: { x: 0.5, y: 0.95 },
-      },
     ],
   },
 
@@ -128,7 +98,7 @@ export const GEO_SYMBOL_FAMILIES: Record<string, GeoSymbolFamily> = {
     name: { en: 'Frozen Taiga & Snow Pine', fa: 'تایگای برفی و یخ‌زده' },
     description: { en: 'Glacial conifer spires crowned with frost and deep snow', fa: 'کاج‌های با کلاهک برف و شاخه‌های سفید' },
     thumbnail: '/symbols/cartography/trees/coniferSnow-1.svg',
-    defaultSpacing: 26,
+    defaultSpacing: 48,
     defaultScale: 38,
     variants: [
       {
@@ -150,7 +120,7 @@ export const GEO_SYMBOL_FAMILIES: Record<string, GeoSymbolFamily> = {
     name: { en: 'Desert Oasis & Coastal Palm', fa: 'نخل کویری و ساحلی' },
     description: { en: 'Swaying date palms with curved trunks and broad feather fronds', fa: 'نخل‌های گرمسیری با تنه منحنی و برگ‌های پهن' },
     thumbnail: '/symbols/cartography/trees/palm-1.svg',
-    defaultSpacing: 34,
+    defaultSpacing: 50,
     defaultScale: 40,
     variants: [
       {
@@ -171,16 +141,6 @@ export const GEO_SYMBOL_FAMILIES: Record<string, GeoSymbolFamily> = {
         src: '/symbols/cartography/trees/acacia-1.svg',
         baseWidth: 46,
         baseHeight: 44,
-        anchor: { x: 0.5, y: 0.95 },
-      },
-      {
-        id: 'cactus',
-        name: { en: 'Desert Cactus', fa: 'کاکتوس کویر' },
-        category: 'tree',
-        family: 'palm',
-        src: '/symbols/cartography/trees/cactus.png',
-        baseWidth: 32,
-        baseHeight: 42,
         anchor: { x: 0.5, y: 0.95 },
       },
     ],

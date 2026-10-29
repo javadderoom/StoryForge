@@ -388,35 +388,6 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
             <span className="font-medium">{isPersian ? 'رشته‌کوه' : 'Mountain Range'}</span>
           </div>
 
-          {/* Equipped Mountain Relief Species Pill & Modal Trigger */}
-          {onOpenSpeciesPicker && (
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-zinc-900/90 border border-zinc-800">
-              {equippedMountainFamilyObj && (
-                <div className="w-5 h-5 rounded bg-[#f3e9d2]/20 flex items-center justify-center overflow-hidden shrink-0">
-                  <img
-                    src={equippedMountainFamilyObj.thumbnail}
-                    alt=""
-                    className="max-h-full max-w-full object-contain"
-                  />
-                </div>
-              )}
-              <span className="text-[11px] font-medium text-amber-200 max-w-[90px] truncate">
-                {equippedMountainFamilyObj
-                  ? isPersian ? equippedMountainFamilyObj.name.fa : equippedMountainFamilyObj.name.en
-                  : 'Massif'}
-              </span>
-              <button
-                type="button"
-                onClick={() => onOpenSpeciesPicker('mountain')}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-orange-600/80 hover:bg-orange-600 text-white transition-all shadow-sm"
-                title={isPersian ? 'باز کردن کتابخانه گونه‌ها' : 'Open species library'}
-              >
-                <Sparkles className="w-3 h-3" />
-                <span>{isPersian ? 'گونه...' : 'Species...'}</span>
-              </button>
-            </div>
-          )}
-
           {/* Peak Scale Slider */}
           <div className="flex items-center gap-2 px-2 border-l border-zinc-800">
             <span className="text-[11px] text-zinc-400 font-medium">
