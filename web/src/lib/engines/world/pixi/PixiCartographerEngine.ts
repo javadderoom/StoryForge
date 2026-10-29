@@ -601,7 +601,13 @@ export class PixiCartographerEngine {
       maxX: (-this.currentPan.x + canvasWidth) / zoom,
       maxY: (-this.currentPan.y + canvasHeight) / zoom,
     };
-    renderSymbolsToContainer(this.symbolLayer, viewTerrain, this.symbolLibrary, viewportBounds);
+    renderSymbolsToContainer(
+      this.symbolLayer,
+      viewTerrain,
+      this.symbolLibrary,
+      viewportBounds,
+      this.currentZoom
+    );
 
     // 4c. Render Curved & Spline-Aligned Geographic Titles (Plan 27 — Module 4)
     if (settings.visibleLayers.labels !== false) {

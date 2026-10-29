@@ -161,3 +161,53 @@ test('symbolScatterRenderer: single-point landmark generation with 0 rotation', 
   assert.equal(instances[0].y, 420);
   assert.equal(instances[0].rotation, 0, 'Landmark buildings must not have random rotation');
 });
+
+test('symbolScatterRenderer: caps instances for giant polygons without runaway allocations', () => {
+  const hugeFeature: MapTerrainFeature = {
+    id: 'giant_continent_forest',
+    name: 'Endless Taiga',
+    type: 'forest',
+    symbolFamily: 'oak',
+    polygon: [
+      { x: 0, y: 0 },
+      { x: 5000, y: 0 },
+      { x: 5000, y: 5000 },
+      { x: 0, y: 5000 },
+    ],
+  };
+
+  const instances = generateScatterInstances(hugeFeature);
+  assert.ok(
+    instances.length <= 300,
+    `Huge polygon instances (${instances.length}) must be safely capped at 300 max`
+  );
+  assert.ok(
+    instances.length >= 100,
+    `Huge polygon should still generate a visually representative sample (got ${instances.length})`
+  );
+});
+
+test('symbolScatterRenderer: returns cached instances on repeated calls with identical geometry', () => {
+  const feature: MapTerrainFeature = {
+    id: 'lru_cache_test_biome',
+    name: 'Cached Grove',
+    type: 'forest',
+    symbolFamily: 'oak',
+    polygon: [
+      { x: 10, y: 10 },
+      { x: 80, y: 10 },
+      { x: 80, y: 80 },
+      { x: 10, y: 80 },
+    ],
+  };
+
+  const firstCall = generateScatterInstances(feature);
+  const secondCall = generateScatterInstances(feature);
+
+  // Exact same array reference from persistent LRU cache
+  assert.equal(
+    firstCall,
+    secondCall,
+    'Repeated call must return same cached array reference without re-allocation'
+  );
+});

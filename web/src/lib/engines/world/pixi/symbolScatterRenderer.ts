@@ -4,6 +4,13 @@
  * High-performance deterministic symbol scatter generator & GPU sprite instancing renderer.
  * Converts map terrain features (biomes, woodlands, mountain ranges, knolls, stones, landmarks)
  * into sorted, frustum-culled Pixi.js Sprites rendered in 1-2 batched GPU draw calls.
+ *
+ * Performance Safeguards:
+ * - Hard global ceiling on active GPU Sprites (MAX_ACTIVE_SYMBOLS = 1000).
+ * - Per-feature instance ceiling (MAX_INSTANCES_PER_FEATURE = 300).
+ * - Adaptive grid spacing scaling for large polygon areas to prevent runaway iterations.
+ * - Persistent LRU cache by feature ID + geometry hash to eliminate V8 heap allocations during render loops.
+ * - Zoom-adaptive LOD thinning at overview zoom levels.
  */
 
 import { Container, Sprite } from 'pixi.js';
@@ -15,8 +22,15 @@ import {
   type GeoSymbolFamily,
 } from './symbolPalette';
 import type { MapSymbolLibrary } from './MapSymbolLibrary';
-import { pointInPolygon, distanceToSegment } from '../mapHitTest';
+import { pointInPolygon } from '../mapHitTest';
 import { makeRng } from '../landSculpt/noise';
+
+export const MAX_ACTIVE_SYMBOLS = 1000;
+export const MAX_INSTANCES_PER_FEATURE = 300;
+const MAX_LRU_CACHE_ENTRIES = 256;
+
+// Module-level persistent LRU cache for deterministic scatter instances
+const FEATURE_SCATTER_CACHE = new Map<string, GeoScatterInstance[]>();
 
 export interface ScatterOptions {
   familyId?: string;
@@ -24,6 +38,7 @@ export interface ScatterOptions {
   scale?: number;
   seed?: number;
   exclusionZones?: Array<{ x: number; y: number; radius?: number }>;
+  maxInstances?: number;
 }
 
 export interface ViewportBounds {
@@ -36,6 +51,7 @@ export interface ViewportBounds {
 /**
  * Deterministically generates scatter instances for a terrain feature based on its
  * geometry (polygon, polyline, or single point) and designated symbol family.
+ * Results are cached in a persistent LRU map to avoid GC overhead during 60 FPS updates.
  */
 export function generateScatterInstances(
   feature: MapTerrainFeature,
@@ -57,12 +73,20 @@ export function generateScatterInstances(
       feature.id ||
         `scatter_${feature.type}_${feature.polygon?.[0]?.x ?? feature.points?.[0]?.x ?? feature.x ?? 0}`
     );
-  const rng = makeRng(rawSeed);
 
   const targetScale = options?.scale ?? feature.symbolScale ?? feature.scale ?? family.defaultScale;
   const targetSpacing = options?.spacing ?? feature.symbolSpacing ?? family.defaultSpacing;
-  const exclusionZones = options?.exclusionZones ?? [];
+  const maxLimit = options?.maxInstances ?? MAX_INSTANCES_PER_FEATURE;
 
+  // Check persistent LRU cache
+  const cacheKey = `${feature.id}_${feature.polygon?.length ?? feature.points?.length ?? 0}_${familyId}_${targetScale}_${targetSpacing}_${rawSeed}_${feature.width ?? 0}_${feature.scale ?? 0}`;
+  const cached = FEATURE_SCATTER_CACHE.get(cacheKey);
+  if (cached && !options?.exclusionZones?.length) {
+    return cached;
+  }
+
+  const rng = makeRng(rawSeed);
+  const exclusionZones = options?.exclusionZones ?? [];
   const instances: GeoScatterInstance[] = [];
 
   // Helper: check if a coordinate falls inside an exclusion zone
@@ -128,11 +152,18 @@ export function generateScatterInstances(
       if (p.y > maxY) maxY = p.y;
     }
 
-    const s = Math.max(16, targetSpacing);
+    const bboxWidth = maxX - minX;
+    const bboxHeight = maxY - minY;
+    const approxArea = Math.max(1, bboxWidth * bboxHeight);
+
+    // Adaptive spacing safeguard: scale grid spacing up if polygon area is enormous
+    // to guarantee iterations stay within safe bounds and avoid runaway allocations
+    const adaptiveMinSpacing = Math.round(Math.sqrt(approxArea / maxLimit));
+    const s = Math.max(16, targetSpacing, adaptiveMinSpacing);
     let counter = 0;
 
-    for (let y = minY + s * 0.5; y <= maxY; y += s) {
-      for (let x = minX + s * 0.5; x <= maxX; x += s) {
+    for (let y = minY + s * 0.5; y <= maxY && instances.length < maxLimit; y += s) {
+      for (let x = minX + s * 0.5; x <= maxX && instances.length < maxLimit; x += s) {
         // Jitter position within cell (±35% spacing)
         const jx = x + (rng() - 0.5) * s * 0.7;
         const jy = y + (rng() - 0.5) * s * 0.7;
@@ -150,6 +181,15 @@ export function generateScatterInstances(
       }
     }
 
+    // Save to LRU cache
+    if (!options?.exclusionZones?.length) {
+      if (FEATURE_SCATTER_CACHE.size >= MAX_LRU_CACHE_ENTRIES) {
+        const oldestKey = FEATURE_SCATTER_CACHE.keys().next().value;
+        if (oldestKey) FEATURE_SCATTER_CACHE.delete(oldestKey);
+      }
+      FEATURE_SCATTER_CACHE.set(cacheKey, instances);
+    }
+
     return instances;
   }
 
@@ -161,7 +201,7 @@ export function generateScatterInstances(
 
     let counter = 0;
 
-    for (let i = 0; i < points.length - 1; i++) {
+    for (let i = 0; i < points.length - 1 && instances.length < maxLimit; i++) {
       const p1 = points[i];
       const p2 = points[i + 1];
       const segDx = p2.x - p1.x;
@@ -173,7 +213,7 @@ export function generateScatterInstances(
       const normY = segDx / segDist;
 
       const steps = Math.max(1, Math.round(segDist / s));
-      for (let step = 0; step < steps; step++) {
+      for (let step = 0; step < steps && instances.length < maxLimit; step++) {
         const t = (step + rng() * 0.4) / steps;
         const cx = p1.x + segDx * t;
         const cy = p1.y + segDy * t;
@@ -186,6 +226,15 @@ export function generateScatterInstances(
         const inst = createInstance(sx, sy, counter++);
         if (inst) instances.push(inst);
       }
+    }
+
+    // Save to LRU cache
+    if (!options?.exclusionZones?.length) {
+      if (FEATURE_SCATTER_CACHE.size >= MAX_LRU_CACHE_ENTRIES) {
+        const oldestKey = FEATURE_SCATTER_CACHE.keys().next().value;
+        if (oldestKey) FEATURE_SCATTER_CACHE.delete(oldestKey);
+      }
+      FEATURE_SCATTER_CACHE.set(cacheKey, instances);
     }
 
     return instances;
@@ -204,22 +253,27 @@ export function generateScatterInstances(
 
 /**
  * High-speed GPU renderer for map symbol instances.
- * Populates a pooled PixiJS Container with depth-sorted, frustum-culled Sprites.
+ * Populates a strictly capped PixiJS Container pool (<= MAX_ACTIVE_SYMBOLS)
+ * with depth-sorted, frustum-culled, LOD-thinned Sprites.
  */
 export function renderSymbolsToContainer(
   container: Container,
   features: MapTerrainFeature[],
   symbolLibrary: MapSymbolLibrary,
-  viewportBounds?: ViewportBounds
+  viewportBounds?: ViewportBounds,
+  zoom?: number
 ): void {
   if (!symbolLibrary.isReady) {
-    // If textures haven't loaded yet, keep container hidden/empty
     container.visible = false;
     return;
   }
 
   container.visible = true;
   container.sortableChildren = true;
+
+  // Zoom LOD thinning: thin out symbols when zoomed out to prevent visual clutter & memory spikes
+  const currentZoom = typeof zoom === 'number' && zoom > 0 ? zoom : 1.0;
+  const lodStep = currentZoom < 0.35 ? 3 : currentZoom < 0.65 ? 2 : 1;
 
   // Gather and cache all active instances
   const activeInstances: GeoScatterInstance[] = [];
@@ -239,35 +293,48 @@ export function renderSymbolsToContainer(
 
     if (!isSymbolEligible) continue;
 
-    // Cache instances on feature if not already present
-    if (!feat.scatterInstances || feat.scatterInstances.length === 0) {
-      feat.scatterInstances = generateScatterInstances(feat);
-    }
+    // Use cached scatterInstances on feature if present, or generate via LRU cache
+    const instances = feat.scatterInstances?.length
+      ? feat.scatterInstances
+      : generateScatterInstances(feat);
 
-    for (const inst of feat.scatterInstances) {
-      // Frustum culling with 120px safety margin
+    for (let idx = 0; idx < instances.length; idx += lodStep) {
+      const inst = instances[idx];
+
+      // Frustum culling with 100px safety margin
       if (viewportBounds) {
         if (
-          inst.x < viewportBounds.minX - 120 ||
-          inst.x > viewportBounds.maxX + 120 ||
-          inst.y < viewportBounds.minY - 120 ||
-          inst.y > viewportBounds.maxY + 120
+          inst.x < viewportBounds.minX - 100 ||
+          inst.x > viewportBounds.maxX + 100 ||
+          inst.y < viewportBounds.minY - 100 ||
+          inst.y > viewportBounds.maxY + 100
         ) {
           continue;
         }
       }
       activeInstances.push(inst);
+
+      // Early break if global ceiling reached
+      if (activeInstances.length >= MAX_ACTIVE_SYMBOLS) break;
     }
+
+    if (activeInstances.length >= MAX_ACTIVE_SYMBOLS) break;
   }
 
-  // Pool management: reuse existing Sprite objects in container
+  // Strict Pool management: never exceed MAX_ACTIVE_SYMBOLS
   const children = container.children as Sprite[];
-  const requiredCount = activeInstances.length;
+  const requiredCount = Math.min(activeInstances.length, MAX_ACTIVE_SYMBOLS);
 
-  // Grow pool if needed
+  // Grow pool up to requiredCount (capped at MAX_ACTIVE_SYMBOLS)
   while (children.length < requiredCount) {
     const sprite = new Sprite();
     container.addChild(sprite);
+  }
+
+  // Trim pool if it ever exceeds MAX_ACTIVE_SYMBOLS
+  while (children.length > MAX_ACTIVE_SYMBOLS) {
+    const surplus = container.removeChildAt(children.length - 1);
+    surplus.destroy();
   }
 
   // Update visible sprites

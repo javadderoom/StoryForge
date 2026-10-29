@@ -3,24 +3,31 @@
  *
  * Preloads, caches, and compiles vector SVGs and PNG sprites from the Cartographer's
  * symbol library into Pixi.js Textures for ultra-fast GPU sprite instancing.
+ *
+ * Uses a static global texture cache so textures are loaded ONCE and never re-allocated
+ * across React component remounts or engine re-initializations.
  */
 
 import { Assets, Texture } from 'pixi.js';
 import { getAllSymbolFamilies, type GeoSymbolDefinition } from './symbolPalette';
 
-export class MapSymbolLibrary {
-  private textures = new Map<string, Texture>();
-  private pending: Promise<void> | null = null;
-  private failed = false;
+// Module-level shared texture cache to prevent duplicate texture allocations in V8 & WebGL
+const SHARED_TEXTURE_CACHE = new Map<string, Texture>();
+let sharedPendingPromise: Promise<void> | null = null;
 
+export class MapSymbolLibrary {
   public loadAll(): Promise<void> {
-    if (this.pending) return this.pending;
-    this.pending = this.executeLoadAll();
-    return this.pending;
+    if (SHARED_TEXTURE_CACHE.size > 0) {
+      return Promise.resolve();
+    }
+    if (sharedPendingPromise) {
+      return sharedPendingPromise;
+    }
+    sharedPendingPromise = this.executeLoadAll();
+    return sharedPendingPromise;
   }
 
   private async executeLoadAll(): Promise<void> {
-    this.failed = false;
     const families = getAllSymbolFamilies();
     const allSymbols: GeoSymbolDefinition[] = [];
     for (const fam of families) {
@@ -31,35 +38,34 @@ export class MapSymbolLibrary {
 
     await Promise.all(
       allSymbols.map(async (symbol) => {
+        if (SHARED_TEXTURE_CACHE.has(symbol.id)) return;
         try {
           const texture = await Assets.load({
             alias: `symbol-${symbol.id}`,
             src: symbol.src,
           });
-          this.textures.set(symbol.id, texture);
+          SHARED_TEXTURE_CACHE.set(symbol.id, texture);
         } catch (error) {
-          this.failed = true;
-          console.warn(`[MapSymbolLibrary] Symbol "${symbol.id}" could not be loaded from "${symbol.src}":`, error);
+          console.warn(
+            `[MapSymbolLibrary] Symbol "${symbol.id}" could not be loaded from "${symbol.src}":`,
+            error
+          );
         }
       })
     );
+    sharedPendingPromise = null;
   }
 
   public get(symbolId: string): Texture | null {
-    return this.textures.get(symbolId) ?? null;
+    return SHARED_TEXTURE_CACHE.get(symbolId) ?? null;
   }
 
   public get isReady(): boolean {
-    return this.textures.size > 0;
+    return SHARED_TEXTURE_CACHE.size > 0;
   }
 
   public destroy(): void {
-    for (const [id, texture] of this.textures) {
-      void Assets.unload(`symbol-${id}`).catch(() => {
-        texture.destroy(true);
-      });
-    }
-    this.textures.clear();
-    this.pending = null;
+    // Keep textures in SHARED_TEXTURE_CACHE for instant reuse across canvas sessions.
+    // WebGL textures are preserved, preventing costly texture upload leaks.
   }
 }
