@@ -115,6 +115,20 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [hoveredCoord, setHoveredCoord] = useState<MapPoint | null>(null);
+  const coordRafRef = useRef<number | null>(null);
+  const pendingCoordRef = useRef<MapPoint | null>(null);
+
+  const updateHoveredCoordThrottled = useCallback((worldPoint: MapPoint) => {
+    pendingCoordRef.current = worldPoint;
+    if (coordRafRef.current === null) {
+      coordRafRef.current = requestAnimationFrame(() => {
+        coordRafRef.current = null;
+        if (pendingCoordRef.current) {
+          setHoveredCoord(pendingCoordRef.current);
+        }
+      });
+    }
+  }, []);
 
   const tradeRoutesRef = useRef(worldBible.tradeRoutes || []);
   const mapRoutesRef = useRef(worldBible.mapData?.routes || []);
@@ -553,7 +567,18 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       return;
     }
     const worldPoint = clientToWorld(e.clientX, e.clientY);
-    setHoveredCoord(worldPoint);
+
+    const isInteracting =
+      isPanning ||
+      Boolean(marqueeRef.current) ||
+      Boolean(selectionDragRef.current) ||
+      Boolean(zoomRectRef.current) ||
+      Boolean(draggedNode) ||
+      isDraggingGeoStrokeRef.current;
+
+    if (!isInteracting) {
+      updateHoveredCoordThrottled(worldPoint);
+    }
 
     // Zoom box in progress
     if (zoomRectRef.current) {
@@ -705,6 +730,11 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
   const handleMouseLeave = () => {
     lastMousePosRef.current = null;
+    if (coordRafRef.current !== null) {
+      cancelAnimationFrame(coordRafRef.current);
+      coordRafRef.current = null;
+    }
+    setHoveredCoord(null);
     engineRef.current?.clearBrushCursor();
     if (activeTool === 'draw_route') {
       engineRef.current?.renderRouteSnapPreview(null);

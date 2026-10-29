@@ -76,7 +76,7 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
   onTerraceTiersChange,
   activeBiome,
   onBiomeChange,
-  biomeDrawMode = 'stroke',
+  biomeDrawMode = 'area',
   onBiomeDrawModeChange,
   biomeCorridorWidth = 30,
   onBiomeCorridorWidthChange,

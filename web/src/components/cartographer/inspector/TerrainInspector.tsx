@@ -12,6 +12,8 @@ import {
   Unlink,
   Layers,
   Folder,
+  Minimize2,
+  Sparkles,
 } from 'lucide-react';
 import type {
   MapTerrainFeature,
@@ -22,6 +24,7 @@ import type {
 import { notify } from '@/lib/notify';
 import { placeAcceptsTerrainType } from '@/lib/engines/world/terrainPlacePairing';
 import { SearchableCombobox, type ComboboxOption } from '@/components/studio/SearchableCombobox';
+import { simplifyPoints, simplifyPolygon } from '@/lib/engines/world/pixi/pathSimplification';
 import { TerrainDeltaSection } from './sections/TerrainDeltaSection';
 import { TerrainDuneSection } from './sections/TerrainDuneSection';
 import { TerrainWaterliningSection } from './sections/TerrainWaterliningSection';
@@ -490,6 +493,61 @@ export const TerrainInspector: React.FC<TerrainInspectorProps> = ({
         isPersian={isPersian}
         onUpdateTerrain={onUpdateTerrain}
       />
+
+      {/* Path Geometry & Vertex Optimization */}
+      {((feature.polygon && feature.polygon.length >= 3) ||
+        (feature.points && feature.points.length >= 2)) && (
+        <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-2.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-zinc-300 text-xs font-medium">
+              <Minimize2 className="w-3.5 h-3.5 text-amber-400" />
+              <span>{isPersian ? 'گره‌های کنترلی هندسه' : 'Control Vertices'}</span>
+            </div>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
+              {feature.polygon?.length ?? feature.points?.length ?? 0}{' '}
+              {isPersian ? 'نقطه' : 'pts'}
+            </span>
+          </div>
+
+          {(feature.polygon?.length ?? feature.points?.length ?? 0) > 6 && (
+            <div className="flex items-center justify-between pt-1.5 border-t border-zinc-800/80">
+              <span className="text-[10px] text-zinc-400">
+                {isPersian
+                  ? 'کاهش نقاط برای ویرایش نرم‌تر'
+                  : 'Optimize points for smoother editing'}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (feature.polygon && feature.polygon.length > 3) {
+                    const before = feature.polygon.length;
+                    const simplified = simplifyPolygon(feature.polygon, 8);
+                    onUpdateTerrain(feature.id, { polygon: simplified });
+                    notify.success(
+                      isPersian
+                        ? `تعداد نقاط از ${before} به ${simplified.length} بهینه‌سازی شد.`
+                        : `Simplified vertices from ${before} to ${simplified.length}.`
+                    );
+                  } else if (feature.points && feature.points.length > 2) {
+                    const before = feature.points.length;
+                    const simplified = simplifyPoints(feature.points, 6);
+                    onUpdateTerrain(feature.id, { points: simplified });
+                    notify.success(
+                      isPersian
+                        ? `تعداد نقاط از ${before} به ${simplified.length} بهینه‌سازی شد.`
+                        : `Simplified vertices from ${before} to ${simplified.length}.`
+                    );
+                  }
+                }}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-colors"
+              >
+                <Sparkles className="w-3 h-3 text-amber-400" />
+                <span>{isPersian ? 'بهینه‌سازی نقاط' : 'Simplify Vertices'}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div>
         <label className="text-[11px] text-zinc-400 mb-1 block font-medium">

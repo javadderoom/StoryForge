@@ -549,21 +549,24 @@ export class PixiCartographerEngine {
     this.textureStrength =
       theme === 'parchment' ? resolveTextureStrength(settings.textureStrength) : 0;
 
-    // 1. Re-index interactive spatial elements
-    const selectedTerrainIds = new Set<string>();
-    for (const ref of selection) {
-      if (ref.kind === 'terrain') selectedTerrainIds.add(ref.id);
+    // 1. Re-index interactive spatial elements (skip during transient node/selection drag for silky 60fps responsiveness)
+    const isTransientDrag = Boolean(draggedNode || hasDelta);
+    if (!isTransientDrag) {
+      const selectedTerrainIds = new Set<string>();
+      for (const ref of selection) {
+        if (ref.kind === 'terrain') selectedTerrainIds.add(ref.id);
+      }
+      this.rebuildSpatialIndex(
+        locations,
+        tradeRoutes,
+        mapRoutes,
+        terrainFeatures,
+        placements,
+        placeCategories,
+        selectedTerrainIds,
+        options.vertexEditMode
+      );
     }
-    this.rebuildSpatialIndex(
-      locations,
-      tradeRoutes,
-      mapRoutes,
-      terrainFeatures,
-      placements,
-      placeCategories,
-      selectedTerrainIds,
-      options.vertexEditMode
-    );
 
     // 2. Render Background & Vintage Frame
     renderBackground(this.bgGraphics, this.fillWithMaterial.bind(this));

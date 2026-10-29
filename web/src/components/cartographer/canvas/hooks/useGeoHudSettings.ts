@@ -12,7 +12,7 @@ export function useGeoHudSettings() {
   const [cliffHeight, setCliffHeight] = useState<number>(36);
   const [terraceTiers, setTerraceTiers] = useState<number>(1);
   const [activeBiome, setActiveBiome] = useState<BiomeType>('forest');
-  const [biomeDrawMode, setBiomeDrawMode] = useState<BiomeDrawMode>('stroke');
+  const [biomeDrawMode, setBiomeDrawMode] = useState<BiomeDrawMode>('area');
   const [biomeCorridorWidth, setBiomeCorridorWidth] = useState<number>(30);
   const [biomeDensity, setBiomeDensity] = useState<BiomeDensity>('medium');
   const [valleyWidth, setValleyWidth] = useState<number>(28);

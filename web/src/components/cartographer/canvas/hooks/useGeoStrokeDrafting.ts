@@ -5,6 +5,7 @@ import type { PixiCartographerEngine } from '@/lib/engines/world/pixi/PixiCartog
 import type { CartographerTool } from '../../CartographerHeader';
 import type { BiomeType, HighlandMode, BiomeDrawMode, BiomeDensity } from '../GeoToolHud';
 import { distToPolyline } from '@/lib/engines/world/pixi/hydrologyNetwork';
+import { simplifyPoints, simplifyPolygon } from '@/lib/engines/world/pixi/pathSimplification';
 
 export interface UseGeoStrokeDraftingOptions {
   activeTool: CartographerTool;
@@ -66,7 +67,7 @@ export function useGeoStrokeDrafting({
   valleyWidth,
   riverWidth,
   activeBiome,
-  biomeDrawMode = 'stroke',
+  biomeDrawMode = 'area',
   biomeCorridorWidth = 30,
   biomeDensity = 'medium',
   mapData,
@@ -150,56 +151,67 @@ export function useGeoStrokeDrafting({
     const isLake = activeTool === 'terrain_lake';
     const isBiome = activeTool === 'terrain_biome';
 
-    // 1. Biome Stroke / Copse mode: supports single-click stamp AND linear tree corridors!
-    if (isBiome && biomeDrawMode === 'stroke') {
+    // 1. Biome: supports single-click stamp, linear belt, AND dense surface area!
+    if (isBiome) {
       if (strokePts.length === 0) return;
       const isSingleStamp = strokePts.length === 1 || totalStrokeDist <= 15;
-      const ptsToSave = isSingleStamp ? [strokePts[0]] : strokePts;
+      if (isSingleStamp) {
+        const biomeNames: Record<string, { en: string; fa: string }> = {
+          forest: { en: 'Standalone Tree', fa: 'تک‌درخت / بیشه' },
+          jungle: { en: 'Palm / Grove', fa: 'تک‌درخت نخل' },
+          desert: { en: 'Dune Crest', fa: 'تپه‌ماهور شنی' },
+          swamp: { en: 'Marsh Reeds', fa: 'نیزار باتلاقی' },
+          tundra: { en: 'Sentinel Pine', fa: 'کاج تک‌افتاده' },
+          plains: { en: 'Prairie Copse', fa: 'بیشه بوته‌زار' },
+        };
+        const selectedName = biomeNames[activeBiome];
+        const newFeature: MapTerrainFeature = {
+          id: `terr_${Date.now().toString(36)}`,
+          name: isPersian
+            ? selectedName?.fa || 'تک‌درخت'
+            : selectedName?.en || 'Standalone Tree',
+          type: activeBiome,
+          points: [strokePts[0]],
+          width: biomeCorridorWidth,
+          description: isPersian
+            ? 'نماد تک‌افتاده اقلیمی'
+            : 'Standalone flora symbol',
+        };
+        onAddTerrain(newFeature);
+        onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
+        setDraftPoints([]);
+        return;
+      }
 
-      const biomeNames: Record<string, { en: string; fa: string }> = {
-        forest: {
-          en: isSingleStamp ? 'Standalone Tree' : 'Woodland Belt',
-          fa: isSingleStamp ? 'تک‌درخت / بیشه' : 'نوار درختان',
-        },
-        jungle: {
-          en: isSingleStamp ? 'Palm / Grove' : 'Jungle Fringe',
-          fa: isSingleStamp ? 'تک‌درخت نخل' : 'حاشیه جنگل گرمسیری',
-        },
-        desert: {
-          en: isSingleStamp ? 'Dune Crest' : 'Dune Ribbon',
-          fa: isSingleStamp ? 'تپه‌ماهور شنی' : 'رشته تپه‌های ماسه‌ای',
-        },
-        swamp: {
-          en: isSingleStamp ? 'Marsh Reeds' : 'Reed Bank',
-          fa: isSingleStamp ? 'نیزار باتلاقی' : 'نوار نی‌های ساحلی',
-        },
-        tundra: {
-          en: isSingleStamp ? 'Sentinel Pine' : 'Taiga Ribbon',
-          fa: isSingleStamp ? 'کاج تک‌افتاده' : 'نوار تایگا',
-        },
-        plains: {
-          en: isSingleStamp ? 'Prairie Copse' : 'Grassland Fringe',
-          fa: isSingleStamp ? 'بیشه بوته‌زار' : 'حاشیه دشت',
-        },
-      };
-      const selectedName = biomeNames[activeBiome];
-
-      const newFeature: MapTerrainFeature = {
-        id: `terr_${Date.now().toString(36)}`,
-        name: isPersian
-          ? selectedName?.fa || 'بیشه / درختان'
-          : selectedName?.en || 'Tree Copse / Belt',
-        type: activeBiome,
-        points: ptsToSave,
-        width: biomeCorridorWidth,
-        description: isPersian
-          ? 'بیشه و خط نمادهای اقلیمی'
-          : 'Linear biome copse and flora ribbon',
-      };
-      onAddTerrain(newFeature);
-      onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
-      setDraftPoints([]);
-      return;
+      if (biomeDrawMode === 'stroke') {
+        const simplifiedPoints = simplifyPoints(strokePts, 6);
+        const biomeNames: Record<string, { en: string; fa: string }> = {
+          forest: { en: 'Woodland Belt', fa: 'نوار درختان' },
+          jungle: { en: 'Jungle Fringe', fa: 'حاشیه جنگل گرمسیری' },
+          desert: { en: 'Dune Ribbon', fa: 'رشته تپه‌های ماسه‌ای' },
+          swamp: { en: 'Reed Bank', fa: 'نوار نی‌های ساحلی' },
+          tundra: { en: 'Taiga Ribbon', fa: 'نوار تایگا' },
+          plains: { en: 'Grassland Fringe', fa: 'حاشیه دشت' },
+        };
+        const selectedName = biomeNames[activeBiome];
+        const newFeature: MapTerrainFeature = {
+          id: `terr_${Date.now().toString(36)}`,
+          name: isPersian
+            ? selectedName?.fa || 'نوار درختان'
+            : selectedName?.en || 'Tree Copse / Belt',
+          type: activeBiome,
+          points: simplifiedPoints,
+          width: biomeCorridorWidth,
+          description: isPersian
+            ? 'بیشه و خط نمادهای اقلیمی'
+            : 'Linear biome copse and flora ribbon',
+        };
+        onAddTerrain(newFeature);
+        onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
+        setDraftPoints([]);
+        return;
+      }
+      // If biomeDrawMode === 'area' (default), falls through to closed area polygon logic below.
     }
 
     if (strokePts.length < 2 || totalStrokeDist <= 20) return;
@@ -232,6 +244,8 @@ export function useGeoStrokeDrafting({
         }
       }
 
+      const simplifiedPoints = simplifyPoints(strokePts, isRiver ? 5 : 7);
+
       const newFeature: MapTerrainFeature = {
         id: `terr_${Date.now().toString(36)}`,
         name: isMountain
@@ -248,7 +262,7 @@ export function useGeoStrokeDrafting({
           : isValley
           ? 'valley'
           : 'highland',
-        points: strokePts,
+        points: simplifiedPoints,
         elevation: isMountain
           ? (isMountainElevationLinked ? Math.round(mountainScale * 50) : mountainElevation)
           : isRiver
@@ -272,11 +286,12 @@ export function useGeoStrokeDrafting({
       onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
       setDraftPoints([]);
     } else if (isHighlandPlateau) {
+      const simplifiedPolygon = simplifyPolygon(closedPts, 8);
       const newFeature: MapTerrainFeature = {
         id: `terr_${Date.now().toString(36)}`,
         name: isPersian ? 'فلات مرتفع' : 'Elevated Plateau',
         type: 'plateau',
-        polygon: closedPts,
+        polygon: simplifiedPolygon,
         elevation: terraceTiers > 1 ? 1800 : 800,
         width: cliffHeight,
         description: isPersian ? 'زمین‌های مرتفع با سقف صاف' : 'Elevated flat-topped tablelands',
@@ -285,11 +300,12 @@ export function useGeoStrokeDrafting({
       onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
       setDraftPoints([]);
     } else if (isLake) {
+      const simplifiedPolygon = simplifyPolygon(closedPts, 8);
       const newFeature: MapTerrainFeature = {
         id: `terr_${Date.now().toString(36)}`,
         name: isPersian ? 'دریاچه لاجوردی' : 'Inland Lake',
         type: 'lake',
-        polygon: closedPts,
+        polygon: simplifiedPolygon,
         color: '#5a7b91',
         description: isPersian ? 'دریاچه عمیق آب شیرین' : 'Deep inland freshwater lake',
       };
@@ -297,6 +313,7 @@ export function useGeoStrokeDrafting({
       onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
       setDraftPoints([]);
     } else if (isBiome) {
+      const simplifiedPolygon = simplifyPolygon(closedPts, 8);
       const biomeNames: Record<string, { en: string; fa: string }> = {
         forest: { en: 'Ancient Forest', fa: 'جنگل کهن' },
         jungle: { en: 'Primeval Jungle', fa: 'جنگل گرمسیری' },
@@ -312,7 +329,7 @@ export function useGeoStrokeDrafting({
           ? selectedName?.fa || 'ناحیه اقلیمی'
           : selectedName?.en || 'Biome Region',
         type: activeBiome,
-        polygon: closedPts,
+        polygon: simplifiedPolygon,
         description: isPersian
           ? 'عنصر جغرافیایی ترسیم‌شده'
           : 'User-created geographical feature',
