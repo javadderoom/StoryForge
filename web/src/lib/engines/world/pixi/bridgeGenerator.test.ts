@@ -135,6 +135,9 @@ describe('bridgeGenerator — Landmark & Route Crossing Detection', () => {
     assert.equal(isBridgeLocation({ name: 'Stone Bridge' } as WorldLocation), true);
     assert.equal(isBridgeLocation({ name: 'کاروانسرا', category: 'bridge' } as WorldLocation), true);
     assert.equal(isBridgeLocation({ name: 'چاه سنگ', category: 'settlement' } as WorldLocation), false);
+    // Capital cities and major strongholds are never overridden into bridge landmarks
+    assert.equal(isBridgeLocation({ name: 'زرین پل', category: 'capital' } as WorldLocation), false);
+    assert.equal(isBridgeLocation({ name: 'قلعه پل', category: 'stronghold' } as WorldLocation), false);
   });
 
   it('snaps a landmark bridge (Zarrin-Pol) onto a nearby river', () => {
@@ -161,6 +164,38 @@ describe('bridgeGenerator — Landmark & Route Crossing Detection', () => {
     assert.equal(Math.round(bridge.center.y), 480);
     // River runs vertically (dy > 0), so deck spans horizontally (angle ~= Math.PI)
     assert.ok(Math.abs(Math.cos(bridge.angle)) > 0.9);
+  });
+
+  it('does NOT generate a bridge if landmark location is on dry land (far from river)', () => {
+    const zarrinPolDryLand: WorldLocation = {
+      id: 'loc_zarrin_dry',
+      name: 'زرین پل',
+      category: 'settlement',
+      coordinates: { x: 200, y: 480 }, // 300px away from river at x=500 (> 55px threshold)
+    } as WorldLocation;
+
+    const detected = detectBridges({
+      locations: [zarrinPolDryLand],
+      terrainFeatures: [river],
+    });
+
+    assert.equal(detected.length, 0);
+  });
+
+  it('does NOT generate a bridge if there are no rivers on the map', () => {
+    const zarrinPol: WorldLocation = {
+      id: 'loc_zarrin',
+      name: 'زرین پل',
+      category: 'settlement',
+      coordinates: { x: 500, y: 480 },
+    } as WorldLocation;
+
+    const detected = detectBridges({
+      locations: [zarrinPol],
+      terrainFeatures: [], // Empty rivers
+    });
+
+    assert.equal(detected.length, 0);
   });
 
   it('detects trade caravan route crossing a river', () => {

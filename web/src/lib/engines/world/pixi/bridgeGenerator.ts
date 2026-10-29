@@ -172,6 +172,10 @@ export function closestPointOnPolyline(
  */
 export function isBridgeLocation(loc: WorldLocation): boolean {
   if (loc.category?.toLowerCase() === 'bridge') return true;
+  // Major settlement tiers (capital / stronghold) are never overridden into bridge landmarks
+  const cat = loc.category?.toLowerCase();
+  if (cat === 'capital' || cat === 'stronghold') return false;
+
   const name = loc.name.toLowerCase();
   if (name.includes('پل') || name.includes('bridge')) return true;
   return false;
@@ -478,29 +482,28 @@ export function detectBridges(options: BridgeDetectionOptions): ProceduralBridge
       }
     }
 
-    let bridgeCenter = loc.coordinates;
-    let deckAngle = 0; // Default horizontal
-    let riverAngle = Math.PI / 2;
-    let span = 36;
-    let deckW = 12;
-
-    if (nearestRiver && snapResult && nearestDist <= 55) {
-      // Snap to river centerline
-      bridgeCenter = snapResult.point;
-      const riverTangent = snapResult.tangent;
-      riverAngle = Math.atan2(riverTangent.y, riverTangent.x);
-      // Bridge spans perpendicular across the river
-      deckAngle = riverAngle + Math.PI / 2;
-      const riverW = nearestRiver.width ?? 14;
-      span = Math.max(28, riverW + 18);
-      deckW = Math.max(10, Math.min(18, span * 0.35));
+    // River Proximity Guard:
+    // A landmark bridge must actually sit across a river (within 55px).
+    // If on dry land without a river nearby, do NOT generate a bridge!
+    if (!nearestRiver || !snapResult || nearestDist > 55) {
+      continue;
     }
+
+    // Snap to river centerline
+    const bridgeCenter = snapResult.point;
+    const riverTangent = snapResult.tangent;
+    const riverAngle = Math.atan2(riverTangent.y, riverTangent.x);
+    // Bridge spans perpendicular across the river
+    const deckAngle = riverAngle + Math.PI / 2;
+    const riverW = nearestRiver.width ?? 14;
+    const span = Math.max(28, riverW + 18);
+    const deckW = Math.max(10, Math.min(18, span * 0.35));
 
     const bridge = generateProceduralBridge({
       id: `bridge_loc_${loc.id}`,
       sourceType: 'landmark_location',
       sourceId: loc.id,
-      riverId: nearestRiver?.id,
+      riverId: nearestRiver.id,
       center: bridgeCenter,
       angle: deckAngle,
       riverAngle,
