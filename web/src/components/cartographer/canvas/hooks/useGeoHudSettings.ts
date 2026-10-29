@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import type { HighlandMode, BiomeType, BiomeDensity } from '../GeoToolHud';
+import type { HighlandMode, BiomeType, BiomeDensity, BiomeDrawMode } from '../GeoToolHud';
 
 export function useGeoHudSettings() {
   // Land Sculpt Brush controls
@@ -12,6 +12,8 @@ export function useGeoHudSettings() {
   const [cliffHeight, setCliffHeight] = useState<number>(36);
   const [terraceTiers, setTerraceTiers] = useState<number>(1);
   const [activeBiome, setActiveBiome] = useState<BiomeType>('forest');
+  const [biomeDrawMode, setBiomeDrawMode] = useState<BiomeDrawMode>('stroke');
+  const [biomeCorridorWidth, setBiomeCorridorWidth] = useState<number>(30);
   const [biomeDensity, setBiomeDensity] = useState<BiomeDensity>('medium');
   const [valleyWidth, setValleyWidth] = useState<number>(28);
   const [mountainScale, setMountainScale] = useState<number>(55);
@@ -63,6 +65,10 @@ export function useGeoHudSettings() {
     setTerraceTiers,
     activeBiome,
     setActiveBiome,
+    biomeDrawMode,
+    setBiomeDrawMode,
+    biomeCorridorWidth,
+    setBiomeCorridorWidth,
     biomeDensity,
     setBiomeDensity,
     valleyWidth,

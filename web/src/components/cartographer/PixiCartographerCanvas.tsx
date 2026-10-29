@@ -349,6 +349,9 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     valleyWidth: geoHud.valleyWidth,
     riverWidth: geoHud.riverWidth,
     activeBiome: geoHud.activeBiome,
+    biomeDrawMode: geoHud.biomeDrawMode,
+    biomeCorridorWidth: geoHud.biomeCorridorWidth,
+    biomeDensity: geoHud.biomeDensity,
     mapData: worldBible.mapData,
   });
 
@@ -825,6 +828,10 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         onTerraceTiersChange={geoHud.setTerraceTiers}
         activeBiome={geoHud.activeBiome}
         onBiomeChange={geoHud.setActiveBiome}
+        biomeDrawMode={geoHud.biomeDrawMode}
+        onBiomeDrawModeChange={geoHud.setBiomeDrawMode}
+        biomeCorridorWidth={geoHud.biomeCorridorWidth}
+        onBiomeCorridorWidthChange={geoHud.setBiomeCorridorWidth}
         biomeDensity={geoHud.biomeDensity}
         onBiomeDensityChange={geoHud.setBiomeDensity}
         valleyWidth={geoHud.valleyWidth}

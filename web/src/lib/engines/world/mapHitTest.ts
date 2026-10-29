@@ -525,7 +525,8 @@ export function hitCandidateBounds(candidate: MapHitCandidate, pad = 0): MapBoun
         return ring;
       }
       if (feature.points && feature.points.length > 0) {
-        return boundsOfPoints(feature.points, pad);
+        const halfWidth = Math.max(15, ((feature.width ?? 30) / 2) + pad);
+        return boundsOfPoints(feature.points, halfWidth);
       }
       if (typeof feature.x === 'number' && typeof feature.y === 'number') {
         const r = (feature.radius ?? 0) + pad;

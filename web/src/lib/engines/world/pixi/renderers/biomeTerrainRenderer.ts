@@ -10,6 +10,7 @@ import type { FillWithMaterial } from '../renderTypes';
 import { hashStringToSeed } from '../mountainGenerator';
 import {
   generateBiomeSymbols,
+  generateBiomeStrokeSymbols,
   type BiomeFeatureSymbols,
 } from '../biomeSymbolGenerator';
 import {
@@ -38,6 +39,19 @@ export function drawBiome(
   fill: FillWithMaterial,
   context?: BiomeRenderContext
 ): void {
+  // 1. Linear / Stroke or Single-Point Feature (e.g. tree belts, coastal palm lines, copses)
+  if (feat.points && feat.points.length > 0) {
+    const seed = hashStringToSeed(feat.id || `biome_stroke_${feat.points[0].x}_${feat.points[0].y}`);
+    const symbols = generateBiomeStrokeSymbols(feat.points, feat.type, {
+      seed,
+      width: feat.width ?? 30,
+      density: 'medium',
+    });
+    renderBiomeSymbolsToGraphics(g, symbols, feat.type);
+    return;
+  }
+
+  // 2. Areal Polygon Feature (Enclosed broad regional biomes)
   if (!feat.polygon || feat.polygon.length <= 2) return;
 
   // Check if this biome is an authored salt depression (e.g. Sepidchal / سپیدچال)

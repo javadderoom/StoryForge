@@ -3,7 +3,7 @@ import type { MapPoint, MapTerrainFeature, WorldMapData } from '@/lib/types';
 import type { MapObjectRef } from '@/lib/engines/world/mapSelection';
 import type { PixiCartographerEngine } from '@/lib/engines/world/pixi/PixiCartographerEngine';
 import type { CartographerTool } from '../../CartographerHeader';
-import type { BiomeType, HighlandMode } from '../GeoToolHud';
+import type { BiomeType, HighlandMode, BiomeDrawMode, BiomeDensity } from '../GeoToolHud';
 import { distToPolyline } from '@/lib/engines/world/pixi/hydrologyNetwork';
 
 export interface UseGeoStrokeDraftingOptions {
@@ -30,6 +30,9 @@ export interface UseGeoStrokeDraftingOptions {
   valleyWidth: number;
   riverWidth: number;
   activeBiome: BiomeType;
+  biomeDrawMode?: BiomeDrawMode;
+  biomeCorridorWidth?: number;
+  biomeDensity?: BiomeDensity;
 }
 
 const GEO_STROKE_TOOLS: CartographerTool[] = [
@@ -63,6 +66,9 @@ export function useGeoStrokeDrafting({
   valleyWidth,
   riverWidth,
   activeBiome,
+  biomeDrawMode = 'stroke',
+  biomeCorridorWidth = 30,
+  biomeDensity = 'medium',
   mapData,
 }: UseGeoStrokeDraftingOptions) {
   const isDraggingGeoStrokeRef = useRef(false);
@@ -116,7 +122,7 @@ export function useGeoStrokeDrafting({
     } else if (activeTool === 'terrain_lake') {
       engineRef.current.renderLakeStrokePreview(pts);
     } else if (activeTool === 'terrain_biome') {
-      engineRef.current.renderBiomeStrokePreview(pts, activeBiome);
+      engineRef.current.renderBiomeStrokePreview(pts, activeBiome, biomeDrawMode, biomeCorridorWidth);
     }
   };
 
@@ -136,8 +142,6 @@ export function useGeoStrokeDrafting({
       );
     }
 
-    if (strokePts.length < 2 || totalStrokeDist <= 20) return;
-
     const isMountain = activeTool === 'terrain_mountain';
     const isRiver = activeTool === 'terrain_river';
     const isValley = activeTool === 'terrain_valley';
@@ -145,6 +149,60 @@ export function useGeoStrokeDrafting({
     const isHighlandPlateau = activeTool === 'terrain_highland' && highlandMode === 'plateau';
     const isLake = activeTool === 'terrain_lake';
     const isBiome = activeTool === 'terrain_biome';
+
+    // 1. Biome Stroke / Copse mode: supports single-click stamp AND linear tree corridors!
+    if (isBiome && biomeDrawMode === 'stroke') {
+      if (strokePts.length === 0) return;
+      const isSingleStamp = strokePts.length === 1 || totalStrokeDist <= 15;
+      const ptsToSave = isSingleStamp ? [strokePts[0]] : strokePts;
+
+      const biomeNames: Record<string, { en: string; fa: string }> = {
+        forest: {
+          en: isSingleStamp ? 'Standalone Tree' : 'Woodland Belt',
+          fa: isSingleStamp ? 'تک‌درخت / بیشه' : 'نوار درختان',
+        },
+        jungle: {
+          en: isSingleStamp ? 'Palm / Grove' : 'Jungle Fringe',
+          fa: isSingleStamp ? 'تک‌درخت نخل' : 'حاشیه جنگل گرمسیری',
+        },
+        desert: {
+          en: isSingleStamp ? 'Dune Crest' : 'Dune Ribbon',
+          fa: isSingleStamp ? 'تپه‌ماهور شنی' : 'رشته تپه‌های ماسه‌ای',
+        },
+        swamp: {
+          en: isSingleStamp ? 'Marsh Reeds' : 'Reed Bank',
+          fa: isSingleStamp ? 'نیزار باتلاقی' : 'نوار نی‌های ساحلی',
+        },
+        tundra: {
+          en: isSingleStamp ? 'Sentinel Pine' : 'Taiga Ribbon',
+          fa: isSingleStamp ? 'کاج تک‌افتاده' : 'نوار تایگا',
+        },
+        plains: {
+          en: isSingleStamp ? 'Prairie Copse' : 'Grassland Fringe',
+          fa: isSingleStamp ? 'بیشه بوته‌زار' : 'حاشیه دشت',
+        },
+      };
+      const selectedName = biomeNames[activeBiome];
+
+      const newFeature: MapTerrainFeature = {
+        id: `terr_${Date.now().toString(36)}`,
+        name: isPersian
+          ? selectedName?.fa || 'بیشه / درختان'
+          : selectedName?.en || 'Tree Copse / Belt',
+        type: activeBiome,
+        points: ptsToSave,
+        width: biomeCorridorWidth,
+        description: isPersian
+          ? 'بیشه و خط نمادهای اقلیمی'
+          : 'Linear biome copse and flora ribbon',
+      };
+      onAddTerrain(newFeature);
+      onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
+      setDraftPoints([]);
+      return;
+    }
+
+    if (strokePts.length < 2 || totalStrokeDist <= 20) return;
 
     // Closed loop for area shapes
     const closedPts = [...strokePts];

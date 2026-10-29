@@ -18,6 +18,7 @@ import {
 import type { CartographerTool } from '../CartographerHeader';
 
 export type HighlandMode = 'plateau' | 'ridge';
+export type BiomeDrawMode = 'stroke' | 'area';
 export type BiomeType = 'forest' | 'jungle' | 'desert' | 'swamp' | 'tundra' | 'plains';
 export type BiomeDensity = 'sparse' | 'medium' | 'dense';
 
@@ -37,6 +38,10 @@ export interface GeoToolHudProps {
   // Biome settings
   activeBiome: BiomeType;
   onBiomeChange: (biome: BiomeType) => void;
+  biomeDrawMode?: BiomeDrawMode;
+  onBiomeDrawModeChange?: (mode: BiomeDrawMode) => void;
+  biomeCorridorWidth?: number;
+  onBiomeCorridorWidthChange?: (width: number) => void;
   biomeDensity: BiomeDensity;
   onBiomeDensityChange: (density: BiomeDensity) => void;
 
@@ -71,6 +76,10 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
   onTerraceTiersChange,
   activeBiome,
   onBiomeChange,
+  biomeDrawMode = 'stroke',
+  onBiomeDrawModeChange,
+  biomeCorridorWidth = 30,
+  onBiomeCorridorWidthChange,
   biomeDensity,
   onBiomeDensityChange,
   valleyWidth,
@@ -179,6 +188,34 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
       {/* 2. BIOME CONTROLS */}
       {activeTool === 'terrain_biome' && (
         <>
+          {/* Biome Drawing Mode Toggle: Stroke/Copse vs Enclosed Area */}
+          <div className="flex items-center gap-1 bg-zinc-900/90 p-1 rounded-xl border border-zinc-800">
+            <button
+              type="button"
+              onClick={() => onBiomeDrawModeChange?.('stroke')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                biomeDrawMode === 'stroke'
+                  ? 'bg-lime-700 text-white shadow-md shadow-lime-950 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Spline className="w-3.5 h-3.5" />
+              <span>{isPersian ? 'خطی و تک‌درخت' : 'Tree Line / Copse'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onBiomeDrawModeChange?.('area')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                biomeDrawMode === 'area'
+                  ? 'bg-lime-700 text-white shadow-md shadow-lime-950 font-semibold'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Square className="w-3.5 h-3.5" />
+              <span>{isPersian ? 'ناحیه متراکم' : 'Dense Region'}</span>
+            </button>
+          </div>
+
           {/* Biome Type Selector Tabs */}
           <div className="flex items-center gap-1 bg-zinc-900/90 p-1 rounded-xl border border-zinc-800">
             {(
@@ -233,6 +270,26 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
               </button>
             ))}
           </div>
+
+          {/* Corridor Width Slider (when in stroke / tree belt mode) */}
+          {biomeDrawMode === 'stroke' && (
+            <div className="flex items-center gap-1.5 px-2 border-l border-zinc-800">
+              <span className="text-[11px] text-zinc-400 font-medium">
+                {isPersian ? 'عرض نوار:' : 'Width:'}
+              </span>
+              <input
+                type="range"
+                min="12"
+                max="75"
+                value={biomeCorridorWidth}
+                onChange={(e) => onBiomeCorridorWidthChange?.(Number(e.target.value))}
+                className="w-16 accent-lime-400 h-1 bg-zinc-700 rounded-lg cursor-pointer"
+              />
+              <span className="text-[11px] font-mono text-lime-300 w-7 text-right">
+                {biomeCorridorWidth}px
+              </span>
+            </div>
+          )}
         </>
       )}
 

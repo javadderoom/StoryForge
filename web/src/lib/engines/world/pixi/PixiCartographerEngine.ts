@@ -902,18 +902,42 @@ export class PixiCartographerEngine {
 
   /**
    * Renders real-time procedural biome preview during mouse drag (60 FPS).
+   * Supports both stroke mode (linear tree belt / copse) and area mode (enclosed polygon).
    */
-  public renderBiomeStrokePreview(points: MapPoint[], biomeType: string): void {
+  public renderBiomeStrokePreview(
+    points: MapPoint[],
+    biomeType: string,
+    mode: 'stroke' | 'area' = 'stroke',
+    corridorWidth = 30
+  ): void {
     this.brushGraphics.clear();
-    if (points.length < 3) return;
-    const closed = [...points, points[0]];
-    drawBiome(
-      this.brushGraphics,
-      { id: 'preview_biome', name: 'Biome', type: biomeType as any, polygon: closed },
-      (g, pts, _mat, color, alpha) => {
-        g.poly(pts).fill({ color, alpha });
-      }
-    );
+    if (points.length === 0) return;
+
+    if (mode === 'stroke') {
+      drawBiome(
+        this.brushGraphics,
+        {
+          id: 'preview_biome',
+          name: 'Biome',
+          type: biomeType as any,
+          points,
+          width: corridorWidth,
+        },
+        (g, pts, _mat, color, alpha) => {
+          g.poly(pts).fill({ color, alpha });
+        }
+      );
+    } else {
+      if (points.length < 3) return;
+      const closed = [...points, points[0]];
+      drawBiome(
+        this.brushGraphics,
+        { id: 'preview_biome', name: 'Biome', type: biomeType as any, polygon: closed },
+        (g, pts, _mat, color, alpha) => {
+          g.poly(pts).fill({ color, alpha });
+        }
+      );
+    }
   }
 
   public renderBrushCursor(

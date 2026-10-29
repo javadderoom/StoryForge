@@ -191,7 +191,7 @@ export function generateBiomeSymbols(
 /**
  * Creates an individual hand-drawn tree symbol with shaded East lobe.
  */
-function createTree(
+export function createTree(
   x: number,
   y: number,
   radius: number,
@@ -303,4 +303,233 @@ function isPointInPolygon(point: MapPoint, polygon: MapPoint[]): boolean {
     if (intersect) inside = !inside;
   }
   return inside;
+}
+
+export interface BiomeStrokeSymbolOptions {
+  seed?: number;
+  width?: number; // corridor width in pixels (e.g. 15 to 80, default 30)
+  density?: 'sparse' | 'medium' | 'dense';
+  treeKind?: TreeKind;
+}
+
+/**
+ * Generates procedural fantasy cartography symbols along a stroke path or at a single point coordinate.
+ * Ideal for linear tree belts along shorelines/rivers/roads, and single-click standalone trees or copses.
+ */
+export function generateBiomeStrokeSymbols(
+  points: MapPoint[],
+  biomeType: string,
+  options: BiomeStrokeSymbolOptions = {}
+): BiomeFeatureSymbols {
+  const result: BiomeFeatureSymbols = {
+    trees: [],
+    sandDunes: [],
+    marshReeds: [],
+  };
+
+  if (!points || points.length === 0) return result;
+
+  const rawSeed = options.seed ?? 42;
+  const rng = makeRng(rawSeed);
+
+  const isJungle = biomeType === 'jungle';
+  const isOasis = biomeType === 'oasis';
+  const isTundra = biomeType === 'tundra';
+  const defaultKind: TreeKind = isOasis ? 'palm' : isTundra ? 'pine' : (options.treeKind ?? 'deciduous');
+  const width = Math.max(10, options.width ?? 30);
+  const density = options.density ?? 'medium';
+
+  // 1. SINGLE-POINT CLICK STAMP
+  if (points.length === 1) {
+    const pt = points[0];
+    if (
+      biomeType === 'forest' ||
+      biomeType === 'jungle' ||
+      biomeType === 'oasis' ||
+      biomeType === 'tundra' ||
+      biomeType === 'plains'
+    ) {
+      const baseRadius = isJungle ? 12 : 9;
+      // If narrow corridor (<= 20px), place 1 single standalone tree
+      if (width <= 20) {
+        result.trees.push(createTree(pt.x, pt.y, baseRadius + rng() * 2, defaultKind, rng));
+      } else {
+        // Tight copse of 3 trees
+        result.trees.push(createTree(pt.x, pt.y - 4, baseRadius, defaultKind, rng));
+        result.trees.push(
+          createTree(Math.round(pt.x - width * 0.28), Math.round(pt.y + 3), baseRadius * 0.9, defaultKind, rng)
+        );
+        result.trees.push(
+          createTree(Math.round(pt.x + width * 0.3), Math.round(pt.y + 4), baseRadius * 0.95, defaultKind, rng)
+        );
+      }
+      result.trees.sort((a, b) => a.y - b.y);
+      return result;
+    }
+
+    if (biomeType === 'desert' || biomeType === 'wasteland') {
+      const duneLen = 24 + rng() * 10;
+      const curveH = 5 + rng() * 3;
+      const p0: MapPoint = { x: Math.round(pt.x - duneLen * 0.5), y: Math.round(pt.y + curveH * 0.3) };
+      const pMid: MapPoint = { x: Math.round(pt.x), y: Math.round(pt.y - curveH) };
+      const p1: MapPoint = { x: Math.round(pt.x + duneLen * 0.5), y: Math.round(pt.y + curveH * 0.5) };
+      result.sandDunes.push({
+        crestPath: [p0, pMid, p1],
+        shadowPoly: [p0, pMid, p1, { x: Math.round(pt.x + 3), y: Math.round(pt.y + curveH * 0.8) }],
+      });
+      return result;
+    }
+
+    if (biomeType === 'swamp') {
+      const h = 8 + rng() * 4;
+      result.marshReeds.push({
+        x: pt.x,
+        y: pt.y,
+        blades: [
+          [{ x: pt.x, y: pt.y }, { x: pt.x, y: pt.y - h }],
+          [{ x: pt.x - 2, y: pt.y }, { x: pt.x - 4, y: pt.y - h * 0.85 }],
+          [{ x: pt.x + 2, y: pt.y }, { x: pt.x + 4, y: pt.y - h * 0.85 }],
+        ],
+      });
+      return result;
+    }
+
+    return result;
+  }
+
+  // 2. POLYLINE STROKE CORRIDOR
+  // Calculate total path distance and segment lengths
+  const segLengths: number[] = [];
+  let totalLength = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    const d = Math.hypot(points[i + 1].x - points[i].x, points[i + 1].y - points[i].y);
+    segLengths.push(d);
+    totalLength += d;
+  }
+
+  if (totalLength <= 0) return result;
+
+  // Spacing between symbol steps along the stroke
+  const spacing = density === 'dense' ? 18 : density === 'sparse' ? 34 : 24;
+  const numSteps = Math.max(1, Math.round(totalLength / spacing));
+  const stepDist = totalLength / numSteps;
+
+  const sampleAtDist = (targetDist: number): { pt: MapPoint; norm: MapPoint; tang: MapPoint } => {
+    let accumulated = 0;
+    for (let i = 0; i < segLengths.length; i++) {
+      const segLen = segLengths[i];
+      if (accumulated + segLen >= targetDist || i === segLengths.length - 1) {
+        const segRemain = targetDist - accumulated;
+        const t = segLen > 0 ? Math.max(0, Math.min(1, segRemain / segLen)) : 0;
+        const p0 = points[i];
+        const p1 = points[i + 1];
+        const px = p0.x + (p1.x - p0.x) * t;
+        const py = p0.y + (p1.y - p0.y) * t;
+        const angle = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+        return {
+          pt: { x: px, y: py },
+          norm: { x: -Math.sin(angle), y: Math.cos(angle) },
+          tang: { x: Math.cos(angle), y: Math.sin(angle) },
+        };
+      }
+      accumulated += segLen;
+    }
+    const last = points[points.length - 1];
+    return { pt: last, norm: { x: 0, y: -1 }, tang: { x: 1, y: 0 } };
+  };
+
+  // Trees (Forest, Jungle, Oasis, Tundra, Plains)
+  if (
+    biomeType === 'forest' ||
+    biomeType === 'jungle' ||
+    biomeType === 'oasis' ||
+    biomeType === 'tundra' ||
+    biomeType === 'plains'
+  ) {
+    const trees: ProceduralTree[] = [];
+    const baseRadius = isJungle ? 11 : 8.5;
+
+    for (let s = 0; s <= numSteps; s++) {
+      const curDist = s * stepDist;
+      const { pt, norm, tang } = sampleAtDist(curDist);
+
+      if (width <= 16) {
+        // Single row of trees along the spine
+        const offset = (rng() - 0.5) * width * 0.7;
+        const tx = Math.round(pt.x + norm.x * offset + tang.x * (rng() - 0.5) * 6);
+        const ty = Math.round(pt.y + norm.y * offset + tang.y * (rng() - 0.5) * 6);
+        const radius = baseRadius + rng() * 3.5;
+        trees.push(createTree(tx, ty, radius, defaultKind, rng));
+      } else {
+        // Multi-tree copse across corridor width
+        const treesAcross = Math.max(1, Math.min(3, Math.round(width / 22)));
+        for (let k = 0; k < treesAcross; k++) {
+          const spreadFactor = ((k + 0.5) / treesAcross - 0.5) * width * 0.85;
+          const tx = Math.round(pt.x + norm.x * spreadFactor + tang.x * (rng() - 0.5) * 8);
+          const ty = Math.round(pt.y + norm.y * spreadFactor + tang.y * (rng() - 0.5) * 8);
+          const radius = baseRadius + rng() * 3.5;
+          trees.push(createTree(tx, ty, radius, defaultKind, rng));
+        }
+      }
+    }
+
+    trees.sort((a, b) => a.y - b.y);
+    result.trees = trees;
+    return result;
+  }
+
+  // Sand Dunes along stroke
+  if (biomeType === 'desert' || biomeType === 'wasteland') {
+    const dunes: SandDuneRidge[] = [];
+    const duneStep = spacing * 1.3;
+    const duneCount = Math.max(1, Math.round(totalLength / duneStep));
+
+    for (let s = 0; s <= duneCount; s++) {
+      const curDist = s * (totalLength / duneCount);
+      const { pt } = sampleAtDist(curDist);
+      const duneLen = 20 + rng() * 16;
+      const curveH = 4 + rng() * 3;
+      const cx = pt.x + (rng() - 0.5) * (width * 0.4);
+      const cy = pt.y + (rng() - 0.5) * (width * 0.4);
+
+      const p0: MapPoint = { x: Math.round(cx - duneLen * 0.5), y: Math.round(cy + curveH * 0.3) };
+      const pMid: MapPoint = { x: Math.round(cx), y: Math.round(cy - curveH) };
+      const p1: MapPoint = { x: Math.round(cx + duneLen * 0.5), y: Math.round(cy + curveH * 0.5) };
+
+      dunes.push({
+        crestPath: [p0, pMid, p1],
+        shadowPoly: [p0, pMid, p1, { x: Math.round(cx + 3), y: Math.round(cy + curveH * 0.8) }],
+      });
+    }
+
+    result.sandDunes = dunes;
+    return result;
+  }
+
+  // Swamp Marsh Reeds along stroke
+  if (biomeType === 'swamp') {
+    const reeds: MarshReedTuft[] = [];
+    for (let s = 0; s <= numSteps; s++) {
+      const curDist = s * stepDist;
+      const { pt, norm } = sampleAtDist(curDist);
+      const offset = (rng() - 0.5) * width * 0.8;
+      const cx = Math.round(pt.x + norm.x * offset);
+      const cy = Math.round(pt.y + norm.y * offset);
+      const h = 7 + rng() * 4;
+      reeds.push({
+        x: cx,
+        y: cy,
+        blades: [
+          [{ x: cx, y: cy }, { x: cx, y: cy - h }],
+          [{ x: cx - 2, y: cy }, { x: cx - 4, y: cy - h * 0.85 }],
+          [{ x: cx + 2, y: cy }, { x: cx + 4, y: cy - h * 0.85 }],
+        ],
+      });
+    }
+
+    result.marshReeds = reeds;
+    return result;
+  }
+
+  return result;
 }
