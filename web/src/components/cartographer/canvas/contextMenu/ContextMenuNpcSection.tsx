@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { User } from 'lucide-react';
 import type { Faction } from '@/lib/types/world';
+import { SearchableCombobox, type ComboboxOption } from '@/components/studio/SearchableCombobox';
 import type { ContextMenuGenerateHandler } from './types';
 
 interface ContextMenuNpcSectionProps {
@@ -21,6 +22,14 @@ export const ContextMenuNpcSection: React.FC<ContextMenuNpcSectionProps> = ({
   const [npcRole, setNpcRole] = useState<string>('Hermit / Dweller');
   const [npcDc, setNpcDc] = useState<number>(14);
   const [npcFactionId, setNpcFactionId] = useState<string>('');
+
+  const factionOptions = useMemo<ComboboxOption[]>(() => {
+    return factions.map((f) => ({
+      id: f.id,
+      name: f.name,
+      subtext: f.alignment || undefined,
+    }));
+  }, [factions]);
 
   return (
     <div className="flex flex-col gap-2 p-1">
@@ -103,18 +112,16 @@ export const ContextMenuNpcSection: React.FC<ContextMenuNpcSectionProps> = ({
           <label className="text-[10px] text-[#9c8774] uppercase tracking-wide font-medium">
             {isPersian ? 'وابستگی گروهی / فرقه' : 'Faction Allegiance'}
           </label>
-          <select
+          <SearchableCombobox
             value={npcFactionId}
-            onChange={(e) => setNpcFactionId(e.target.value)}
-            className="bg-[#241c16] border border-[#3d2f23] rounded p-1.5 text-xs text-[#eedec8] focus:border-[#d8ab6c] outline-none"
-          >
-            <option value="">{isPersian ? 'مستقل / بی‌پناه' : 'Independent / Solitary'}</option>
-            {factions.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
+            onChange={(fid) => setNpcFactionId(fid)}
+            options={factionOptions}
+            placeholder={isPersian ? 'مستقل / بی‌پناه...' : 'Independent / Solitary...'}
+            searchPlaceholder={isPersian ? 'جستجوی فرقه...' : 'Search faction...'}
+            emptyMessage={isPersian ? 'فرقه‌ای یافت نشد' : 'No factions found'}
+            isPersian={isPersian}
+            clearable
+          />
         </div>
       )}
 

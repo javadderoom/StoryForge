@@ -41,9 +41,9 @@
 - **NEVER automatically run `git push`**: Do NOT automatically push commits to the remote repository. Always remind/inform the user that changes have been committed locally and tell them to push when ready.
 
 ## Story Entity Selectors & Comboboxes Rule
-- **Use `SearchableCombobox` / `MultiSearchableCombobox` for Story Entity Pickers**: Whenever selecting, linking, or assigning story entities (such as locations, destinations, waypoints, NPCs, factions, items, bestiary creatures, timeline events, or quests) in StoryForge Studio or creator interfaces, **NEVER** use plain native HTML `<select>` dropdowns.
-- Always use `SearchableCombobox` (for single selection) or `MultiSearchableCombobox` (for multi-selection) from `@/components/studio/SearchableCombobox`.
-- These ensure consistent UX with live suggestion search, real-time typing filters, keyboard navigation (`ArrowUp`/`ArrowDown`/`Enter`/`Escape`), metadata badges, and clean chip management.
+- **Mandatory Search & Autocomplete for Database-Backed Selectors**: Wherever the UI selects, links, or assigns data sourced from the database or World Bible (locations, destinations, waypoints, canonical narrative places, factions, NPCs, bestiary creatures, artifacts/items, timeline events, or quests) rather than static hardcoded enum options, **NEVER** use plain native HTML `<select>` dropdowns.
+- **Searchable Combobox Enforced**: Always use `SearchableCombobox` (for single selection) or `MultiSearchableCombobox` (for multi-selection) from `@/components/studio/SearchableCombobox`.
+- These ensure consistent UX with real-time autocomplete typing search, keyboard navigation (`ArrowUp`/`ArrowDown`/`Enter`/`Escape`), metadata badges, clearable selections, and clean chip management. Plain `<select>` is strictly limited to short, static, hardcoded enum lists (e.g. Danger Level 1-5, Line Style solid/dashed/dotted).
 
 ## Solution Engineering & Proactiveness (Never Be Lazy)
 - **Never be lazy in offering solutions**: When presenting technical solutions, architectural decisions, or game mechanics, NEVER give superficial, lazy, or hand-waving suggestions (e.g. leaving all implementation work as an exercise for the user or only describing theoretical possibilities).

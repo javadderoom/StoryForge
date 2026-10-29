@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ArrowRight, Trash2 } from 'lucide-react';
 import type {
   WorldTradeRoute,
@@ -9,6 +9,7 @@ import type {
   TradeRouteStatus,
 } from '@/lib/types';
 import { notify } from '@/lib/notify';
+import { SearchableCombobox, type ComboboxOption } from '@/components/studio/SearchableCombobox';
 import { TRADE_STATUSES, STATUS_LABELS } from './types';
 
 export interface CaravanRouteInspectorProps {
@@ -32,6 +33,14 @@ export const CaravanRouteInspector: React.FC<CaravanRouteInspectorProps> = ({
 }) => {
   const origin = locations.find((l) => l.id === route.originLocationId);
   const destination = locations.find((l) => l.id === route.destinationLocationId);
+
+  const factionOptions = useMemo<ComboboxOption[]>(() => {
+    return factions.map((f) => ({
+      id: f.id,
+      name: f.name,
+      subtext: f.alignment || undefined,
+    }));
+  }, [factions]);
 
   return (
     <div className="space-y-4 text-xs">
@@ -125,21 +134,19 @@ export const CaravanRouteInspector: React.FC<CaravanRouteInspectorProps> = ({
 
       {/* Controlling Faction */}
       <div>
-        <label className="text-[11px] text-zinc-400 mb-1 block font-medium">
+        <label className="text-[11px] text-zinc-400 mb-1.5 block font-medium">
           {isPersian ? 'جناح مسلط و محافظ شاهراه' : 'Controlling Faction'}
         </label>
-        <select
+        <SearchableCombobox
           value={route.controllingFactionId || ''}
-          onChange={(e) => onUpdateTradeRoute(route.id, { controllingFactionId: e.target.value || undefined })}
-          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500/50 cursor-pointer"
-        >
-          <option value="">{isPersian ? 'بدون تسلط مستقیم (بی‌طرف)' : 'None (Neutral corridor)'}</option>
-          {factions.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.name}
-            </option>
-          ))}
-        </select>
+          onChange={(factionId) => onUpdateTradeRoute(route.id, { controllingFactionId: factionId || undefined })}
+          options={factionOptions}
+          placeholder={isPersian ? 'بدون تسلط مستقیم (بی‌طرف)...' : 'None (Neutral corridor)...'}
+          searchPlaceholder={isPersian ? 'جستجوی جناح...' : 'Search faction...'}
+          emptyMessage={isPersian ? 'جناحی یافت نشد' : 'No factions found'}
+          isPersian={isPersian}
+          clearable
+        />
       </div>
 
       {/* Description */}

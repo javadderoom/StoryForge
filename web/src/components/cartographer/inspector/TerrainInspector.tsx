@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Trash2,
   Eye,
@@ -21,6 +21,7 @@ import type {
 } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import { placeAcceptsTerrainType } from '@/lib/engines/world/terrainPlacePairing';
+import { SearchableCombobox, type ComboboxOption } from '@/components/studio/SearchableCombobox';
 import { TerrainDeltaSection } from './sections/TerrainDeltaSection';
 import { TerrainDuneSection } from './sections/TerrainDuneSection';
 import { TerrainWaterliningSection } from './sections/TerrainWaterliningSection';
@@ -74,6 +75,38 @@ export const TerrainInspector: React.FC<TerrainInspectorProps> = ({
     : undefined;
   const linkedToMissingPlace = Boolean(feature.locationId && !linkedLocation);
   const linkedToIncompatiblePlace = Boolean(linkedLocation && !compatibleIds.has(linkedLocation.id));
+
+  const locationOptions = useMemo<ComboboxOption[]>(() => {
+    const options: ComboboxOption[] = [];
+    if (linkedToMissingPlace && feature.locationId) {
+      options.push({
+        id: feature.locationId,
+        name: `${feature.locationId} (${isPersian ? 'ناموجود' : 'missing'})`,
+        badge: isPersian ? 'ناموجود' : 'missing',
+        badgeColor: 'red',
+      });
+    }
+    for (const loc of compatibleLocations) {
+      options.push({
+        id: loc.id,
+        name: loc.name,
+        subtext: loc.category || undefined,
+        badge: isPersian ? 'سازگار' : 'Compatible',
+        badgeColor: 'emerald',
+      });
+    }
+    for (const loc of otherLocations) {
+      options.push({
+        id: loc.id,
+        name: loc.name,
+        subtext: loc.category || undefined,
+        badge: isPersian ? 'سایر' : 'Other',
+        badgeColor: 'amber',
+      });
+    }
+    return options;
+  }, [compatibleLocations, otherLocations, linkedToMissingPlace, feature.locationId, isPersian]);
+
   const isMountain =
     feature.type === 'mountain_range' ||
     feature.type === 'peak' ||
@@ -245,46 +278,25 @@ export const TerrainInspector: React.FC<TerrainInspectorProps> = ({
 
       {/* Plan 24: the semantic place this geometry realizes */}
       <div>
-        <label className="text-[11px] text-zinc-400 mb-1 block font-medium">
+        <label className="text-[11px] text-zinc-400 mb-1.5 block font-medium">
           {isPersian ? 'مکان روایی متصل' : 'Narrative Place'}
         </label>
-        <select
+        <SearchableCombobox
           value={feature.locationId || ''}
-          onChange={(e) => {
-            const targetLocId = e.target.value || undefined;
+          onChange={(targetLocId) => {
             const targetLoc = targetLocId ? locations.find((l) => l.id === targetLocId) : undefined;
             onUpdateTerrain(feature.id, {
-              locationId: targetLocId,
+              locationId: targetLocId || undefined,
               ...(targetLoc ? { name: targetLoc.name } : {}),
             });
           }}
-          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500/50 cursor-pointer"
-        >
-          <option value="">{isPersian ? 'بدون مکان روایی' : 'No narrative place'}</option>
-          {linkedToMissingPlace && (
-            <option value={feature.locationId}>
-              {feature.locationId} ({isPersian ? 'ناموجود' : 'missing'})
-            </option>
-          )}
-          {compatibleLocations.length > 0 && (
-            <optgroup label={isPersian ? 'مکان‌های سازگار' : 'Compatible places'}>
-              {compatibleLocations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          {otherLocations.length > 0 && (
-            <optgroup label={isPersian ? 'سایر مکان‌ها' : 'Other places'}>
-              {otherLocations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
+          options={locationOptions}
+          placeholder={isPersian ? 'بدون مکان روایی (انتخاب برای اتصال)...' : 'No narrative place (select to link)...'}
+          searchPlaceholder={isPersian ? 'جستجوی مکان روایی...' : 'Search narrative place...'}
+          emptyMessage={isPersian ? 'مکانی یافت نشد' : 'No narrative places found'}
+          isPersian={isPersian}
+          clearable
+        />
         <p className="mt-1 text-[10px] leading-relaxed text-zinc-500">
           {compatibleLocations.length > 0
             ? isPersian
