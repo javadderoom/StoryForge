@@ -33,7 +33,12 @@ export interface RiverJunction {
   point: MapPoint;
 }
 
-const DEFAULT_SNAP_THRESHOLD = 20.0;
+export interface NetworkWaterPolygon {
+  outer: MapPoint[];
+  holes: MapPoint[][];
+}
+
+const DEFAULT_SNAP_THRESHOLD = 8.0;
 const CAP_TOLERANCE = 2.4;
 
 function distanceSq(p1: MapPoint, p2: MapPoint): number {
@@ -77,22 +82,23 @@ export function areRiversConnected(
   const pts2 = r2.points || [];
   if (pts1.length < 2 || pts2.length < 2) return false;
 
-  const threshold = Math.max(
-    snapThreshold,
-    Math.max(r1.width || 10, r2.width || 10) * 1.2
-  );
+  // The endpoint must actually reach the other river's water surface
+  const w1 = r1.width || 10;
+  const w2 = r2.width || 10;
+  const threshold1 = Math.max(snapThreshold, w2 * 0.5 + 2.5);
+  const threshold2 = Math.max(snapThreshold, w1 * 0.5 + 2.5);
 
   // Check r1 endpoints against r2 polyline
   const r1Start = pts1[0];
   const r1End = pts1[pts1.length - 1];
-  if (distToPolyline(r1Start, pts2) <= threshold) return true;
-  if (distToPolyline(r1End, pts2) <= threshold) return true;
+  if (distToPolyline(r1Start, pts2) <= threshold1) return true;
+  if (distToPolyline(r1End, pts2) <= threshold1) return true;
 
   // Check r2 endpoints against r1 polyline
   const r2Start = pts2[0];
   const r2End = pts2[pts2.length - 1];
-  if (distToPolyline(r2Start, pts1) <= threshold) return true;
-  if (distToPolyline(r2End, pts1) <= threshold) return true;
+  if (distToPolyline(r2Start, pts1) <= threshold2) return true;
+  if (distToPolyline(r2End, pts1) <= threshold2) return true;
 
   return false;
 }
@@ -191,7 +197,7 @@ function buildExternalCapChords(
       if (i === j) return false;
       const otherProc = procRivers[j];
       const dist = distToPolyline(startPt, other.points || []);
-      const threshold = Math.max(DEFAULT_SNAP_THRESHOLD, (other.width || 10) * 1.2);
+      const threshold = Math.max(DEFAULT_SNAP_THRESHOLD, (other.width || 10) * 0.5 + 2.5);
       return dist <= threshold;
     });
 
@@ -204,7 +210,7 @@ function buildExternalCapChords(
       if (i === j) return false;
       const otherProc = procRivers[j];
       const dist = distToPolyline(endPt, other.points || []);
-      const threshold = Math.max(DEFAULT_SNAP_THRESHOLD, (other.width || 10) * 1.2);
+      const threshold = Math.max(DEFAULT_SNAP_THRESHOLD, (other.width || 10) * 0.5 + 2.5);
       return dist <= threshold;
     });
 
@@ -278,7 +284,7 @@ export function buildNetworkShorelineRuns(
  * Generates unified water polygons and outer bank strokes for a connected RiverNetwork.
  */
 export function generateNetworkGeometry(network: RiverNetwork): {
-  waterPolygons: MapPoint[][];
+  waterPolygons: NetworkWaterPolygon[];
   shorelineRuns: MapPoint[][];
 } {
   const rivers = network.rivers;
@@ -306,7 +312,7 @@ export function generateNetworkGeometry(network: RiverNetwork): {
     if (r.leftBank.length >= 2) runs.push(r.leftBank);
     if (r.rightBank.length >= 2) runs.push(r.rightBank);
     return {
-      waterPolygons: r.waterPolygon.length >= 3 ? [r.waterPolygon] : [],
+      waterPolygons: r.waterPolygon.length >= 3 ? [{ outer: r.waterPolygon, holes: [] }] : [],
       shorelineRuns: runs,
     };
   }
@@ -323,7 +329,9 @@ export function generateNetworkGeometry(network: RiverNetwork): {
     merged = polygonClipping.union(geoPolys[0], ...geoPolys.slice(1)) as GeoMultiPolygon;
   } catch {
     // Fallback: per-river rendering if clipping fails
-    const fallbackPolys = procRivers.map((r) => r.waterPolygon);
+    const fallbackPolys: NetworkWaterPolygon[] = procRivers
+      .filter((r) => r.waterPolygon.length >= 3)
+      .map((r) => ({ outer: r.waterPolygon, holes: [] }));
     const fallbackRuns: MapPoint[][] = [];
     for (const r of procRivers) {
       if (r.leftBank.length >= 2) fallbackRuns.push(r.leftBank);
@@ -333,16 +341,26 @@ export function generateNetworkGeometry(network: RiverNetwork): {
   }
 
   const rings: MapPoint[][] = [];
-  const waterPolygons: MapPoint[][] = [];
+  const waterPolygons: NetworkWaterPolygon[] = [];
 
   for (const poly of merged) {
-    for (let rIdx = 0; rIdx < poly.length; rIdx++) {
-      const ring = fromGeoRing(poly[rIdx]);
-      if (ring.length >= 3) {
-        rings.push(ring);
-        waterPolygons.push(ring);
+    if (poly.length === 0) continue;
+    const outer = fromGeoRing(poly[0]);
+    if (outer.length < 3) continue;
+
+    rings.push(outer);
+    const holes: MapPoint[][] = [];
+
+    // Inner rings (rIdx >= 1) are holes representing islands / dry land between river channels
+    for (let rIdx = 1; rIdx < poly.length; rIdx++) {
+      const hole = fromGeoRing(poly[rIdx]);
+      if (hole.length >= 3) {
+        rings.push(hole);
+        holes.push(hole);
       }
     }
+
+    waterPolygons.push({ outer, holes });
   }
 
   const caps = buildExternalCapChords(procRivers, rivers);
@@ -353,20 +371,26 @@ export function generateNetworkGeometry(network: RiverNetwork): {
 
 /**
  * Renders an entire connected RiverNetwork onto a Pixi.js Graphics context.
+ * Strictly cuts out all interior island holes so the dry land between channels is never painted blue.
  */
 export function renderRiverNetworkToGraphics(g: Graphics, network: RiverNetwork): void {
   const { waterPolygons, shorelineRuns } = generateNetworkGeometry(network);
 
-  // 1. Water wash (single continuous surface, no alpha seams at junctions)
-  for (const poly of waterPolygons) {
-    if (poly.length < 3) continue;
-    g.poly(toFlatPoints(poly)).fill({
+  // 1. Water wash (single continuous surface, with dry-land holes strictly cut out)
+  for (const { outer, holes } of waterPolygons) {
+    if (outer.length < 3) continue;
+    g.poly(toFlatPoints(outer)).fill({
       color: VINTAGE_PARCHMENT.riverWash,
       alpha: 0.6,
     });
+    for (const hole of holes) {
+      if (hole.length >= 3) {
+        g.poly(toFlatPoints(hole)).cut();
+      }
+    }
   }
 
-  // 2. Continuous exterior bank strokes (no crossing lines at confluences/forks)
+  // 2. Continuous exterior and island bank strokes (no crossing lines at confluences/forks)
   for (const run of shorelineRuns) {
     if (run.length < 2) continue;
     g.moveTo(run[0].x, run[0].y);

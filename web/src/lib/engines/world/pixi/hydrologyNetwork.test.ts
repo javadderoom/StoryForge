@@ -184,7 +184,49 @@ describe('hydrologyNetwork — Topological Hydrology Graph', () => {
     assert.ok(shorelineRuns.length >= 1, 'Should produce outer bank strokes');
 
     // The water polygon should be unified (multi-polygon or single polygon with no internal partition)
-    const totalWaterVerts = waterPolygons.reduce((acc, p) => acc + p.length, 0);
+    const totalWaterVerts = waterPolygons.reduce((acc, p) => acc + p.outer.length, 0);
     assert.ok(totalWaterVerts >= 10, 'Unified water polygon must contain boundary vertices');
+  });
+
+  it('generateNetworkGeometry detects loops/braids and isolates the dry-land island as a hole', () => {
+    // Two branches that fork at (100, 100) and rejoin at (300, 300)
+    const branchA: MapTerrainFeature = {
+      id: 'river_loop_a',
+      name: 'Loop West',
+      type: 'river',
+      points: [
+        { x: 100, y: 100 },
+        { x: 140, y: 220 },
+        { x: 300, y: 300 },
+      ],
+      width: 12,
+    };
+    const branchB: MapTerrainFeature = {
+      id: 'river_loop_b',
+      name: 'Loop East',
+      type: 'river',
+      points: [
+        { x: 100, y: 100 },
+        { x: 260, y: 180 },
+        { x: 300, y: 300 },
+      ],
+      width: 12,
+      connectedRiverId: branchA.id,
+    };
+
+    const network = {
+      id: 'net_loop',
+      rivers: [branchA, branchB],
+    };
+
+    const { waterPolygons, shorelineRuns } = generateNetworkGeometry(network);
+    assert.ok(waterPolygons.length >= 1);
+
+    // The braided island loop must create a hole in the water polygon
+    const hasHole = waterPolygons.some((p) => p.holes.length > 0);
+    assert.ok(hasHole, 'Braided river loop must extract dry-land hole between branches');
+
+    // Both the outer bank and the island bank must be present in shoreline runs
+    assert.ok(shorelineRuns.length >= 2, 'Shoreline runs must trace outer banks and interior island');
   });
 });

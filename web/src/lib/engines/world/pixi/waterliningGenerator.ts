@@ -44,6 +44,7 @@ export interface ProceduralWaterlining {
 export interface WaterlineOptions extends WaterliningConfig {
   seed?: number;
   color?: number;
+  miterLimit?: number;
 }
 
 /**
@@ -58,6 +59,8 @@ const WATERLINE_TIER_STYLES = [
 
 /**
  * Generates outward concentric wave echo contours for landmasses and islands.
+ * Automatically adapts wave count and spacing based on island area to prevent
+ * close archipelagos and small islands from drowning in overlapping wave grids.
  */
 export function generateCoastlineWaterlines(
   polygon: MapPoint[],
@@ -69,10 +72,40 @@ export function generateCoastlineWaterlines(
   if (totalArea < 40) return null;
 
   const seed = options.seed ?? 42;
-  const ringCount = Math.max(1, Math.min(6, options.ringCount ?? 4));
-  const baseDistance = options.baseDistance ?? 4.0;
-  const distanceStep = options.distanceStep ?? 5.5;
+
+  // Adaptive wave tiering based on island area:
+  // - Tiny rocks/reefs (area < 400): 0 rings (no cluttered waves around rocks)
+  // - Small islets (area < 1800): 1 subtle near-shore ripple (prevents chaotic multi-ring web in archipelagos)
+  // - Small islands (area < 5000): 2 tight ripples
+  // - Medium islands (area < 14000): 3 rings
+  // - Continents & major landmasses (area >= 14000): 4 rings with ocean breakers & stipples
+  const defaultRingCount =
+    totalArea < 400
+      ? 0
+      : totalArea < 1800
+      ? 1
+      : totalArea < 5000
+      ? 2
+      : totalArea < 14000
+      ? 3
+      : 4;
+
+  const ringCount = Math.max(
+    0,
+    Math.min(6, options.ringCount ?? defaultRingCount)
+  );
+  if (ringCount === 0) return null;
+
+  // Adaptive distance: small islands use tighter ripples closer to the shore
+  const defaultBaseDist = totalArea < 5000 ? 3.0 : 4.0;
+  const defaultDistStep = totalArea < 5000 ? 3.5 : 5.5;
+
+  const baseDistance = options.baseDistance ?? defaultBaseDist;
+  const distanceStep = options.distanceStep ?? defaultDistStep;
   const stippledOuter = options.stippledOuter !== false;
+
+  // For smaller islands, clamp miterLimit to 1.5 to prevent sharp vertex spike artifacts across channels
+  const miterLimit = options.miterLimit ?? (totalArea < 5000 ? 1.5 : 2.2);
 
   const cleanPolygon = sanitizePolygon(polygon);
   if (cleanPolygon.length < 3) return null;
@@ -86,7 +119,7 @@ export function generateCoastlineWaterlines(
     const offsetPoints = offsetPolygonContour(cleanPolygon, distance, {
       outward: true,
       noiseSeed: seed + i * 17,
-      miterLimit: 2.2,
+      miterLimit,
     });
 
     if (offsetPoints.length < 3) continue;
@@ -131,9 +164,21 @@ export function generateLakeWaterlines(
   if (initialArea < 100) return null;
 
   const seed = options.seed ?? 42;
-  const ringCount = Math.max(1, Math.min(6, options.ringCount ?? 4));
-  const baseDistance = options.baseDistance ?? 3.5;
-  const distanceStep = options.distanceStep ?? 4.5;
+  const defaultRingCount =
+    initialArea < 1200
+      ? 1
+      : initialArea < 4000
+      ? 2
+      : initialArea < 12000
+      ? 3
+      : 4;
+
+  const ringCount = Math.max(
+    1,
+    Math.min(6, options.ringCount ?? defaultRingCount)
+  );
+  const baseDistance = options.baseDistance ?? (initialArea < 4000 ? 2.5 : 3.5);
+  const distanceStep = options.distanceStep ?? (initialArea < 4000 ? 3.0 : 4.5);
   const stippledOuter = options.stippledOuter !== false;
 
   const cleanPolygon = sanitizePolygon(polygon);

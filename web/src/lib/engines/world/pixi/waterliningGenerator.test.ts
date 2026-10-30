@@ -138,4 +138,42 @@ describe('waterliningGenerator — Concentric Shoreline Wave Echo Contours', () 
     const run2 = generateCoastlineWaterlines(landBoundary, { seed: 5555 });
     assert.deepEqual(run1, run2);
   });
+
+  it('adaptively scales ring count for small islands and archipelagos to prevent wave clutter', () => {
+    // 1. Tiny rock (area = 10 x 10 = 100, < 400) -> 0 rings (null)
+    const tinyRock: MapPoint[] = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ];
+    assert.equal(generateCoastlineWaterlines(tinyRock), null);
+
+    // 2. Small islet (area = 30 x 30 = 900, < 1800) -> 1 subtle ring
+    const islet: MapPoint[] = [
+      { x: 0, y: 0 },
+      { x: 30, y: 0 },
+      { x: 30, y: 30 },
+      { x: 0, y: 30 },
+    ];
+    const isletWater = generateCoastlineWaterlines(islet);
+    assert.ok(isletWater !== null);
+    assert.equal(isletWater.rings.length, 1);
+
+    // 3. Small island (area = 60 x 60 = 3600, < 5000) -> 2 tight rings
+    const smallIsland: MapPoint[] = [
+      { x: 0, y: 0 },
+      { x: 60, y: 0 },
+      { x: 60, y: 60 },
+      { x: 0, y: 60 },
+    ];
+    const smallIslandWater = generateCoastlineWaterlines(smallIsland);
+    assert.ok(smallIslandWater !== null);
+    assert.equal(smallIslandWater.rings.length, 2);
+
+    // 4. Large continent (landBoundary: 200 x 140 = 28000 >= 14000) -> 4 rings
+    const continentWater = generateCoastlineWaterlines(landBoundary);
+    assert.ok(continentWater !== null);
+    assert.equal(continentWater.rings.length, 4);
+  });
 });

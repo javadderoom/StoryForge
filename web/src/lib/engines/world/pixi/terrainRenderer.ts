@@ -15,6 +15,8 @@ import type { FillWithMaterial } from './renderTypes';
 import { toFlatPoints } from './renderers/shared';
 import {
   drawLandmass,
+  drawLandmassWaterlines,
+  drawLandmassBody,
   drawWaterBody,
   drawLake,
   renderWaterliningToGraphics,
@@ -51,6 +53,8 @@ import {
 export {
   toFlatPoints,
   drawLandmass,
+  drawLandmassWaterlines,
+  drawLandmassBody,
   flatWaterHoles,
   drawWaterBody,
   drawLake,
@@ -105,6 +109,18 @@ export function renderTerrain(
   }
   const renderedNetworkIds = new Set<string>();
 
+  // 1. Waterlining Pass: Render concentric shoreline waterlines for all visible landmasses.
+  // Drawn into the water background first, so that when landmass bodies are drawn,
+  // the opaque parchment land cleanly covers any wave lines that reach neighbor islands.
+  for (const feat of ordered) {
+    if (!isObjectVisible(feat)) continue;
+    if (!isTerrainVisibleInLayers(feat.type, settings.visibleLayers)) continue;
+    if (feat.type === 'continent' || feat.type === 'island') {
+      drawLandmassWaterlines(g, feat);
+    }
+  }
+
+  // 2. Main Terrain Pass: Landmass bodies, highlands, lakes, biomes, rivers, and mountains
   for (const feat of ordered) {
     if (!isObjectVisible(feat)) continue;
     if (!isTerrainVisibleInLayers(feat.type, settings.visibleLayers)) continue;
@@ -112,7 +128,7 @@ export function renderTerrain(
     switch (feat.type) {
       case 'continent':
       case 'island':
-        drawLandmass(g, feat, fill);
+        drawLandmassBody(g, feat, fill);
         break;
       case 'highland':
       case 'plateau':

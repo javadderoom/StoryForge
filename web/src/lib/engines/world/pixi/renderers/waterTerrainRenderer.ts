@@ -12,16 +12,10 @@ import {
 import { toFlatPoints } from './shared';
 
 /** Continents and islands: parchment fill, inked coastline, echo rings. */
-export function drawLandmass(g: Graphics, feat: MapTerrainFeature, fill: FillWithMaterial): void {
+/** Concentric wave echo ripples for a landmass, rendered into the water layer. */
+export function drawLandmassWaterlines(g: Graphics, feat: MapTerrainFeature): void {
   if (!feat.polygon || feat.polygon.length <= 2) return;
   const points = generateOrganicParchmentContours(feat.polygon, 3);
-  const flatPoints = toFlatPoints(points);
-
-  // Land fill — the paper material
-  fill(g, flatPoints, 'land', VINTAGE_PARCHMENT.landFill, 1);
-
-  // Hand-inked primary coastline
-  g.poly(flatPoints).stroke({ width: 2.2, color: VINTAGE_PARCHMENT.coastlineInk });
 
   // Concentric Shoreline Waterlining (Plan 27 — Module 2)
   if (feat.waterliningConfig?.enabled !== false) {
@@ -35,12 +29,30 @@ export function drawLandmass(g: Graphics, feat: MapTerrainFeature, fill: FillWit
     }
   } else {
     // Subtle fallback glow
+    const flatPoints = toFlatPoints(points);
     g.poly(flatPoints).stroke({ width: 4.5, color: VINTAGE_PARCHMENT.coastlineGlow, alpha: 0.35 });
   }
+}
 
-  // Inland water is drawn only by its lake feature. A landmass no longer owns
-  // a duplicate water hole, which is what made a carved lake appear twice: once
-  // as a selectable lake and once as an unselectable gap in the land.
+/** Land fill and primary dark inked coastline for a landmass. */
+export function drawLandmassBody(g: Graphics, feat: MapTerrainFeature, fill: FillWithMaterial): void {
+  if (!feat.polygon || feat.polygon.length <= 2) return;
+  const points = generateOrganicParchmentContours(feat.polygon, 3);
+  const flatPoints = toFlatPoints(points);
+
+  // Land fill — the paper material (opaque parchment covers any waterlines under the land)
+  fill(g, flatPoints, 'land', VINTAGE_PARCHMENT.landFill, 1);
+
+  // Hand-inked primary coastline
+  g.poly(flatPoints).stroke({ width: 2.2, color: VINTAGE_PARCHMENT.coastlineInk });
+}
+
+/**
+ * Landmass: waterlines + land fill + coastline stroke.
+ */
+export function drawLandmass(g: Graphics, feat: MapTerrainFeature, fill: FillWithMaterial): void {
+  drawLandmassWaterlines(g, feat);
+  drawLandmassBody(g, feat, fill);
 }
 
 /** Flat hole rings used to cut islands out of every water fill layer. */
