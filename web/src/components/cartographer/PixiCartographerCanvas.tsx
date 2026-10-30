@@ -49,6 +49,7 @@ import { useCanvasContextMenu } from './canvas/hooks/useCanvasContextMenu';
 import { useCanvasNodeDrag } from './canvas/hooks/useCanvasNodeDrag';
 import { useCanvasSelectTool } from './canvas/hooks/useCanvasSelectTool';
 import { findGroupForRef } from '@/lib/engines/world/mapGroups';
+import { getFamilyById } from '@/lib/engines/world/pixi/symbolPalette';
 
 interface PixiCartographerCanvasProps {
   worldBible: WorldBible;
@@ -81,6 +82,12 @@ interface PixiCartographerCanvasProps {
   setZoom: React.Dispatch<React.SetStateAction<number>>;
   pan: { x: number; y: number };
   setPan: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
+  armedStampFamily?: string | null;
+  stampScale?: number;
+  stampMode?: 'stamp' | 'scatter';
+  stampSpacing?: number;
+  stampRandomRotation?: boolean;
+  onArmStampFamily?: (familyId: string | null) => void;
 }
 
 /** Draft state that must survive the handler's local scope while a route is being drawn. */
@@ -111,6 +118,12 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   setZoom,
   pan,
   setPan,
+  armedStampFamily,
+  stampScale = 42,
+  stampMode = 'stamp',
+  stampSpacing = 36,
+  stampRandomRotation = true,
+  onArmStampFamily,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -434,6 +447,39 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
     if (e.button !== 0) return;
 
+    // Armed Stamp from Asset Drawer (Single-click stamp mode)
+    if (armedStampFamily && !e.altKey) {
+      if (stampMode === 'stamp') {
+        const symbolFamily = getFamilyById(armedStampFamily);
+        const variantId = symbolFamily?.variants[0]?.id || armedStampFamily;
+        const terrainType =
+          symbolFamily?.category === 'mountain'
+            ? 'peak'
+            : symbolFamily?.category === 'tree'
+            ? 'forest'
+            : symbolFamily?.category === 'stone_rock'
+            ? 'wasteland'
+            : symbolFamily?.id === 'sand_dunes'
+            ? 'desert'
+            : symbolFamily?.id === 'swamp_reeds'
+            ? 'swamp'
+            : 'plains';
+
+        const newStamp: MapTerrainFeature = {
+          id: `stamp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+          type: terrainType,
+          name: symbolFamily?.name?.en || 'Map Stamp',
+          symbolFamily: armedStampFamily,
+          points: [{ x: Math.round(worldPoint.x), y: Math.round(worldPoint.y) }],
+          scale: stampScale,
+          symbolScale: stampScale,
+        };
+        onAddTerrain(newStamp);
+        onSelectionChange([{ kind: 'terrain', id: newStamp.id }]);
+        return;
+      }
+    }
+
     // Land Sculpt Brush continuous drag
     if (activeTool === 'land_brush') {
       if (!e.altKey) {
@@ -581,6 +627,12 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
 
     if (!isInteracting) {
       updateHoveredCoordThrottled(worldPoint);
+    }
+
+    if (armedStampFamily && engineRef.current) {
+      const symbolFamily = getFamilyById(armedStampFamily);
+      const firstVariant = symbolFamily?.variants[0]?.id || null;
+      engineRef.current.renderStampGhostPreview(worldPoint, firstVariant, stampScale);
     }
 
     // Zoom box in progress
@@ -739,6 +791,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     }
     setHoveredCoord(null);
     engineRef.current?.clearBrushCursor();
+    engineRef.current?.clearStampGhostPreview();
     if (activeTool === 'draw_route') {
       engineRef.current?.renderRouteSnapPreview(null);
     }
@@ -794,6 +847,101 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
       window.removeEventListener('mouseup', onGlobalMouseUp);
     };
   }, [commitDragEnd]);
+
+  // Keyboard shortcuts (Escape to deselect/disarm, Delete to remove, Ctrl+D to duplicate, [/] to scale)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        onSelectionChange([]);
+        if (onArmStampFamily) onArmStampFamily(null);
+        engineRef.current?.clearStampGhostPreview();
+        return;
+      }
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selection.length > 0 && onDeleteObject) {
+          e.preventDefault();
+          for (const item of selection) {
+            onDeleteObject(item);
+          }
+          onSelectionChange([]);
+        }
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        if (selection.length === 0) return;
+
+        const newSelection: MapObjectRef[] = [];
+        for (const sel of selection) {
+          if (sel.kind === 'terrain') {
+            const original = terrainFeaturesRef.current.find((t) => t.id === sel.id);
+            if (original) {
+              const newId = `terrain_copy_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+              const offsetPoints = original.points?.map((p) => ({ x: p.x + 24, y: p.y + 24 }));
+              const offsetPolygon = original.polygon?.map((p) => ({ x: p.x + 24, y: p.y + 24 }));
+              const cloned: MapTerrainFeature = {
+                ...original,
+                id: newId,
+                name: `${original.name || 'Object'} (Copy)`,
+                points: offsetPoints,
+                polygon: offsetPolygon,
+                x: typeof original.x === 'number' ? original.x + 24 : undefined,
+                y: typeof original.y === 'number' ? original.y + 24 : undefined,
+              };
+              onAddTerrain(cloned);
+              newSelection.push({ kind: 'terrain', id: newId });
+            }
+          } else if (sel.kind === 'placement') {
+            const original = (worldBible.mapData?.placements || []).find((p) => p.id === sel.id);
+            if (original) {
+              const newId = `placement_copy_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+              const cloned: MapEntityPlacement = {
+                ...original,
+                id: newId,
+                x: original.x + 24,
+                y: original.y + 24,
+              };
+              onAddPlacement(cloned);
+              newSelection.push({ kind: 'placement', id: newId });
+            }
+          }
+        }
+        if (newSelection.length > 0) {
+          onSelectionChange(newSelection);
+        }
+        return;
+      }
+
+      if (e.key === '[' || e.key === ']') {
+        const delta = e.key === ']' ? 4 : -4;
+        for (const sel of selection) {
+          if (sel.kind === 'terrain') {
+            const feat = terrainFeaturesRef.current.find((t) => t.id === sel.id);
+            if (feat) {
+              const currentScale = feat.scale ?? 42;
+              const nextScale = Math.max(12, Math.min(250, currentScale + delta));
+              onUpdateTerrain(feat.id, { scale: nextScale });
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selection, onSelectionChange, onDeleteObject, onAddTerrain, onAddPlacement, onUpdateTerrain, onArmStampFamily, worldBible.mapData?.placements]);
 
   const handleCloseContextMenu = useCallback(() => {
     setContextMenuState(null);

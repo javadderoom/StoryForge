@@ -18,6 +18,7 @@ import { clampZoom, calculateZoomPan } from '@/lib/engines/world/pixi/pixiMath';
 import { CartographerHeader, CartographerTool } from '@/components/cartographer/CartographerHeader';
 import { CartographerToolbar } from '@/components/cartographer/CartographerToolbar';
 import { PixiCartographerCanvas } from '@/components/cartographer/PixiCartographerCanvas';
+import { CartographerAssetDrawer } from '@/components/cartographer/CartographerAssetDrawer';
 import { CartographerLayerPanel } from '@/components/cartographer/CartographerLayerPanel';
 import { CartographerEntityPalette } from '@/components/cartographer/CartographerEntityPalette';
 import { CartographerElementsPanel } from '@/components/cartographer/CartographerElementsPanel';
@@ -73,6 +74,12 @@ export default function CartographerPage() {
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(false);
   const [isElementsPanelOpen, setIsElementsPanelOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isAssetDrawerOpen, setIsAssetDrawerOpen] = useState(false);
+  const [armedStampFamily, setArmedStampFamily] = useState<string | null>(null);
+  const [stampScale, setStampScale] = useState(42);
+  const [stampMode, setStampMode] = useState<'stamp' | 'scatter'>('stamp');
+  const [stampSpacing, setStampSpacing] = useState(36);
+  const [stampRandomRotation, setStampRandomRotation] = useState(true);
   const [isAiOracleOpen, setIsAiOracleOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -439,8 +446,16 @@ export default function CartographerPage() {
           setIsPaletteOpen((v) => !v);
           setIsLayerPanelOpen(false);
           setIsElementsPanelOpen(false);
+          setIsAssetDrawerOpen(false);
         }}
         isPaletteOpen={isPaletteOpen}
+        onToggleAssetDrawer={() => {
+          setIsAssetDrawerOpen((v) => !v);
+          setIsLayerPanelOpen(false);
+          setIsElementsPanelOpen(false);
+          setIsPaletteOpen(false);
+        }}
+        isAssetDrawerOpen={isAssetDrawerOpen}
         isPersian={isPersian}
         isFullscreen={isFullscreen}
         onToggleFullscreen={handleToggleFullscreen}
@@ -473,7 +488,37 @@ export default function CartographerPage() {
           setZoom={setZoom}
           pan={pan}
           setPan={setPan}
+          armedStampFamily={armedStampFamily}
+          stampScale={stampScale}
+          stampMode={stampMode}
+          stampSpacing={stampSpacing}
+          stampRandomRotation={stampRandomRotation}
+          onArmStampFamily={setArmedStampFamily}
         />
+
+        {/* Cartographer Asset & Stamp Drawer (Left) */}
+        {isAssetDrawerOpen && (
+          <CartographerAssetDrawer
+            isOpen={isAssetDrawerOpen}
+            onClose={() => setIsAssetDrawerOpen(false)}
+            isPersian={isPersian}
+            armedFamilyId={armedStampFamily}
+            onArmFamily={(famId) => {
+              setArmedStampFamily(famId);
+              if (famId) {
+                setActiveTool('terrain_biome');
+              }
+            }}
+            scale={stampScale}
+            onScaleChange={setStampScale}
+            mode={stampMode}
+            onModeChange={setStampMode}
+            spacing={stampSpacing}
+            onSpacingChange={setStampSpacing}
+            randomRotation={stampRandomRotation}
+            onRandomRotationChange={setStampRandomRotation}
+          />
+        )}
 
         {/* Floating Tool Palette (Left) */}
         <CartographerToolbar

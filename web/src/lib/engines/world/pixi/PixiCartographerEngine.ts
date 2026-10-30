@@ -4,7 +4,7 @@
  * Renders high-performance interactive maps with the Classic Parchment / Vintage Fantasy aesthetic.
  */
 
-import { Application, Container, Graphics, Matrix } from 'pixi.js';
+import { Application, Container, Graphics, Matrix, Sprite } from 'pixi.js';
 import {
   WorldMapSettings,
   WorldLocation,
@@ -167,6 +167,7 @@ export class PixiCartographerEngine {
   private selectionGraphics = new Graphics();
   private brushGraphics = new Graphics();
   private brushCursorGraphics = new Graphics();
+  private ghostSprite = new Sprite();
 
   // Spatial Index for sub-millisecond point hit-testing
   public spatialIndex = new PixiSpatialIndex();
@@ -251,7 +252,8 @@ export class PixiCartographerEngine {
       this.interactionGraphics,
       this.selectionGraphics,
       this.brushGraphics,
-      this.brushCursorGraphics
+      this.brushCursorGraphics,
+      this.ghostSprite
     );
   }
 
@@ -1042,6 +1044,43 @@ export class PixiCartographerEngine {
   /**
    * Clears transient real-time brush stroke preview
    */
+  /**
+   * Renders a real-time ghost preview of a stamp asset from the stamp drawer at the cursor position.
+   */
+  public renderStampGhostPreview(
+    point: MapPoint | null,
+    symbolId: string | null,
+    scale: number = 42
+  ): void {
+    if (!point || !symbolId) {
+      this.ghostSprite.visible = false;
+      return;
+    }
+    const texture = this.symbolLibrary.get(symbolId);
+    if (!texture) {
+      this.ghostSprite.visible = false;
+      return;
+    }
+    this.ghostSprite.texture = texture;
+    this.ghostSprite.x = point.x;
+    this.ghostSprite.y = point.y;
+    this.ghostSprite.anchor.set(0.5, 0.9);
+    const texW = texture.width || 64;
+    const texH = texture.height || 64;
+    const aspect = texH / Math.max(1, texW);
+    this.ghostSprite.width = scale;
+    this.ghostSprite.height = scale * aspect;
+    this.ghostSprite.alpha = 0.65;
+    this.ghostSprite.visible = true;
+  }
+
+  /**
+   * Clears the stamp ghost preview sprite.
+   */
+  public clearStampGhostPreview(): void {
+    this.ghostSprite.visible = false;
+  }
+
   public clearBrushPreview(): void {
     this.brushGraphics.clear();
   }
@@ -1063,6 +1102,7 @@ export class PixiCartographerEngine {
     }
     this.textureLibrary.destroy();
     this.symbolLibrary.destroy();
+    this.ghostSprite.destroy();
     if (this.app) {
       this.app.destroy(true, { children: true });
       this.app = null;

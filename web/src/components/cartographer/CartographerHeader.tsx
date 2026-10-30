@@ -29,6 +29,7 @@ import {
   Redo2,
   ListTree,
   Trash2,
+  Stamp,
 } from 'lucide-react';
 import { WorldMapSettings, MapStyleTheme } from '@/lib/types';
 
@@ -90,6 +91,8 @@ interface CartographerHeaderProps {
   isElementsPanelOpen: boolean;
   onTogglePalette: () => void;
   isPaletteOpen: boolean;
+  onToggleAssetDrawer?: () => void;
+  isAssetDrawerOpen?: boolean;
   isPersian: boolean;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
@@ -137,6 +140,8 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
   isElementsPanelOpen,
   onTogglePalette,
   isPaletteOpen,
+  onToggleAssetDrawer,
+  isAssetDrawerOpen = false,
   isPersian,
   isFullscreen,
   onToggleFullscreen,
@@ -310,6 +315,22 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
           <Globe className="w-3.5 h-3.5" />
           <span>{isPersian ? 'موجودیت‌های جهان' : 'World Palette'}</span>
         </button>
+
+        {/* Asset & Stamp Drawer Toggle */}
+        {onToggleAssetDrawer && (
+          <button
+            onClick={onToggleAssetDrawer}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium transition-colors ${
+              isAssetDrawerOpen
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+            }`}
+            title={isPersian ? 'کتابخانه نمادها و استامپ‌ها' : 'Asset & Stamp Library'}
+          >
+            <Stamp className="w-3.5 h-3.5" />
+            <span>{isPersian ? 'کتابخانه نمادها' : 'Stamp Shelf'}</span>
+          </button>
+        )}
       </div>
 
       {/* Right: AI Oracle, Zoom HUD, Save & Fullscreen */}
