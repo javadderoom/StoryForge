@@ -121,6 +121,13 @@ export function useCanvasNodeDrag({
               false
             );
             onUpdateTerrain(feature.id, { points: transformed });
+          } else if (feature.points && feature.points.length === 1) {
+            const origS = feature.scale ?? feature.symbolScale ?? feature.width ?? 42;
+            const box = active.originBox;
+            const currentDist = Math.hypot(finalPos.x - box.cx, finalPos.y - box.cy);
+            const origDist = Math.hypot(active.startPoint.x - box.cx, active.startPoint.y - box.cy) || 1;
+            const newScale = Math.max(12, Math.min(300, Math.round(origS * (currentDist / origDist))));
+            onUpdateTerrain(feature.id, { scale: newScale, symbolScale: newScale });
           } else if (feature.polygon && feature.polygon.length >= 3) {
             const transformed = applyTransform(
               feature.polygon,

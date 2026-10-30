@@ -40,11 +40,20 @@ export function computeTerrainBounds(feature: MapTerrainFeature): BoundingBox2D 
     points.push(...feature.polygon);
   } else if (feature.points && feature.points.length >= 2) {
     points.push(...feature.points);
-  } else if (typeof feature.x === 'number' && typeof feature.y === 'number') {
-    const r = feature.radius ?? 24;
+  } else if (feature.points && feature.points.length === 1) {
+    const pt = feature.points[0];
+    const s = Math.max(28, feature.scale ?? feature.symbolScale ?? feature.width ?? 42);
+    const halfW = s * 0.65;
     points.push(
-      { x: feature.x - r, y: feature.y - r },
-      { x: feature.x + r, y: feature.y + r }
+      { x: pt.x - halfW, y: pt.y - s * 0.95 },
+      { x: pt.x + halfW, y: pt.y + s * 0.15 }
+    );
+  } else if (typeof feature.x === 'number' && typeof feature.y === 'number') {
+    const s = Math.max(28, feature.radius ?? feature.scale ?? 24);
+    const halfW = s * 0.65;
+    points.push(
+      { x: feature.x - halfW, y: feature.y - s * 0.95 },
+      { x: feature.x + halfW, y: feature.y + s * 0.15 }
     );
   }
 

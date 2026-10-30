@@ -85,4 +85,24 @@ describe('transformMath', () => {
     assert.ok(Math.abs(transformed[0].x - 200) < 0.001);
     assert.ok(Math.abs(transformed[0].y - 100) < 0.001);
   });
+
+  it('computes 2D bounding box and handles for single-point stamps', () => {
+    const singleStamp: MapTerrainFeature = {
+      id: 'stamp_1',
+      name: 'Single Mountain Peak',
+      type: 'peak',
+      points: [{ x: 300, y: 400 }],
+      scale: 60,
+    };
+
+    const box = computeTerrainBounds(singleStamp);
+    assert.ok(box);
+    assert.equal(box.cx, 300);
+    // Y spans upward from anchor (400 - 60 * 0.95 = 343 to 400 + 60 * 0.15 = 409)
+    assert.equal(box.minY, 343);
+    assert.equal(box.maxY, 409);
+    assert.equal(box.width, 60 * 1.3);
+    const handles = getTransformHandles(box);
+    assert.equal(handles.length, 9);
+  });
 });

@@ -510,6 +510,14 @@ export class PixiCartographerEngine {
           );
           return { ...feature, points: transformed };
         }
+        if (feature.points && feature.points.length === 1) {
+          const origS = feature.scale ?? feature.symbolScale ?? feature.width ?? 42;
+          const box = draggedNode.originBox!;
+          const currentDist = Math.hypot(transientPos.x - box.cx, transientPos.y - box.cy);
+          const origDist = Math.hypot(draggedNode.startPoint.x - box.cx, draggedNode.startPoint.y - box.cy) || 1;
+          const newScale = Math.max(12, Math.min(300, Math.round(origS * (currentDist / origDist))));
+          return { ...feature, scale: newScale, symbolScale: newScale };
+        }
         if (feature.polygon && feature.polygon.length >= 3) {
           const transformed = applyTransform(
             feature.polygon,

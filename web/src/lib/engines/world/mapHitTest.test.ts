@@ -257,6 +257,31 @@ describe('mapHitTest — picking authored shapes', () => {
     assert.equal(hit.tier, HIT_TIER.POINT);
   });
 
+  it('picks a single-point stamp anywhere across its full visual body (apex, flanks, base)', () => {
+    const stamp = terrain({
+      id: 'terr_stamp_tree',
+      name: 'Single Oak Stamp',
+      type: 'forest',
+      polygon: undefined,
+      points: [{ x: 500, y: 500 }],
+      scale: 60,
+    });
+    // Click near apex (y = 500 - 40 = 460)
+    const hitApex = hitTestMapObjectsIn({ x: 500, y: 460 }, { terrainFeatures: [stamp] });
+    assert.ok(hitApex);
+    assert.equal(hitApex.id, 'terr_stamp_tree');
+    assert.equal(hitApex.tier, HIT_TIER.POINT);
+
+    // Click on left flank (x = 500 - 25 = 475, y = 480)
+    const hitFlank = hitTestMapObjectsIn({ x: 475, y: 480 }, { terrainFeatures: [stamp] });
+    assert.ok(hitFlank);
+    assert.equal(hitFlank.id, 'terr_stamp_tree');
+
+    // Click far outside (x = 500, y = 350) misses
+    const hitMiss = hitTestMapObjectsIn({ x: 500, y: 350 }, { terrainFeatures: [stamp] });
+    assert.equal(hitMiss, null);
+  });
+
   it('picks a lore pin', () => {
     const hit = hitTestMapObjectsIn({ x: 50, y: 50 }, { placements: [placement()] });
     assert.ok(hit);

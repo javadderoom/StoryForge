@@ -525,12 +525,29 @@ export function hitCandidateBounds(candidate: MapHitCandidate, pad = 0): MapBoun
         return ring;
       }
       if (feature.points && feature.points.length > 0) {
+        if (feature.points.length === 1) {
+          const pt = feature.points[0];
+          const s = Math.max(28, feature.scale ?? feature.symbolScale ?? feature.width ?? 42);
+          const halfW = s * 0.65;
+          return {
+            minX: pt.x - halfW - pad,
+            minY: pt.y - s * 0.95 - pad,
+            maxX: pt.x + halfW + pad,
+            maxY: pt.y + s * 0.2 + pad,
+          };
+        }
         const halfWidth = Math.max(15, ((feature.width ?? 30) / 2) + pad);
         return boundsOfPoints(feature.points, halfWidth);
       }
       if (typeof feature.x === 'number' && typeof feature.y === 'number') {
-        const r = (feature.radius ?? 0) + pad;
-        return { minX: feature.x - r, minY: feature.y - r, maxX: feature.x + r, maxY: feature.y + r };
+        const s = Math.max(28, feature.radius ?? feature.scale ?? 24);
+        const halfW = s * 0.65;
+        return {
+          minX: feature.x - halfW - pad,
+          minY: feature.y - s * 0.95 - pad,
+          maxX: feature.x + halfW + pad,
+          maxY: feature.y + s * 0.2 + pad,
+        };
       }
       return null;
     }
@@ -763,9 +780,35 @@ function hitTerrain(
     return null;
   }
 
-  // 2. Ink line (river, range, valley).
+  // 2. Ink line (river, range, valley) or single-point stamp (mountain, tree, dune, rock, landmark).
   const points = feature.points;
   if (points && points.length >= 1) {
+    if (points.length === 1) {
+      const pt = points[0];
+      const s = Math.max(28, feature.scale ?? feature.symbolScale ?? feature.width ?? 42);
+      const halfW = s * 0.65;
+      const minX = pt.x - halfW - grab;
+      const maxX = pt.x + halfW + grab;
+      const minY = pt.y - s * 0.95 - grab;
+      const maxY = pt.y + s * 0.2 + grab;
+
+      if (point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY) {
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        const distance = Math.hypot(point.x - cx, point.y - cy);
+        return {
+          kind: 'terrain',
+          id: candidate.id,
+          distance,
+          tier: HIT_TIER.POINT,
+          zIndex,
+          area: s * s,
+          candidate,
+        };
+      }
+      return null;
+    }
+
     const halfWidth = (feature.width ?? 0) / 2;
     const distance = distanceToPolyline(point, points);
     if (distance > grab + halfWidth) return null;
@@ -782,18 +825,28 @@ function hitTerrain(
 
   // 3. Point feature (peak, volcano, oasis).
   if (typeof feature.x === 'number' && typeof feature.y === 'number') {
-    const radius = feature.radius ?? 0;
-    const distance = Math.hypot(point.x - feature.x, point.y - feature.y) - radius;
-    if (distance > grab) return null;
-    return {
-      kind: 'terrain',
-      id: candidate.id,
-      distance,
-      tier: HIT_TIER.POINT,
-      zIndex,
-      area: 0,
-      candidate,
-    };
+    const s = Math.max(28, feature.radius ?? feature.scale ?? 24);
+    const halfW = s * 0.65;
+    const minX = feature.x - halfW - grab;
+    const maxX = feature.x + halfW + grab;
+    const minY = feature.y - s * 0.95 - grab;
+    const maxY = feature.y + s * 0.2 + grab;
+
+    if (point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY) {
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      const distance = Math.hypot(point.x - cx, point.y - cy);
+      return {
+        kind: 'terrain',
+        id: candidate.id,
+        distance,
+        tier: HIT_TIER.POINT,
+        zIndex,
+        area: s * s,
+        candidate,
+      };
+    }
+    return null;
   }
 
   return null;
