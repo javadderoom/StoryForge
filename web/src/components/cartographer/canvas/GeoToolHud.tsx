@@ -216,7 +216,27 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
               }`}
             >
               <Spline className="w-3.5 h-3.5" />
-              <span>{isPersian ? 'خطی و تک‌درخت' : 'Tree Line / Copse'}</span>
+              <span>
+                {isPersian
+                  ? activeBiome === 'desert'
+                    ? 'خط رمل و تک‌ماهور'
+                    : activeBiome === 'swamp'
+                    ? 'خط نیزار و تک‌بوته'
+                    : activeBiome === 'plains'
+                    ? 'خط علفزار و تک‌بوته'
+                    : activeBiome === 'jungle'
+                    ? 'خط نخل و بیشه'
+                    : 'خطی و تک‌درخت'
+                  : activeBiome === 'desert'
+                  ? 'Dune Line / Single Dune'
+                  : activeBiome === 'swamp'
+                  ? 'Reed Line / Single Reed'
+                  : activeBiome === 'plains'
+                  ? 'Grass Line / Single Tuft'
+                  : activeBiome === 'jungle'
+                  ? 'Palm Line / Grove'
+                  : 'Tree Line / Copse'}
+              </span>
             </button>
             <button
               type="button"
@@ -228,7 +248,23 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
               }`}
             >
               <Square className="w-3.5 h-3.5" />
-              <span>{isPersian ? 'ناحیه متراکم' : 'Dense Region'}</span>
+              <span>
+                {isPersian
+                  ? activeBiome === 'desert'
+                    ? 'ریگزار متراکم'
+                    : activeBiome === 'swamp'
+                    ? 'لجنزار متراکم'
+                    : activeBiome === 'forest'
+                    ? 'جنگل متراکم'
+                    : 'ناحیه متراکم'
+                  : activeBiome === 'desert'
+                  ? 'Dense Dunes'
+                  : activeBiome === 'swamp'
+                  ? 'Dense Marsh'
+                  : activeBiome === 'forest'
+                  ? 'Dense Forest'
+                  : 'Dense Region'}
+              </span>
             </button>
           </div>
 
@@ -260,7 +296,7 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
             ))}
           </div>
 
-          {/* Equipped Flora Species Pill & Modal Trigger */}
+          {/* Equipped Biome Symbol / Species Pill & Modal Trigger */}
           {onOpenSpeciesPicker && (
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-zinc-900/90 border border-zinc-800">
               {equippedTreeFamilyObj && (
@@ -275,16 +311,16 @@ export const GeoToolHud: React.FC<GeoToolHudProps> = ({
               <span className="text-[11px] font-medium text-amber-200 max-w-[90px] truncate">
                 {equippedTreeFamilyObj
                   ? isPersian ? equippedTreeFamilyObj.name.fa : equippedTreeFamilyObj.name.en
-                  : 'Oak'}
+                  : isPersian ? 'نماد اقلیم' : 'Biome Symbol'}
               </span>
               <button
                 type="button"
-                onClick={() => onOpenSpeciesPicker('tree')}
+                onClick={() => onOpenSpeciesPicker(equippedTreeFamilyObj?.category || 'all')}
                 className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-amber-600/80 hover:bg-amber-600 text-white transition-all shadow-sm"
-                title={isPersian ? 'باز کردن کتابخانه گونه‌ها' : 'Open species library'}
+                title={isPersian ? 'تغییر نماد اقلیم' : 'Change biome symbol'}
               >
                 <Sparkles className="w-3 h-3" />
-                <span>{isPersian ? 'گونه...' : 'Species...'}</span>
+                <span>{isPersian ? 'نماد...' : 'Symbol...'}</span>
               </button>
             </div>
           )}

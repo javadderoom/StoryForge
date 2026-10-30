@@ -170,22 +170,22 @@ export function useGeoStrokeDrafting({
           desert: { en: 'Dune Crest', fa: 'تپه‌ماهور شنی' },
           swamp: { en: 'Marsh Reeds', fa: 'نیزار باتلاقی' },
           tundra: { en: 'Sentinel Pine', fa: 'کاج تک‌افتاده' },
-          plains: { en: 'Prairie Copse', fa: 'بیشه بوته‌زار' },
+          plains: { en: 'Prairie Flora', fa: 'بوته علفزار' },
         };
         const selectedName = biomeNames[activeBiome];
         const targetFamily = equippedTreeFamily || resolveDefaultFamilyForTerrain(activeBiome);
         const newFeature: MapTerrainFeature = {
           id: `terr_${Date.now().toString(36)}`,
           name: isPersian
-            ? selectedName?.fa || 'تک‌درخت'
-            : selectedName?.en || 'Standalone Tree',
+            ? selectedName?.fa || 'نماد اقلیمی'
+            : selectedName?.en || 'Biome Symbol',
           type: activeBiome,
           points: [strokePts[0]],
           width: biomeCorridorWidth,
           symbolFamily: targetFamily,
           description: isPersian
             ? 'نماد تک‌افتاده اقلیمی'
-            : 'Standalone flora symbol',
+            : 'Standalone biome symbol',
         };
         newFeature.scatterInstances = generateScatterInstances(newFeature);
         onAddTerrain(newFeature);
@@ -202,22 +202,22 @@ export function useGeoStrokeDrafting({
           desert: { en: 'Dune Ribbon', fa: 'رشته تپه‌های ماسه‌ای' },
           swamp: { en: 'Reed Bank', fa: 'نوار نی‌های ساحلی' },
           tundra: { en: 'Taiga Ribbon', fa: 'نوار تایگا' },
-          plains: { en: 'Grassland Fringe', fa: 'حاشیه دشت' },
+          plains: { en: 'Grassland Fringe', fa: 'حاشیه علفزار' },
         };
         const selectedName = biomeNames[activeBiome];
         const targetFamily = equippedTreeFamily || resolveDefaultFamilyForTerrain(activeBiome);
         const newFeature: MapTerrainFeature = {
           id: `terr_${Date.now().toString(36)}`,
           name: isPersian
-            ? selectedName?.fa || 'نوار درختان'
-            : selectedName?.en || 'Tree Copse / Belt',
+            ? selectedName?.fa || 'نوار اقلیمی'
+            : selectedName?.en || 'Biome Ribbon',
           type: activeBiome,
           points: simplifiedPoints,
           width: biomeCorridorWidth,
           symbolFamily: targetFamily,
           description: isPersian
-            ? 'بیشه و خط نمادهای اقلیمی'
-            : 'Linear biome copse and flora ribbon',
+            ? 'خط و نوار نمادهای اقلیمی'
+            : 'Linear biome and symbol ribbon',
         };
         newFeature.scatterInstances = generateScatterInstances(newFeature);
         onAddTerrain(newFeature);

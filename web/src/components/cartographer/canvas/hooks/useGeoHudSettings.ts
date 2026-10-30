@@ -1,6 +1,10 @@
 import { useCallback, useState } from 'react';
 import type { HighlandMode, BiomeType, BiomeDensity, BiomeDrawMode } from '../GeoToolHud';
-import type { GeoSymbolCategory } from '@/lib/engines/world/pixi/symbolPalette';
+import {
+  type GeoSymbolCategory,
+  resolveDefaultFamilyForTerrain,
+  getFamilyById,
+} from '@/lib/engines/world/pixi/symbolPalette';
 
 export function useGeoHudSettings() {
   // Land Sculpt Brush controls
@@ -24,15 +28,47 @@ export function useGeoHudSettings() {
   const [riverWidth, setRiverWidth] = useState<number>(11);
 
   // Ready-to-use Cartography Species Library state
-  const [equippedTreeFamily, setEquippedTreeFamily] = useState<string>('oak');
+  // Maintains per-biome designated symbol families (e.g. desert -> sand_dunes, swamp -> marsh_reeds)
+  const DEFAULT_BIOME_FAMILIES: Record<string, string> = {
+    forest: 'oak',
+    jungle: 'palm',
+    desert: 'sand_dunes',
+    swamp: 'marsh_reeds',
+    tundra: 'snow_pine',
+    plains: 'grass',
+    oasis: 'palm',
+  };
+
+  const [biomeFamilies, setBiomeFamilies] = useState<Record<string, string>>(DEFAULT_BIOME_FAMILIES);
   const [equippedMountainFamily, setEquippedMountainFamily] = useState<string>('alpine_massif');
   const [isSpeciesPickerOpen, setIsSpeciesPickerOpen] = useState<boolean>(false);
   const [speciesPickerCategory, setSpeciesPickerCategory] = useState<GeoSymbolCategory | 'all'>('all');
 
-  const openSpeciesPicker = useCallback((cat: GeoSymbolCategory | 'all' = 'all') => {
-    setSpeciesPickerCategory(cat);
-    setIsSpeciesPickerOpen(true);
-  }, []);
+  const equippedBiomeFamily =
+    biomeFamilies[activeBiome] ||
+    resolveDefaultFamilyForTerrain(activeBiome);
+
+  const setEquippedFamilyForActiveBiome = useCallback(
+    (familyId: string) => {
+      setBiomeFamilies((prev) => ({
+        ...prev,
+        [activeBiome]: familyId,
+      }));
+    },
+    [activeBiome]
+  );
+
+  const openSpeciesPicker = useCallback(
+    (cat?: GeoSymbolCategory | 'all') => {
+      const activeFamilyId =
+        biomeFamilies[activeBiome] || resolveDefaultFamilyForTerrain(activeBiome);
+      const activeFam = getFamilyById(activeFamilyId);
+      const targetCat = cat || activeFam?.category || 'all';
+      setSpeciesPickerCategory(targetCat);
+      setIsSpeciesPickerOpen(true);
+    },
+    [activeBiome, biomeFamilies]
+  );
 
   const closeSpeciesPicker = useCallback(() => {
     setIsSpeciesPickerOpen(false);
@@ -102,8 +138,10 @@ export function useGeoHudSettings() {
     handleMountainElevationChange,
     toggleElevationLink,
     toggleSnowcaps,
-    equippedTreeFamily,
-    setEquippedTreeFamily,
+    equippedBiomeFamily,
+    equippedTreeFamily: equippedBiomeFamily, // backwards compatibility
+    setEquippedTreeFamily: setEquippedFamilyForActiveBiome, // backwards compatibility
+    setEquippedFamilyForActiveBiome,
     equippedMountainFamily,
     setEquippedMountainFamily,
     isSpeciesPickerOpen,

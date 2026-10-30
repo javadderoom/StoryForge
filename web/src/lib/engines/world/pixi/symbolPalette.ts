@@ -417,8 +417,8 @@ export const GEO_SYMBOL_FAMILIES: Record<string, GeoSymbolFamily> = {
   grass: {
     id: 'grass',
     category: 'grass_flora',
-    name: { en: 'Marsh Reeds & Steppe Grass', fa: 'نیزار باتلاقی و بوته‌های استپ' },
-    description: { en: 'Tufted grasses, wetland reeds, and prairie flora', fa: 'نیزارهای بلند باتلاقی و بوته‌های وحشی دشت' },
+    name: { en: 'Steppe Grass & Wild Flora', fa: 'بوته‌های استپ و علفزار' },
+    description: { en: 'Tufted grasses, prairie herbs, and dry steppe flora', fa: 'بوته‌های وحشی دشت و علفزارهای نیمه‌خشک' },
     thumbnail: '/symbols/cartography/grass/grass-1.svg',
     defaultSpacing: 24,
     defaultScale: 30,
@@ -433,12 +433,34 @@ export const GEO_SYMBOL_FAMILIES: Record<string, GeoSymbolFamily> = {
         baseHeight: 28,
         anchor: { x: 0.5, y: 0.9 },
       },
+    ],
+  },
+
+  marsh_reeds: {
+    id: 'marsh_reeds',
+    category: 'grass_flora',
+    name: { en: 'Wetland & Marsh Reeds', fa: 'نیزارهای بلند و لجنزار' },
+    description: { en: 'Tall wetland reeds, cattails, and bog waterlines', fa: 'نیزارهای انبوه باتلاقی با خطوط سایه آب' },
+    thumbnail: '/symbols/cartography/grass/swamp-1.svg',
+    defaultSpacing: 26,
+    defaultScale: 32,
+    variants: [
       {
         id: 'swamp_1',
-        name: { en: 'Marsh Reeds', fa: 'نی‌های باتلاقی' },
+        name: { en: 'Marsh Reeds I', fa: 'نیزار باتلاقی ۱' },
         category: 'grass_flora',
-        family: 'grass',
+        family: 'marsh_reeds',
         src: '/symbols/cartography/grass/swamp-1.svg',
+        baseWidth: 42,
+        baseHeight: 34,
+        anchor: { x: 0.5, y: 0.9 },
+      },
+      {
+        id: 'swamp_2',
+        name: { en: 'Marsh Reeds II', fa: 'نیزار باتلاقی ۲' },
+        category: 'grass_flora',
+        family: 'marsh_reeds',
+        src: '/symbols/cartography/grass/swamp-2.svg',
         baseWidth: 42,
         baseHeight: 34,
         anchor: { x: 0.5, y: 0.9 },
@@ -539,11 +561,12 @@ export function resolveDefaultFamilyForTerrain(type: string, hasSnowcaps?: boole
     case 'tundra':
       return 'snow_pine';
     case 'swamp':
-      return 'dead_wood';
+      return 'marsh_reeds';
     case 'desert':
+    case 'wasteland':
       return 'sand_dunes';
     case 'plains':
-      return 'oak';
+      return 'grass';
     default:
       return 'oak';
   }

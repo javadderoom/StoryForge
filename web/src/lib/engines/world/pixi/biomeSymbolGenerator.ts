@@ -346,8 +346,7 @@ export function generateBiomeStrokeSymbols(
       biomeType === 'forest' ||
       biomeType === 'jungle' ||
       biomeType === 'oasis' ||
-      biomeType === 'tundra' ||
-      biomeType === 'plains'
+      biomeType === 'tundra'
     ) {
       const baseRadius = isJungle ? 12 : 9;
       // If narrow corridor (<= 20px), place 1 single standalone tree
@@ -380,7 +379,7 @@ export function generateBiomeStrokeSymbols(
       return result;
     }
 
-    if (biomeType === 'swamp') {
+    if (biomeType === 'swamp' || biomeType === 'plains') {
       const h = 8 + rng() * 4;
       result.marshReeds.push({
         x: pt.x,
@@ -438,13 +437,12 @@ export function generateBiomeStrokeSymbols(
     return { pt: last, norm: { x: 0, y: -1 }, tang: { x: 1, y: 0 } };
   };
 
-  // Trees (Forest, Jungle, Oasis, Tundra, Plains)
+  // Trees (Forest, Jungle, Oasis, Tundra)
   if (
     biomeType === 'forest' ||
     biomeType === 'jungle' ||
     biomeType === 'oasis' ||
-    biomeType === 'tundra' ||
-    biomeType === 'plains'
+    biomeType === 'tundra'
   ) {
     const trees: ProceduralTree[] = [];
     const baseRadius = isJungle ? 11 : 8.5;
@@ -506,8 +504,8 @@ export function generateBiomeStrokeSymbols(
     return result;
   }
 
-  // Swamp Marsh Reeds along stroke
-  if (biomeType === 'swamp') {
+  // Swamp Marsh Reeds & Plains Grass along stroke
+  if (biomeType === 'swamp' || biomeType === 'plains') {
     const reeds: MarshReedTuft[] = [];
     for (let s = 0; s <= numSteps; s++) {
       const curDist = s * stepDist;

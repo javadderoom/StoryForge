@@ -292,7 +292,10 @@ export function renderSymbolsToContainer(
       feat.type === 'forest' ||
       feat.type === 'jungle' ||
       feat.type === 'tundra' ||
-      feat.type === 'swamp';
+      feat.type === 'swamp' ||
+      feat.type === 'desert' ||
+      feat.type === 'wasteland' ||
+      feat.type === 'plains';
 
     if (!isSymbolEligible) continue;
 

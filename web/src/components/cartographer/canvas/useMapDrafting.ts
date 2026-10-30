@@ -7,6 +7,8 @@ import type { MapObjectRef } from '@/lib/engines/world/mapSelection';
 import { VINTAGE_PARCHMENT } from '@/lib/engines/world/pixi/vintageTheme';
 import type { CartographerTool } from '../CartographerHeader';
 import type { BiomeType, HighlandMode } from './GeoToolHud';
+import { resolveDefaultFamilyForTerrain } from '@/lib/engines/world/pixi/symbolPalette';
+import { generateScatterInstances } from '@/lib/engines/world/pixi/symbolScatterRenderer';
 
 interface UseMapDraftingOptions {
   activeTool: CartographerTool;
@@ -73,6 +75,7 @@ export function useMapDrafting({
         };
         const selectedName = isBiome ? biomeNames[activeBiome] : null;
 
+        const targetFamily = isBiome && activeBiome ? resolveDefaultFamilyForTerrain(activeBiome) : undefined;
         const newFeature: MapTerrainFeature = {
           id: `terr_${Date.now().toString(36)}`,
           name: isBiome
@@ -82,9 +85,13 @@ export function useMapDrafting({
             : 'New Landmass',
           type: isBiome ? activeBiome : 'continent',
           polygon: draftPoints,
+          symbolFamily: targetFamily,
           color: isBiome ? undefined : VINTAGE_PARCHMENT.landFillHex,
           description: isPersian ? 'عنصر جغرافیایی ترسیم‌شده' : 'User-created geographical feature',
         };
+        if (isBiome) {
+          newFeature.scatterInstances = generateScatterInstances(newFeature);
+        }
         onAddTerrain(newFeature);
         onSelectionChange([{ kind: 'terrain', id: newFeature.id }]);
       } else if (activeTool === 'terrain_lake') {

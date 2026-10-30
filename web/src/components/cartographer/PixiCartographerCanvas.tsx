@@ -367,7 +367,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
     biomeDrawMode: geoHud.biomeDrawMode,
     biomeCorridorWidth: geoHud.biomeCorridorWidth,
     biomeDensity: geoHud.biomeDensity,
-    equippedTreeFamily: geoHud.equippedTreeFamily,
+    equippedTreeFamily: geoHud.equippedBiomeFamily,
     equippedMountainFamily: geoHud.equippedMountainFamily,
     mapData: worldBible.mapData,
   });
@@ -879,7 +879,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         onToggleSnowcaps={geoHud.toggleSnowcaps}
         riverWidth={geoHud.riverWidth}
         onRiverWidthChange={geoHud.setRiverWidth}
-        equippedTreeFamily={geoHud.equippedTreeFamily}
+        equippedTreeFamily={geoHud.equippedBiomeFamily}
         equippedMountainFamily={geoHud.equippedMountainFamily}
         onOpenSpeciesPicker={geoHud.openSpeciesPicker}
       />
@@ -891,13 +891,13 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
         currentlySelectedFamily={
           geoHud.speciesPickerCategory === 'mountain'
             ? geoHud.equippedMountainFamily
-            : geoHud.equippedTreeFamily
+            : geoHud.equippedBiomeFamily
         }
         onSelectFamily={(familyId) => {
           if (geoHud.speciesPickerCategory === 'mountain' || activeTool === 'terrain_mountain') {
             geoHud.setEquippedMountainFamily(familyId);
           } else {
-            geoHud.setEquippedTreeFamily(familyId);
+            geoHud.setEquippedFamilyForActiveBiome(familyId);
           }
         }}
         isPersian={isPersian}

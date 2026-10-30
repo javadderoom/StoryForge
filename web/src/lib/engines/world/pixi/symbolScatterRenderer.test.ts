@@ -211,3 +211,61 @@ test('symbolScatterRenderer: returns cached instances on repeated calls with ide
     'Repeated call must return same cached array reference without re-allocation'
   );
 });
+
+test('symbolScatterRenderer: non-forest biomes resolve correct non-tree symbols for single stamp and stroke', () => {
+  // 1. Single click on Desert -> Dune
+  const desertSingle: MapTerrainFeature = {
+    id: 'desert_single_stamp',
+    name: 'Dune Crest',
+    type: 'desert',
+    points: [{ x: 450, y: 550 }],
+  };
+  const desertInst = generateScatterInstances(desertSingle);
+  assert.equal(desertInst.length, 1);
+  assert.equal(desertInst[0].symbolId, 'dune_1');
+
+  // 2. Single click on Swamp -> Marsh Reeds
+  const swampSingle: MapTerrainFeature = {
+    id: 'swamp_single_stamp',
+    name: 'Marsh Reeds',
+    type: 'swamp',
+    points: [{ x: 300, y: 400 }],
+  };
+  const swampInst = generateScatterInstances(swampSingle);
+  assert.equal(swampInst.length, 1);
+  assert.ok(swampInst[0].symbolId === 'swamp_1' || swampInst[0].symbolId === 'swamp_2');
+
+  // 3. Polyline Ribbon on Desert -> Sand Dunes along stroke
+  const desertRibbon: MapTerrainFeature = {
+    id: 'desert_ribbon_test',
+    name: 'Dune Ribbon',
+    type: 'desert',
+    points: [
+      { x: 100, y: 100 },
+      { x: 300, y: 100 },
+    ],
+    width: 30,
+  };
+  const ribbonDunes = generateScatterInstances(desertRibbon);
+  assert.ok(ribbonDunes.length > 2);
+  for (const inst of ribbonDunes) {
+    assert.equal(inst.symbolId, 'dune_1');
+  }
+
+  // 4. Polyline Ribbon on Plains -> Grass along stroke
+  const plainsRibbon: MapTerrainFeature = {
+    id: 'plains_ribbon_test',
+    name: 'Grassland Ribbon',
+    type: 'plains',
+    points: [
+      { x: 100, y: 100 },
+      { x: 300, y: 100 },
+    ],
+    width: 30,
+  };
+  const ribbonGrass = generateScatterInstances(plainsRibbon);
+  assert.ok(ribbonGrass.length > 2);
+  for (const inst of ribbonGrass) {
+    assert.equal(inst.symbolId, 'grass_1');
+  }
+});

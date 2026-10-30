@@ -58,8 +58,9 @@ describe('symbolPalette Registry', () => {
     assert.equal(resolveDefaultFamilyForTerrain('forest'), 'oak');
     assert.equal(resolveDefaultFamilyForTerrain('jungle'), 'palm');
     assert.equal(resolveDefaultFamilyForTerrain('tundra'), 'snow_pine');
-    assert.equal(resolveDefaultFamilyForTerrain('swamp'), 'dead_wood');
+    assert.equal(resolveDefaultFamilyForTerrain('swamp'), 'marsh_reeds');
     assert.equal(resolveDefaultFamilyForTerrain('desert'), 'sand_dunes');
+    assert.equal(resolveDefaultFamilyForTerrain('plains'), 'grass');
     assert.equal(resolveDefaultFamilyForTerrain('mountain_range', true), 'snow_massif');
     assert.equal(resolveDefaultFamilyForTerrain('mountain_range', false), 'alpine_massif');
     assert.equal(resolveDefaultFamilyForTerrain('plateau'), 'rolling_hills');
