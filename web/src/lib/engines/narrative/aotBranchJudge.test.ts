@@ -143,6 +143,11 @@ describe('Plan 15 §7.6G — AOT semantic branch judge', () => {
     assert.equal(extractSubQBoolean({ index: 1 }), true);
     assert.equal(extractSubQBoolean({ index: 2 }), undefined);
     assert.equal(extractSubQBoolean({ answer: 'maybe' }), undefined);
+    assert.equal(extractSubQBoolean({ type: 'noul', noul: 0.938 }), true);
+    assert.equal(extractSubQBoolean({ type: 'noul', noul: 0.21 }), false);
+    assert.equal(extractSubQBoolean({ type: 'noul', noul: 0.5 }), true);
+    assert.equal(extractSubQBoolean({ noul: { probability: 0.72 } }), true);
+    assert.equal(extractSubQBoolean({ noul: Number.NaN }), undefined);
   });
 
   it('requires all seven answers and maps failures to the planned categories and severities', () => {

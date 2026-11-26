@@ -242,13 +242,17 @@ export function pruneWorldBibleToScope(
     return keep;
   };
 
-  // 1-hop reachable neighborhood of the active locations (honoring two-way vs one-way links) + full ancestry hierarchy.
-  const activeLocSet = new Set(locationIds);
+  // 1-hop reachable neighborhood of the active locations (honoring two-way vs one-way links)
+  // kept separate from ancestry hierarchy so continent-level neighbors (e.g. oceans)
+  // are never pulled in as 1-hop scene neighbors.
+  const sceneAndNeighborIds = new Set(locationIds);
+  const ancestorIds = new Set<string>();
   for (const locId of locationIds) {
-    getReachableNeighborIds(locId, wb.locations ?? []).forEach((id) => activeLocSet.add(id));
+    getReachableNeighborIds(locId, wb.locations ?? []).forEach((id) => sceneAndNeighborIds.add(id));
     const ancestors = getLocationAncestry(wb.locations ?? [], locId);
-    ancestors.forEach((a) => activeLocSet.add(a.id));
+    ancestors.forEach((a) => ancestorIds.add(a.id));
   }
+  const activeLocSet = new Set<string>([...sceneAndNeighborIds, ...ancestorIds]);
   const activeNpcSet = new Set(npcIds);
   // Plan 15 (Bug 3): the travelling party is present wherever the player is,
   // even when a companion's home location is elsewhere.
@@ -336,15 +340,15 @@ export function pruneWorldBibleToScope(
     if (scopeTier === 'mythic') {
       return emit(true, 'location', 'mythic scope surfaces every location', l.id, l.name);
     }
-    const directHit = activeLocSet.has(l.id);
-    const hopHit = l.connectedLocationIds?.some((id) => activeLocSet.has(id)) ?? false;
+    const directOrNeighbor = sceneAndNeighborIds.has(l.id);
+    const isAncestor = ancestorIds.has(l.id);
     return emit(
-      directHit || hopHit,
+      directOrNeighbor || isAncestor,
       'location',
-      directHit
-        ? 'scene location or ancestor'
-        : hopHit
-          ? 'one hop from the scene locations'
+      directOrNeighbor
+        ? (locationIds.includes(l.id) ? 'scene location' : 'reachable one-hop neighbor')
+        : isAncestor
+          ? 'scene location ancestor'
           : 'outside the scene neighborhood',
       l.id,
       l.name
@@ -479,6 +483,19 @@ export function pruneWorldBibleToScope(
     );
   });
 
+  const keepTimeline = (wb.timeline ?? []).filter((t) => {
+    if (scopeTier === 'mythic' || t.knownByPublic !== false) {
+      return emit(true, 'timeline', 'public or mythic-tier timeline event', t.id, t.title);
+    }
+    return emit(
+      false,
+      'timeline',
+      'non-public timeline event withheld below mythic tier',
+      t.id,
+      t.title
+    );
+  });
+
   return {
     ...wb,
     npcs: keepNpcs,
@@ -489,5 +506,6 @@ export function pruneWorldBibleToScope(
     religions: keepReligions,
     dramaBonds: keepDramaBonds,
     factionRelations: keepFactionRelations,
+    timeline: keepTimeline,
   };
 }

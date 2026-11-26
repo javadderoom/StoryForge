@@ -355,11 +355,16 @@ export function extractSubQBoolean(rawAnswer: unknown): boolean | undefined {
   if (rawAnswer === null || rawAnswer === undefined) return undefined;
   if (typeof rawAnswer === 'boolean') return rawAnswer;
 
-  const answer = rawAnswer as Record<string, unknown> & { noul?: { answer?: unknown } };
+  const answer = rawAnswer as Record<string, unknown> & { noul?: { answer?: unknown; probability?: unknown } };
   if (typeof answer.noul === 'boolean') return answer.noul;
+  if (typeof answer.noul === 'number' && Number.isFinite(answer.noul)) return answer.noul >= 0.5;
   if (typeof answer.answer === 'boolean') return answer.answer;
   if (typeof answer.value === 'boolean') return answer.value;
+  if (typeof answer.value === 'number' && Number.isFinite(answer.value)) return answer.value >= 0.5;
   if (typeof answer.noul?.answer === 'boolean') return answer.noul.answer;
+  if (typeof answer.noul?.probability === 'number' && Number.isFinite(answer.noul.probability)) {
+    return answer.noul.probability >= 0.5;
+  }
   if (typeof answer.index === 'number' && Number.isInteger(answer.index)) {
     if (answer.index === 0) return false;
     if (answer.index === 1) return true;

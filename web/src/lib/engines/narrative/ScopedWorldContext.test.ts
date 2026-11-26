@@ -683,5 +683,149 @@ describe('Plan 15 — Phase 1: Ecological Scoper & Caravan Retinue Scoping', () 
     assert.ok(!line.includes('traveling retinue:'));
     assert.ok(line.includes('The Great Salt Road'));
   });
+
+  it('Item 2: prioritizes 1-hop road neighbors over continent-connected regions, hides non-public timeline events, and resolves pruned trade route location names', () => {
+    const richWorld: WorldBible = {
+      ...worldBible,
+      locations: [
+        {
+          id: 'loc_continent',
+          name: 'Faravand Continent',
+          category: 'region',
+          region: 'World',
+          description: 'Vast continent.',
+          atmosphere: 'varied',
+          dangerLevel: 3,
+          connectedLocationIds: ['loc_ocean', 'loc_bay'],
+        },
+        {
+          id: 'loc_ocean',
+          name: 'Northern Ocean',
+          category: 'region',
+          region: 'North',
+          description: 'Frozen ocean.',
+          atmosphere: 'freezing',
+          dangerLevel: 5,
+          connectedLocationIds: ['loc_continent'],
+        },
+        {
+          id: 'loc_bay',
+          name: 'Arzhan Bay',
+          category: 'region',
+          region: 'North',
+          description: 'Cold bay.',
+          atmosphere: 'cold',
+          dangerLevel: 3,
+          connectedLocationIds: ['loc_continent'],
+        },
+        {
+          id: 'loc_plains',
+          name: 'Hiram Plains',
+          category: 'region',
+          region: 'West',
+          description: 'Dry plains.',
+          atmosphere: 'arid',
+          dangerLevel: 4,
+          parentLocationId: 'loc_continent',
+          connectedLocationIds: [],
+        },
+        {
+          id: 'loc_well',
+          name: 'Chah-Sang',
+          category: 'settlement',
+          region: 'West',
+          description: 'Caravan well.',
+          atmosphere: 'dusty',
+          dangerLevel: 2,
+          parentLocationId: 'loc_plains',
+          connectedLocationIds: ['loc_rabat', 'loc_badpanah'],
+        },
+        {
+          id: 'loc_rabat',
+          name: 'Rabat-e Sorkh',
+          category: 'settlement',
+          region: 'West',
+          description: 'Red caravanserai.',
+          atmosphere: 'tense',
+          dangerLevel: 2,
+          parentLocationId: 'loc_plains',
+          connectedLocationIds: ['loc_well'],
+        },
+        {
+          id: 'loc_badpanah',
+          name: 'Badpanah',
+          category: 'settlement',
+          region: 'West',
+          description: 'Wind shelter.',
+          atmosphere: 'windy',
+          dangerLevel: 3,
+          parentLocationId: 'loc_plains',
+          connectedLocationIds: ['loc_well'],
+        },
+        {
+          id: 'loc_far_city',
+          name: 'Zarrin-Pol',
+          category: 'city',
+          region: 'Central',
+          description: 'Golden bridge city.',
+          atmosphere: 'bustling',
+          dangerLevel: 3,
+          connectedLocationIds: [],
+        },
+      ],
+      timeline: [
+        {
+          id: 'tl_secret',
+          yearOrEra: 'Ancient',
+          title: 'Secret Cosmogony',
+          summary: 'Hidden origin myth.',
+          significance: 'Mythic',
+          knownByPublic: false,
+          eraCategory: 'ancient',
+        },
+        {
+          id: 'tl_public',
+          yearOrEra: 'Recent',
+          title: 'Bridge Toll Accord',
+          summary: 'Caravans pay silver at the bridge.',
+          significance: 'Trade',
+          knownByPublic: true,
+          eraCategory: 'recent',
+        },
+      ],
+      tradeRoutes: [
+        {
+          id: 'route_test',
+          name: 'Salt Route',
+          originLocationId: 'loc_well',
+          destinationLocationId: 'loc_far_city',
+          intermediateLocationIds: ['loc_badpanah'],
+          status: 'active',
+          dangerLevel: 2,
+          commodities: [{ entityId: 'salt', name: 'Salt', flowDirection: 'forward' }],
+        } as any,
+      ],
+    };
+
+    const blocks = buildWorldContextBlocks(
+      { worldBible: richWorld },
+      { scopeTier: 'regional', locationIds: ['loc_well'] }
+    );
+
+    // 1. Direct 1-hop neighbors kept; continent-level ocean/bay excluded.
+    assert.ok(blocks.locations.some((l) => l.includes('Chah-Sang')));
+    assert.ok(blocks.locations.some((l) => l.includes('Rabat-e Sorkh')));
+    assert.ok(blocks.locations.some((l) => l.includes('Badpanah')));
+    assert.ok(!blocks.locations.some((l) => l.includes('Northern Ocean')));
+    assert.ok(!blocks.locations.some((l) => l.includes('Arzhan Bay')));
+
+    // 2. Non-public timeline withheld below mythic tier.
+    assert.ok(blocks.timeline.some((t) => t.includes('Bridge Toll Accord')));
+    assert.ok(!blocks.timeline.some((t) => t.includes('Secret Cosmogony')));
+
+    // 3. Trade route resolves Zarrin-Pol by name even though loc_far_city was pruned.
+    assert.ok(blocks.tradeRoutes?.some((r) => r.includes('Zarrin-Pol')));
+    assert.ok(!blocks.tradeRoutes?.some((r) => r.includes('loc_far_city')));
+  });
 });
 

@@ -37,9 +37,14 @@ export function extractSubQNoul(rawAnswer: any, fallback = true): boolean {
   if (rawAnswer === undefined || rawAnswer === null) return fallback;
   if (typeof rawAnswer === 'boolean') return rawAnswer;
   if (typeof rawAnswer?.noul === 'boolean') return rawAnswer.noul;
+  if (typeof rawAnswer?.noul === 'number' && Number.isFinite(rawAnswer.noul)) return rawAnswer.noul >= 0.5;
   if (typeof rawAnswer?.answer === 'boolean') return rawAnswer.answer;
   if (typeof rawAnswer?.value === 'boolean') return rawAnswer.value;
+  if (typeof rawAnswer?.value === 'number' && Number.isFinite(rawAnswer.value)) return rawAnswer.value >= 0.5;
   if (typeof rawAnswer?.noul?.answer === 'boolean') return rawAnswer.noul.answer;
+  if (typeof rawAnswer?.noul?.probability === 'number' && Number.isFinite(rawAnswer.noul.probability)) {
+    return rawAnswer.noul.probability >= 0.5;
+  }
   if (typeof rawAnswer?.answer === 'string') {
     const s = rawAnswer.answer.trim().toLowerCase();
     if (s === 'true' || s === 'yes') return true;

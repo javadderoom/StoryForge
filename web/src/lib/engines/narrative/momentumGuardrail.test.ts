@@ -62,6 +62,9 @@ describe('MomentumGuardrail — SubQ Snap Anti-Stalling & Story Momentum', () =>
     assert.equal(extractSubQNoul({ answer: 'true' }), true);
     assert.equal(extractSubQNoul({ answer: 'false' }), false);
     assert.equal(extractSubQNoul(undefined, true), true);
+    assert.equal(extractSubQNoul({ type: 'noul', noul: 0.87 }, false), true);
+    assert.equal(extractSubQNoul({ type: 'noul', noul: 0.14 }, true), false);
+    assert.equal(extractSubQNoul({ noul: { probability: 0.65 } }, false), true);
   });
 
   it('extractSubQChoice extracts standard stalling categories', () => {

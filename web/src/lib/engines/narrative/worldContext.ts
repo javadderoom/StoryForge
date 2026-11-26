@@ -8,6 +8,7 @@ import {
   NPCDossier,
 } from '@/lib/types/world';
 import { formatTradeRouteLine } from '@/lib/engines/world/tradeRoutes';
+import { getReachableNeighborIds } from '@/lib/engines/world/locationConnections';
 import { StoryNpcOverride, StoryScale } from '@/lib/types/story';
 import { GameEngine } from '@/lib/engines/game/GameEngine';
 import {
@@ -126,6 +127,8 @@ export function buildWorldContextBlocks(
     };
   }
 
+  const originalWb = wb;
+
   if (effectiveOptions && !effectiveOptions.unconstrained) {
     wb = pruneWorldBibleToScope(wb, effectiveOptions, overrides);
   }
@@ -193,12 +196,19 @@ export function buildWorldContextBlocks(
 
   const timeline = capWith(
     'timeline',
-    (wb.timeline ?? []).slice().sort((a, b) => {
-      const ar = a.eraCategory === 'recent' || a.eraCategory === 'present' ? 0 : 1;
-      const br = b.eraCategory === 'recent' || b.eraCategory === 'present' ? 0 : 1;
-      return ar - br;
-    }),
-    (t) => `${t.yearOrEra}: ${t.title} — ${t.summary}${t.significance ? ` (${t.significance})` : ''}`,
+    (wb.timeline ?? [])
+      .filter((t) => isStudioMode || scopeTier === 'mythic' || t.knownByPublic !== false)
+      .slice()
+      .sort((a, b) => {
+        const ar = a.eraCategory === 'recent' || a.eraCategory === 'present' ? 0 : 1;
+        const br = b.eraCategory === 'recent' || b.eraCategory === 'present' ? 0 : 1;
+        return ar - br;
+      }),
+    (t) => {
+      const rawSummary = (t.summary ?? '').replace(/\s+/g, ' ').trim();
+      const summary = !isStudioMode && rawSummary.length > 240 ? `${rawSummary.slice(0, 240)}…` : rawSummary;
+      return `${t.yearOrEra}: ${t.title} — ${summary}${t.significance ? ` (${t.significance})` : ''}`;
+    },
     caps.timeline
   );
 
@@ -249,23 +259,36 @@ export function buildWorldContextBlocks(
     caps.dramaBonds
   );
 
+  const directNeighborLocs = new Set<string>();
+  for (const locId of options?.locationIds ?? []) {
+    getReachableNeighborIds(locId, originalWb.locations ?? []).forEach((id) => {
+      if (!pinLocs.has(id)) directNeighborLocs.add(id);
+    });
+  }
+  const orderedLocations = [
+    ...(wb.locations ?? []).filter((l) => pinLocs.has(l.id)),
+    ...(wb.locations ?? []).filter((l) => directNeighborLocs.has(l.id)),
+    ...(wb.locations ?? []).filter((l) => !pinLocs.has(l.id) && !directNeighborLocs.has(l.id)),
+  ];
+
   const locations = takeRanked(
-    wb.locations ?? [],
+    orderedLocations,
     (l) => {
-      const ancestry = getLocationAncestry(wb.locations ?? [], l.id);
+      const ancestry = getLocationAncestry(originalWb.locations ?? [], l.id);
       const hierarchyPath = ancestry.length > 0
         ? `inside: ${ancestry.map((a) => a.name).join(' ⊂ ')}`
         : l.region || 'unknown region';
       const linkedTerrains = (wb.mapData?.terrainFeatures ?? []).filter((f) => f.locationId === l.id);
-      const terrainSnippet = linkedTerrains.length > 0
-        ? ` [Cartographic Terrain: ${linkedTerrains.map((t) => t.type.replace(/_/g, ' ')).join(', ')}]`
+      const uniqueTerrainTypes = Array.from(new Set(linkedTerrains.map((t) => t.type.replace(/_/g, ' '))));
+      const terrainSnippet = uniqueTerrainTypes.length > 0
+        ? ` [Cartographic Terrain: ${uniqueTerrainTypes.join(', ')}]`
         : '';
       return `${l.name} (${hierarchyPath}, danger ${l.dangerLevel}${
         l.category ? `, ${l.category}` : ''
       }${terrainSnippet}) — ${l.description}`;
     },
     caps.locations,
-    pinLocs,
+    new Set([...pinLocs, ...directNeighborLocs]),
     telemetry
       ? (dropped) => {
           telemetry.recordTruncation('location', dropped.length, caps.locations);
@@ -392,7 +415,7 @@ export function buildWorldContextBlocks(
       }
     }
   }
-  const tradeRoutes = (wb.tradeRoutes ?? []).map((r) => formatTradeRouteLine(r, wb, scopedPresent));
+  const tradeRoutes = (wb.tradeRoutes ?? []).map((r) => formatTradeRouteLine(r, originalWb, scopedPresent));
 
   return {
     storyScale: story.storyScale,

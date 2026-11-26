@@ -13,7 +13,9 @@ export interface MarketGood {
 
 function locName(wb: WorldBible, id?: string): string {
   if (!id) return '—';
-  return (wb.locations ?? []).find((l) => l.id === id)?.name || id;
+  const found = (wb.locations ?? []).find((l) => l.id === id)?.name;
+  if (found) return found;
+  return /^loc_/.test(id) ? 'نامشخص' : id;
 }
 
 function factionName(wb: WorldBible, id?: string): string {
