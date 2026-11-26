@@ -34,7 +34,10 @@ class ChoiceOption {
           ),
           '',
         )
-        .replaceAll(RegExp(r'^[«"“\x27`](.*)[»"”\x27`]$'), r'$1')
+        .replaceAllMapped(
+          RegExp(r'^[«"“\x27`](.*)[»"”\x27`]$', dotAll: true),
+          (m) => m.group(1) ?? '',
+        )
         .trim();
 
     return ChoiceOption(
