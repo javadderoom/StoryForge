@@ -532,6 +532,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
     }
 
     CheckResolution? finalResolution;
+    var receivedComplete = false;
 
     try {
       final stream = GameApiService.sendActionStream(
@@ -582,7 +583,9 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         }
 
         if (eventType == 'resolution') {
-          final resData = event['resolution'];
+          final resData = event['resolution'] is Map
+              ? Map<String, dynamic>.from(event['resolution'] as Map)
+              : (event.containsKey('outcome') ? Map<String, dynamic>.from(event) : null);
           final resolution = resData != null ? CheckResolution.fromJson(resData) : null;
           finalResolution = resolution;
           state = state.copyWith(lastResolution: resolution);
@@ -637,6 +640,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         }
 
         if (eventType == 'complete') {
+          receivedComplete = true;
           final data = Map<String, dynamic>.from(event);
           final resData = data['resolution'];
           final resolution = resData != null ? CheckResolution.fromJson(resData) : finalResolution;
@@ -730,6 +734,19 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
             ref.read(audioProvider.notifier).updateLocationAmbient(updatedPlayer.currentLocationId);
           }
         }
+      }
+
+      if (!receivedComplete) {
+        final msg = state.isPersian
+            ? 'ارتباط با سرور پیش از تکمیل صحنه قطع شد. لطفاً دوباره تلاش کنید.'
+            : 'Connection closed before the scene completed. Please try again.';
+        ref.read(diceOverlayProvider.notifier).reportError(msg);
+        state = state.copyWith(
+          isLoading: false,
+          isStreamingNarrative: false,
+          errorMessage: msg,
+        );
+        return null;
       }
 
       return finalResolution;
@@ -863,6 +880,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
 
     var accumulatedProse = '';
     List<ChoiceOption> streamedChoices = const [];
+    var receivedComplete = false;
 
     try {
       final stream = GameApiService.remakeSceneStream(
@@ -907,6 +925,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         }
 
         if (eventType == 'complete') {
+          receivedComplete = true;
           final data = Map<String, dynamic>.from(event);
           final beatData = data['beat'] as Map<String, dynamic>? ?? {};
           final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? beatData['choices'] as List<dynamic>? ?? [];
@@ -945,6 +964,19 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
           ref.read(audioProvider.notifier).playSfx(SfxType.pageTurn);
           return true;
         }
+      }
+
+      if (!receivedComplete) {
+        final msg = state.isPersian
+            ? 'ارتباط با سرور پیش از تکمیل بازسازی قطع شد. لطفاً دوباره تلاش کنید.'
+            : 'Connection closed before remake completed. Please try again.';
+        state = state.copyWith(
+          isRemaking: false,
+          isLoading: false,
+          isStreamingNarrative: false,
+          errorMessage: msg,
+        );
+        return false;
       }
 
       return true;

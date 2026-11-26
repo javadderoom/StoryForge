@@ -9,7 +9,14 @@ import 'auth_service.dart';
 
 class GameApiService {
   static const String _defaultProdUrl = 'https://afsanehsaz.ir';
-  static final http.Client _sharedClient = http.Client();
+  static http.Client _sharedClient = http.Client();
+
+  static void _resetClient() {
+    try {
+      _sharedClient.close();
+    } catch (_) {}
+    _sharedClient = http.Client();
+  }
 
   static String get _localBackendUrl {
     if (kIsWeb) {
@@ -233,7 +240,16 @@ class GameApiService {
       String? currentEvent;
       final lines = streamedResponse.stream
           .transform(utf8.decoder)
-          .transform(const LineSplitter());
+          .transform(const LineSplitter())
+          .timeout(
+            const Duration(seconds: 35),
+            onTimeout: (sink) {
+              sink.addError(
+                http.ClientException('اتصال استریم با سرور قطع شد (اتمام مهلت دریافت).'),
+              );
+              sink.close();
+            },
+          );
 
       await for (final line in lines) {
         final trimmed = line.trim();
@@ -260,6 +276,7 @@ class GameApiService {
         }
       }
     } catch (_) {
+      _resetClient();
       rethrow;
     }
   }
