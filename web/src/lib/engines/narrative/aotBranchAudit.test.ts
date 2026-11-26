@@ -175,6 +175,64 @@ describe('Plan 15 §7.6E — shadow AOT branch audit', () => {
     assert.equal(audit.findings.some((f) => f.category === 'secret_leak'), false);
   });
 
+  it('does not false-positive on routine Persian caravan prose mentioning Bahram, camels, and Hiram', () => {
+    const audit = auditAotBranch(
+      makeInput({
+        language: 'fa',
+        narrative:
+          'بهرام دشت‌بان در میان ستون شتران سرخ در بادیهٔ هیرام گام برمی‌دارد و با سوت‌های مقطع و چوب‌دستی ارژن، حیوان پیشرو را در باد صبحگاهی آرام می‌کند تا کاروان از شیب سنگلاخی تپه‌ها بگذرد و بارهای تجاری سالم بمانند.',
+        worldBible: {
+          npcs: [
+            {
+              id: 'npc_bahram',
+              name: 'بهرام دشت‌بان',
+              secrets: [
+                {
+                  id: 'sec_bahram_1',
+                  description: 'یکی از شتران سرخ حیوانی دست‌آموز متعلق به یکی از سرداران فراری هیرام است',
+                  requiredTrustLevel: 20,
+                  revealed: false,
+                },
+              ],
+            },
+          ],
+        } as unknown as WorldBible,
+      })
+    );
+
+    assert.equal(audit.findings.some((f) => f.category === 'secret_leak'), false);
+    assert.equal(audit.verdict, 'clean');
+  });
+
+  it('still rejects Persian prose when it actually leaks distinctive secret terms', () => {
+    const audit = auditAotBranch(
+      makeInput({
+        language: 'fa',
+        narrative:
+          'بهرام دشت‌بان آهسته اعتراف می‌کند که آن شتر سرخ متعلق به یکی از سرداران فراری بوده و پنهانی هدایتش می‌کند.',
+        worldBible: {
+          npcs: [
+            {
+              id: 'npc_bahram',
+              name: 'بهرام دشت‌بان',
+              secrets: [
+                {
+                  id: 'sec_bahram_1',
+                  description: 'یکی از شتران سرخ حیوانی دست‌آموز متعلق به یکی از سرداران فراری هیرام است',
+                  requiredTrustLevel: 20,
+                  revealed: false,
+                },
+              ],
+            },
+          ],
+        } as unknown as WorldBible,
+      })
+    );
+
+    assert.equal(audit.verdict, 'rejected');
+    assert.equal(audit.findings.some((f) => f.category === 'secret_leak'), true);
+  });
+
   it('flags thin choice sets and sanitizer fallbacks (choice hygiene)', () => {
     const audit = auditAotBranch(
       makeInput({

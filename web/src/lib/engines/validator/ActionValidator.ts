@@ -2,6 +2,7 @@ import { PlayerState } from '@/lib/types/gameplay';
 import { WorldBible } from '@/lib/types/world';
 import { RPGSystemSchema } from '@/lib/types/rpg';
 import { detectTravelIntent, isDirectlyReachable } from '@/lib/engines/game/travelEngine';
+import { findUndiscoveredSecretMatch } from './secretMatch';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -232,85 +233,14 @@ export class ActionValidator {
     worldBible: WorldBible,
     storyNpcOverrides?: Record<string, any>
   ): string | null {
-    const lower = actionText.toLowerCase();
-    const stopwords = new Set([
-      'about',
-      'their',
-      'that',
-      'this',
-      'with',
-      'from',
-      'have',
-      'has',
-      'the',
-      'and',
-      'you',
-      'your',
-      'will',
-      'into',
-      'they',
-      'them',
-      'then',
-      'than',
-      'what',
-      'when',
-      'know',
-      'secret',
-      'secrets',
-    ]);
-
-    for (const npc of worldBible.npcs ?? []) {
-      const rel = playerState.relationships?.[npc.id];
-      const knownIds = new Set(rel?.knownSecrets ?? []);
-      const allSecrets: Array<{ id: string; description: string; revealed?: boolean }> = [
-        ...(npc.secrets ?? []),
-      ];
-      const ovSecret = storyNpcOverrides?.[npc.id]?.storySecret;
-      if (ovSecret && typeof ovSecret === 'string' && ovSecret.trim().length >= 12) {
-        allSecrets.push({
-          id: `override_secret_${npc.id}`,
-          description: ovSecret.trim(),
-        });
-      }
-
-      for (const secret of allSecrets) {
-        const discovered = secret.revealed || knownIds.has(secret.id);
-        if (discovered || secret.description.length < 12) continue;
-
-        if (lower.includes(secret.id.toLowerCase())) {
-          return `You cannot act on knowledge of ${npc.name}'s secret you do not yet possess.`;
-        }
-
-        // Plan 08 precision: term overlap alone produced false positives on
-        // common world nouns. Overlapping terms only count as secret leakage
-        // when the action also names the NPC in question (any distinctive
-        // name word counts, so "the baroness" matches "Baroness Vey").
-        const nameWords = npc.name
-          .toLowerCase()
-          .split(/[^a-z\u0600-\u06FF]+/)
-          .filter((w) => w.length >= 3);
-        const mentionsNpc = nameWords.some((w) => lower.includes(w));
-        if (!mentionsNpc) continue;
-
-        const terms = secret.description
-          .toLowerCase()
-          .split(/[^a-z\u0600-\u06FF]+/i)
-          .filter((w) => w.length >= 5 && !stopwords.has(w));
-        if (terms.length === 0) continue;
-
-        let hits = 0;
-        for (const term of terms) {
-          if (lower.includes(term)) {
-            hits += 1;
-            if (hits >= 2) break;
-          }
-        }
-        if (hits >= 2) {
-          return `You cannot act on knowledge of ${npc.name}'s secret you do not yet possess.`;
-        }
-      }
-    }
-    return null;
+    const match = findUndiscoveredSecretMatch(
+      actionText,
+      playerState,
+      worldBible,
+      storyNpcOverrides
+    );
+    if (!match) return null;
+    return `You cannot act on knowledge of ${match.npcName}'s secret you do not yet possess.`;
   }
 
   /**

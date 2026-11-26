@@ -4,6 +4,7 @@ import type { WorldBible } from '@/lib/types/world';
 import type { ProseFinding } from '@/lib/engines/narrative/ProseValidator';
 import { evaluateMomentumHeuristics } from '@/lib/engines/narrative/momentumGuardrail';
 import type { SceneSessionTurn } from '@/lib/engines/narrative/narrativeTurn';
+import { findUndiscoveredSecretMatch } from '@/lib/engines/validator/secretMatch';
 
 /**
  * Plan 15 §2.3 tier 4 (§7.6E) — shadow AOT branch audit ("mistake telemetry").
@@ -110,90 +111,27 @@ export interface AotBranchAuditInput {
 }
 
 /**
- * Stopwords mirrored from `ActionValidator`'s secret sanitizer so the prose
- * scan flags the same term shapes the choice scan does.
- */
-const SECRET_STOPWORDS = new Set([
-  'about', 'their', 'that', 'this', 'with', 'from', 'have', 'has', 'the',
-  'and', 'you', 'your', 'will', 'into', 'they', 'them', 'then', 'than',
-  'what', 'when', 'know', 'secret', 'secrets',
-]);
-
-interface AuditSecretShape {
-  id?: string;
-  description?: string;
-  revealed?: boolean;
-}
-
-interface AuditNpcShape {
-  id?: string;
-  name?: string;
-  secrets?: AuditSecretShape[];
-}
-
-/**
  * Prose-level echo of an undiscovered secret — the choice sanitizer only
  * guards choices; a leak in the narrative itself would have reached a reader
- * on tap. Mirrors `ActionValidator`'s precision rule (NPC mention + ≥2
- * distinctive terms) to avoid flagging common world nouns.
+ * on tap. Delegates to the shared `findUndiscoveredSecretMatch` helper so
+ * English and Persian stopwords + punctuation handling stay identical.
  */
 function secretLeakFindings(input: AotBranchAuditInput): AotAuditFinding[] {
-  const out: AotAuditFinding[] = [];
-  const text = (input.narrative || '').toLowerCase();
-  if (!text) return out;
-
-  const npcs = (input.worldBible?.npcs ?? []) as unknown as AuditNpcShape[];
-  for (const npc of npcs) {
-    const rel = input.playerState.relationships?.[npc.id ?? ''];
-    const knownIds = new Set(rel?.knownSecrets ?? []);
-    const secrets: AuditSecretShape[] = [...(npc.secrets ?? [])];
-    const overrideSecret = npc.id ? input.storyNpcOverrides?.[npc.id]?.storySecret : undefined;
-    if (typeof overrideSecret === 'string' && overrideSecret.trim().length >= 12) {
-      secrets.push({ id: `override_secret_${npc.id}`, description: overrideSecret.trim() });
-    }
-
-    for (const secret of secrets) {
-      const description = (secret.description ?? '').trim();
-      if (secret.revealed || (secret.id && knownIds.has(secret.id))) continue;
-      if (description.length < 12) continue;
-
-      if (secret.id && text.includes(secret.id.toLowerCase())) {
-        out.push({
-          severity: 'error',
-          category: 'secret_leak',
-          source: 'audit',
-          detail: `Undiscovered secret id "${secret.id}" (${npc.name ?? npc.id ?? '?'}) appears verbatim in branch prose.`,
-        });
-        continue;
-      }
-
-      const name = (npc.name ?? '').toLowerCase();
-      const nameWords = name.split(/[^a-z\u0600-\u06FF]+/).filter((w) => w.length >= 3);
-      if (!nameWords.some((w) => text.includes(w))) continue;
-
-      const terms = description
-        .toLowerCase()
-        .split(/[^a-z\u0600-\u06FF]+/i)
-        .filter((w) => w.length >= 5 && !SECRET_STOPWORDS.has(w));
-      if (terms.length === 0) continue;
-      let hits = 0;
-      for (const term of terms) {
-        if (text.includes(term)) {
-          hits += 1;
-          if (hits >= 2) break;
-        }
-      }
-      if (hits >= 2) {
-        out.push({
-          severity: 'error',
-          category: 'secret_leak',
-          source: 'audit',
-          detail: `Branch prose echoes ${npc.name ?? npc.id ?? 'an NPC'}'s undiscovered secret ("${description.slice(0, 60)}…") — serving the branch would leak it.`,
-        });
-      }
-    }
-  }
-  return out;
+  const match = findUndiscoveredSecretMatch(
+    input.narrative || '',
+    input.playerState,
+    input.worldBible,
+    input.storyNpcOverrides
+  );
+  if (!match) return [];
+  return [{
+    severity: 'error',
+    category: 'secret_leak',
+    source: 'audit',
+    detail: match.matchedById
+      ? `Undiscovered secret id "${match.secretId}" (${match.npcName}) appears verbatim in branch prose.`
+      : `Branch prose echoes ${match.npcName}'s undiscovered secret ("${match.secretDescription.slice(0, 60)}…") — serving the branch would leak it.`,
+  }];
 }
 
 function choiceHygieneFindings(choices: ChoiceOption[], dropped: number): AotAuditFinding[] {

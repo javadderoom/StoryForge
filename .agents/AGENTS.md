@@ -8,8 +8,6 @@
 - Connection URLs in Prisma 7 are managed via `prisma.config.ts` or passed at runtime via environment variables/adapters.
 
 ## Language and Communication
-- **ALWAYS communicate and respond in ENGLISH.**
-- **NEVER** write or respond in Farsi (Persian) or any other language, even if the user prompts in that language.
 - **Answer Before Acting**: If the user asks a question (e.g., "can we do X?"), ALWAYS answer the question and ask for confirmation before taking any action or modifying files. Do not silently implement a feature if the user only asked if it is possible.
 
 ## Database Migration Rules
