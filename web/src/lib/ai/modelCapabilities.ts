@@ -19,3 +19,42 @@ export function isThinkingSupported(model: string): boolean {
   }
   return true;
 }
+
+/**
+ * Gemini 4 family models (`gemini-4-hydrogen`, `gemini-4-argon`, etc.) use
+ * `thinkingLevel` (`LOW` | `MEDIUM` | `HIGH` | `XHIGH`) and reject `MINIMAL`
+ * with HTTP 400 (and ignore `thinkingBudget: 0`).
+ */
+export function isGemini4Model(model: string): boolean {
+  return /^gemini-4(?:[.-]|$)/i.test((model || '').trim());
+}
+
+export interface GeminiThinkingConfig {
+  thinkingBudget?: number;
+  thinkingLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+}
+
+/**
+ * Maps StoryForge's numeric tier thinking budget onto the active Gemini
+ * model's native `thinkingConfig` shape.
+ */
+export function buildGeminiThinkingConfig(
+  model: string,
+  thinkingBudgetTokens?: number
+): GeminiThinkingConfig | undefined {
+  if (!isThinkingSupported(model)) {
+    return undefined;
+  }
+  if (isGemini4Model(model)) {
+    const budget = typeof thinkingBudgetTokens === 'number' ? thinkingBudgetTokens : 0;
+    if (budget > 4096) return { thinkingLevel: 'HIGH' };
+    if (budget > 1024) return { thinkingLevel: 'MEDIUM' };
+    return { thinkingLevel: 'LOW' };
+  }
+  return {
+    thinkingBudget:
+      typeof thinkingBudgetTokens === 'number' && thinkingBudgetTokens > 0
+        ? thinkingBudgetTokens
+        : 0,
+  };
+}

@@ -62,8 +62,8 @@ export async function defaultSceneModelCall(
     {
       taskType: 'scene',
       temperature: options.temperature ?? 0.75,
-      ...(options.preferredModel ? { preferredModel: options.preferredModel as never } : {}),
-      ...(options.thinkingBudgetTokens
+      ...(options.preferredModel ? { preferredModel: options.preferredModel } : {}),
+      ...(typeof options.thinkingBudgetTokens === 'number'
         ? { thinkingBudgetTokens: options.thinkingBudgetTokens }
         : {}),
     }

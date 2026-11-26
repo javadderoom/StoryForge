@@ -4,7 +4,11 @@
  */
 
 import { getGeminiProxyAgent, initLocalGeminiProxy, isLocalEnvironment, getLocalGeminiProxyUrl } from './geminiProxy';
-import { isThinkingSupported } from './modelCapabilities';
+import {
+  buildGeminiThinkingConfig,
+  isGemini4Model,
+  isThinkingSupported,
+} from './modelCapabilities';
 export { isLocalEnvironment, getLocalGeminiProxyUrl } from './geminiProxy';
 
 // Auto-initialize local proxy if in local environment
@@ -47,13 +51,15 @@ export type SupportedModel = (typeof WORLD_GENERATION_QUEUE)[number];
 export interface GenerateOptions {
   temperature?: number;
   maxOutputTokens?: number;
-  preferredModel?: SupportedModel;
+  preferredModel?: SupportedModel | (string & {});
   taskType?: 'world' | 'scene' | 'default';
   timeoutMs?: number;
+  /** Backoff base delay (ms) when retrying transient 503 responses on `preferredModel`. */
+  retryDelayMs?: number;
   /**
    * Thinking (reasoning) token budget for models that support it. 0 (the
-   * default) keeps thinking switched off, which is what every scene turn has
-   * used so far. The narrator tier routing can raise it per tier.
+   * default) keeps thinking switched off for Gemini 2.5/3.x, or selects `LOW`
+   * thinking on Gemini 4 models (which do not support disabling thinking).
    */
   thinkingBudgetTokens?: number;
 }
@@ -92,7 +98,11 @@ export function getGeminiEndpoint(modelName: string): string {
  * The rule itself lives in `modelCapabilities` so the Studio UI can warn about
  * a thinking budget on a model that would reject it.
  */
-export { isThinkingSupported } from './modelCapabilities';
+export {
+  isThinkingSupported,
+  isGemini4Model,
+  buildGeminiThinkingConfig,
+} from './modelCapabilities';
 
 function getBaseQueueForTask(taskType?: 'world' | 'scene' | 'default'): readonly string[] {
   const envModel = process.env.GEMINI_MODEL?.trim();
@@ -146,87 +156,95 @@ export async function generateStructuredJson<T = unknown>(
     ? [options.preferredModel, ...baseQueue.filter((m) => m !== options.preferredModel)]
     : baseQueue;
 
-  const timeoutMs = options.timeoutMs ?? (options.taskType === 'world' ? 45000 : 25000);
+  const baseTimeoutMs = options.timeoutMs ?? (options.taskType === 'world' ? 45000 : 25000);
+  const retryDelayBaseMs = options.retryDelayMs ?? 800;
 
   for (const model of modelQueue) {
-    console.log(`[GeminiClient] Attempting model: ${model} (${options.taskType || 'default'}, timeout: ${timeoutMs}ms)...`);
+    const isPinnedPreferred = Boolean(options.preferredModel && model === options.preferredModel);
+    const maxAttempts = isPinnedPreferred ? 3 : 1;
+    const timeoutMs = options.timeoutMs ?? (isGemini4Model(model) ? Math.max(baseTimeoutMs, 45000) : baseTimeoutMs);
 
-    try {
-      const endpoint = getGeminiEndpoint(model);
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      console.log(`[GeminiClient] Attempting model: ${model} (${options.taskType || 'default'}, attempt ${attempt}/${maxAttempts}, timeout: ${timeoutMs}ms)...`);
 
-      const generationConfig: Record<string, unknown> = {
-        responseMimeType: 'application/json',
-        temperature: options.temperature ?? 0.7,
-      };
+      try {
+        const endpoint = getGeminiEndpoint(model);
 
-      if (isThinkingSupported(model)) {
-        // Thinking is off by default (budget 0). A narrator tier may raise it
-        // so a tier can buy reasoning depth with latency.
-        generationConfig.thinkingConfig = {
-          thinkingBudget:
-            options.thinkingBudgetTokens && options.thinkingBudgetTokens > 0
-              ? options.thinkingBudgetTokens
-              : 0,
+        const generationConfig: Record<string, unknown> = {
+          responseMimeType: 'application/json',
+          temperature: options.temperature ?? 0.7,
         };
-      }
 
-      if (options.maxOutputTokens) {
-        generationConfig.maxOutputTokens = options.maxOutputTokens;
-      }
-
-      const requestBody: Record<string, unknown> = {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig,
-      };
-
-      if (systemInstruction) {
-        requestBody.systemInstruction = {
-          parts: [{ text: systemInstruction }],
-        };
-      }
-
-      const dispatcher = getGeminiProxyAgent();
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-        signal: AbortSignal.timeout(timeoutMs),
-        ...(dispatcher ? { dispatcher } : {}),
-      } as any);
-
-      if (!res.ok) {
-        const errorText = await res.text().catch(() => '');
-        console.warn(`[GeminiClient] ${model} failed (${res.status}): ${errorText}. Immediately trying next model in queue...`);
-        continue;
-      }
-
-      const json = await res.json();
-      const rawText = extractCandidateText(json);
-
-      if (rawText) {
-        // Robust extraction: fenced block, else first-bracket..last-bracket
-        // slice (tolerates leading prose, trailing fences/junk/newlines).
-        const cleaned = extractJsonPayload(rawText);
-        let parsed: T;
-        try {
-          parsed = JSON.parse(cleaned) as T;
-        } catch (parseErr) {
-          console.warn(
-            `[GeminiClient] ${model} returned unparsable output (first 200 chars):`,
-            rawText.slice(0, 200)
-          );
-          throw parseErr;
+        const thinkingConfig = buildGeminiThinkingConfig(model, options.thinkingBudgetTokens);
+        if (thinkingConfig) {
+          generationConfig.thinkingConfig = thinkingConfig;
         }
-        console.log(`[GeminiClient] Successfully generated response using model: ${model}`);
-        return {
-          data: parsed as T,
-          rawText,
-          modelUsed: model,
+
+        if (options.maxOutputTokens) {
+          generationConfig.maxOutputTokens = options.maxOutputTokens;
+        }
+
+        const requestBody: Record<string, unknown> = {
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig,
         };
+
+        if (systemInstruction) {
+          requestBody.systemInstruction = {
+            parts: [{ text: systemInstruction }],
+          };
+        }
+
+        const dispatcher = getGeminiProxyAgent();
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+          signal: AbortSignal.timeout(timeoutMs),
+          ...(dispatcher ? { dispatcher } : {}),
+        } as any);
+
+        if (!res.ok) {
+          const errorText = await res.text().catch(() => '');
+          if (res.status === 503 && attempt < maxAttempts) {
+            const waitMs = retryDelayBaseMs * attempt;
+            console.warn(`[GeminiClient] ${model} returned 503 (high demand). Retrying preferred model in ${waitMs}ms (attempt ${attempt}/${maxAttempts})...`);
+            if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+            continue;
+          }
+          console.warn(`[GeminiClient] ${model} failed (${res.status}): ${errorText}. Immediately trying next model in queue...`);
+          break;
+        }
+
+        const json = await res.json();
+        const rawText = extractCandidateText(json);
+
+        if (rawText) {
+          // Robust extraction: fenced block, else first-bracket..last-bracket
+          // slice (tolerates leading prose, trailing fences/junk/newlines).
+          const cleaned = extractJsonPayload(rawText);
+          let parsed: T;
+          try {
+            parsed = JSON.parse(cleaned) as T;
+          } catch (parseErr) {
+            console.warn(
+              `[GeminiClient] ${model} returned unparsable output (first 200 chars):`,
+              rawText.slice(0, 200)
+            );
+            throw parseErr;
+          }
+          console.log(`[GeminiClient] Successfully generated response using model: ${model}`);
+          return {
+            data: parsed as T,
+            rawText,
+            modelUsed: model,
+          };
+        }
+        break;
+      } catch (err) {
+        console.warn(`[GeminiClient] ${model} timed out or threw error. Immediately trying next model:`, err);
+        break;
       }
-    } catch (err) {
-      console.warn(`[GeminiClient] ${model} timed out or threw error. Immediately trying next model:`, err);
-      // Cascade to next model in queue immediately
     }
   }
 
@@ -283,10 +301,9 @@ export async function generateChat(
         temperature: options.temperature ?? 0.8,
       };
 
-      if (isThinkingSupported(model)) {
-        generationConfig.thinkingConfig = {
-          thinkingBudget: 0,
-        };
+      const chatThinkingConfig = buildGeminiThinkingConfig(model, 0);
+      if (chatThinkingConfig) {
+        generationConfig.thinkingConfig = chatThinkingConfig;
       }
 
       if (options.maxOutputTokens) {
@@ -365,10 +382,9 @@ export async function generateText(
         temperature: options.temperature ?? 0.7,
       };
 
-      if (isThinkingSupported(model)) {
-        generationConfig.thinkingConfig = {
-          thinkingBudget: 0,
-        };
+      const chatThinkingConfig = buildGeminiThinkingConfig(model, 0);
+      if (chatThinkingConfig) {
+        generationConfig.thinkingConfig = chatThinkingConfig;
       }
 
       if (options.maxOutputTokens) {

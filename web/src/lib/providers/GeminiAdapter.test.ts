@@ -305,5 +305,19 @@ describe('Plan 08 - AI Output Normalization (choice & memory guardrails)', () =>
       await adapter.generateSceneRaw(prompt, { preferredModel: 'gemini-3.7-flash' });
       assert.equal(seen!.preferredModel, 'gemini-3.7-flash');
     });
+
+    it('preserves explicit thinkingBudgetTokens=0 from adapter options', async () => {
+      let seen: Record<string, unknown> | null = null;
+      const adapter = new GeminiAdapter(undefined, 'gemini-4-hydrogen', {
+        preferredModel: 'gemini-4-hydrogen',
+        thinkingBudgetTokens: 0,
+        modelCall: async (_prompt, options) => {
+          seen = { ...(options ?? {}) };
+          return { data: { narrative: 'x', choices: [] }, rawText: '{}', modelUsed: 'stub' };
+        },
+      });
+      await adapter.generateSceneRaw(prompt);
+      assert.equal(seen!.thinkingBudgetTokens, 0);
+    });
   });
 });

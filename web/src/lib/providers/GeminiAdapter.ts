@@ -1,5 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import '@/lib/ai/geminiProxy';
+import { extractJsonPayload } from '../ai/geminiClient';
+import { buildGeminiThinkingConfig } from '../ai/modelCapabilities';
 import { StreamingJsonNarrativeExtractor } from '../engines/narrative/streamingExtractor';
 import { GenerationPromptPayload } from '../engines/narrative/PromptAssembler';
 import {
@@ -416,19 +418,24 @@ export class GeminiAdapter {
     prompt: GenerationPromptPayload,
     options: SceneModelOptions = {}
   ): Promise<RawSceneResult | null> {
+    const activeModel = options.preferredModel || this.preferredModel || this.modelName;
+    const activeThinkingBudget =
+      options.thinkingBudgetTokens !== undefined
+        ? options.thinkingBudgetTokens
+        : this.thinkingBudgetTokens;
+    const thinkingConfig = buildGeminiThinkingConfig(activeModel, activeThinkingBudget);
+
     // If onTextDelta is requested and no custom model call is injected, stream directly
     if (!this.hasCustomModelCall && typeof options.onTextDelta === 'function' && this.client) {
       try {
         const responseStream = await (this.client.models as any).generateContentStream({
-          model: options.preferredModel || this.preferredModel || this.modelName,
+          model: activeModel,
           contents: prompt.userPrompt,
           config: {
             systemInstruction: prompt.systemPrompt,
             responseMimeType: 'application/json',
             temperature: options.temperature ?? 0.75,
-            ...(typeof options.thinkingBudgetTokens === 'number'
-              ? { thinkingConfig: { thinkingBudget: options.thinkingBudgetTokens } }
-              : {}),
+            ...(thinkingConfig ? { thinkingConfig } : {}),
           },
         });
         const extractor = new StreamingJsonNarrativeExtractor();
@@ -439,10 +446,11 @@ export class GeminiAdapter {
           }
         }
         const text = extractor.getFullRawText() || '{}';
+        const cleaned = extractJsonPayload(text);
         return {
-          data: JSON.parse(text) as RawSceneData,
+          data: JSON.parse(cleaned) as RawSceneData,
           rawText: text,
-          modelUsed: this.modelName,
+          modelUsed: activeModel,
         };
       } catch (streamErr) {
         console.warn('[GeminiAdapter] Direct stream error, falling back:', streamErr);
@@ -457,7 +465,8 @@ export class GeminiAdapter {
         ...(this.preferredModel && !options.preferredModel
           ? { preferredModel: this.preferredModel }
           : {}),
-        ...(this.thinkingBudgetTokens && !options.thinkingBudgetTokens
+        ...(options.thinkingBudgetTokens === undefined &&
+        typeof this.thinkingBudgetTokens === 'number'
           ? { thinkingBudgetTokens: this.thinkingBudgetTokens }
           : {}),
       };
@@ -476,12 +485,13 @@ export class GeminiAdapter {
     try {
       if (typeof options.onTextDelta === 'function') {
         const responseStream = await (this.client.models as any).generateContentStream({
-          model: options.preferredModel || this.preferredModel || this.modelName,
+          model: activeModel,
           contents: prompt.userPrompt,
           config: {
             systemInstruction: prompt.systemPrompt,
             responseMimeType: 'application/json',
             temperature: options.temperature ?? 0.75,
+            ...(thinkingConfig ? { thinkingConfig } : {}),
           },
         });
         const extractor = new StreamingJsonNarrativeExtractor();
@@ -492,27 +502,30 @@ export class GeminiAdapter {
           }
         }
         const text = extractor.getFullRawText() || '{}';
+        const cleaned = extractJsonPayload(text);
         return {
-          data: JSON.parse(text) as RawSceneData,
+          data: JSON.parse(cleaned) as RawSceneData,
           rawText: text,
-          modelUsed: this.modelName,
+          modelUsed: activeModel,
         };
       }
 
       const response = await this.client.models.generateContent({
-        model: options.preferredModel || this.preferredModel || this.modelName,
+        model: activeModel,
         contents: prompt.userPrompt,
         config: {
           systemInstruction: prompt.systemPrompt,
           responseMimeType: 'application/json',
           temperature: options.temperature ?? 0.75,
+          ...(thinkingConfig ? { thinkingConfig: thinkingConfig as any } : {}),
         },
       });
       const text = response.text || '{}';
+      const cleaned = extractJsonPayload(text);
       return {
-        data: JSON.parse(text) as RawSceneData,
+        data: JSON.parse(cleaned) as RawSceneData,
         rawText: text,
-        modelUsed: this.modelName,
+        modelUsed: activeModel,
       };
     } catch (error) {
       console.error('[GeminiAdapter] Direct API generation error:', error);

@@ -83,4 +83,66 @@ describe('generateStructuredJson thinking budget', () => {
       'lite models answer HTTP 400 when thinkingConfig is supplied'
     );
   });
+
+  it('maps Gemini 4 thinking budgets onto native thinkingLevel (never MINIMAL)', async () => {
+    const lowBody = await captureBody({
+      taskType: 'scene',
+      preferredModel: 'gemini-4-hydrogen',
+      thinkingBudgetTokens: 256,
+    });
+    assert.deepEqual(lowBody.generationConfig.thinkingConfig, { thinkingLevel: 'LOW' });
+
+    const defaultBody = await captureBody({
+      taskType: 'scene',
+      preferredModel: 'gemini-4-hydrogen',
+    });
+    assert.deepEqual(defaultBody.generationConfig.thinkingConfig, { thinkingLevel: 'LOW' });
+
+    const medBody = await captureBody({
+      taskType: 'scene',
+      preferredModel: 'gemini-4-hydrogen',
+      thinkingBudgetTokens: 2048,
+    });
+    assert.deepEqual(medBody.generationConfig.thinkingConfig, { thinkingLevel: 'MEDIUM' });
+  });
+
+  it('retries transient HTTP 503 on pinned preferredModel before cascading', async () => {
+    const previousKey = process.env.GEMINI_API_KEY;
+    const originalFetch = globalThis.fetch;
+    const seenUrls: string[] = [];
+    let calls = 0;
+    process.env.GEMINI_API_KEY = 'test-key';
+    globalThis.fetch = (async (url: any) => {
+      calls++;
+      seenUrls.push(String(url));
+      if (calls === 1) {
+        return {
+          ok: false,
+          status: 503,
+          text: async () => 'high demand',
+        } as any;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }] }),
+      } as any;
+    }) as any;
+    try {
+      const result = await generateStructuredJson('prompt', 'system', {
+        taskType: 'scene',
+        preferredModel: 'gemini-4-hydrogen',
+        retryDelayMs: 0,
+      });
+      assert.ok(result);
+      assert.equal(result.modelUsed, 'gemini-4-hydrogen');
+      assert.equal(calls, 2);
+      assert.ok(seenUrls[0].includes('gemini-4-hydrogen'));
+      assert.ok(seenUrls[1].includes('gemini-4-hydrogen'));
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (previousKey === undefined) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = previousKey;
+    }
+  });
 });
