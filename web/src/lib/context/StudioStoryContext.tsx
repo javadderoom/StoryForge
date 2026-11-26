@@ -33,6 +33,7 @@ import {
   WorldMapData,
 } from '@/lib/types';
 import { mergeFactionRelations, syncLegacyFactionLinks } from '@/lib/engines/world/factionRelations';
+import { syncLocationConnections, normalizeConnectionDirections } from '@/lib/engines/world/locationConnections';
 import type { WorldActionChange } from '@/lib/engines/world/oracleActions';
 import { getEmptyStoryInWorld } from '@/lib/storyFactory';
 import { notify } from '@/lib/notify';
@@ -1842,7 +1843,7 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
     (location: WorldLocation) => {
       updateLocations((prev) => {
         if (prev.some((l) => l.id === location.id)) return prev;
-        return [...prev, location];
+        return syncLocationConnections(prev, location);
       });
       notify.success(isPersian ? 'مکان جدید با موفقیت ثبت شد' : 'New location registered');
     },
@@ -1851,7 +1852,15 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
 
   const editLocation = useCallback(
     (id: string, updated: Partial<WorldLocation>) => {
-      updateLocations((prev) => prev.map((l) => (l.id === id ? { ...l, ...updated } : l)));
+      updateLocations((prev) => {
+        const existing = prev.find((l) => l.id === id);
+        if (!existing) return prev;
+        const merged = { ...existing, ...updated };
+        if (updated.connectedLocationIds !== undefined || updated.connectionDirections !== undefined) {
+          return syncLocationConnections(prev, merged);
+        }
+        return prev.map((l) => (l.id === id ? merged : l));
+      });
       notify.success(isPersian ? 'مشخصات مکان ذخیره شد' : 'Location updated');
     },
     [isPersian, updateLocations]
@@ -1862,7 +1871,16 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
       updateLocations((prev) =>
         prev
           .filter((l) => l.id !== id)
-          .map((l) => (l.parentLocationId === id ? { ...l, parentLocationId: undefined } : l))
+          .map((l) => {
+            const nextIds = (l.connectedLocationIds || []).filter((cid) => cid !== id);
+            const nextDirs = normalizeConnectionDirections(nextIds, l.connectionDirections);
+            return {
+              ...l,
+              parentLocationId: l.parentLocationId === id ? undefined : l.parentLocationId,
+              connectedLocationIds: nextIds,
+              connectionDirections: nextDirs,
+            };
+          })
       );
       notify.info(isPersian ? 'مکان حذف شد' : 'Location removed');
     },
@@ -1919,14 +1937,28 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
           });
         }
       } else if (relationType === 'path' || (isLocation(sourceId) && isLocation(targetId))) {
-        // Connect 2 locations bidirectionally
+        // Connect 2 locations bidirectionally (default two_way)
         updateLocations((prev) =>
           prev.map((loc) => {
-            if (loc.id === sourceId && !loc.connectedLocationIds?.includes(targetId)) {
-              return { ...loc, connectedLocationIds: [...(loc.connectedLocationIds || []), targetId] };
+            if (loc.id === sourceId) {
+              const nextIds = loc.connectedLocationIds?.includes(targetId)
+                ? loc.connectedLocationIds
+                : [...(loc.connectedLocationIds || []), targetId];
+              return {
+                ...loc,
+                connectedLocationIds: nextIds,
+                connectionDirections: { ...(loc.connectionDirections || {}), [targetId]: 'two_way' },
+              };
             }
-            if (loc.id === targetId && !loc.connectedLocationIds?.includes(sourceId)) {
-              return { ...loc, connectedLocationIds: [...(loc.connectedLocationIds || []), sourceId] };
+            if (loc.id === targetId) {
+              const nextIds = loc.connectedLocationIds?.includes(sourceId)
+                ? loc.connectedLocationIds
+                : [...(loc.connectedLocationIds || []), sourceId];
+              return {
+                ...loc,
+                connectedLocationIds: nextIds,
+                connectionDirections: { ...(loc.connectionDirections || {}), [sourceId]: 'two_way' },
+              };
             }
             return loc;
           })
@@ -2025,10 +2057,20 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
         updateLocations((prev) =>
           prev.map((loc) => {
             if (loc.id === sourceId) {
-              return { ...loc, connectedLocationIds: (loc.connectedLocationIds || []).filter((id) => id !== targetId) };
+              const nextIds = (loc.connectedLocationIds || []).filter((id) => id !== targetId);
+              return {
+                ...loc,
+                connectedLocationIds: nextIds,
+                connectionDirections: normalizeConnectionDirections(nextIds, loc.connectionDirections),
+              };
             }
             if (loc.id === targetId) {
-              return { ...loc, connectedLocationIds: (loc.connectedLocationIds || []).filter((id) => id !== sourceId) };
+              const nextIds = (loc.connectedLocationIds || []).filter((id) => id !== sourceId);
+              return {
+                ...loc,
+                connectedLocationIds: nextIds,
+                connectionDirections: normalizeConnectionDirections(nextIds, loc.connectionDirections),
+              };
             }
             return loc;
           })

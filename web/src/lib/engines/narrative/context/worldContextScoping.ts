@@ -3,6 +3,7 @@ import {
   ScopeTier,
   getLocationAncestry,
 } from '@/lib/types/world';
+import { getReachableNeighborIds } from '@/lib/engines/world/locationConnections';
 import { StoryNpcOverride } from '@/lib/types/story';
 
 export type { ScopeTier };
@@ -241,11 +242,10 @@ export function pruneWorldBibleToScope(
     return keep;
   };
 
-  // 1-hop neighborhood of the active locations (travel-adjacent context) + full ancestry hierarchy.
+  // 1-hop reachable neighborhood of the active locations (honoring two-way vs one-way links) + full ancestry hierarchy.
   const activeLocSet = new Set(locationIds);
   for (const locId of locationIds) {
-    const loc = (wb.locations ?? []).find((l) => l.id === locId);
-    loc?.connectedLocationIds?.forEach((id) => activeLocSet.add(id));
+    getReachableNeighborIds(locId, wb.locations ?? []).forEach((id) => activeLocSet.add(id));
     const ancestors = getLocationAncestry(wb.locations ?? [], locId);
     ancestors.forEach((a) => activeLocSet.add(a.id));
   }

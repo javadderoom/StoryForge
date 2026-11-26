@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { WorldBible, WorldLocation, NPCDossier, Faction, WorldLaw, getLocationBreadcrumb } from '@/lib/types';
+import { getConnectionDirection } from '@/lib/engines/world/locationConnections';
 import { useStudioStory } from '@/lib/context/StudioStoryContext';
 import {
   MapPin,
@@ -261,15 +262,24 @@ export function computeCleanGraphLayout(
 
       // Location Paths
       (loc.connectedLocationIds || []).forEach((tId) => {
-        const edgeKey = [loc.id, tId].sort().join('--');
+        const dir = getConnectionDirection(loc, tId);
+        const edgeKey = dir === 'one_way' ? `${loc.id}->${tId}` : [loc.id, tId].sort().join('--');
         if (!seenPaths.has(edgeKey)) {
           seenPaths.add(edgeKey);
           edgesList.push({
             id: `edge-loc-path-${edgeKey}`,
             source: loc.id,
             target: tId,
-            label: isPersian ? 'مسیر پیوسته' : 'Connected Path',
-            color: '#38BDF8',
+            label:
+              dir === 'one_way'
+                ? isPersian
+                  ? 'مسیر یک‌طرفه ←'
+                  : 'One-way Path →'
+                : isPersian
+                  ? 'مسیر دوطرفه'
+                  : 'Two-way Path',
+            color: dir === 'one_way' ? '#0EA5E9' : '#38BDF8',
+            dashed: dir === 'one_way',
           });
         }
       });

@@ -21,6 +21,7 @@
 // ---------------------------------------------------------------------------
 
 import { WorldBible, WorldLocation, WorldTradeRoute, getLocationAncestry } from '@/lib/types/world';
+import { getConnectionDirection } from '@/lib/engines/world/locationConnections';
 import { ActiveTravel, TravelMode, TravelPacingMode } from '@/lib/types/gameplay';
 import {
   calculateCaravanTravelDays,
@@ -167,7 +168,12 @@ export function isDirectlyReachable(originId: string, destId: string, wb: WorldB
   const dest = (wb.locations ?? []).find((l) => l.id === destId);
   if (!origin || !dest) return false;
   if ((origin.connectedLocationIds ?? []).includes(destId)) return true;
-  if ((dest.connectedLocationIds ?? []).includes(originId)) return true;
+  if (
+    (dest.connectedLocationIds ?? []).includes(originId) &&
+    getConnectionDirection(dest, originId) === 'two_way'
+  ) {
+    return true;
+  }
   if (origin.parentLocationId === destId || dest.parentLocationId === originId) return true;
   return (wb.tradeRoutes ?? []).some((r) => {
     if (r.status === 'blockaded') return false;

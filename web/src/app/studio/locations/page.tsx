@@ -30,15 +30,23 @@ import {
   Link2,
   Search,
   TriangleAlert,
+  ArrowLeftRight,
+  ArrowRight,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   WorldLocation,
+  LocationConnectionDirection,
   LocationSubZone,
   PopulateLocationPayload,
   LocationPointOfInterest,
   getLocationBreadcrumb,
   getDescendantLocationIds,
 } from '@/lib/types';
+import {
+  getEffectiveConnectionsForLocation,
+  normalizeConnectionDirections,
+} from '@/lib/engines/world/locationConnections';
 import { notify } from '@/lib/notify';
 import AiFillSection from '@/components/studio/AiFillSection';
 import { ImageUploadField } from '@/components/studio/ImageUploadField';
@@ -111,6 +119,9 @@ export default function LocationsStudioPage() {
   const [locDangerLevel, setLocDangerLevel] = useState<1 | 2 | 3 | 4 | 5>(3);
   const [locSpecialRules, setLocSpecialRules] = useState('');
   const [locConnectedIds, setLocConnectedIds] = useState<string[]>([]);
+  const [locConnectionDirections, setLocConnectionDirections] = useState<
+    Record<string, LocationConnectionDirection>
+  >({});
   const [connectedSearch, setConnectedSearch] = useState('');
   // Plan 13: hazard fallback + default threat clock
   const [locHazardFallbackId, setLocHazardFallbackId] = useState('');
@@ -205,12 +216,9 @@ export default function LocationsStudioPage() {
   const focusStats = React.useMemo(() => {
     const stats = new Map<string, { links: number; children: number }>();
     locations.forEach((l) => {
-      const linked = new Set<string>(l.connectedLocationIds || []);
-      locations.forEach((o) => {
-        if (o.id !== l.id && (o.connectedLocationIds || []).includes(l.id)) linked.add(o.id);
-      });
+      const links = getEffectiveConnectionsForLocation(l.id, locations).length;
       const children = locations.filter((o) => o.parentLocationId === l.id).length;
-      stats.set(l.id, { links: linked.size, children });
+      stats.set(l.id, { links, children });
     });
     return stats;
   }, [locations]);
@@ -334,6 +342,7 @@ export default function LocationsStudioPage() {
     setLocDangerLevel(3);
     setLocSpecialRules('');
     setLocConnectedIds([]);
+    setLocConnectionDirections({});
     setConnectedSearch('');
     setLocHazardFallbackId('');
     setLocThreatName('');
@@ -355,7 +364,16 @@ export default function LocationsStudioPage() {
     setLocCategory(loc.category || 'dungeon');
     setLocDangerLevel(loc.dangerLevel || 3);
     setLocSpecialRules(Array.isArray(loc.specialRules) ? loc.specialRules.join('\n') : (typeof loc.specialRules === 'string' ? loc.specialRules : ''));
-    setLocConnectedIds(loc.connectedLocationIds || []);
+    const effective = getEffectiveConnectionsForLocation(loc.id, locations);
+    const activeIds: string[] = [];
+    const activeDirs: Record<string, LocationConnectionDirection> = {};
+    for (const conn of effective) {
+      if (conn.kind === 'one_way_in') continue;
+      activeIds.push(conn.location.id);
+      activeDirs[conn.location.id] = conn.kind === 'one_way_out' ? 'one_way' : 'two_way';
+    }
+    setLocConnectedIds(activeIds);
+    setLocConnectionDirections(activeDirs);
     setConnectedSearch('');
     setLocHazardFallbackId(loc.hazardFallbackLocationId || '');
     setLocThreatName(loc.threatClockDefault?.name || '');
@@ -385,6 +403,7 @@ export default function LocationsStudioPage() {
       imageUrl: locImageUrl || undefined,
       dangerLevel: locDangerLevel,
       connectedLocationIds: locConnectedIds,
+      connectionDirections: normalizeConnectionDirections(locConnectedIds, locConnectionDirections),
       specialRules: specialRulesArray.length > 0 ? specialRulesArray : undefined,
       subZones: existingLoc?.subZones,
       pointsOfInterest: existingLoc?.pointsOfInterest,
@@ -409,6 +428,7 @@ export default function LocationsStudioPage() {
     locImageUrl,
     locDangerLevel,
     locConnectedIds,
+    locConnectionDirections,
     locSpecialRules,
     locHazardFallbackId,
     locSuppressThreatClock,
@@ -433,7 +453,13 @@ export default function LocationsStudioPage() {
       if ([1, 2, 3, 4, 5].includes(d)) setLocDangerLevel(d as 1 | 2 | 3 | 4 | 5);
     }
     if (Array.isArray(parsed.connectedLocationIds)) {
-      setLocConnectedIds(parsed.connectedLocationIds.map(String));
+      const nextIds = parsed.connectedLocationIds.map(String);
+      setLocConnectedIds(nextIds);
+      if (parsed.connectionDirections && typeof parsed.connectionDirections === 'object') {
+        setLocConnectionDirections(normalizeConnectionDirections(nextIds, parsed.connectionDirections));
+      } else {
+        setLocConnectionDirections(normalizeConnectionDirections(nextIds));
+      }
     }
     if (parsed.specialRules !== undefined) {
       if (Array.isArray(parsed.specialRules)) {
@@ -456,9 +482,24 @@ export default function LocationsStudioPage() {
   };
 
   const toggleConnected = (id: string) => {
-    setLocConnectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setLocConnectedIds((prev) => {
+      const exists = prev.includes(id);
+      const next = exists ? prev.filter((x) => x !== id) : [...prev, id];
+      setLocConnectionDirections((dirs) => {
+        const copy = { ...dirs };
+        if (exists) delete copy[id];
+        else if (!copy[id]) copy[id] = 'two_way';
+        return copy;
+      });
+      return next;
+    });
+  };
+
+  const toggleConnectionDirection = (id: string) => {
+    setLocConnectionDirections((prev) => ({
+      ...prev,
+      [id]: prev[id] === 'one_way' ? 'two_way' : 'one_way',
+    }));
   };
 
   const handleCategoryChange = (catId: string) => {
@@ -491,6 +532,7 @@ export default function LocationsStudioPage() {
       imageUrl: (locImageUrl || '').trim() || undefined,
       dangerLevel: locDangerLevel || 3,
       connectedLocationIds: locConnectedIds || [],
+      connectionDirections: normalizeConnectionDirections(locConnectedIds || [], locConnectionDirections),
       specialRules: specialRulesArray.length > 0 ? specialRulesArray : undefined,
       subZones: existingLoc?.subZones,
       pointsOfInterest: existingLoc?.pointsOfInterest,
@@ -938,10 +980,7 @@ export default function LocationsStudioPage() {
             const cat = getCategoryMeta(loc.category || '');
             const isExpanded = Boolean(expandedLocationIds[loc.id]);
             const isCollapsed = !isExpanded;
-            const connectedLocs = (loc.connectedLocationIds || [])
-              .filter((id) => id !== loc.id)
-              .map((id) => locations.find((l) => l.id === id))
-              .filter((l): l is WorldLocation => Boolean(l));
+            const effectiveConnections = getEffectiveConnectionsForLocation(loc.id, locations);
 
             return (
               <div
@@ -1030,17 +1069,17 @@ export default function LocationsStudioPage() {
                         {loc.name}
                       </h3>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {isCollapsed && connectedLocs.length > 0 && (
+                        {isCollapsed && effectiveConnections.length > 0 && (
                           <span
                             className="text-[10px] font-mono text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded-md flex items-center gap-1"
                             title={
                               isPersian
-                                ? `${connectedLocs.length} مکان متصل`
-                                : `${connectedLocs.length} connected locations`
+                                ? `${effectiveConnections.length} مکان متصل`
+                                : `${effectiveConnections.length} connected locations`
                             }
                           >
                             <Link2 className="w-3 h-3 text-amber-400" />
-                            {connectedLocs.length}
+                            {effectiveConnections.length}
                           </span>
                         )}
                         {isCollapsed && loc.description && (
@@ -1106,25 +1145,46 @@ export default function LocationsStudioPage() {
                             {isPersian ? 'مکان‌های متصل / پیوندها:' : 'Connected Locations:'}
                           </span>
                           <span className="text-[10px] font-mono bg-zinc-800/90 text-zinc-300 px-2 py-0.5 rounded-lg border border-zinc-700/60">
-                            {connectedLocs.length} {isPersian ? 'مکان' : 'locations'}
+                            {effectiveConnections.length} {isPersian ? 'مکان' : 'locations'}
                           </span>
                         </div>
 
-                        {connectedLocs.length > 0 ? (
+                        {effectiveConnections.length > 0 ? (
                           <div className="flex flex-wrap gap-1.5 pt-0.5">
-                            {connectedLocs.map((cl) => {
+                            {effectiveConnections.map(({ location: cl, kind }) => {
                               const cDanger = DANGER_MAP[cl.dangerLevel] || DANGER_MAP[3];
                               const cCat = getCategoryMeta(cl.category || '');
+                              const dirBadge =
+                                kind === 'two_way'
+                                  ? {
+                                      icon: <ArrowLeftRight className="w-3 h-3 text-amber-400 shrink-0" />,
+                                      label: isPersian ? 'دوطرفه' : 'Two-way',
+                                      cls: 'text-amber-300 bg-amber-500/10 border-amber-500/30',
+                                      tip: isPersian ? `پیوند دوطرفه با "${cl.name}"` : `Two-way link with "${cl.name}"`,
+                                    }
+                                  : kind === 'one_way_out'
+                                    ? {
+                                        icon: <ArrowRight className="w-3 h-3 text-sky-400 shrink-0" />,
+                                        label: isPersian ? 'یک‌طرفه (خروجی)' : 'One-way (Out)',
+                                        cls: 'text-sky-300 bg-sky-500/10 border-sky-500/30',
+                                        tip: isPersian ? `مسیر یک‌طرفه از اینجا به "${cl.name}"` : `One-way path to "${cl.name}"`,
+                                      }
+                                    : {
+                                        icon: <ArrowLeft className="w-3 h-3 text-indigo-400 shrink-0" />,
+                                        label: isPersian ? 'یک‌طرفه (ورودی)' : 'One-way (In)',
+                                        cls: 'text-indigo-300 bg-indigo-500/10 border-indigo-500/30',
+                                        tip: isPersian ? `مسیر یک‌طرفه از "${cl.name}" به اینجا` : `One-way path from "${cl.name}"`,
+                                      };
                               return (
                                 <button
                                   type="button"
-                                  key={cl.id}
+                                  key={`${cl.id}-${kind}`}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleOpenEditModal(cl);
                                   }}
                                   className="group/item inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-900/90 border border-zinc-700/80 hover:border-amber-500/60 hover:bg-zinc-800/90 text-zinc-200 transition-all cursor-pointer shadow-sm text-left"
-                                  title={isPersian ? `مشاهده و ویرایش "${cl.name}"` : `View and edit "${cl.name}"`}
+                                  title={`${dirBadge.tip} — ${isPersian ? 'کلیک برای ویرایش' : 'Click to edit'}`}
                                 >
                                   <span
                                     className="w-2 h-2 rounded-full shrink-0"
@@ -1132,6 +1192,10 @@ export default function LocationsStudioPage() {
                                   />
                                   <span className="text-xs font-semibold group-hover/item:text-amber-300 transition-colors">
                                     {cl.name}
+                                  </span>
+                                  <span className={`inline-flex items-center gap-0.5 text-[9.5px] px-1.5 py-0.2 rounded border ${dirBadge.cls}`}>
+                                    {dirBadge.icon}
+                                    <span>{dirBadge.label}</span>
                                   </span>
                                   <span className={`text-[9.5px] px-1.5 py-0.2 rounded font-mono border ${cDanger.badgeClass}`}>
                                     {cl.dangerLevel}/5
@@ -1324,11 +1388,11 @@ export default function LocationsStudioPage() {
                     )}
                     <span
                       className={`text-[11px] font-mono flex items-center gap-1 ${
-                        connectedLocs.length > 0 ? 'text-amber-300 font-semibold' : 'text-zinc-500'
+                        effectiveConnections.length > 0 ? 'text-amber-300 font-semibold' : 'text-zinc-500'
                       }`}
                     >
-                      <Link2 className={`w-3.5 h-3.5 ${connectedLocs.length > 0 ? 'text-amber-400' : 'text-zinc-500'}`} />
-                      {connectedLocs.length}{' '}
+                      <Link2 className={`w-3.5 h-3.5 ${effectiveConnections.length > 0 ? 'text-amber-400' : 'text-zinc-500'}`} />
+                      {effectiveConnections.length}{' '}
                       {isPersian ? 'پیوند' : 'links'}
                     </span>
                   </div>
@@ -1570,6 +1634,11 @@ export default function LocationsStudioPage() {
                 {(() => {
                   const candidateLocations = locations.filter((l) => l.id !== editingLocationId);
                   const checkedLocations = candidateLocations.filter((l) => locConnectedIds.includes(l.id));
+                  const incomingOneWaySources = editingLocationId
+                    ? getEffectiveConnectionsForLocation(editingLocationId, locations).filter(
+                        (c) => c.kind === 'one_way_in' && !locConnectedIds.includes(c.location.id)
+                      )
+                    : [];
 
                   return (
                     <div className="space-y-2">
@@ -1579,11 +1648,16 @@ export default function LocationsStudioPage() {
                           <div className="text-[10.5px] font-bold text-amber-300 flex items-center justify-between">
                             <span className="flex items-center gap-1">
                               <MapPin className="w-3 h-3 text-amber-400" />
-                              {isPersian ? 'پیوندهای فعلی این مکان (علامت‌خورده‌ها):' : 'Active Connected Locations:'}
+                              {isPersian
+                                ? 'پیوندهای فعلی این مکان (روی نوع پیوند کلیک کنید تا تغییر کند):'
+                                : 'Active Links (click badge to switch Two-way / One-way):'}
                             </span>
                             <button
                               type="button"
-                              onClick={() => setLocConnectedIds([])}
+                              onClick={() => {
+                                setLocConnectedIds([]);
+                                setLocConnectionDirections({});
+                              }}
                               className="text-[10px] text-zinc-400 hover:text-red-400 transition-colors cursor-pointer"
                             >
                               {isPersian ? 'پاک کردن همه' : 'Clear all'}
@@ -1593,6 +1667,9 @@ export default function LocationsStudioPage() {
                             {checkedLocations.map((cl) => {
                               const cCat = getCategoryMeta(cl.category || '');
                               const cDanger = DANGER_MAP[cl.dangerLevel] || DANGER_MAP[3];
+                              const dir: LocationConnectionDirection =
+                                locConnectionDirections[cl.id] === 'one_way' ? 'one_way' : 'two_way';
+                              const isOneWay = dir === 'one_way';
                               return (
                                 <span
                                   key={cl.id}
@@ -1603,6 +1680,39 @@ export default function LocationsStudioPage() {
                                     style={{ backgroundColor: cCat.color }}
                                   />
                                   <span>{cl.name}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleConnectionDirection(cl.id)}
+                                    className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-lg border transition-colors cursor-pointer ${
+                                      isOneWay
+                                        ? 'bg-sky-500/20 border-sky-500/40 text-sky-300 hover:bg-sky-500/30'
+                                        : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
+                                    }`}
+                                    title={
+                                      isOneWay
+                                        ? isPersian
+                                          ? 'یک‌طرفه (فقط از این مکان به مقصد) — کلیک برای تبدیل به دوطرفه'
+                                          : 'One-way (outgoing only) — click to make two-way'
+                                        : isPersian
+                                          ? 'دوطرفه (رفت و برگشت) — کلیک برای تبدیل به یک‌طرفه'
+                                          : 'Two-way (bidirectional) — click to make one-way'
+                                    }
+                                  >
+                                    {isOneWay ? (
+                                      <ArrowRight className="w-3 h-3" />
+                                    ) : (
+                                      <ArrowLeftRight className="w-3 h-3" />
+                                    )}
+                                    <span>
+                                      {isOneWay
+                                        ? isPersian
+                                          ? 'یک‌طرفه'
+                                          : 'One-way'
+                                        : isPersian
+                                          ? 'دوطرفه'
+                                          : 'Two-way'}
+                                    </span>
+                                  </button>
                                   <span className={`text-[9.5px] px-1 rounded font-mono border ${cDanger.badgeClass}`}>
                                     {cl.dangerLevel}/5
                                   </span>
@@ -1617,6 +1727,51 @@ export default function LocationsStudioPage() {
                                 </span>
                               );
                             })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Incoming One-Way Links */}
+                      {incomingOneWaySources.length > 0 && (
+                        <div className="p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl space-y-1.5">
+                          <div className="text-[10.5px] font-bold text-indigo-300 flex items-center gap-1.5">
+                            <ArrowLeft className="w-3.5 h-3.5 text-indigo-400" />
+                            <span>
+                              {isPersian
+                                ? 'پیوندهای ورودی یک‌طرفه (از مکان‌های دیگر به این نقطه):'
+                                : 'Incoming One-way Links (pointing into this location):'}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {incomingOneWaySources.map(({ location: src }) => (
+                              <div
+                                key={src.id}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs bg-zinc-900 border border-indigo-500/40 text-indigo-200"
+                              >
+                                <ArrowLeft className="w-3 h-3 text-indigo-400" />
+                                <span className="font-semibold">{src.name}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setLocConnectedIds((prev) =>
+                                      prev.includes(src.id) ? prev : [...prev, src.id]
+                                    );
+                                    setLocConnectionDirections((prev) => ({
+                                      ...prev,
+                                      [src.id]: 'two_way',
+                                    }));
+                                  }}
+                                  className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 hover:bg-emerald-500/25 cursor-pointer"
+                                  title={
+                                    isPersian
+                                      ? 'تبدیل این پیوند به مسیر دوطرفه'
+                                      : 'Promote this link to two-way'
+                                  }
+                                >
+                                  {isPersian ? 'تبدیل به دوطرفه' : 'Make Two-way'}
+                                </button>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
@@ -1675,6 +1830,9 @@ export default function LocationsStudioPage() {
 
                           return filtered.map((l) => {
                             const isChecked = locConnectedIds.includes(l.id);
+                            const dir: LocationConnectionDirection =
+                              locConnectionDirections[l.id] === 'one_way' ? 'one_way' : 'two_way';
+                            const isOneWay = dir === 'one_way';
                             const cDanger = DANGER_MAP[l.dangerLevel] || DANGER_MAP[3];
                             const cCat = getCategoryMeta(l.category || '');
 
@@ -1716,6 +1874,41 @@ export default function LocationsStudioPage() {
                                 </div>
 
                                 <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                                  {isChecked && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        toggleConnectionDirection(l.id);
+                                      }}
+                                      className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-lg border font-bold cursor-pointer transition-colors ${
+                                        isOneWay
+                                          ? 'bg-sky-500/20 border-sky-500/40 text-sky-300 hover:bg-sky-500/30'
+                                          : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
+                                      }`}
+                                      title={
+                                        isPersian
+                                          ? 'تغییر بین پیوند دوطرفه و یک‌طرفه'
+                                          : 'Toggle between two-way and one-way'
+                                      }
+                                    >
+                                      {isOneWay ? (
+                                        <ArrowRight className="w-3 h-3" />
+                                      ) : (
+                                        <ArrowLeftRight className="w-3 h-3" />
+                                      )}
+                                      <span>
+                                        {isOneWay
+                                          ? isPersian
+                                            ? 'یک‌طرفه'
+                                            : 'One-way'
+                                          : isPersian
+                                            ? 'دوطرفه'
+                                            : 'Two-way'}
+                                      </span>
+                                    </button>
+                                  )}
                                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono border ${cDanger.badgeClass}`}>
                                     {l.dangerLevel}/5
                                   </span>

@@ -115,6 +115,18 @@ const RPG = {
 // ---------------------------------------------------------------------------
 
 describe('Plan 17 travel engine — intent & destination', () => {
+  it('blocks travel in reverse across an explicit one_way connection while allowing forward travel', () => {
+    const cliffTop = loc('cliff_top', 'Cliff Top', {
+      connectedLocationIds: ['chasm_floor'],
+      connectionDirections: { chasm_floor: 'one_way' },
+    });
+    const chasmFloor = loc('chasm_floor', 'Chasm Floor');
+    const wb = makeWb({ locations: [cliffTop, chasmFloor], tradeRoutes: [] });
+
+    assert.equal(isDirectlyReachable('cliff_top', 'chasm_floor', wb), true);
+    assert.equal(isDirectlyReachable('chasm_floor', 'cliff_top', wb), false);
+  });
+
   it('shares the travel-intent vocabulary with the action validator', () => {
     assert.equal(detectTravelIntent('go to the Brine Harbor'), true);
     assert.equal(detectTravelIntent('Travel toward Salt Mine'), true);

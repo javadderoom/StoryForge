@@ -171,6 +171,8 @@ export interface ThreatClockDefault {
   crisisDescription: string;
 }
 
+export type LocationConnectionDirection = 'two_way' | 'one_way';
+
 export interface WorldLocation {
   id: string;
   name: string;
@@ -180,6 +182,8 @@ export interface WorldLocation {
   category?: string; // e.g. 'stronghold', 'dungeon', 'ruins', 'settlement', 'wilderness'
   dangerLevel: 1 | 2 | 3 | 4 | 5;
   connectedLocationIds: string[];
+  /** Per-connection direction keyed by target locationId. Omitted or 'two_way' defaults to bidirectional. */
+  connectionDirections?: Record<string, LocationConnectionDirection>;
   atmosphere: string; // Tone keywords e.g. "Gloomy, fog-drenched, damp stone"
   specialRules?: string[];
   subZones?: LocationSubZone[];
@@ -1462,6 +1466,8 @@ export const ThreatClockDefaultSchema = z.object({
   crisisDescription: z.string().default(''),
 });
 
+export const LocationConnectionDirectionSchema = z.enum(['two_way', 'one_way']);
+
 export const WorldLocationSchema = z.object({
   id: z.string(),
   name: z.string().min(2),
@@ -1471,6 +1477,7 @@ export const WorldLocationSchema = z.object({
   category: z.string().optional(),
   dangerLevel: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
   connectedLocationIds: z.array(z.string()).default([]),
+  connectionDirections: z.record(z.string(), LocationConnectionDirectionSchema).optional(),
   atmosphere: z.string(),
   specialRules: z.array(z.string()).optional(),
   subZones: z.array(LocationSubZoneSchema).optional(),

@@ -1,5 +1,6 @@
 import { WorldBible, SagaManifest, StoryBeat, StoryChapter } from '@/lib/types/world';
 import { ContradictionAuditReport, ContradictionFinding } from './GenesisSchemas';
+import { hasAnyLocationLink } from './locationConnections';
 
 /**
  * Deterministic, AI-free lore consistency auditor ("Contradiction Radar").
@@ -533,7 +534,7 @@ export class LoreAuditor {
     }
 
     for (const loc of world.locations) {
-      const connected = (loc.connectedLocationIds || []).length > 0 || factionTerritories.has(loc.id);
+      const connected = hasAnyLocationLink(loc.id, world.locations) || factionTerritories.has(loc.id);
       if (!connected) {
         findings.push({
           id: `orphan_loc_${loc.id}`,
