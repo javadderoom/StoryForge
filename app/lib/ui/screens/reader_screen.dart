@@ -468,7 +468,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     void doSubmitAction() {
       ref.read(gameSessionProvider.notifier).submitAction(
         choice,
-        forcedDiceRoll: rolledD20,
         holdNarrativeUpdate: true,
       );
     }

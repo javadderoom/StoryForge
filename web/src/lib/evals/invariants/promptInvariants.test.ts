@@ -62,7 +62,7 @@ describe('Tier 1 — PromptAssembler invariants (EN)', () => {
   });
 
   it('exposes the Plan 17 condition-change contract, hides the baseline, guards treated wounds', () => {
-    const { systemPrompt } = PromptAssembler.buildNarrativePrompt(
+    const { systemPrompt, userPrompt } = PromptAssembler.buildNarrativePrompt(
       makeEnvelope({
         playerStatus: {
           stats: {},
@@ -80,9 +80,12 @@ describe('Tier 1 — PromptAssembler invariants (EN)', () => {
     assert.ok(systemPrompt.includes('[TENSION CLOCK CONTRACT'));
     // The prompt-silent baseline tag is never injected as a condition line…
     assert.ok(!systemPrompt.includes('تندرست'));
-    assert.ok(systemPrompt.includes('زخمی (پانسمان‌شده)'));
-    // …while the treated wound keeps its continuity guard (and no bandage beat).
-    assert.ok(systemPrompt.includes('[TREATED WOUND CONTINUITY]'));
+    assert.ok(!userPrompt.includes('تندرست'));
+    assert.ok(userPrompt.includes('زخمی (پانسمان‌شده)'));
+    // …while the treated wound keeps its continuity guard in userPrompt (preserving systemPrompt cache).
+    assert.ok(userPrompt.includes('[TREATED WOUND CONTINUITY]'));
+    assert.ok(!systemPrompt.includes('[TREATED WOUND CONTINUITY]'));
+    assert.ok(!userPrompt.includes('[CRITICAL EMOTIONAL BEAT]'));
     assert.ok(!systemPrompt.includes('[CRITICAL EMOTIONAL BEAT]'));
   });
 });
@@ -113,7 +116,7 @@ describe('Tier 1 — PromptAssembler invariants (FA parity)', () => {
     assert.ok(systemPrompt.includes('clockChanges'));
     assert.ok(systemPrompt.includes('[قرارداد اعتماد شخصیت‌ها'));
     assert.ok(systemPrompt.includes('[قرارداد ساعت تنش'));
-    assert.ok(systemPrompt.includes('[SCENE CONTINUITY & CHOICE PREMISES]'));
+    assert.ok(systemPrompt.includes('[اولویت علت و معلول'));
   });
 });
 

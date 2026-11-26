@@ -92,6 +92,7 @@ export async function findServableAotBranch(
       predictedChoiceId: query.predictedChoiceId,
       status: 'generated',
       servedAt: null,
+      OR: [{ verdict: null }, { verdict: { not: 'rejected' } }],
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -134,6 +135,8 @@ export interface SnapAotContext {
   caller: { id: string; role: string } | null;
   /** Fired the moment the reader acts; checked before generation and store. */
   signal?: AbortSignal;
+  /** Optional in-memory post-turn snapshot to skip an extra DB refetch. */
+  prefetchedSession?: AotLoadedSession;
 }
 
 export interface SnapAotBranchRow {
@@ -159,7 +162,7 @@ export interface SnapAotBranchRow {
 }
 
 /** Structural view of the post-turn session the engine consumes. */
-interface AotLoadedSession {
+export interface AotLoadedSession {
   turns?: SceneSessionTurn[];
   memories?: SceneSessionMemory[];
   sagaLedger?: unknown;
@@ -281,9 +284,9 @@ export async function preGenerateSnapAotBranch(
       (async (sessionId, caller) =>
         (await SessionRepository.getSessionForUser(sessionId, caller)) as AotLoadedSession | null);
 
-    // Refetch AFTER the turn was persisted: the branch must see the scene the
-    // reader is dwelling on (turn N), its choices, and turn N's memories.
-    const session = await loadSession(ctx.sessionId, ctx.caller);
+    // Prefer the in-memory post-turn snapshot when provided so AOT starts
+    // immediately without waiting on an extra full-session DB roundtrip.
+    const session = ctx.prefetchedSession ?? (await loadSession(ctx.sessionId, ctx.caller));
     if (!session) return;
 
     // The reader acted while we worked: the branch can never be served.

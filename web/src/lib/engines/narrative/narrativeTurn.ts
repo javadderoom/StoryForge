@@ -13,7 +13,11 @@ import { WorldStateLedger } from '@/lib/types/world';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { RawSceneResult } from './modelCall';
 import { SubQAdapter } from '@/lib/providers/SubQAdapter';
-import { evaluateNarrativeMomentum, MomentumEvaluationInput } from './momentumGuardrail';
+import {
+  evaluateNarrativeMomentum,
+  evaluateMomentumHeuristics,
+  MomentumEvaluationInput,
+} from './momentumGuardrail';
 
 /**
  * Plan 14 — the shared narrative turn core.
@@ -682,7 +686,9 @@ export async function generateValidatedScene(
     candidateNarrative: candidate.narrative,
     candidateChoices: candidate.choices,
   };
-  const momentumCheck = await evaluateNarrativeMomentum(momentumInput, subqClient);
+  const momentumCheck = input.onTextDelta
+    ? evaluateMomentumHeuristics(momentumInput)
+    : await evaluateNarrativeMomentum(momentumInput, subqClient);
   if (!momentumCheck.ok && momentumCheck.repairInstruction) {
     check.ok = false;
     check.findings.push({
@@ -716,14 +722,14 @@ export async function generateValidatedScene(
     candidate = repaired;
     check = validateProse(candidate.narrative, validationOptions);
     if (check.ok) {
-      const recheckedMomentum = await evaluateNarrativeMomentum(
-        {
-          ...momentumInput,
-          candidateNarrative: candidate.narrative,
-          candidateChoices: candidate.choices,
-        },
-        subqClient
-      );
+      const recheckInput = {
+        ...momentumInput,
+        candidateNarrative: candidate.narrative,
+        candidateChoices: candidate.choices,
+      };
+      const recheckedMomentum = input.onTextDelta
+        ? evaluateMomentumHeuristics(recheckInput)
+        : await evaluateNarrativeMomentum(recheckInput, subqClient);
       if (!recheckedMomentum.ok && recheckedMomentum.repairInstruction) {
         check.ok = false;
         check.findings.push({

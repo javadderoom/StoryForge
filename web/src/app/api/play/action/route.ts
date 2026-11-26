@@ -163,7 +163,16 @@ async function processTurnAction(
       return respond({ success: false, error: 'storyId is required' }, 400);
     }
 
-    const rawStory = await StoryRepository.getStoryById(storyId);
+    if (!playerActionText || typeof playerActionText !== 'string') {
+      return respond({ success: false, error: 'playerActionText is required' }, 400);
+    }
+
+    // Parallelize independent initial lookups (story, auth, and session).
+    const [rawStory, auth, rawSession] = await Promise.all([
+      StoryRepository.getStoryForPlay(storyId),
+      getAuthenticatedUser(req),
+      sessionId ? SessionRepository.getSessionForPlayTurn(sessionId) : Promise.resolve(null),
+    ]);
 
     if (!rawStory && !body?.draftManifest) {
       return respond({ success: false, error: 'Story not found' }, 404);
@@ -182,25 +191,9 @@ async function processTurnAction(
 
     const story = migrateStoryManifestToUnifiedGraph(storyToMigrate);
 
-    if (!playerActionText || typeof playerActionText !== 'string') {
-      return respond({ success: false, error: 'playerActionText is required' }, 400);
-    }
-
-    // Resolve the caller BEFORE loading the session so ownership can be checked.
-    const auth = await getAuthenticatedUser(req);
     const caller = auth ? { id: auth.user.id, role: auth.user.role } : null;
-
-    // Load the session FIRST — it is the source of truth for both the
-    // authoritative PlayerState and the Living World Ledger (Plan 08).
-    //
-    // Ownership-scoped: a supplied sessionId must belong to the caller. Without
-    // this, anyone holding a sessionId could read the victim's playerState via
-    // the response, inject turns into their narrative history and memory log,
-    // and overwrite their Living World Ledger. An unknown-or-unowned session is
-    // rejected outright rather than silently downgraded to a stateless call,
-    // which would still attempt to record a turn under that sessionId.
     const session = sessionId
-      ? await SessionRepository.getSessionForUser(sessionId, caller)
+      ? SessionRepository.authorizeSession(rawSession as any, caller)
       : null;
 
     if (sessionId && !session) {
@@ -250,7 +243,6 @@ async function processTurnAction(
         ? 'plus'
         : 'normal';
     const sceneCreditCost = isRemake ? 0 : (ENGINE_TIER_COSTS[engineTier] ?? 1);
-    const activeNarrativeAdapter = await getNarrativeAdapter(engineTier);
 
     // Credit metering. Remakes are free (0 credits).
     if (auth && sceneCreditCost > 0 && auth.user.creditBalance < sceneCreditCost) {
@@ -434,31 +426,32 @@ async function processTurnAction(
     );
 
     if (session && typeof lastTurn?.turnNumber === 'number') {
-      await resolveSnapDecision({
+      const snapResolvePayload = {
         sessionId: session.sessionId,
         turnNumber: lastTurn.turnNumber,
         presentedChoices: lastTurn.presentedChoices,
         explicitChoiceId,
         actionText: playerActionText,
+      };
+      after(async () => {
+        await resolveSnapDecision(snapResolvePayload);
       });
     }
 
-    // Plan 15 §2.3 tier 4 / Live AOT Serving:
-    // If the reader tapped the choice Snap predicted during dwell on lastTurn's
-    // choices, look up the pre-rolled and pre-written candidate branch from the DB.
-    const aotBranch =
-      session &&
-      actualChoice.actualChoiceId &&
-      typeof lastTurn?.turnNumber === 'number' &&
-      !isRemake &&
-      !targetSceneId
-        ? await findServableAotBranch({
-            sessionId: session.sessionId,
+    // Plan 15 §2.3 tier 4 / Live AOT Serving + narrative adapter resolution in parallel.
+    const shouldCheckAot =
+      Boolean(session && actualChoice.actualChoiceId && typeof lastTurn?.turnNumber === 'number' && !isRemake && !targetSceneId);
+    const [activeNarrativeAdapter, aotBranch] = await Promise.all([
+      getNarrativeAdapter(engineTier),
+      shouldCheckAot
+        ? findServableAotBranch({
+            sessionId: session!.sessionId,
             storyId,
-            turnNumber: lastTurn.turnNumber,
-            predictedChoiceId: actualChoice.actualChoiceId,
+            turnNumber: lastTurn!.turnNumber!,
+            predictedChoiceId: actualChoice.actualChoiceId!,
           })
-        : null;
+        : Promise.resolve(null),
+    ]);
 
 
     const isPresetChoice = Boolean(
@@ -579,15 +572,15 @@ async function processTurnAction(
       const currentLocation = story.worldBible.locations?.find(
         (l) => l.id === playerState.currentLocationId
       );
-      const feasibility = await GameEngine.assessActionFeasibility(
-        playerActionText,
-        {
-          characterName: playerState.characterName,
-          isPersian: isPersianStory,
-          currentLocationName: currentLocation?.name,
-          level: playerState.level || 1,
-        }
-      );
+      const feasibilityContext = {
+        characterName: playerState.characterName,
+        isPersian: isPersianStory,
+        currentLocationName: currentLocation?.name,
+        level: playerState.level || 1,
+      };
+      const feasibility = isPresetChoice
+        ? GameEngine.evaluateFeasibilityHeuristics(playerActionText, feasibilityContext)
+        : await GameEngine.assessActionFeasibility(playerActionText, feasibilityContext);
 
       resolution = GameEngine.resolveActionCheck(
         playerActionText,
@@ -1647,7 +1640,7 @@ async function processTurnAction(
           sceneId: beatSceneId,
         })),
       ];
-      await SessionRepository.recordTurn({
+      const recordTurnPromise = SessionRepository.recordTurn({
         sessionId,
         beat: newBeat,
         resolution,
@@ -1657,10 +1650,102 @@ async function processTurnAction(
         sagaLedger: nextLedger,
         isRemake,
       });
+
+      let remainingCredits: number | null = auth?.user?.creditBalance ?? null;
+      const creditPromise =
+        auth && sceneCreditCost > 0
+          ? (async () => {
+              const prisma = getPrisma();
+              if (!prisma) return;
+              try {
+                const updated = await prisma.user.update({
+                  where: { id: auth.user.id },
+                  data: { creditBalance: { decrement: sceneCreditCost } },
+                  select: { creditBalance: true },
+                });
+                remainingCredits = updated.creditBalance;
+
+                await prisma.userCreditLedger.create({
+                  data: {
+                    userId: auth.user.id,
+                    amount: -sceneCreditCost,
+                    balanceAfter: updated.creditBalance,
+                    reason:
+                      engineTier === 'advance'
+                        ? 'SCENE_PLAY_ADVANCE'
+                        : engineTier === 'plus'
+                          ? 'SCENE_PLAY_PLUS'
+                          : 'SCENE_PLAY',
+                    metadata: { storyId, turnNumber, engineTier, cost: sceneCreditCost },
+                  },
+                });
+              } catch (creditErr) {
+                console.error('Failed to deduct scene credit:', creditErr);
+              }
+            })()
+          : Promise.resolve();
+
+      await Promise.all([recordTurnPromise, creditPromise]);
+
+      // Plan 15 §2.3 (Phase 6): Snap dwell compute, logged at render.
+      if (session) {
+        after(async () => {
+          await scheduleSnapDwell({
+            sessionId,
+            storyId,
+            storyTitle: story.title,
+            storyLanguage: story.language,
+            npcIdToName: buildNpcIdToName(story.worldBible?.npcs),
+            turnNumber,
+            currentProse: newBeat.narrativeProse,
+            choices: newBeat.presentedChoices,
+            playerState: updatedPlayerState,
+            history: sessionTurns.map((turn) => ({
+              turnNumber: turn.turnNumber ?? 0,
+              playerActionText: turn.playerActionText ?? '',
+              narrativeProse: turn.narrativeProse ?? '',
+            })),
+            aot: {
+              story,
+              caller,
+              prefetchedSession: {
+                turns: [...sessionTurns, newBeat] as any,
+                memories: [
+                  ...((session?.memories ?? []) as any[]),
+                  ...turnMemories,
+                ] as any,
+                sagaLedger: nextLedger,
+                currentChapterId: matchedAuthoredBeat?.chapterId || activeChapter?.id || null,
+                playerState: updatedPlayerState,
+              },
+            },
+          });
+        });
+      }
+
+      return respond({
+        success: true,
+        data: {
+          beat: newBeat,
+          resolution: {
+            ...resolution,
+            proseFindings: proseFindings.length ? proseFindings : undefined,
+            proseRepaired: sceneOutcome.proseRepaired || undefined,
+          },
+          progression: resolution.progression,
+          updatedPlayerState,
+          sagaLedger: nextLedger,
+          activeChapterId: matchedAuthoredBeat?.chapterId || activeChapter?.id || null,
+          remainingCredits,
+          remakeUsed: isRemake,
+          remakeCount: (newBeat as any).remakeCount ?? 0,
+          activeTensionClocks: updatedPlayerState.activeTensionClocks ?? [],
+        },
+      });
     }
 
-    // 6. Deduct Scene Credit for Authenticated User (1 for normal, 2 for plus, 5 for advance, 0 for remake)
-    let remainingCredits: number | null = null;
+    // Stateless fallback (no sessionId): still deduct credits if authenticated.
+    let remainingCredits: number | null = auth?.user?.creditBalance ?? null;
     if (auth && sceneCreditCost > 0) {
       const prisma = getPrisma();
       if (prisma) {
@@ -1689,50 +1774,6 @@ async function processTurnAction(
         } catch (creditErr) {
           console.error('Failed to deduct scene credit:', creditErr);
         }
-      }
-    } else if (auth) {
-      remainingCredits = auth.user.creditBalance;
-    }
-
-    // Plan 15 §2.3 (Phase 6): Snap dwell compute, logged at render.
-    // `after()` runs once this response is on the wire — the moment the reader
-    // sees the new scene and its choices. Fire-and-forget: the adapter timeout
-    // and the cancellation registry bound it; failures write no row. Stateless
-    // calls (no session) have nothing to resolve against.
-    // Tier 4 (shadow): with `ENABLE_SNAP_AOT=true` the predicted choice's
-    // branch is pre-rolled and pre-written under the same controller; serving
-    // stays gated on the measured hit rate over `snap_decision_logs`.
-    if (sessionId && session) {
-      after(async () => {
-        await scheduleSnapDwell({
-          sessionId,
-          storyId,
-          storyTitle: story.title,
-          storyLanguage: story.language,
-          npcIdToName: buildNpcIdToName(story.worldBible?.npcs),
-          turnNumber,
-          currentProse: newBeat.narrativeProse,
-          choices: newBeat.presentedChoices,
-          playerState: updatedPlayerState,
-          history: sessionTurns.map((turn) => ({
-            turnNumber: turn.turnNumber ?? 0,
-            playerActionText: turn.playerActionText ?? '',
-            narrativeProse: turn.narrativeProse ?? '',
-          })),
-          aot: { story, caller },
-        });
-      });
-    }
-
-    // Plan 15: Minimum response latency floor (2000ms) to smooth perceived pacing.
-    // Prevents an abrupt contrast between instant Snap AOT hits (<50ms) and normal
-    // LLM generation misses (2-4s), preserving narrative immersion.
-    // Bypassed in test environments to keep automated suites fast.
-    if (process.env.NODE_ENV !== 'test' && !streamWriter) {
-      const elapsedMs = Date.now() - turnStartTime;
-      const MIN_DELAY_MS = 2000;
-      if (elapsedMs < MIN_DELAY_MS) {
-        await new Promise((resolve) => setTimeout(resolve, MIN_DELAY_MS - elapsedMs));
       }
     }
 

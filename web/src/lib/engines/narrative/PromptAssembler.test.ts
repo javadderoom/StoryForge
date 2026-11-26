@@ -36,13 +36,20 @@ describe('PromptAssembler - scene continuity', () => {
           recentSceneSnippets: [recentScene],
         }));
 
-        assert.ok(systemPrompt.includes('[SCENE CONTINUITY & CHOICE PREMISES]'));
-        assert.ok(systemPrompt.includes("Resolve only the player's stated action against its actual target"));
-        assert.ok(systemPrompt.includes('Preserve present participants, their positions, and unresolved threats'));
-        assert.ok(systemPrompt.includes("account for witnesses' reactions"));
-        assert.ok(systemPrompt.includes('must not present an unproven premise as fact'));
-        assert.ok(systemPrompt.includes('Do not offer leverage that this scene has already spent'));
-        assert.ok(systemPrompt.includes('without changing the authoritative game outcome'));
+        if (languageDirective === 'en') {
+          assert.ok(systemPrompt.includes('[SCENE CONTINUITY & CHOICE PREMISES]'));
+          assert.ok(systemPrompt.includes("Resolve only the player's stated action against its actual target"));
+          assert.ok(systemPrompt.includes('Preserve present participants, their positions, and unresolved threats'));
+          assert.ok(systemPrompt.includes("account for witnesses' reactions"));
+          assert.ok(systemPrompt.includes('must not present an unproven premise as fact'));
+          assert.ok(systemPrompt.includes('Do not offer leverage that this scene has already spent'));
+          assert.ok(systemPrompt.includes('without changing the authoritative game outcome'));
+        } else {
+          assert.ok(systemPrompt.includes('[اولویت علت و معلول'));
+          assert.ok(systemPrompt.includes('وفاداری به هدف اقدام'));
+          assert.ok(systemPrompt.includes('پیوستگی مکانی و انزوای صحنه'));
+          assert.ok(systemPrompt.includes('پیوستگی و پوشش انتخاب‌ها'));
+        }
         assert.ok(userPrompt.includes(outcome.actionText));
         assert.ok(userPrompt.includes(outcome.consequence));
         assert.ok(userPrompt.includes(recentScene));
@@ -143,7 +150,7 @@ describe('PromptAssembler - expanded world context', () => {
     );
     assert.ok(fa.userPrompt.includes('Commander Vandad [مستقر در این پایگاه/مکان — هنوز در صحنه حاضر نیست]'));
     assert.ok(fa.userPrompt.includes('Gate Sentry [حاضر در صحنه]'));
-    assert.ok(fa.userPrompt.includes('دستور حضور شخصیت‌ها'));
+    assert.ok(fa.userPrompt.includes('هنوز در صحنه حاضر نیست'));
     assert.ok(fa.systemPrompt.includes('وفاداری به هدف اقدام (Target Fidelity)'));
     assert.ok(fa.systemPrompt.includes('پیوستگی محیطی'));
   });
@@ -198,7 +205,7 @@ describe('PromptAssembler - expanded world context', () => {
     );
     assert.ok(fa.userPrompt.includes('شاهراه‌ها و کاروان‌های تجاری فعال'));
     assert.ok(fa.userPrompt.includes('طارق [همراه کاروان تجاری: کاروان‌سالار کاروان «شاهراه ابریشم»] [مستقر در این پایگاه/مکان'));
-    assert.ok(fa.userPrompt.includes('دستور حضور کاروان‌ها و شخصیت‌های مسافر'));
+    assert.ok(fa.userPrompt.includes('کاروانسرا/بارانداز همین محل حضور دارند'));
   });
 
   it('renders NPC appearance and literary portrait directives (EN + FA)', () => {
@@ -223,7 +230,7 @@ describe('PromptAssembler - expanded world context', () => {
       makeEnvelope({ activeNpcDossiers: dossiers, languageDirective: 'fa', storyTitle: 'داستان افسانه' })
     );
     assert.ok(fa.userPrompt.includes('سیما، اندام و پوشش: قامت: بلند و چهارشانه'));
-    assert.ok(fa.userPrompt.includes('دستور شاهکار ادبی برای توصیف سیمای شخصیت‌ها'));
+    assert.ok(fa.userPrompt.includes('سیمای ملموس و پوشش'));
   });
 
   it('renders equipped item interactions catalogue and item fidelity directives in prompts (EN + FA)', () => {
@@ -352,9 +359,10 @@ describe('PromptAssembler - Plan 15 wound beat', () => {
         languageDirective,
         playerStatus: { stats: {}, resources: {}, equippedItems: [], conditions: ['wound:arrow'] },
       });
-      const { systemPrompt } = PromptAssembler.buildNarrativePrompt(env);
-      assert.ok(systemPrompt.includes('CRITICAL EMOTIONAL BEAT'));
-      assert.ok(systemPrompt.includes('wound:arrow'));
+      const { systemPrompt, userPrompt } = PromptAssembler.buildNarrativePrompt(env);
+      assert.ok(userPrompt.includes('CRITICAL EMOTIONAL BEAT'));
+      assert.ok(userPrompt.includes('wound:arrow'));
+      assert.ok(!systemPrompt.includes('CRITICAL EMOTIONAL BEAT'));
     });
 
     it(`stays silent without wound tags (${languageDirective})`, () => {
@@ -362,7 +370,8 @@ describe('PromptAssembler - Plan 15 wound beat', () => {
         languageDirective,
         playerStatus: { stats: {}, resources: {}, equippedItems: [], conditions: ['هوشیار'] },
       });
-      const { systemPrompt } = PromptAssembler.buildNarrativePrompt(env);
+      const { systemPrompt, userPrompt } = PromptAssembler.buildNarrativePrompt(env);
+      assert.ok(!userPrompt.includes('CRITICAL EMOTIONAL BEAT'));
       assert.ok(!systemPrompt.includes('CRITICAL EMOTIONAL BEAT'));
     });
 
@@ -371,7 +380,8 @@ describe('PromptAssembler - Plan 15 wound beat', () => {
         languageDirective,
         playerStatus: { stats: {}, resources: {}, equippedItems: [], conditions: ['wound:arrow (bandaged)'] },
       });
-      const { systemPrompt } = PromptAssembler.buildNarrativePrompt(env);
+      const { systemPrompt, userPrompt } = PromptAssembler.buildNarrativePrompt(env);
+      assert.ok(!userPrompt.includes('CRITICAL EMOTIONAL BEAT'));
       assert.ok(!systemPrompt.includes('CRITICAL EMOTIONAL BEAT'));
     });
   }

@@ -81,8 +81,11 @@ export class PromptAssembler {
     });
 
     // Plan 13: contextual choice material shared by both language branches.
+    // Avoid repeating equipped gear if it is already listed in protagonist status.
     const choiceMaterial = [
-      context.inventoryTerms?.length ? `Equipped gear / inventory: ${context.inventoryTerms.join(', ')}` : '',
+      context.inventoryTerms?.length && !context.playerStatus?.equippedItems?.length
+        ? `Equipped gear / inventory: ${context.inventoryTerms.join(', ')}`
+        : '',
       context.environmentInteractables?.length ? `Environmental interactables: ${context.environmentInteractables.join(', ')}` : '',
     ].filter(Boolean).join('\n');
 
@@ -103,8 +106,7 @@ export class PromptAssembler {
 
     const continuityDirective = buildContinuityDirective({
       bestiaryGrounding,
-      woundBeat,
-      treatedWoundBeat,
+      isEnglish,
     });
 
     const systemPrompt = buildNarrativeSystemPrompt({
@@ -166,7 +168,7 @@ export class PromptAssembler {
       : '';
     const traitsLineFa = traitsLineEn;
 
-    const enProtagonistBlock = (statsLineEn || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || traitsLineEn || powerRanksLineEn || context.playerStatus?.itemInteractionsCatalog || context.powerScaleContext)
+    const enProtagonistBlock = (statsLineEn || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || traitsLineEn || context.playerStatus?.conditions?.length || woundBeat || treatedWoundBeat || powerRanksLineEn || context.playerStatus?.itemInteractionsCatalog || context.powerScaleContext)
       ? [
           '[PROTAGONIST STATUS & CAPABILITIES]',
           context.playerStatus?.characterName
@@ -186,6 +188,8 @@ export class PromptAssembler {
           context.playerStatus?.conditions?.length
             ? `• Active Character Conditions (MANDATORY sensory reflection in prose & tone): ${promptVisibleConditions(context.playerStatus.conditions).join(', ')}`
             : '',
+          woundBeat || '',
+          treatedWoundBeat || '',
           powerRanksLineEn ? `\n[POWER SCHOOL RANKINGS & MASTERY]\n${powerRanksLineEn}` : '',
           context.powerScaleContext ? `\n[MORTAL BASELINE & POWER SCALE CONTRAST]\n${context.powerScaleContext}` : '',
           context.playerStatus?.itemInteractionsCatalog ? `\n${context.playerStatus.itemInteractionsCatalog}` : '',
@@ -194,7 +198,7 @@ export class PromptAssembler {
           .join('\n')
       : '';
 
-    const faProtagonistBlock = (statsLineFa || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || traitsLineFa || context.playerStatus?.conditions?.length || powerRanksLineFa || context.playerStatus?.itemInteractionsCatalog || context.powerScaleContext)
+    const faProtagonistBlock = (statsLineFa || resourcesLine || playerEquipped.length || context.playerStatus?.abilities?.length || traitsLineFa || context.playerStatus?.conditions?.length || woundBeat || treatedWoundBeat || powerRanksLineFa || context.playerStatus?.itemInteractionsCatalog || context.powerScaleContext)
       ? [
           '[وضعیت و توانمندی‌های قهرمان داستان / PROTAGONIST STATUS]',
           context.playerStatus?.characterName
@@ -214,6 +218,8 @@ export class PromptAssembler {
           context.playerStatus?.conditions?.length
             ? `• حالت‌ها و وضعیت‌های فعلی کاراکتر (بسیار مهم: حتماً این احوال، تنش و فرسودگی را در نثر، تنفس و توصیف حسی منعکس کن): ${promptVisibleConditions(context.playerStatus.conditions).join('، ')}`
             : '',
+          woundBeat || '',
+          treatedWoundBeat || '',
           powerRanksLineFa ? `\n[مکاتب قدرت و درجات تسلط / POWER SYSTEM RANKINGS]\n${powerRanksLineFa}` : '',
           context.powerScaleContext ? `\n[سنجش مقیاس قدرت در برابر انسان فانی / POWER SCALE CONTRAST]\n${context.powerScaleContext}` : '',
           context.playerStatus?.itemInteractionsCatalog ? `\n${context.playerStatus.itemInteractionsCatalog}` : '',
@@ -380,10 +386,7 @@ export class PromptAssembler {
           .join('\n');
         parts.push(
           `[شخصیت‌های حاضر / PRESENT NPCS]\n${npcs}\n` +
-          `• دستور شاهکار ادبی برای توصیف سیمای شخصیت‌ها (LITERARY CHARACTER PORTRAIT DIRECTIVE): هنگام معرفی هر شخصیت برای نخستین بار، یا زمانی که شخصیتی لب به سخن می‌گشاید یا واکنشی نشان می‌دهد، هرگز او را مانند یک «نام انتزاعی» یا صرفاً متکلم دیالوگ توصیف نکن! شخصیت‌ها باید مانند رمان‌های ادبی کلاسیک و فانتزی عینی و جاندار باشند: حتماً اندام و قامت (بلندی یا کوتاهی، ستبر یا لاغر بودن، خمیدگی یا استواری شانه، طرز راه رفتن)، سیمای چهره و نگاه (رنگ و شیار پوست در اثر آفتاب و باد، زبری ریش و مو، خطوط اخم یا خنده، تیزی و رنگ چشم‌ها)، پوشش و جامه (جنس پارچه اعم از پشم زبر، کرباس، چرم کهنه، رنگ جامه، لکه‌های خاک و کار، شال کمر، پاپوش و سلاح آویخته)، و دست‌ها یا حرکات بدنی (پینه‌های انگشتان، تکیه بر عصا، مالیدن تسمه) را با نثری حسی و ملموس در دل روایت بتن!\n` +
-          `• دستور حضور شخصیت‌ها و پیوستگی مکانی: شخصیت‌هایی که برچسب «مستقر در این پایگاه/مکان — هنوز در صحنه حاضر نیست» دارند، در این مکان کلی حضور یا اقامت دارند اما هنوز در این صحنهٔ مشخص رو در روی بازیکن نیستند. هرگز آنها را بدون مقدمه، بدون صدا زدن یا بدون تغییر تدریجی صحنه ناگهان رو در روی قهرمان قرار نده! اگر قهرمان به حاشیهٔ رودخانه یا میان نی‌ها رفته، صحنه در خلوت و انزوای کامل است؛ افراد مستقر کنار آتش یا بارانداز از حوادث بی‌صدا یا درگیری‌های محدود در دل نی‌زار کاملاً بی‌خبرند و در جای خود باقی می‌مانند.\n` +
-          `• دستور حضور کاروان‌ها و شخصیت‌های مسافر: شخصیت‌هایی که برچسب [همراه کاروان تجاری: ...] دارند، همراه با کاروان‌های تجاری که به این مکان می‌رسند در این محل حضور دارند. حتی اگر شهر یا اقامتگاه دائمی آنها در شناسنامه جهان در شهر دیگری ثبت شده باشد، به واسطهٔ حضور کاروان، آنها هم‌اکنون به صورت ملموس در کاروانسرا، بارانداز، کنار شترها و ارابه‌ها یا دروازهٔ بازار این مکان حضور دارند و شخصیت‌هایی واقعی برای گفت‌وگو، دادوستد، گرفتن مأموریت محافظت از کاروان یا پرس‌وجو هستند.\n` +
-          `• دستور مؤکد معرفی تدریجی در روایت در برابر گزینه‌ها: شخصیت‌هایی که برچسب «مستقر در این پایگاه/مکان — هنوز در صحنه حاضر نیست» دارند، هنوز با قهرمان داستان رو در رو نشده‌اند. در صورتی که اقدام بازیکن به سمت قلمرو آنها باشد (مثلاً رفتن به سمت کجاوه‌ها یا جست‌وجوی راه‌بلد)، می‌توانی آنها را به شکلی طبیعی و با دیالوگ در نثر صحنه معرفی کنی. اما اکیداً نباید نام آنها را تا پیش از معرفی در متن، در گزینه‌های انتخابی (choices) بیاوری!`
+          `• نکات: شخصیت‌ها را با سیمای ملموس و پوشش وصف کن. افراد «مستقر در پایگاه — هنوز در صحنه حاضر نیست» را تا پیش از معرفی طبیعی در متن، در گزینه‌ها (choices) نیاور. افراد [همراه کاروان تجاری] در کاروانسرا/بارانداز همین محل حضور دارند.`
         );
       }
 

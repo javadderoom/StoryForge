@@ -54,6 +54,23 @@ export function normalizeBeatChoices(beat: StoryBeat): StoryBeat {
 export function migrateStoryManifestToUnifiedGraph(manifest: StoryManifest): StoryManifest {
   if (!manifest) return manifest;
 
+  // Fast path: already migrated to graphVersion 2 with no legacy chapter scenes.
+  const chapters = manifest.saga?.chapters;
+  const hasLegacyChapterScenes =
+    Array.isArray(chapters) && chapters.some((c) => Array.isArray(c.scenes) && c.scenes.length > 0);
+  const needsBeatNormalization = (manifest.initialStoryBeats || []).some(
+    (b: any) =>
+      /^\[(?:arc|پرده)\s*[\d\w\u06F0-\u06F9]+\]\s*/i.test(b?.narrativeText || '') ||
+      (b?.choices || []).some((c: any) => c?.destinationSceneId || c?.leadToSceneId)
+  );
+  if (
+    (manifest as any).graphVersion === 2 &&
+    !hasLegacyChapterScenes &&
+    !needsBeatNormalization
+  ) {
+    return manifest;
+  }
+
   const clone: StoryManifest = JSON.parse(JSON.stringify(manifest));
 
   const existingBeatsMap = new Map<string, StoryBeat>();

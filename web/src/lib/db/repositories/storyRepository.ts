@@ -20,7 +20,41 @@ import {
   CustomLoreRelation,
 } from '@/lib/types/world';
 
+import { migrateStoryManifestToUnifiedGraph } from '@/lib/engines/world/graphMigration';
+
 const isDatabaseActive = process.env.ENABLE_DB === 'true';
+
+const PLAY_STORY_CACHE_TTL_MS = 60_000;
+const PLAY_STORY_CACHE_MAX = 50;
+const playStoryCache = new Map<
+  string,
+  { versionKey: string; manifest: StoryManifest; expiresAt: number }
+>();
+
+function stripStudioBloatForPlay(manifest: StoryManifest): StoryManifest {
+  const wb: any = manifest.worldBible;
+  if (wb) {
+    if (wb.ontology && 'mapData' in wb.ontology) {
+      const { mapData: _dropped, ...cleanOntology } = wb.ontology;
+      wb.ontology = cleanOntology;
+    }
+    if (wb.mapData && Array.isArray(wb.mapData.terrainFeatures)) {
+      wb.mapData = {
+        ...wb.mapData,
+        terrainFeatures: wb.mapData.terrainFeatures.map((f: any) => ({
+          id: f.id,
+          type: f.type,
+          locationId: f.locationId,
+          name: f.name,
+        })),
+      };
+    }
+  }
+  if ('worldBibleHistory' in manifest) {
+    manifest.worldBibleHistory = [];
+  }
+  return migrateStoryManifestToUnifiedGraph(manifest);
+}
 
 export interface WorldListItem {
   id: string;
@@ -446,6 +480,74 @@ export class StoryRepository {
       console.warn(`Database fetch error for story ${storyId}:`, e);
       return null;
     }
+  }
+
+  /**
+   * Lightweight, version-cached StoryManifest lookup for live turn execution.
+   * Strips multi-megabyte Studio vector polygons (`ontology.mapData` and
+   * `mapData.terrainFeatures` geometry) and caches the pre-migrated manifest
+   * keyed by `(updatedAt, worldBibleVersion)` to avoid 1-3MB DB reads per turn.
+   */
+  static async getStoryForPlay(storyId: string): Promise<StoryManifest | null> {
+    if (!isDatabaseActive) {
+      return null;
+    }
+
+    const useCache = process.env.NODE_ENV !== 'test';
+    const now = Date.now();
+    const cached = useCache ? playStoryCache.get(storyId) : undefined;
+
+    if (cached && cached.expiresAt > now) {
+      try {
+        const meta = await prisma.story.findUnique({
+          where: { id: storyId },
+          select: {
+            updatedAt: true,
+            world: { select: { worldBibleVersion: true } },
+          },
+        });
+        if (!meta) return null;
+        const currentKey = `${meta.updatedAt.toISOString()}:${meta.world?.worldBibleVersion ?? 0}`;
+        if (currentKey === cached.versionKey) {
+          return cached.manifest;
+        }
+      } catch {
+        return cached.manifest;
+      }
+    }
+
+    const full = await this.getStoryById(storyId);
+    if (!full) return null;
+
+    const slimmed = stripStudioBloatForPlay(full);
+
+    if (useCache) {
+      try {
+        const meta = await prisma.story.findUnique({
+          where: { id: storyId },
+          select: {
+            updatedAt: true,
+            world: { select: { worldBibleVersion: true } },
+          },
+        });
+        const versionKey = meta
+          ? `${meta.updatedAt.toISOString()}:${meta.world?.worldBibleVersion ?? 0}`
+          : `v${slimmed.worldBibleVersion ?? 1}`;
+        if (playStoryCache.size >= PLAY_STORY_CACHE_MAX) {
+          const oldestKey = playStoryCache.keys().next().value;
+          if (oldestKey) playStoryCache.delete(oldestKey);
+        }
+        playStoryCache.set(storyId, {
+          versionKey,
+          manifest: slimmed,
+          expiresAt: now + PLAY_STORY_CACHE_TTL_MS,
+        });
+      } catch {
+        /* cache fill is best-effort */
+      }
+    }
+
+    return slimmed;
   }
 
   /**

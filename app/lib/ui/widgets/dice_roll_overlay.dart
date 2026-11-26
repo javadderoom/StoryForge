@@ -282,7 +282,7 @@ class DiceRollOverlay extends StatelessWidget {
                     // diceRoll can never disagree.
                     ThreeD20DiceView(
                       key: diceKey,
-                      resultNumber: resolution?.diceRoll ?? 10,
+                      resultNumber: serverResolution?.diceRoll ?? resolution?.diceRoll ?? 10,
                       isRolling: isRolling,
                       onRollComplete: onRollComplete,
                       size: 160,

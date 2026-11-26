@@ -119,6 +119,39 @@ export class SessionRepository {
   }
 
   /**
+   * Lightweight session lookup for live turn execution: caps `turns` to the
+   * most recent 10 (returned in chronological order) and `memories` to top 25.
+   */
+  static async getSessionForPlayTurn(sessionId: string) {
+    if (!isDatabaseActive) {
+      return inMemorySessions.get(sessionId) || null;
+    }
+    try {
+      const session = await prisma.playthroughSession.findUnique({
+        where: { sessionId },
+        include: {
+          turns: {
+            orderBy: { turnNumber: 'desc' },
+            take: 10,
+          },
+          memories: {
+            orderBy: { importance: 'desc' },
+            take: 25,
+          },
+        },
+      });
+      if (!session) return null;
+      return {
+        ...session,
+        turns: [...session.turns].reverse(),
+      };
+    } catch (e) {
+      console.warn(`Database error fetching play turn session ${sessionId}:`, e);
+      return null;
+    }
+  }
+
+  /**
    * AUTHORIZED session lookup — the single chokepoint every route that touches a
    * playthrough must go through.
    *
@@ -141,14 +174,13 @@ export class SessionRepository {
    * Returning null rather than throwing lets routes answer 404 without leaking
    * whether the session exists.
    */
-  static async getSessionForUser(
-    sessionId: string,
+  static authorizeSession<T extends { userId?: string | null }>(
+    session: T | null,
     caller: { id: string; role: string } | null
-  ) {
-    const session = await this.getSession(sessionId);
+  ): T | null {
     if (!session) return null;
 
-    const owner = (session as { userId?: string | null }).userId ?? null;
+    const owner = session.userId ?? null;
 
     if (!owner) {
       // Guest session. Possession of the (now unguessable) id is the capability.
@@ -161,6 +193,14 @@ export class SessionRepository {
     if (caller.id === owner) return session;
     if (caller.role === 'ADMIN') return session;
     return null;
+  }
+
+  static async getSessionForUser(
+    sessionId: string,
+    caller: { id: string; role: string } | null
+  ) {
+    const session = await this.getSession(sessionId);
+    return this.authorizeSession(session, caller);
   }
 
   /**

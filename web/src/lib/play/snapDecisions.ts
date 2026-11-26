@@ -12,6 +12,7 @@ import {
 import {
   isSnapAotEnabled,
   preGenerateSnapAotBranch,
+  type AotLoadedSession,
   type SnapAotDeps,
 } from '@/lib/play/snapAot';
 import { ChoiceOption, PlayerState } from '@/lib/types/gameplay';
@@ -66,6 +67,8 @@ export interface SnapDwellSchedule extends SnapPredictionSchedule {
     story: StoryManifest;
     /** For the post-turn session refetch (ownership-scoped). */
     caller: { id: string; role: string } | null;
+    /** In-memory post-turn snapshot to avoid refetching the session from DB. */
+    prefetchedSession?: AotLoadedSession;
   };
 }
 
@@ -249,6 +252,7 @@ export async function scheduleSnapDwell(
         choice,
         caller: ctx.aot.caller,
         signal: controller.signal,
+        prefetchedSession: ctx.aot.prefetchedSession,
       },
       deps.aot
     );

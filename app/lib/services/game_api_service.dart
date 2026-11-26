@@ -9,6 +9,7 @@ import 'auth_service.dart';
 
 class GameApiService {
   static const String _defaultProdUrl = 'https://afsanehsaz.ir';
+  static final http.Client _sharedClient = http.Client();
 
   static String get _localBackendUrl {
     if (kIsWeb) {
@@ -179,7 +180,6 @@ class GameApiService {
     bool isRemake = false,
     String? remakeReason,
   }) async* {
-    final client = http.Client();
     try {
       final request = http.Request('POST', Uri.parse('$baseUrl/api/play/action'));
       request.headers.addAll({
@@ -205,7 +205,7 @@ class GameApiService {
         if (remakeReason != null && remakeReason.isNotEmpty) 'remakeReason': remakeReason,
       });
 
-      final streamedResponse = await client.send(request).timeout(
+      final streamedResponse = await _sharedClient.send(request).timeout(
         const Duration(seconds: 40),
         onTimeout: () {
           throw http.ClientException('پاسخی از سرور دریافت نشد (اتمام مهلت زمانی).');
@@ -259,8 +259,8 @@ class GameApiService {
           }
         }
       }
-    } finally {
-      client.close();
+    } catch (_) {
+      rethrow;
     }
   }
 

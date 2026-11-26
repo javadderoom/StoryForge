@@ -155,10 +155,16 @@ export function buildBestiaryGrounding(hasBestiary: boolean, isEnglish: boolean)
  */
 export function buildContinuityDirective(params: {
   bestiaryGrounding: string;
-  woundBeat?: string;
-  treatedWoundBeat?: string;
+  isEnglish?: boolean;
 }): string {
-  const { bestiaryGrounding, woundBeat, treatedWoundBeat } = params;
+  const { bestiaryGrounding, isEnglish = true } = params;
+
+  if (!isEnglish) {
+    // Persian system prompt already includes `[اولویت علت و معلول]` in Persian;
+    // avoid duplicating 6.4KB of identical English rules.
+    return `${bestiaryGrounding}
+- پیوستگی و پوشش انتخاب‌ها: همهٔ انتخاب‌ها باید به مطالبات یا خطرات فعال پایان صحنه پاسخ دهند، بر اساس دانسته‌های واقعی قهرمان باشند، و پیش از بازگرداندن JSON با متن صحنه سازگار شوند.`;
+  }
 
   return `[SCENE CONTINUITY & CHOICE PREMISES]
 - Resolve only the player's stated action against its actual target. Success does not authorize unrelated victories, confessions, or extra player actions beyond the pre-resolved consequence.
@@ -180,7 +186,7 @@ ${bestiaryGrounding}
   * Asymmetric Combat (e.g. charging a military squad solo): A salvage roll represents miraculous narrow survival (parrying killing blows, scrambling back alive with wounds); a normal roll results in being battered down by numbers, disarmed, and pinned in the mud.
   * Physical Defiance (e.g. jumping vast chasms): Results in plunging down, broken bones, or fatal hazard.
   Never grant superhuman plot armor or treat absurd demands as successful real-world accomplishments.
-- Before returning JSON, check narrative and choices together for action scope, remaining opposition, witness knowledge, and supported premises. Revise contradictions without changing the authoritative game outcome.${woundBeat ? `\n${woundBeat}` : treatedWoundBeat ? `\n${treatedWoundBeat}` : ''}`;
+- Before returning JSON, check narrative and choices together for action scope, remaining opposition, witness knowledge, and supported premises. Revise contradictions without changing the authoritative game outcome.`;
 }
 
 /**
@@ -271,6 +277,10 @@ ${continuityDirective}
 You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "Visceral, atmospheric next scene prose in English...",
+  "choices": [
+    { "id": "choice_1", "text": "Carefully inspect the masonry around the threshold for a hidden lever or latch", "style": "cautious", "riskLevel": "low" },
+    { "id": "choice_2", "text": "Quietly draw the dagger and step behind the granite pillar", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
+  ],
   "encounteredCreatureId": null, // If and ONLY IF an active predator, monster, or wild beast from [BESTIARY & CREATURES] directly engages or is encountered in this turn, provide its ID or exact name; otherwise strictly null (never set for ambient plants, background livestock, or setting descriptions)
   "playerConditionChanges": {
     // ONLY conditions ACTUALLY DEPICTED in the narrative above. Empty arrays when nothing changed.
@@ -285,10 +295,6 @@ You MUST respond with a valid JSON object matching this schema:
   "clockChanges": [
     // ONLY clocks listed under [ACTIVE THREAT CLOCKS], and ONLY when the narrative depicts the shift. Empty array when nothing moved.
     { "clockName": "Exact clock name from the active clocks list", "delta": 1, "reason": "you push the caravan through the night instead of making camp" }
-  ],
-  "choices": [
-    { "id": "choice_1", "text": "Carefully inspect the masonry around the threshold for a hidden lever or latch", "style": "cautious", "riskLevel": "low" },
-    { "id": "choice_2", "text": "Quietly draw the dagger and step behind the granite pillar", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
   ],
   "extractedMemories": [
     { "category": "character", "importance": 7, "summary": "Key discovery about a character in English..." }
@@ -393,6 +399,10 @@ ${continuityDirective}
 You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "متن ادبی و فضاسازی صحنه بعدی...",
+  "choices": [
+    { "id": "choice_1", "text": "بررسی دقیق نقش‌ونگارهای روی سنگِ درگاه برای یافتن روزنه یا نشانه‌ای پنهان", "style": "inquisitive", "riskLevel": "low" },
+    { "id": "choice_2", "text": "کشیدن بی‌صدای خنجر و پناه گرفتن پشت ستون سنگی", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
+  ],
   "encounteredCreatureId": null, // فقط و تنها در صورت نبرد یا رویارویی مستقیم با درنده، هیولا یا جانوری فعال در این صحنه، شناسه یا نام دقیق آن را از فهرست موجودات قرار دهید؛ در غیر این صورت حتماً null (هرگز برای گیاهان، دام‌های پس‌زمینه یا توصیفات محیطی مقداردهی نشود)
   "playerConditionChanges": {
     // فقط حالت‌هایی که واقعاً در همین متن روایت شده‌اند. اگر چیزی تغییر نکرده، آرایه‌ها خالی بمانند.
@@ -407,10 +417,6 @@ You MUST respond with a valid JSON object matching this schema:
   "clockChanges": [
     // فقط ساعت‌هایی که در فهرست [ساعت‌های تهدید فعال] آمده‌اند، و فقط وقتی روایت تغییر فشار را نشان می‌دهد. اگر چیزی حرکت نکرده، آرایه خالی بماند.
     { "clockName": "نام دقیق ساعت از فهرست ساعت‌های فعال", "delta": 1, "reason": "کاروان را شبانه پیش می‌بری و اردو نمی‌زنی" }
-  ],
-  "choices": [
-    { "id": "choice_1", "text": "بررسی دقیق نقش‌ونگارهای روی سنگِ درگاه برای یافتن روزنه یا نشانه‌ای پنهان", "style": "inquisitive", "riskLevel": "low" },
-    { "id": "choice_2", "text": "کشیدن بی‌صدای خنجر و پناه گرفتن پشت ستون سنگی", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
   ],
   "extractedMemories": [
     { "category": "character", "importance": 7, "summary": "کشف رازی مهم در مورد شخصیت..." }
