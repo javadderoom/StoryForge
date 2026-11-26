@@ -9,6 +9,7 @@ import {
   isGemini4Model,
   isThinkingSupported,
 } from './modelCapabilities';
+import { StreamingJsonNarrativeExtractor } from '../engines/narrative/streamingExtractor';
 export { isLocalEnvironment, getLocalGeminiProxyUrl } from './geminiProxy';
 
 // Auto-initialize local proxy if in local environment
@@ -62,6 +63,11 @@ export interface GenerateOptions {
    * thinking on Gemini 4 models (which do not support disabling thinking).
    */
   thinkingBudgetTokens?: number;
+  /**
+   * Optional streaming callback invoked with decoded narrative text deltas
+   * as SSE chunks arrive from `:streamGenerateContent?alt=sse`.
+   */
+  onTextDelta?: (delta: string) => void;
 }
 
 export interface GenerationResult<T = any> {
@@ -88,6 +94,13 @@ export function getGeminiEndpoint(modelName: string): string {
   }
 
   return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+}
+
+export function getGeminiStreamEndpoint(modelName: string): string {
+  return getGeminiEndpoint(modelName).replace(
+    ':generateContent?',
+    ':streamGenerateContent?alt=sse&'
+  );
 }
 
 /**
@@ -168,7 +181,10 @@ export async function generateStructuredJson<T = unknown>(
       console.log(`[GeminiClient] Attempting model: ${model} (${options.taskType || 'default'}, attempt ${attempt}/${maxAttempts}, timeout: ${timeoutMs}ms)...`);
 
       try {
-        const endpoint = getGeminiEndpoint(model);
+        const isStreaming = typeof options.onTextDelta === 'function';
+        const endpoint = isStreaming
+          ? getGeminiStreamEndpoint(model)
+          : getGeminiEndpoint(model);
 
         const generationConfig: Record<string, unknown> = {
           responseMimeType: 'application/json',
@@ -216,8 +232,41 @@ export async function generateStructuredJson<T = unknown>(
           break;
         }
 
-        const json = await res.json();
-        const rawText = extractCandidateText(json);
+        let rawText: string | null = null;
+        if (isStreaming && res.body) {
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          const extractor = new StreamingJsonNarrativeExtractor();
+          let sseBuffer = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            sseBuffer += decoder.decode(value, { stream: true });
+            const lines = sseBuffer.split('\n');
+            sseBuffer = lines.pop() ?? '';
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed || !trimmed.startsWith('data:')) continue;
+              const dataStr = trimmed.slice(5).trim();
+              if (!dataStr || dataStr === '[DONE]') continue;
+              try {
+                const chunkJson = JSON.parse(dataStr);
+                const chunkText = extractCandidateText(chunkJson);
+                if (chunkText) {
+                  extractor.pushChunk(chunkText, options.onTextDelta!);
+                }
+              } catch {
+                // Ignore partial/malformed SSE chunk
+              }
+            }
+          }
+          rawText = extractor.getFullRawText() || null;
+        } else {
+          const json = await res.json();
+          rawText = extractCandidateText(json);
+        }
 
         if (rawText) {
           // Robust extraction: fenced block, else first-bracket..last-bracket

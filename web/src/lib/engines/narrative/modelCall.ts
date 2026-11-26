@@ -66,6 +66,9 @@ export async function defaultSceneModelCall(
       ...(typeof options.thinkingBudgetTokens === 'number'
         ? { thinkingBudgetTokens: options.thinkingBudgetTokens }
         : {}),
+      ...(typeof options.onTextDelta === 'function'
+        ? { onTextDelta: options.onTextDelta }
+        : {}),
     }
   );
   if (!result) return null;
