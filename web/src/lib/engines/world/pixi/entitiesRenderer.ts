@@ -232,6 +232,25 @@ export function renderSettlements(
     // its own coordinates when a linked feature supplies the anchor.
     if (!isPoint) {
       if (!settings.visibleLayers.labels) continue;
+      // Avoid duplicate flat horizontal label when a visible linked terrain feature
+      // already draws its curved geographic title via renderTerrainCurvedLabels.
+      const hasActiveCurvedLabel = (terrainFeatures ?? []).some(
+        (f) =>
+          f.locationId === loc.id &&
+          isObjectVisible(f) &&
+          f.labelConfig?.enabled !== false &&
+          !f.connectedRiverId &&
+          (f.labelConfig?.enabled === true ||
+            f.type === 'mountain_range' ||
+            f.type === 'river' ||
+            f.type === 'desert' ||
+            f.type === 'lake' ||
+            f.type === 'forest' ||
+            f.type === 'highland' ||
+            Boolean(f.labelConfig?.pathPoints))
+      );
+      if (hasActiveCurvedLabel) continue;
+
       const anchor = resolvePlaceMapAnchor(loc, terrainFeatures);
       if (!anchor) continue;
       drawPlaceLabel(

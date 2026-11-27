@@ -27,6 +27,7 @@ export interface PlacementInspectorProps {
   pin: MapEntityPlacement;
   npcs: NPCDossierType[];
   locations?: WorldLocation[];
+  placements?: MapEntityPlacement[];
   factions?: Faction[];
   bestiary?: WorldCreature[];
   artifacts?: WorldArtifact[];
@@ -53,6 +54,7 @@ export const PlacementInspector: React.FC<PlacementInspectorProps> = ({
   pin,
   npcs,
   locations = [],
+  placements = [],
   factions = [],
   bestiary,
   artifacts,
@@ -88,6 +90,8 @@ export const PlacementInspector: React.FC<PlacementInspectorProps> = ({
       <BeastDossier
         pin={pin}
         creature={creature}
+        locations={locations}
+        allPlacements={placements}
         isPersian={isPersian}
         onUpdateCreature={onUpdateCreature}
         onDeleteCreature={onDeleteCreature}

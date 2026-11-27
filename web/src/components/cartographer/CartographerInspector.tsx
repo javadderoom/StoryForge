@@ -252,6 +252,7 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
           pin={selectedItem.data}
           npcs={npcs}
           locations={locations}
+          placements={placements}
           factions={factions}
           bestiary={bestiary}
           artifacts={artifacts}

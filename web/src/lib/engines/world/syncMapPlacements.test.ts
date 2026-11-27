@@ -24,6 +24,14 @@ function makeWorldBible(): WorldBible {
         dangerLevel: 3,
         coordinates: { x: 1800, y: 400 },
       },
+      {
+        id: 'loc_wild',
+        name: 'Hiram Plains',
+        category: 'wilderness',
+        description: 'Open plains',
+        dangerLevel: 3,
+        coordinates: { x: 1000, y: 800 },
+      },
     ],
     factions: [
       {
@@ -205,4 +213,35 @@ test('syncWorldEntitiesToMap tags template NPCs with group icon', () => {
   const guardPin = res.added.find((p) => p.entityId === 'npc_2');
   assert.ok(guardPin);
   assert.equal(guardPin.customIcon, 'group');
+});
+
+test('syncWorldEntitiesToMap places multi-habitat beasts in each habitat and scatters around wilderness regions', () => {
+  const wb = makeWorldBible();
+  wb.bestiary = [
+    {
+      id: 'beast_multi',
+      name: 'Sand Viper',
+      speciesCategory: 'beast',
+      dangerLevel: 3,
+      habitatLocationIds: ['loc_a', 'loc_b', 'loc_wild'],
+      behavioralTactics: '',
+      weaknesses: [],
+      resistances: [],
+      harvestableLoot: [],
+      loreDescription: '',
+    },
+  ];
+  const res = syncWorldEntitiesToMap({ worldBible: wb });
+  const viperPins = res.added.filter((p) => p.entityId === 'beast_multi');
+  assert.equal(viperPins.length, 3, 'Expected 1 pin per valid habitat location');
+
+  // Verify the wilderness habitat pin keeps clear of the central region label (>= 64px)
+  const wildLoc = wb.locations.find((l) => l.id === 'loc_wild')!;
+  const wildPin = viperPins.find((p) => p.id.endsWith('_loc_wild'))!;
+  assert.ok(wildPin);
+  const distFromCenter = Math.hypot(
+    wildPin.x - wildLoc.coordinates!.x,
+    wildPin.y - wildLoc.coordinates!.y
+  );
+  assert.ok(distFromCenter >= 64, `Expected wilderness pin clearance >= 64px, got ${distFromCenter}`);
 });

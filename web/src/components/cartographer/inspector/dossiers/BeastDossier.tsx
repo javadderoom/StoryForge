@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Skull,
   Flame,
@@ -14,13 +14,17 @@ import {
   EyeOff,
   Lock,
   Unlock,
+  Trees,
 } from 'lucide-react';
-import type { MapEntityPlacement, WorldCreature } from '@/lib/types';
+import type { MapEntityPlacement, WorldCreature, WorldLocation } from '@/lib/types';
 import { notify } from '@/lib/notify';
+import { MultiSearchableCombobox, type ComboboxOption } from '@/components/studio/SearchableCombobox';
 
 interface BeastDossierProps {
   pin: MapEntityPlacement;
   creature: WorldCreature;
+  locations?: WorldLocation[];
+  allPlacements?: MapEntityPlacement[];
   isPersian: boolean;
   onUpdateCreature?: (id: string, updated: Partial<WorldCreature>) => void;
   onDeleteCreature?: (id: string) => void;
@@ -33,6 +37,8 @@ interface BeastDossierProps {
 export const BeastDossier: React.FC<BeastDossierProps> = ({
   pin,
   creature,
+  locations = [],
+  allPlacements = [],
   isPersian,
   onUpdateCreature,
   onDeleteCreature,
@@ -43,6 +49,21 @@ export const BeastDossier: React.FC<BeastDossierProps> = ({
 }) => {
   const [newWeaknessText, setNewWeaknessText] = useState('');
   const [newResistanceText, setNewResistanceText] = useState('');
+
+  const locationOptions: ComboboxOption[] = useMemo(
+    () =>
+      locations.map((loc) => ({
+        id: loc.id,
+        name: loc.name,
+        subtext: loc.region || loc.category,
+      })),
+    [locations]
+  );
+
+  const mapPinsForCreature = useMemo(
+    () => allPlacements.filter((p) => p.entityType === 'bestiary' && p.entityId === creature.id),
+    [allPlacements, creature.id]
+  );
 
   const dangerLevel = creature.dangerLevel || 3;
   const rarity = creature.rarity || 'common';
@@ -211,6 +232,28 @@ export const BeastDossier: React.FC<BeastDossierProps> = ({
           <option value="mineral">{isPersian ? 'سنگی / کانی زیستی' : 'Mineral'}</option>
           <option value="humanoid">{isPersian ? 'شبه‌انسان / وحشی' : 'Humanoid'}</option>
         </select>
+      </div>
+
+      {/* Multi-Location Habitats */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <label className="text-[11px] text-zinc-400 flex items-center gap-1 font-medium">
+            <Trees className="w-3.5 h-3.5 text-emerald-400" />
+            {isPersian ? 'زیستگاه‌ها (چند مکان)' : 'Habitats (Multiple Locations)'}
+          </label>
+          {mapPinsForCreature.length > 0 && (
+            <span dir="ltr" className="text-[10px] font-mono text-zinc-400">
+              {mapPinsForCreature.length} {isPersian ? 'پین روی نقشه' : 'map pins'}
+            </span>
+          )}
+        </div>
+        <MultiSearchableCombobox
+          values={creature.habitatLocationIds ?? []}
+          onChange={(ids) => onUpdateCreature?.(creature.id, { habitatLocationIds: ids })}
+          options={locationOptions}
+          isPersian={isPersian}
+          placeholder={isPersian ? 'افزودن مکان زیستگاه جدید…' : 'Add habitat location…'}
+        />
       </div>
 
       {/* Lore Description */}

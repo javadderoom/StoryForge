@@ -188,25 +188,35 @@ export const ManifestEntitiesTab: React.FC<ManifestEntitiesTabProps> = ({
       <>
         {creatures
           .filter((c) => !filterQuery || c.name.toLowerCase().includes(filterQuery))
-          .map((c) => (
-            <div
-              key={c.id}
-              className="p-2.5 bg-zinc-900/70 border border-zinc-800/80 rounded-2xl flex items-center justify-between gap-2 hover:border-zinc-700 transition-colors"
-            >
-              <div className="truncate">
-                <span className="text-xs font-semibold text-zinc-200 truncate">{c.name}</span>
-                <div className="text-[11px] text-zinc-400 truncate mt-0.5">
-                  {c.speciesCategory} • {isPersian ? `خطر ${c.dangerLevel}` : `Danger ${c.dangerLevel}`}
-                </div>
-              </div>
-              <button
-                onClick={() => onSelectEntityForPlacement('bestiary', c.id)}
-                className="px-2 py-1 bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white border border-rose-500/40 rounded-xl text-xs font-medium transition-all shrink-0"
+          .map((c) => {
+            const habCount = c.habitatLocationIds?.length ?? 0;
+            return (
+              <div
+                key={c.id}
+                className="p-2.5 bg-zinc-900/70 border border-zinc-800/80 rounded-2xl flex items-center justify-between gap-2 hover:border-zinc-700 transition-colors"
               >
-                {isPersian ? 'ثبت قلمرو' : 'Place Den'}
-              </button>
-            </div>
-          ))}
+                <div className="truncate">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-zinc-200 truncate">{c.name}</span>
+                    {habCount > 1 && (
+                      <span dir="ltr" className="text-[9px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-1 rounded font-mono shrink-0">
+                        {habCount} {isPersian ? 'مکان' : 'hab'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-zinc-400 truncate mt-0.5">
+                    {c.speciesCategory} • {isPersian ? `خطر \u200E${c.dangerLevel}` : `Danger ${c.dangerLevel}`}
+                  </div>
+                </div>
+                <button
+                  onClick={() => onSelectEntityForPlacement('bestiary', c.id)}
+                  className="px-2 py-1 bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white border border-rose-500/40 rounded-xl text-xs font-medium transition-all shrink-0"
+                >
+                  {isPersian ? 'افزودن زیستگاه' : 'Pin Habitat'}
+                </button>
+              </div>
+            );
+          })}
       </>
     );
   }
