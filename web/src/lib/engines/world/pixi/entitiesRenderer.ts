@@ -245,10 +245,11 @@ export function renderSettlements(
     const isCapital = loc.category === 'capital';
     const isFortress = loc.category === 'stronghold';
     const isDungeon = loc.category === 'dungeon';
+    const isTransit = Boolean(loc.isTransitHalt);
 
-    const baseRadius = isCapital ? 16 : isFortress ? 13 : 11;
-    const radius = Math.max(4, baseRadius * counterScale);
-    let fillColor: number = VINTAGE_PARCHMENT.fortressIron;
+    const baseRadius = isTransit ? 6.5 : isCapital ? 16 : isFortress ? 13 : 11;
+    const radius = Math.max(3, baseRadius * counterScale);
+    let fillColor: number = isTransit ? 0x8c6d3b : VINTAGE_PARCHMENT.fortressIron;
     if (isCapital) fillColor = VINTAGE_PARCHMENT.capitalGold;
     else if (isDungeon) fillColor = VINTAGE_PARCHMENT.dungeonCrimson;
 

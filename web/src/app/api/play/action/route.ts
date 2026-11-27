@@ -764,6 +764,38 @@ async function processTurnAction(
     const activeTravel = travelStateActive ? (playerState.travel ?? null) : null;
     let travelSkipSubZoneWriter = false;
 
+    const authoredEncounters = Array.isArray((story as any).encounters)
+      ? ((story as any).encounters as any[])
+      : [];
+    const hasCorridorEncounter = (originId: string, destId: string): boolean => {
+      if (!authoredEncounters.length) return false;
+      const originLoc = story.worldBible.locations?.find((l: any) => l.id === originId);
+      const destLoc = story.worldBible.locations?.find((l: any) => l.id === destId);
+      const route = GameEngine.routeBetween(originId, destId, story.worldBible);
+      const candidateLocIds = Array.from(
+        new Set(
+          [
+            originLoc?.parentLocationId,
+            destLoc?.parentLocationId,
+            ...(route?.intermediateLocationIds ?? []),
+          ].filter((id): id is string => Boolean(id && id !== originId && id !== destId))
+        )
+      );
+      const roadEncounters = authoredEncounters.filter(
+        (e) => e?.triggerConditions?.triggerType !== 'on_enter'
+      );
+      return candidateLocIds.some((locId) =>
+        Boolean(
+          GameEngine.evaluateCandidateEncounters({
+            encounters: roadEncounters,
+            playerState,
+            currentLocationId: locId,
+            triggerContext: 'any',
+          })
+        )
+      );
+    };
+
     if (activeTravel && !authoredMovesMacroLocation) {
       if (GameEngine.detectTravelAbortIntent(playerActionText, isPersianStory)) {
         const cancelled = GameEngine.cancelTravel(playerState, story.worldBible, {
@@ -778,7 +810,11 @@ async function processTurnAction(
           travelDestination.id,
           story.worldBible,
           GameEngine.detectTravelMode(playerActionText),
-          { lang: travelLang, pacingMode: travelPacingMode }
+          {
+            lang: travelLang,
+            pacingMode: travelPacingMode,
+            hasEncounter: hasCorridorEncounter(playerState.currentLocationId, travelDestination.id),
+          }
         );
         if (plan) {
           resolution.stateDiff.travel = GameEngine.startTravel(
@@ -799,7 +835,11 @@ async function processTurnAction(
         travelDestination.id,
         story.worldBible,
         GameEngine.detectTravelMode(playerActionText),
-        { lang: travelLang, pacingMode: travelPacingMode }
+        {
+          lang: travelLang,
+          pacingMode: travelPacingMode,
+          hasEncounter: hasCorridorEncounter(playerState.currentLocationId, travelDestination.id),
+        }
       );
       if (plan) {
         if (plan.immediateHop) {
@@ -926,7 +966,13 @@ async function processTurnAction(
     // `travelArrived` flag; intermediate stops move the pointer to the current
     // node; plain road turns leave everything to the derived timeline.
     let travelArrived:
-      | { locationId: string; name: string; calendarDays?: number; distanceKm?: number }
+      | {
+          locationId: string;
+          name: string;
+          calendarDays?: number;
+          distanceKm?: number;
+          transitHaltNames?: string[];
+        }
       | undefined;
     if (displacementTarget || authoredMoveTargetId) {
       if (updatedPlayerState.travel) updatedPlayerState.travel = null;
@@ -941,6 +987,7 @@ async function processTurnAction(
           name: advance.arrivedAtName || advance.arrivedAt,
           calendarDays: updatedPlayerState.travel?.calendarDays,
           distanceKm: updatedPlayerState.travel?.distanceKm,
+          transitHaltNames: updatedPlayerState.travel?.transitHaltNames,
         };
         updatedPlayerState.travel = null;
         if (updatedPlayerState.currentLocationId !== advance.arrivedAt) {
@@ -1025,6 +1072,167 @@ async function processTurnAction(
 
     const displacedLocationId = resolution.displacedLocationId || resolution.stateDiff.displacedLocationId;
     const previousLocation = story.worldBible.locations.find((l) => l.id === preTurnLocationId);
+
+    // 3a¼. Dynamic World Encounters & Key Road Dialogues (`StoryEncounter`):
+    // Deterministically evaluate authored encounters for the active corridor or
+    // location so road events and arrival scenes fire automatically.
+    let triggeredEncounter: any | null = null;
+    if (authoredEncounters.length > 0 && !authoredMoveBeat) {
+      const lastCompletedEventId =
+        updatedPlayerState.completedEncounterIds && updatedPlayerState.completedEncounterIds.length > 0
+          ? updatedPlayerState.completedEncounterIds[updatedPlayerState.completedEncounterIds.length - 1]
+          : undefined;
+      const clockEscalated = Boolean(
+        resolution.clockUpdate?.isCrisis || (resolution.clockUpdate?.newSegments ?? 0) >= 3
+      );
+
+      if (updatedPlayerState.travel) {
+        const originLoc = story.worldBible.locations?.find(
+          (l: any) => l.id === updatedPlayerState.travel?.originLocationId
+        );
+        const route = updatedPlayerState.travel.routeId
+          ? (story.worldBible.tradeRoutes ?? []).find(
+              (r: any) => r.id === updatedPlayerState.travel?.routeId
+            )
+          : undefined;
+        const roadLocIds = Array.from(
+          new Set(
+            [
+              updatedPlayerState.currentLocationId,
+              originLoc?.parentLocationId,
+              ...(route?.intermediateLocationIds ?? []),
+            ].filter((id): id is string => Boolean(id))
+          )
+        );
+        const roadPool = authoredEncounters.filter(
+          (e) => e?.triggerConditions?.triggerType !== 'on_enter'
+        );
+        for (const locId of roadLocIds) {
+          if (clockEscalated) {
+            triggeredEncounter = GameEngine.evaluateCandidateEncounters({
+              encounters: roadPool,
+              playerState: updatedPlayerState,
+              currentLocationId: locId,
+              lastCompletedEventId,
+              triggerContext: 'threat_escalation',
+            });
+          }
+          if (!triggeredEncounter) {
+            triggeredEncounter = GameEngine.evaluateCandidateEncounters({
+              encounters: roadPool,
+              playerState: updatedPlayerState,
+              currentLocationId: locId,
+              lastCompletedEventId,
+              triggerContext: 'on_explore',
+            });
+          }
+          if (triggeredEncounter) break;
+        }
+      } else {
+        const enteredNewLocation = Boolean(
+          travelArrived ||
+            resolution.stateDiff.locationChange ||
+            authoredMoveTargetId ||
+            updatedPlayerState.currentLocationId !== preTurnLocationId
+        );
+        const locObj = story.worldBible.locations?.find(
+          (l: any) => l.id === updatedPlayerState.currentLocationId
+        );
+        const locTags = [locObj?.category, locObj?.region].filter(Boolean) as string[];
+        if (enteredNewLocation) {
+          triggeredEncounter = GameEngine.evaluateCandidateEncounters({
+            encounters: authoredEncounters,
+            playerState: updatedPlayerState,
+            currentLocationId: updatedPlayerState.currentLocationId,
+            locationTags: locTags,
+            lastCompletedEventId,
+            triggerContext: 'on_enter',
+          });
+        }
+        if (!triggeredEncounter && clockEscalated) {
+          triggeredEncounter = GameEngine.evaluateCandidateEncounters({
+            encounters: authoredEncounters,
+            playerState: updatedPlayerState,
+            currentLocationId: updatedPlayerState.currentLocationId,
+            locationTags: locTags,
+            lastCompletedEventId,
+            triggerContext: 'threat_escalation',
+          });
+        }
+        if (!triggeredEncounter && !enteredNewLocation) {
+          triggeredEncounter = GameEngine.evaluateCandidateEncounters({
+            encounters: authoredEncounters,
+            playerState: updatedPlayerState,
+            currentLocationId: updatedPlayerState.currentLocationId,
+            locationTags: locTags,
+            lastCompletedEventId,
+            triggerContext: 'on_explore',
+          });
+        }
+      }
+
+      if (triggeredEncounter) {
+        const encDiff: any = {
+          triggeredEncounterId: triggeredEncounter.id,
+        };
+        if (triggeredEncounter.onComplete?.setFlags?.length) {
+          encDiff.storyFlagsAdded = [...triggeredEncounter.onComplete.setFlags];
+        }
+        if (triggeredEncounter.onComplete?.rewardItemIds?.length) {
+          const rewardedItems = triggeredEncounter.onComplete.rewardItemIds
+            .map((itemId: string) => {
+              const art = (story.worldBible.artifacts ?? []).find((a: any) => a.id === itemId);
+              if (!art) return null;
+              return {
+                id: art.id,
+                name: art.name,
+                type: art.nonEquippable ? 'key' : 'relic',
+                description: art.description || art.title || '',
+                quantity: 1,
+                nonEquippable: art.nonEquippable,
+                startsQuestId: art.startsQuestId,
+              };
+            })
+            .filter(Boolean);
+          if (rewardedItems.length > 0) {
+            encDiff.itemsAdded = rewardedItems;
+          }
+        }
+        if (triggeredEncounter.onComplete?.advanceQuestId) {
+          const qId = triggeredEncounter.onComplete.advanceQuestId;
+          if (
+            !(updatedPlayerState.activeQuestIds ?? []).includes(qId) &&
+            !(updatedPlayerState.completedQuestIds ?? []).includes(qId)
+          ) {
+            encDiff.questUpdates = [{ questId: qId, status: 'active' as const }];
+          }
+        }
+        updatedPlayerState = GameEngine.applyStateMutation(
+          updatedPlayerState,
+          encDiff,
+          story.rpgSystem
+        );
+        resolution.stateDiff.triggeredEncounterId = triggeredEncounter.id;
+        if (encDiff.storyFlagsAdded) {
+          resolution.stateDiff.storyFlagsAdded = [
+            ...(resolution.stateDiff.storyFlagsAdded ?? []),
+            ...encDiff.storyFlagsAdded,
+          ];
+        }
+        if (encDiff.itemsAdded) {
+          resolution.stateDiff.itemsAdded = [
+            ...(resolution.stateDiff.itemsAdded ?? []),
+            ...encDiff.itemsAdded,
+          ];
+        }
+        if (encDiff.questUpdates) {
+          resolution.stateDiff.questUpdates = [
+            ...(resolution.stateDiff.questUpdates ?? []),
+            ...encDiff.questUpdates,
+          ];
+        }
+      }
+    }
 
     // 3a. Plan 11: Quest item triggers & active quest progress/completion
     const itemTriggerResult = GameEngine.evaluateQuestItemTriggers(
@@ -1243,6 +1451,7 @@ async function processTurnAction(
           // `travelArrival` marks the scene that entered the destination.
           turnNumber,
           travelArrival: travelArrived,
+          activeEncounter: triggeredEncounter,
           remakeDirective,
           onTextDelta: streamWriter
             ? (delta: string) => {

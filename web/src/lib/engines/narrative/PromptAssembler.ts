@@ -6,6 +6,7 @@ import {
   outcomeDirective,
   failureForwardBlock,
   journeyBlock,
+  activeEncounterBlock,
 } from './prompts/promptMechanics';
 import {
   buildDCDirective,
@@ -253,6 +254,11 @@ export class PromptAssembler {
         parts.push(enJourneyBlock);
       }
 
+      const enEncounterBlock = activeEncounterBlock(context, true);
+      if (enEncounterBlock) {
+        parts.push(enEncounterBlock);
+      }
+
       if (context.activeNpcDossiers.length > 0) {
         const npcs = context.activeNpcDossiers
           .map((npc) => {
@@ -369,6 +375,11 @@ export class PromptAssembler {
       const faJourneyBlock = journeyBlock(context, false);
       if (faJourneyBlock) {
         parts.push(faJourneyBlock);
+      }
+
+      const faEncounterBlock = activeEncounterBlock(context, false);
+      if (faEncounterBlock) {
+        parts.push(faEncounterBlock);
       }
 
       if (context.activeNpcDossiers.length > 0) {

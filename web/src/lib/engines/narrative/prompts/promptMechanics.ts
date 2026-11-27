@@ -170,10 +170,8 @@ export function failureForwardBlock(
 }
 
 /**
- * Plan 17 (§4.5): journey leg / arrival blocks — the road is real. Rendered
- * whenever the envelope carries an active journey or an arrival this turn,
- * with hard arrival discipline so prose can never teleport the protagonist
- * into the destination early.
+ * Plan 17 (§4.5) + Transit Halts: journey leg / arrival blocks — logical time
+ * passage and pass-through halts WITHOUT raw numerical distance (km/miles).
  */
 export function journeyBlock(
   context: WorkingContextEnvelope,
@@ -185,20 +183,25 @@ export function journeyBlock(
 
   if (isEnglish) {
     if (travel) {
+      const transitNote = travel.transitHaltNames?.length
+        ? ` Along the road, the party passes briefly through the waystations/villages of "${travel.transitHaltNames.join('", "')}" (halting for water and rest without incident — weave their names in passing, never pause the story there).`
+        : '';
       if (travel.isElliptical) {
         const companions = travel.caravanNpcNames?.length
           ? ` Travelling companions: ${travel.caravanNpcNames.join(', ')}.`
           : '';
         const road = travel.roadNote ? ` Route notes: ${travel.roadNote}.` : '';
-        const distanceStr = travel.distanceKm ? `${travel.distanceKm} km` : 'a long distance';
-        const daysStr = travel.calendarDays ? `${travel.calendarDays} days` : 'several days';
+        const daysStr = travel.calendarDays
+          ? `${travel.calendarDays} day${travel.calendarDays > 1 ? 's' : ''}`
+          : 'several days';
 
         parts.push(
-          `[JOURNEY ELLIPSIS — TIME & DISTANCE MONTAGE]\n` +
-            `• NARRATIVE ELLIPSIS: The journey from "${travel.originName}" to "${travel.destinationName}"${travel.routeName ? ` via the "${travel.routeName}"` : ''} covers ~${distanceStr} and spans ~${daysStr} of travel (${travel.mode}).${companions}${road}\n` +
-            `• COMPRESS PASSAGE OF TIME: This stretch of the road is uneventful (no ambushes or sudden crises). Do NOT narrate day-by-day micro-steps. Instead, write 1-2 evocative, cinematic paragraphs summarizing the passage of time, the changing sky and landscape, night camps under unfamiliar stars, the rhythm of beasts and boots, and the weathering of gear.\n` +
-            `• NO TRIVIAL STALLS: Strictly do NOT pause the narrative for routine camping chores, cooking, or sleeping choices. Forbid mundane road choices.\n` +
-            `• ARRIVAL AT OUTSKIRTS / GATES: Conclude the scene as the traveller approaches the visible horizon, outskirts, or gates of "${travel.destinationName}". Let the sensory reality of the destination loom directly ahead so the player is primed to take their first meaningful action upon arrival.`
+          `[JOURNEY ELLIPSIS — TIME PASSAGE MONTAGE]\n` +
+            `• NARRATIVE ELLIPSIS: The journey from "${travel.originName}" to "${travel.destinationName}"${travel.routeName ? ` via the "${travel.routeName}"` : ''} spans ~${daysStr} of travel (${travel.mode}).${companions}${road}${transitNote}\n` +
+            `• LOGICAL TIME ONLY (NO NUMERIC DISTANCE): Reflect that ~${daysStr} have passed on the road. NEVER output numeric distances (km, miles, leagues) in prose.\n` +
+            `• COMPRESS PASSAGE OF TIME: This stretch of the road has no separate playable stop. Summarize the passage of time, changing sky and terrain, brief halts at any named transit villages/wells, and the rhythm of beasts and boots in 1-2 atmospheric sentences.\n` +
+            `• NO TRIVIAL STALLS: Strictly do NOT pause the narrative for routine camping chores, cooking, or sleeping choices.\n` +
+            `• ARRIVAL AT OUTSKIRTS / GATES: Conclude the scene as the traveller approaches or enters "${travel.destinationName}" so the player immediately engages with what matters there.`
         );
       } else {
         const companions = travel.caravanNpcNames?.length
@@ -206,30 +209,36 @@ export function journeyBlock(
           : '';
         const road = travel.roadNote ? ` Road conditions: ${travel.roadNote}.` : '';
         const next = travel.nextStopName ? ` Next stop: "${travel.nextStopName}".` : '';
-        const dist = travel.distanceKm ? ` (${travel.distanceKm} km)` : '';
+        const daysStr = travel.calendarDays
+          ? ` (~${travel.calendarDays} day${travel.calendarDays > 1 ? 's' : ''} total road time)`
+          : '';
         parts.push(
           `[JOURNEY EN ROUTE — سفر در راه]\n` +
-            `• The protagonist is ON THE ROAD: from "${travel.originName}" to "${travel.destinationName}"${travel.routeName ? ` via the "${travel.routeName}"` : ''} (${travel.mode})${dist}. Current stop: "${travel.currentStopName}".${next}${companions}${road}\n` +
+            `• The protagonist is ON THE ROAD: from "${travel.originName}" to "${travel.destinationName}"${travel.routeName ? ` via the "${travel.routeName}"` : ''} (${travel.mode})${daysStr}. Current stop: "${travel.currentStopName}".${next}${companions}${road}${transitNote}\n` +
+            `• LOGICAL TIME ONLY (NO NUMERIC DISTANCE): NEVER cite numeric distances (km, miles) in prose — convey travel strictly through elapsed days/watches, sun/stars, and road weariness.\n` +
             (travel.dayOnRoad === 1
-              ? `• DEPARTURE: the journey begins this turn — open at "${travel.originName}" (its gates, packing and provisions, the caravan or mounts forming up, farewells or the plain resolve of the road ahead).\n`
+              ? `• DEPARTURE: the journey begins this turn — open as the caravan/party sets out from "${travel.originName}" and cut straight to the active road event or key conversation.\n`
               : '') +
             (travel.arriving
               ? `• FINAL LEG: the destination appears on the horizon this turn; you may bring the traveller right up to the gates and end the scene inside them. Any life inside "${travel.destinationName}" opens only after this leg.\n`
               : `• ARRIVAL DISCIPLINE: the protagonist must NOT be placed inside "${travel.destinationName}" — no inns, markets, courts, or residents — until the final leg. Keep every scene on the corridor between the current stop and the road ahead.\n`) +
-            `• THE SCENE IS THE ROAD: terrain in motion (dust, salt, rain, heat), pack animals and wagon noise, way-station life, camp at dusk, lantern glow at a caravanserai. Anchor scene elements to the corridor between these stops.\n` +
+            `• EVENT-DRIVEN CAMERA: Skip empty walking! Focus the scene strictly on the active road incident, environmental hazard, or meaningful dialogue on this stretch.\n` +
             `• DESTINATION CONTACTS: no residents, rulers, or guilds of "${travel.destinationName}" appear before arrival — only route-legitimate contacts (caravan masters, mounted patrols, fellow travellers already on this road).\n` +
-            `• CHOICE MATERIAL for the road: push on, make camp for the night, scout ahead, talk with travelling companions, trade at a caravanserai, tend wounds and gear.\n` +
-            `• PACE: a forced march or a deliberately slow pace is allowed — narrate it; the engine adjusts the schedule. NEVER invent an early arrival.`
+            `• CHOICE MATERIAL for the road: respond to the active hazard or road encounter, scout ahead, talk with travelling companions, tend wounds and gear.\n` +
+            `• PACE: NEVER invent an early arrival.`
         );
       }
     }
     if (travelArrival) {
       const durationNote = travelArrival.calendarDays
-        ? ` after ${travelArrival.calendarDays} days${travelArrival.distanceKm ? ` (${travelArrival.distanceKm} km)` : ''} on the road`
+        ? ` after ${travelArrival.calendarDays} day${travelArrival.calendarDays > 1 ? 's' : ''} on the road`
+        : '';
+      const transitNote = travelArrival.transitHaltNames?.length
+        ? ` Having passed through "${travelArrival.transitHaltNames.join('", "')}" along the way, mention them only as brief road memory if natural.`
         : '';
       parts.push(
         `[JOURNEY ARRIVED — پایان راه]\n` +
-          `• The journey ended this turn${durationNote}: the protagonist has entered "${travelArrival.destinationName}". Open the scene with the destination washing over the senses (crowds, smells, sound, road-dust still on them) and treat it as the new grounded setting — continue seamlessly from the final leg of the road.`
+          `• The journey ended this turn${durationNote} (NEVER mention km/miles): the protagonist has entered "${travelArrival.destinationName}".${transitNote} Open the scene with the destination washing over the senses and treat it as the new grounded setting — focus immediately on the active encounter or dramatic situation at arrival.`
       );
     }
     return parts.join('\n');
@@ -245,21 +254,23 @@ export function journeyBlock(
           : travel.mode === 'mount'
             ? 'سواره'
             : 'پیاده';
+    const transitClause = travel.transitHaltNames?.length
+      ? ` کاروان در طول مسیر از منزلگاه‌ها و آبادی‌های گذریِ «${travel.transitHaltNames.join('»، «')}» نیز عبور می‌کند و توقف‌های معمولِ آب و استراحت دارد — نامشان را صرفاً گذرا در دلِ گذرِ زمان بیاور و هرگز داستان را برای کارهای روزمره در آن‌ها متوقف نکن.`
+      : '';
 
     if (travel.isElliptical) {
       const companions = travel.caravanNpcNames?.length
         ? ` همسفران راه: ${travel.caravanNpcNames.join('، ')}.`
         : '';
       const road = travel.roadNote ? ` وضعیت جاده: ${travel.roadNote}.` : '';
-      const distanceStr = travel.distanceKm ? `${travel.distanceKm} کیلومتر` : 'مسافتی طولانی';
-      const daysStr = travel.calendarDays ? `${travel.calendarDays} روز` : 'چندین روز';
+      const daysStr = travel.calendarDays ? `${travel.calendarDays} روز` : 'چند روز';
 
       parts.push(
         `[گذر زمان و خلاصهٔ سفر / JOURNEY ELLIPSIS]\n` +
-          `• خلاصه و گذر زمان سفر (Narrative Ellipsis): سفر از «${travel.originName}» به «${travel.destinationName}»${travel.routeName ? ` از مسیر «${travel.routeName}»` : ''} نزدیک به ${distanceStr} مسافت داشته و حدود ${daysStr} (${modeFa}) به طول انجامیده است.${companions}${road}\n` +
-          `• فشردن زمان و مسافت: این پهنه از مسیر بدون درگیری بحرانی یا کمین مستقیم طی شده است. از روایت گام‌به‌گام و روزمره بپرهیز. گذر زمان، تغییر اقلیم و مناظر، اتراق‌های شبانه زیر آسمان پرستاره، سوز سرما یا داغی آفتاب، و خستگی سفر را در ۱ تا ۲ پاراگراف فضاساز و سینمایی خلاصه کن.\n` +
-          `• منع درنگ‌های پیش‌پاافتاده: هرگز صحنه را برای کارهای روزمره (آب خوردن، پختن غذا، برپا کردن چادر) متوقف نکن و انتخاب‌های روزمره نساز.\n` +
-          `• فرود در آستانهٔ مقصد: صحنه باید در آستانه، دروازه‌ها یا مدخل «${travel.destinationName}» به پایان برسد و هیاهو و نشانه‌های مقصد نمایان شود تا قهرمان آماده اولین کنش هدفمند در این مکان جدید باشد.`
+          `• خلاصه و گذر زمان سفر (Narrative Ellipsis): سفر از «${travel.originName}» به «${travel.destinationName}»${travel.routeName ? ` در مسیر «${travel.routeName}»` : ''} حدود ${daysStr} (${modeFa}) به طول انجامیده است.${companions}${road}${transitClause}\n` +
+          `• ممنوعیتِ عددِ مسافت و رعایتِ منطقِ زمان: هرگز هیچ عدد و واحدی برای فاصله (کیلومتر، فرسنگ، متر) در متن نیاور! در عوض، گذرِ منطقیِ زمان (سپری شدنِ حدود ${daysStr}) را دقیق و طبیعی بازتاب بده.\n` +
+          `• فشردنِ بخش‌های بی‌حادثه: این پهنه از مسیر بدون حادثهٔ بازدارنده طی شده است؛ راه رفتنِ خالی و کارهای روزمره (پخت‌وپز، چادر زدن) را شرح نده و تنها در ۱ تا ۲ جملهٔ فضاساز گذرِ روزها و عبور از منزلگاه‌های گذری را تصویر کن.\n` +
+          `• فرود مستقیم در آستانهٔ مقصد: صحنه را در مدخل یا درونِ «${travel.destinationName}» روی موقعیت، رخداد یا گفت‌وگوی مهمِ پیش‌رو باز کن.`
       );
     } else {
       const companions = travel.caravanNpcNames?.length
@@ -267,31 +278,82 @@ export function journeyBlock(
         : '';
       const road = travel.roadNote ? ` وضعیت جاده: ${travel.roadNote}.` : '';
       const next = travel.nextStopName ? ` ایستگاه بعدی: «${travel.nextStopName}».` : '';
-      const dist = travel.distanceKm ? ` (${travel.distanceKm} کیلومتر)` : '';
+      const daysNote = travel.calendarDays ? ` (مدت کل این مسیر: حدود ${travel.calendarDays} روز)` : '';
       parts.push(
         `[سفر در راه / JOURNEY EN ROUTE]\n` +
-          `• قهرمان در راه است: از «${travel.originName}» به «${travel.destinationName}»${travel.routeName ? ` از مسیر «${travel.routeName}»` : ''} (${modeFa})${dist}. ایستگاه فعلی: «${travel.currentStopName}».${next}${companions}${road}\n` +
+          `• قهرمان در راه است: از «${travel.originName}» به «${travel.destinationName}»${travel.routeName ? ` در مسیر «${travel.routeName}»` : ''} (${modeFa})${daysNote}. ایستگاه فعلی: «${travel.currentStopName}».${next}${companions}${road}${transitClause}\n` +
+          `• ممنوعیتِ عددِ مسافت: هرگز واژهٔ «کیلومتر» یا اعدادِ مسافت را در داستان ننویس؛ فاصله را فقط با گذرِ روز و شب، تغییر آسمان و خستگیِ مرکب‌ها نشان بده.\n` +
           (travel.dayOnRoad === 1
-            ? `• آغاز سفر: کاروان/مرکب همین نوبت راه می‌افتد — صحنه را کنار دروازه‌های «${travel.originName}» بگشا (باروبنه، آماده‌سازی، صف بستن کاروان یا زین کردن مرکب، بدرقه یا دل کندن و ارادهٔ راه).\n`
+            ? `• آغاز حرکت و برش به اصل ماجرا: حرکت از «${travel.originName}» آغاز شده است — بدونِ مکث روی کارهای عادیِ راه، مستقیم برش بزن به رخدادِ فعال یا مکالمهٔ مهمی که در میانهٔ راه رخ می‌دهد.\n`
             : '') +
           (travel.arriving
             ? `• پایان راه: مقصد همین نوبت در افق نمایان می‌شود؛ می‌توانی قهرمان را تا دروازه‌ها برسانی و صحنه را داخل دروازه‌ها ببندی. هر صحنه‌ای در دلِ «${travel.destinationName}» فقط پس از همین نوبت آغاز می‌شود.\n`
             : `• انضباط ورود: تا نوبت پایان راه، هرگز قهرمان را داخل «${travel.destinationName}» مگذار — نه کاروانسرا، نه بازار، نه دربار و نه میان مردمانش. هر صحنه باید در کریدور جاده میان ایستگاه فعلی و راه پیش رو بماند.\n`) +
-          `• صحنه همان جاده است: زمین در حرکت (گرد و نمک، باران، گرما)، هیاهوی چارپایان و ارابه‌ها، زندگی میان‌راهی، اتراق در غروب، نور فانوس کاروانسرا. عناصر صحنه را به کریدور میان این ایستگاه‌ها گره بزن.\n` +
+          `• دوربینِ رویدادمحور: پیاده‌رویِ خالی را حذف کن؛ صحنه فقط برای حادثهٔ جاده‌ای، خطرِ محیطی یا گفت‌وگوی کلیدی میان همسفران باز شده است.\n` +
           `• آشنایان مقصد: تا پیش از رسیدن، هیچ‌یک از ساکنان، بزرگان یا صنف‌های «${travel.destinationName}» در صحنه ظاهر نمی‌شوند — تنها آشنایان مجاز راه (سالار کاروان، گشت‌های سواره، همسفرانی که همین حالا بر جاده‌اند).\n` +
-          `• مواد انتخاب برای جاده: ادامه دادن، اتراق شبانه، پیشاهنگی و شناسایی مسیر، گفت‌وگو با همسفران، داد و ستد در کاروانسرا، رسیدگی به زخم و توشه.\n` +
-          `• آهنگ سفر: تاختِ تند یا پیمودن آهسته آزاد است — آن را روایت کن؛ زمان‌بندی به دست موتور بازی است. هرگز رسیدن زودهنگام از خودت نساز.`
+          `• آهنگ سفر: هرگز رسیدن زودهنگام از خودت نساز.`
       );
     }
   }
   if (travelArrival) {
     const durationNote = travelArrival.calendarDays
-      ? ` پس از ${travelArrival.calendarDays} روز${travelArrival.distanceKm ? ` (${travelArrival.distanceKm} کیلومتر)` : ''} راه`
+      ? ` پس از حدود ${travelArrival.calendarDays} روز راه`
+      : '';
+    const transitArrival = travelArrival.transitHaltNames?.length
+      ? ` (پس از پشت سر گذاشتنِ گذرای «${travelArrival.transitHaltNames.join('»، «')}»)`
       : '';
     parts.push(
       `[رسیدن به مقصد / JOURNEY ARRIVED]\n` +
-        `• سفر همین نوبت${durationNote} به پایان رسید: قهرمان به «${travelArrival.destinationName}» درآمده است. صحنه را با سرریز حس‌های مقصد بگشا (هیاهو، بو، صدا؛ گردِ راه هنوز بر تن او) و اینجا را قرارگاه تازهٔ او بدان — پیوسته و بی‌درز از پایان راه پیش ببر.`
+        `• سفر همین نوبت${durationNote}${transitArrival} به پایان رسید (هرگز عدد کیلومتر/مسافت ننویس): قهرمان به «${travelArrival.destinationName}» درآمده است. گذرِ روزهای راه را تنها در یک جملهٔ کوتاه بازتاب بده و بلافاصله صحنه را روی رخداد یا رویاروییِ ملموسِ مقصد متمرکز کن.`
     );
   }
   return parts.join('\n');
+}
+
+/**
+ * Renders an active dynamic World Encounter / Key Road Conversation into the
+ * narrator prompt so the scene focuses directly on that dramatic beat.
+ */
+export function activeEncounterBlock(
+  context: WorkingContextEnvelope,
+  isEnglish: boolean
+): string | undefined {
+  const enc = context.activeEncounter;
+  if (!enc) return undefined;
+
+  if (isEnglish) {
+    const actors = [
+      enc.npcName ? `Featured NPC: ${enc.npcName}` : '',
+      enc.creatureName ? `Featured Creature/Hazard: ${enc.creatureName}` : '',
+    ]
+      .filter(Boolean)
+      .join(' • ');
+    const checkHint = enc.recommendedStat
+      ? `\n• Resolution Guidance: Anchor at least one key choice around "${enc.recommendedStat}"${enc.recommendedDC ? ` (approx DC ${enc.recommendedDC})` : ''}.`
+      : '';
+    return (
+      `[ACTIVE SCENE ENCOUNTER / KEY EVENT: ${enc.title}]\n` +
+      `• Dramatic Premise: ${enc.narrativeText}\n` +
+      (actors ? `• Active Participants: ${actors}\n` : '') +
+      `• DIRECTORIAL MANDATE: Weave this encounter organically as the immediate centerpiece of this scene (after resolving the player's action). Build your contextual choices directly around how the protagonist responds to this situation.` +
+      checkHint
+    );
+  }
+
+  const actorsFa = [
+    enc.npcName ? `شخصیت کانونی: ${enc.npcName}` : '',
+    enc.creatureName ? `جانور/خطر کانونی: ${enc.creatureName}` : '',
+  ]
+    .filter(Boolean)
+    .join(' • ');
+  const checkHintFa = enc.recommendedStat
+    ? `\n• راهنمای مکانیکی انتخاب‌ها: دست‌کم یکی از انتخاب‌های کلیدیِ واکنش به این موقعیت را حولِ ویژگیِ «${enc.recommendedStat}»${enc.recommendedDC ? ` (با سختیِ حدود ${enc.recommendedDC})` : ''} طراحی کن.`
+    : '';
+  return (
+    `[رخداد یا مکالمهٔ ویژهٔ صحنه / ACTIVE SCENE ENCOUNTER: ${enc.title}]\n` +
+    `• هستهٔ رخداد: ${enc.narrativeText}\n` +
+    (actorsFa ? `• عوامل درگیر در صحنه: ${actorsFa}\n` : '') +
+    `• دستور کارگردانی: روایت را پس از بازتابِ اقدامِ بازیکن، مستقیماً واردِ همین رخداد یا گفت‌وگوی کلیدی کن (بخش‌های عادی و بی‌اتفاقِ راه را پرش بزن) و انتخاب‌های صحنه را دقیقاً بر پایهٔ تصمیمِ قهرمان در برابر همین موقعیت بساز.` +
+    checkHintFa
+  );
 }

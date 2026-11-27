@@ -214,17 +214,13 @@ class VitalityPresenceBar extends StatelessWidget {
     final originName = GameSessionState.locationName(lore, travel.originLocationId) ??
         travel.originLocationId;
 
-    final dist = travel.distanceKm != null
-        ? ' (\u200E${travel.distanceKm} ${isPersian ? 'کیلومتر' : 'km'})'
-        : '';
-
     final label = isPersian
-        ? 'در راه «$destName»$dist'
-        : 'En route to "$destName"$dist';
+        ? 'در راه «$destName»'
+        : 'En route to "$destName"';
 
     final tooltip = isPersian
-        ? 'از «$originName» به «$destName»${travel.distanceKm != null ? ' • \u200E${travel.distanceKm} کیلومتر' : ''}'
-        : 'From "$originName" to "$destName"${travel.distanceKm != null ? ' • ${travel.distanceKm} km' : ''}';
+        ? 'در مسیر از «$originName» به «$destName»'
+        : 'En route from "$originName" to "$destName"';
 
     return Tooltip(
       message: tooltip,

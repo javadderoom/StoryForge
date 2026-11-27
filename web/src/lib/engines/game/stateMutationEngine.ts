@@ -334,11 +334,19 @@ export function applyStateMutation(
     }
   }
 
-  // 10. Record triggered modular encounter
+  // 10. Record triggered modular encounter & story flags
   if (diff.triggeredEncounterId) {
     if (!updated.completedEncounterIds) updated.completedEncounterIds = [];
     if (!updated.completedEncounterIds.includes(diff.triggeredEncounterId)) {
       updated.completedEncounterIds.push(diff.triggeredEncounterId);
+    }
+  }
+  if (diff.storyFlagsAdded && diff.storyFlagsAdded.length > 0) {
+    if (!updated.storyFlags) updated.storyFlags = [];
+    for (const flag of diff.storyFlagsAdded) {
+      if (flag && !updated.storyFlags.includes(flag)) {
+        updated.storyFlags.push(flag);
+      }
     }
   }
 

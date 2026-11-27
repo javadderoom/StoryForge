@@ -160,11 +160,28 @@ export interface WorkingContextEnvelope {
     calendarDays?: number;
     /** In-universe cartographic travel distance in kilometers. */
     distanceKm?: number;
+    /** Pass-through villages/waystations crossed along the road in montage. */
+    transitHaltNames?: string[];
     /** True when uneventful travel across distance is being compressed into an elliptical montage. */
     isElliptical?: boolean;
   };
   /** Plan 17 (§4.5): the journey reached its destination this turn. */
-  travelArrival?: { destinationName: string; calendarDays?: number; distanceKm?: number };
+  travelArrival?: {
+    destinationName: string;
+    calendarDays?: number;
+    distanceKm?: number;
+    transitHaltNames?: string[];
+  };
+  /** Dynamic road or location encounter / special conversation triggered this turn. */
+  activeEncounter?: {
+    id: string;
+    title: string;
+    narrativeText: string;
+    creatureName?: string;
+    npcName?: string;
+    recommendedStat?: string;
+    recommendedDC?: number;
+  };
 }
 
 export const MemoryEntrySchema = z.object({

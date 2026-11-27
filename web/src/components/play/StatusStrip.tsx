@@ -53,15 +53,13 @@ export function StatusStrip({
     const originLoc = loreLocations.find((l) => l.id === travel.originLocationId);
     const originName = originLoc?.name || travel.originLocationId;
 
-    const distStr = travel.distanceKm ? ` (${travel.distanceKm} ${isRtl ? 'کیلومتر' : 'km'})` : '';
-
     const label = isRtl
-      ? `در راه «${destName}»${distStr}`
-      : `En route to “${destName}”${distStr}`;
+      ? `در راه «${destName}»`
+      : `En route to “${destName}”`;
 
     const tooltip = isRtl
-      ? `از «${originName}» به «${destName}»${travel.distanceKm ? ` • ${travel.distanceKm} کیلومتر` : ''}`
-      : `From “${originName}” to “${destName}”${travel.distanceKm ? ` • ${travel.distanceKm} km` : ''}`;
+      ? `در مسیر از «${originName}» به «${destName}»`
+      : `En route from “${originName}” to “${destName}”`;
 
     travelBadge = (
       <div

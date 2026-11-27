@@ -337,6 +337,9 @@ export function pruneWorldBibleToScope(
   const keptFactionIds = new Set(keepFactions.map((f) => f.id));
 
   const keepLocations = (wb.locations ?? []).filter((l) => {
+    if (l.isTransitHalt && !locationIds.includes(l.id)) {
+      return emit(false, 'location', 'pass-through transit halt (handled by travel montage)', l.id, l.name);
+    }
     if (scopeTier === 'mythic') {
       return emit(true, 'location', 'mythic scope surfaces every location', l.id, l.name);
     }

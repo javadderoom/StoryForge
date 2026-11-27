@@ -9,7 +9,7 @@ import type { DeclaredClockChange } from '@/lib/engines/game/threatClock';
 import { MemoryEngine } from '@/lib/engines/memory/MemoryEngine';
 import { WorkingContextEnvelope, MemoryCategory, MemoryEntry } from '@/lib/types/memory';
 import { PlayerState, CheckResolution, PlayerConditionChanges } from '@/lib/types/gameplay';
-import { WorldStateLedger } from '@/lib/types/world';
+import { WorldStateLedger, StoryEncounter } from '@/lib/types/world';
 import { GeminiAdapter } from '@/lib/providers/GeminiAdapter';
 import { RawSceneResult } from './modelCall';
 import { SubQAdapter } from '@/lib/providers/SubQAdapter';
@@ -83,7 +83,15 @@ export interface SceneTurnInput {
   /** Plan 17: absolute turn number — journey math derives from it (never stored). */
   turnNumber?: number;
   /** Plan 17: the journey reached its destination this turn (arrival scene). */
-  travelArrival?: { locationId: string; name: string; calendarDays?: number; distanceKm?: number };
+  travelArrival?: {
+    locationId: string;
+    name: string;
+    calendarDays?: number;
+    distanceKm?: number;
+    transitHaltNames?: string[];
+  };
+  /** Dynamic road or location encounter / key dialogue triggered this turn. */
+  activeEncounter?: StoryEncounter | null;
   /** Real-time callback invoked with narrative token deltas as they stream from the LLM. */
   onTextDelta?: (delta: string) => void;
 }
@@ -215,6 +223,10 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
     if (activeNPCs.some((n) => n.id === companionId)) continue;
     const companion = (story.worldBible.npcs ?? []).find((n: any) => n.id === companionId);
     if (companion) activeNPCs.push(companion);
+  }
+  if (input.activeEncounter?.npcId && !activeNPCs.some((n) => n.id === input.activeEncounter!.npcId)) {
+    const encNpc = (story.worldBible.npcs ?? []).find((n: any) => n.id === input.activeEncounter!.npcId);
+    if (encNpc) activeNPCs.push(encNpc);
   }
   const activeNpcIds = activeNPCs.map((n) => n.id);
 
@@ -385,6 +397,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
       arriving: travelDerived.arriving || undefined,
       calendarDays: activeTravel.calendarDays,
       distanceKm: activeTravel.distanceKm,
+      transitHaltNames: activeTravel.transitHaltNames,
       isElliptical:
         activeTravel.pacingMode === 'cinematic_ellipsis' ||
         (activeTravel.totalTurns === 1 && (activeTravel.calendarDays ?? 0) > 1),
@@ -424,6 +437,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
 
       const isInImmediateScene =
         isTargetOfAction ||
+        input.activeEncounter?.npcId === npc.id ||
         (!isLeftBehindPartyMember &&
           recentSceneSnippets.some(
             (snippet) =>
@@ -552,6 +566,24 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
           ...(input.travelArrival.distanceKm !== undefined
             ? { distanceKm: input.travelArrival.distanceKm }
             : {}),
+          ...(input.travelArrival.transitHaltNames?.length
+            ? { transitHaltNames: input.travelArrival.transitHaltNames }
+            : {}),
+        }
+      : undefined,
+    activeEncounter: input.activeEncounter
+      ? {
+          id: input.activeEncounter.id,
+          title: input.activeEncounter.title,
+          narrativeText: input.activeEncounter.narrativeText,
+          creatureName: input.activeEncounter.creatureId
+            ? (story.worldBible.bestiary ?? []).find((b: any) => b.id === input.activeEncounter!.creatureId)?.name
+            : undefined,
+          npcName: input.activeEncounter.npcId
+            ? (story.worldBible.npcs ?? []).find((n: any) => n.id === input.activeEncounter!.npcId)?.name
+            : undefined,
+          recommendedStat: input.activeEncounter.recommendedStat,
+          recommendedDC: input.activeEncounter.recommendedDC,
         }
       : undefined,
     inventoryTerms: inventoryTerms.length ? inventoryTerms : undefined,

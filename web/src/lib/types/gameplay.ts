@@ -111,6 +111,8 @@ export interface ActiveTravel {
   calendarDays?: number;
   /** In-universe cartographic travel distance in kilometers. */
   distanceKm?: number;
+  /** Pass-through villages/wells crossed during this journey without stopping gameplay. */
+  transitHaltNames?: string[];
   /** Travel pacing profile: 'cinematic_ellipsis' (default) vs 'per_leg'. */
   pacingMode?: TravelPacingMode;
 }
@@ -209,6 +211,8 @@ export interface PlayerState {
   discoveredCreatureIds?: string[];
   /** Modular World Encounter IDs triggered and resolved during this playthrough */
   completedEncounterIds?: string[];
+  /** Narrative flags unlocked by encounters and story milestones */
+  storyFlags?: string[];
   /** Current progression level (starts at 1) */
   level?: number;
   /** Current XP progress towards next level */
@@ -267,6 +271,8 @@ export interface StateMutationDiff {
   powerMasteryChanges?: Record<string, number>;
   /** Modular World Encounter triggered in this turn */
   triggeredEncounterId?: string;
+  /** Story flags unlocked in this turn */
+  storyFlagsAdded?: string[];
   /** Experience points gained during this turn */
   xpGained?: number;
   /** Level delta from this turn */

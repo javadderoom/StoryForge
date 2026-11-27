@@ -92,6 +92,7 @@ import {
 import { applyStateMutation } from './stateMutationEngine';
 import { attemptPowerBreakthrough } from './powerEngine';
 import { deriveLedgerPatch, mergeLedgerPatch } from './ledgerEngine';
+import { evaluateCandidateEncounters } from '@/lib/engines/encounters/EncounterEvaluator';
 
 export class GameEngine {
   // Action Check & Dice mechanics
@@ -173,4 +174,7 @@ export class GameEngine {
   // Living world ledger
   public static deriveLedgerPatch = deriveLedgerPatch;
   public static mergeLedgerPatch = mergeLedgerPatch;
+
+  // Dynamic World Encounters
+  public static evaluateCandidateEncounters = evaluateCandidateEncounters;
 }

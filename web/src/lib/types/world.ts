@@ -217,6 +217,8 @@ export interface WorldLocation {
   locked?: boolean;
   /** Plan 28: Group membership ID (unified entity vs. folder). */
   groupId?: string;
+  /** Pass-through village/well/waystation mentioned in travel montage without forcing a playable stop. */
+  isTransitHalt?: boolean;
 }
 
 /**
@@ -1497,6 +1499,10 @@ export const WorldLocationSchema = z.object({
   coordinatesSource: z.enum(['manual', 'solver', 'legacy_auto']).optional(),
   mapIcon: z.string().optional(),
   elevation: z.number().optional(),
+  visible: z.boolean().optional(),
+  locked: z.boolean().optional(),
+  groupId: z.string().optional(),
+  isTransitHalt: z.boolean().optional(),
 });
 
 
@@ -1822,6 +1828,8 @@ export interface WorldTradeRoute {
   locked?: boolean;
   /** Plan 28: Group membership ID (unified entity vs. folder). */
   groupId?: string;
+  /** Pass-through village/well/waystation mentioned in travel montage without forcing a playable stop. */
+  isTransitHalt?: boolean;
 }
 
 export const PowerRankAdvancementCostSchema = z.object({

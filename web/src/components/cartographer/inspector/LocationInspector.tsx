@@ -119,6 +119,22 @@ export const LocationInspector: React.FC<LocationInspectorProps> = ({
           {loc.locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
           <span>{isPersian ? 'قفل' : 'Lock'}</span>
         </button>
+        <button
+          type="button"
+          onClick={() => onUpdateLocation(loc.id, { isTransitHalt: !loc.isTransitHalt })}
+          title={
+            isPersian
+              ? 'منزلگاه گذری: کاروان از آن رد می‌شود و نامش در گذر زمان می‌آید اما داستان را متوقف نمی‌کند'
+              : 'Transit Halt: mentioned in travel montage without forcing a playable stop'
+          }
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-medium border transition-all ${
+            loc.isTransitHalt
+              ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+              : 'bg-zinc-900/60 border-zinc-800 text-zinc-500'
+          }`}
+        >
+          <span>{isPersian ? 'منزلگاه گذری' : 'Transit Halt'}</span>
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-2">

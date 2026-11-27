@@ -219,6 +219,32 @@ export interface EtaOptions {
   /** Plan 19: canvas spatial units per km (WorldMapSettings.kmPerSpatialUnit).
    * Default 1 reproduces legacy pixel-as-km behavior exactly. */
   kmPerSpatialUnit?: number;
+  /** World Bible reference used to resolve off-canvas urban inset coordinates. */
+  wb?: WorldBible;
+}
+
+/**
+ * Resolves macro-continent coordinates for overland travel math.
+ * Urban sub-locations parked outside the main map canvas (`x > settings.width`)
+ * as city-detail callouts inherit their enclosing settlement's continent pin so
+ * walking from a city gate into its bazaar never registers as a multi-week trek.
+ */
+export function resolveMacroMapCoordinates(
+  loc: WorldLocation,
+  wb?: WorldBible
+): { x: number; y: number } | undefined {
+  const mapWidth = wb?.mapData?.settings?.width ?? 2400;
+  if (loc.coordinates && loc.coordinates.x <= mapWidth) {
+    return loc.coordinates;
+  }
+  if (wb?.locations) {
+    for (const anc of getLocationAncestry(wb.locations, loc.id)) {
+      if (anc.coordinates && anc.coordinates.x <= mapWidth) {
+        return anc.coordinates;
+      }
+    }
+  }
+  return loc.coordinates;
 }
 
 /**
@@ -236,9 +262,14 @@ export function estimateTravelTurns(
   const kmScale = opts.kmPerSpatialUnit ?? 1;
   const dangerLevel =
     opts.route?.dangerLevel ?? Math.max(origin.dangerLevel ?? 2, dest.dangerLevel ?? 2);
+  const originCoords = resolveMacroMapCoordinates(origin, opts.wb);
+  const destCoords = resolveMacroMapCoordinates(dest, opts.wb);
   let turns: number;
-  if (origin.coordinates && dest.coordinates) {
-    const km = calculateMapDistance(origin.coordinates, dest.coordinates) * kmScale;
+  if (originCoords && destCoords) {
+    const km = calculateMapDistance(originCoords, destCoords) * kmScale;
+    if (km < 30) {
+      return 1;
+    }
     turns = calculateCaravanTravelDays(km, dangerLevel);
   } else {
     turns = 2 * Math.max(1, opts.hops ?? 1);
@@ -270,6 +301,8 @@ export interface JourneyPlan {
   distanceKm: number;
   /** In-universe simulated travel duration in calendar days (e.g. 14 days, 30 days). */
   calendarDays: number;
+  /** Pass-through villages/wells crossed along the route without forcing a playable stop. */
+  transitHaltNames?: string[];
   /** Pacing mode: 'cinematic_ellipsis' (default) vs 'per_leg'. */
   pacingMode: TravelPacingMode;
   /** True when uneventful travel across distance is compressed into an elliptical montage. */
@@ -353,21 +386,33 @@ export function planJourney(
   if (!origin || !dest || originId === destId) return null;
 
   const route = routeBetween(originId, destId, wb);
-  let waypointIds: string[] = [];
-  let hops: number;
+  let rawWaypointIds: string[] = [];
 
   if (route) {
     const stops = routeStops(route);
     const i = stops.indexOf(originId);
     const j = stops.indexOf(destId);
-    waypointIds = stops.slice(Math.min(i, j) + 1, Math.max(i, j));
-    hops = Math.abs(i - j);
+    rawWaypointIds =
+      i <= j ? stops.slice(i + 1, j) : stops.slice(j + 1, i).reverse();
   } else {
     const path = shortestPath(originId, destId, wb);
     if (!path || path.length < 2) return null;
-    waypointIds = path.slice(1, -1);
-    hops = path.length - 1;
+    rawWaypointIds = path.slice(1, -1);
   }
+
+  // Partition intermediate nodes: `isTransitHalt` places are mentioned in passing
+  // during time montage without forcing turn-by-turn playable stops.
+  const waypointIds: string[] = [];
+  const transitHaltNames: string[] = [];
+  for (const wpId of rawWaypointIds) {
+    const wpLoc = (wb.locations ?? []).find((l) => l.id === wpId);
+    if (wpLoc?.isTransitHalt) {
+      transitHaltNames.push(wpLoc.name);
+    } else {
+      waypointIds.push(wpId);
+    }
+  }
+  const hops = waypointIds.length + 1;
 
   const dangerLevel =
     route?.dangerLevel ?? Math.max(origin.dangerLevel ?? 2, dest.dangerLevel ?? 2);
@@ -378,22 +423,25 @@ export function planJourney(
     (wb.ontology as { mapData?: { settings?: { kmPerSpatialUnit?: number } } } | undefined)
       ?.mapData?.settings?.kmPerSpatialUnit ??
     1;
-  const rawEta = estimateTravelTurns(origin, dest, { route, hops, kmPerSpatialUnit });
+  const rawEta = estimateTravelTurns(origin, dest, { route, hops, kmPerSpatialUnit, wb });
 
+  const originCoords = resolveMacroMapCoordinates(origin, wb);
+  const destCoords = resolveMacroMapCoordinates(dest, wb);
   let distanceKm = 0;
-  if (origin.coordinates && dest.coordinates) {
-    distanceKm = Math.round(calculateMapDistance(origin.coordinates, dest.coordinates) * kmPerSpatialUnit);
+  if (originCoords && destCoords) {
+    distanceKm = Math.round(calculateMapDistance(originCoords, destCoords) * kmPerSpatialUnit);
   } else {
     distanceKm = Math.max(35, hops * 35);
   }
-  const calendarDays = Math.max(1, calculateCaravanTravelDays(distanceKm, dangerLevel));
+  const isLocalSubDay = Boolean(originCoords && destCoords && distanceKm < 30 && waypointIds.length === 0);
+  const calendarDays = isLocalSubDay ? 0 : Math.max(1, calculateCaravanTravelDays(distanceKm, dangerLevel));
 
   const pacingMode: TravelPacingMode =
     opts.pacingMode ??
     (wb.mapData?.settings as any)?.travelPacingProfile ??
     'per_leg';
 
-  const immediateHop = rawEta <= 1 && waypointIds.length === 0;
+  const immediateHop = (isLocalSubDay || rawEta <= 1) && waypointIds.length === 0;
 
   let totalTurns: number;
   let isElliptical = false;
@@ -418,16 +466,20 @@ export function planJourney(
   let note: string;
   if (isElliptical) {
     const duration = formatTravelCalendarDuration(calendarDays, lang);
+    const transitClause = transitHaltNames.length
+      ? lang === 'fa'
+        ? ` • گذر از: ${transitHaltNames.join('، ')}`
+        : ` • passing ${transitHaltNames.join(', ')}`
+      : '';
     note =
       lang === 'fa'
-        ? `سفر آغاز شد — مقصد: «${dest.name}» • ${distanceKm} کیلومتر (~${duration})${route ? ` (راه: «${route.name}»)` : ''}`
-        : `Journey begins — destination: "${dest.name}" • ${distanceKm} km (~${duration})${route ? ` (via "${route.name}")` : ''}`;
+        ? `سفر آغاز شد — مقصد: «${dest.name}» (~${duration})${transitClause}${route ? ` (راه: «${route.name}»)` : ''}`
+        : `Journey begins — destination: "${dest.name}" (~${duration})${transitClause}${route ? ` (via "${route.name}")` : ''}`;
   } else {
-    const distPart = distanceKm > 0 ? (lang === 'fa' ? ` • ${distanceKm} کیلومتر` : ` • ${distanceKm} km`) : '';
     note =
       lang === 'fa'
-        ? `سفر آغاز شد — مقصد: «${dest.name}»${distPart}${route ? ` (راه: «${route.name}»)` : ''}`
-        : `Journey begins — destination: "${dest.name}"${distPart}${route ? ` (via "${route.name}")` : ''}`;
+        ? `سفر آغاز شد — مقصد: «${dest.name}»${route ? ` (راه: «${route.name}»)` : ''}`
+        : `Journey begins — destination: "${dest.name}"${route ? ` (via "${route.name}")` : ''}`;
   }
 
   return {
@@ -439,6 +491,7 @@ export function planJourney(
     dangerLevel,
     distanceKm,
     calendarDays,
+    ...(transitHaltNames.length ? { transitHaltNames } : {}),
     pacingMode,
     isElliptical,
     immediateHop,
@@ -462,6 +515,7 @@ export function startTravel(
     totalTurns: plan.totalTurns,
     distanceKm: plan.distanceKm,
     calendarDays: plan.calendarDays,
+    ...(plan.transitHaltNames?.length ? { transitHaltNames: [...plan.transitHaltNames] } : {}),
     pacingMode: plan.pacingMode,
   };
 }
@@ -629,20 +683,16 @@ export function formatTravelLine(
   const nextName = locName(wb, timeline[nextIndex]);
   const route = travel.routeId ? (wb.tradeRoutes ?? []).find((r) => r.id === travel.routeId) : undefined;
 
-  const dist = travel.distanceKm
-    ? (lang === 'fa' ? ` (${travel.distanceKm} کیلومتر)` : ` (${travel.distanceKm} km)`)
-    : '';
-
   if (lang === 'fa') {
     const next = nextName && !progress?.arrived ? ` • ایستگاه بعدی: «${nextName}»` : '';
     const via = route ? ` • راه «${route.name}»` : '';
     const arriving = progress?.arriving ? ' • پایان راه' : '';
-    return `در راه «${from}» ← «${to}»${dist}${arriving}${next}${via}`;
+    return `در راه «${from}» ← «${to}»${arriving}${next}${via}`;
   }
   const next = nextName && !progress?.arrived ? ` • next stop: "${nextName}"` : '';
   const via = route ? ` • route "${route.name}"` : '';
   const arriving = progress?.arriving ? ' • final leg' : '';
-  return `En route "${from}" → "${to}"${dist}${arriving}${next}${via}`;
+  return `En route "${from}" → "${to}"${arriving}${next}${via}`;
 }
 
 /**

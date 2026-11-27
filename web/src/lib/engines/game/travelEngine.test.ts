@@ -478,12 +478,12 @@ describe('Event-Driven Dynamic Pacing & Narrative Ellipsis', () => {
     assert.equal(plan!.pacingMode, 'cinematic_ellipsis');
     assert.equal(plan!.isElliptical, true);
     assert.equal(plan!.totalTurns, 1);
-    assert.match(plan!.note, /360 km/);
+    assert.doesNotMatch(plan!.note, /\bkm\b/);
     assert.match(plan!.note, /1 week/); // 9 days rounds to 1 week
     assert.doesNotMatch(plan!.note, /6 turns/);
   });
 
-  it('compresses uneventful long-distance travel in Persian with km and duration', () => {
+  it('compresses uneventful long-distance travel in Persian with duration and without numeric km', () => {
     const wb = makeWb();
     const plan = planJourney('city_a', 'city_c', wb, 'caravan', {
       lang: 'fa',
@@ -493,8 +493,100 @@ describe('Event-Driven Dynamic Pacing & Narrative Ellipsis', () => {
     assert.ok(plan);
     assert.equal(plan!.isElliptical, true);
     assert.equal(plan!.totalTurns, 1);
-    assert.match(plan!.note, /۳۶۰|360 کیلومتر/);
+    assert.doesNotMatch(plan!.note, /کیلومتر/);
     assert.match(plan!.note, /هفته|روز/);
+  });
+
+  it('skips isTransitHalt villages as playable stops while recording transitHaltNames', () => {
+    const wb = makeWb();
+    wb.locations.push(
+      {
+        id: 'halt_1',
+        name: 'تلّ گزستان',
+        description: 'چاهک میان‌راهی',
+        region: 'Desert',
+        dangerLevel: 2,
+        connectedLocationIds: ['city_a', 'city_b'],
+        atmosphere: 'خشک',
+        coordinates: { x: 90, y: 0 },
+        isTransitHalt: true,
+      },
+      {
+        id: 'halt_2',
+        name: 'کلاتهٔ شوره',
+        description: 'آبادی کوچک نمکی',
+        region: 'Desert',
+        dangerLevel: 2,
+        connectedLocationIds: ['city_b', 'city_c'],
+        atmosphere: 'نمکی',
+        coordinates: { x: 270, y: 0 },
+        isTransitHalt: true,
+      }
+    );
+    wb.tradeRoutes = [
+      {
+        id: 'route_main',
+        name: 'جاده هیرام',
+        originLocationId: 'city_a',
+        intermediateLocationIds: ['halt_1', 'city_b', 'halt_2'],
+        destinationLocationId: 'city_c',
+        commodities: [],
+        status: 'active',
+        dangerLevel: 3,
+      },
+    ];
+    const plan = planJourney('city_a', 'city_b', wb, 'caravan', {
+      lang: 'fa',
+      pacingMode: 'cinematic_ellipsis',
+    });
+    assert.ok(plan);
+    assert.deepEqual(plan!.waypointIds, []);
+    assert.deepEqual(plan!.transitHaltNames, ['تلّ گزستان']);
+    assert.match(plan!.note, /تلّ گزستان/);
+  });
+
+  it('treats off-canvas urban inset districts (x > canvas width) as local sub-day hops from the city gate', () => {
+    const wb = makeWb();
+    wb.locations.push(
+      {
+        id: 'gate_caravanserai',
+        name: 'کاروانسرای شاخ زرین',
+        description: 'مدخل غربی پل',
+        region: 'Zarrindasht',
+        dangerLevel: 1,
+        connectedLocationIds: ['zarrin_pol', 'bridge_bazaar'],
+        atmosphere: 'شلوغ',
+        coordinates: { x: 1189, y: 943 },
+      },
+      {
+        id: 'zarrin_pol',
+        name: 'زرین پل',
+        description: 'شهر پل',
+        region: 'Zarrindasht',
+        dangerLevel: 2,
+        connectedLocationIds: ['gate_caravanserai', 'bridge_bazaar'],
+        atmosphere: 'سنگی',
+        coordinates: { x: 1216, y: 944 },
+      },
+      {
+        id: 'bridge_bazaar',
+        name: 'بازارچهٔ معلق پل',
+        description: 'بازار روی پل',
+        region: 'Zarrindasht',
+        parentLocationId: 'zarrin_pol',
+        dangerLevel: 2,
+        connectedLocationIds: ['gate_caravanserai', 'zarrin_pol'],
+        atmosphere: 'پرهمهمه',
+        coordinates: { x: 2833, y: 572 },
+      }
+    );
+    const plan = planJourney('gate_caravanserai', 'bridge_bazaar', wb, 'foot', {
+      lang: 'fa',
+      pacingMode: 'cinematic_ellipsis',
+    });
+    assert.ok(plan);
+    assert.equal(plan!.immediateHop, true);
+    assert.equal(plan!.calendarDays, 0);
   });
 
   it('decelerates into multiple turns when hasEncounter is true', () => {
