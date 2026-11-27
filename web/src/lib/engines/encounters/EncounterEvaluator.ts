@@ -320,6 +320,7 @@ export function settlePendingEncounterRewards(
         quantity: 1,
         nonEquippable: art.nonEquippable,
         startsQuestId: art.startsQuestId,
+        ...(art.imageUrl ? { imageUrl: art.imageUrl } : {}),
       });
     }
     if (

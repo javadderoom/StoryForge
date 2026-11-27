@@ -224,6 +224,7 @@ export interface GameItem {
   isConsumable?: boolean;
   startsQuestId?: string; // If possessed or inspected, starts this quest automatically
   nonEquippable?: boolean; // Plot/quest tokens (letters, sealed relics, ceremonial arms) that can never occupy an equipment slot
+  imageUrl?: string; // Artwork image URL for inventory / item detail cards
 }
 
 export interface ArchetypeDefinition {
@@ -421,6 +422,7 @@ export const GameItemSchema = z.object({
   isConsumable: z.boolean().optional(),
   startsQuestId: z.string().optional(),
   nonEquippable: z.boolean().optional(),
+  imageUrl: z.string().optional(),
 });
 
 export const AbilityResourceCostSchema = z.object({

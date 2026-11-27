@@ -137,8 +137,20 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string>('');
   const [playerState, setPlayerState] = useState<any>(null);
   const [storyMeta, setStoryMeta] = useState<{ id: string; title: string; language: string; rpgSystem: any; engineTier?: 'normal' | 'plus' | 'advance' } | null>(null);
-  const [lore, setLore] = useState<{ locations: { id: string; name: string }[]; npcs: { id: string; name: string }[] }>({ locations: [], npcs: [] });
-  const [currentBeat, setCurrentBeat] = useState<{ narrative: string; choices: any[]; discoveredCreature?: any; discoveredNpcs?: any[] } | null>(null);
+  const [lore, setLore] = useState<{
+    locations: { id: string; name: string; imageUrl?: string; [key: string]: any }[];
+    npcs: { id: string; name: string; imageUrl?: string; [key: string]: any }[];
+    artifacts?: { id: string; name: string; imageUrl?: string; [key: string]: any }[];
+  }>({ locations: [], npcs: [] });
+  const [currentBeat, setCurrentBeat] = useState<{
+    narrative: string;
+    choices: any[];
+    imageUrl?: string;
+    discoveredCreature?: any;
+    discoveredNpcs?: any[];
+  } | null>(null);
+  const [sceneImageLightbox, setSceneImageLightbox] = useState<{ url: string; caption?: string } | null>(null);
+  const [failedSceneImageUrl, setFailedSceneImageUrl] = useState<string | null>(null);
   const [turnNumber, setTurnNumber] = useState<number>(1);
   const [freeTextAction, setFreeTextAction] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1537,6 +1549,39 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="transition-all">
+                    {(() => {
+                      const activeLocation = lore.locations?.find(
+                        (l) => l.id === playerState?.currentLocationId
+                      );
+                      const bannerUrl = currentBeat?.imageUrl || activeLocation?.imageUrl;
+                      if (!bannerUrl || failedSceneImageUrl === bannerUrl) return null;
+                      return (
+                        <div className="group relative mb-6 overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/60 shadow-lg">
+                          <img
+                            src={bannerUrl}
+                            alt={activeLocation?.name || storyMeta?.title || ''}
+                            onError={() => setFailedSceneImageUrl(bannerUrl)}
+                            onClick={() =>
+                              setSceneImageLightbox({
+                                url: bannerUrl,
+                                caption: activeLocation?.name,
+                              })
+                            }
+                            className="h-44 sm:h-56 w-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.03] cursor-zoom-in"
+                          />
+                          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/85 via-black/40 to-transparent px-4 pb-2.5 pt-8">
+                            {activeLocation?.name && (
+                              <span className="text-xs font-semibold tracking-wide text-zinc-100 drop-shadow">
+                                {activeLocation.name}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-zinc-300/80 opacity-0 transition-opacity group-hover:opacity-100">
+                              {isRtl ? 'کلیک برای بزرگ‌نمایی' : 'Click to enlarge'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <NarrativeProse
                       text={currentBeat?.narrative || ''}
                       isPersian={isRtl}
@@ -2201,6 +2246,31 @@ export default function Home() {
         isSubmitting={isRemakingScene}
         turnNumber={turnNumber}
       />
+
+      {sceneImageLightbox && (
+        <div
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/92 p-4"
+          onClick={() => setSceneImageLightbox(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setSceneImageLightbox(null)}
+            className="absolute top-4 right-4 rounded-full bg-black/60 px-3 py-1.5 text-sm text-white hover:bg-black/80"
+            title={isRtl ? 'بستن' : 'Close'}
+          >
+            ✕
+          </button>
+          <img
+            src={sceneImageLightbox.url}
+            alt={sceneImageLightbox.caption || ''}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[85vh] max-w-full rounded-2xl object-contain shadow-2xl"
+          />
+          {sceneImageLightbox.caption && (
+            <p className="mt-3 text-sm font-medium text-zinc-200">{sceneImageLightbox.caption}</p>
+          )}
+        </div>
+      )}
     </div>
 
   );

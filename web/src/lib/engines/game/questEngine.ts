@@ -247,13 +247,17 @@ export function completeQuest(
 
   // 4. Grant Item Rewards
   if (quest.rewards?.itemRewards && quest.rewards.itemRewards.length > 0) {
-    diff.itemsAdded = quest.rewards.itemRewards.map((reward) => ({
-      id: reward.id,
-      name: reward.name,
-      quantity: reward.quantity ?? 1,
-      description: `Awarded for fulfilling "${quest.title}".`,
-      type: 'quest_item' as const,
-    }));
+    diff.itemsAdded = quest.rewards.itemRewards.map((reward) => {
+      const matchedArtifact = (worldBible.artifacts ?? []).find((a) => a.id === reward.id);
+      return {
+        id: reward.id,
+        name: reward.name,
+        quantity: reward.quantity ?? 1,
+        description: matchedArtifact?.description || `Awarded for fulfilling "${quest.title}".`,
+        type: 'quest_item' as const,
+        ...(matchedArtifact?.imageUrl ? { imageUrl: matchedArtifact.imageUrl } : {}),
+      };
+    });
   }
 
   // 5. Unlock NPC Secrets (direct unlockedSecretIds + SecretRevealMethodKind='quest')

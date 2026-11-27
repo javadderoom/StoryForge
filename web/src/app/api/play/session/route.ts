@@ -84,6 +84,7 @@ function buildPlayLore(story: any) {
       passiveBuffs: a.passiveBuffs || [],
       startsQuestId: a.startsQuestId || undefined,
       nonEquippable: a.nonEquippable || undefined,
+      imageUrl: a.imageUrl || '',
     })),
   };
 }

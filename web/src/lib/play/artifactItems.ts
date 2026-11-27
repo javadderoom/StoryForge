@@ -49,5 +49,6 @@ export function artifactToGameItem(artifact: WorldArtifact): GameItem {
     resourceModifiers: artifact.resourceModifiers,
     startsQuestId: artifact.startsQuestId,
     nonEquippable: artifact.nonEquippable,
+    ...(artifact.imageUrl ? { imageUrl: artifact.imageUrl } : {}),
   };
 }

@@ -30,9 +30,15 @@ export interface CatalogStory {
 export interface StartSessionResult {
   sessionId: string;
   story: { id: string; title: string; language: string; rpgSystem: any; engineTier?: 'normal' | 'plus' | 'advance' };
-  lore: { laws: any[]; locations: { id: string; name: string }[]; npcs: { id: string; name: string }[] };
+  lore: {
+    laws: any[];
+    locations: { id: string; name: string; imageUrl?: string; [key: string]: any }[];
+    npcs: { id: string; name: string; imageUrl?: string; [key: string]: any }[];
+    artifacts?: { id: string; name: string; imageUrl?: string; [key: string]: any }[];
+    bestiary?: { id: string; name: string; imageUrl?: string; [key: string]: any }[];
+  };
   playerState: PlayerState;
-  currentBeat: { narrative: string; choices: any[]; discoveredCreature?: any; discoveredNpc?: any; discoveredNpcs?: any[] };
+  currentBeat: { narrative: string; choices: any[]; imageUrl?: string; discoveredCreature?: any; discoveredNpc?: any; discoveredNpcs?: any[] };
   turnNumber: number;
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { RealmTheme } from '@/lib/play/realmTheme';
 import { GameItem, ItemRarity } from '@/lib/types/rpg';
 import { PlayerState } from '@/lib/types/gameplay';
@@ -27,6 +27,8 @@ interface ItemDetailSheetProps {
   onEquip: (itemId: string, slot?: 'mainHand' | 'offHand') => void;
   onUnequip: (slot: 'mainHand' | 'offHand' | 'armor' | 'relic') => void;
   onUse: (itemId: string) => void;
+  /** Optional World Bible artifact fallback image URL for items acquired before imageUrl persistence. */
+  fallbackImageUrl?: string;
 }
 
 function typeIcon(item: GameItem): string {
@@ -69,11 +71,18 @@ export function ItemDetailSheet({
   onEquip,
   onUnequip,
   onUse,
+  fallbackImageUrl,
 }: ItemDetailSheetProps) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
   if (!isOpen || !itemId) return null;
   const item = getItem(playerState, itemId);
   if (!item) return null;
   const it = item;
+
+  const resolvedImageUrl = item.imageUrl || fallbackImageUrl || undefined;
+  const showArtwork = Boolean(resolvedImageUrl && failedUrl !== resolvedImageUrl);
 
   const rarity = (item.rarity ?? 'common') as ItemRarity;
   const rColor = RARITY_COLORS[rarity];
@@ -104,12 +113,29 @@ export function ItemDetailSheet({
       >
         <div className="mx-auto mb-4 h-1 w-11 rounded bg-white/20" />
         <div className="flex gap-4">
-          <div
-            className="flex h-14 w-14 items-center justify-center rounded-2xl border text-2xl"
-            style={{ borderColor: `${rColor}99`, backgroundColor: `${rColor}26`, boxShadow: `0 0 16px -4px ${rColor}` }}
-          >
-            {typeIcon(item)}
-          </div>
+          {showArtwork && resolvedImageUrl ? (
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(true)}
+              className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border bg-zinc-950 cursor-zoom-in transition-transform hover:scale-105"
+              style={{ borderColor: `${rColor}99`, boxShadow: `0 0 16px -4px ${rColor}` }}
+              title={isPersian ? 'بزرگ‌نمایی تصویر' : 'Enlarge artwork'}
+            >
+              <img
+                src={resolvedImageUrl}
+                alt={item.name}
+                onError={() => setFailedUrl(resolvedImageUrl)}
+                className="h-full w-full object-cover"
+              />
+            </button>
+          ) : (
+            <div
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border text-2xl"
+              style={{ borderColor: `${rColor}99`, backgroundColor: `${rColor}26`, boxShadow: `0 0 16px -4px ${rColor}` }}
+            >
+              {typeIcon(item)}
+            </div>
+          )}
           <div className="flex-1">
             <div className="text-lg font-bold text-white">{item.name}</div>
             <div className="mt-1 flex items-center gap-2">
@@ -198,6 +224,27 @@ export function ItemDetailSheet({
           ) : null}
         </div>
       </div>
+      {lightboxOpen && showArtwork && resolvedImageUrl && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/92 p-4"
+          onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); }}
+        >
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); }}
+            className="absolute top-4 right-4 rounded-full bg-black/60 px-3 py-1.5 text-sm text-white hover:bg-black/80"
+            title={isPersian ? 'بستن' : 'Close'}
+          >
+            ✕
+          </button>
+          <img
+            src={resolvedImageUrl}
+            alt={item.name}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[88vh] max-w-full rounded-2xl object-contain shadow-2xl"
+          />
+        </div>
+      )}
     </div>
   );
 }

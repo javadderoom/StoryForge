@@ -312,7 +312,7 @@ export function Compendium({
           )}
 
           {/* INVENTORY */}
-          {tab === 1 && <InventoryTab playerState={playerState} isPersian={isPersian} onOpen={setDetailItem} />}
+          {tab === 1 && <InventoryTab playerState={playerState} lore={lore} isPersian={isPersian} onOpen={setDetailItem} />}
 
           {/* NPCs */}
           {tab === 2 && (
@@ -438,6 +438,9 @@ export function Compendium({
         theme={theme}
         isPersian={isPersian}
         statsConfig={stats}
+        fallbackImageUrl={
+          detailItem ? lore?.artifacts?.find((a: any) => a.id === detailItem)?.imageUrl : undefined
+        }
         onClose={() => setDetailItem(null)}
         onEquip={handleEquip}
         onUnequip={handleUnequip}
@@ -469,7 +472,17 @@ export function Compendium({
   );
 }
 
-function InventoryTab({ playerState, isPersian, onOpen }: { playerState: PlayerState; isPersian: boolean; onOpen: (id: string) => void }) {
+function InventoryTab({
+  playerState,
+  lore,
+  isPersian,
+  onOpen,
+}: {
+  playerState: PlayerState;
+  lore?: any;
+  isPersian: boolean;
+  onOpen: (id: string) => void;
+}) {
   const [cat, setCat] = useState('all');
   const cats = isPersian
     ? ['همه', 'سلاح‌ها', 'زره و سپر', 'مصرفی', 'دست‌سازه و ماجرایی']
@@ -503,22 +516,32 @@ function InventoryTab({ playerState, isPersian, onOpen }: { playerState: PlayerS
         {list.map((item) => {
           const rColor = RARITY_COLORS[item.rarity ?? 'common'];
           const eq = isEquipped(playerState, item.id);
+          const itemImage = item.imageUrl || lore?.artifacts?.find((a: any) => a.id === item.id)?.imageUrl;
           return (
             <button
               key={item.id}
               onClick={() => onOpen(item.id)}
-              className="rounded-xl border p-2.5 text-start"
+              className="flex items-center gap-2.5 rounded-xl border p-2.5 text-start"
               style={{ borderColor: `${rColor}80`, backgroundColor: `${rColor}12` }}
             >
-              <div className="flex items-center justify-between">
-                <span className="truncate text-sm font-medium text-zinc-100">{item.name}</span>
-                {eq ? (
-                  <span className="rounded bg-amber-500/20 px-1.5 text-[9px] font-bold text-amber-300">{isPersian ? 'مجهز' : 'EQ'}</span>
-                ) : (
-                  <span className="font-mono text-[10px] text-zinc-500">×{item.quantity}</span>
-                )}
+              {itemImage && (
+                <img
+                  src={itemImage}
+                  alt={item.name}
+                  className="h-10 w-10 shrink-0 rounded-lg border border-zinc-700/70 object-cover bg-zinc-950"
+                />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="truncate text-sm font-medium text-zinc-100">{item.name}</span>
+                  {eq ? (
+                    <span className="shrink-0 rounded bg-amber-500/20 px-1.5 text-[9px] font-bold text-amber-300">{isPersian ? 'مجهز' : 'EQ'}</span>
+                  ) : (
+                    <span className="shrink-0 font-mono text-[10px] text-zinc-500">×{item.quantity}</span>
+                  )}
+                </div>
+                <div className="mt-0.5 text-[10px]" style={{ color: rColor }}>{item.rarity ?? 'common'}</div>
               </div>
-              <div className="mt-0.5 text-[10px]" style={{ color: rColor }}>{item.rarity ?? 'common'}</div>
             </button>
           );
         })}
