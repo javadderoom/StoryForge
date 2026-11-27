@@ -20,6 +20,7 @@ import { calculateActionXp, applyXpGain } from '@/lib/engines/game/progressionEn
 import { DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
 import { ensureClockForLocation, refreshZoneThreatClocks, resolveDeclaredClockChanges } from '@/lib/engines/game/threatClock';
 import { resolveAccompanyingIds } from '@/lib/engines/narrative/worldContext';
+import { findMentionedNpcs, resolveDepartingCaravanCompanionIds } from '@/lib/engines/world/npcMatching';
 import { buildNpcIdToName, deriveActualChoice } from '@/lib/engines/narrative/snapPredictor';
 import { cancelSnapPrediction, resolveSnapDecision, scheduleSnapDwell } from '@/lib/play/snapDecisions';
 import { findServableAotBranch, markAotBranchServed } from '@/lib/play/snapAot';
@@ -817,11 +818,24 @@ async function processTurnAction(
           }
         );
         if (plan) {
-          resolution.stateDiff.travel = GameEngine.startTravel(
+          const startedTravel = GameEngine.startTravel(
             plan,
             playerState.currentLocationId,
             turnNumber
           );
+          if (!partyChange && (plan.mode === 'caravan' || plan.mode === 'ship') && plan.routeId) {
+            const caravanIds = resolveDepartingCaravanCompanionIds(
+              story.worldBible,
+              plan.routeId,
+              playerState.currentLocationId,
+              resolveAccompanyingIds(playerState, (session?.sagaLedger as WorldStateLedger | null | undefined) ?? null)
+            );
+            if (caravanIds.length > 0) {
+              startedTravel.caravanNpcIds = caravanIds;
+              resolution.stateDiff.accompanyingNpcIds = caravanIds;
+            }
+          }
+          resolution.stateDiff.travel = startedTravel;
           resolution.consequenceSummary += ` ${plan.note}`;
           travelSkipSubZoneWriter = true;
         }
@@ -852,11 +866,24 @@ async function processTurnAction(
             ? ` سفر یک‌روزه بود؛ مستقیم به «${hopName}» رسیدی.`
             : ` A one-day hop — you arrive directly at "${hopName}".`;
         } else {
-          resolution.stateDiff.travel = GameEngine.startTravel(
+          const startedTravel = GameEngine.startTravel(
             plan,
             playerState.currentLocationId,
             turnNumber
           );
+          if (!partyChange && (plan.mode === 'caravan' || plan.mode === 'ship') && plan.routeId) {
+            const caravanIds = resolveDepartingCaravanCompanionIds(
+              story.worldBible,
+              plan.routeId,
+              playerState.currentLocationId,
+              resolveAccompanyingIds(playerState, (session?.sagaLedger as WorldStateLedger | null | undefined) ?? null)
+            );
+            if (caravanIds.length > 0) {
+              startedTravel.caravanNpcIds = caravanIds;
+              resolution.stateDiff.accompanyingNpcIds = caravanIds;
+            }
+          }
+          resolution.stateDiff.travel = startedTravel;
           resolution.consequenceSummary += ` ${plan.note}`;
         }
         travelSkipSubZoneWriter = true;
@@ -974,6 +1001,7 @@ async function processTurnAction(
           transitHaltNames?: string[];
         }
       | undefined;
+    let advanceMovedToId: string | undefined;
     if (displacementTarget || authoredMoveTargetId) {
       if (updatedPlayerState.travel) updatedPlayerState.travel = null;
     }
@@ -1015,12 +1043,25 @@ async function processTurnAction(
         if (advance.note) resolution.consequenceSummary += ` ${advance.note}`;
       } else if (advance.movedTo) {
         // Reached an intermediate stop: move the pointer, keep travelling.
+        advanceMovedToId = advance.movedTo;
         updatedPlayerState.currentLocationId = advance.movedTo;
         if (!updatedPlayerState.discoveredLocationIds.includes(advance.movedTo)) {
           updatedPlayerState.discoveredLocationIds.push(advance.movedTo);
         }
         updatedPlayerState.currentSubZoneId = undefined;
         resolution.stateDiff.locationChange = advance.movedTo;
+        if (!partyChange && updatedPlayerState.travel.routeId) {
+          const nextCompanions = resolveDepartingCaravanCompanionIds(
+            story.worldBible,
+            updatedPlayerState.travel.routeId,
+            advance.movedTo,
+            updatedPlayerState.accompanyingNpcIds ?? []
+          );
+          if (nextCompanions.length > (updatedPlayerState.accompanyingNpcIds?.length ?? 0)) {
+            updatedPlayerState.accompanyingNpcIds = nextCompanions;
+            updatedPlayerState.travel.caravanNpcIds = nextCompanions;
+          }
+        }
         if (advance.note) resolution.consequenceSummary += ` ${advance.note}`;
       }
     }
@@ -1073,139 +1114,73 @@ async function processTurnAction(
     const displacedLocationId = resolution.displacedLocationId || resolution.stateDiff.displacedLocationId;
     const previousLocation = story.worldBible.locations.find((l) => l.id === preTurnLocationId);
 
+    // Settle any deferred rewards earned by resolving the previous turn's encounter.
+    const settledRewardsDiff = GameEngine.settlePendingEncounterRewards(
+      updatedPlayerState,
+      story.worldBible,
+      resolution.outcome
+    );
+    if (settledRewardsDiff) {
+      updatedPlayerState = GameEngine.applyStateMutation(
+        updatedPlayerState,
+        settledRewardsDiff,
+        story.rpgSystem
+      );
+      if (settledRewardsDiff.itemsAdded?.length) {
+        resolution.stateDiff.itemsAdded = [
+          ...(resolution.stateDiff.itemsAdded ?? []),
+          ...settledRewardsDiff.itemsAdded,
+        ];
+      }
+      if (settledRewardsDiff.questUpdates?.length) {
+        resolution.stateDiff.questUpdates = [
+          ...(resolution.stateDiff.questUpdates ?? []),
+          ...settledRewardsDiff.questUpdates,
+        ];
+      }
+    }
+
     // 3a¼. Dynamic World Encounters & Key Road Dialogues (`StoryEncounter`):
     // Deterministically evaluate authored encounters for the active corridor or
-    // location so road events and arrival scenes fire automatically.
+    // location so road events, intermediate stop arrivals, and destination scenes fire automatically.
     let triggeredEncounter: any | null = null;
     if (authoredEncounters.length > 0 && !authoredMoveBeat) {
-      const lastCompletedEventId =
-        updatedPlayerState.completedEncounterIds && updatedPlayerState.completedEncounterIds.length > 0
-          ? updatedPlayerState.completedEncounterIds[updatedPlayerState.completedEncounterIds.length - 1]
-          : undefined;
-      const clockEscalated = Boolean(
-        resolution.clockUpdate?.isCrisis || (resolution.clockUpdate?.newSegments ?? 0) >= 3
-      );
-
-      if (updatedPlayerState.travel) {
-        const originLoc = story.worldBible.locations?.find(
-          (l: any) => l.id === updatedPlayerState.travel?.originLocationId
-        );
-        const route = updatedPlayerState.travel.routeId
-          ? (story.worldBible.tradeRoutes ?? []).find(
-              (r: any) => r.id === updatedPlayerState.travel?.routeId
-            )
-          : undefined;
-        const roadLocIds = Array.from(
-          new Set(
-            [
-              updatedPlayerState.currentLocationId,
-              originLoc?.parentLocationId,
-              ...(route?.intermediateLocationIds ?? []),
-            ].filter((id): id is string => Boolean(id))
-          )
-        );
-        const roadPool = authoredEncounters.filter(
-          (e) => e?.triggerConditions?.triggerType !== 'on_enter'
-        );
-        for (const locId of roadLocIds) {
-          if (clockEscalated) {
-            triggeredEncounter = GameEngine.evaluateCandidateEncounters({
-              encounters: roadPool,
-              playerState: updatedPlayerState,
-              currentLocationId: locId,
-              lastCompletedEventId,
-              triggerContext: 'threat_escalation',
-            });
-          }
-          if (!triggeredEncounter) {
-            triggeredEncounter = GameEngine.evaluateCandidateEncounters({
-              encounters: roadPool,
-              playerState: updatedPlayerState,
-              currentLocationId: locId,
-              lastCompletedEventId,
-              triggerContext: 'on_explore',
-            });
-          }
-          if (triggeredEncounter) break;
-        }
-      } else {
-        const enteredNewLocation = Boolean(
-          travelArrived ||
-            resolution.stateDiff.locationChange ||
-            authoredMoveTargetId ||
-            updatedPlayerState.currentLocationId !== preTurnLocationId
-        );
-        const locObj = story.worldBible.locations?.find(
-          (l: any) => l.id === updatedPlayerState.currentLocationId
-        );
-        const locTags = [locObj?.category, locObj?.region].filter(Boolean) as string[];
-        if (enteredNewLocation) {
-          triggeredEncounter = GameEngine.evaluateCandidateEncounters({
-            encounters: authoredEncounters,
-            playerState: updatedPlayerState,
-            currentLocationId: updatedPlayerState.currentLocationId,
-            locationTags: locTags,
-            lastCompletedEventId,
-            triggerContext: 'on_enter',
-          });
-        }
-        if (!triggeredEncounter && clockEscalated) {
-          triggeredEncounter = GameEngine.evaluateCandidateEncounters({
-            encounters: authoredEncounters,
-            playerState: updatedPlayerState,
-            currentLocationId: updatedPlayerState.currentLocationId,
-            locationTags: locTags,
-            lastCompletedEventId,
-            triggerContext: 'threat_escalation',
-          });
-        }
-        if (!triggeredEncounter && !enteredNewLocation) {
-          triggeredEncounter = GameEngine.evaluateCandidateEncounters({
-            encounters: authoredEncounters,
-            playerState: updatedPlayerState,
-            currentLocationId: updatedPlayerState.currentLocationId,
-            locationTags: locTags,
-            lastCompletedEventId,
-            triggerContext: 'on_explore',
-          });
-        }
-      }
+      triggeredEncounter = GameEngine.resolveTurnEncounter({
+        authoredEncounters,
+        playerState: updatedPlayerState,
+        worldBible: story.worldBible,
+        preTurnLocationId,
+        travelArrived: Boolean(travelArrived),
+        advanceMovedToId,
+        clockUpdate: resolution.clockUpdate,
+        locationChange: resolution.stateDiff.locationChange,
+        authoredMoveTargetId,
+      });
 
       if (triggeredEncounter) {
-        const encDiff: any = {
+        const encDiff: StateMutationDiff = {
           triggeredEncounterId: triggeredEncounter.id,
         };
         if (triggeredEncounter.onComplete?.setFlags?.length) {
           encDiff.storyFlagsAdded = [...triggeredEncounter.onComplete.setFlags];
         }
-        if (triggeredEncounter.onComplete?.rewardItemIds?.length) {
-          const rewardedItems = triggeredEncounter.onComplete.rewardItemIds
-            .map((itemId: string) => {
-              const art = (story.worldBible.artifacts ?? []).find((a: any) => a.id === itemId);
-              if (!art) return null;
-              return {
-                id: art.id,
-                name: art.name,
-                type: art.nonEquippable ? 'key' : 'relic',
-                description: art.description || art.title || '',
-                quantity: 1,
-                nonEquippable: art.nonEquippable,
-                startsQuestId: art.startsQuestId,
-              };
-            })
-            .filter(Boolean);
-          if (rewardedItems.length > 0) {
-            encDiff.itemsAdded = rewardedItems;
-          }
-        }
-        if (triggeredEncounter.onComplete?.advanceQuestId) {
-          const qId = triggeredEncounter.onComplete.advanceQuestId;
-          if (
-            !(updatedPlayerState.activeQuestIds ?? []).includes(qId) &&
-            !(updatedPlayerState.completedQuestIds ?? []).includes(qId)
-          ) {
-            encDiff.questUpdates = [{ questId: qId, status: 'active' as const }];
-          }
+        const hasDeferredRewards = Boolean(
+          triggeredEncounter.onComplete?.rewardItemIds?.length ||
+            triggeredEncounter.onComplete?.advanceQuestId
+        );
+        if (hasDeferredRewards) {
+          encDiff.pendingEncounterRewards = [
+            ...(updatedPlayerState.pendingEncounterRewards ?? []),
+            {
+              encounterId: triggeredEncounter.id,
+              ...(triggeredEncounter.onComplete?.rewardItemIds?.length
+                ? { rewardItemIds: [...triggeredEncounter.onComplete.rewardItemIds] }
+                : {}),
+              ...(triggeredEncounter.onComplete?.advanceQuestId
+                ? { advanceQuestId: triggeredEncounter.onComplete.advanceQuestId }
+                : {}),
+            },
+          ];
         }
         updatedPlayerState = GameEngine.applyStateMutation(
           updatedPlayerState,
@@ -1217,18 +1192,6 @@ async function processTurnAction(
           resolution.stateDiff.storyFlagsAdded = [
             ...(resolution.stateDiff.storyFlagsAdded ?? []),
             ...encDiff.storyFlagsAdded,
-          ];
-        }
-        if (encDiff.itemsAdded) {
-          resolution.stateDiff.itemsAdded = [
-            ...(resolution.stateDiff.itemsAdded ?? []),
-            ...encDiff.itemsAdded,
-          ];
-        }
-        if (encDiff.questUpdates) {
-          resolution.stateDiff.questUpdates = [
-            ...(resolution.stateDiff.questUpdates ?? []),
-            ...encDiff.questUpdates,
           ];
         }
       }
@@ -1264,6 +1227,13 @@ async function processTurnAction(
         outcome: resolution.outcome,
       }
     );
+    if (Object.keys(questEval.newlySatisfiedObjectives).length > 0) {
+      updatedPlayerState = GameEngine.applyStateMutation(
+        updatedPlayerState,
+        { completedQuestObjectivesAdded: questEval.newlySatisfiedObjectives },
+        story.rpgSystem
+      );
+    }
     for (const completedQ of questEval.readyToComplete) {
       const completion = GameEngine.completeQuest(
         completedQ,
@@ -1640,66 +1610,20 @@ async function processTurnAction(
     // If an NPC is engaged in the player action or mentioned in the narrative prose,
     // ensure they are registered in the player's relationships so they appear in the Compendium.
     const relMap = { ...(updatedPlayerState.relationships || {}) };
-    let relChanged = false;
-    const newlyMetNpcs: any[] = [];
-    const normalizeNpcText = (text: string): string =>
-      (text || '')
-        .replace(/[‌‍‎‏­]/g, '')
-        .replace(/ي/g, 'ی')
-        .replace(/ك/g, 'ک')
-        .replace(/[ً-ٰٟ]/g, '')
-        .replace(/[.,،؟!؛:()«»"'`\-_]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .toLowerCase();
-    const proseWordSet = (normalizedProse: string): Set<string> =>
-      new Set(
-        (normalizedProse.includes('‌')
-          ? [normalizedProse, normalizedProse.replace(/‌/g, ' ')]
-          : [normalizedProse]
-        ).flatMap((f) => f.split(' '))
-      );
-    const normalizedActionNarrative = normalizeNpcText(aiResponse.narrative || '');
-    const normalizedActionText = normalizeNpcText(playerActionText || '');
-    const actionWords = new Set([
-      ...proseWordSet(normalizedActionNarrative),
-      ...proseWordSet(normalizedActionText),
-    ]);
-    for (const npc of story.worldBible?.npcs || []) {
-      if (relMap[npc.id]) continue;
-      const normalizedName = normalizeNpcText(npc.name || '');
-      const normalizedTitle = normalizeNpcText(npc.title || '');
-      // Full name (either ZWNJ spelling), the whitespace-separated given name
-      // as an exact word (ZWNJ compounds stay atomic), or the title.
-      const nameForms =
-        normalizedName && normalizedName.includes('‌')
-          ? [normalizedName, normalizedName.replace(/‌/g, ' ')]
-          : [normalizedName];
-      const firstToken = normalizedName.split(' ').filter((t) => t.length >= 3)[0] || '';
-      const mentions = (nm: string) =>
-        nm &&
-        (normalizedActionNarrative.includes(nm) ||
-          normalizedActionText.includes(nm) ||
-          actionWords.has(nm));
-      const isMentioned = Boolean(
-        (normalizedName && nameForms.some((f) => mentions(f))) ||
-          (firstToken && actionWords.has(firstToken)) ||
-          mentions(normalizedTitle)
-      );
-      if (isMentioned) {
-        relMap[npc.id] = {
-          trust: npc.initialTrust ?? 0,
-          knownSecrets: [],
-          notes: [],
-        };
-        relChanged = true;
-        newlyMetNpcs.push(npc);
-      }
-    }
-    if (relChanged) {
-      updatedPlayerState.relationships = relMap;
+    const newlyMetNpcs = findMentionedNpcs(
+      story.worldBible?.npcs || [],
+      [aiResponse.narrative || '', playerActionText || ''],
+      new Set(Object.keys(relMap))
+    );
+    for (const npc of newlyMetNpcs) {
+      relMap[npc.id] = {
+        trust: npc.initialTrust ?? 0,
+        knownSecrets: [],
+        notes: [],
+      };
     }
     if (newlyMetNpcs.length > 0) {
+      updatedPlayerState.relationships = relMap;
       console.info('[action] newly met NPCs:', newlyMetNpcs.map((n) => n.id));
     }
 

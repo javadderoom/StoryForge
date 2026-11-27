@@ -212,24 +212,58 @@ export function buildWorldContextBlocks(
     caps.timeline
   );
 
+  const exactSceneLocIds = new Set(options?.locationIds ?? []);
+  type ArtifactItem = NonNullable<WorldBible['artifacts']>[number];
+  type CreatureItem = NonNullable<WorldBible['bestiary']>[number];
+
+  const keptArtifactOrder = [...(wb.artifacts ?? [])].sort((a, b) => {
+    const score = (art: ArtifactItem) => {
+      if (art.currentHolderType === 'location' && exactSceneLocIds.has(art.currentHolderId)) return 0;
+      if (art.currentHolderType === 'npc' && pinNpcs.has(art.currentHolderId)) return 1;
+      if (art.currentHolderType === 'location' || art.currentHolderType === 'npc') return 2;
+      return 3;
+    };
+    return score(a) - score(b);
+  });
+
   const artifacts = capWith(
     'artifact',
-    wb.artifacts ?? [],
+    keptArtifactOrder,
     (a) =>
       `${a.name} (${a.rarity}) — powers: ${a.powers.join(', ') || 'unknown'}; held by ${a.currentHolderType} ${a.currentHolderId}`,
     caps.artifacts
   );
 
+  // Rank bestiary so species inhabiting the immediate scene location (and active beasts/monstrosities)
+  // win the scope cap before broader ancestor-region flora/minerals.
+  const rankedBestiary = [...(wb.bestiary ?? [])].sort((a, b) => {
+    const score = (c: CreatureItem) => {
+      const habitats = c.habitatLocationIds ?? [];
+      const exactMatch = habitats.some((h: string) => exactSceneLocIds.has(h));
+      const isMineral = c.speciesCategory === 'mineral';
+      const isFlora = c.speciesCategory === 'flora';
+      const isActiveFauna = !isMineral && !isFlora;
+      if (exactMatch && isActiveFauna) return 0;
+      if (exactMatch && isFlora) return 1;
+      if (exactMatch) return 2;
+      if (habitats.length > 0 && isActiveFauna) return 3;
+      if (habitats.length > 0 && isFlora) return 4;
+      if (habitats.length > 0) return 5;
+      return isActiveFauna ? 6 : isFlora ? 7 : 8;
+    };
+    return score(a) - score(b);
+  });
+
   const bestiary = capWith(
     'bestiary',
-    wb.bestiary ?? [],
+    rankedBestiary,
     (c) => {
       const descSnippet = c.loreDescription
         ? ` — Description: ${c.loreDescription.replace(/\s+/g, ' ').slice(0, 160)}...`
         : '';
       const idTag = c.id ? ` [ID: ${c.id}]` : '';
       const habitats = (c.habitatLocationIds ?? [])
-        .map((h) => (wb.locations ?? []).find((l) => l.id === h)?.name || h)
+        .map((h) => (originalWb.locations ?? wb.locations ?? []).find((l) => l.id === h)?.name || h)
         .join('/');
       return `${c.name}${idTag} (danger ${c.dangerLevel}, ${c.speciesCategory}${c.isDomesticated ? ', domesticated' : ''})${descSnippet} | habitat: ${
         habitats || 'unknown'
@@ -368,9 +402,18 @@ export function buildWorldContextBlocks(
     ontologySummary = ontologyLines.length ? ontologyLines.join(' ') : undefined;
   }
 
-  const quests = (wb.quests ?? []).map((q) => {
+  const activeQuestSet = options?.activeQuestIds ? new Set(options.activeQuestIds) : null;
+  const questProgress = options?.completedQuestObjectives ?? {};
+  const visibleQuests = activeQuestSet
+    ? (wb.quests ?? []).filter((q) => activeQuestSet.has(q.id))
+    : (wb.quests ?? []);
+
+  const quests = visibleQuests.map((q) => {
     const giver = npcName.get(q.giverNpcId ?? '') ?? q.giverNpcId;
-    const objs = q.objectives.map((o) => o.description).join('; ');
+    const doneSet = new Set(questProgress[q.id] ?? []);
+    const objs = q.objectives
+      .map((o) => (activeQuestSet ? `${doneSet.has(o.id) ? '[✓]' : '[ ]'} ${o.description}` : o.description))
+      .join('; ');
     const trust = q.rewards?.trustRewards?.map((tr) => `+${tr.trustDelta} trust with ${npcName.get(tr.npcId) ?? tr.npcId}`).join(', ');
     return `"${q.title}" (${q.category}${giver ? `, giver: ${giver}` : ''}): objectives [${objs}]${trust ? ` -> ${trust}` : ''}`;
   });

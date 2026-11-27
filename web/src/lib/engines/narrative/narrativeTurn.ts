@@ -269,12 +269,16 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
         locationIds: corridorLocationIds,
         npcIds: activeNpcIds,
         accompanyingNpcIds: accompanyingIds,
+        activeQuestIds: playerState.activeQuestIds,
+        completedQuestObjectives: playerState.completedQuestObjectives,
       })
     : buildWorldContextBlocks(story, {
         scopeTier: 'regional',
         locationIds: corridorLocationIds,
         npcIds: activeNpcIds,
         accompanyingNpcIds: accompanyingIds,
+        activeQuestIds: playerState.activeQuestIds,
+        completedQuestObjectives: playerState.completedQuestObjectives,
       });
 
   // Hierarchical memory retrieval from the persisted session log.
@@ -532,6 +536,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
     ontologySummary: world.ontologySummary,
     locations: world.locations,
     npcs: world.npcs,
+    quests: world.quests?.length ? world.quests : undefined,
     tradeRoutes: world.tradeRoutes,
     // Plan 08 saga grounding
     activeChapterTitle: activeChapter

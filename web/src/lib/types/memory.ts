@@ -107,6 +107,7 @@ export interface WorkingContextEnvelope {
   ontologySummary?: string;
   locations?: string[];
   npcs?: string[];
+  quests?: string[];
   tradeRoutes?: string[];
   // Plan 13: Director & Scribe runtime (threat clocks, displacement, contextual choices)
   activeClocks?: string[];

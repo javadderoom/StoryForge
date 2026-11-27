@@ -603,7 +603,7 @@ export function advanceTravel(
   const timeline = travelTimeline(travel);
   const nodeId = timeline[progress.nodeIndex];
   const nodeExists = (wb.locations ?? []).some((l) => l.id === nodeId);
-  if (nodeId && nodeExists && nodeId !== playerState.currentLocationId) {
+  if (progress.nodeIndex > 0 && nodeId && nodeExists && nodeId !== playerState.currentLocationId) {
     const name = locName(wb, nodeId);
     return {
       travel,

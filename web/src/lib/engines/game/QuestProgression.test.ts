@@ -356,6 +356,70 @@ describe('Plan 11: Quests, Quest Lines & NPC Trust Progression', () => {
       });
     });
 
+    it('persists objective progress across locations so multi-stop caravan quests complete and award purse coins', () => {
+      const multiStopQuest: WorldQuest = {
+        id: 'quest_caravan',
+        title: 'Escort to Gate',
+        summary: 'Take caravan across desert stops.',
+        category: 'caravan_escort',
+        giverNpcId: 'npc_blacksmith',
+        objectives: [
+          {
+            id: 'obj_start',
+            description: 'Join at Forge',
+            type: 'escort',
+            targetLocationId: 'loc_forge',
+            targetNpcId: 'npc_blacksmith',
+            isOptional: false,
+            consumeItemOnComplete: false,
+            requiredQuantity: 1,
+          },
+          {
+            id: 'obj_finish',
+            description: 'Deliver at Archive',
+            type: 'deliver',
+            targetLocationId: 'loc_archive',
+            isOptional: false,
+            consumeItemOnComplete: false,
+            requiredQuantity: 1,
+          },
+        ],
+        rewards: {
+          trustRewards: [],
+          unlockedSecretIds: [],
+          goldReward: 40,
+          itemRewards: [],
+        },
+      };
+
+      const multiWb: WorldBible = { ...mockWorldBible, quests: [multiStopQuest] };
+      let state = createInitialPlayerState();
+      state.activeQuestIds = ['quest_caravan'];
+      state.resources = { hp: 30 };
+      state.purse = { silver: 10 };
+
+      const turn1Eval = GameEngine.evaluateActiveQuests(state, multiWb, {
+        targetNpcId: 'npc_blacksmith',
+        outcome: 'success',
+      });
+      assert.deepEqual(turn1Eval.newlySatisfiedObjectives['quest_caravan'], ['obj_start']);
+      assert.equal(turn1Eval.readyToComplete.length, 0);
+
+      state = GameEngine.applyStateMutation(state, {
+        completedQuestObjectivesAdded: turn1Eval.newlySatisfiedObjectives,
+        locationChange: 'loc_archive',
+      });
+      assert.deepEqual(state.completedQuestObjectives?.['quest_caravan'], ['obj_start']);
+
+      const turn2Eval = GameEngine.evaluateActiveQuests(state, multiWb, { outcome: 'success' });
+      assert.deepEqual(turn2Eval.readyToComplete.map((q) => q.id), ['quest_caravan']);
+
+      const completion = GameEngine.completeQuest(multiStopQuest, state, multiWb);
+      state = GameEngine.applyStateMutation(state, completion.diff);
+      assert.ok(state.completedQuestIds.includes('quest_caravan'));
+      assert.equal(state.purse?.silver, 50);
+    });
+
     it('rejects a quest with zero objectives', () => {
       assert.throws(() => {
         WorldQuestSchema.parse({

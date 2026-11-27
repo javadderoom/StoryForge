@@ -615,5 +615,56 @@ describe('Event-Driven Dynamic Pacing & Narrative Ellipsis', () => {
     assert.equal(active.pacingMode, 'cinematic_ellipsis');
     assert.equal(active.totalTurns, 1);
   });
+
+  it('never moves backward to originLocationId on subsequent legs after entering parent region when waypoints are empty', () => {
+    const origin = loc('origin_town', 'Origin Town', {
+      parentLocationId: 'parent_desert',
+      connectedLocationIds: ['dest_town'],
+      coordinates: { x: 480, y: 800 },
+    });
+    const parent = loc('parent_desert', 'Wilderness Desert', {
+      connectedLocationIds: [],
+      coordinates: { x: 620, y: 720 },
+    });
+    const dest = loc('dest_town', 'Next Town', {
+      parentLocationId: 'parent_desert',
+      connectedLocationIds: ['origin_town'],
+      coordinates: { x: 740, y: 850 },
+    });
+    const halt = loc('halt_well', 'Desert Well', {
+      parentLocationId: 'parent_desert',
+      isTransitHalt: true,
+      connectedLocationIds: ['origin_town', 'dest_town'],
+      coordinates: { x: 600, y: 820 },
+    });
+    const wb = makeWb({
+      locations: [origin, parent, dest, halt],
+      tradeRoutes: [
+        {
+          id: 'route_short',
+          name: 'Short Trail',
+          originLocationId: 'origin_town',
+          destinationLocationId: 'dest_town',
+          intermediateLocationIds: ['halt_well'],
+          status: 'active',
+          dangerLevel: 3,
+          commodities: [],
+        },
+      ],
+    });
+    const plan = planJourney('origin_town', 'dest_town', wb, 'caravan', {
+      pacingMode: 'per_leg',
+    })!;
+    assert.ok(plan.totalTurns >= 3);
+    assert.deepEqual(plan.waypointIds, []);
+
+    const travel = startTravel(plan, 'origin_town', 3);
+    const leg1 = advanceTravel({ travel, currentLocationId: 'origin_town' }, 4, wb, { lang: 'fa' });
+    assert.equal(leg1.movedTo, 'parent_desert');
+
+    const leg2 = advanceTravel({ travel, currentLocationId: 'parent_desert' }, 5, wb, { lang: 'fa' });
+    assert.equal(leg2.movedTo, undefined);
+    assert.equal(leg2.arrivedAt, undefined);
+  });
 });
 

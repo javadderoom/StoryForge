@@ -20,6 +20,7 @@ export function worldContextBlock(context: WorkingContextEnvelope, isEnglish: bo
         ontology: 'WORLD ONTOLOGY',
         locations: 'KNOWN LOCATIONS',
         npcs: 'KNOWN NPCS',
+        quests: 'ACTIVE QUESTS & OBJECTIVES',
         tradeRoutes: 'COMMERCIAL ARTERIES & ACTIVE TRADE ROUTES',
       }
     : {
@@ -35,6 +36,7 @@ export function worldContextBlock(context: WorkingContextEnvelope, isEnglish: bo
         ontology: 'ساختار جهان / ONTOLOGY',
         locations: 'مکان‌های شناخته‌شده / LOCATIONS',
         npcs: 'شخصیت‌های شناخته‌شده / NPCS',
+        quests: 'مأموریت‌های فعال و اهداف / ACTIVE QUESTS',
         tradeRoutes: 'شاهراه‌ها و کاروان‌های تجاری فعال / ACTIVE TRADE ROUTES & CARAVANS',
       };
 
@@ -63,6 +65,7 @@ export function worldContextBlock(context: WorkingContextEnvelope, isEnglish: bo
   }
   if (context.religions?.length) out.push(`[${labels.religions}]\n${context.religions.map((x) => `• ${x}`).join('\n')}`);
   if (context.dramaBonds?.length) out.push(`[${labels.bonds}]\n${context.dramaBonds.map((x) => `• ${x}`).join('\n')}`);
+  if (context.quests?.length) out.push(`[${labels.quests}]\n${context.quests.map((x) => `• ${x}`).join('\n')}`);
   if (context.tradeRoutes?.length) {
     const tradeDirective = isEnglish
       ? ' — Commercial arteries and caravan trails connecting settlements, transporting goods, and guarded by caravan masters and retinues'

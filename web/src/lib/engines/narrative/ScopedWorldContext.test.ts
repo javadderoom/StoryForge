@@ -827,5 +827,80 @@ describe('Plan 15 — Phase 1: Ecological Scoper & Caravan Retinue Scoping', () 
     assert.ok(blocks.tradeRoutes?.some((r) => r.includes('Zarrin-Pol')));
     assert.ok(!blocks.tradeRoutes?.some((r) => r.includes('loc_far_city')));
   });
+
+  it('prioritizes exact-location fauna over ancestor-level minerals under regional bestiary cap and filters quests by activeQuestIds', () => {
+    const denseWorld: WorldBible = {
+      ...worldBible,
+      locations: [
+        ...worldBible.locations,
+        {
+          id: 'loc_desert_parent',
+          name: 'Hiram Desert',
+          region: 'Hiram',
+          description: 'Wide desert.',
+          dangerLevel: 4,
+          connectedLocationIds: [],
+          atmosphere: 'Arid',
+        },
+        {
+          id: 'loc_stop_well',
+          name: 'Stone Well',
+          region: 'Hiram',
+          parentLocationId: 'loc_desert_parent',
+          description: 'Caravan stop.',
+          dangerLevel: 2,
+          connectedLocationIds: [],
+          atmosphere: 'Dusty',
+        },
+      ],
+      bestiary: [
+        { id: 'c_min', name: 'Ancestor Mineral', speciesCategory: 'mineral', dangerLevel: 1, habitatLocationIds: ['loc_desert_parent'], behavioralTactics: '', weaknesses: [], resistances: [], harvestableLoot: [], loreDescription: '' },
+        { id: 'c_flora', name: 'Ancestor Herb', speciesCategory: 'flora', dangerLevel: 1, habitatLocationIds: ['loc_desert_parent'], behavioralTactics: '', weaknesses: [], resistances: [], harvestableLoot: [], loreDescription: '' },
+        { id: 'c_b1', name: 'Desert Hyena', speciesCategory: 'beast', dangerLevel: 2, habitatLocationIds: ['loc_desert_parent'], behavioralTactics: '', weaknesses: [], resistances: [], harvestableLoot: [], loreDescription: '' },
+        { id: 'c_b2', name: 'Desert Gazelle', speciesCategory: 'beast', dangerLevel: 1, habitatLocationIds: ['loc_desert_parent'], behavioralTactics: '', weaknesses: [], resistances: [], harvestableLoot: [], loreDescription: '' },
+        { id: 'c_exact', name: 'Well Crystal Scorpion', speciesCategory: 'beast', dangerLevel: 2, habitatLocationIds: ['loc_stop_well', 'loc_desert_parent'], behavioralTactics: '', weaknesses: [], resistances: [], harvestableLoot: [], loreDescription: '' },
+      ],
+      quests: [
+        {
+          id: 'q_active',
+          title: 'Active Caravan Escrow',
+          summary: 'Escort',
+          category: 'caravan_escort',
+          objectives: [
+            { id: 'o1', description: 'Depart well', type: 'escort', isOptional: false, consumeItemOnComplete: false, requiredQuantity: 1 },
+            { id: 'o2', description: 'Reach gate', type: 'deliver', isOptional: false, consumeItemOnComplete: false, requiredQuantity: 1 },
+          ],
+          rewards: { trustRewards: [], unlockedSecretIds: [], goldReward: 10, itemRewards: [] },
+        },
+        {
+          id: 'q_other',
+          title: 'Hidden Unstarted Quest',
+          summary: 'Other',
+          category: 'personal_errand',
+          objectives: [
+            { id: 'o3', description: 'Secret', type: 'discover', isOptional: false, consumeItemOnComplete: false, requiredQuantity: 1 },
+          ],
+          rewards: { trustRewards: [], unlockedSecretIds: [], goldReward: 0, itemRewards: [] },
+        },
+      ],
+    };
+
+    const blocks = buildWorldContextBlocks(
+      { worldBible: denseWorld },
+      {
+        scopeTier: 'regional',
+        locationIds: ['loc_stop_well'],
+        activeQuestIds: ['q_active'],
+        completedQuestObjectives: { q_active: ['o1'] },
+      }
+    );
+
+    assert.equal(blocks.bestiary.length, 4);
+    assert.ok(blocks.bestiary.some((b) => b.includes('Well Crystal Scorpion')));
+    assert.ok(!blocks.bestiary.some((b) => b.includes('Ancestor Mineral')));
+    assert.equal(blocks.quests?.length, 1);
+    assert.ok(blocks.quests![0].includes('[✓] Depart well'));
+    assert.ok(blocks.quests![0].includes('[ ] Reach gate'));
+  });
 });
 

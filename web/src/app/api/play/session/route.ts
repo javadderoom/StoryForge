@@ -19,6 +19,7 @@ import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
 import { GeminiAdapter, normalizeChoices } from '@/lib/providers/GeminiAdapter';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import { refreshZoneThreatClocks, seedAmbientClock } from '@/lib/engines/game/threatClock';
+import { findMentionedNpcs } from '@/lib/engines/world/npcMatching';
 import { WorkingContextEnvelope } from '@/lib/types/memory';
 
 export const dynamic = 'force-dynamic';
@@ -621,25 +622,8 @@ export async function POST(req: NextRequest) {
 
     // Only include NPCs that are known to the player at campaign start
     // (e.g. explicitly introduced in the opening beat prose, or starting companions).
-    // Persian-aware matching: ZWNJ compounds ("ماه‌بانو") stay atomic so the
-    // bare word ("ماه") never matches; Arabic kaf/yeh variants are unified.
-    const normalizeNpcText = (text: string): string =>
-      (text || '')
-        .replace(/[‌‍‎‏­]/g, '')
-        .replace(/ي/g, 'ی')
-        .replace(/ك/g, 'ک')
-        .replace(/[ً-ٰٟ]/g, '')
-        .replace(/[.,،؟!؛:()«»"'`\-_]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .toLowerCase();
-    const proseVariants = (normalizedProse: string): string[] =>
-      normalizedProse.includes('‌')
-        ? [normalizedProse, normalizedProse.replace(/‌/g, ' ')]
-        : [normalizedProse];
-    const normalizedProse = normalizeNpcText(openingBeat.narrativeText || '');
-    const proseForms = proseVariants(normalizedProse);
-    // Plan 15 (Bug 3): starting companions from worldBible NPCs and saga ledger
+    // Persian-aware matching ignores generic titles ("کاروان‌سالار") unless the
+    // NPC's personal name or full name actually appears in the opening beat.
     const startingCompanionIds = Array.from(
       new Set([
         ...(story.saga?.ledger?.npcStatuses ?? [])
@@ -651,26 +635,19 @@ export async function POST(req: NextRequest) {
       ])
     );
 
+    const mentionedInOpening = openingBeat.narrativeText
+      ? findMentionedNpcs(story.worldBible?.npcs || [], [openingBeat.narrativeText])
+      : [];
+    const mentionedIdSet = new Set(mentionedInOpening.map((n) => n.id));
+    const companionIdSet = new Set(startingCompanionIds);
+
     const initialRelationships: Record<string, any> = {};
     for (const npc of story.worldBible?.npcs || []) {
-      const normalizedName = normalizeNpcText(npc.name || '');
-      const normalizedTitle = normalizeNpcText(npc.title || '');
-      // Full name (either ZWNJ spelling), or the whitespace-separated given
-      // name alone (prose often drops the epithet, e.g. "برزو").
-      const nameForms = proseVariants(normalizedName);
-      const firstToken = normalizedName.split(' ').filter((t) => t.length >= 3)[0] || '';
-      const isMentionedInProse = Boolean(
-        openingBeat.narrativeText && (
-          (normalizedName && nameForms.some((f) => normalizedProse.includes(f))) ||
-          (firstToken && proseForms.some((f) => f.split(' ').includes(firstToken))) ||
-          (normalizedTitle && normalizedProse.includes(normalizedTitle))
-        )
-      );
       const isCompanion =
         (npc as any).status === 'companion' ||
         (npc as any).role === 'companion' ||
-        startingCompanionIds.includes(npc.id);
-      if (isMentionedInProse || isCompanion) {
+        companionIdSet.has(npc.id);
+      if (mentionedIdSet.has(npc.id) || isCompanion) {
         initialRelationships[npc.id] = {
           trust: npc.initialTrust ?? 0,
           knownSecrets: [],

@@ -13,6 +13,9 @@ export interface ScopedContextOptions {
   scopeTier?: ScopeTier;
   /** Active chapter sequence number (1-based), used to filter NPCs whose entrance is reserved for future chapters. */
   currentChapterNumber?: number;
+  /** Active player quest IDs and satisfied objective IDs for gameplay prompt visibility. */
+  activeQuestIds?: string[];
+  completedQuestObjectives?: Record<string, string[]>;
   /** Location ids relevant to the active scene(s). */
   locationIds?: string[];
   /** NPC ids present in the active scene(s). */

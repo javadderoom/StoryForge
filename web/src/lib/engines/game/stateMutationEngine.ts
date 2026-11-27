@@ -6,6 +6,7 @@ import { RPGSystemSchema, DEFAULT_PROGRESSION_CONFIG } from '@/lib/types/rpg';
 import { resolveResourceMax, resolveResourceMin, resolveHealthKey, resolveStaminaKey } from './resourcePools';
 import { computeMaxResources, resolveScalingOptions } from './vitalScaling';
 import { applyXpGain } from './progressionEngine';
+import { addToPurse } from './currencyEngine';
 
 /**
  * Applies state mutations cleanly to the PlayerState and returns an immutable updated state.
@@ -42,6 +43,11 @@ export function applyStateMutation(
 
       updated.resources[resourceId] = Math.min(maxVal, Math.max(minVal, current + delta));
     }
+  }
+
+  // 2b. Apply multi-denomination coin purse changes when provided
+  if (diff.purseChanges && Object.keys(diff.purseChanges).length > 0) {
+    updated.purse = addToPurse(updated.purse ?? {}, diff.purseChanges);
   }
 
   // 3. Apply Inventory Additions
@@ -289,10 +295,28 @@ export function applyStateMutation(
         if (!updated.completedQuestIds.includes(update.questId)) {
           updated.completedQuestIds.push(update.questId);
         }
+        if (updated.completedQuestObjectives?.[update.questId]) {
+          delete updated.completedQuestObjectives[update.questId];
+        }
       } else if (update.status === 'failed') {
         updated.activeQuestIds = updated.activeQuestIds.filter((id) => id !== update.questId);
       }
     }
+  }
+
+  // 7c. Persist completed quest objective progress across turns
+  if (diff.completedQuestObjectivesAdded) {
+    if (!updated.completedQuestObjectives) updated.completedQuestObjectives = {};
+    for (const [questId, objIds] of Object.entries(diff.completedQuestObjectivesAdded)) {
+      if (!objIds?.length) continue;
+      const merged = new Set([...(updated.completedQuestObjectives[questId] ?? []), ...objIds]);
+      updated.completedQuestObjectives[questId] = Array.from(merged);
+    }
+  }
+
+  // 7d. Update pending deferred encounter rewards queue
+  if (diff.pendingEncounterRewards !== undefined) {
+    updated.pendingEncounterRewards = diff.pendingEncounterRewards.map((r) => ({ ...r }));
   }
 
   // 8. Apply Abilities Added / Removed

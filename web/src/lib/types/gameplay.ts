@@ -169,8 +169,17 @@ export interface PlayerState {
       notes: string[];
     }
   >;
+  /** Active quests and per-quest satisfied objective IDs persisted across turns */
   activeQuestIds: string[];
   completedQuestIds: string[];
+  completedQuestObjectives?: Record<string, string[]>;
+  /** Pending one-shot encounter rewards granted after the player resolves the triggered beat */
+  pendingEncounterRewards?: Array<{
+    encounterId: string;
+    setFlags?: string[];
+    rewardItemIds?: string[];
+    advanceQuestId?: string;
+  }>;
   currentLocationId: string;
   /** Plan 15 (Pillar 4): active sub-zone / micro-location within currentLocationId. */
   currentSubZoneId?: string;
@@ -249,6 +258,8 @@ export interface StateMutationDiff {
   locationChange?: string;
   relationshipChanges?: Record<string, { trustDelta: number; newSecret?: string }>;
   questUpdates?: { questId: string; status: 'active' | 'completed' | 'failed' }[];
+  completedQuestObjectivesAdded?: Record<string, string[]>;
+  pendingEncounterRewards?: PlayerState['pendingEncounterRewards'];
   npcStatusChanges?: Array<{ npcId: string; status: 'alive' | 'dead' | 'missing' | 'transformed' | 'companion' | 'imprisoned'; note?: string }>;
   /** Plan 13: hazard displacement target (mirrored into locationChange for applyStateMutation). */
   displacedLocationId?: string;

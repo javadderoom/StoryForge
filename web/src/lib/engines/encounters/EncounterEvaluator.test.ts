@@ -1,7 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateCandidateEncounters } from './EncounterEvaluator';
+import {
+  evaluateCandidateEncounters,
+  resolveTurnEncounter,
+  settlePendingEncounterRewards,
+} from './EncounterEvaluator';
 import { StoryEncounter, PlayerState } from '@/lib/types';
+import type { WorldBible } from '@/lib/types/world';
 
 function createMockPlayerState(overrides: Partial<PlayerState> = {}): PlayerState {
   return {
@@ -180,6 +185,102 @@ describe('EncounterEvaluator', () => {
       });
       assert.ok(result);
       assert.equal(result.id, 'enc_serpent_nest');
+    });
+  });
+
+  describe('resolveTurnEncounter & settlePendingEncounterRewards', () => {
+    it('triggers on_enter at an intermediate waypoint during active caravan travel and honors minTensionClock: 2', () => {
+      const waypointEnter: StoryEncounter = {
+        id: 'enc_waypoint_enter',
+        title: 'Waypoint Gate',
+        narrativeText: 'Arrival at rabat cistern.',
+        locationId: 'loc_rabat',
+        locationTags: [],
+        triggerConditions: {
+          triggerType: 'on_enter',
+          weight: 95,
+          repeatable: false,
+          requiredItemIds: [],
+          requiredCompletedEventIds: [],
+          forbiddenEventIds: [],
+        },
+      };
+      const clockEscalation: StoryEncounter = {
+        id: 'enc_dust_squall',
+        title: 'Dust Squall',
+        narrativeText: 'Storm breaks out.',
+        locationId: 'loc_desert',
+        locationTags: [],
+        triggerConditions: {
+          triggerType: 'threat_escalation',
+          weight: 90,
+          minTensionClock: 2,
+          repeatable: false,
+          requiredItemIds: [],
+          requiredCompletedEventIds: [],
+          forbiddenEventIds: [],
+        },
+      };
+      const wb = {
+        locations: [
+          { id: 'loc_origin', name: 'Well', parentLocationId: 'loc_desert' },
+          { id: 'loc_rabat', name: 'Rabat', parentLocationId: 'loc_desert' },
+          { id: 'loc_desert', name: 'Desert' },
+        ],
+        tradeRoutes: [],
+        artifacts: [
+          { id: 'art_tally', name: 'Water Tally', rarity: 'common', nonEquippable: true, description: 'Brass tally.' },
+        ],
+      } as unknown as WorldBible;
+
+      const state = createMockPlayerState({
+        currentLocationId: 'loc_rabat',
+        travel: {
+          originLocationId: 'loc_origin',
+          destinationLocationId: 'loc_dest',
+          waypointIds: ['loc_rabat'],
+          mode: 'caravan',
+          departedTurn: 2,
+          totalTurns: 3,
+        },
+      });
+
+      const enc = resolveTurnEncounter({
+        authoredEncounters: [clockEscalation, waypointEnter],
+        playerState: state,
+        worldBible: wb,
+        preTurnLocationId: 'loc_origin',
+        advanceMovedToId: 'loc_rabat',
+      });
+      assert.equal(enc?.id, 'enc_waypoint_enter');
+
+      const desertState = createMockPlayerState({
+        currentLocationId: 'loc_desert',
+        activeTensionClocks: [{ id: 'clock_desert', name: 'Water', currentSegments: 2, maxSegments: 5, crisisDescription: '' }],
+        travel: {
+          originLocationId: 'loc_origin',
+          destinationLocationId: 'loc_dest',
+          waypointIds: [],
+          mode: 'caravan',
+          departedTurn: 2,
+          totalTurns: 3,
+        },
+      });
+      const squall = resolveTurnEncounter({
+        authoredEncounters: [clockEscalation],
+        playerState: desertState,
+        worldBible: wb,
+        preTurnLocationId: 'loc_desert',
+      });
+      assert.equal(squall?.id, 'enc_dust_squall');
+
+      const pendingState = createMockPlayerState({
+        pendingEncounterRewards: [{ encounterId: 'enc_waypoint_enter', rewardItemIds: ['art_tally'] }],
+      });
+      assert.equal(settlePendingEncounterRewards(pendingState, wb, 'failure'), null);
+      const settled = settlePendingEncounterRewards(pendingState, wb, 'success');
+      assert.ok(settled?.itemsAdded?.some((i) => i.id === 'art_tally'));
+      assert.deepEqual(settled?.pendingEncounterRewards, []);
     });
   });
 });

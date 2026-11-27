@@ -1,4 +1,6 @@
 import { StoryEncounter, PlayerState } from '@/lib/types';
+import type { WorldBible } from '@/lib/types/world';
+import type { CheckResolution, StateMutationDiff } from '@/lib/types/gameplay';
 
 export interface EvaluateEncountersParams {
   encounters?: StoryEncounter[];
@@ -135,3 +137,195 @@ export function evaluateCandidateEncounters(
   eligible.sort((a, b) => (b.triggerConditions.weight ?? 50) - (a.triggerConditions.weight ?? 50));
   return eligible[0];
 }
+
+export interface ResolveTurnEncounterParams {
+  authoredEncounters: StoryEncounter[];
+  playerState: PlayerState;
+  worldBible: WorldBible;
+  preTurnLocationId: string;
+  travelArrived?: boolean;
+  advanceMovedToId?: string;
+  clockUpdate?: CheckResolution['clockUpdate'];
+  locationChange?: string;
+  authoredMoveTargetId?: string;
+}
+
+/**
+ * Evaluates candidate dynamic encounters for the current turn, honoring
+ * intermediate waypoint `on_enter` arrivals during caravan travel as well as
+ * tension clock escalation thresholds (`minTensionClock`).
+ */
+export function resolveTurnEncounter(
+  params: ResolveTurnEncounterParams
+): StoryEncounter | null {
+  const {
+    authoredEncounters,
+    playerState,
+    worldBible,
+    preTurnLocationId,
+    travelArrived,
+    advanceMovedToId,
+    clockUpdate,
+    locationChange,
+    authoredMoveTargetId,
+  } = params;
+
+  if (!authoredEncounters.length) return null;
+
+  const lastCompletedEventId = playerState.completedEncounterIds?.at(-1);
+  const highestActiveClock = Math.max(
+    0,
+    clockUpdate?.newSegments ?? 0,
+    ...(playerState.activeTensionClocks ?? []).map((c) => c.currentSegments || 0)
+  );
+  const clockEscalated = Boolean(clockUpdate?.isCrisis || highestActiveClock >= 2);
+
+  if (playerState.travel) {
+    const enteredWaypointThisTurn = Boolean(
+      advanceMovedToId && (playerState.travel.waypointIds ?? []).includes(advanceMovedToId)
+    );
+    if (enteredWaypointThisTurn) {
+      const stopLoc = worldBible.locations?.find((l) => l.id === playerState.currentLocationId);
+      const stopTags = [stopLoc?.category, stopLoc?.region].filter(Boolean) as string[];
+      const waypointEnter = evaluateCandidateEncounters({
+        encounters: authoredEncounters,
+        playerState,
+        currentLocationId: playerState.currentLocationId,
+        locationTags: stopTags,
+        lastCompletedEventId,
+        triggerContext: 'on_enter',
+      });
+      if (waypointEnter) return waypointEnter;
+    }
+
+    const originLoc = worldBible.locations?.find(
+      (l) => l.id === playerState.travel?.originLocationId
+    );
+    const route = playerState.travel.routeId
+      ? (worldBible.tradeRoutes ?? []).find((r) => r.id === playerState.travel?.routeId)
+      : undefined;
+    const roadLocIds = Array.from(
+      new Set(
+        [
+          playerState.currentLocationId,
+          originLoc?.parentLocationId,
+          ...(route?.intermediateLocationIds ?? []),
+        ].filter((id): id is string => Boolean(id))
+      )
+    );
+    const roadPool = authoredEncounters.filter(
+      (e) => e?.triggerConditions?.triggerType !== 'on_enter'
+    );
+    for (const locId of roadLocIds) {
+      if (clockEscalated) {
+        const escalated = evaluateCandidateEncounters({
+          encounters: roadPool,
+          playerState,
+          currentLocationId: locId,
+          lastCompletedEventId,
+          triggerContext: 'threat_escalation',
+        });
+        if (escalated) return escalated;
+      }
+      const explore = evaluateCandidateEncounters({
+        encounters: roadPool,
+        playerState,
+        currentLocationId: locId,
+        lastCompletedEventId,
+        triggerContext: 'on_explore',
+      });
+      if (explore) return explore;
+    }
+    return null;
+  }
+
+  const enteredNewLocation = Boolean(
+    travelArrived ||
+      locationChange ||
+      authoredMoveTargetId ||
+      playerState.currentLocationId !== preTurnLocationId
+  );
+  const locObj = worldBible.locations?.find((l) => l.id === playerState.currentLocationId);
+  const locTags = [locObj?.category, locObj?.region].filter(Boolean) as string[];
+
+  if (enteredNewLocation) {
+    const enterEnc = evaluateCandidateEncounters({
+      encounters: authoredEncounters,
+      playerState,
+      currentLocationId: playerState.currentLocationId,
+      locationTags: locTags,
+      lastCompletedEventId,
+      triggerContext: 'on_enter',
+    });
+    if (enterEnc) return enterEnc;
+  }
+  if (clockEscalated) {
+    const escalated = evaluateCandidateEncounters({
+      encounters: authoredEncounters,
+      playerState,
+      currentLocationId: playerState.currentLocationId,
+      locationTags: locTags,
+      lastCompletedEventId,
+      triggerContext: 'threat_escalation',
+    });
+    if (escalated) return escalated;
+  }
+  if (!enteredNewLocation) {
+    return evaluateCandidateEncounters({
+      encounters: authoredEncounters,
+      playerState,
+      currentLocationId: playerState.currentLocationId,
+      locationTags: locTags,
+      lastCompletedEventId,
+      triggerContext: 'on_explore',
+    });
+  }
+  return null;
+}
+
+/**
+ * Grants pending encounter rewards after the player engages and resolves
+ * the prior turn's encounter without catastrophic failure.
+ */
+export function settlePendingEncounterRewards(
+  playerState: PlayerState,
+  worldBible: WorldBible,
+  outcome: CheckResolution['outcome']
+): StateMutationDiff | null {
+  const pending = playerState.pendingEncounterRewards ?? [];
+  if (pending.length === 0) return null;
+  if (outcome === 'failure' || outcome === 'critical_failure') return null;
+
+  const itemsAdded: NonNullable<StateMutationDiff['itemsAdded']> = [];
+  const questUpdates: NonNullable<StateMutationDiff['questUpdates']> = [];
+
+  for (const reward of pending) {
+    for (const itemId of reward.rewardItemIds ?? []) {
+      const art = (worldBible.artifacts ?? []).find((a) => a.id === itemId);
+      if (!art) continue;
+      itemsAdded.push({
+        id: art.id,
+        name: art.name,
+        type: art.nonEquippable ? 'quest_item' : 'relic',
+        description: art.description || art.title || '',
+        quantity: 1,
+        nonEquippable: art.nonEquippable,
+        startsQuestId: art.startsQuestId,
+      });
+    }
+    if (
+      reward.advanceQuestId &&
+      !(playerState.activeQuestIds ?? []).includes(reward.advanceQuestId) &&
+      !(playerState.completedQuestIds ?? []).includes(reward.advanceQuestId)
+    ) {
+      questUpdates.push({ questId: reward.advanceQuestId, status: 'active' });
+    }
+  }
+
+  return {
+    pendingEncounterRewards: [],
+    ...(itemsAdded.length > 0 ? { itemsAdded } : {}),
+    ...(questUpdates.length > 0 ? { questUpdates } : {}),
+  };
+}
+

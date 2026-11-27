@@ -92,7 +92,11 @@ import {
 import { applyStateMutation } from './stateMutationEngine';
 import { attemptPowerBreakthrough } from './powerEngine';
 import { deriveLedgerPatch, mergeLedgerPatch } from './ledgerEngine';
-import { evaluateCandidateEncounters } from '@/lib/engines/encounters/EncounterEvaluator';
+import {
+  evaluateCandidateEncounters,
+  resolveTurnEncounter,
+  settlePendingEncounterRewards,
+} from '@/lib/engines/encounters/EncounterEvaluator';
 
 export class GameEngine {
   // Action Check & Dice mechanics
@@ -177,4 +181,6 @@ export class GameEngine {
 
   // Dynamic World Encounters
   public static evaluateCandidateEncounters = evaluateCandidateEncounters;
+  public static resolveTurnEncounter = resolveTurnEncounter;
+  public static settlePendingEncounterRewards = settlePendingEncounterRewards;
 }

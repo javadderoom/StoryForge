@@ -137,7 +137,9 @@ export function isObjectiveSatisfied(
 }
 
 /**
- * Evaluates active quests and returns any quests whose non-optional objectives are all satisfied.
+ * Evaluates active quests and returns:
+ * - `readyToComplete`: quests whose non-optional objectives are all satisfied (either right now or persisted in `completedQuestObjectives`).
+ * - `newlySatisfiedObjectives`: map of questId -> objectiveIds satisfied on this turn that were not yet recorded.
  */
 export function evaluateActiveQuests(
   playerState: PlayerState,
@@ -147,25 +149,43 @@ export function evaluateActiveQuests(
     actionText?: string;
     outcome?: DiceOutcome;
   }
-): { readyToComplete: WorldQuest[] } {
+): {
+  readyToComplete: WorldQuest[];
+  newlySatisfiedObjectives: Record<string, string[]>;
+} {
   const quests = worldBible.quests ?? [];
   const activeIds = new Set(playerState.activeQuestIds ?? []);
   const readyToComplete: WorldQuest[] = [];
+  const newlySatisfiedObjectives: Record<string, string[]> = {};
+  const priorProgress = playerState.completedQuestObjectives ?? {};
 
   for (const quest of quests) {
     if (!activeIds.has(quest.id)) continue;
 
+    const alreadyDone = new Set(priorProgress[quest.id] ?? []);
+    const newlyDone: string[] = [];
+
+    for (const obj of quest.objectives) {
+      if (alreadyDone.has(obj.id)) continue;
+      if (isObjectiveSatisfied(obj, playerState, context)) {
+        alreadyDone.add(obj.id);
+        newlyDone.push(obj.id);
+      }
+    }
+
+    if (newlyDone.length > 0) {
+      newlySatisfiedObjectives[quest.id] = newlyDone;
+    }
+
     const nonOptionalObjectives = quest.objectives.filter((o) => !o.isOptional);
-    const allMet = nonOptionalObjectives.every((obj) =>
-      isObjectiveSatisfied(obj, playerState, context)
-    );
+    const allMet = nonOptionalObjectives.every((obj) => alreadyDone.has(obj.id));
 
     if (allMet && nonOptionalObjectives.length > 0) {
       readyToComplete.push(quest);
     }
   }
 
-  return { readyToComplete };
+  return { readyToComplete, newlySatisfiedObjectives };
 }
 
 /**
@@ -214,9 +234,15 @@ export function completeQuest(
     };
   }
 
-  // 3. Grant Gold Reward
+  // 3. Grant Gold/Currency Reward (resource pool when defined; also coin purse when multi-denomination purse is active)
   if (quest.rewards?.goldReward && quest.rewards.goldReward > 0) {
     diff.resourceChanges!['gold'] = (diff.resourceChanges!['gold'] || 0) + quest.rewards.goldReward;
+    if (playerState.resources?.['gold'] === undefined && playerState.purse !== undefined) {
+      diff.purseChanges = {
+        ...(diff.purseChanges ?? {}),
+        silver: (diff.purseChanges?.silver ?? 0) + quest.rewards.goldReward,
+      };
+    }
   }
 
   // 4. Grant Item Rewards
