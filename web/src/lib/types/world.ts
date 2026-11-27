@@ -1344,6 +1344,7 @@ export const WorldArtifactSchema = z.object({
   vaultLore: ArtifactVaultLoreSchema.optional(),
   startsQuestId: z.string().optional(),
   nonEquippable: z.boolean().optional(),
+  imageUrl: z.string().optional(),
 });
 
 
