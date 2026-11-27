@@ -4,6 +4,7 @@ import {
   WorldMapData,
   CustomPlaceCategory,
   MapEntityPlacement,
+  StoryEncounter,
 } from '@/lib/types';
 import { isObjectLocked, isObjectVisible } from '@/lib/engines/world/mapObjectOrder';
 import { routeDifficultyLabel, routeKindLabel } from '@/lib/engines/world/mapRoutes';
@@ -13,6 +14,7 @@ import { ElementCategoryKey, ItemWrapper } from './types';
 interface UseCategorizedElementsOptions {
   worldBible: WorldBible;
   mapData: WorldMapData;
+  encounters?: StoryEncounter[];
   placeCategories?: CustomPlaceCategory[];
   isPersian: boolean;
   searchQuery: string;
@@ -21,6 +23,7 @@ interface UseCategorizedElementsOptions {
 export function useCategorizedElements({
   worldBible,
   mapData,
+  encounters = [],
   placeCategories,
   isPersian,
   searchQuery,
@@ -260,7 +263,22 @@ export function useCategorizedElements({
         if (!label) label = event?.title || (isPersian ? 'رویداد تاریخی' : 'Historical Event');
         subtitle = event?.yearOrEra ? `${event.yearOrEra}` : (isPersian ? 'وقایع‌نگاری' : 'Chronicle');
       } else if (p.entityType === 'deity') {
-        label = worldBible.religions?.find((r) => r.id === p.entityId)?.name || (isPersian ? 'زیارتگاه / ایزد' : 'Deity / Shrine');
+        if (!label) label = worldBible.religions?.find((r) => r.id === p.entityId)?.name || (isPersian ? 'زیارتگاه / ایزد' : 'Deity / Shrine');
+        subtitle = isPersian ? 'زیارتگاه / ایزد' : 'Deity / Shrine';
+      } else if (p.entityType === 'encounter') {
+        const enc = encounters.find((e) => e.id === p.entityId);
+        if (!label) label = enc?.title || (isPersian ? 'رویارویی پویا' : 'Encounter');
+        subtitle = enc?.triggerConditions?.triggerType
+          ? `${isPersian ? 'رویارویی' : 'Encounter'} · ${enc.triggerConditions.triggerType}`
+          : isPersian ? 'رویارویی پویا' : 'Dynamic Encounter';
+      } else if (p.entityType === 'quest') {
+        const quest = worldBible.quests?.find((q) => q.id === p.entityId);
+        if (!label) label = quest?.title || (isPersian ? 'مأموریت' : 'Quest');
+        subtitle = quest?.category || (isPersian ? 'مأموریت داستانی' : 'Quest');
+      } else if (p.entityType === 'faction_outpost') {
+        const fac = worldBible.factions?.find((f) => f.id === p.entityId);
+        if (!label) label = fac?.name || (isPersian ? 'پایگاه جناح' : 'Faction Outpost');
+        subtitle = fac?.alignment || (isPersian ? 'جناح' : 'Faction');
       } else if (!label) {
         label = p.entityType;
       }
@@ -277,7 +295,7 @@ export function useCategorizedElements({
     }
 
     return result;
-  }, [mapData.terrainFeatures, mapData.placements, mapData.routes, worldBible, placeCategories, isPersian]);
+  }, [mapData.terrainFeatures, mapData.placements, mapData.routes, worldBible, encounters, placeCategories, isPersian]);
 
   // Total element count across all categories
   const totalCount = useMemo(() => {

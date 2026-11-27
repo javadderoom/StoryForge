@@ -7,7 +7,11 @@ import {
   WorldMapData,
   WorldMapSettings,
   MapEntityPlacement,
+  StoryEncounter,
+  WorldQuest,
+  Faction,
 } from '@/lib/types';
+import { syncWorldEntitiesToMap } from '@/lib/engines/world/syncMapPlacements';
 import {
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
@@ -67,6 +71,9 @@ export default function CartographerPage() {
     addArtifact,
     editArtifact,
     deleteArtifact,
+    editFaction,
+    editQuest,
+    updateEncounters,
   } = useStudioStory();
 
   // Active tool and floating panel state.
@@ -356,6 +363,48 @@ export default function CartographerPage() {
     notify.success(isPersian ? 'شخصیت در این شهر مستقر شد' : 'NPC stationed at location');
   };
 
+  // Update Encounter, Quest, Faction from Inspector Dossiers
+  const handleUpdateEncounter = (id: string, updated: Partial<StoryEncounter>) => {
+    updateEncounters((prev) =>
+      prev.map((enc) => (enc.id === id ? { ...enc, ...updated } : enc))
+    );
+  };
+
+  const handleUpdateQuest = (id: string, updated: Partial<WorldQuest>) => {
+    editQuest(id, updated);
+  };
+
+  const handleUpdateFaction = (id: string, updated: Partial<Faction>) => {
+    editFaction(id, updated);
+  };
+
+  // 1-click Sync unplaced WorldBible entities & encounters onto non-overlapping pins
+  const handleSyncEntitiesToMap = () => {
+    const result = syncWorldEntitiesToMap({
+      worldBible: story.worldBible,
+      encounters: story.encounters ?? [],
+    });
+    if (result.added.length === 0) {
+      notify.info(
+        isPersian
+          ? 'همهٔ عناصر دارای مکانِ معتبر پیش‌تر روی نقشه سنجاق شده‌اند.'
+          : 'All anchored entities are already pinned on the map.'
+      );
+      return;
+    }
+    commit(isPersian ? 'همگام‌سازی عناصر با نقشه' : 'Sync entities to map', () => {
+      updateMapData((prev) => ({
+        ...(prev || mapData),
+        placements: result.nextPlacements,
+      }));
+    });
+    notify.success(
+      isPersian
+        ? `${result.added.length} عنصر جدید بدون تداخل روی نقشه استقرار یافت.`
+        : `Placed ${result.added.length} new entities on the map.`
+    );
+  };
+
   // Select Entity from Palette for Placement
   const handleSelectEntityForPlacement = (type: string, id: string) => {
     if (type === 'location') {
@@ -422,6 +471,7 @@ export default function CartographerPage() {
         onSave={saveToServer}
         onOpenAiOracle={() => setIsAiOracleOpen(true)}
         onAutoFit={handleAutoFit}
+        onSyncEntities={handleSyncEntitiesToMap}
         canUndoAutoFit={!!autoFitSnapshot && autoFitSnapshot.length > 0}
         onUndoAutoFit={handleUndoAutoFit}
         canUndo={history.past.length > 0}
@@ -466,6 +516,7 @@ export default function CartographerPage() {
         {/* Hardware-Accelerated PixiJS WebGL Canvas */}
         <PixiCartographerCanvas
           worldBible={story.worldBible}
+          encounters={story.encounters || []}
           settings={mapSettings}
           activeTool={activeTool}
           selection={selection}
@@ -542,6 +593,7 @@ export default function CartographerPage() {
           <CartographerElementsPanel
             worldBible={story.worldBible}
             mapData={mapData}
+            encounters={story.encounters || []}
             onClose={() => setIsElementsPanelOpen(false)}
             isPersian={isPersian}
             onSelectMapObject={handleSelectMapObject}
@@ -572,6 +624,7 @@ export default function CartographerPage() {
         {isPaletteOpen && (
           <CartographerEntityPalette
             worldBible={story.worldBible}
+            encounters={story.encounters || []}
             onSelectEntityForPlacement={handleSelectEntityForPlacement}
             onClose={() => setIsPaletteOpen(false)}
             isPersian={isPersian}
@@ -636,6 +689,8 @@ export default function CartographerPage() {
             artifacts={story.worldBible.artifacts || []}
             timeline={story.worldBible.timeline || []}
             religions={story.worldBible.religions || []}
+            encounters={story.encounters || []}
+            quests={story.worldBible.quests || []}
             onUpdateCreature={handleUpdateCreature}
             onDeleteCreature={handleDeleteCreature}
             onUpdateArtifact={handleUpdateArtifact}
@@ -644,6 +699,9 @@ export default function CartographerPage() {
             onDeleteTimelineEvent={handleDeleteTimelineEvent}
             onUpdateNpc={handleUpdateNpc}
             onDeleteNpc={handleDeleteNpc}
+            onUpdateEncounter={handleUpdateEncounter}
+            onUpdateQuest={handleUpdateQuest}
+            onUpdateFaction={handleUpdateFaction}
             onStationNpc={handleStationNpc}
             onAddTerrain={handleAddTerrain}
             onSelectFeature={(id) => setSelection([{ kind: 'terrain', id }])}

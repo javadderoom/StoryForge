@@ -15,6 +15,7 @@ import type {
   MapEntityPlacementType,
   MapTerrainFeature,
   StoryBeat,
+  StoryEncounter,
   WorldBible,
   WorldLocation,
   WorldMapData,
@@ -43,6 +44,8 @@ export interface MapSemanticAuditOptions {
   mapData?: WorldMapData | null;
   /** The story's beats, including initialStoryBeats and chapter scenes. */
   beats?: StoryBeat[];
+  /** Optional story-level dynamic encounters for validating `encounter` pins. */
+  encounters?: StoryEncounter[];
 }
 
 const normalizeName = (name: string): string =>
@@ -88,7 +91,7 @@ export function auditMapSemantics(
   );
   const issues: MapSemanticIssue[] = [];
 
-  const entityIdsByType: Record<MapEntityPlacementType, Set<string>> = {
+  const entityIdsByType: Record<MapEntityPlacementType, Set<string> | null> = {
     location: locationIds,
     npc: new Set((worldBible.npcs ?? []).map((npc) => npc.id)),
     bestiary: new Set((worldBible.bestiary ?? []).map((creature) => creature.id)),
@@ -96,6 +99,9 @@ export function auditMapSemantics(
     deity: new Set((worldBible.religions ?? []).map((deity) => deity.id)),
     timeline: new Set((worldBible.timeline ?? []).map((event) => event.id)),
     faction_outpost: new Set((worldBible.factions ?? []).map((faction) => faction.id)),
+    quest: new Set((worldBible.quests ?? []).map((quest) => quest.id)),
+    // Encounters live on StoryManifest, so only audit them when callers supply options.encounters.
+    encounter: options.encounters ? new Set(options.encounters.map((enc) => enc.id)) : null,
   };
 
   for (const location of locations) {

@@ -12,11 +12,15 @@ import {
   X,
   Search,
   Layers,
+  Zap,
+  ScrollText,
+  Flag,
 } from 'lucide-react';
 import {
   WorldBible,
   WorldMapData,
   MapEntityPlacement,
+  StoryEncounter,
 } from '@/lib/types';
 import { SelectedMapItem } from './CartographerInspector';
 import { getMapSemanticReconciliation } from '@/lib/engines/world/mapSemantics';
@@ -25,6 +29,7 @@ import { ManifestEntitiesTab, ManifestTabKey } from './palette/ManifestEntitiesT
 
 interface CartographerEntityPaletteProps {
   worldBible: WorldBible;
+  encounters?: StoryEncounter[];
   onSelectEntityForPlacement: (type: string, id: string) => void;
   onClose: () => void;
   isPersian: boolean;
@@ -51,6 +56,7 @@ type PaletteTab = 'objects' | ManifestTabKey;
 
 export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps> = ({
   worldBible,
+  encounters = [],
   onSelectEntityForPlacement,
   onClose,
   isPersian,
@@ -80,6 +86,8 @@ export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps>
   const artifacts = worldBible.artifacts || [];
   const deities = worldBible.religions || [];
   const timeline = worldBible.timeline || [];
+  const quests = worldBible.quests || [];
+  const factions = worldBible.factions || [];
   const terrainFeatures = mapData?.terrainFeatures || [];
   const placements = mapData?.placements || [];
   const reconciliation = getMapSemanticReconciliation(worldBible, mapData);
@@ -94,6 +102,9 @@ export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps>
     { id: 'locations' as const, label: { en: 'Locations', fa: 'مکان‌ها' }, icon: MapPin, count: locations.length },
     { id: 'npcs' as const, label: { en: 'NPCs', fa: 'شخصیت‌ها' }, icon: User, count: npcs.length },
     { id: 'bestiary' as const, label: { en: 'Bestiary', fa: 'جانوران' }, icon: Skull, count: creatures.length },
+    { id: 'encounters' as const, label: { en: 'Encounters', fa: 'رویارویی‌ها' }, icon: Zap, count: encounters.length },
+    { id: 'quests' as const, label: { en: 'Quests', fa: 'مأموریت‌ها' }, icon: ScrollText, count: quests.length },
+    { id: 'factions' as const, label: { en: 'Factions', fa: 'جناح‌ها' }, icon: Flag, count: factions.length },
     { id: 'artifacts' as const, label: { en: 'Relics', fa: 'عتیقه‌ها' }, icon: Sparkles, count: artifacts.length },
     { id: 'religions' as const, label: { en: 'Deities', fa: 'ایزدان' }, icon: Sun, count: deities.length },
     { id: 'timeline' as const, label: { en: 'Timeline', fa: 'رویدادها' }, icon: History, count: timeline.length },
@@ -115,6 +126,12 @@ export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps>
         return deities.find((d) => d.id === pin.entityId)?.name || pin.entityId;
       case 'timeline':
         return timeline.find((t) => t.id === pin.entityId)?.title || pin.entityId;
+      case 'encounter':
+        return encounters.find((e) => e.id === pin.entityId)?.title || pin.entityId;
+      case 'quest':
+        return quests.find((q) => q.id === pin.entityId)?.title || pin.entityId;
+      case 'faction_outpost':
+        return factions.find((f) => f.id === pin.entityId)?.name || pin.entityId;
       case 'location':
         return locations.find((l) => l.id === pin.entityId)?.name || pin.entityId;
       default:
@@ -227,6 +244,9 @@ export const CartographerEntityPalette: React.FC<CartographerEntityPaletteProps>
             artifacts={artifacts}
             deities={deities}
             timeline={timeline}
+            encounters={encounters}
+            quests={quests}
+            factions={factions}
             placeCategories={placeCategories}
             isPersian={isPersian}
             filterQuery={filterQuery}

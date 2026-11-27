@@ -21,6 +21,9 @@ import {
   History,
   Ruler,
   Plus,
+  Zap,
+  ScrollText,
+  Flag,
 } from 'lucide-react';
 import { CartographerTool } from './CartographerHeader';
 
@@ -203,6 +206,27 @@ export const CartographerToolbar: React.FC<CartographerToolbarProps> = ({
           tooltip: { en: 'Pin historic battlefield or cataclysm site', fa: 'ثبت میدان نبرد تاریخی یا نقطه فاجعه' },
           icon: History,
           accentClass: 'hover:text-red-400',
+        },
+        {
+          id: 'place_encounter',
+          name: { en: 'Dynamic Encounter', fa: 'رویارویی پویا' },
+          tooltip: { en: 'Pin an active story encounter or ambush trigger', fa: 'ثبت رویارویی پویا، کمین یا رخداد جاده‌ای' },
+          icon: Zap,
+          accentClass: 'hover:text-orange-400',
+        },
+        {
+          id: 'place_quest',
+          name: { en: 'Quest Marker', fa: 'مأموریت (Quest)' },
+          tooltip: { en: 'Pin a quest start or milestone on the map', fa: 'نشانه‌گذاری مأموریت داستانی روی نقشه' },
+          icon: ScrollText,
+          accentClass: 'hover:text-emerald-400',
+        },
+        {
+          id: 'place_faction',
+          name: { en: 'Faction Outpost', fa: 'پایگاه جناح' },
+          tooltip: { en: 'Pin a faction headquarters or outpost', fa: 'ثبت پایگاه، قلمرو یا مقر جناح روی نقشه' },
+          icon: Flag,
+          accentClass: 'hover:text-rose-400',
         },
       ],
     },

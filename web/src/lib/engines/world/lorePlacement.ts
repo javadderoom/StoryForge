@@ -16,13 +16,14 @@ import type {
   MapEntityPlacement,
   MapEntityPlacementType,
   MapPoint,
+  StoryEncounter,
   WorldBible,
 } from '@/lib/types';
 
 /** The pin kinds the lore tools can stamp. */
 export type LorePinKind = Extract<
   MapEntityPlacementType,
-  'npc' | 'bestiary' | 'artifact' | 'deity' | 'timeline'
+  'npc' | 'bestiary' | 'artifact' | 'deity' | 'timeline' | 'encounter' | 'quest' | 'faction_outpost'
 >;
 
 /** Toolbar tool id -> the kind of entity it places. */
@@ -32,6 +33,9 @@ export const LORE_TOOL_KINDS: Record<string, LorePinKind> = {
   place_relic: 'artifact',
   place_deity: 'deity',
   place_timeline: 'timeline',
+  place_encounter: 'encounter',
+  place_quest: 'quest',
+  place_faction: 'faction_outpost',
 };
 
 /** Returns the pin kind for a toolbar tool, or null when the tool is not a lore tool. */
@@ -55,6 +59,9 @@ const KIND_LABELS: Record<LorePinKind, { en: string; fa: string }> = {
   artifact: { en: 'Relic', fa: 'عتیقه' },
   deity: { en: 'Deity', fa: 'ایزد' },
   timeline: { en: 'Event', fa: 'رویداد' },
+  encounter: { en: 'Encounter', fa: 'رویارویی' },
+  quest: { en: 'Quest', fa: 'مأموریت' },
+  faction_outpost: { en: 'Faction', fa: 'جناح' },
 };
 
 export function loreKindLabel(kind: LorePinKind, isPersian: boolean): string {
@@ -80,7 +87,8 @@ export function listLoreCandidates(
   worldBible: WorldBible | null | undefined,
   kind: LorePinKind,
   placements: MapEntityPlacement[] = [],
-  isPersian = false
+  isPersian = false,
+  encounters: StoryEncounter[] = []
 ): LorePinCandidate[] {
   if (!worldBible) return [];
   const pinnedIds = new Set(
@@ -133,6 +141,32 @@ export function listLoreCandidates(
         name: event.title,
         subtitle: [event.yearOrEra, event.eraCategory].filter(Boolean).join(' · '),
         pinned: pinnedIds.has(event.id),
+      }));
+
+    case 'encounter':
+      return encounters.map((enc) => ({
+        id: enc.id,
+        name: enc.title,
+        subtitle: [enc.triggerConditions?.triggerType, enc.locationId].filter(Boolean).join(' · '),
+        pinned: pinnedIds.has(enc.id),
+      }));
+
+    case 'quest':
+      return (worldBible.quests ?? []).map((quest) => ({
+        id: quest.id,
+        name: quest.title,
+        subtitle: [quest.category, `${quest.objectives?.length ?? 0} ${isPersian ? 'هدف' : 'obj'}`]
+          .filter(Boolean)
+          .join(' · '),
+        pinned: pinnedIds.has(quest.id),
+      }));
+
+    case 'faction_outpost':
+      return (worldBible.factions ?? []).map((faction) => ({
+        id: faction.id,
+        name: faction.name,
+        subtitle: faction.alignment || '',
+        pinned: pinnedIds.has(faction.id),
       }));
 
     default:

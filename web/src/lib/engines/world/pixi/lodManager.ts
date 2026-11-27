@@ -67,10 +67,17 @@ export function getSettlementLODTier(category?: string | null): LODTier {
 }
 
 /**
- * Classifies placed lore pins (bestiary, NPC, artifact, timeline, deity) into their LOD tier.
- * Placed lore pins are visible starting at Tier 3 (Provincial).
+ * Classifies placed lore pins into their LOD tier to keep zoomed-out views
+ * ultra-lightweight and free of overlapping pin soup:
+ * - Tier 3 (Provincial, zoom >= 1.0): macro / road pins (encounter, quest, faction_outpost, bestiary, timeline)
+ * - Tier 4 (Tactical, zoom >= 1.75): dense interior pins (npc, artifact, deity)
  */
-export function getPlacementLODTier(_entityType?: string | null): LODTier {
+export function getPlacementLODTier(entityType?: string | null): LODTier {
+  if (!entityType) return 3;
+  const normalized = entityType.toLowerCase().trim();
+  if (normalized === 'npc' || normalized === 'artifact' || normalized === 'deity') {
+    return 4;
+  }
   return 3;
 }
 
@@ -138,7 +145,8 @@ export function isCandidateVisibleAtLOD(
       return activeTier >= tier;
     }
     case 'placement': {
-      return activeTier >= 3;
+      const tier = getPlacementLODTier(candidate.placement.entityType);
+      return activeTier >= tier;
     }
     case 'route': {
       const tier = getRouteLODTier(candidate.route.kind);

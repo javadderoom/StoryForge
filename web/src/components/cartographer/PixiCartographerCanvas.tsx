@@ -11,6 +11,7 @@ import {
   MapPoint,
   MapRoute,
   MapGroup,
+  StoryEncounter,
 } from '@/lib/types';
 import { CartographerTool } from './CartographerHeader';
 import type { MapObjectRef } from '@/lib/engines/world/mapSelection';
@@ -53,6 +54,7 @@ import { getFamilyById } from '@/lib/engines/world/pixi/symbolPalette';
 
 interface PixiCartographerCanvasProps {
   worldBible: WorldBible;
+  encounters?: StoryEncounter[];
   settings: WorldMapSettings;
   activeTool: CartographerTool;
   /** Plan 23: every selected object, not only the one in the Inspector. */
@@ -96,6 +98,7 @@ const draftWindow = (): DraftWindow => window as DraftWindow;
 
 export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
   worldBible,
+  encounters,
   settings,
   activeTool,
   selection,
@@ -1085,6 +1088,7 @@ export const PixiCartographerCanvas: React.FC<PixiCartographerCanvasProps> = ({
           clientX={loreDraft.clientX}
           clientY={loreDraft.clientY}
           worldBible={worldBible}
+          encounters={encounters}
           placements={placements}
           isPersian={isPersian}
           onPlace={handlePlaceLore}

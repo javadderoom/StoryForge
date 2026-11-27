@@ -14,6 +14,8 @@ import type {
   TradeRouteStatus,
   Faction,
   CustomPlaceCategory,
+  StoryEncounter,
+  WorldQuest,
 } from '@/lib/types';
 
 export type SingleSelectedMapItem =
@@ -68,6 +70,8 @@ export interface CartographerInspectorProps {
   timeline?: TimelineEvent[];
   /** Deity pins (Shrine tool) resolve their dossier from here. */
   religions?: WorldDeity[];
+  encounters?: StoryEncounter[];
+  quests?: WorldQuest[];
   groups?: MapGroup[];
   onUpdateGroup?: (id: string, updated: Partial<MapGroup>) => void;
   onSetGroupLocation?: (groupId: string, locationId: string | undefined) => void;
@@ -83,6 +87,9 @@ export interface CartographerInspectorProps {
   onDeleteTimelineEvent?: (id: string) => void;
   onUpdateNpc?: (id: string, updated: Partial<NPCDossier>) => void;
   onDeleteNpc?: (id: string) => void;
+  onUpdateEncounter?: (id: string, updated: Partial<StoryEncounter>) => void;
+  onUpdateQuest?: (id: string, updated: Partial<WorldQuest>) => void;
+  onUpdateFaction?: (id: string, updated: Partial<Faction>) => void;
   onStationNpc: (npcId: string, locationId: string) => void;
   onAddTerrain?: (feature: MapTerrainFeature) => void;
   onSelectFeature?: (id: string) => void;

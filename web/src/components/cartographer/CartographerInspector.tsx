@@ -13,6 +13,9 @@ import {
   Swords,
   Layers,
   Folder,
+  Zap,
+  ScrollText,
+  Flag,
 } from 'lucide-react';
 import {
   type SelectedMapItem,
@@ -59,6 +62,8 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
   artifacts,
   timeline,
   religions,
+  encounters,
+  quests,
   onUpdateCreature,
   onDeleteCreature,
   onUpdateArtifact,
@@ -67,6 +72,9 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
   onDeleteTimelineEvent,
   onUpdateNpc,
   onDeleteNpc,
+  onUpdateEncounter,
+  onUpdateQuest,
+  onUpdateFaction,
   isPersian,
   onAddTerrain,
   onSelectFeature,
@@ -106,6 +114,9 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
             if (pin.entityType === 'npc') return <Shield className="w-4 h-4 text-sky-400" />;
             if (pin.entityType === 'artifact') return <Sparkles className="w-4 h-4 text-amber-400" />;
             if (pin.entityType === 'timeline') return <Swords className="w-4 h-4 text-purple-400" />;
+            if (pin.entityType === 'encounter') return <Zap className="w-4 h-4 text-orange-400" />;
+            if (pin.entityType === 'quest') return <ScrollText className="w-4 h-4 text-emerald-400" />;
+            if (pin.entityType === 'faction_outpost') return <Flag className="w-4 h-4 text-red-400" />;
             return <MapPin className="w-4 h-4 text-purple-400" />;
           })()}
           <span className="truncate">
@@ -129,6 +140,9 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
               if (pin.entityType === 'npc') return isPersian ? 'پرونده شخصیت (NPC)' : 'NPC Dossier';
               if (pin.entityType === 'artifact') return isPersian ? 'شناسنامه عتیقه و اثر باستانی' : 'Relic & Artifact Dossier';
               if (pin.entityType === 'timeline') return isPersian ? 'وقایع‌نگاری رویداد تاریخی' : 'Historical Chronicle';
+              if (pin.entityType === 'encounter') return isPersian ? 'رویارویی پویا (Encounter)' : 'Dynamic Encounter';
+              if (pin.entityType === 'quest') return isPersian ? 'پرونده مأموریت (Quest)' : 'Quest Dossier';
+              if (pin.entityType === 'faction_outpost') return isPersian ? 'پایگاه و پرونده جناح' : 'Faction Dossier';
               return isPersian ? 'نقطه سنجاق‌شده' : 'Pinned Entity';
             })()}
           </span>
@@ -146,6 +160,8 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
         <LocationInspector
           loc={selectedItem.data}
           npcs={npcs}
+          encounters={encounters}
+          quests={quests}
           placeCategories={placeCategories}
           terrainFeatures={terrainFeatures}
           isPersian={isPersian}
@@ -235,16 +251,23 @@ export const CartographerInspector: React.FC<CartographerInspectorProps> = ({
         <PlacementInspector
           pin={selectedItem.data}
           npcs={npcs}
+          locations={locations}
+          factions={factions}
           bestiary={bestiary}
           artifacts={artifacts}
           timeline={timeline}
           religions={religions}
+          encounters={encounters}
+          quests={quests}
           isPersian={isPersian}
           onUpdateCreature={onUpdateCreature}
           onDeleteCreature={onDeleteCreature}
           onUpdateArtifact={onUpdateArtifact}
           onUpdateTimelineEvent={onUpdateTimelineEvent}
           onUpdateNpc={onUpdateNpc}
+          onUpdateEncounter={onUpdateEncounter}
+          onUpdateQuest={onUpdateQuest}
+          onUpdateFaction={onUpdateFaction}
           onDeletePlacement={onDeletePlacement}
           onTogglePlacementVisibility={onTogglePlacementVisibility}
           onTogglePlacementLock={onTogglePlacementLock}

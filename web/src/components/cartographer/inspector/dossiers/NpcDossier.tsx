@@ -50,6 +50,26 @@ export const NpcDossier: React.FC<NpcDossierProps> = ({
           <div className="text-[11px] text-zinc-400 truncate">
             {npc.title || (isPersian ? 'شخصیت داستانی' : 'Story NPC')}
           </div>
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            <span
+              className={`px-1.5 py-0.5 rounded-md text-[9.5px] border ${
+                npc.kind === 'template'
+                  ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
+                  : 'bg-sky-500/15 text-sky-300 border-sky-500/30'
+              }`}
+            >
+              {npc.kind === 'template'
+                ? isPersian
+                  ? '👥 گروه / تیپ'
+                  : '👥 Group Template'
+                : isPersian
+                ? '👤 شخصیت نام‌دار'
+                : '👤 Named Individual'}
+            </span>
+            <span dir="ltr" className="px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-300 text-[9.5px] font-mono">
+              CR {npc.statCalibration?.challengeRating ?? 1}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -108,6 +128,30 @@ export const NpcDossier: React.FC<NpcDossierProps> = ({
           </label>
           <div className="p-2 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl text-xs leading-relaxed">
             {npc.speechStyle}
+          </div>
+        </div>
+      )}
+
+      {npc.secrets && npc.secrets.length > 0 && (
+        <div>
+          <label className="text-[11px] text-amber-300/90 mb-1 block font-medium">
+            {isPersian ? `رازهای پنهان (${npc.secrets.length})` : `Hidden Secrets (${npc.secrets.length})`}
+          </label>
+          <div className="space-y-1.5">
+            {npc.secrets.map((sec, idx) => (
+              <div
+                key={sec.id || idx}
+                className="p-2 bg-amber-950/20 border border-amber-500/25 rounded-xl text-[11px] text-zinc-300 leading-relaxed"
+              >
+                <div>{sec.description}</div>
+                {sec.revealMethods && sec.revealMethods.length > 0 && (
+                  <div className="text-[10px] text-amber-300/75 mt-1">
+                    {isPersian ? 'روش افشا: ' : 'Reveal: '}
+                    {sec.revealMethods.map((m) => m.detail || m.kind).join(' · ')}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}

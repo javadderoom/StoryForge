@@ -925,7 +925,9 @@ export type MapEntityPlacementType =
   | 'artifact'
   | 'deity'
   | 'timeline'
-  | 'faction_outpost';
+  | 'faction_outpost'
+  | 'encounter'
+  | 'quest';
 
 export interface MapEntityPlacement {
   id: string;
@@ -1089,6 +1091,10 @@ export interface WorldMapSettings {
     relics: boolean;
     deities: boolean;
     timeline: boolean;
+    encounters?: boolean;
+    quests?: boolean;
+    factions?: boolean;
+    subZones?: boolean;
     factionBorders: boolean;
     labels: boolean;
     grid: boolean;
@@ -1908,7 +1914,17 @@ export const MapTerrainFeatureSchema = z.object({
 export const MapEntityPlacementSchema = z.object({
   id: z.string().min(1),
   entityId: z.string().min(1),
-  entityType: z.enum(['location', 'npc', 'bestiary', 'artifact', 'deity', 'timeline', 'faction_outpost']),
+  entityType: z.enum([
+    'location',
+    'npc',
+    'bestiary',
+    'artifact',
+    'deity',
+    'timeline',
+    'faction_outpost',
+    'encounter',
+    'quest',
+  ]),
   x: z.number(),
   y: z.number(),
   customLabel: z.string().optional(),

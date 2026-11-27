@@ -22,6 +22,10 @@ import {
   Grid,
   Tag,
   Compass,
+  Zap,
+  ScrollText,
+  Flag,
+  MapPinned,
 } from 'lucide-react';
 import { WorldMapSettings } from '@/lib/types';
 import { resolveTextureStrength } from '@/lib/engines/world/texturePalette';
@@ -122,6 +126,30 @@ export const CartographerLayerPanel: React.FC<CartographerLayerPanelProps> = ({
       color: 'text-red-400',
     },
     {
+      key: 'encounters' as const,
+      label: { en: 'Dynamic Encounters', fa: 'رویارویی‌های پویا (Encounters)' },
+      icon: Zap,
+      color: 'text-orange-400',
+    },
+    {
+      key: 'quests' as const,
+      label: { en: 'Quests & Contracts', fa: 'مأموریت‌ها و قراردادها' },
+      icon: ScrollText,
+      color: 'text-emerald-400',
+    },
+    {
+      key: 'factions' as const,
+      label: { en: 'Faction Outposts', fa: 'پایگاه‌ها و جناح‌ها' },
+      icon: Flag,
+      color: 'text-rose-400',
+    },
+    {
+      key: 'subZones' as const,
+      label: { en: 'Settlement Sub-Zones (Tactical)', fa: 'زیربخش‌های مکان (نمای نزدیک)' },
+      icon: MapPinned,
+      color: 'text-teal-400',
+    },
+    {
       key: 'labels' as const,
       label: { en: 'Geographic Place Names', fa: 'نام‌های جغرافیایی' },
       icon: Tag,
@@ -145,10 +173,11 @@ export const CartographerLayerPanel: React.FC<CartographerLayerPanelProps> = ({
   ];
 
   const toggleLayer = (key: keyof WorldMapSettings['visibleLayers']) => {
+    const current = settings.visibleLayers[key] ?? true;
     onUpdateSettings({
       visibleLayers: {
         ...settings.visibleLayers,
-        [key]: !settings.visibleLayers[key],
+        [key]: !current,
       },
     });
   };

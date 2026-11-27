@@ -255,6 +255,12 @@ export function isPlacementVisibleInLayers(
       return layers.deities;
     case 'timeline':
       return layers.timeline;
+    case 'encounter':
+      return layers.encounters !== false;
+    case 'quest':
+      return layers.quests !== false;
+    case 'faction_outpost':
+      return layers.factions !== false;
     default:
       return true;
   }

@@ -11,8 +11,11 @@ import {
   User,
   Wand2,
   X,
+  Zap,
+  ScrollText,
+  Flag,
 } from 'lucide-react';
-import type { MapEntityPlacement, MapPoint, WorldBible } from '@/lib/types';
+import type { MapEntityPlacement, MapPoint, StoryEncounter, WorldBible } from '@/lib/types';
 import {
   listLoreCandidates,
   loreKindLabel,
@@ -27,6 +30,7 @@ interface LorePlacementPickerProps {
   clientX: number;
   clientY: number;
   worldBible: WorldBible;
+  encounters?: StoryEncounter[];
   placements: MapEntityPlacement[];
   isPersian: boolean;
   onPlace: (candidate: LorePinCandidate) => void;
@@ -41,6 +45,9 @@ const KIND_ICONS: Record<LorePinKind, React.ComponentType<{ className?: string }
   artifact: Sparkles,
   deity: Sun,
   timeline: History,
+  encounter: Zap,
+  quest: ScrollText,
+  faction_outpost: Flag,
 };
 
 /** Where this entity type is authored when the map has none to place. */
@@ -50,6 +57,9 @@ const STUDIO_HREF: Record<LorePinKind, string> = {
   artifact: '/studio/artifacts',
   deity: '/studio/religions',
   timeline: '/studio/timeline',
+  encounter: '/studio/encounters',
+  quest: '/studio/quests',
+  faction_outpost: '/studio/factions',
 };
 
 /**
@@ -65,6 +75,7 @@ export function LorePlacementPicker({
   clientX,
   clientY,
   worldBible,
+  encounters = [],
   placements,
   isPersian,
   onPlace,
@@ -83,8 +94,8 @@ export function LorePlacementPicker({
   const Icon = KIND_ICONS[kind];
   const label = loreKindLabel(kind, isPersian);
   const candidates = useMemo(
-    () => listLoreCandidates(worldBible, kind, placements, isPersian),
-    [worldBible, kind, placements, isPersian]
+    () => listLoreCandidates(worldBible, kind, placements, isPersian, encounters),
+    [worldBible, kind, placements, isPersian, encounters]
   );
 
   const query = search.toLowerCase().trim();

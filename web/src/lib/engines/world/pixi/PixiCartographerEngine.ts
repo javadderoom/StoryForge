@@ -152,10 +152,18 @@ export class PixiCartographerEngine {
   private settlementTier3Graphics = new Graphics();
   private settlementTier3Labels = new Container();
 
-  // Placement layer (Tier 3 + selected)
+  private settlementTier4Container = new Container();
+  private settlementTier4Graphics = new Graphics();
+  private settlementTier4Labels = new Container();
+
+  // Placement layer (Tier 3 macro pins + Tier 4 tactical pins + selected)
   private placementTier3Container = new Container();
   private placementTier3Graphics = new Graphics();
   private placementTier3Labels = new Container();
+
+  private placementTier4Container = new Container();
+  private placementTier4Graphics = new Graphics();
+  private placementTier4Labels = new Container();
 
   private placementSelectedContainer = new Container();
   private placementSelectedGraphics = new Graphics();
@@ -234,17 +242,21 @@ export class PixiCartographerEngine {
     this.settlementTier1Container.addChild(this.settlementTier1Graphics, this.settlementTier1Labels);
     this.settlementTier2Container.addChild(this.settlementTier2Graphics, this.settlementTier2Labels);
     this.settlementTier3Container.addChild(this.settlementTier3Graphics, this.settlementTier3Labels);
+    this.settlementTier4Container.addChild(this.settlementTier4Graphics, this.settlementTier4Labels);
     this.settlementLayer.addChild(
-      this.settlementTier1Container,
+      this.settlementTier4Container,
+      this.settlementTier3Container,
       this.settlementTier2Container,
-      this.settlementTier3Container
+      this.settlementTier1Container
     );
 
     this.placementTier3Container.addChild(this.placementTier3Graphics, this.placementTier3Labels);
+    this.placementTier4Container.addChild(this.placementTier4Graphics, this.placementTier4Labels);
     this.placementSelectedContainer.addChild(this.placementSelectedGraphics, this.placementSelectedLabels);
     this.placementLayer.addChild(
-      this.placementSelectedContainer,
-      this.placementTier3Container
+      this.placementTier4Container,
+      this.placementTier3Container,
+      this.placementSelectedContainer
     );
 
     this.furnitureLayer.addChild(this.furnitureGraphics, this.furnitureTextContainer);
@@ -374,14 +386,17 @@ export class PixiCartographerEngine {
     this.routeLabelsTier2.visible = tier >= 2;
     this.routeLabelsTier3.visible = tier >= 3;
 
-    // Settlements
+    // Settlements & Sub-zones
     this.settlementTier1Container.visible = true; // Capitals always visible
     this.settlementTier2Container.visible = tier >= 2; // Strongholds visible at Regional+
-    this.settlementTier3Container.visible = tier >= 3; // Towns & villages visible at Provincial+
+    this.settlementTier3Container.visible = tier >= 3; // Towns, villages & halts visible at Provincial+
+    this.settlementTier4Container.visible = tier >= 4; // Orbital sub-zones visible at Tactical+ only
 
-    // Placements
+    // Placements (split into Tier 3 macro pins and Tier 4 dense interior pins)
     this.placementSelectedContainer.visible = true; // Selected placements always visible
-    this.placementTier3Container.visible = tier >= 3; // Lore pins visible at Provincial+
+    this.placementTier3Container.visible = tier >= 3; // Encounters, quests, factions, bestiary, timeline
+    this.placementTier3Labels.visible = this.currentZoom >= 1.3; // Prevent text plaque overlap at 100% zoom
+    this.placementTier4Container.visible = tier >= 4; // NPCs, artifacts, deities at Tactical zoom+
   }
 
   /**
@@ -398,6 +413,9 @@ export class PixiCartographerEngine {
     const newTier = getLODTier(zoom);
     if (newTier !== this.currentLODTier) {
       this.updateLODTierVisibility(newTier);
+    } else {
+      // Smoothly reveal Tier 3 pin text labels once zoomed in past 1.3x
+      this.placementTier3Labels.visible = zoom >= 1.3;
     }
 
     // Debounce any non-critical resolution/counter-scale refresh until AFTER user stops interacting (300ms idle)
@@ -708,6 +726,7 @@ export class PixiCartographerEngine {
         tier1: { g: this.settlementTier1Graphics, labels: this.settlementTier1Labels },
         tier2: { g: this.settlementTier2Graphics, labels: this.settlementTier2Labels },
         tier3: { g: this.settlementTier3Graphics, labels: this.settlementTier3Labels },
+        tier4: { g: this.settlementTier4Graphics, labels: this.settlementTier4Labels },
       },
     });
 
@@ -722,6 +741,7 @@ export class PixiCartographerEngine {
         selectionKeys,
         tierTargets: {
           tier3: { g: this.placementTier3Graphics, labels: this.placementTier3Labels },
+          tier4: { g: this.placementTier4Graphics, labels: this.placementTier4Labels },
           selected: { g: this.placementSelectedGraphics, labels: this.placementSelectedLabels },
         },
       }

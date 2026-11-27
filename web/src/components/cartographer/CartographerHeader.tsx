@@ -30,6 +30,7 @@ import {
   ListTree,
   Trash2,
   Stamp,
+  RefreshCw,
 } from 'lucide-react';
 import { WorldMapSettings, MapStyleTheme } from '@/lib/types';
 
@@ -51,6 +52,9 @@ export type CartographerTool =
   | 'place_relic'
   | 'place_deity'
   | 'place_timeline'
+  | 'place_encounter'
+  | 'place_quest'
+  | 'place_faction'
   | 'ruler';
 
 interface CartographerHeaderProps {
@@ -75,6 +79,8 @@ interface CartographerHeaderProps {
   onOpenAiOracle: () => void;
   /** Plan 19: derive coordinates from lore/topology (auto-fit, undoable). */
   onAutoFit: () => Promise<void> | void;
+  /** Populate unplaced WorldBible entities & encounters onto non-overlapping map pins. */
+  onSyncEntities?: () => void;
   canUndoAutoFit: boolean;
   onUndoAutoFit: () => void;
   /** Undo/redo across every authoring action on the map (Ctrl+Z / Ctrl+Shift+Z). */
@@ -126,6 +132,7 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
   onSave,
   onOpenAiOracle,
   onAutoFit,
+  onSyncEntities,
   canUndoAutoFit,
   onUndoAutoFit,
   canUndo,
@@ -335,6 +342,22 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
 
       {/* Right: AI Oracle, Zoom HUD, Save & Fullscreen */}
       <div className="flex items-center gap-2">
+        {/* Sync unplaced WorldBible entities & encounters onto map */}
+        {onSyncEntities && (
+          <button
+            onClick={onSyncEntities}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 hover:bg-amber-500/25 hover:text-white transition-all text-xs font-medium"
+            title={
+              isPersian
+                ? 'سنجاق‌کردن خودکار همه عناصر نامستقر جهان (شخصیت‌ها، جانوران، رویارویی‌ها، مأموریت‌ها و جناح‌ها) بدون تداخل'
+                : 'Auto-pin all unplaced world entities, encounters, quests & factions without overlap'
+            }
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden xl:inline">{isPersian ? 'همگام‌سازی عناصر' : 'Sync Entities'}</span>
+          </button>
+        )}
+
         {/* Plan 19: deterministic coordinate auto-fit + undo */}
         <button
           onClick={onAutoFit}

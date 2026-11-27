@@ -10,12 +10,19 @@ import {
   Unlock,
   Link2,
   Unlink,
+  Layers,
+  Compass,
+  Zap,
+  ScrollText,
+  AlertTriangle,
 } from 'lucide-react';
 import type {
   WorldLocation,
   MapTerrainFeature,
   NPCDossier,
   CustomPlaceCategory,
+  StoryEncounter,
+  WorldQuest,
 } from '@/lib/types';
 import { notify } from '@/lib/notify';
 import { resolvePlaceCategoryMeta } from '@/lib/engines/world/placeCategories';
@@ -24,6 +31,8 @@ import { findTerrainCandidatesForPlace } from '@/lib/engines/world/terrainPlaceP
 export interface LocationInspectorProps {
   loc: WorldLocation;
   npcs: NPCDossier[];
+  encounters?: StoryEncounter[];
+  quests?: WorldQuest[];
   placeCategories: CustomPlaceCategory[];
   terrainFeatures: MapTerrainFeature[];
   isPersian: boolean;
@@ -38,6 +47,8 @@ export interface LocationInspectorProps {
 export const LocationInspector: React.FC<LocationInspectorProps> = ({
   loc,
   npcs,
+  encounters = [],
+  quests = [],
   placeCategories,
   terrainFeatures,
   isPersian,
@@ -52,6 +63,8 @@ export const LocationInspector: React.FC<LocationInspectorProps> = ({
   const showTerrainCandidates = candidatePickerLocationId === loc.id;
 
   const stationedNpcs = npcs.filter((n) => n.currentLocationId === loc.id);
+  const localEncounters = encounters.filter((e) => e.locationId === loc.id);
+  const localQuests = quests.filter((q) => q.originLocationId === loc.id);
   const currentCategoryId = loc.category || 'settlement';
   const categoryOptions = placeCategories.some((category) => category.id === currentCategoryId)
     ? placeCategories
@@ -342,14 +355,165 @@ export const LocationInspector: React.FC<LocationInspectorProps> = ({
 
       {/* Coordinates & Elevation HUD */}
       <div className="p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-2xl flex items-center justify-between text-zinc-400 font-mono text-[11px]">
-        <div>
+        <div dir="ltr">
           X: <span className="text-zinc-200">{loc.coordinates?.x ?? 0}</span>, Y:{' '}
           <span className="text-zinc-200">{loc.coordinates?.y ?? 0}</span>
         </div>
-        <div>
+        <div dir="ltr">
           {isPersian ? 'ارتفاع' : 'Elevation'}: <span className="text-amber-400">{loc.elevation ?? 350}m</span>
         </div>
       </div>
+
+      {/* Special Rules & Threat Clock */}
+      {((loc.specialRules && loc.specialRules.length > 0) || loc.threatClockDefault) && (
+        <div className="p-2.5 bg-amber-950/20 border border-amber-500/25 rounded-2xl space-y-1.5">
+          <div className="flex items-center justify-between text-[11px] font-semibold text-amber-300">
+            <span className="flex items-center gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              {isPersian ? 'قوانین ویژه و تهدید مکان' : 'Special Rules & Threat Clock'}
+            </span>
+            {loc.threatClockDefault && (
+              <span dir="ltr" className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-200">
+                Clock {loc.threatClockDefault.maxSegments}
+              </span>
+            )}
+          </div>
+          {loc.specialRules && loc.specialRules.length > 0 && (
+            <ul className="list-disc list-inside space-y-0.5 text-[11px] text-zinc-300 leading-relaxed">
+              {loc.specialRules.map((rule, idx) => (
+                <li key={idx}>{rule}</li>
+              ))}
+            </ul>
+          )}
+          {loc.threatClockDefault && (
+            <div className="text-[10px] text-rose-300/90">
+              {loc.threatClockDefault.name}: {loc.threatClockDefault.crisisDescription}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Sub-Zones (Tactical Quarters / POIs) */}
+      {loc.subZones && loc.subZones.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+          <div className="flex items-center justify-between text-zinc-300 font-medium text-xs">
+            <span className="flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-emerald-400" />
+              {isPersian ? 'زیربخش‌ها و محله‌ها' : 'Sub-Zones'}
+            </span>
+            <span dir="ltr" className="text-[10px] bg-zinc-900 px-1.5 py-0.5 rounded-full border border-zinc-800 text-zinc-400">
+              {loc.subZones.length}
+            </span>
+          </div>
+          <div className="space-y-1.5 max-h-40 overflow-y-auto scrollbar-thin">
+            {loc.subZones.map((sz) => (
+              <div key={sz.id} className="p-2 bg-zinc-900 border border-zinc-800/80 rounded-xl space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-zinc-200 truncate">{sz.name}</span>
+                  {sz.dangerLevel && (
+                    <span dir="ltr" className="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-amber-300">
+                      D{sz.dangerLevel}
+                    </span>
+                  )}
+                </div>
+                {sz.atmosphere && (
+                  <div className="text-[10.5px] text-zinc-400 leading-relaxed">{sz.atmosphere}</div>
+                )}
+                {sz.pointsOfInterest && sz.pointsOfInterest.length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-0.5">
+                    {sz.pointsOfInterest.map((poi, poiIdx) => (
+                      <span
+                        key={`${sz.id}_poi_${poiIdx}`}
+                        className="text-[9.5px] px-1.5 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-300"
+                      >
+                        {poi.name}
+                        {poi.skillCheck ? ` (DC ${poi.skillCheck.dc})` : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Top-Level Points of Interest */}
+      {loc.pointsOfInterest && loc.pointsOfInterest.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+          <div className="flex items-center justify-between text-zinc-300 font-medium text-xs">
+            <span className="flex items-center gap-1.5">
+              <Compass className="w-3.5 h-3.5 text-amber-400" />
+              {isPersian ? 'نقاط کلیدی و قابل کشف (POI)' : 'Points of Interest'}
+            </span>
+            <span dir="ltr" className="text-[10px] bg-zinc-900 px-1.5 py-0.5 rounded-full border border-zinc-800 text-zinc-400">
+              {loc.pointsOfInterest.length}
+            </span>
+          </div>
+          <div className="space-y-1 max-h-32 overflow-y-auto scrollbar-thin">
+            {loc.pointsOfInterest.map((poi, poiIdx) => (
+              <div key={`poi_${poiIdx}`} className="p-2 bg-zinc-900 border border-zinc-800/80 rounded-xl">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-zinc-200 truncate">{poi.name}</span>
+                  {poi.skillCheck && (
+                    <span dir="ltr" className="text-[9.5px] font-mono text-amber-300 shrink-0">
+                      {poi.skillCheck.attribute} DC {poi.skillCheck.dc}
+                    </span>
+                  )}
+                </div>
+                {poi.description && (
+                  <div className="text-[10.5px] text-zinc-400 mt-0.5 leading-relaxed">{poi.description}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Local Encounters & Quests */}
+      {(localEncounters.length > 0 || localQuests.length > 0) && (
+        <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+          {localEncounters.length > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-zinc-300 font-medium text-xs">
+                <span className="flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-orange-400" />
+                  {isPersian ? 'رویارویی‌های این مکان' : 'Local Encounters'}
+                </span>
+                <span dir="ltr" className="text-[10px] bg-zinc-900 px-1.5 py-0.5 rounded-full border border-zinc-800 text-zinc-400">
+                  {localEncounters.length}
+                </span>
+              </div>
+              {localEncounters.map((enc) => (
+                <div key={enc.id} className="p-2 bg-orange-950/20 border border-orange-500/25 rounded-xl flex items-center justify-between gap-2">
+                  <span className="text-zinc-200 truncate font-medium">{enc.title}</span>
+                  <span className="text-[9.5px] font-mono text-orange-300 shrink-0">
+                    {enc.triggerConditions.triggerType}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {localQuests.length > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-zinc-300 font-medium text-xs">
+                <span className="flex items-center gap-1.5">
+                  <ScrollText className="w-3.5 h-3.5 text-emerald-400" />
+                  {isPersian ? 'مأموریت‌های آغازشده در اینجا' : 'Local Quests'}
+                </span>
+                <span dir="ltr" className="text-[10px] bg-zinc-900 px-1.5 py-0.5 rounded-full border border-zinc-800 text-zinc-400">
+                  {localQuests.length}
+                </span>
+              </div>
+              {localQuests.map((q) => (
+                <div key={q.id} className="p-2 bg-emerald-950/20 border border-emerald-500/25 rounded-xl text-zinc-200 truncate font-medium">
+                  {q.title}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stationed NPCs List */}
       <div className="space-y-2 pt-2 border-t border-zinc-800/80">

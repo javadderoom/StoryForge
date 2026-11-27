@@ -21,6 +21,7 @@ import type { DraggedNodeData } from './renderTypes';
 import {
   calculateCounterScale,
   getDynamicTextResolution,
+  getPlacementLODTier,
   getSettlementLODTier,
   isElementVisibleAtZoom,
 } from './lodManager';
@@ -141,6 +142,7 @@ export interface SettlementTierTargets {
   tier1: { g: Graphics; labels: Container };
   tier2: { g: Graphics; labels: Container };
   tier3: { g: Graphics; labels: Container };
+  tier4?: { g: Graphics; labels: Container };
 }
 
 export function renderSettlements(
@@ -180,6 +182,10 @@ export function renderSettlements(
     clearContainer(tierTargets.tier2.labels);
     tierTargets.tier3.g.clear();
     clearContainer(tierTargets.tier3.labels);
+    if (tierTargets.tier4) {
+      tierTargets.tier4.g.clear();
+      clearContainer(tierTargets.tier4.labels);
+    }
   }
 
   if (!settings.visibleLayers.settlements && !settings.visibleLayers.labels) return;
@@ -310,6 +316,61 @@ export function renderSettlements(
 
       targetLabels.addChild(labelText);
     }
+
+    // Tactical Tier 4 Sub-Zones (drawn only in Tier 4 container -> 0 GPU cost below zoom 1.75)
+    if (
+      tierTargets?.tier4 &&
+      settings.visibleLayers.subZones !== false &&
+      Array.isArray(loc.subZones) &&
+      loc.subZones.length > 0
+    ) {
+      const subG = tierTargets.tier4.g;
+      const subLabels = tierTargets.tier4.labels;
+      const count = loc.subZones.length;
+      const orbitRadius = Math.max(24, (isCapital ? 34 : 28) * Math.max(0.85, counterScale));
+      const dotRadius = Math.max(2.5, 4.5 * counterScale);
+
+      loc.subZones.forEach((sz, idx) => {
+        const angle = -Math.PI / 2 + (idx / count) * Math.PI * 2;
+        const sx = x + Math.cos(angle) * orbitRadius;
+        const sy = y + Math.sin(angle) * orbitRadius;
+
+        // Subtle tactical tether line from settlement center to sub-zone
+        subG.moveTo(x, y).lineTo(sx, sy).stroke({
+          width: Math.max(0.6, 1 * counterScale),
+          color: 0x785a3a,
+          alpha: 0.4,
+        });
+
+        const szDanger = sz.dangerLevel ?? loc.dangerLevel;
+        const dotColor = szDanger >= 4 ? 0xdc2626 : szDanger === 3 ? 0xd97706 : 0x059669;
+
+        subG.circle(sx, sy, dotRadius + 1.5 * counterScale).fill({
+          color: VINTAGE_PARCHMENT.bgParchment,
+          alpha: 0.85,
+        });
+        subG.circle(sx, sy, dotRadius)
+          .fill({ color: dotColor })
+          .stroke({ width: Math.max(0.7, 1.2 * counterScale), color: 0xffffff });
+
+        if (settings.visibleLayers.labels !== false && sz.name) {
+          const szLabel = new Text({
+            text: sz.name,
+            style: new TextStyle({
+              fontSize: 8.5,
+              fill: VINTAGE_PARCHMENT.labelText,
+              fontFamily: 'serif',
+            }),
+            resolution: textResolution,
+          });
+          szLabel.anchor.set(0.5, 0);
+          szLabel.scale.set(counterScale);
+          szLabel.x = sx;
+          szLabel.y = sy + dotRadius + 2 * counterScale;
+          subLabels.addChild(szLabel);
+        }
+      });
+    }
   }
 }
 
@@ -354,6 +415,7 @@ function drawPlaceLabel(
 
 export interface PlacementTierTargets {
   tier3: { g: Graphics; labels?: Container };
+  tier4?: { g: Graphics; labels?: Container };
   selected: { g: Graphics; labels?: Container };
 }
 
@@ -375,17 +437,32 @@ export function renderPlacements(
   if (tierTargets) {
     tierTargets.tier3.g.clear();
     clearContainer(tierTargets.tier3.labels);
+    if (tierTargets.tier4) {
+      tierTargets.tier4.g.clear();
+      clearContainer(tierTargets.tier4.labels);
+    }
     tierTargets.selected.g.clear();
     clearContainer(tierTargets.selected.labels);
   }
+
+  // One shared banner Graphics per labels container so toggling labels.visible hides
+  // BOTH text and plaque backgrounds in 0.001ms with zero leftover empty boxes.
+  const bannerByLabels = new Map<Container, Graphics>();
+  const getLabelBannerGraphics = (container: Container): Graphics => {
+    let bannerG = bannerByLabels.get(container);
+    if (!bannerG) {
+      bannerG = new Graphics();
+      container.addChildAt(bannerG, 0);
+      bannerByLabels.set(container, bannerG);
+    }
+    return bannerG;
+  };
 
   const zoom = options?.zoom ?? 1.0;
   const selectionKeys = options?.selectionKeys;
   const counterScale = calculateCounterScale(zoom);
   const textResolution = getDynamicTextResolution(zoom);
 
-  // Placed lore pins are visible starting at Tier 3 (Provincial, zoom >= 1.0)
-  const isProvincialOrCloser = isElementVisibleAtZoom(3, zoom, false);
   const isTactical = isElementVisibleAtZoom(4, zoom, false);
 
   // Plan 21: pins are drawn in their own draw order, and a hidden pin is
@@ -396,6 +473,7 @@ export function renderPlacements(
     if (!isPlacementVisibleInLayers(p.entityType, settings.visibleLayers)) continue;
 
     const isSelected = selectionKeys?.has(mapObjectKey('placement', p.id)) ?? false;
+    const pinTier = getPlacementLODTier(p.entityType);
     let targetG = g;
     let targetLabels = labelsContainer;
 
@@ -403,55 +481,90 @@ export function renderPlacements(
       if (isSelected) {
         targetG = tierTargets.selected.g;
         targetLabels = tierTargets.selected.labels;
+      } else if (pinTier >= 4 && tierTargets.tier4) {
+        targetG = tierTargets.tier4.g;
+        targetLabels = tierTargets.tier4.labels;
       } else {
         targetG = tierTargets.tier3.g;
         targetLabels = tierTargets.tier3.labels;
       }
     } else {
-      // Declutter when zooming out: hide lore pins unless selected or in Provincial/Tactical view
-      if (!isProvincialOrCloser && !isSelected) continue;
+      if (!isElementVisibleAtZoom(pinTier, zoom, isSelected)) continue;
     }
 
     const { x, y } = p;
 
-    // Soft parchment under-halo to guarantee sharp contrast over textured terrain
-    const haloBase = p.entityType === 'bestiary' ? 16 : 14;
-    const haloRadius = Math.max(5, haloBase * counterScale);
+    const haloBase = p.entityType === 'bestiary' || p.entityType === 'encounter' ? 15 : 13;
+    const haloRadius = Math.max(4.5, haloBase * counterScale);
     targetG.circle(x, y, haloRadius).fill({
       color: VINTAGE_PARCHMENT.bgParchment,
-      alpha: 0.88,
+      alpha: 0.86,
     });
 
-    const tokenRadius = Math.max(4, 11 * counterScale);
-    const strokeW = Math.max(1, 2 * counterScale);
+    const tokenRadius = Math.max(3.8, 10 * counterScale);
+    const strokeW = Math.max(1, 1.8 * counterScale);
 
     if (p.entityType === 'bestiary') {
-      // Beast Token: Spiked dark crimson roundel with amber/gold beast core
-      const bestiaryRadius = Math.max(4.5, 12 * counterScale);
+      const bestiaryRadius = Math.max(4.2, 11 * counterScale);
       targetG.circle(x, y, bestiaryRadius)
         .fill({ color: 0x4c0519 })
         .stroke({ width: strokeW, color: 0xe11d48 });
-      targetG.circle(x, y, Math.max(2.5, 6.5 * counterScale)).fill({ color: 0xbe123c });
-      targetG.circle(x, y, Math.max(1, 2.5 * counterScale)).fill({ color: 0xfef08a });
+      targetG.circle(x, y, Math.max(2.2, 5.8 * counterScale)).fill({ color: 0xbe123c });
+      targetG.circle(x, y, Math.max(1, 2.2 * counterScale)).fill({ color: 0xfef08a });
 
-      // If Danger Level is high, draw warning fang pips in Tactical view (zoom >= 1.75) or when selected
       if ((isTactical || isSelected) && p.notes && /danger [45]|dc 2[0-9]|calamity/i.test(p.notes)) {
         for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 2) {
           const px = x + Math.cos(angle) * (bestiaryRadius + 2 * counterScale);
           const py = y + Math.sin(angle) * (bestiaryRadius + 2 * counterScale);
-          targetG.circle(px, py, Math.max(0.8, 1.8 * counterScale)).fill({ color: 0xf59e0b });
+          targetG.circle(px, py, Math.max(0.8, 1.6 * counterScale)).fill({ color: 0xf59e0b });
         }
       }
+    } else if (p.entityType === 'encounter') {
+      const r = Math.max(4.5, 11.5 * counterScale);
+      const hexPts: MapPoint[] = [];
+      for (let i = 0; i < 6; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI) / 3;
+        hexPts.push({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r });
+      }
+      targetG.poly(hexPts)
+        .fill({ color: 0x7c2d12 })
+        .stroke({ width: strokeW, color: 0xf97316 });
+      targetG.circle(x, y, Math.max(1.8, 4.2 * counterScale)).fill({ color: 0xfef08a });
+    } else if (p.entityType === 'quest') {
+      const r = Math.max(4.5, 11 * counterScale);
+      targetG.circle(x, y, r)
+        .fill({ color: 0x064e3b })
+        .stroke({ width: strokeW, color: 0x10b981 });
+      targetG.circle(x, y, Math.max(2, 5 * counterScale)).fill({ color: 0xfde047 });
+    } else if (p.entityType === 'faction_outpost') {
+      const w = 9.5 * counterScale;
+      const h = 11 * counterScale;
+      targetG.poly([
+        { x: x - w, y: y - h * 0.75 },
+        { x: x + w, y: y - h * 0.75 },
+        { x: x + w * 0.85, y: y + h * 0.2 },
+        { x, y: y + h },
+        { x: x - w * 0.85, y: y + h * 0.2 },
+      ])
+        .fill({ color: 0x450a0a })
+        .stroke({ width: strokeW, color: 0xef4444 });
+      targetG.circle(x, y - h * 0.1, Math.max(1.6, 3.2 * counterScale)).fill({ color: 0xfbbf24 });
     } else if (p.entityType === 'npc') {
-      // Stationed NPC: Sapphire shield token
+      const isGroup = p.customIcon === 'group';
       targetG.circle(x, y, tokenRadius)
-        .fill({ color: 0x1e3a8a })
-        .stroke({ width: strokeW, color: 0x3b82f6 });
-      targetG.circle(x, y, Math.max(1.8, 4.5 * counterScale)).fill({ color: 0x93c5fd });
+        .fill({ color: isGroup ? 0x1e293b : 0x1e3a8a })
+        .stroke({ width: strokeW, color: isGroup ? 0x38bdf8 : 0x3b82f6 });
+      targetG.circle(x, y, Math.max(1.6, 4 * counterScale)).fill({ color: 0x93c5fd });
+      if (isGroup) {
+        targetG.circle(x, y, Math.max(3, 7 * counterScale)).stroke({
+          width: Math.max(0.7, 1 * counterScale),
+          color: 0x7dd3fc,
+          alpha: 0.75,
+        });
+      }
     } else if (p.entityType === 'timeline') {
-      // Story Encounter: Amber diamond
-      const dy = 11 * counterScale;
-      const dx = 9 * counterScale;
+      const dy = 10.5 * counterScale;
+      const dx = 8.5 * counterScale;
       targetG.poly([
         { x, y: y - dy },
         { x: x + dx, y },
@@ -460,11 +573,10 @@ export function renderPlacements(
       ])
         .fill({ color: 0x78350f })
         .stroke({ width: strokeW, color: 0xf59e0b });
-      targetG.circle(x, y, Math.max(1.5, 3.5 * counterScale)).fill({ color: 0xfef3c7 });
+      targetG.circle(x, y, Math.max(1.4, 3.2 * counterScale)).fill({ color: 0xfef3c7 });
     } else if (p.entityType === 'artifact') {
-      // Artifact: Amethyst mystic diamond
-      const dy = 11 * counterScale;
-      const dx = 9 * counterScale;
+      const dy = 10.5 * counterScale;
+      const dx = 8.5 * counterScale;
       targetG.poly([
         { x, y: y - dy },
         { x: x + dx, y },
@@ -473,7 +585,7 @@ export function renderPlacements(
       ])
         .fill({ color: 0x581c87 })
         .stroke({ width: strokeW, color: 0xa855f7 });
-      targetG.circle(x, y, Math.max(1.5, 3.5 * counterScale)).fill({ color: 0xf5d0fe });
+      targetG.circle(x, y, Math.max(1.4, 3.2 * counterScale)).fill({ color: 0xf5d0fe });
     } else {
       let pinColor = 0x4f46e5;
       if (p.entityType === 'deity') pinColor = 0xeab308;
@@ -483,12 +595,25 @@ export function renderPlacements(
         .stroke({ width: Math.max(0.8, 1.5 * counterScale), color: 0xffffff });
     }
 
-    // Name label banner beneath the pin
     if (targetLabels && settings.visibleLayers.labels !== false && p.customLabel) {
+      const labelFill =
+        p.entityType === 'bestiary'
+          ? 0x4c0519
+          : p.entityType === 'encounter'
+          ? 0x7c2d12
+          : p.entityType === 'quest'
+          ? 0x064e3b
+          : p.entityType === 'faction_outpost'
+          ? 0x7f1d1d
+          : VINTAGE_PARCHMENT.labelText;
+
       const textStyle = new TextStyle({
-        fontSize: 10,
-        fontWeight: p.entityType === 'bestiary' ? 'bold' : 'normal',
-        fill: p.entityType === 'bestiary' ? 0x4c0519 : VINTAGE_PARCHMENT.labelText,
+        fontSize: 9.5,
+        fontWeight:
+          p.entityType === 'bestiary' || p.entityType === 'encounter' || p.entityType === 'quest'
+            ? 'bold'
+            : 'normal',
+        fill: labelFill,
         fontFamily: 'serif',
       });
 
@@ -496,11 +621,21 @@ export function renderPlacements(
         p.entityType === 'bestiary'
           ? '🐉 '
           : p.entityType === 'npc'
-          ? '👤 '
+          ? p.customIcon === 'group'
+            ? '👥 '
+            : '👤 '
+          : p.entityType === 'encounter'
+          ? '⚡ '
+          : p.entityType === 'quest'
+          ? '📜 '
+          : p.entityType === 'faction_outpost'
+          ? '🚩 '
           : p.entityType === 'timeline'
           ? '⚔️ '
           : p.entityType === 'artifact'
           ? '✨ '
+          : p.entityType === 'deity'
+          ? '☀️ '
           : '';
 
       const labelText = new Text({
@@ -511,24 +646,34 @@ export function renderPlacements(
       labelText.anchor.set(0.5, 0);
       labelText.scale.set(counterScale);
       labelText.x = x;
-      labelText.y = y + 15 * counterScale;
+      labelText.y = y + 14 * counterScale;
 
-      const textW = labelText.width + 10 * counterScale;
-      const textH = labelText.height + 3 * counterScale;
-      targetG.roundRect(
-        x - textW / 2,
-        y + 14 * counterScale,
-        textW,
-        textH,
-        Math.max(2, 3 * counterScale)
-      )
-        .fill({
-          color: p.entityType === 'bestiary' ? 0xfff1f2 : VINTAGE_PARCHMENT.labelBannerBg,
-          alpha: 0.94,
-        })
+      const textW = labelText.width + 9 * counterScale;
+      const textH = labelText.height + 2.5 * counterScale;
+      const bannerBg =
+        p.entityType === 'bestiary'
+          ? 0xfff1f2
+          : p.entityType === 'encounter'
+          ? 0xfff7ed
+          : p.entityType === 'quest'
+          ? 0xecfdf5
+          : VINTAGE_PARCHMENT.labelBannerBg;
+      const bannerBorder =
+        p.entityType === 'bestiary'
+          ? 0xfecdd3
+          : p.entityType === 'encounter'
+          ? 0xfdba74
+          : p.entityType === 'quest'
+          ? 0x6ee7b7
+          : VINTAGE_PARCHMENT.labelBannerBorder;
+
+      const bannerG = getLabelBannerGraphics(targetLabels);
+      bannerG
+        .roundRect(x - textW / 2, y + 13 * counterScale, textW, textH, Math.max(2, 3 * counterScale))
+        .fill({ color: bannerBg, alpha: 0.94 })
         .stroke({
-          width: Math.max(0.75, 1 * counterScale),
-          color: p.entityType === 'bestiary' ? 0xfecdd3 : VINTAGE_PARCHMENT.labelBannerBorder,
+          width: Math.max(0.7, 0.9 * counterScale),
+          color: bannerBorder,
         });
 
       targetLabels.addChild(labelText);

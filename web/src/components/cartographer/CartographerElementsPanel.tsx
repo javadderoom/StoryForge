@@ -18,6 +18,7 @@ import {
   WorldMapData,
   CustomPlaceCategory,
   MapGroupMode,
+  StoryEncounter,
 } from '@/lib/types';
 import type { MapObjectRef } from '@/lib/engines/world/mapSelection';
 import { findGroupForRef, toggleMapObjectRefWithGroups } from '@/lib/engines/world/mapGroups';
@@ -35,6 +36,7 @@ export type { ElementCategoryKey };
 interface CartographerElementsPanelProps {
   worldBible: WorldBible;
   mapData: WorldMapData;
+  encounters?: StoryEncounter[];
   onClose: () => void;
   isPersian: boolean;
   onSelectMapObject?: (item: SelectedMapItem) => void;
@@ -78,6 +80,7 @@ interface CartographerElementsPanelProps {
 export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps> = ({
   worldBible,
   mapData,
+  encounters,
   onClose,
   isPersian,
   onSelectMapObject,
@@ -110,6 +113,7 @@ export const CartographerElementsPanel: React.FC<CartographerElementsPanelProps>
   const { categorizedItems, filteredCategories, totalCount } = useCategorizedElements({
     worldBible,
     mapData,
+    encounters,
     placeCategories,
     isPersian,
     searchQuery,
