@@ -69,6 +69,7 @@ import {
   travelTimeline,
   formatTravelLine,
   clampJourneyTurns,
+  resolveTravelEncounterHold,
   isTravelStateEnabled,
 } from './travelEngine';
 import {
@@ -153,6 +154,7 @@ export class GameEngine {
   public static travelTimeline = travelTimeline;
   public static formatTravelLine = formatTravelLine;
   public static clampJourneyTurns = clampJourneyTurns;
+  public static resolveTravelEncounterHold = resolveTravelEncounterHold;
   public static isTravelStateEnabled = isTravelStateEnabled;
 
   /** Plan 17 (Phase 7): deterministic condition effects and reconciler flags. */

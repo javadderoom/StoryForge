@@ -1002,67 +1002,79 @@ async function processTurnAction(
         }
       | undefined;
     let advanceMovedToId: string | undefined;
+    let justResolvedEncounterId: string | undefined;
     if (displacementTarget || authoredMoveTargetId) {
       if (updatedPlayerState.travel) updatedPlayerState.travel = null;
     }
     if (travelStateActive && updatedPlayerState.travel) {
-      const advance = GameEngine.advanceTravel(updatedPlayerState, turnNumber, story.worldBible, {
-        lang: travelLang,
-      });
-      if (advance.arrivedAt) {
-        travelArrived = {
-          locationId: advance.arrivedAt,
-          name: advance.arrivedAtName || advance.arrivedAt,
-          calendarDays: updatedPlayerState.travel?.calendarDays,
-          distanceKm: updatedPlayerState.travel?.distanceKm,
-          transitHaltNames: updatedPlayerState.travel?.transitHaltNames,
-        };
-        updatedPlayerState.travel = null;
-        if (updatedPlayerState.currentLocationId !== advance.arrivedAt) {
-          updatedPlayerState.currentLocationId = advance.arrivedAt;
-          if (!updatedPlayerState.discoveredLocationIds.includes(advance.arrivedAt)) {
-            updatedPlayerState.discoveredLocationIds.push(advance.arrivedAt);
+      const holdState = GameEngine.resolveTravelEncounterHold(
+        updatedPlayerState.travel,
+        resolution.outcome
+      );
+      if (holdState.wasHeld) {
+        updatedPlayerState.travel = holdState.travel;
+        if (!holdState.travel?.activeHoldEncounterId) {
+          justResolvedEncounterId = holdState.heldEncounterId;
+        }
+      } else {
+        const advance = GameEngine.advanceTravel(updatedPlayerState, turnNumber, story.worldBible, {
+          lang: travelLang,
+        });
+        if (advance.arrivedAt) {
+          travelArrived = {
+            locationId: advance.arrivedAt,
+            name: advance.arrivedAtName || advance.arrivedAt,
+            calendarDays: updatedPlayerState.travel?.calendarDays,
+            distanceKm: updatedPlayerState.travel?.distanceKm,
+            transitHaltNames: updatedPlayerState.travel?.transitHaltNames,
+          };
+          updatedPlayerState.travel = null;
+          if (updatedPlayerState.currentLocationId !== advance.arrivedAt) {
+            updatedPlayerState.currentLocationId = advance.arrivedAt;
+            if (!updatedPlayerState.discoveredLocationIds.includes(advance.arrivedAt)) {
+              updatedPlayerState.discoveredLocationIds.push(advance.arrivedAt);
+            }
           }
-        }
-        updatedPlayerState.currentSubZoneId = undefined;
-        resolution.stateDiff.locationChange = advance.arrivedAt;
-        // Seed the destination's ambient threat clock, same as any entry.
-        const destForClock = story.worldBible.locations.find((l) => l.id === advance.arrivedAt);
-        const seededClock = ensureClockForLocation(
-          updatedPlayerState.activeTensionClocks,
-          destForClock,
-          story.worldBible
-        );
-        if (
-          seededClock &&
-          !(updatedPlayerState.activeTensionClocks ?? []).some((c) => c.id === seededClock.id)
-        ) {
-          if (!updatedPlayerState.activeTensionClocks) updatedPlayerState.activeTensionClocks = [];
-          updatedPlayerState.activeTensionClocks.push(seededClock);
-        }
-        if (advance.note) resolution.consequenceSummary += ` ${advance.note}`;
-      } else if (advance.movedTo) {
-        // Reached an intermediate stop: move the pointer, keep travelling.
-        advanceMovedToId = advance.movedTo;
-        updatedPlayerState.currentLocationId = advance.movedTo;
-        if (!updatedPlayerState.discoveredLocationIds.includes(advance.movedTo)) {
-          updatedPlayerState.discoveredLocationIds.push(advance.movedTo);
-        }
-        updatedPlayerState.currentSubZoneId = undefined;
-        resolution.stateDiff.locationChange = advance.movedTo;
-        if (!partyChange && updatedPlayerState.travel.routeId) {
-          const nextCompanions = resolveDepartingCaravanCompanionIds(
-            story.worldBible,
-            updatedPlayerState.travel.routeId,
-            advance.movedTo,
-            updatedPlayerState.accompanyingNpcIds ?? []
+          updatedPlayerState.currentSubZoneId = undefined;
+          resolution.stateDiff.locationChange = advance.arrivedAt;
+          // Seed the destination's ambient threat clock, same as any entry.
+          const destForClock = story.worldBible.locations.find((l) => l.id === advance.arrivedAt);
+          const seededClock = ensureClockForLocation(
+            updatedPlayerState.activeTensionClocks,
+            destForClock,
+            story.worldBible
           );
-          if (nextCompanions.length > (updatedPlayerState.accompanyingNpcIds?.length ?? 0)) {
-            updatedPlayerState.accompanyingNpcIds = nextCompanions;
-            updatedPlayerState.travel.caravanNpcIds = nextCompanions;
+          if (
+            seededClock &&
+            !(updatedPlayerState.activeTensionClocks ?? []).some((c) => c.id === seededClock.id)
+          ) {
+            if (!updatedPlayerState.activeTensionClocks) updatedPlayerState.activeTensionClocks = [];
+            updatedPlayerState.activeTensionClocks.push(seededClock);
           }
+          if (advance.note) resolution.consequenceSummary += ` ${advance.note}`;
+        } else if (advance.movedTo) {
+          // Reached an intermediate stop: move the pointer, keep travelling.
+          advanceMovedToId = advance.movedTo;
+          updatedPlayerState.currentLocationId = advance.movedTo;
+          if (!updatedPlayerState.discoveredLocationIds.includes(advance.movedTo)) {
+            updatedPlayerState.discoveredLocationIds.push(advance.movedTo);
+          }
+          updatedPlayerState.currentSubZoneId = undefined;
+          resolution.stateDiff.locationChange = advance.movedTo;
+          if (!partyChange && updatedPlayerState.travel.routeId) {
+            const nextCompanions = resolveDepartingCaravanCompanionIds(
+              story.worldBible,
+              updatedPlayerState.travel.routeId,
+              advance.movedTo,
+              updatedPlayerState.accompanyingNpcIds ?? []
+            );
+            if (nextCompanions.length > (updatedPlayerState.accompanyingNpcIds?.length ?? 0)) {
+              updatedPlayerState.accompanyingNpcIds = nextCompanions;
+              updatedPlayerState.travel.caravanNpcIds = nextCompanions;
+            }
+          }
+          if (advance.note) resolution.consequenceSummary += ` ${advance.note}`;
         }
-        if (advance.note) resolution.consequenceSummary += ` ${advance.note}`;
       }
     }
 
@@ -1144,7 +1156,7 @@ async function processTurnAction(
     // Deterministically evaluate authored encounters for the active corridor or
     // location so road events, intermediate stop arrivals, and destination scenes fire automatically.
     let triggeredEncounter: any | null = null;
-    if (authoredEncounters.length > 0 && !authoredMoveBeat) {
+    if (authoredEncounters.length > 0 && !authoredMoveBeat && !updatedPlayerState.travel?.activeHoldEncounterId) {
       triggeredEncounter = GameEngine.resolveTurnEncounter({
         authoredEncounters,
         playerState: updatedPlayerState,
@@ -1155,9 +1167,16 @@ async function processTurnAction(
         clockUpdate: resolution.clockUpdate,
         locationChange: resolution.stateDiff.locationChange,
         authoredMoveTargetId,
+        justResolvedEncounterId,
       });
 
       if (triggeredEncounter) {
+        if (updatedPlayerState.travel) {
+          updatedPlayerState.travel = {
+            ...updatedPlayerState.travel,
+            activeHoldEncounterId: triggeredEncounter.id,
+          };
+        }
         const encDiff: StateMutationDiff = {
           triggeredEncounterId: triggeredEncounter.id,
         };

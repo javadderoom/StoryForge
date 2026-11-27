@@ -451,14 +451,29 @@ export function planJourney(
     isElliptical = false;
   } else if (pacingMode === 'cinematic_ellipsis') {
     if (opts.hasEncounter) {
-      totalTurns = Math.min(3, Math.max(2, Math.round(rawEta)));
+      if (waypointIds.length > 0) {
+        const hasWildernessParent = Boolean(
+          origin.parentLocationId ||
+            waypointIds.some((id) => (wb.locations ?? []).find((l) => l.id === id)?.parentLocationId)
+        );
+        const eventfulTurns = hasWildernessParent
+          ? waypointIds.length * 2 + 2
+          : Math.max(waypointIds.length + 2, Math.min(6, Math.round(rawEta)));
+        totalTurns = eventfulTurns;
+      } else {
+        totalTurns = Math.min(3, Math.max(2, Math.round(rawEta)));
+      }
       isElliptical = false;
     } else {
       totalTurns = 1;
       isElliptical = true;
     }
   } else {
-    totalTurns = clampJourneyTurns(rawEta);
+    if (opts.hasEncounter && waypointIds.length > 0) {
+      totalTurns = Math.max(waypointIds.length * 2 + 2, clampJourneyTurns(rawEta));
+    } else {
+      totalTurns = clampJourneyTurns(rawEta);
+    }
     isElliptical = false;
   }
 
@@ -541,11 +556,16 @@ export interface TravelProgress {
   dayOnRoad: number;
 }
 
-/** Pure progress derivation from the absolute turn number — no stored countdown. */
+/** Pure progress derivation from the absolute turn number and paused encounter turns — no mutable countdown. */
 export function travelProgress(travel: ActiveTravel, turnNumber: number): TravelProgress {
-  const legsElapsed = Math.max(0, Math.min(travel.totalTurns, turnNumber - travel.departedTurn));
+  const paused = Math.max(0, travel.pausedTurns ?? 0);
+  const effectiveTurn = Math.max(travel.departedTurn, turnNumber - paused);
+  const legsElapsed = Math.max(0, Math.min(travel.totalTurns, effectiveTurn - travel.departedTurn));
   const turnsRemaining = travel.totalTurns - legsElapsed;
-  const nodeIndex = Math.min(legsElapsed, (travel.waypointIds ?? []).length);
+  const spacedRoadLegs = travel.totalTurns >= (travel.waypointIds ?? []).length * 2 + 2 && (travel.waypointIds ?? []).length > 0;
+  const nodeIndex = spacedRoadLegs
+    ? Math.min(Math.floor(legsElapsed / 2), (travel.waypointIds ?? []).length)
+    : Math.min(legsElapsed, (travel.waypointIds ?? []).length);
   return {
     legsElapsed,
     turnsRemaining,
@@ -601,6 +621,60 @@ export function advanceTravel(
   }
 
   const timeline = travelTimeline(travel);
+  const waypoints = travel.waypointIds ?? [];
+  const spacedRoadLegs = travel.totalTurns >= waypoints.length * 2 + 2 && waypoints.length > 0;
+
+  if (spacedRoadLegs && progress.legsElapsed > 0) {
+    // Alternating open-road stretches (odd legs) and real settlement waypoints (even legs).
+    if (progress.legsElapsed % 2 === 1) {
+      const prevWpIdx = Math.floor(progress.legsElapsed / 2) - 1;
+      const anchorId =
+        prevWpIdx >= 0 && prevWpIdx < waypoints.length
+          ? waypoints[prevWpIdx]
+          : travel.originLocationId;
+      const anchorLoc =
+        (wb.locations ?? []).find((l) => l.id === anchorId) ??
+        (wb.locations ?? []).find((l) => l.id === waypoints[Math.floor(progress.legsElapsed / 2)]);
+      const roadRegionId = anchorLoc?.parentLocationId;
+      const roadRegion = roadRegionId
+        ? (wb.locations ?? []).find((l) => l.id === roadRegionId)
+        : undefined;
+      if (
+        roadRegionId &&
+        roadRegion &&
+        roadRegion.category !== 'continent' &&
+        roadRegionId !== travel.originLocationId &&
+        roadRegionId !== travel.destinationLocationId &&
+        roadRegionId !== playerState.currentLocationId
+      ) {
+        const roadName = locName(wb, roadRegionId);
+        return {
+          travel,
+          movedTo: roadRegionId,
+          movedToName: roadName,
+          note:
+            lang === 'fa'
+              ? `کاروان در مسیر «${roadName}» پیش می‌رود.`
+              : `The caravan presses along the open road through "${roadName}".`,
+        };
+      }
+      return { travel };
+    }
+    const wpIndex = Math.floor(progress.legsElapsed / 2) - 1;
+    const wpId = waypoints[wpIndex];
+    const wpExists = Boolean(wpId && (wb.locations ?? []).some((l) => l.id === wpId));
+    if (wpId && wpExists && wpId !== playerState.currentLocationId) {
+      const name = locName(wb, wpId);
+      return {
+        travel,
+        movedTo: wpId,
+        movedToName: name,
+        note: lang === 'fa' ? `کاروان به «${name}» رسید.` : `The caravan reached "${name}".`,
+      };
+    }
+    return { travel };
+  }
+
   const nodeId = timeline[progress.nodeIndex];
   const nodeExists = (wb.locations ?? []).some((l) => l.id === nodeId);
   if (progress.nodeIndex > 0 && nodeId && nodeExists && nodeId !== playerState.currentLocationId) {
@@ -693,6 +767,28 @@ export function formatTravelLine(
   const via = route ? ` • route "${route.name}"` : '';
   const arriving = progress?.arriving ? ' • final leg' : '';
   return `En route "${from}" → "${to}"${arriving}${next}${via}`;
+}
+
+/**
+ * Pauses journey progression while an active encounter (`activeHoldEncounterId`) holds
+ * the caravan in place. Increments `pausedTurns` so the caravan does not teleport away
+ * mid-combat or mid-dialogue, and releases the hold on non-failure resolution.
+ */
+export function resolveTravelEncounterHold(
+  travel: ActiveTravel | null | undefined,
+  outcome: 'critical_success' | 'success' | 'mixed_success' | 'failure' | 'critical_failure' | string
+): { travel: ActiveTravel | null; wasHeld: boolean; heldEncounterId?: string } {
+  if (!travel || !travel.activeHoldEncounterId) {
+    return { travel: travel ?? null, wasHeld: false };
+  }
+  const heldEncounterId = travel.activeHoldEncounterId;
+  const resolvedCleanly = outcome !== 'failure' && outcome !== 'critical_failure';
+  const nextTravel: ActiveTravel = {
+    ...travel,
+    pausedTurns: (travel.pausedTurns ?? 0) + 1,
+    activeHoldEncounterId: resolvedCleanly ? undefined : heldEncounterId,
+  };
+  return { travel: nextTravel, wasHeld: true, heldEncounterId };
 }
 
 /**

@@ -229,6 +229,7 @@ export function applyStateMutation(
           ...diff.travel,
           waypointIds: [...(diff.travel.waypointIds ?? [])],
           caravanNpcIds: [...(diff.travel.caravanNpcIds ?? [])],
+          ...(diff.travel.transitHaltNames ? { transitHaltNames: [...diff.travel.transitHaltNames] } : {}),
         };
   }
 

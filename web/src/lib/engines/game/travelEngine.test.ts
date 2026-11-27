@@ -20,6 +20,7 @@ import {
   travelTimeline,
   formatTravelLine,
   clampJourneyTurns,
+  resolveTravelEncounterHold,
   isTravelStateEnabled,
   formatTravelCalendarDuration,
 } from './travelEngine';
@@ -665,6 +666,66 @@ describe('Event-Driven Dynamic Pacing & Narrative Ellipsis', () => {
     const leg2 = advanceTravel({ travel, currentLocationId: 'parent_desert' }, 5, wb, { lang: 'fa' });
     assert.equal(leg2.movedTo, undefined);
     assert.equal(leg2.arrivedAt, undefined);
+  });
+
+  it('pauses caravan travel during active encounters and allocates desert stretches between waypoints', () => {
+    const desert = loc('loc_desert', 'دشت هیرام', { coordinates: { x: 620, y: 720 } });
+    const well = loc('loc_well', 'چاه سنگ', {
+      parentLocationId: 'loc_desert',
+      coordinates: { x: 480, y: 800 },
+    });
+    const rabat = loc('loc_rabat', 'رباط سرخ', {
+      parentLocationId: 'loc_desert',
+      coordinates: { x: 740, y: 850 },
+    });
+    const gate = loc('loc_gate', 'شاخ زرین', {
+      coordinates: { x: 1189, y: 943 },
+    });
+    const wb = makeWb({
+      locations: [desert, well, rabat, gate],
+      tradeRoutes: [
+        {
+          id: 'route_hiram',
+          name: 'مسیر هیرام',
+          originLocationId: 'loc_well',
+          intermediateLocationIds: ['loc_rabat'],
+          destinationLocationId: 'loc_gate',
+          status: 'active',
+          dangerLevel: 3,
+          commodities: [],
+        },
+      ],
+    });
+
+    const plan = planJourney('loc_well', 'loc_gate', wb, 'caravan', {
+      pacingMode: 'cinematic_ellipsis',
+      hasEncounter: true,
+    })!;
+    // 1 waypoint + 2 road stretches = at least 4 legs instead of hard cap of 3
+    assert.ok(plan.totalTurns >= 4);
+
+    let active = startTravel(plan, 'loc_well', 2);
+    active.activeHoldEncounterId = 'enc_well';
+
+    // Failed encounter turn increments pausedTurns AND keeps hold
+    const holdFail = resolveTravelEncounterHold(active, 'failure');
+    assert.equal(holdFail.wasHeld, true);
+    assert.equal(holdFail.travel?.pausedTurns, 1);
+    assert.equal(holdFail.travel?.activeHoldEncounterId, 'enc_well');
+
+    // Successful resolution increments pausedTurns AND clears hold
+    const holdWin = resolveTravelEncounterHold(holdFail.travel, 'success');
+    assert.equal(holdWin.wasHeld, true);
+    assert.equal(holdWin.travel?.pausedTurns, 2);
+    assert.equal(holdWin.travel?.activeHoldEncounterId, undefined);
+
+    // Next turn (Turn 5 - 2 paused = effective Turn 3 -> legsElapsed = 1): moves onto desert road!
+    const roadLeg = advanceTravel({ travel: holdWin.travel!, currentLocationId: 'loc_well' }, 5, wb, { lang: 'fa' });
+    assert.equal(roadLeg.movedTo, 'loc_desert');
+
+    // Next turn (Turn 6 - 2 paused = effective Turn 4 -> legsElapsed = 2): arrives at rabat!
+    const rabatLeg = advanceTravel({ travel: holdWin.travel!, currentLocationId: 'loc_desert' }, 6, wb, { lang: 'fa' });
+    assert.equal(rabatLeg.movedTo, 'loc_rabat');
   });
 });
 

@@ -115,6 +115,10 @@ export interface ActiveTravel {
   transitHaltNames?: string[];
   /** Travel pacing profile: 'cinematic_ellipsis' (default) vs 'per_leg'. */
   pacingMode?: TravelPacingMode;
+  /** Accumulated turns paused in encounters/combats (excluded from road progress; rewind-safe). */
+  pausedTurns?: number;
+  /** Active encounter holding the caravan at the current stop/stretch until resolved. */
+  activeHoldEncounterId?: string;
 }
 
 // Plan 17: the writer's condition-lifecycle contract. Entries mirror the

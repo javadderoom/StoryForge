@@ -148,6 +148,8 @@ export interface ResolveTurnEncounterParams {
   clockUpdate?: CheckResolution['clockUpdate'];
   locationChange?: string;
   authoredMoveTargetId?: string;
+  /** When set, the turn just resolved an encounter hold; only local/chained follow-ups can fire immediately. */
+  justResolvedEncounterId?: string;
 }
 
 /**
@@ -168,11 +170,12 @@ export function resolveTurnEncounter(
     clockUpdate,
     locationChange,
     authoredMoveTargetId,
+    justResolvedEncounterId,
   } = params;
 
   if (!authoredEncounters.length) return null;
 
-  const lastCompletedEventId = playerState.completedEncounterIds?.at(-1);
+  const lastCompletedEventId = justResolvedEncounterId ?? playerState.completedEncounterIds?.at(-1);
   const highestActiveClock = Math.max(
     0,
     clockUpdate?.newSegments ?? 0,
@@ -204,15 +207,19 @@ export function resolveTurnEncounter(
     const route = playerState.travel.routeId
       ? (worldBible.tradeRoutes ?? []).find((r) => r.id === playerState.travel?.routeId)
       : undefined;
-    const roadLocIds = Array.from(
-      new Set(
-        [
-          playerState.currentLocationId,
-          originLoc?.parentLocationId,
-          ...(route?.intermediateLocationIds ?? []),
-        ].filter((id): id is string => Boolean(id))
-      )
-    );
+    // When finishing a paused encounter at the current stop, restrict immediate follow-up
+    // to the current location itself so downstream road events wait until the caravan moves onto the road.
+    const roadLocIds = justResolvedEncounterId
+      ? [playerState.currentLocationId]
+      : Array.from(
+          new Set(
+            [
+              playerState.currentLocationId,
+              originLoc?.parentLocationId,
+              ...(route?.intermediateLocationIds ?? []),
+            ].filter((id): id is string => Boolean(id))
+          )
+        );
     const roadPool = authoredEncounters.filter(
       (e) => e?.triggerConditions?.triggerType !== 'on_enter'
     );
@@ -234,7 +241,9 @@ export function resolveTurnEncounter(
         lastCompletedEventId,
         triggerContext: 'on_explore',
       });
-      if (explore) return explore;
+      if (explore && (!justResolvedEncounterId || explore.triggerConditions?.triggerAfterEventId === justResolvedEncounterId || explore.locationId === playerState.currentLocationId)) {
+        return explore;
+      }
     }
     return null;
   }
