@@ -242,9 +242,9 @@ Base Language: Write the entire narrative and choices in pure, literary ENGLISH.
    - Respect is earned progressively: decisive competence or tactical brilliance earns grudging nods, lowered weapons, or professional acknowledgment from peers. Only in mythic/supernatural tiers or after climactic heroic deeds do ordinary mortals show stunned awe or deference.
 6. CAPABILITY CALIBRATION & MORTAL REALISM:
    - Strictly ground physical feats in the protagonist's actual level, attributes, and injuries (from [PROTAGONIST STATUS & CAPABILITIES]). In low-level, mortal, or survival tiers, wounds bleed, stamina drains, and enemies fight back viciously. Only if the protagonist possesses high-tier attributes (16+) or mythic relics should narration contrast their superhuman traits against ordinary mortals.
-7. CONCENTRIC DANGER & THE ANOMALOUS CURIOSITY HOOK:
+7. CONCENTRIC DANGER & EARNED MYSTERY (NO FORCED HOOKS):
    - Never dump entire historical encyclopedias at once.
-   - Ground the immediate terrain, warn of the deeper perimeter, and plant ONE anomalous physical curiosity (e.g. ancient glowing runes, subterranean metallic grinding, unexplained machines) to pull the reader forward.
+   - Ground the immediate terrain and immediate stakes naturally. Do NOT force an obvious anomaly, twitching cargo, or secret hint into opening scenes or every single turn—secrets should stay hidden until earned through rising trust, progression, or the player's own active curiosity.
 [CAUSE & EFFECT PRIORITY — IMMEDIATE ACTION RESPONSIVENESS]
 - The prose MUST open with or directly dramatize the protagonist performing the player's specific action and the immediate direct reaction of the world or target NPC.
 - TARGET FIDELITY: Depict the reaction of the EXACT entity targeted by the action (e.g. the closed gate, the wall, or the specific sentry). Do NOT invent or substitute an unintroduced commander or off-scene NPC as the face-to-face responder!
@@ -358,9 +358,9 @@ Base Language: Write the narrative and choices in PERSIAN (فارسی - شیوا
    - احترام باید به‌شکل تدریجی و با عمل اثبات شود: مهارت یا ذکاوت تاکتیکی در آغاز صرفاً به تأیید شغلی، احتیاط بیشتر، یا کاهش خصومت ختم می‌شود. تعظیم، شگفتی فراوان یا کرنش قلبی صرفاً مختص سطوح بالا، اعمال جادویی شگرف یا پیروزی‌های حماسی است و هرگز به مسافران تازه‌کار تعلق نمی‌گیرد.
 6. تناسب توانمندی با واقع‌گرایی فانی (CAPABILITY CALIBRATION & MORTAL REALISM):
    - عملکرد رزمی و فیزیکی قهرمان را دقیقاً با سطح، صفات و جراحات فعلی او (مندرج در وضعیت قهرمان) بسنج. در سطوح آغازین و جهان‌های تیره، قهرمان یک فانی آسیب‌پذیر است که ضربات کاری به او زخم می‌زنند و خستگی بر او چیره می‌شود؛ توصیفات اغراق‌آمیز ابرقهرمانی و شکست‌ناپذیری صرفاً در صورتی مجاز است که صفات قهرمان در مرزهای افسانه‌ای (۱۶ به بالا) یا دارای یادگارهای ماورایی باشد.
-7. خطرات لایه‌ای و طعمهٔ کنجکاویِ اسرارآمیز (CONCENTRIC DANGER & CURIOSITY HOOK):
+7. خطرات لایه‌ای و رازهای به‌دست‌آمدنی (EARNED MYSTERY — بدون اشارهٔ اجباری):
    - هرگز تمام تاریخ و لور جهان را یکجا نریز.
-   - خطر فوری را نشان بده، از لایهٔ مرگبار بعدی هشدار بده، و یک پدیده یا ساختار عجیب و نامعلوم (مانند سنگ‌نوشته‌های درخشان باستانی، غرش مکانیکی در دل زمین، ماشین‌های اشباح) به عنوان طعمهٔ کنجکاوی در افق بکار تا ذهن خواننده برای کشف آن بی‌تاب بماند.
+   - خطر و فضای فوری صحنه را طبیعی و ملموس نشان بده. در صحنه‌های آغازین و نوبت‌های عادی، هرگز به زور یک راز، ناهنجاری یا کجاوهٔ مشکوک را توی چشم خواننده فرو نکن؛ راز باید پنهان بماند تا فقط با پیشرفت داستان، اعتماد شخصیت‌ها یا کنجکاوی فعال خودِ بازیکن کشف شود.
 [اولویت علت و معلول — پاسخگویی مستقیم به اقدام بازیکن / CAUSE & EFFECT PRIORITY]
 - صحنه باید فوراً با نشان دادن خودِ کنش بازیکن و واکنش بلافاصلهٔ جهان یا شخصیت مقابل آغاز شود یا بر آن متمرکز باشد.
 - وفاداری به هدف اقدام (Target Fidelity): دقیقاً واکنش همان هدف، شخص یا مانعی که بازیکن مورد خطاب قرار داده یا بر آن اقدام کرده را نشان بده (مثلاً همان نگهبانان یا درِ بسته). هرگز یک فرمانده یا شخصیت غایب را که در صحنه نبوده ناگهان رو در روی بازیکن ظاهر نکن!

@@ -310,7 +310,7 @@ export function buildWorldContextBlocks(
       const kindPrefix = n.kind === 'template' ? '[GROUP ARCHETYPE] ' : '';
       const combatStr = formatNpcCombatSummary(n);
       const combatSuffix = combatStr ? ` | combat: ${combatStr}` : '';
-      const hiddenSecrets = GameEngine.describeHiddenSecrets(n);
+      const hiddenSecrets = isStudioMode ? GameEngine.describeHiddenSecrets(n) : '';
       const secretsSuffix = hiddenSecrets ? ` | secrets: ${hiddenSecrets}` : '';
       const ov = overrides[n.id];
       if (!ov) {
@@ -321,7 +321,7 @@ export function buildWorldContextBlocks(
       const roleStr = ov.storyRole ? `Story Role: ${ov.storyRole}` : (n.role || 'unknown role');
       const relStr = ov.relationshipToProtagonist ? ` | Relation to Protagonist: ${ov.relationshipToProtagonist}` : '';
       const goalStr = ov.storyGoal ? ` | Story Goal: ${ov.storyGoal}` : (n.goals?.length ? ` | goals: ${n.goals.join(', ')}` : '');
-      const secretStr = ov.storySecret ? ` | Secret: ${ov.storySecret}` : '';
+      const secretStr = isStudioMode && ov.storySecret ? ` | Secret: ${ov.storySecret}` : '';
       const chEntrance = ov.firstAppearanceChapter !== undefined ? ` | First Appears: Chapter ${ov.firstAppearanceChapter}` : '';
       return `${kindPrefix}${n.name} [${roleStr}] — ${n.title || ''}${relStr}${goalStr}${secretStr}${chEntrance}${combatSuffix}${secretsSuffix}`;
     },
