@@ -55,12 +55,13 @@ export async function fetchCatalog(): Promise<CatalogStory[]> {
 export async function startSession(
   storyId: string,
   characterSetup?: CharacterSetup,
-  draftManifest?: any
+  draftManifest?: any,
+  localPlaytest?: boolean
 ): Promise<StartSessionResult> {
   const res = await fetch('/api/play/session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ storyId, characterSetup, draftManifest }),
+    body: JSON.stringify({ storyId, characterSetup, draftManifest, localPlaytest }),
   });
   const json = await asJson(res);
   if (!json.success) throw new Error(json.error || 'Failed to start session');
@@ -160,6 +161,8 @@ export async function sendAction(payload: {
   draftManifest?: any;
   /** id of the presented choice being acted on, when not free text. */
   choiceId?: string;
+  /** Zero-API local playtest narrator opt-in (ignored in production). */
+  localPlaytest?: boolean;
 }): Promise<any> {
   const res = await fetch('/api/play/action', {
     method: 'POST',

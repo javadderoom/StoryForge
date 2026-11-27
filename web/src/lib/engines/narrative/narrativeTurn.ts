@@ -92,6 +92,8 @@ export interface SceneTurnInput {
   };
   /** Dynamic road or location encounter / key dialogue triggered this turn. */
   activeEncounter?: StoryEncounter | null;
+  /** Local zero-API playtest mode: use pure heuristic momentum check instead of external SubQ calls. */
+  forceHeuristicMomentum?: boolean;
   /** Real-time callback invoked with narrative token deltas as they stream from the LLM. */
   onTextDelta?: (delta: string) => void;
 }
@@ -723,7 +725,10 @@ export async function generateValidatedScene(
     candidateNarrative: candidate.narrative,
     candidateChoices: candidate.choices,
   };
-  const momentumCheck = input.onTextDelta
+  const useHeuristicMomentum = Boolean(
+    input.onTextDelta || input.forceHeuristicMomentum || !subqClient.isConfigured()
+  );
+  const momentumCheck = useHeuristicMomentum
     ? evaluateMomentumHeuristics(momentumInput)
     : await evaluateNarrativeMomentum(momentumInput, subqClient);
   if (!momentumCheck.ok && momentumCheck.repairInstruction) {
@@ -764,7 +769,7 @@ export async function generateValidatedScene(
         candidateNarrative: candidate.narrative,
         candidateChoices: candidate.choices,
       };
-      const recheckedMomentum = input.onTextDelta
+      const recheckedMomentum = useHeuristicMomentum
         ? evaluateMomentumHeuristics(recheckInput)
         : await evaluateNarrativeMomentum(recheckInput, subqClient);
       if (!recheckedMomentum.ok && recheckedMomentum.repairInstruction) {

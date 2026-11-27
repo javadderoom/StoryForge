@@ -17,6 +17,7 @@ import { buildNpcIdToName } from '@/lib/engines/narrative/snapPredictor';
 import { scheduleSnapDwell } from '@/lib/play/snapDecisions';
 import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
 import { GeminiAdapter, normalizeChoices } from '@/lib/providers/GeminiAdapter';
+import { createLocalPlaytestAdapter, isLocalPlaytestRequest } from '@/lib/providers/localPlaytestNarrator';
 import { ActionValidator } from '@/lib/engines/validator/ActionValidator';
 import { refreshZoneThreatClocks, seedAmbientClock } from '@/lib/engines/game/threatClock';
 import { findMentionedNpcs } from '@/lib/engines/world/npcMatching';
@@ -98,7 +99,8 @@ const openingGeminiAdapter = new GeminiAdapter();
 async function generateOpeningChoices(
   story: any,
   beat: { sceneId?: string; locationId?: string; narrativeText?: string },
-  playerState: PlayerState
+  playerState: PlayerState,
+  customAdapter?: GeminiAdapter
 ): Promise<ChoiceOption[]> {
   try {
     const wb = story.worldBible ?? {};
@@ -200,7 +202,8 @@ async function generateOpeningChoices(
 
         const openingProseText = String(beat.narrativeText || '');
     const promptPayload = PromptAssembler.buildOpeningChoicesPrompt(context, openingProseText);
-    const rawResult = await openingGeminiAdapter.generateSceneRaw(promptPayload);
+    const activeAdapter = customAdapter ?? openingGeminiAdapter;
+    const rawResult = await activeAdapter.generateSceneRaw(promptPayload);
     if (!rawResult || !rawResult.data) {
       console.warn('[session] Opening choice generation unavailable (mock/offline) — opening with authored choices.');
       return [];
@@ -446,6 +449,7 @@ export async function PATCH(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
+    const localPlaytestActive = isLocalPlaytestRequest(req, body);
     const storyId = body?.storyId;
     if (!storyId) {
       return NextResponse.json(
@@ -724,7 +728,12 @@ export async function POST(req: NextRequest) {
     const openingChoices: ChoiceOption[] =
       authoredBeatChoices.length > 0 || isPlaceholderBeat(initialBeat as any)
         ? authoredBeatChoices
-        : await generateOpeningChoices(story, initialBeat, playerState);
+        : await generateOpeningChoices(
+            story,
+            initialBeat,
+            playerState,
+            localPlaytestActive ? await createLocalPlaytestAdapter() : undefined
+          );
 
     const initialNpcStatuses = [...(story.saga?.ledger?.npcStatuses ?? [])];
     for (const companionId of startingCompanionIds) {
@@ -780,24 +789,26 @@ export async function POST(req: NextRequest) {
     // Plan 15 §2.3 (Phase 6): opener dwell — predict the reader's first choice
     // as the session-opening scene renders, and pre-generate the predicted branch
     // when ENABLE_SNAP_AOT=true. Runs after this response is on the wire.
-    after(async () => {
-      await scheduleSnapDwell({
-        sessionId: session.sessionId,
-        storyId: story.id,
-        storyTitle: story.title,
-        storyLanguage: story.language,
-        npcIdToName: buildNpcIdToName(story.worldBible?.npcs),
-        turnNumber: 1,
-        currentProse: initialBeat.narrativeText,
-        choices: openingChoices,
-        playerState,
-        history: [],
-        aot: {
-          story,
-          caller: auth ? { id: auth.user.id, role: auth.user.role } : null,
-        },
+    if (!localPlaytestActive) {
+      after(async () => {
+        await scheduleSnapDwell({
+          sessionId: session.sessionId,
+          storyId: story.id,
+          storyTitle: story.title,
+          storyLanguage: story.language,
+          npcIdToName: buildNpcIdToName(story.worldBible?.npcs),
+          turnNumber: 1,
+          currentProse: initialBeat.narrativeText,
+          choices: openingChoices,
+          playerState,
+          history: [],
+          aot: {
+            story,
+            caller: auth ? { id: auth.user.id, role: auth.user.role } : null,
+          },
+        });
       });
-    });
+    }
 
     return NextResponse.json(
       {

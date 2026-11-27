@@ -25,6 +25,8 @@ import { buildNpcIdToName, deriveActualChoice } from '@/lib/engines/narrative/sn
 import { cancelSnapPrediction, resolveSnapDecision, scheduleSnapDwell } from '@/lib/play/snapDecisions';
 import { findServableAotBranch, markAotBranchServed } from '@/lib/play/snapAot';
 import { getNarrativeAdapter, ENGINE_TIER_COSTS, type EngineTier } from '@/lib/providers/narrativeAdapterFactory';
+import { createLocalPlaytestAdapter, isLocalPlaytestRequest } from '@/lib/providers/localPlaytestNarrator';
+import { SubQAdapter } from '@/lib/providers/SubQAdapter';
 import { reconcileConditions } from '@/lib/engines/game/conditionReconciler';
 import { isBodilyRiskAction } from '@/lib/engines/game/actionCheckEngine';
 import {
@@ -234,6 +236,7 @@ async function processTurnAction(
     // tier is the default. The requested tier pays its own price, so switching
     // can never underpay for a higher model. Anonymous stateless calls keep the
     // story default and cannot request an upgrade for free.
+    const localPlaytestActive = isLocalPlaytestRequest(req, body);
     const requestedEngineTier = (auth || process.env.NODE_ENV !== 'production') ? body?.engineTier : undefined;
     const engineTier: EngineTier =
       requestedEngineTier === 'advance' || requestedEngineTier === 'plus' || requestedEngineTier === 'normal'
@@ -243,7 +246,7 @@ async function processTurnAction(
         : story.engineTier === 'plus'
         ? 'plus'
         : 'normal';
-    const sceneCreditCost = isRemake ? 0 : (ENGINE_TIER_COSTS[engineTier] ?? 1);
+    const sceneCreditCost = (isRemake || localPlaytestActive) ? 0 : (ENGINE_TIER_COSTS[engineTier] ?? 1);
 
     // Credit metering. Remakes are free (0 credits).
     if (auth && sceneCreditCost > 0 && auth.user.creditBalance < sceneCreditCost) {
@@ -426,7 +429,7 @@ async function processTurnAction(
       (l: any) => l.id === playerState.currentLocationId
     );
 
-    if (session && typeof lastTurn?.turnNumber === 'number') {
+    if (session && !localPlaytestActive && typeof lastTurn?.turnNumber === 'number') {
       const snapResolvePayload = {
         sessionId: session.sessionId,
         turnNumber: lastTurn.turnNumber,
@@ -441,9 +444,10 @@ async function processTurnAction(
 
     // Plan 15 §2.3 tier 4 / Live AOT Serving + narrative adapter resolution in parallel.
     const shouldCheckAot =
-      Boolean(session && actualChoice.actualChoiceId && typeof lastTurn?.turnNumber === 'number' && !isRemake && !targetSceneId);
+      Boolean(!localPlaytestActive && session && actualChoice.actualChoiceId && typeof lastTurn?.turnNumber === 'number' && !isRemake && !targetSceneId);
+    const localSubqDisabled = localPlaytestActive ? new SubQAdapter('') : undefined;
     const [activeNarrativeAdapter, aotBranch] = await Promise.all([
-      getNarrativeAdapter(engineTier),
+      localPlaytestActive ? createLocalPlaytestAdapter() : getNarrativeAdapter(engineTier),
       shouldCheckAot
         ? findServableAotBranch({
             sessionId: session!.sessionId,
@@ -578,6 +582,7 @@ async function processTurnAction(
         isPersian: isPersianStory,
         currentLocationName: currentLocation?.name,
         level: playerState.level || 1,
+        ...(localSubqDisabled ? { subqAdapter: localSubqDisabled } : {}),
       };
       const feasibility = isPresetChoice
         ? GameEngine.evaluateFeasibilityHeuristics(playerActionText, feasibilityContext)
@@ -1442,6 +1447,7 @@ async function processTurnAction(
           travelArrival: travelArrived,
           activeEncounter: triggeredEncounter,
           remakeDirective,
+          forceHeuristicMomentum: localPlaytestActive || undefined,
           onTextDelta: streamWriter
             ? (delta: string) => {
                 streamWriter.sendEvent('prose_delta', { delta });
@@ -1471,7 +1477,8 @@ async function processTurnAction(
             recentSceneSnippets,
             currentProse
           );
-        }
+        },
+        localSubqDisabled
       );
     }
 
@@ -1840,7 +1847,7 @@ async function processTurnAction(
       await Promise.all([recordTurnPromise, creditPromise]);
 
       // Plan 15 §2.3 (Phase 6): Snap dwell compute, logged at render.
-      if (session) {
+      if (session && !localPlaytestActive) {
         after(async () => {
           await scheduleSnapDwell({
             sessionId,

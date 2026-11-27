@@ -213,9 +213,38 @@ export default function Home() {
   const [sfxMuted, setSfxMuted] = useState(false);
   const [ambientMuted, setAmbientMuted] = useState(false);
 
+  // Zero-API local playtest mode toggle (available only in non-production dev/local runs)
+  const isDevEnvironment = process.env.NODE_ENV !== 'production';
+  const [localPlaytestMode, setLocalPlaytestMode] = useState<boolean>(() => {
+    if (!isDevEnvironment) return false;
+    try {
+      return localStorage.getItem('storyforge_local_playtest_v1') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const toggleLocalPlaytestMode = () => {
+    if (!isDevEnvironment) return;
+    setLocalPlaytestMode((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('storyforge_local_playtest_v1', String(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
+
   const isRtl = (storyMeta?.language ?? selectedStory?.language ?? 'en') !== 'en';
   const currentEngineTier = storyMeta?.engineTier || selectedStory?.engineTier || 'normal';
-  const requiredCredits = currentEngineTier === 'advance' ? 5 : currentEngineTier === 'plus' ? 2 : 1;
+  const requiredCredits = localPlaytestMode
+    ? 0
+    : currentEngineTier === 'advance'
+      ? 5
+      : currentEngineTier === 'plus'
+        ? 2
+        : 1;
 
   const [showStoryUpdateNotice, setShowStoryUpdateNotice] = useState(false);
   const activeUpdateNotice: StoryUpdateNotice | null =
@@ -368,10 +397,10 @@ export default function Home() {
           // clear the blank session and start a fresh session with the newly authored beats/draft.
           if (!data.currentBeat?.narrative || data.currentBeat.narrative.trim().length === 0) {
             clearStoredSession(storyId);
-            data = await startSession(storyId, setup, localDraft);
+            data = await startSession(storyId, setup, localDraft, localPlaytestMode || undefined);
           }
         } else {
-          data = await startSession(storyId, setup, localDraft);
+          data = await startSession(storyId, setup, localDraft, localPlaytestMode || undefined);
         }
         if (!data) throw new Error('No session data');
         const resolvedSessionId = data.sessionId || (data as any).session?.sessionId;
@@ -537,6 +566,7 @@ export default function Home() {
           targetSceneId,
           draftManifest: localDraft,
           choiceId: choice.id ?? choice.choiceId,
+          localPlaytest: localPlaytestMode || undefined,
         });
         if (json.isGuardrailViolation) {
           setErrorMessage(json.rejectionReason);
@@ -638,6 +668,7 @@ export default function Home() {
         targetSceneId,
         draftManifest: localDraft,
         choiceId: choice.id ?? choice.choiceId,
+        localPlaytest: localPlaytestMode || undefined,
       });
       if (json.isGuardrailViolation) {
         clearTimeout(rollTimer);
@@ -1083,6 +1114,34 @@ export default function Home() {
             <Palette className="h-3.5 w-3.5 text-amber-400" />
             <span className="hidden sm:inline">{isRtl ? 'پوسته' : 'Theme'}</span>
           </button>
+
+          {/* Dev-only Zero-API Local Playtest Toggle */}
+          {isDevEnvironment && (
+            <button
+              type="button"
+              onClick={toggleLocalPlaytestMode}
+              className={`hidden sm:flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
+                localPlaytestMode
+                  ? 'border-emerald-500/60 bg-emerald-500/20 text-emerald-300 shadow-sm shadow-emerald-950/30'
+                  : 'border-zinc-700/60 bg-zinc-800/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
+              }`}
+              title={
+                isRtl
+                  ? 'فعال‌سازی راوی لوکال (بدون درخواست به API هوش مصنوعی و بدون مصرف اعتبار)'
+                  : 'Toggle Local Zero-API Playtest Narrator (0 credits, offline)'
+              }
+            >
+              <span>
+                {isRtl
+                  ? localPlaytestMode
+                    ? 'لوکال: روشن (۰ API)'
+                    : 'تست لوکال'
+                  : localPlaytestMode
+                    ? 'Local: ON (0 API)'
+                    : 'Local Test'}
+              </span>
+            </button>
+          )}
 
           {/* Engine Tier Badge */}
           <span
