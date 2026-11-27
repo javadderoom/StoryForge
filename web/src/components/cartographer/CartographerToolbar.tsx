@@ -233,13 +233,13 @@ export const CartographerToolbar: React.FC<CartographerToolbarProps> = ({
   ];
 
   return (
-    <aside className="absolute left-4 top-20 z-20 flex flex-col gap-2.5 bg-zinc-950/85 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-2 shadow-2xl max-h-[calc(100vh-100px)] overflow-y-auto scrollbar-none select-none">
+    <aside className="absolute left-3.5 top-16 z-20 flex flex-col gap-1.5 bg-zinc-950/90 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-2 shadow-2xl select-none w-[86px] xl:w-[248px]">
       {toolGroups.map((group, gIdx) => (
         <div key={gIdx} className="space-y-1">
-          <div className="px-2 pt-1 text-[9px] font-mono uppercase tracking-wider text-zinc-500 font-semibold">
+          <div className="px-1 pt-0.5 text-[9px] font-mono uppercase tracking-wider text-zinc-500 font-semibold truncate text-center xl:text-start">
             {isPersian ? group.categoryTitle.fa : group.categoryTitle.en}
           </div>
-          <div className="space-y-0.5">
+          <div className="grid grid-cols-2 gap-1">
             {group.tools.map((tool) => {
               const Icon = tool.icon;
               const isActive = activeTool === tool.id;
@@ -251,19 +251,22 @@ export const CartographerToolbar: React.FC<CartographerToolbarProps> = ({
                   title={`${isPersian ? tool.name.fa : tool.name.en} — ${
                     isPersian ? tool.tooltip.fa : tool.tooltip.en
                   }`}
-                  className={`relative group flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-xs font-medium transition-all ${
+                  className={`relative group flex items-center justify-center xl:justify-start gap-1.5 h-8 px-1.5 xl:px-2 rounded-lg text-[10.5px] font-medium transition-all ${
                     isActive
-                      ? 'bg-amber-500 text-zinc-950 font-semibold shadow-lg shadow-amber-500/25 ring-1 ring-amber-400'
-                      : `text-zinc-300 hover:bg-zinc-900/90 ${tool.accentClass}`
+                      ? 'bg-amber-500 text-zinc-950 font-semibold shadow-md shadow-amber-500/25 ring-1 ring-amber-400'
+                      : `bg-zinc-900/50 text-zinc-300 hover:bg-zinc-800/90 ${tool.accentClass}`
                   }`}
                 >
-                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-zinc-950' : ''}`} />
+                  <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-zinc-950' : ''}`} />
                   <span className="hidden xl:inline truncate">
                     {isPersian ? tool.name.fa : tool.name.en}
                   </span>
 
-                  {/* Tooltip for compact / mobile displays */}
-                  <div className="xl:hidden absolute left-full ml-2.5 px-2.5 py-1.5 bg-zinc-900 border border-zinc-700/80 text-zinc-200 text-xs rounded-xl shadow-xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                  {/* Tooltip shown on hover over compact/icon buttons */}
+                  <div
+                    dir={isPersian ? 'rtl' : 'ltr'}
+                    className="xl:hidden absolute left-full ml-2 px-2.5 py-1.5 bg-zinc-900 border border-zinc-700/80 text-zinc-200 text-xs rounded-xl shadow-xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50"
+                  >
                     <div className="font-semibold">{isPersian ? tool.name.fa : tool.name.en}</div>
                     <div className="text-[10px] text-zinc-400">
                       {isPersian ? tool.tooltip.fa : tool.tooltip.en}
@@ -273,7 +276,7 @@ export const CartographerToolbar: React.FC<CartographerToolbarProps> = ({
               );
             })}
           </div>
-          {gIdx < toolGroups.length - 1 && <div className="h-px bg-zinc-800/80 my-1" />}
+          {gIdx < toolGroups.length - 1 && <div className="h-px bg-zinc-800/80 my-0.5" />}
         </div>
       ))}
     </aside>

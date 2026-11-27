@@ -76,6 +76,7 @@ interface CartographerHeaderProps {
   isSyncing: boolean;
   hasUnsavedChanges: boolean;
   onSave: () => void;
+  onResetToServer?: () => void | Promise<void>;
   onOpenAiOracle: () => void;
   /** Plan 19: derive coordinates from lore/topology (auto-fit, undoable). */
   onAutoFit: () => Promise<void> | void;
@@ -130,6 +131,7 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
   isSyncing,
   hasUnsavedChanges,
   onSave,
+  onResetToServer,
   onOpenAiOracle,
   onAutoFit,
   onSyncEntities,
@@ -162,59 +164,55 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
   );
 
   return (
-    <header className="h-16 bg-zinc-950/90 border-b border-zinc-800/80 backdrop-blur-md px-4 flex items-center justify-between gap-3 select-none z-30 shrink-0">
+    <header className="h-14 bg-zinc-950/92 border-b border-zinc-800/80 backdrop-blur-md px-2.5 flex items-center justify-between gap-2 select-none z-30 shrink-0 overflow-hidden">
       {/* Left: Branding & World Switcher */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 min-w-0 shrink-0">
         <Link
           href="/studio/locations"
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-amber-300 hover:border-amber-500/40 transition-all text-xs font-medium"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-amber-300 hover:border-amber-500/40 transition-all text-[11px] font-medium whitespace-nowrap shrink-0"
           title={isPersian ? 'بازگشت به استودیو' : 'Return to Studio'}
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
           <span className="hidden sm:inline">{isPersian ? 'استودیو' : 'Studio'}</span>
         </Link>
 
-        <div className="h-5 w-px bg-zinc-800 hidden sm:block" />
+        <div className="h-4 w-px bg-zinc-800 hidden sm:block shrink-0" />
 
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-sm shadow-amber-500/10">
-            <Compass className="w-4.5 h-4.5" />
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+            <Compass className="w-4 h-4" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-sm font-bold text-zinc-100 tracking-wide">
-                {isPersian ? 'نقشه‌نگار تعاملی جهان' : 'Interactive World Cartographer'}
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-xs font-bold text-zinc-100 tracking-wide whitespace-nowrap">
+                {isPersian ? 'نقشه‌نگار جهان' : 'World Cartographer'}
               </h1>
-              <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md font-mono uppercase tracking-wider">
+              <span className="hidden 2xl:inline text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-md font-mono uppercase tracking-wider whitespace-nowrap">
                 Studio Atlas
               </span>
             </div>
 
-            {/* World Switcher Dropdown — every world is visible, including
-                empty/orphan worlds. Empty worlds are disabled here because the
-                Cartographer needs a story to open; the Story Library creates
-                the first story in them. */}
             {worldsList.length > 0 ? (
-              <div className="flex items-center gap-1 mt-0.5">
+              <div className="flex items-center gap-1">
                 <div className="relative inline-block">
                   <select
                     value={selectedWorldId}
                     onChange={(e) => onSelectWorld(e.target.value)}
-                    className="bg-transparent text-xs text-zinc-400 hover:text-zinc-200 cursor-pointer pr-4 focus:outline-none appearance-none max-w-[320px]"
+                    className="bg-transparent text-[11px] text-zinc-400 hover:text-zinc-200 cursor-pointer pr-3.5 focus:outline-none appearance-none max-w-[140px] xl:max-w-[175px] truncate"
                   >
                     {worldsList.map((w) => {
                       const isEmpty = w.storyCount === 0;
                       const isDuplicate = duplicateWorldNames.has(w.name);
                       const storyLabel =
                         typeof w.storyCount === 'number'
-                          ? ` (${w.storyCount} ${w.storyCount === 1 ? 'story' : 'stories'})`
+                          ? ` (${w.storyCount})`
                           : '';
                       const emptyLabel = isEmpty
                         ? isPersian
-                          ? ' — بدون داستان'
-                          : ' — no stories'
+                          ? ' — خالی'
+                          : ' — empty'
                         : '';
-                      const idLabel = isDuplicate ? ` · #${w.id.slice(0, 8)}` : '';
+                      const idLabel = isDuplicate ? ` · #${w.id.slice(0, 6)}` : '';
 
                       return (
                         <option
@@ -234,14 +232,14 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
                   <button
                     onClick={() => void onDeleteWorld()}
                     title={isPersian ? 'حذف جهان جاری و همه داستان‌هایش' : 'Delete current world and all its stories'}
-                    className="p-1 rounded-lg text-zinc-600 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+                    className="p-0.5 rounded-md text-zinc-600 hover:text-rose-300 hover:bg-rose-500/10 transition-colors shrink-0"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3 h-3" />
                   </button>
                 )}
               </div>
             ) : (
-              <span className="text-xs text-zinc-400 truncate max-w-[180px] block mt-0.5 font-medium">
+              <span className="text-[11px] text-zinc-400 truncate max-w-[140px] block font-medium">
                 {worldName || (isPersian ? 'جهان جاری' : 'Current World')}
               </span>
             )}
@@ -250,14 +248,14 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
       </div>
 
       {/* Center: Style Theme & Quick View Controls */}
-      <div className="hidden lg:flex items-center gap-2 bg-zinc-900/80 border border-zinc-800/80 rounded-2xl p-1 shadow-inner">
+      <div className="hidden lg:flex items-center gap-1 bg-zinc-900/80 border border-zinc-800/80 rounded-xl px-1.5 py-1 shadow-inner shrink-0">
         {/* Theme Picker */}
-        <div className="flex items-center gap-1 px-2 border-r border-zinc-800">
-          <Palette className="w-3.5 h-3.5 text-zinc-400" />
+        <div className="flex items-center gap-1 px-1.5 border-r border-zinc-800">
+          <Palette className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
           <select
             value={settings.theme}
             onChange={(e) => onUpdateSettings({ theme: e.target.value as MapStyleTheme })}
-            className="bg-transparent text-xs text-zinc-200 cursor-pointer focus:outline-none py-1"
+            className="bg-transparent text-[11px] text-zinc-200 cursor-pointer focus:outline-none py-0.5 max-w-[92px] truncate"
           >
             {THEME_OPTIONS.map((th) => (
               <option key={th.id} value={th.id} className="bg-zinc-900 text-zinc-200">
@@ -268,126 +266,125 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
         </div>
 
         {/* Grid Type Selector */}
-        <div className="flex items-center gap-1 px-2 border-r border-zinc-800">
-          <Grid className="w-3.5 h-3.5 text-zinc-400" />
+        <div className="flex items-center gap-1 px-1.5 border-r border-zinc-800">
+          <Grid className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
           <select
             value={settings.gridType}
             onChange={(e) => onUpdateSettings({ gridType: e.target.value as 'none' | 'square' | 'hex' })}
-            className="bg-transparent text-xs text-zinc-200 cursor-pointer focus:outline-none py-1"
+            className="bg-transparent text-[11px] text-zinc-200 cursor-pointer focus:outline-none py-0.5 max-w-[90px] truncate"
           >
-            <option value="none" className="bg-zinc-900">{isPersian ? 'بدون شبکه' : 'No Grid'}</option>
-            <option value="hex" className="bg-zinc-900">{isPersian ? 'شبکه شش‌ضلعی' : 'Hex Grid'}</option>
-            <option value="square" className="bg-zinc-900">{isPersian ? 'شبکه چهارضلعی' : 'Square Grid'}</option>
+            <option value="none" className="bg-zinc-900">{isPersian ? 'بی‌شبکه' : 'No Grid'}</option>
+            <option value="hex" className="bg-zinc-900">{isPersian ? 'شش‌ضلعی' : 'Hex'}</option>
+            <option value="square" className="bg-zinc-900">{isPersian ? 'چهارضلعی' : 'Square'}</option>
           </select>
         </div>
 
         {/* Layer Manager Toggle */}
         <button
           onClick={onToggleLayerPanel}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium transition-colors ${
+          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors ${
             isLayerPanelOpen
               ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
               : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
           }`}
           title={isPersian ? 'مدیریت لایه‌ها' : 'Layer Controls'}
         >
-          <Layers className="w-3.5 h-3.5" />
+          <Layers className="w-3.5 h-3.5 shrink-0" />
           <span>{isPersian ? 'لایه‌ها' : 'Layers'}</span>
         </button>
 
         {/* Elements List Toggle */}
         <button
           onClick={onToggleElementsPanel}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium transition-colors ${
+          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors ${
             isElementsPanelOpen
               ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
               : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
           }`}
           title={isPersian ? 'فهرست المنت‌ها و اجزای نقشه' : 'Map Elements List'}
         >
-          <ListTree className="w-3.5 h-3.5" />
+          <ListTree className="w-3.5 h-3.5 shrink-0" />
           <span>{isPersian ? 'المنت‌ها' : 'Elements'}</span>
         </button>
 
         {/* Entity Palette Toggle */}
         <button
           onClick={onTogglePalette}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium transition-colors ${
+          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors ${
             isPaletteOpen
               ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
               : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
           }`}
-          title={isPersian ? 'موجودی موجودات و مکان‌های جهان' : 'World Bible Entities'}
+          title={isPersian ? 'موجودی موجودیت‌های جهان (شخصیت، جانور، رویداد...)' : 'World Bible Entities'}
         >
-          <Globe className="w-3.5 h-3.5" />
-          <span>{isPersian ? 'موجودیت‌های جهان' : 'World Palette'}</span>
+          <Globe className="w-3.5 h-3.5 shrink-0" />
+          <span>{isPersian ? 'پالت جهان' : 'Palette'}</span>
         </button>
 
         {/* Asset & Stamp Drawer Toggle */}
         {onToggleAssetDrawer && (
           <button
             onClick={onToggleAssetDrawer}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium transition-colors ${
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors ${
               isAssetDrawerOpen
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
             }`}
             title={isPersian ? 'کتابخانه نمادها و استامپ‌ها' : 'Asset & Stamp Library'}
           >
-            <Stamp className="w-3.5 h-3.5" />
-            <span>{isPersian ? 'کتابخانه نمادها' : 'Stamp Shelf'}</span>
+            <Stamp className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden xl:inline">{isPersian ? 'نمادها' : 'Stamps'}</span>
           </button>
         )}
       </div>
 
-      {/* Right: AI Oracle, Zoom HUD, Save & Fullscreen */}
-      <div className="flex items-center gap-2">
+      {/* Right: Sync, Auto-fit, AI Oracle, Zoom HUD, Save & Fullscreen */}
+      <div className="flex items-center gap-1.5 shrink-0">
         {/* Sync unplaced WorldBible entities & encounters onto map */}
         {onSyncEntities && (
           <button
             onClick={onSyncEntities}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 hover:bg-amber-500/25 hover:text-white transition-all text-xs font-medium"
+            className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 hover:bg-amber-500/25 hover:text-white transition-all text-[11px] font-medium whitespace-nowrap"
             title={
               isPersian
                 ? 'سنجاق‌کردن خودکار همه عناصر نامستقر جهان (شخصیت‌ها، جانوران، رویارویی‌ها، مأموریت‌ها و جناح‌ها) بدون تداخل'
                 : 'Auto-pin all unplaced world entities, encounters, quests & factions without overlap'
             }
           >
-            <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden xl:inline">{isPersian ? 'همگام‌سازی عناصر' : 'Sync Entities'}</span>
+            <RefreshCw className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="hidden xl:inline">{isPersian ? 'همگام‌سازی' : 'Sync'}</span>
           </button>
         )}
 
         {/* Plan 19: deterministic coordinate auto-fit + undo */}
         <button
           onClick={onAutoFit}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600/30 to-teal-600/30 border border-emerald-500/40 text-emerald-200 hover:text-white hover:border-emerald-400 transition-all text-xs font-medium shadow-md shadow-emerald-950/40"
+          className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600/30 to-teal-600/30 border border-emerald-500/40 text-emerald-200 hover:text-white hover:border-emerald-400 transition-all text-[11px] font-medium whitespace-nowrap"
           title={
             isPersian
-              ? 'استخراج مختصات از گراف جهان (فقط نشان‌های قدیمی/ناقص)'
-              : 'Derive coordinates from lore & topology (legacy/missing pins only)'
+              ? 'چیدمان خودکار: استخراج مختصات از گراف جهان (فقط نشان‌های قدیمی/ناقص)'
+              : 'Auto-fit coordinates from lore & topology'
           }
         >
-          <Wand2 className="w-3.5 h-3.5 text-emerald-400" />
-          <span className="hidden sm:inline">{isPersian ? 'چیدمان خودکار' : 'Auto-fit'}</span>
+          <Wand2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          <span className="hidden 2xl:inline">{isPersian ? 'چیدمان' : 'Auto-fit'}</span>
         </button>
         {canUndoAutoFit && (
           <button
             onClick={onUndoAutoFit}
-            className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-amber-300 hover:border-amber-500/40 transition-all text-xs"
+            className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-amber-300 hover:border-amber-500/40 transition-all text-[11px] whitespace-nowrap"
             title={isPersian ? 'بازگردانی مختصات قبلی' : 'Undo last auto-fit'}
           >
-            <Undo2 className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">{isPersian ? 'بازگردانی' : 'Undo'}</span>
+            <Undo2 className="w-3.5 h-3.5 shrink-0" />
           </button>
         )}
 
-        {/* Undo / redo — every authoring action on the map (Ctrl+Z / Ctrl+Shift+Z) */}
-        <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-xl p-0.5">
+        {/* Undo / redo */}
+        <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-xl p-0.5 shrink-0">
           <button
             onClick={onUndo}
             disabled={!canUndo}
-            className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            className="p-1 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
             title={
               canUndo && undoLabel
                 ? isPersian
@@ -403,7 +400,7 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
           <button
             onClick={onRedo}
             disabled={!canRedo}
-            className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            className="p-1 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
             title={
               canRedo && redoLabel
                 ? isPersian
@@ -421,73 +418,98 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
         {/* AI Cartographer Oracle */}
         <button
           onClick={onOpenAiOracle}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-violet-600/30 to-indigo-600/30 border border-violet-500/40 text-violet-200 hover:text-white hover:border-violet-400 transition-all text-xs font-medium shadow-md shadow-violet-950/40"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-violet-600/30 to-indigo-600/30 border border-violet-500/40 text-violet-200 hover:text-white hover:border-violet-400 transition-all text-[11px] font-medium whitespace-nowrap"
+          title={isPersian ? 'پیشنهاد هوش مصنوعی' : 'AI Cartographer'}
         >
-          <Sparkles className="w-3.5 h-3.5 text-violet-400 animate-pulse" />
-          <span className="hidden sm:inline">{isPersian ? 'پیشنهاد هوش مصنوعی' : 'AI Cartographer'}</span>
+          <Sparkles className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+          <span className="hidden xl:inline">{isPersian ? 'هوش مصنوعی' : 'AI Oracle'}</span>
         </button>
 
         {/* Zoom Controls */}
-        <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-xl p-0.5">
+        <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-xl p-0.5 shrink-0">
           <button
             onClick={onZoomOut}
-            className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors"
+            className="p-1 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors"
             title={isPersian ? 'کوچک‌نمایی (Page Down)' : 'Zoom Out (Page Down)'}
           >
             <ZoomOut className="w-3.5 h-3.5" />
           </button>
-          <span className="text-[11px] font-mono text-zinc-300 px-1.5 min-w-[42px] text-center">
+          <span dir="ltr" className="text-[10.5px] font-mono text-zinc-300 px-1 min-w-[36px] text-center">
             {Math.round(zoom * 100)}%
           </span>
           <button
             onClick={onZoomIn}
-            className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors"
+            className="p-1 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors"
             title={isPersian ? 'بزرگ‌نمایی (Page Up)' : 'Zoom In (Page Up)'}
           >
             <ZoomIn className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={onFitView}
-            className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors border-l border-zinc-800"
+            className="p-1 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors border-l border-zinc-800"
             title={isPersian ? 'نمای کامل نقشه' : 'Fit to Map'}
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
         </div>
 
+        {/* Reset stale browser draft back to Server DB */}
+        {hasUnsavedChanges && onResetToServer && (
+          <button
+            onClick={() => void onResetToServer()}
+            className="p-1.5 rounded-xl bg-rose-500/15 border border-rose-500/35 text-rose-300 hover:bg-rose-500/25 hover:text-white transition-all shrink-0"
+            title={
+              isPersian
+                ? 'لغو پیش‌نویس محلی مرورگر و بارگذاری نسخهٔ تازهٔ سرور'
+                : 'Discard local browser draft & reload from server'
+            }
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
+        )}
+
         {/* Save to Server Button */}
         <button
           onClick={onSave}
           disabled={isSyncing}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-medium whitespace-nowrap transition-all shrink-0 ${
             hasUnsavedChanges
               ? 'bg-amber-500 text-zinc-950 font-semibold hover:bg-amber-400 shadow-lg shadow-amber-500/20'
               : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200'
           }`}
+          title={
+            hasUnsavedChanges
+              ? isPersian
+                ? 'تغییرات محلی ذخیره نشده — کلیک برای ذخیره در سرور'
+                : 'Unsaved local draft — click to save to server'
+              : isPersian
+              ? 'همگام با سرور'
+              : 'Synced with server'
+          }
         >
           {isSyncing ? (
-            <div className="w-3.5 h-3.5 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
+            <div className="w-3.5 h-3.5 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin shrink-0" />
           ) : hasUnsavedChanges ? (
-            <Save className="w-3.5 h-3.5" />
+            <Save className="w-3.5 h-3.5 shrink-0" />
           ) : (
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
           )}
           <span className="hidden sm:inline">
             {isSyncing
-              ? isPersian ? 'در حال ذخیره...' : 'Saving...'
+              ? isPersian ? 'ذخیره...' : 'Saving...'
               : hasUnsavedChanges
-              ? isPersian ? 'ذخیره نقشه' : 'Save Changes'
-              : isPersian ? 'همگام با سرور' : 'Saved'}
+              ? isPersian ? 'ذخیره' : 'Save'
+              : isPersian ? 'ذخیره شد' : 'Saved'}
           </span>
         </button>
 
         {/* Fullscreen Toggle */}
         <button
           onClick={onToggleFullscreen}
-          className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 border border-zinc-800 rounded-xl transition-colors"
+          className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 border border-zinc-800 rounded-xl transition-colors shrink-0"
           title={isPersian ? 'تمام صفحه' : 'Fullscreen'}
         >
-          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
         </button>
       </div>
     </header>

@@ -56,6 +56,7 @@ export default function CartographerPage() {
     deleteTradeRoute,
     updateMapData,
     saveToServer,
+    resetToDefault,
     isSyncing,
     hasLocalDraft,
     isPersian,
@@ -469,6 +470,7 @@ export default function CartographerPage() {
         isSyncing={isSyncing}
         hasUnsavedChanges={hasLocalDraft}
         onSave={saveToServer}
+        onResetToServer={resetToDefault}
         onOpenAiOracle={() => setIsAiOracleOpen(true)}
         onAutoFit={handleAutoFit}
         onSyncEntities={handleSyncEntitiesToMap}

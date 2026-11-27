@@ -2800,11 +2800,13 @@ export function StudioStoryProvider({ children }: { children: ReactNode }) {
             const data = await res.json();
             if (data?.success && data?.data) {
               const m = data.data as StoryManifest;
-              if (!m.worldBible?.ontology) {
-                m.worldBible = m.worldBible || ({} as any);
-                m.worldBible.ontology = getDefaultOntology(m.language === 'fa');
+              if (m.worldBible) {
+                m.worldBible.ontology = normalizeOntology(
+                  m.worldBible.ontology,
+                  m.language === 'fa'
+                );
               }
-              setStory(m);
+              setStory(migrateStoryManifestToUnifiedGraph(m));
               setHasLocalDraft(false);
               setLastSaved(null);
               notify.success(
