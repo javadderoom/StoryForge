@@ -133,17 +133,32 @@ export default function AdminDashboardPage() {
     isActive: true,
   });
 
+  const hasAdminAccess = isAuthenticated && (user?.role === 'ADMIN' || user?.role === 'AUTHOR');
+
+  const buildAuthHeaders = (withJson = false): HeadersInit => {
+    const headers: Record<string, string> = {};
+    if (withJson) {
+      headers['Content-Type'] = 'application/json';
+    }
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
   // 1. Fetch Users
   const fetchUsers = async (query = userSearch) => {
-    if (!token) return;
+    if (!hasAdminAccess) return;
     setLoadingUsers(true);
     try {
       const res = await fetch(`/api/admin/users?q=${encodeURIComponent(query)}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildAuthHeaders(),
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         setUsers(data.data.users);
+      } else {
+        notify.error(data.error || 'خطا در بارگذاری لیست کاربران.');
       }
     } catch {
       notify.error('خطا در بارگذاری لیست کاربران.');
@@ -154,17 +169,19 @@ export default function AdminDashboardPage() {
 
   // 2. Fetch Transactions & Analytics
   const fetchTransactions = async () => {
-    if (!token) return;
+    if (!hasAdminAccess) return;
     setLoadingTx(true);
     try {
       const res = await fetch('/api/admin/transactions', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildAuthHeaders(),
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         setStats(data.data.stats);
         setPurchases(data.data.purchases);
         setLedgers(data.data.ledgers);
+      } else {
+        notify.error(data.error || 'خطا در دریافت اطلاعات تراکنش‌ها.');
       }
     } catch {
       notify.error('خطا در دریافت اطلاعات تراکنش‌ها.');
@@ -179,7 +196,7 @@ export default function AdminDashboardPage() {
     try {
       const res = await fetch('/api/billing/packages');
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         setPackages(data.data.packages);
       }
     } catch {
@@ -191,15 +208,17 @@ export default function AdminDashboardPage() {
 
   // 4. Fetch Discount Codes
   const fetchDiscountCodes = async () => {
-    if (!token) return;
+    if (!hasAdminAccess) return;
     setLoadingCodes(true);
     try {
       const res = await fetch('/api/admin/discount-codes', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildAuthHeaders(),
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         setDiscountCodes(data.data.codes);
+      } else {
+        notify.error(data.error || 'خطا در دریافت کدهای تخفیف.');
       }
     } catch {
       notify.error('خطا در دریافت کدهای تخفیف.');
@@ -209,26 +228,26 @@ export default function AdminDashboardPage() {
   };
 
   useEffect(() => {
-    if (token) {
+    if (hasAdminAccess) {
       fetchUsers();
       fetchTransactions();
       fetchPackages();
       fetchDiscountCodes();
     }
-  }, [token]);
+  }, [hasAdminAccess, token]);
 
   // Debounce user search
   useEffect(() => {
-    if (!token) return;
+    if (!hasAdminAccess) return;
     const timer = setTimeout(() => {
       fetchUsers(userSearch);
     }, 350);
     return () => clearTimeout(timer);
-  }, [userSearch, token]);
+  }, [userSearch, hasAdminAccess, token]);
 
   // Handle User Update
   const handleSaveUser = async () => {
-    if (!selectedUserForEdit || !token) return;
+    if (!selectedUserForEdit || !hasAdminAccess) return;
     setSavingUser(true);
     try {
       const body: any = {
@@ -252,10 +271,7 @@ export default function AdminDashboardPage() {
 
       const res = await fetch(`/api/admin/users/${selectedUserForEdit.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: buildAuthHeaders(true),
         body: JSON.stringify(body),
       });
       const data = await res.json();
@@ -278,15 +294,12 @@ export default function AdminDashboardPage() {
   // Handle Create Discount Code
   const handleCreateDiscountCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token || !newCodeData.code.trim()) return;
+    if (!hasAdminAccess || !newCodeData.code.trim()) return;
     setCreatingCode(true);
     try {
       const res = await fetch('/api/admin/discount-codes', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: buildAuthHeaders(true),
         body: JSON.stringify({
           code: newCodeData.code.trim(),
           description: newCodeData.description.trim() || undefined,
@@ -323,14 +336,11 @@ export default function AdminDashboardPage() {
 
   // Handle Toggle Discount Code Status
   const handleToggleDiscountCode = async (codeId: string, currentStatus: boolean) => {
-    if (!token) return;
+    if (!hasAdminAccess) return;
     try {
       const res = await fetch(`/api/admin/discount-codes/${codeId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: buildAuthHeaders(true),
         body: JSON.stringify({ isActive: !currentStatus }),
       });
       if (res.ok) {
@@ -344,7 +354,7 @@ export default function AdminDashboardPage() {
 
   // Handle Delete Discount Code
   const handleDeleteDiscountCode = async (codeId: string, codeName: string) => {
-    if (!token) return;
+    if (!hasAdminAccess) return;
     const confirmed = await notify.confirm({
       title: 'حذف کد تخفیف',
       message: `آیا از حذف کامل کد تخفیف «${codeName}» اطمینان دارید؟`,
@@ -357,7 +367,7 @@ export default function AdminDashboardPage() {
     try {
       const res = await fetch(`/api/admin/discount-codes/${codeId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildAuthHeaders(),
       });
       if (res.ok) {
         notify.success('کد تخفیف با موفقیت حذف گردید.');
@@ -370,7 +380,7 @@ export default function AdminDashboardPage() {
 
   // Handle Delete Purchase Record
   const handleDeletePurchase = async (purchaseId: string, sku: string, tokenVal: string) => {
-    if (!token) return;
+    if (!hasAdminAccess) return;
     const confirmed = await notify.confirm({
       title: 'حذف رکورد خرید',
       message: `آیا از حذف کامل رکورد خرید «${sku}» اطمینان دارید؟ این عمل برای حذف تراکنش‌های تستی است و قابل بازگشت نیست.`,
@@ -383,7 +393,7 @@ export default function AdminDashboardPage() {
     try {
       const res = await fetch(`/api/admin/transactions/purchases/${purchaseId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: buildAuthHeaders(),
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -400,15 +410,12 @@ export default function AdminDashboardPage() {
   // Handle Package Save
   const handleSavePackage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingPackage || !token) return;
+    if (!editingPackage || !hasAdminAccess) return;
     setSavingPackage(true);
     try {
       const res = await fetch('/api/billing/packages', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: buildAuthHeaders(true),
         body: JSON.stringify(editingPackage),
       });
       const data = await res.json();
