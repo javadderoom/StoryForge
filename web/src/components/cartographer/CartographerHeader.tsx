@@ -31,6 +31,8 @@ import {
   Trash2,
   Stamp,
   RefreshCw,
+  CloudDownload,
+  Frame,
 } from 'lucide-react';
 import { WorldMapSettings, MapStyleTheme } from '@/lib/types';
 
@@ -449,7 +451,7 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
             className="p-1 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors border-l border-zinc-800"
             title={isPersian ? 'نمای کامل نقشه' : 'Fit to Map'}
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <Frame className="w-3.5 h-3.5" />
           </button>
         </div>
 
@@ -457,14 +459,15 @@ export const CartographerHeader: React.FC<CartographerHeaderProps> = ({
         {hasUnsavedChanges && onResetToServer && (
           <button
             onClick={() => void onResetToServer()}
-            className="p-1.5 rounded-xl bg-rose-500/15 border border-rose-500/35 text-rose-300 hover:bg-rose-500/25 hover:text-white transition-all shrink-0"
+            className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-rose-500/15 border border-rose-500/35 text-rose-300 hover:bg-rose-500/25 hover:text-white transition-all text-[11px] font-medium whitespace-nowrap shrink-0"
             title={
               isPersian
                 ? 'لغو پیش‌نویس محلی مرورگر و بارگذاری نسخهٔ تازهٔ سرور'
                 : 'Discard local browser draft & reload from server'
             }
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <CloudDownload className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">{isPersian ? 'از سرور' : 'Revert'}</span>
           </button>
         )}
 
