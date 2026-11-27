@@ -16,7 +16,12 @@
 
 import { Container, Text, TextStyle } from 'pixi.js';
 import type { MapPoint, CurvedLabelConfig, MapTerrainFeature, WorldLocation } from '@/lib/types';
-import { VINTAGE_PARCHMENT } from './vintageTheme';
+import {
+  VINTAGE_PARCHMENT,
+  MAP_FONT_LATIN_SERIF,
+  MAP_FONT_PERSIAN,
+  resolveMapFontFamily,
+} from './vintageTheme';
 import { clearContainer } from './renderers/shared';
 import { getBoundingBox, getPolygonCentroid } from '../landSculpt/geometry';
 import { isObjectVisible } from '../mapObjectOrder';
@@ -61,6 +66,10 @@ export interface CurvedTextOptions extends Omit<CurvedLabelConfig, 'color'> {
 let measureCtx: CanvasRenderingContext2D | null = null;
 const glyphWidthCache = new Map<string, number>();
 
+export function clearGlyphWidthCache(): void {
+  glyphWidthCache.clear();
+}
+
 function getMeasureContext(): CanvasRenderingContext2D | null {
   if (measureCtx) return measureCtx;
   if (typeof document !== 'undefined' && document.createElement) {
@@ -75,41 +84,81 @@ function getMeasureContext(): CanvasRenderingContext2D | null {
 }
 
 /**
- * Measures the typographic advance width of a character.
+ * Measures the typographic advance width of a character or word token.
  */
 export function measureCharWidth(
   char: string,
   fontSize: number,
-  fontFamily = 'Cinzel, "Times New Roman", serif'
+  fontFamily?: string
 ): number {
-  const cacheKey = `${char}_${fontSize}_${fontFamily}`;
+  const effectiveFamily = fontFamily ?? resolveMapFontFamily(char);
+  const cacheKey = `${char}_${fontSize}_${effectiveFamily}`;
   const cached = glyphWidthCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
   const ctx = getMeasureContext();
   if (ctx) {
-    ctx.font = `${fontSize}px ${fontFamily}`;
+    ctx.font = `600 ${fontSize}px ${effectiveFamily}`;
     const measured = ctx.measureText(char).width;
     const width = Math.round(measured * 10) / 10;
     glyphWidthCache.set(cacheKey, width);
     return width;
   }
 
-  // Headless / SSR / Node.js fallback proportional widths
-  let ratio = 0.65;
-  if (char === ' ') ratio = 0.32;
-  else if (/^[ijlI1!|.,:;']$/.test(char)) ratio = 0.28;
-  else if (/^[frt"()\-]$/.test(char)) ratio = 0.42;
-  else if (/^[MWmw—_]$/.test(char)) ratio = 0.88;
-  else if (char.charCodeAt(0) > 255) ratio = 0.65; // Persian / non-latin
+  // Headless / SSR / Node.js fallback proportional widths (handles multi-char RTL words)
+  let total = 0;
+  for (const ch of Array.from(char)) {
+    let ratio = 0.65;
+    if (ch === ' ') ratio = 0.32;
+    else if (/^[ijlI1!|.,:;']$/.test(ch)) ratio = 0.28;
+    else if (/^[frt"()\-]$/.test(ch)) ratio = 0.42;
+    else if (/^[MWmw—_]$/.test(ch)) ratio = 0.88;
+    else if (ch.charCodeAt(0) > 255) ratio = 0.56;
+    total += fontSize * ratio;
+  }
 
-  const estimated = Math.round(fontSize * ratio * 10) / 10;
+  const estimated = Math.round(total * 10) / 10;
   glyphWidthCache.set(cacheKey, estimated);
   return estimated;
 }
 
 /**
- * Computes pure mathematical curved glyph placements along a guide spline.
+ * Splits RTL Persian/Arabic strings by words in reversed visual march order
+ * so each word stays 100% natively ligated by HarfBuzz/Vazirmatn without
+ * tearing cursive joins apart along curved rivers and ridgelines.
+ */
+function prepareCurvedTokens(text: string): { tokens: string[]; isRtl: boolean } {
+  if (!isRtlText(text)) {
+    const { glyphs, isRtl } = prepareSplineGlyphs(text);
+    return { tokens: glyphs, isRtl };
+  }
+  const words = text
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length <= 1) {
+    return { tokens: words, isRtl: true };
+  }
+  const reversedWithSpaces: string[] = [];
+  for (let i = words.length - 1; i >= 0; i--) {
+    reversedWithSpaces.push(words[i]);
+    if (i > 0) reversedWithSpaces.push(' ');
+  }
+  return { tokens: reversedWithSpaces, isRtl: true };
+}
+
+/**
+ * Keeps rotated labels upright (prevents upside-down text on steep vertical curves).
+ */
+function normalizeReadableAngle(angle: number): number {
+  let a = angle;
+  while (a > Math.PI / 2) a -= Math.PI;
+  while (a < -Math.PI / 2) a += Math.PI;
+  return a;
+}
+
+/**
+ * Computes pure mathematical curved glyph/word placements along a guide spline.
  */
 export function layoutCurvedText(
   text: string,
@@ -118,10 +167,11 @@ export function layoutCurvedText(
 ): CurvedTextLayout | null {
   if (!text || !pathPoints || pathPoints.length < 2) return null;
 
-  const rawText = options.uppercase !== false ? text.toUpperCase() : text;
+  const isRtl = isRtlText(text);
+  const rawText = options.uppercase !== false && !isRtl ? text.toUpperCase() : text;
   if (rawText.length === 0) return null;
 
-  const { glyphs: shapedGlyphs, isRtl } = prepareSplineGlyphs(rawText);
+  const { tokens: shapedGlyphs } = prepareCurvedTokens(rawText);
   if (shapedGlyphs.length === 0) return null;
 
   const fontSize = options.fontSize ?? 15;
@@ -129,15 +179,17 @@ export function layoutCurvedText(
   const baselineOffset = options.baselineOffset ?? 0;
   const maxCurvatureDeg = options.maxCurvatureDegPerChar ?? 25;
   const maxCurvatureRad = (maxCurvatureDeg * Math.PI) / 180;
+  const fontFamily = options.fontFamily ?? (isRtl ? MAP_FONT_PERSIAN : MAP_FONT_LATIN_SERIF);
 
   // 1. Check path direction and ensure readable flow
   let pts = sanitizePathPoints(pathPoints);
   if (pts.length < 2) return null;
 
   const dxTotal = pts[pts.length - 1].x - pts[0].x;
+  const dyTotal = pts[pts.length - 1].y - pts[0].y;
   let isFlipped = false;
-  // If the path generally flows from right to left, reverse points for readability
-  if (dxTotal < -10) {
+  // Flip right-to-left horizontal splines or bottom-to-top steep vertical splines
+  if (dxTotal < -10 || (Math.abs(dxTotal) <= 25 && dyTotal < -10)) {
     pts = [...pts].reverse();
     isFlipped = true;
   }
@@ -149,20 +201,21 @@ export function layoutCurvedText(
   const totalArcLength =
     sampledSpline[sampledSpline.length - 1].cumulativeDist;
 
-  // 3. Measure glyph advance widths
+  // 3. Measure advance widths
   const charWidths: number[] = [];
   let totalCharsWidth = 0;
   for (let i = 0; i < shapedGlyphs.length; i++) {
-    const w = measureCharWidth(shapedGlyphs[i], fontSize, options.fontFamily);
+    const w = measureCharWidth(shapedGlyphs[i], fontSize, fontFamily);
     charWidths.push(w);
     totalCharsWidth += w;
   }
 
-  let letterSpacing = options.letterSpacing ?? (isRtl ? 1 : 4);
+  // Never inject wide Latin character tracking between Arabic/Persian tokens
+  let letterSpacing = isRtl ? 2 : (options.letterSpacing ?? 4);
   let textWidth =
-    totalCharsWidth + (shapedGlyphs.length - 1) * letterSpacing;
+    totalCharsWidth + Math.max(0, shapedGlyphs.length - 1) * letterSpacing;
 
-  // If text exceeds spline arc length, gracefully compress letter spacing
+  // If text exceeds spline arc length, gracefully compress spacing
   if (textWidth > totalArcLength && shapedGlyphs.length > 1) {
     const excess = textWidth - totalArcLength;
     const compression = excess / (shapedGlyphs.length - 1);
@@ -179,7 +232,7 @@ export function layoutCurvedText(
   }
   startDist = Math.max(0, startDist);
 
-  // 5. Position each character along arc length
+  // 5. Position each glyph/word along arc length
   const glyphs: GlyphPlacement[] = [];
   let currentDist = startDist;
   let prevAngle: number | null = null;
@@ -194,10 +247,9 @@ export function layoutCurvedText(
     const sample = evaluateSplineAtDistance(sampledSpline, centerDist);
     if (!sample) continue;
 
-    // Angle of curve at glyph position
-    let angle = sample.angle;
+    let angle = normalizeReadableAngle(sample.angle);
 
-    // Curvature smoothing: prevent wild letter inversion on sharp bends
+    // Curvature smoothing: prevent wild rotation jumps on sharp bends
     if (prevAngle !== null) {
       let diff = angle - prevAngle;
       while (diff > Math.PI) diff -= Math.PI * 2;
@@ -239,7 +291,7 @@ export function layoutCurvedText(
 }
 
 /**
- * Renders a CurvedTextLayout into a Pixi Container of rotated glyph Text instances.
+ * Renders a CurvedTextLayout into a Pixi Container of rotated glyph/word Text instances.
  */
 export function renderCurvedTextToContainer(
   targetContainer: Container,
@@ -247,6 +299,7 @@ export function renderCurvedTextToContainer(
   options: CurvedTextOptions = {}
 ): Container {
   const container = new Container();
+  const isRtl = isRtlText(layout.text);
   const fontSize = options.fontSize ?? 15;
   const rawColor = options.color ?? VINTAGE_PARCHMENT.labelText;
   const color =
@@ -255,8 +308,8 @@ export function renderCurvedTextToContainer(
       : typeof rawColor === 'string' && rawColor.startsWith('#')
       ? parseInt(rawColor.slice(1), 16)
       : VINTAGE_PARCHMENT.labelText;
-  const fontFamily = options.fontFamily ?? 'Cinzel, "Times New Roman", Georgia, serif';
-  const fontStyle = options.fontStyle ?? 'normal';
+  const fontFamily = options.fontFamily ?? (isRtl ? MAP_FONT_PERSIAN : MAP_FONT_LATIN_SERIF);
+  const fontStyle = isRtl ? 'normal' : (options.fontStyle ?? 'normal');
   const fontWeight = options.fontWeight ?? 'bold';
   const resolution = getDynamicTextResolution(options.zoom ?? 1.0);
 
@@ -266,11 +319,15 @@ export function renderCurvedTextToContainer(
     fontStyle,
     fontWeight,
     fill: color,
+    stroke: {
+      color: 0xf7efd8,
+      width: isRtl ? 3 : 2,
+    },
     dropShadow: {
-      alpha: 0.35,
+      alpha: 0.3,
       angle: Math.PI / 4,
       blur: 2,
-      color: 0xfcf7ea, // Parchment halo
+      color: 0xfcf7ea,
       distance: 1,
     },
   });

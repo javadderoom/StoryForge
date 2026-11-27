@@ -9,7 +9,11 @@ import type {
   WorldMapSettings,
   WorldTradeRoute,
 } from '@/lib/types';
-import { VINTAGE_PARCHMENT } from './vintageTheme';
+import {
+  VINTAGE_PARCHMENT,
+  hasRtlScript,
+  resolveMapFontFamily,
+} from './vintageTheme';
 import { mapObjectKey } from '../mapSelection';
 import {
   isObjectVisible,
@@ -281,11 +285,12 @@ export function renderSettlements(
 
     // Settlement Name Plaque / Banner
     if (settings.visibleLayers.labels && loc.name) {
+      const isRtl = hasRtlScript(loc.name);
       const textStyle = new TextStyle({
-        fontSize: isCapital ? 13 : 11,
-        fontWeight: isCapital ? 'bold' : 'normal',
+        fontSize: isCapital ? 13 : isTransit ? 10 : 11.5,
+        fontWeight: isCapital ? '700' : '600',
         fill: VINTAGE_PARCHMENT.labelText,
-        fontFamily: 'serif',
+        fontFamily: resolveMapFontFamily(loc.name),
       });
 
       const labelText = new Text({
@@ -293,22 +298,25 @@ export function renderSettlements(
         style: textStyle,
         resolution: textResolution,
       });
-      labelText.anchor.set(0.5, 0);
+      labelText.anchor.set(0.5, 0.5);
       labelText.scale.set(counterScale);
-      labelText.x = x;
-      labelText.y = y + radius + 4 * counterScale;
 
-      // Background banner rect
-      const textW = labelText.width + 12 * counterScale;
-      const textH = labelText.height + 4 * counterScale;
-      targetG.roundRect(
-        x - textW / 2,
-        y + radius + 2.5 * counterScale,
-        textW,
-        textH,
-        Math.max(2, 4 * counterScale)
-      )
-        .fill({ color: VINTAGE_PARCHMENT.labelBannerBg, alpha: 0.92 })
+      const textW = labelText.width + (isRtl ? 14 : 12) * counterScale;
+      const textH = labelText.height + (isRtl ? 6 : 4) * counterScale;
+      const bannerTop = y + radius + 3 * counterScale;
+
+      labelText.x = x;
+      labelText.y = bannerTop + textH / 2;
+
+      targetG
+        .roundRect(
+          x - textW / 2,
+          bannerTop,
+          textW,
+          textH,
+          Math.max(2.5, 4.5 * counterScale)
+        )
+        .fill({ color: VINTAGE_PARCHMENT.labelBannerBg, alpha: 0.94 })
         .stroke({
           width: Math.max(0.75, 1 * counterScale),
           color: VINTAGE_PARCHMENT.labelBannerBorder,
@@ -357,9 +365,11 @@ export function renderSettlements(
           const szLabel = new Text({
             text: sz.name,
             style: new TextStyle({
-              fontSize: 8.5,
+              fontSize: 9,
+              fontWeight: '600',
               fill: VINTAGE_PARCHMENT.labelText,
-              fontFamily: 'serif',
+              fontFamily: resolveMapFontFamily(sz.name),
+              stroke: { color: 0xfbf4e3, width: 2.5 },
             }),
             resolution: textResolution,
           });
@@ -391,13 +401,16 @@ function drawPlaceLabel(
       ? VINTAGE_PARCHMENT.caravanSecret
       : VINTAGE_PARCHMENT.labelText;
 
+  const isRtl = hasRtlScript(text);
   const label = new Text({
     text,
     style: new TextStyle({
-      fontSize: 10,
-      fontStyle: 'italic',
+      fontSize: 10.5,
+      fontWeight: isRtl ? '600' : 'normal',
+      fontStyle: isRtl ? 'normal' : 'italic',
       fill: color,
-      fontFamily: 'serif',
+      fontFamily: resolveMapFontFamily(text),
+      stroke: { color: 0xf6eed9, width: 2.5 },
     }),
     resolution: textResolution,
   });
@@ -607,14 +620,15 @@ export function renderPlacements(
           ? 0x7f1d1d
           : VINTAGE_PARCHMENT.labelText;
 
+      const isRtl = hasRtlScript(p.customLabel);
       const textStyle = new TextStyle({
-        fontSize: 9.5,
+        fontSize: isRtl ? 10 : 9.5,
         fontWeight:
           p.entityType === 'bestiary' || p.entityType === 'encounter' || p.entityType === 'quest'
-            ? 'bold'
-            : 'normal',
+            ? '700'
+            : '600',
         fill: labelFill,
-        fontFamily: 'serif',
+        fontFamily: resolveMapFontFamily(p.customLabel),
       });
 
       const iconPrefix =
@@ -643,13 +657,15 @@ export function renderPlacements(
         style: textStyle,
         resolution: textResolution,
       });
-      labelText.anchor.set(0.5, 0);
+      labelText.anchor.set(0.5, 0.5);
       labelText.scale.set(counterScale);
-      labelText.x = x;
-      labelText.y = y + 14 * counterScale;
 
-      const textW = labelText.width + 9 * counterScale;
-      const textH = labelText.height + 2.5 * counterScale;
+      const textW = labelText.width + (isRtl ? 12 : 9) * counterScale;
+      const textH = labelText.height + (isRtl ? 5 : 2.5) * counterScale;
+      const bannerTop = y + 13 * counterScale;
+      labelText.x = x;
+      labelText.y = bannerTop + textH / 2;
+
       const bannerBg =
         p.entityType === 'bestiary'
           ? 0xfff1f2
@@ -669,8 +685,8 @@ export function renderPlacements(
 
       const bannerG = getLabelBannerGraphics(targetLabels);
       bannerG
-        .roundRect(x - textW / 2, y + 13 * counterScale, textW, textH, Math.max(2, 3 * counterScale))
-        .fill({ color: bannerBg, alpha: 0.94 })
+        .roundRect(x - textW / 2, bannerTop, textW, textH, Math.max(2.5, 3.5 * counterScale))
+        .fill({ color: bannerBg, alpha: 0.95 })
         .stroke({
           width: Math.max(0.7, 0.9 * counterScale),
           color: bannerBorder,

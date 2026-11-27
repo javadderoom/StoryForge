@@ -89,3 +89,27 @@ export const VINTAGE_PARCHMENT = {
 } as const;
 
 export type VintageTheme = typeof VINTAGE_PARCHMENT;
+
+export const MAP_FONT_PERSIAN = '"Vazirmatn", "Vazirmatn FD", system-ui, sans-serif';
+export const MAP_FONT_LATIN = '"Cinzel Decorative", "Cinzel", "Times New Roman", Georgia, serif';
+export const MAP_FONT_LATIN_SERIF = '"Cinzel", "Times New Roman", Georgia, serif';
+
+const RTL_SCRIPT_RE = /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFC]/;
+
+export function hasRtlScript(text?: string | null): boolean {
+  return Boolean(text && RTL_SCRIPT_RE.test(text));
+}
+
+/**
+ * Selects bundled Vazirmatn for Persian/Arabic cartography labels so Canvas/Pixi
+ * never drops back to blocky OS serif defaults, and preserves classical serif for Latin.
+ */
+export function resolveMapFontFamily(
+  text?: string | null,
+  options?: { isPersianLocale?: boolean; decorative?: boolean }
+): string {
+  if (hasRtlScript(text) || (!text && options?.isPersianLocale)) {
+    return MAP_FONT_PERSIAN;
+  }
+  return options?.decorative ? MAP_FONT_LATIN : MAP_FONT_LATIN_SERIF;
+}

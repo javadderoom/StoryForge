@@ -15,7 +15,7 @@
 
 import { Graphics, Container, Text } from 'pixi.js';
 import type { MapPoint, TitleCartoucheConfig } from '@/lib/types';
-import { VINTAGE_PARCHMENT } from './vintageTheme';
+import { VINTAGE_PARCHMENT, hasRtlScript, resolveMapFontFamily } from './vintageTheme';
 
 export interface CartoucheCornerVolute {
   outerCurve: MapPoint[];
@@ -309,20 +309,21 @@ export function renderTitleCartouche(
   const subtitleText = config.subtitle ?? 'TERRA INCOGNITA';
   const calloutText = config.callout ?? 'CHRONICA REGNI';
 
-  // Primary Title: Grand Classical Roman Serif
+  // Primary Title
+  const isTitleRtl = hasRtlScript(titleText);
   const titleStyle = {
-    fontFamily: '"Cinzel Decorative", "Cinzel", "Times New Roman", "Georgia", serif',
-    fontSize: 27,
+    fontFamily: resolveMapFontFamily(titleText, { decorative: true }),
+    fontSize: isTitleRtl ? 24 : 27,
     fontWeight: 'bold' as const,
     fill: '#23140e',
-    letterSpacing: 6,
+    letterSpacing: isTitleRtl ? 0 : 6,
     stroke: {
       color: '#fffef9',
       width: 3.5,
     },
   };
   const titlePixi = new Text({
-    text: titleText.toUpperCase(),
+    text: isTitleRtl ? titleText : titleText.toUpperCase(),
     style: titleStyle,
   });
   titlePixi.anchor.set(0.5, 0.5);
@@ -331,15 +332,16 @@ export function renderTitleCartouche(
   textContainer.addChild(titlePixi);
 
   // Subtitle Ribbon Text
+  const isSubRtl = hasRtlScript(subtitleText);
   const subtitleStyle = {
-    fontFamily: '"Cinzel", "Times New Roman", "Georgia", serif',
+    fontFamily: resolveMapFontFamily(subtitleText),
     fontSize: 12,
     fontWeight: 'bold' as const,
     fill: '#4a3325',
-    letterSpacing: 3,
+    letterSpacing: isSubRtl ? 0 : 3,
   };
   const subtitlePixi = new Text({
-    text: subtitleText.toUpperCase(),
+    text: isSubRtl ? subtitleText : subtitleText.toUpperCase(),
     style: subtitleStyle,
   });
   subtitlePixi.anchor.set(0.5, 0.5);
@@ -347,14 +349,15 @@ export function renderTitleCartouche(
   subtitlePixi.y = geom.center.y + 32;
   textContainer.addChild(subtitlePixi);
 
-  // Callout Text (small classical inscription at top or bottom)
+  // Callout Text (small inscription at top)
   if (calloutText) {
+    const isCalloutRtl = hasRtlScript(calloutText);
     const calloutStyle = {
-      fontFamily: '"Times New Roman", "Georgia", serif',
+      fontFamily: resolveMapFontFamily(calloutText),
       fontSize: 9.5,
-      fontStyle: 'italic' as const,
+      fontStyle: (isCalloutRtl ? 'normal' : 'italic') as 'normal' | 'italic',
       fill: '#7a6252',
-      letterSpacing: 1.5,
+      letterSpacing: isCalloutRtl ? 0 : 1.5,
     };
     const calloutPixi = new Text({
       text: calloutText,

@@ -138,4 +138,22 @@ describe('splineTextRenderer — Curved & Spline-Aligned Typography', () => {
     assert.ok(lakeSpline !== null && lakeSpline.length >= 2);
     assert.ok(lakeSpline[0].x < lakeSpline[lakeSpline.length - 1].x);
   });
+
+  it('keeps Persian words whole without shattering cursive letters on curves', () => {
+    const rtlLayout = layoutCurvedText('دریاچهٔ فیروزه', mountainSpline, {
+      fontSize: 14,
+      letterSpacing: 6,
+    });
+    assert.ok(rtlLayout !== null);
+    assert.deepEqual(
+      rtlLayout.glyphs.map((g) => g.char),
+      ['فیروزه', ' ', 'دریاچهٔ']
+    );
+    for (const g of rtlLayout.glyphs) {
+      assert.ok(
+        g.rotation >= -Math.PI / 2 && g.rotation <= Math.PI / 2,
+        `Rotation ${g.rotation} must keep text right-side-up`
+      );
+    }
+  });
 });

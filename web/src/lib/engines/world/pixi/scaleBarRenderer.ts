@@ -13,6 +13,7 @@
  */
 
 import { Graphics, Container, Text } from 'pixi.js';
+import { hasRtlScript, resolveMapFontFamily } from './vintageTheme';
 import type { MapPoint, ScaleBarConfig } from '@/lib/types';
 import { VINTAGE_PARCHMENT } from './vintageTheme';
 
@@ -277,12 +278,13 @@ export function renderScaleBar(
   // 5. Typography
   for (const label of geom.labels) {
     const isUnit = label.text === (config.primaryUnit ?? 'PARASANGS') || label.text === (config.secondaryUnit ?? 'MILES');
+    const isRtl = hasRtlScript(label.text);
     const textStyle = {
-      fontFamily: '"Cinzel", "Times New Roman", "Georgia", serif',
+      fontFamily: resolveMapFontFamily(label.text),
       fontSize: label.fontSize,
       fontWeight: (isUnit ? 'bold' : 'normal') as 'bold' | 'normal',
       fill: isUnit ? '#2c1810' : '#4a382c',
-      letterSpacing: isUnit ? 2.5 : 0.5,
+      letterSpacing: isRtl ? 0 : isUnit ? 2.5 : 0.5,
     };
 
     const pixiText = new Text({

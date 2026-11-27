@@ -90,7 +90,7 @@ import {
 import { MapTextureLibrary } from './mapTextureLibrary';
 import { MapSymbolLibrary } from './MapSymbolLibrary';
 import { renderSymbolsToContainer } from './symbolScatterRenderer';
-import { renderTerrainCurvedLabels } from './splineTextRenderer';
+import { renderTerrainCurvedLabels, clearGlyphWidthCache } from './splineTextRenderer';
 import { renderManuscriptFurniture } from './manuscriptFurnitureRenderer';
 import {
   getLODTier,
@@ -303,6 +303,20 @@ export class PixiCartographerEngine {
       if (!this.lastRenderOptions) return;
       this.renderAll(this.lastRenderOptions);
     });
+
+    // Explicitly warm Vazirmatn webfont weights so Canvas2D / PixiJS text never caches fallback serif glyphs
+    if (typeof document !== 'undefined' && document.fonts) {
+      void Promise.allSettled([
+        document.fonts.load('500 12px Vazirmatn'),
+        document.fonts.load('600 12px Vazirmatn'),
+        document.fonts.load('700 14px Vazirmatn'),
+        document.fonts.ready,
+      ]).then(() => {
+        clearGlyphWidthCache();
+        if (!this.lastRenderOptions) return;
+        this.renderAll(this.lastRenderOptions);
+      });
+    }
   }
 
   /**

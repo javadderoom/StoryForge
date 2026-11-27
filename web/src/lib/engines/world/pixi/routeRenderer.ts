@@ -1,5 +1,6 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { clearContainer } from './renderers/shared';
+import { hasRtlScript, resolveMapFontFamily } from './vintageTheme';
 import type {
   MapPoint,
   MapRoute,
@@ -308,13 +309,15 @@ export function renderMapRoutes(g: Graphics, options: MapRouteRenderOptions): vo
     if (showLabel) {
       const middle = Math.floor(points.length / 2);
       const anchor = points[middle];
+      const isRtl = hasRtlScript(route.name);
       const label = new Text({
         text: route.name,
         style: new TextStyle({
-          fontSize: selected ? 10 : 9,
-          fontStyle: isPersian ? 'normal' : 'italic',
+          fontSize: selected ? 10.5 : 9.5,
+          fontWeight: '600',
+          fontStyle: isRtl || isPersian ? 'normal' : 'italic',
           fill: selected ? 0x92400e : 0x5c4938,
-          fontFamily: 'serif',
+          fontFamily: resolveMapFontFamily(route.name, { isPersianLocale: isPersian }),
           stroke: { color: 0xf5ecd5, width: 3 },
         }),
         resolution: textResolution,
