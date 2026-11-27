@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/utils/persian_numbers.dart';
@@ -867,6 +868,23 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
   Widget _buildInventoryItemTile(PlayerState player, GameItem item) {
     final isEquipped = player.equipment.isEquipped(item.id);
     final rarityColor = _getRarityColor(item.rarity);
+    final lore = ref.watch(gameSessionProvider.select((s) => s.lore));
+    final itemImageUrl = GameSessionState.resolveMediaUrl(
+      item.imageUrl ?? GameSessionState.artifactImageUrl(lore, item.id),
+    );
+    final fallbackIcon = Icon(
+      item.type == 'weapon'
+          ? Icons.hardware
+          : item.type == 'shield' || item.type == 'armor' || item.grip == WeaponGrip.offHandOnly
+              ? Icons.shield_outlined
+              : item.type == 'relic'
+                  ? Icons.auto_awesome
+                  : item.isConsumable
+                      ? Icons.local_drink
+                      : Icons.vpn_key_outlined,
+      color: rarityColor,
+      size: 18,
+    );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -890,7 +908,7 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
             ),
             child: Row(
               children: [
-                // Leading Icon Box
+                // Leading Artwork or Icon Box
                 Container(
                   width: 38,
                   height: 38,
@@ -899,19 +917,14 @@ class _RpgHudDrawerState extends ConsumerState<RpgHudDrawer> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: rarityColor.withValues(alpha: 0.5)),
                   ),
-                  child: Icon(
-                    item.type == 'weapon'
-                        ? Icons.hardware
-                        : item.type == 'shield' || item.type == 'armor' || item.grip == WeaponGrip.offHandOnly
-                            ? Icons.shield_outlined
-                            : item.type == 'relic'
-                                ? Icons.auto_awesome
-                                : item.isConsumable
-                                    ? Icons.local_drink
-                                    : Icons.vpn_key_outlined,
-                    color: rarityColor,
-                    size: 18,
-                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: itemImageUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: itemImageUrl,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, _, _) => fallbackIcon,
+                        )
+                      : fallbackIcon,
                 ),
                 const SizedBox(width: 12),
 

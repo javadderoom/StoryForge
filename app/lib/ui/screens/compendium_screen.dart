@@ -1096,17 +1096,34 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
                               ],
                             ),
                             Center(
-                              child: Icon(
-                                item.isConsumable
-                                    ? Icons.local_drink_rounded
-                                    : item.type == 'weapon'
-                                        ? Icons.colorize_rounded
-                                        : item.type == 'armor'
-                                            ? Icons.accessibility_new_rounded
-                                            : Icons.auto_awesome_rounded,
-                                size: 36,
-                                color: rarityColor,
-                              ),
+                              child: (() {
+                                final lore = ref.watch(gameSessionProvider.select((s) => s.lore));
+                                final itemImg = GameSessionState.resolveMediaUrl(
+                                  item.imageUrl ?? GameSessionState.artifactImageUrl(lore, item.id),
+                                );
+                                final fallbackIcon = Icon(
+                                  item.isConsumable
+                                      ? Icons.local_drink_rounded
+                                      : item.type == 'weapon'
+                                          ? Icons.colorize_rounded
+                                          : item.type == 'armor'
+                                              ? Icons.accessibility_new_rounded
+                                              : Icons.auto_awesome_rounded,
+                                  size: 36,
+                                  color: rarityColor,
+                                );
+                                if (itemImg == null) return fallbackIcon;
+                                return ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: CachedNetworkImage(
+                                    imageUrl: itemImg,
+                                    width: 58,
+                                    height: 58,
+                                    fit: BoxFit.cover,
+                                    errorWidget: (_, _, _) => fallbackIcon,
+                                  ),
+                                );
+                              })(),
                             ),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1796,6 +1813,36 @@ class _CompendiumScreenState extends ConsumerState<CompendiumScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (((art['imageUrl'] ?? art['image']) as String?)?.trim().isNotEmpty == true) ...[
+                    GestureDetector(
+                      onTap: () => FullScreenImageViewer.show(
+                        context,
+                        _resolveLoreImageUrl((art['imageUrl'] ?? art['image']).toString()),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: CachedNetworkImage(
+                          imageUrl: _resolveLoreImageUrl((art['imageUrl'] ?? art['image']).toString()),
+                          height: 120,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          placeholder: (_, _) => Container(
+                            height: 120,
+                            color: const Color(0xFF0F111D),
+                            child: const Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFA855F7)),
+                              ),
+                            ),
+                          ),
+                          errorWidget: (_, _, _) => const SizedBox.shrink(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                   Row(
                     children: [
                       const Icon(Icons.auto_awesome_rounded, color: Color(0xFFA855F7), size: 20),

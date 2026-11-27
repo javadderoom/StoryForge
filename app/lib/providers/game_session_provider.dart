@@ -294,6 +294,44 @@ class GameSessionState {
     return id;
   }
 
+  /// Resolves relative backend media paths (/images/..., /uploads/...) or protocol-relative URLs.
+  static String? resolveMediaUrl(String? raw) {
+    final t = raw?.trim() ?? '';
+    if (t.isEmpty) return null;
+    if (t.startsWith('http://') || t.startsWith('https://')) return t;
+    if (t.startsWith('//')) return 'https:$t';
+    if (t.startsWith('/')) return '${GameApiService.baseUrl}$t';
+    return null;
+  }
+
+  /// Resolves a location's imageUrl from the player-safe lore payload.
+  static String? locationImageUrl(Map<String, dynamic>? lore, String? locationId) {
+    final id = locationId?.trim();
+    if (id == null || id.isEmpty) return null;
+    final locations = (lore?['locations'] as List<dynamic>?) ?? const [];
+    for (final l in locations) {
+      if (l is Map && l['id']?.toString() == id) {
+        final raw = (l['imageUrl'] ?? l['image'])?.toString().trim();
+        if (raw != null && raw.isNotEmpty) return raw;
+      }
+    }
+    return null;
+  }
+
+  /// Resolves an artifact/item fallback imageUrl from the player-safe lore payload.
+  static String? artifactImageUrl(Map<String, dynamic>? lore, String? itemId) {
+    final id = itemId?.trim();
+    if (id == null || id.isEmpty) return null;
+    final artifacts = (lore?['artifacts'] as List<dynamic>?) ?? const [];
+    for (final a in artifacts) {
+      if (a is Map && a['id']?.toString() == id) {
+        final raw = (a['imageUrl'] ?? a['image'])?.toString().trim();
+        if (raw != null && raw.isNotEmpty) return raw;
+      }
+    }
+    return null;
+  }
+
   /// Parses NPC introduction spotlights from beat data. Accepts the
   /// `discoveredNpcs` array, falling back to the legacy single `discoveredNpc`.
   static List<DiscoveredNpc> parseDiscoveredNpcs(Map<String, dynamic> beat) {

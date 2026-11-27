@@ -22,6 +22,7 @@ import '../widgets/realm_relic_badge.dart';
 import '../widgets/rpg_hud_drawer.dart';
 import '../widgets/reader_settings_sheet.dart';
 import '../widgets/story_cover_image.dart';
+import '../widgets/full_screen_image_viewer.dart';
 import '../widgets/level_up_dialog.dart';
 import '../widgets/rpg_toast.dart';
 import '../widgets/turn_status_delta_banner.dart';
@@ -830,29 +831,40 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                           child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Atmospheric Story Cover Banner
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 18),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(22),
-                                border: Border.all(color: theme.primaryAccent.withValues(alpha: 0.35)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: theme.primaryAccent.withValues(alpha: 0.12),
-                                    blurRadius: 16,
-                                    offset: const Offset(0, 4),
+                            // Atmospheric Story / Current Location Banner
+                            (() {
+                              final locationImg = GameSessionState.locationImageUrl(
+                                session.lore,
+                                session.playerState?.currentLocationId,
+                              );
+                              final rawBannerUrl = session.currentSceneImageUrl?.isNotEmpty == true
+                                  ? session.currentSceneImageUrl
+                                  : (locationImg ?? session.storyCoverImageUrl);
+                              final resolvedBannerUrl = GameSessionState.resolveMediaUrl(rawBannerUrl);
+                              return GestureDetector(
+                                onTap: resolvedBannerUrl != null
+                                    ? () => FullScreenImageViewer.show(context, resolvedBannerUrl)
+                                    : null,
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 18),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(22),
+                                    border: Border.all(color: theme.primaryAccent.withValues(alpha: 0.35)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: theme.primaryAccent.withValues(alpha: 0.12),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                              child: StoryCoverImage(
-                                storyId: session.storyId,
-                                coverImageUrl: session.currentSceneImageUrl?.isNotEmpty == true
-                                    ? session.currentSceneImageUrl
-                                    : session.storyCoverImageUrl,
-                                height: 145,
-                                borderRadius: BorderRadius.circular(21),
-                                heroTag: 'story_cover_${session.storyId}',
-                                overlayChild: Padding(
+                                  child: StoryCoverImage(
+                                    storyId: session.storyId,
+                                    coverImageUrl: rawBannerUrl,
+                                    height: 145,
+                                    borderRadius: BorderRadius.circular(21),
+                                    heroTag: 'story_cover_${session.storyId}',
+                                    overlayChild: Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.end,
@@ -945,6 +957,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                 ),
                               ),
                             ),
+                            );
+                            })(),
 
                             if (session.updateNotice != null && session.updateNotice!.enabled) ...[
                               Builder(builder: (context) {

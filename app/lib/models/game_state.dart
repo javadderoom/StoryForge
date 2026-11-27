@@ -16,6 +16,7 @@ class GameItem {
   final bool isConsumable;
   final String? startsQuestId;
   final bool nonEquippable;
+  final String? imageUrl;
 
   GameItem({
     required this.id,
@@ -31,6 +32,7 @@ class GameItem {
     this.isConsumable = false,
     this.startsQuestId,
     this.nonEquippable = false,
+    this.imageUrl,
   });
 
   factory GameItem.fromJson(Map<String, dynamic> json) {
@@ -86,6 +88,9 @@ class GameItem {
               json['staminaValue'] != null),
       startsQuestId: json['startsQuestId'],
       nonEquippable: json['nonEquippable'] ?? false,
+      imageUrl: (json['imageUrl'] as String?)?.trim().isNotEmpty == true
+          ? (json['imageUrl'] as String).trim()
+          : null,
     );
   }
 
@@ -116,6 +121,7 @@ class GameItem {
         'isConsumable': isConsumable,
         'startsQuestId': startsQuestId,
         'nonEquippable': nonEquippable,
+        if (imageUrl != null) 'imageUrl': imageUrl,
       };
 }
 

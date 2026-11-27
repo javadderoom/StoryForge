@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/utils/persian_numbers.dart';
 import '../../models/game_state.dart';
 import '../../providers/game_session_provider.dart';
+import 'full_screen_image_viewer.dart';
 import 'rpg_toast.dart';
 
 class ItemDetailSheet extends ConsumerWidget {
@@ -118,6 +120,9 @@ class ItemDetailSheet extends ConsumerWidget {
     final equipment = session.playerState?.equipment ?? const PlayerEquipment();
     final isEquipped = equipment.isEquipped(activeItem.id);
     final rarityColor = _getRarityColor(activeItem.rarity);
+    final itemImageUrl = GameSessionState.resolveMediaUrl(
+      activeItem.imageUrl ?? GameSessionState.artifactImageUrl(session.lore, activeItem.id),
+    );
 
     // Determine currently equipped slot
     String? currentSlot;
@@ -167,7 +172,7 @@ class ItemDetailSheet extends ConsumerWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Glowing Icon Box
+                // Glowing Artwork or Icon Box
                 Container(
                   width: 58,
                   height: 58,
@@ -182,11 +187,25 @@ class ItemDetailSheet extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  child: Icon(
-                    _getTypeIcon(activeItem),
-                    color: rarityColor,
-                    size: 28,
-                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: itemImageUrl != null
+                      ? GestureDetector(
+                          onTap: () => FullScreenImageViewer.show(context, itemImageUrl),
+                          child: CachedNetworkImage(
+                            imageUrl: itemImageUrl,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, _, _) => Icon(
+                              _getTypeIcon(activeItem),
+                              color: rarityColor,
+                              size: 28,
+                            ),
+                          ),
+                        )
+                      : Icon(
+                          _getTypeIcon(activeItem),
+                          color: rarityColor,
+                          size: 28,
+                        ),
                 ),
                 const SizedBox(width: 16),
 
