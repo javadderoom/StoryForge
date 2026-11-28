@@ -3,6 +3,7 @@ import { WorldBible } from '@/lib/types/world';
 import { RPGSystemSchema } from '@/lib/types/rpg';
 import { detectTravelIntent, isDirectlyReachable } from '@/lib/engines/game/travelEngine';
 import { findUndiscoveredSecretMatch } from './secretMatch';
+import { sanitizeChoiceLeadIn } from '@/lib/engines/narrative/leadInValidator';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -273,47 +274,68 @@ export class ActionValidator {
 
     const registeredNpcs = worldBible?.npcs ?? [];
 
-    const filtered = inputChoices.filter((c) => {
-      const text = typeof c?.text === 'string' ? c.text : '';
-      if (!text) return false;
+    const filtered = inputChoices
+      .filter((c) => {
+        const text = typeof c?.text === 'string' ? c.text : '';
+        if (!text) return false;
 
-      // 1. Secret violation check (defense-in-depth)
-      const violation = ActionValidator.detectUndiscoveredSecret(
-        text,
-        playerState,
-        worldBible,
-        storyNpcOverrides
-      );
-      if (violation) return false;
+        // 1. Secret violation check (defense-in-depth)
+        const violation = ActionValidator.detectUndiscoveredSecret(
+          text,
+          playerState,
+          worldBible,
+          storyNpcOverrides
+        );
+        if (violation) return false;
 
-      // 2. NPC Presence & Grounding check:
-      // An NPC can only appear in choice options if they were present in the last 3 scenes
-      // or the current scene text.
-      if (hasProseContext && registeredNpcs.length > 0) {
-        for (const npc of registeredNpcs) {
-          const namesToCheck = [
-            npc.name,
-            (npc as any).nameFa,
-            (npc as any).nameEn,
-            npc.title,
-          ].filter((n): n is string => typeof n === 'string' && n.trim().length >= 3);
+        // 2. NPC Presence & Grounding check:
+        // An NPC can only appear in choice options if they were present in the last 3 scenes
+        // or the current scene text.
+        if (hasProseContext && registeredNpcs.length > 0) {
+          for (const npc of registeredNpcs) {
+            const namesToCheck = [
+              npc.name,
+              (npc as any).nameFa,
+              (npc as any).nameEn,
+              npc.title,
+            ].filter((n): n is string => typeof n === 'string' && n.trim().length >= 3);
 
-          // Check if this choice explicitly mentions this NPC
-          const choiceMentionsNpc = namesToCheck.some((name) => text.includes(name));
+            // Check if this choice explicitly mentions this NPC
+            const choiceMentionsNpc = namesToCheck.some((name) => text.includes(name));
 
-          if (choiceMentionsNpc) {
-            // Check if this NPC is present in the current or recent scenes
-            const npcPresentInProse = namesToCheck.some((name) => fullProse.includes(name));
-            if (!npcPresentInProse) {
-              // NPC was never introduced or is absent from recent scenes!
-              return false;
+            if (choiceMentionsNpc) {
+              // Check if this NPC is present in the current or recent scenes
+              const npcPresentInProse = namesToCheck.some((name) => fullProse.includes(name));
+              if (!npcPresentInProse) {
+                // NPC was never introduced or is absent from recent scenes!
+                return false;
+              }
             }
           }
         }
-      }
 
-      return true;
-    });
+        return true;
+      })
+      .map((c) => {
+        if (!c || typeof c.leadIn !== 'string') return c;
+        const secretInLead = ActionValidator.detectUndiscoveredSecret(
+          c.leadIn,
+          playerState,
+          worldBible,
+          storyNpcOverrides
+        );
+        if (secretInLead) {
+          const { leadIn: _dropped, ...rest } = c;
+          return rest;
+        }
+        const isPersian = /[\u0600-\u06FF]/.test(`${c.text} ${fullProse}`);
+        const validLead = sanitizeChoiceLeadIn(c.leadIn, c.text, { isPersian });
+        if (!validLead) {
+          const { leadIn: _dropped, ...rest } = c;
+          return rest;
+        }
+        return validLead === c.leadIn ? c : { ...c, leadIn: validLead };
+      });
 
     // If filtering leaves fewer than 2 choices and we have prose context, replenish with safe options matching scene atmosphere
     if (filtered.length < 2 && hasProseContext) {

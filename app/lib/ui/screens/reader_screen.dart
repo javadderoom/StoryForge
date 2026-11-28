@@ -431,6 +431,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         choice,
         holdNarrativeUpdate: false,
       );
+      if (choice.leadIn != null && choice.leadIn!.trim().isNotEmpty) {
+        _scrollToTop();
+      }
       return;
     }
 
@@ -476,6 +479,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
     // 3. Start server narrative generation in the background with holdNarrativeUpdate: true
     doSubmitAction();
+    if (choice.leadIn != null && choice.leadIn!.trim().isNotEmpty) {
+      _scrollToTop();
+    }
 
     // 4. Trigger pre-warmed Root 3D Dice Overlay
     ref.read(diceOverlayProvider.notifier).showRoll(

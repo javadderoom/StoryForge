@@ -74,6 +74,8 @@ export interface WorkingContextEnvelope {
     actionText: string;
     outcome: string;
     consequence: string;
+    /** Outcome-neutral opening beat already shown to the reader on tap. */
+    openingLeadIn?: string;
     /** Deterministic mechanical cost line (e.g. "HP -5, stamina -10") — narrator MUST depict it. */
     costLine?: string;
     /** Plan 18: deterministic Fail Forward mode (present only on failure). */

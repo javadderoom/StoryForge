@@ -57,6 +57,8 @@ export interface FailureDirective {
 export interface ChoiceOption {
   id: string;
   text: string;
+  /** Outcome-neutral 1-2 sentence opening beat shown immediately when selected. */
+  leadIn?: string;
   style: ActionStyle;
   riskLevel: RiskLevel;
   requiredStatId?: string;
@@ -435,6 +437,7 @@ export interface PlaythroughSession {
 export const ChoiceOptionSchema = z.object({
   id: z.string(),
   text: z.string().min(1),
+  leadIn: z.string().max(450).optional(),
   style: z.enum([
     'defensive',
     'agile',

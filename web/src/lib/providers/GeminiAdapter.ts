@@ -279,9 +279,17 @@ export function normalizeChoices(
       }
     }
 
+    const rawLeadIn =
+      typeof raw.leadIn === 'string' && raw.leadIn.trim()
+        ? raw.leadIn.trim()
+        : typeof raw.lead_in === 'string' && raw.lead_in.trim()
+        ? raw.lead_in.trim()
+        : undefined;
+
     normalized.push({
       id: typeof raw.id === 'string' && raw.id ? raw.id : `choice_${normalized.length + 1}`,
       text,
+      ...(rawLeadIn ? { leadIn: rawLeadIn } : {}),
       style,
       riskLevel,
       ...(requiredStatId ? { requiredStatId, targetDC } : {}),

@@ -1,6 +1,7 @@
 class ChoiceOption {
   final String id;
   final String text;
+  final String? leadIn;
   final String style;
   final String riskLevel; // 'low', 'medium', 'high'
   final String? requiredStatId;
@@ -10,6 +11,7 @@ class ChoiceOption {
   ChoiceOption({
     required this.id,
     required this.text,
+    this.leadIn,
     required this.style,
     required this.riskLevel,
     this.requiredStatId,
@@ -40,9 +42,12 @@ class ChoiceOption {
         )
         .trim();
 
+    final rawLeadIn = json['leadIn']?.toString().trim() ?? '';
+
     return ChoiceOption(
       id: json['id']?.toString() ?? '',
       text: cleanedText.isNotEmpty ? cleanedText : rawText,
+      leadIn: rawLeadIn.isNotEmpty ? rawLeadIn : null,
       style: json['style']?.toString() ?? 'tactical',
       riskLevel: json['riskLevel']?.toString() ?? 'medium',
       requiredStatId: json['requiredStatId']?.toString(),

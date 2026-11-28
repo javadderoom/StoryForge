@@ -39,6 +39,26 @@ void main() {
       expect(choice.id, equals('42'));
       expect(choice.targetDC, equals(13));
       expect(choice.requiresRoll, isTrue);
+      expect(choice.leadIn, isNull);
+    });
+
+    test('parses trimmed non-empty leadIn and drops blank strings', () {
+      final withLead = ChoiceOption.fromJson({
+        'id': 'c1',
+        'text': 'دست به قبضه می‌بری',
+        'leadIn': '  انگشتانت دور قبضهٔ سرد شمشیر قفل می‌شود و یک گام جلو می‌گذاری...  ',
+      });
+      expect(
+        withLead.leadIn,
+        equals('انگشتانت دور قبضهٔ سرد شمشیر قفل می‌شود و یک گام جلو می‌گذاری...'),
+      );
+
+      final blankLead = ChoiceOption.fromJson({
+        'id': 'c2',
+        'text': 'عقب می‌کشی',
+        'leadIn': '   ',
+      });
+      expect(blankLead.leadIn, isNull);
     });
   });
 }

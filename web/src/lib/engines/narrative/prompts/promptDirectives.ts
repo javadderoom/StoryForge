@@ -278,9 +278,24 @@ You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "Visceral, atmospheric next scene prose in English...",
   "choices": [
-    { "id": "choice_1", "text": "Carefully inspect the masonry around the threshold for a hidden lever or latch", "style": "cautious", "riskLevel": "low" },
-    { "id": "choice_2", "text": "Quietly draw the dagger and step behind the granite pillar", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
+    {
+      "id": "choice_1",
+      "text": "Carefully inspect the masonry around the threshold for a hidden lever or latch",
+      "leadIn": "Your fingertips brush the chilled mortar along the doorframe as you crouch low in the torchlight, tracing every seam in the carved stone...",
+      "style": "cautious",
+      "riskLevel": "low"
+    },
+    {
+      "id": "choice_2",
+      "text": "Quietly draw the dagger and step behind the granite pillar",
+      "leadIn": "Cold iron slides clear of the sheath without a whisper as you shift your weight into the narrow shadow behind the granite shaft...",
+      "style": "tactical",
+      "riskLevel": "medium",
+      "targetDC": ${exampleMedDC},
+      "requiredStatId": "${validStatIds[0] || 'might'}"
+    }
   ],
+  // CHOICE LEAD-IN RULES: Every choice MUST include "leadIn" — 1-2 short second-person present-tense sentences (15-35 words) showing ONLY the immediate sensory initiation/motion/first words of that choice, fresh in phrasing (never copy "text" verbatim). It MUST be strictly outcome-neutral: never reveal success, failure, wounds, NPC verdict, or discoveries; cut off right at the moment of suspense!
   "encounteredCreatureId": null, // If and ONLY IF an active predator, monster, or wild beast from [BESTIARY & CREATURES] directly engages or is encountered in this turn, provide its ID or exact name; otherwise strictly null (never set for ambient plants, background livestock, or setting descriptions)
   "playerConditionChanges": {
     // ONLY conditions ACTUALLY DEPICTED in the narrative above. Empty arrays when nothing changed.
@@ -400,9 +415,24 @@ You MUST respond with a valid JSON object matching this schema:
 {
   "narrative": "متن ادبی و فضاسازی صحنه بعدی...",
   "choices": [
-    { "id": "choice_1", "text": "بررسی دقیق نقش‌ونگارهای روی سنگِ درگاه برای یافتن روزنه یا نشانه‌ای پنهان", "style": "inquisitive", "riskLevel": "low" },
-    { "id": "choice_2", "text": "کشیدن بی‌صدای خنجر و پناه گرفتن پشت ستون سنگی", "style": "tactical", "riskLevel": "medium", "targetDC": ${exampleMedDC}, "requiredStatId": "${validStatIds[0] || 'might'}" }
+    {
+      "id": "choice_1",
+      "text": "بررسی دقیق نقش‌ونگارهای روی سنگِ درگاه برای یافتن روزنه یا نشانه‌ای پنهان",
+      "leadIn": "سرانگشتانت روی ملات سردِ آستانه می‌لغزد و در کورسوی مشعل، خزه‌ها را از روی شیارهای تراش‌خورده کنار می‌زنی...",
+      "style": "inquisitive",
+      "riskLevel": "low"
+    },
+    {
+      "id": "choice_2",
+      "text": "کشیدن بی‌صدای خنجر و پناه گرفتن پشت ستون سنگی",
+      "leadIn": "فولادِ سرد بی‌هیچ خشی از غلاف بیرون می‌آید و شانه‌ات را به سایهٔ خنک ستون سنگی می‌چسبانی...",
+      "style": "tactical",
+      "riskLevel": "medium",
+      "targetDC": ${exampleMedDC},
+      "requiredStatId": "${validStatIds[0] || 'might'}"
+    }
   ],
+  // قواعد leadIn برای هر گزینه (اجباری): هر انتخاب باید یک «leadIn» (۱ تا ۲ جملهٔ کوتاه، ۱۵ تا ۳۵ کلمه، دوم‌شخص و زمان حال) داشته باشد که صرفاً آغازِ حسی، حرکت بدن یا نخستین کلماتِ همان تصمیم را با نثر تازه (بدون تکرار لفظیِ text) نشان دهد و دقیقاً در لحظهٔ تعلیق متوقف شود. اکیداً از نظر نتیجه خنثی بماند: هرگز موفقیت، شکست، زخم، واکنش نهایی دشمن یا کشف راز را لو نده!
   "encounteredCreatureId": null, // فقط و تنها در صورت نبرد یا رویارویی مستقیم با درنده، هیولا یا جانوری فعال در این صحنه، شناسه یا نام دقیق آن را از فهرست موجودات قرار دهید؛ در غیر این صورت حتماً null (هرگز برای گیاهان، دام‌های پس‌زمینه یا توصیفات محیطی مقداردهی نشود)
   "playerConditionChanges": {
     // فقط حالت‌هایی که واقعاً در همین متن روایت شده‌اند. اگر چیزی تغییر نکرده، آرایه‌ها خالی بمانند.

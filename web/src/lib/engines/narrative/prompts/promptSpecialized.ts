@@ -57,6 +57,7 @@ Return ONLY a valid JSON object matching this schema:
     {
       "id": "choice_1",
       "text": "Literary description of the action in English",
+      "leadIn": "1-2 vivid, outcome-neutral second-person present-tense sentences initiating the action and stopping right at the moment of suspense (no verdict, never copy 'text' verbatim)",
       "style": "tactical", // "tactical" | "cautious" | "inquisitive" | "diplomatic" | "bold"
       "riskLevel": "low", // "low" | "medium" | "high"
       "requiredStatId": "cunning", // optional, omit for diceless choices
@@ -74,6 +75,7 @@ Return ONLY a valid JSON object matching this schema:
     {
       "id": "choice_1",
       "text": "شرح کنش داستانی و ادبی به زبان فارسی",
+      "leadIn": "۱ تا ۲ جملهٔ کوتاه و حسیِ دوم‌شخصِ زمان حال از آغاز اجرای این کنش که دقیقاً در لحظهٔ تعلیق متوقف شود؛ از نظر نتیجه کاملاً خنثی بماند و متن text را تکرار نکند",
       "style": "tactical", // "tactical" | "cautious" | "inquisitive" | "diplomatic" | "bold"
       "riskLevel": "low", // "low" | "medium" | "high"
       "requiredStatId": "might", // اختیاری، برای اقدامات بدون تاس حذف شود
@@ -189,6 +191,7 @@ Return ONLY a valid JSON object matching this schema:
     {
       "id": "choice_1",
       "text": "Literary description of the action in English",
+      "leadIn": "1-2 vivid, outcome-neutral second-person present-tense sentences initiating the action and stopping right at the moment of suspense",
       "style": "tactical", // "tactical" | "cautious" | "inquisitive" | "diplomatic" | "bold"
       "riskLevel": "low", // "low" | "medium" | "high"
       "requiredStatId": "cunning", // optional, omit for diceless choices
@@ -205,6 +208,7 @@ Return ONLY a valid JSON object matching this schema:
     {
       "id": "choice_1",
       "text": "شرح کنش داستانی و ادبی به زبان فارسی",
+      "leadIn": "۱ تا ۲ جملهٔ کوتاه و حسیِ دوم‌شخصِ زمان حال از آغاز اجرای این کنش که دقیقاً در لحظهٔ تعلیق متوقف شود؛ از نظر نتیجه کاملاً خنثی بماند و متن text را تکرار نکند",
       "style": "tactical", // "tactical" | "cautious" | "inquisitive" | "diplomatic" | "bold"
       "riskLevel": "low", // "low" | "medium" | "high"
       "requiredStatId": "might", // اختیاری، برای اقدامات بدون تاس حذف شود

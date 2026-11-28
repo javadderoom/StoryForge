@@ -429,7 +429,9 @@ async function processTurnAction(
       (l: any) => l.id === playerState.currentLocationId
     );
 
-    if (session && !localPlaytestActive && typeof lastTurn?.turnNumber === 'number') {
+    const enableLegacyAot = process.env.ENABLE_LEGACY_SNAP_AOT === 'true';
+
+    if (enableLegacyAot && session && !localPlaytestActive && typeof lastTurn?.turnNumber === 'number') {
       const snapResolvePayload = {
         sessionId: session.sessionId,
         turnNumber: lastTurn.turnNumber,
@@ -442,8 +444,10 @@ async function processTurnAction(
       });
     }
 
-    // Plan 15 §2.3 tier 4 / Live AOT Serving + narrative adapter resolution in parallel.
+    // Legacy AOT branch serving is disabled now that choices carry instant
+    // outcome-neutral lead-ins (unless ENABLE_LEGACY_SNAP_AOT=true is explicitly set).
     const shouldCheckAot =
+      enableLegacyAot &&
       Boolean(!localPlaytestActive && session && actualChoice.actualChoiceId && typeof lastTurn?.turnNumber === 'number' && !isRemake && !targetSceneId);
     const localSubqDisabled = localPlaytestActive ? new SubQAdapter('') : undefined;
     const [activeNarrativeAdapter, aotBranch] = await Promise.all([
@@ -1360,6 +1364,14 @@ async function processTurnAction(
       story.initialStoryBeats?.find((b: any) => b.sceneId === earlyBeatSceneId) ||
       activeChapter?.scenes?.find((s: any) => s.sceneId === earlyBeatSceneId);
 
+    const trustedOpeningLeadIn =
+      !isRemake &&
+      !targetSceneId &&
+      typeof (chosenChoice as any)?.leadIn === 'string' &&
+      (chosenChoice as any).leadIn.trim().length > 0
+        ? (chosenChoice as any).leadIn.trim()
+        : undefined;
+
     // Emit resolution and initial beat metadata immediately over stream so dice animations and scene visuals fire with zero lag
     if (streamWriter) {
       await streamWriter.sendEvent('resolution', {
@@ -1384,6 +1396,7 @@ async function processTurnAction(
       await streamWriter.sendEvent('beat_start', {
         sceneId: earlyBeatSceneId,
         imageUrl: earlyMatchedAuthoredBeat?.imageUrl ?? null,
+        ...(trustedOpeningLeadIn ? { openingLeadIn: trustedOpeningLeadIn } : {}),
       });
     }
 
@@ -1458,9 +1471,15 @@ async function processTurnAction(
           activeEncounter: triggeredEncounter,
           remakeDirective,
           forceHeuristicMomentum: localPlaytestActive || undefined,
+          openingLeadIn: trustedOpeningLeadIn,
           onTextDelta: streamWriter
             ? (delta: string) => {
                 streamWriter.sendEvent('prose_delta', { delta });
+              }
+            : undefined,
+          onProseReplace: streamWriter
+            ? (narrative: string) => {
+                streamWriter.sendEvent('prose_replace', { narrative });
               }
             : undefined,
         },
@@ -1856,8 +1875,8 @@ async function processTurnAction(
 
       await Promise.all([recordTurnPromise, creditPromise]);
 
-      // Plan 15 §2.3 (Phase 6): Snap dwell compute, logged at render.
-      if (session && !localPlaytestActive) {
+      // Legacy AOT/Snap dwell pre-generation is off by default once choices ship with lead-ins.
+      if (enableLegacyAot && session && !localPlaytestActive) {
         after(async () => {
           await scheduleSnapDwell({
             sessionId,

@@ -301,6 +301,9 @@ export class PromptAssembler {
           (context.resolvedGameOutcome.costLine ? `• Cost (MANDATORY — depict in prose): ${context.resolvedGameOutcome.costLine}\n` : '') +
           (mixedDirective ? `${mixedDirective}\n` : '') +
           (failureBlock ? `${failureBlock}\n` : '') +
+          (context.resolvedGameOutcome.openingLeadIn
+            ? `• [OPENING LEAD-IN ALREADY SHOWN TO READER — CRITICAL CONTINUATION RULE]: The reader is ALREADY looking at this opening action beat on their screen:\n  "${context.resolvedGameOutcome.openingLeadIn}"\n  In this turn's "narrative", DO NOT repeat, paraphrase, or restart that movement! Begin immediately from the very split-second AFTER its final word, reveal the world/NPC reaction and the pre-resolved ${context.resolvedGameOutcome.outcome.toUpperCase()} outcome, and carry the scene forward.\n`
+            : '') +
           `• DIRECTIVE: Treat the player action ONLY as the underlying intent—NEVER copy, repeat, or lightly reword its phrasing in Paragraph 1! Open with fresh, grounded sensory action showing how the protagonist carries out that decision amid the visible surroundings, character bearing, and pack beasts/creatures, then depict the direct reaction of the target NPC or environment with direct dialogue ("...") when spoken to.`
         );
       }
@@ -423,6 +426,9 @@ export class PromptAssembler {
           (context.resolvedGameOutcome.costLine ? `• هزینه (اجباری — حتماً در متن نشان بده): ${context.resolvedGameOutcome.costLine}\n` : '') +
           (mixedDirectiveFa ? `${mixedDirectiveFa}\n` : '') +
           (failureBlockFa ? `${failureBlockFa}\n` : '') +
+          (context.resolvedGameOutcome.openingLeadIn
+            ? `• [آغازِ ازپیش‌نمایش‌داده‌شده به خواننده — دستور حیاتی ادامه]: پاراگراف آغازین زیر هم‌اکنون در صفحه به خواننده نشان داده شده است:\n  «${context.resolvedGameOutcome.openingLeadIn}»\n  در «narrative» این نوبت، آن آغاز را دوباره ننویس و تکرارش نکن! روایتت را دقیقاً از لحظهٔ بعد از آخرین کلمهٔ آن ادامه بده، واکنش فوری جهان/شخصیت و نتیجهٔ قطعی (${context.resolvedGameOutcome.outcome.toUpperCase()}) را آشکار کن و صحنه را پیش ببر.\n`
+            : '') +
           `• دستور مؤکد روایی (بازگویی غیرتکراری تصمیم): تصمیم بازیکن را فقط به‌عنوان «نیت و هدف» در نظر بگیر؛ هرگز جملهٔ «عمل انجام شده توسط بازیکن» را عیناً یا با تغییر کلمات جزئی در پاراگراف اول کپی نکن! بند اول را با توصیف تازه و حسی از نحوهٔ اجرای آن تصمیم در فضای واقعی (حرکت بدن، جزئیات محیط، نور، اشخاص یا حیوانات اطراف) آغاز کن و واکنش مستقیم، شخصی و عینیِ شخصیت یا مانع مورد اقدام (نه یک فرمانده غایب) را با دیالوگ مستقیم («...») نشان بده! از ابداع موانع فیزیکیِ ذکرنشده بپرهیز.`
         );
       }

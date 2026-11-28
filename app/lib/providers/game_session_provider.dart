@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/game_state.dart';
@@ -403,10 +405,51 @@ class GameSessionState {
 
 class GameSessionNotifier extends Notifier<GameSessionState> {
   bool _isHoldingNarrative = false;
+  String? _leadInPrefix;
+  String _streamingContinuationBuffer = '';
   String _streamingProseBuffer = '';
   List<ChoiceOption> _streamingChoicesBuffer = const [];
   String? _streamingSceneImageUrl;
   bool _hasStreamingSceneImage = false;
+  Timer? _leadInRevealTimer;
+  int _submitActionSeq = 0;
+
+  void _cancelLeadInReveal() {
+    _leadInRevealTimer?.cancel();
+    _leadInRevealTimer = null;
+  }
+
+  String _buildCombinedStreamText() {
+    final lead = _leadInPrefix?.trim() ?? '';
+    final cont = _streamingContinuationBuffer;
+    if (lead.isEmpty) return cont;
+    final trimmedCont = cont.trimLeft();
+    if (trimmedCont.isEmpty) return lead;
+    return '$lead\n\n$trimmedCont';
+  }
+
+  void _startLeadInTypewriter(String leadIn, int seq) {
+    _cancelLeadInReveal();
+    final words = leadIn.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (words.length <= 3) return;
+
+    var count = min(3, words.length);
+    _leadInRevealTimer = Timer.periodic(const Duration(milliseconds: 28), (timer) {
+      if (seq != _submitActionSeq || _streamingContinuationBuffer.isNotEmpty) {
+        timer.cancel();
+        if (_leadInRevealTimer == timer) _leadInRevealTimer = null;
+        return;
+      }
+      count += 1;
+      if (count >= words.length) {
+        state = state.copyWith(currentNarrative: leadIn);
+        timer.cancel();
+        if (_leadInRevealTimer == timer) _leadInRevealTimer = null;
+      } else {
+        state = state.copyWith(currentNarrative: words.sublist(0, count).join(' '));
+      }
+    });
+  }
 
   static List<ChoiceOption> _parseChoices(dynamic rawChoices) {
     if (rawChoices is! List) return const [];
@@ -427,7 +470,10 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
   }
 
   @override
-  GameSessionState build() => GameSessionState();
+  GameSessionState build() {
+    ref.onDispose(_cancelLeadInReveal);
+    return GameSessionState();
+  }
 
   /// Changes the writer tier for the rest of this playthrough.
   /// Persisted per story so a resume or app restart keeps the reader's choice.
@@ -560,26 +606,42 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
   }) async {
     if (state.playerState == null) return null;
 
+    _cancelLeadInReveal();
+    final seq = ++_submitActionSeq;
+    final leadIn = choice.leadIn?.trim();
+    final hasLeadIn = leadIn != null && leadIn.isNotEmpty;
+
     _isHoldingNarrative = holdNarrativeUpdate;
-    _streamingProseBuffer = '';
+    _leadInPrefix = hasLeadIn ? leadIn : null;
+    _streamingContinuationBuffer = '';
+    _streamingProseBuffer = _buildCombinedStreamText();
     _streamingChoicesBuffer = const [];
     _streamingSceneImageUrl = null;
     _hasStreamingSceneImage = false;
 
-    if (!holdNarrativeUpdate) {
+    String initialLeadText = '';
+    if (hasLeadIn) {
+      final words = leadIn.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+      initialLeadText = words.length <= 3 ? leadIn : words.sublist(0, 3).join(' ');
+    }
+
+    if (!holdNarrativeUpdate || hasLeadIn) {
       state = state.copyWith(
         isLoading: true,
         isStreamingNarrative: false,
         errorMessage: null,
         clearLastResolution: true,
         clearPendingTurn: true,
-        currentNarrative: '',
+        currentNarrative: initialLeadText,
         choices: const [],
         lastActionText: choice.text,
         clearSceneImage: true,
         clearDiscoveredCreature: true,
         clearDiscoveredNpcs: true,
       );
+      if (hasLeadIn) {
+        _startLeadInTypewriter(leadIn, seq);
+      }
     } else {
       state = state.copyWith(
         errorMessage: null,
@@ -658,10 +720,19 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
           _streamingSceneImageUrl = sceneImg;
           _hasStreamingSceneImage = true;
 
+          final serverLeadIn = event['openingLeadIn']?.toString().trim() ?? '';
+          if ((_leadInPrefix == null || _leadInPrefix!.isEmpty) && serverLeadIn.isNotEmpty) {
+            _leadInPrefix = serverLeadIn;
+            _streamingProseBuffer = _buildCombinedStreamText();
+          }
+
           if (!_isHoldingNarrative) {
             state = state.copyWith(
               currentSceneImageUrl: sceneImg,
               clearSceneImage: sceneImg == null,
+              currentNarrative: (serverLeadIn.isNotEmpty && state.currentNarrative.isEmpty)
+                  ? _streamingProseBuffer
+                  : null,
             );
           }
           continue;
@@ -669,9 +740,11 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
 
         if (eventType == 'prose_delta') {
           final delta = event['delta'] as String? ?? '';
-          _streamingProseBuffer += delta;
+          _streamingContinuationBuffer += delta;
+          _streamingProseBuffer = _buildCombinedStreamText();
 
           if (!_isHoldingNarrative) {
+            _cancelLeadInReveal();
             state = state.copyWith(
               isLoading: false,
               isStreamingNarrative: true,
@@ -680,6 +753,23 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
               clearSceneImage: !_hasStreamingSceneImage || _streamingSceneImageUrl == null,
               clearDiscoveredCreature: true,
               clearDiscoveredNpcs: true,
+            );
+          }
+          continue;
+        }
+
+        if (eventType == 'prose_replace') {
+          final replaced = event['narrative'] as String? ?? '';
+          _cancelLeadInReveal();
+          _leadInPrefix = null;
+          _streamingContinuationBuffer = replaced;
+          _streamingProseBuffer = replaced;
+
+          if (!_isHoldingNarrative) {
+            state = state.copyWith(
+              isLoading: false,
+              isStreamingNarrative: true,
+              currentNarrative: replaced,
             );
           }
           continue;
@@ -756,12 +846,14 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
               clearTravelArrived: GameSessionState.travelArrivalName(data, state.lore) == null,
             );
           } else {
+            _cancelLeadInReveal();
+            final canonicalProse = beatData['narrativeProse']?.toString() ?? '';
             state = state.copyWith(
               isLoading: false,
               isStreamingNarrative: false,
-              currentNarrative: _streamingProseBuffer.isNotEmpty
-                  ? _streamingProseBuffer
-                  : (beatData['narrativeProse'] ?? ''),
+              currentNarrative: canonicalProse.isNotEmpty
+                  ? canonicalProse
+                  : _streamingProseBuffer,
               currentSceneImageUrl: sceneImg,
               clearSceneImage: sceneImg == null,
               choices: _streamingChoicesBuffer.isNotEmpty
@@ -792,6 +884,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       }
 
       if (!receivedComplete) {
+        _cancelLeadInReveal();
         final msg = state.isPersian
             ? 'ارتباط با سرور پیش از تکمیل صحنه قطع شد. لطفاً دوباره تلاش کنید.'
             : 'Connection closed before the scene completed. Please try again.';
@@ -806,6 +899,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
 
       return finalResolution;
     } catch (e) {
+      _cancelLeadInReveal();
       final raw = e.toString();
       final msg = raw.startsWith('ClientException: ')
           ? raw.substring('ClientException: '.length)
@@ -824,14 +918,17 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
 
   /// Reveals the pending scene once the dice roll is complete and the user continues.
   void applyPendingTurn() {
+    _cancelLeadInReveal();
     _isHoldingNarrative = false;
+    _streamingProseBuffer = _buildCombinedStreamText();
 
     if (state.pendingTurnData == null) {
+      final hasContinuation = _streamingContinuationBuffer.isNotEmpty;
       state = state.copyWith(
         currentNarrative: _streamingProseBuffer,
         choices: _streamingChoicesBuffer,
-        isLoading: _streamingProseBuffer.isEmpty,
-        isStreamingNarrative: _streamingProseBuffer.isNotEmpty,
+        isLoading: !hasContinuation,
+        isStreamingNarrative: hasContinuation,
         currentSceneImageUrl: _hasStreamingSceneImage ? _streamingSceneImageUrl : null,
         clearSceneImage: !_hasStreamingSceneImage || _streamingSceneImageUrl == null,
         clearDiscoveredCreature: true,
@@ -876,10 +973,11 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
           xpAward: xpAward,
         );
 
+    final canonicalProse = beatData['narrativeProse']?.toString() ?? '';
     state = state.copyWith(
       isLoading: false,
       isStreamingNarrative: false,
-      currentNarrative: _streamingProseBuffer.isNotEmpty ? _streamingProseBuffer : (beatData['narrativeProse'] ?? ''),
+      currentNarrative: canonicalProse.isNotEmpty ? canonicalProse : _streamingProseBuffer,
       currentSceneImageUrl: sceneImg,
       clearSceneImage: sceneImg == null,
       choices: _streamingChoicesBuffer.isNotEmpty ? _streamingChoicesBuffer : parsedBeatChoices,

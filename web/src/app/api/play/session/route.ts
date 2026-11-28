@@ -790,7 +790,8 @@ export async function POST(req: NextRequest) {
     // Plan 15 §2.3 (Phase 6): opener dwell — predict the reader's first choice
     // as the session-opening scene renders, and pre-generate the predicted branch
     // when ENABLE_SNAP_AOT=true. Runs after this response is on the wire.
-    if (!localPlaytestActive) {
+    // Legacy Snap/AOT dwell compute is disabled by default once choices include instant lead-ins.
+    if (process.env.ENABLE_LEGACY_SNAP_AOT === 'true' && !localPlaytestActive) {
       after(async () => {
         await scheduleSnapDwell({
           sessionId: session.sessionId,

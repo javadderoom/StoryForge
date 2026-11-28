@@ -1,6 +1,7 @@
 import { PromptAssembler } from './PromptAssembler';
 import { validateProse, buildProseRepairInstruction, ProseFinding } from './ProseValidator';
 import { normalizeParagraphs } from './proseParagraphs';
+import { combineLeadInAndContinuation, sanitizeChoiceLeadIn, stripDuplicateLeadInPrefix } from './leadInValidator';
 import { buildWorldContextBlocks, resolveAccompanyingIds, formatNpcCombatSummary, formatEquippedItemsForContext, formatAbilitiesForContext, formatTraitsForContext, formatItemInteractionsCatalogForContext } from './worldContext';
 import { getActiveNpcsForLocation } from '@/lib/engines/world/tradeRoutes';
 import { travelProgress, travelTimeline, type TravelProgress } from '@/lib/engines/game/travelEngine';
@@ -94,8 +95,12 @@ export interface SceneTurnInput {
   activeEncounter?: StoryEncounter | null;
   /** Local zero-API playtest mode: use pure heuristic momentum check instead of external SubQ calls. */
   forceHeuristicMomentum?: boolean;
+  /** Outcome-neutral lead-in already displayed on client when a choice was tapped. */
+  openingLeadIn?: string;
   /** Real-time callback invoked with narrative token deltas as they stream from the LLM. */
   onTextDelta?: (delta: string) => void;
+  /** Invoked when a rare hard-canon rewrite replaces already-streamed prose. */
+  onProseReplace?: (narrative: string) => void;
 }
 
 export interface SceneAiResponse {
@@ -489,6 +494,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
       actionText: input.playerActionText,
       outcome: resolution.outcome,
       consequence: resolution.consequenceSummary,
+      ...(input.openingLeadIn ? { openingLeadIn: input.openingLeadIn } : {}),
       costLine:
         formatOutcomeCost(resolution, story.language === 'fa' ? 'fa' : 'en') ??
         (resolution.outcome === 'mixed_success'
@@ -630,9 +636,45 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
   };
 }
 
+const HARD_CANON_CATEGORIES = new Set<ProseFinding['category']>([
+  'resurrection',
+  'lore_violation',
+  'script_leak',
+]);
+
+function hasHardCanonError(findings: ProseFinding[]): boolean {
+  return findings.some(
+    (f) => f.severity === 'error' && HARD_CANON_CATEGORIES.has(f.category)
+  );
+}
+
+function buildAppendRepairPayload(
+  basePayload: ReturnType<typeof PromptAssembler.buildNarrativePrompt>,
+  existingProse: string,
+  findings: ProseFinding[],
+  language: string
+): ReturnType<typeof PromptAssembler.buildNarrativePrompt> {
+  const isFa = language === 'fa';
+  const issueLines = findings
+    .filter((f) => f.severity === 'error')
+    .map((f) => `- [${f.category}] ${f.detail}`)
+    .join('\n');
+
+  return {
+    ...basePayload,
+    systemPrompt: isFa
+      ? `تو ویراستار الحاقیِ داستان تعاملی هستی. متن صحنه از قبل برای خواننده نمایش داده شده و نباید بازنویسی شود. صرفاً ۱ تا ۲ جملهٔ کوتاهِ ادامه‌دهنده در فیلد JSON "narrative" بنویس که دقیقاً به انتهای متن موجود بچسبد و ایراد زیر را برطرف کند. در فیلد "choices" آرایهٔ خالی [] بگذار.`
+      : `You are an append-only fiction editor. The scene above has ALREADY been streamed to the reader and MUST NOT be rewritten. Return ONLY 1-2 short continuation sentences in the JSON "narrative" field that attach directly after the final word to fix the missing beat below. Set "choices" to [].`,
+    userPrompt: isFa
+      ? `[متنِ هم‌اکنون نمایش‌داده‌شده — تکرار و بازنویسی نکن]\n${existingProse}\n\n[نقص نیازمند تکمیل الحاقی]\n${issueLines}\n\nفقط ۱ تا ۲ جملهٔ تازه و هم‌تن با همین صحنه در JSON {"narrative": "...", "choices": []} برگردان تا دقیقاً به پایان متن بالا افزوده شود.`
+      : `[ALREADY STREAMED PROSE — DO NOT REWRITE OR REPEAT]\n${existingProse}\n\n[DEFECT REQUIRING SHORT APPENDED CONTINUATION]\n${issueLines}\n\nReturn ONLY JSON {"narrative": "...", "choices": []} with 1-2 vivid continuation sentences that attach cleanly to the end of the text above.`,
+  };
+}
+
 /**
  * Resolves a scene for the turn: authored-beat passthrough, otherwise model
- * generation + prose validation (with up to two repair attempts) + sanitization.
+ * generation + prose validation (with append-only coda repair on soft
+ * streaming defects and full rewrite for hard canon violations) + sanitization.
  *
  * `secretSanitizer` is injected so this module stays free of `ActionValidator`
  * coupling; the route passes `ActionValidator.sanitizeChoices` bound to state.
@@ -685,8 +727,16 @@ export async function generateValidatedScene(
   if (input.remakeDirective) {
     promptPayload.userPrompt = `${promptPayload.userPrompt}\n\n${input.remakeDirective}`;
   }
+  let streamedChars = 0;
+  const wrappedOnDelta = input.onTextDelta
+    ? (delta: string) => {
+        if (delta) streamedChars += delta.length;
+        input.onTextDelta!(delta);
+      }
+    : undefined;
+
   const { response: aiResponse, raw } = await adapter.generateSceneWithRaw(promptPayload, {
-    onTextDelta: input.onTextDelta,
+    onTextDelta: wrappedOnDelta,
   });
 
   // Plan 08 Phase 1: NEVER persist mock/offline output as story canon.
@@ -703,6 +753,9 @@ export async function generateValidatedScene(
     };
   }
 
+  const combineWithLeadIn = (prose: string): string =>
+    combineLeadInAndContinuation(input.openingLeadIn, prose);
+
   // At most two repair calls; retain the initial raw output for evaluation.
   const validationOptions = {
     ledger,
@@ -712,7 +765,10 @@ export async function generateValidatedScene(
     minWordCount: input.minWordCount ?? (process.env.NODE_ENV === 'test' ? 0 : 70),
   };
   const subqClient = subqAdapter ?? new SubQAdapter();
-  let candidate = aiResponse;
+  let candidate = {
+    ...aiResponse,
+    narrative: combineWithLeadIn(aiResponse.narrative),
+  };
   let check = validateProse(candidate.narrative, validationOptions);
 
   // SubQ Snap Anti-Stalling & Story Momentum Guardrail
@@ -748,48 +804,123 @@ export async function generateValidatedScene(
 
   let proseRepaired = false;
   let repairAttempts = 0;
-  for (let attempt = 1; !check.ok && attempt <= 2; attempt++) {
-    repairAttempts = attempt;
-    const repairPayload = {
-      ...promptPayload,
-      userPrompt: `${promptPayload.userPrompt}\n\n${buildProseRepairInstruction(check.findings)}\n\nREPAIR ATTEMPT ${attempt}/2: Correct every listed violation without changing the resolved outcome.\nPREVIOUS PROSE:\n${candidate.narrative}`,
-    };
-    const { response: repaired } = await adapter.generateSceneWithRaw(repairPayload);
-    if (repaired.isMock) {
+
+  // Streaming Append-Only Repair:
+  // If prose has ALREADY been streamed live to the reader and only soft defects
+  // exist (outcome_mismatch, prose_length, stalling — no resurrection/lore/script_leak),
+  // append 1-2 short continuation sentences rather than discarding and rewriting
+  // the entire scene.
+  if (!check.ok && streamedChars > 0 && !hasHardCanonError(check.findings)) {
+    repairAttempts = 1;
+    try {
+      const appendPayload = buildAppendRepairPayload(
+        promptPayload,
+        candidate.narrative,
+        check.findings,
+        story.language
+      );
+      const { response: appended } = await adapter.generateSceneWithRaw(appendPayload);
+      if (!appended.isMock && appended.narrative?.trim()) {
+        const coda = stripDuplicateLeadInPrefix(candidate.narrative, appended.narrative).trim();
+        if (coda) {
+          candidate = {
+            ...candidate,
+            narrative: `${candidate.narrative.trimEnd()}\n\n${coda}`,
+            ...(candidate.choices.length < 2 && appended.choices.length >= 2
+              ? { choices: appended.choices }
+              : {}),
+          };
+          wrappedOnDelta?.(`\n\n${coda}`);
+          check = validateProse(candidate.narrative, validationOptions);
+          if (check.ok) {
+            const recheckInput = {
+              ...momentumInput,
+              candidateNarrative: candidate.narrative,
+              candidateChoices: candidate.choices,
+            };
+            const recheckedMomentum = useHeuristicMomentum
+              ? evaluateMomentumHeuristics(recheckInput)
+              : await evaluateNarrativeMomentum(recheckInput, subqClient);
+            if (!recheckedMomentum.ok && recheckedMomentum.repairInstruction) {
+              check.ok = false;
+              check.findings.push({
+                severity: 'error',
+                category: 'stalling',
+                detail: recheckedMomentum.repairInstruction,
+              });
+            }
+          }
+          proseRepaired = check.ok;
+        }
+      }
+    } catch (appendErr) {
+      console.warn('[narrativeTurn] Append-only repair error, keeping streamed prose:', appendErr);
+    }
+
+    // Never discard already-streamed prose into a 503 error for residual soft
+    // regex/stalling heuristics once no hard canon error exists.
+    if (!check.ok && !hasHardCanonError(check.findings)) {
+      console.warn(
+        '[narrativeTurn] Preserving streamed prose despite residual soft finding:',
+        check.findings.filter((f) => f.severity === 'error').map((f) => f.category)
+      );
+      check = {
+        ok: true,
+        findings: check.findings.map((f) =>
+          f.severity === 'error' ? { ...f, severity: 'warning' as const } : f
+        ),
+      };
+    }
+  } else {
+    for (let attempt = 1; !check.ok && attempt <= 2; attempt++) {
+      repairAttempts = attempt;
+      const repairPayload = {
+        ...promptPayload,
+        userPrompt: `${promptPayload.userPrompt}\n\n${buildProseRepairInstruction(check.findings)}\n\nREPAIR ATTEMPT ${attempt}/2: Correct every listed violation without changing the resolved outcome.\nPREVIOUS PROSE:\n${candidate.narrative}`,
+      };
+      const { response: repaired } = await adapter.generateSceneWithRaw(repairPayload);
+      if (repaired.isMock) {
+        return {
+          status: 'prose_invalid', aiResponse: candidate, proseFindings: check.findings,
+          proseRepaired: false, firstPassFindings, repairAttempts,
+          usedAuthoredBeat: false, raw, proseInvalidReason: 'repair_unavailable',
+        };
+      }
+      candidate = {
+        ...repaired,
+        narrative: input.openingLeadIn ? combineWithLeadIn(repaired.narrative) : repaired.narrative,
+      };
+      check = validateProse(candidate.narrative, validationOptions);
+      if (check.ok) {
+        const recheckInput = {
+          ...momentumInput,
+          candidateNarrative: candidate.narrative,
+          candidateChoices: candidate.choices,
+        };
+        const recheckedMomentum = useHeuristicMomentum
+          ? evaluateMomentumHeuristics(recheckInput)
+          : await evaluateNarrativeMomentum(recheckInput, subqClient);
+        if (!recheckedMomentum.ok && recheckedMomentum.repairInstruction) {
+          check.ok = false;
+          check.findings.push({
+            severity: 'error',
+            category: 'stalling',
+            detail: recheckedMomentum.repairInstruction,
+          });
+        }
+      }
+      proseRepaired = check.ok;
+    }
+    if (!check.ok) {
       return {
         status: 'prose_invalid', aiResponse: candidate, proseFindings: check.findings,
         proseRepaired: false, firstPassFindings, repairAttempts,
-        usedAuthoredBeat: false, raw, proseInvalidReason: 'repair_unavailable',
+        usedAuthoredBeat: false, raw, proseInvalidReason: 'unrepairable',
       };
     }
-    candidate = repaired;
-    check = validateProse(candidate.narrative, validationOptions);
-    if (check.ok) {
-      const recheckInput = {
-        ...momentumInput,
-        candidateNarrative: candidate.narrative,
-        candidateChoices: candidate.choices,
-      };
-      const recheckedMomentum = useHeuristicMomentum
-        ? evaluateMomentumHeuristics(recheckInput)
-        : await evaluateNarrativeMomentum(recheckInput, subqClient);
-      if (!recheckedMomentum.ok && recheckedMomentum.repairInstruction) {
-        check.ok = false;
-        check.findings.push({
-          severity: 'error',
-          category: 'stalling',
-          detail: recheckedMomentum.repairInstruction,
-        });
-      }
+    if (proseRepaired && streamedChars > 0) {
+      input.onProseReplace?.(normalizeParagraphs(candidate.narrative));
     }
-    proseRepaired = check.ok;
-  }
-  if (!check.ok) {
-    return {
-      status: 'prose_invalid', aiResponse: candidate, proseFindings: check.findings,
-      proseRepaired: false, firstPassFindings, repairAttempts,
-      usedAuthoredBeat: false, raw, proseInvalidReason: 'unrepairable',
-    };
   }
   // Structural repair, deliberately after validation and before persistence:
   // paragraph breaks are presentational, so a missing blank line must never
@@ -799,6 +930,23 @@ export async function generateValidatedScene(
   // Keep prose, choices and extracted memories from the same validated draft.
   Object.assign(aiResponse, candidate);
   const proseFindings = check.findings;
+
+  // Validate per-choice lead-ins deterministically (drops defective lead-ins only, never failing the turn).
+  if (Array.isArray(aiResponse.choices)) {
+    const isFa = story.language === 'fa';
+    aiResponse.choices = aiResponse.choices.map((c: any) => {
+      if (!c || typeof c.leadIn !== 'string') return c;
+      const validLead = sanitizeChoiceLeadIn(c.leadIn, c.text || '', {
+        ledger,
+        isPersian: isFa,
+      });
+      if (!validLead) {
+        const { leadIn: _dropped, ...rest } = c;
+        return rest;
+      }
+      return { ...c, leadIn: validLead };
+    });
+  }
 
   // Defense-in-depth: drop any AI choice that would leak an undiscovered secret or unintroduced NPC.
   let choicesDropped = 0;
