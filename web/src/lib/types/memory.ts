@@ -29,6 +29,7 @@ export interface WorkingContextEnvelope {
   worldLaws: string[];
   currentLocationName: string;
   currentLocationDescription: string;
+  currentLocationAtmosphere?: string;
   activeNpcDossiers: Array<{
     name: string;
     trust: number;

@@ -56,6 +56,36 @@ describe('PromptAssembler - scene continuity', () => {
       });
     }
   }
+
+  it('includes location atmosphere and anti-verbatim opening instruction in EN and FA', () => {
+    const en = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'en',
+        currentLocationAtmosphere: 'Dusty amber dusk with biting dry wind.',
+        resolvedGameOutcome: {
+          actionText: 'Inspect the gate',
+          outcome: 'success',
+          consequence: 'You spot a loose latch.',
+        },
+      })
+    );
+    assert.ok(en.userPrompt.includes('Dusty amber dusk with biting dry wind.'));
+    assert.ok(en.userPrompt.includes('NEVER copy, repeat, or lightly reword'));
+
+    const fa = PromptAssembler.buildNarrativePrompt(
+      makeEnvelope({
+        languageDirective: 'fa',
+        currentLocationAtmosphere: 'هوای گرم و خاک‌آلود با بوی کاه خیس‌خورده.',
+        resolvedGameOutcome: {
+          actionText: 'بررسی دروازه',
+          outcome: 'success',
+          consequence: 'چفت لقی را می‌بینی.',
+        },
+      })
+    );
+    assert.ok(fa.userPrompt.includes('هوای گرم و خاک‌آلود با بوی کاه خیس‌خورده.'));
+    assert.ok(fa.userPrompt.includes('هرگز جملهٔ «عمل انجام شده توسط بازیکن» را عیناً'));
+  });
 });
 
 describe('PromptAssembler - expanded world context', () => {

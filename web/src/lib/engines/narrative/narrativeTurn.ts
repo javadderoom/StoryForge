@@ -415,6 +415,7 @@ export function assembleSceneEnvelope(input: SceneTurnInput): WorkingContextEnve
     worldLaws: story.worldBible.laws.map((l: any) => `${l.rule}: ${l.description}`),
     currentLocationName: currentLocation.name,
     currentLocationDescription: currentLocation.description,
+    currentLocationAtmosphere: currentLocation.atmosphere || undefined,
     activeNpcDossiers: activeNPCs.map((npc: any) => {
       const ov = story.storyNpcOverrides?.[npc.id];
       let powerAffiliationLine: string | undefined;

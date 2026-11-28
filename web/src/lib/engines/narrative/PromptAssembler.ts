@@ -245,7 +245,9 @@ export class PromptAssembler {
       }
 
       parts.push(
-        `[CURRENT LOCATION: ${context.currentLocationName}]\nDescription: ${context.currentLocationDescription}`
+        `[CURRENT LOCATION: ${context.currentLocationName}]\nDescription: ${context.currentLocationDescription}${
+          context.currentLocationAtmosphere ? `\nAtmosphere & Sensory Mood: ${context.currentLocationAtmosphere}` : ''
+        }`
       );
 
       // Plan 17 (§4.5): the road is real — journey leg / arrival discipline.
@@ -299,7 +301,7 @@ export class PromptAssembler {
           (context.resolvedGameOutcome.costLine ? `• Cost (MANDATORY — depict in prose): ${context.resolvedGameOutcome.costLine}\n` : '') +
           (mixedDirective ? `${mixedDirective}\n` : '') +
           (failureBlock ? `${failureBlock}\n` : '') +
-          `• DIRECTIVE: Immediately open with the protagonist performing this exact action and depict the direct, personal reaction of the target NPC or environment! Respond to the exact target addressed, not an off-scene commander. If speaking or asking a question, use direct dialogue.`
+          `• DIRECTIVE: Treat the player action ONLY as the underlying intent—NEVER copy, repeat, or lightly reword its phrasing in Paragraph 1! Open with fresh, grounded sensory action showing how the protagonist carries out that decision amid the visible surroundings, character bearing, and pack beasts/creatures, then depict the direct reaction of the target NPC or environment with direct dialogue ("...") when spoken to.`
         );
       }
 
@@ -368,7 +370,9 @@ export class PromptAssembler {
       }
 
       parts.push(
-        `[موقعیت مکانی فعلی / CURRENT LOCATION: ${context.currentLocationName}]\nتوضیحات: ${context.currentLocationDescription}`
+        `[موقعیت مکانی فعلی / CURRENT LOCATION: ${context.currentLocationName}]\nتوضیحات: ${context.currentLocationDescription}${
+          context.currentLocationAtmosphere ? `\nاتمسفر و فضای حسی محیط: ${context.currentLocationAtmosphere}` : ''
+        }`
       );
 
       // Plan 17 (§4.5): the road is real — journey leg / arrival discipline.
@@ -397,7 +401,7 @@ export class PromptAssembler {
           .join('\n');
         parts.push(
           `[شخصیت‌های حاضر / PRESENT NPCS]\n${npcs}\n` +
-          `• نکات: شخصیت‌ها را با سیمای ملموس و پوشش وصف کن. افراد «مستقر در پایگاه — هنوز در صحنه حاضر نیست» را تا پیش از معرفی طبیعی در متن، در گزینه‌ها (choices) نیاور. افراد [همراه کاروان تجاری] در کاروانسرا/بارانداز همین محل حضور دارند.`
+          `• دستور توصیف زندهٔ اشخاص و حیوانات: شخصیت‌ها را با سیمای ملموس و پوشش وصف کن و از تبدیل کردن آن‌ها به اسم‌های انتزاعی پرهیز کن! جثه، قدوقامت، چین‌وچروک و آفتاب‌سوختگی صورت، نگاه، بافت و رنگ جامه، دست‌ها و حرکات بدنی‌شان را همراه با حال‌وهوای حیوانات یا کاروانِ پیرامون به شکل زنده در نثر بیاور. افراد «مستقر در پایگاه — هنوز در صحنه حاضر نیست» را تا پیش از معرفی طبیعی در متن، در گزینه‌ها (choices) نیاور. افراد [همراه کاروان تجاری] در کاروانسرا/بارانداز همین محل حضور دارند.`
         );
       }
 
@@ -419,7 +423,7 @@ export class PromptAssembler {
           (context.resolvedGameOutcome.costLine ? `• هزینه (اجباری — حتماً در متن نشان بده): ${context.resolvedGameOutcome.costLine}\n` : '') +
           (mixedDirectiveFa ? `${mixedDirectiveFa}\n` : '') +
           (failureBlockFa ? `${failureBlockFa}\n` : '') +
-          `• دستور مؤکد روایی: روایت را بلافاصله با انجام همین اقدام توسط قهرمان داستان آغاز کن و واکنش مستقیم، شخصی و عینیِ شخصیت یا مانع مورد اقدام (نه یک فرمانده غایب) را با دیالوگ مستقیم («...») نشان بده! از ابداع موانع فیزیکیِ ذکرنشده (مثل بارهای انباشته) بپرهیز و هرگز صحنه را با توصیفات منفعل پس‌زمینه که این اقدام در آن گم شود پر نکن.`
+          `• دستور مؤکد روایی (بازگویی غیرتکراری تصمیم): تصمیم بازیکن را فقط به‌عنوان «نیت و هدف» در نظر بگیر؛ هرگز جملهٔ «عمل انجام شده توسط بازیکن» را عیناً یا با تغییر کلمات جزئی در پاراگراف اول کپی نکن! بند اول را با توصیف تازه و حسی از نحوهٔ اجرای آن تصمیم در فضای واقعی (حرکت بدن، جزئیات محیط، نور، اشخاص یا حیوانات اطراف) آغاز کن و واکنش مستقیم، شخصی و عینیِ شخصیت یا مانع مورد اقدام (نه یک فرمانده غایب) را با دیالوگ مستقیم («...») نشان بده! از ابداع موانع فیزیکیِ ذکرنشده بپرهیز.`
         );
       }
 
