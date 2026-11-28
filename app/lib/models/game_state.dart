@@ -266,15 +266,22 @@ class CheckResolution {
 
   factory CheckResolution.fromJson(Map<String, dynamic> json) {
     final progJson = json['progression'] as Map<String, dynamic>?;
+    final diceRoll = (json['diceRoll'] as num?)?.toInt() ?? 10;
+    final statModifier = (json['statModifier'] as num?)?.toInt() ?? 0;
+    final equipmentModifier = (json['equipmentModifier'] as num?)?.toInt() ?? 0;
+    final passiveModifier = (json['passiveModifier'] as num?)?.toInt() ?? 0;
+    final environmentalModifier = (json['environmentalModifier'] as num?)?.toInt() ?? 0;
+    final computedTotal =
+        diceRoll + statModifier + equipmentModifier + passiveModifier + environmentalModifier;
     return CheckResolution(
       outcome: json['outcome'] ?? 'success',
-      diceRoll: json['diceRoll'] ?? 10,
-      statModifier: json['statModifier'] ?? 0,
-      equipmentModifier: (json['equipmentModifier'] as num?)?.toInt() ?? 0,
-      passiveModifier: (json['passiveModifier'] as num?)?.toInt() ?? 0,
-      environmentalModifier: (json['environmentalModifier'] as num?)?.toInt() ?? 0,
-      totalScore: json['totalScore'] ?? 10,
-      difficultyClass: json['difficultyClass'] ?? 10,
+      diceRoll: diceRoll,
+      statModifier: statModifier,
+      equipmentModifier: equipmentModifier,
+      passiveModifier: passiveModifier,
+      environmentalModifier: environmentalModifier,
+      totalScore: (json['totalScore'] as num?)?.toInt() ?? computedTotal,
+      difficultyClass: ((json['difficultyClass'] ?? json['targetDC']) as num?)?.toInt() ?? 10,
       consequenceSummary: json['consequenceSummary'] ?? '',
       statId: json['statId'],
       progression: progJson != null ? ProgressionAward.fromJson(progJson) : null,

@@ -75,6 +75,31 @@ void main() {
       expect(r.environmentalModifier, 4);
       expect(r.environmentalModifier, isA<int>());
     });
+
+    test('computes fallback totalScore from diceRoll and modifiers instead of 10', () {
+      final r = CheckResolution.fromJson({
+        'outcome': 'critical_success',
+        'diceRoll': 19,
+        'statModifier': 3,
+        'passiveModifier': 1,
+        'targetDC': 14,
+        'consequenceSummary': 'ok',
+      });
+      expect(r.diceRoll, 19);
+      expect(r.totalScore, 23);
+      expect(r.difficultyClass, 14);
+    });
+
+    test('computes fallback totalScore as diceRoll when modifiers omitted', () {
+      final r = CheckResolution.fromJson({
+        'outcome': 'failure',
+        'diceRoll': 3,
+        'difficultyClass': 12,
+        'consequenceSummary': 'fail',
+      });
+      expect(r.diceRoll, 3);
+      expect(r.totalScore, 3);
+    });
   });
 
   group('DiceRollOverlay — server authority', () {

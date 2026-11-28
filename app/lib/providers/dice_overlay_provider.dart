@@ -154,8 +154,7 @@ class DiceOverlayNotifier extends Notifier<DiceOverlayState> {
   /// outcome becomes visible to the player.
   void applyServerResolution(CheckResolution resolution) {
     if (!state.isVisible) return;
-    // Ignore a stale push for a previous turn.
-    if (state.serverResolution != null) return;
+    final isInitialPush = state.serverResolution == null;
 
     state = state.copyWith(
       serverResolution: resolution,
@@ -164,10 +163,12 @@ class DiceOverlayNotifier extends Notifier<DiceOverlayState> {
       isRecalling: false,
     );
 
-    if (resolution.isSuccess) {
-      ref.read(audioProvider.notifier).playSfx(SfxType.diceSuccess);
-    } else {
-      ref.read(audioProvider.notifier).playSfx(SfxType.diceFail);
+    if (isInitialPush) {
+      if (resolution.isSuccess) {
+        ref.read(audioProvider.notifier).playSfx(SfxType.diceSuccess);
+      } else {
+        ref.read(audioProvider.notifier).playSfx(SfxType.diceFail);
+      }
     }
   }
 

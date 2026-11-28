@@ -1363,12 +1363,22 @@ async function processTurnAction(
     // Emit resolution and initial beat metadata immediately over stream so dice animations and scene visuals fire with zero lag
     if (streamWriter) {
       await streamWriter.sendEvent('resolution', {
+        actionDescription: resolution.actionDescription,
         outcome: resolution.outcome,
         diceRoll: resolution.diceRoll,
-        targetDC: resolution.difficultyClass,
-        difficultyClass: resolution.difficultyClass,
+        diceType: resolution.diceType,
         statId: resolution.statId,
+        statModifier: resolution.statModifier,
+        equipmentModifier: resolution.equipmentModifier ?? 0,
+        passiveModifier: resolution.passiveModifier ?? 0,
+        environmentalModifier: resolution.environmentalModifier ?? 0,
+        totalScore: resolution.totalScore,
+        difficultyClass: resolution.difficultyClass,
+        targetDC: resolution.difficultyClass,
         consequenceSummary: resolution.consequenceSummary,
+        ...(resolution.progression ? { progression: resolution.progression } : {}),
+        ...(resolution.abilityInvocation ? { abilityInvocation: resolution.abilityInvocation } : {}),
+        ...(resolution.abilityContributions ? { abilityContributions: resolution.abilityContributions } : {}),
         activeClocks: updatedPlayerState.activeTensionClocks ?? [],
       });
       await streamWriter.sendEvent('beat_start', {
