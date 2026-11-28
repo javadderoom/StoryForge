@@ -54,5 +54,12 @@
 - **Direct Technical Pushback**: If an instruction, architecture choice, or schema change introduces risks, causes bugs, degrades UX, or contradicts system goals, explicitly challenge it with technical reasoning, trade-offs, and concrete alternatives rather than blindly complying.
 - **Evidence-Based Answers**: Base arguments and decisions on concrete code traces, database realities, test execution, and verifiable facts rather than conversational alignment.
 
+## Cafe Bazaar Android Signing & Release Rule
+- **Mandatory Two-Step Cafe Bazaar Signing (`AAB` + `.bin`)**: Whenever asked to build or sign a Flutter release for Cafe Bazaar (کافه‌بازار):
+  1. Bump `version:` in `app/pubspec.yaml` (`MAJOR.MINOR.PATCH+BUILD_NUMBER`) when creating a new release.
+  2. Build the release App Bundle via `flutter build appbundle --release` inside `app/` (which signs `app/build/app/outputs/bundle/release/app-release.aab` using `app/android/key.properties` and `app/android/app/upload-keystore.jks`).
+  3. **ALWAYS run `app/sign_bundle_cafebazaar.bat`** (which invokes `app/bundlesigner-0.1.13.jar genbin` to generate `app/build/app/outputs/bundle/release/app-release.bin`).
+  4. Never treat `flutter build apk/appbundle --release` alone or `jarsigner` alone as sufficient for Cafe Bazaar submission — always verify and deliver **both** `app-release.aab` AND `app-release.bin`.
+
 
 
