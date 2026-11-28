@@ -227,16 +227,11 @@ export async function POST(req: NextRequest) {
 async function probeTierProvider(
   config: NarratorTierConfig
 ): Promise<{ ok: boolean; modelUsed?: string; error?: string }> {
-  const apiKeyEnv: Record<string, string> = {
-    gemini: 'GEMINI_API_KEY',
-    aiprime: 'AIPRIME_API_KEY',
-    sinox: 'SINOX_API_KEY',
-  };
-  const apiKey = process.env[apiKeyEnv[config.provider] ?? ''];
-  if (!apiKey) return { ok: false, error: 'Provider API key is not configured.' };
-
   if (config.provider === 'gemini') {
-    const { getGeminiEndpoint } = await import('@/lib/ai/geminiClient');
+    const { getGeminiApiKeys, getGeminiEndpoint } = await import('@/lib/ai/geminiClient');
+    if (getGeminiApiKeys().length === 0) {
+      return { ok: false, error: 'Provider API key is not configured.' };
+    }
     const { buildGeminiThinkingConfig } = await import('@/lib/ai/modelCapabilities');
     const endpoint = getGeminiEndpoint(config.model);
     const thinkingConfig = buildGeminiThinkingConfig(
@@ -263,6 +258,13 @@ async function probeTierProvider(
     }
     return { ok: true, modelUsed: config.model };
   }
+
+  const apiKeyEnv: Record<string, string> = {
+    aiprime: 'AIPRIME_API_KEY',
+    sinox: 'SINOX_API_KEY',
+  };
+  const apiKey = process.env[apiKeyEnv[config.provider] ?? ''];
+  if (!apiKey) return { ok: false, error: 'Provider API key is not configured.' };
 
   const endpoint = config.endpoint ?? '';
   if (!endpoint) return { ok: false, error: 'No endpoint configured for this provider.' };

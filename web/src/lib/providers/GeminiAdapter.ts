@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import '@/lib/ai/geminiProxy';
-import { extractJsonPayload } from '../ai/geminiClient';
+import { extractJsonPayload, getGeminiKeyAttemptOrder } from '../ai/geminiClient';
 import { buildGeminiThinkingConfig } from '../ai/modelCapabilities';
 import { StreamingJsonNarrativeExtractor } from '../engines/narrative/streamingExtractor';
 import { GenerationPromptPayload } from '../engines/narrative/PromptAssembler';
@@ -386,7 +386,8 @@ export interface GeminiAdapterOptions {
 }
 
 export class GeminiAdapter {
-  private client: GoogleGenAI | null = null;
+  private explicitApiKey?: string;
+  private sdkClients = new Map<string, GoogleGenAI>();
   private modelName: string;
   private modelCall: SceneModelCall;
   private hasCustomModelCall: boolean;
@@ -398,15 +399,67 @@ export class GeminiAdapter {
     modelName = 'gemini-3.5-flash-lite',
     options: GeminiAdapterOptions = {}
   ) {
-    const key = apiKey || process.env.GEMINI_API_KEY;
-    if (key) {
-      this.client = new GoogleGenAI({ apiKey: key });
+    const trimmed = apiKey?.trim();
+    if (trimmed) {
+      this.explicitApiKey = trimmed;
+      this.sdkClients.set(trimmed, new GoogleGenAI({ apiKey: trimmed }));
     }
     this.modelName = modelName;
     this.hasCustomModelCall = Boolean(options.modelCall);
     this.modelCall = options.modelCall ?? defaultSceneModelCall;
     this.preferredModel = options.preferredModel;
     this.thinkingBudgetTokens = options.thinkingBudgetTokens;
+  }
+
+  private resolveKeyOrder(): string[] {
+    if (this.explicitApiKey) return [this.explicitApiKey];
+    return getGeminiKeyAttemptOrder();
+  }
+
+  private getSdkClient(key: string): GoogleGenAI {
+    let client = this.sdkClients.get(key);
+    if (!client) {
+      client = new GoogleGenAI({ apiKey: key });
+      this.sdkClients.set(key, client);
+    }
+    return client;
+  }
+
+  private async streamSceneWithClient(
+    client: GoogleGenAI,
+    activeModel: string,
+    prompt: GenerationPromptPayload,
+    options: SceneModelOptions,
+    thinkingConfig: ReturnType<typeof buildGeminiThinkingConfig>,
+    onDeltaEmitted?: () => void
+  ): Promise<RawSceneResult> {
+    const responseStream = await (client.models as any).generateContentStream({
+      model: activeModel,
+      contents: prompt.userPrompt,
+      config: {
+        systemInstruction: prompt.systemPrompt,
+        responseMimeType: 'application/json',
+        temperature: options.temperature ?? 0.75,
+        ...(thinkingConfig ? { thinkingConfig } : {}),
+      },
+    });
+    const extractor = new StreamingJsonNarrativeExtractor();
+    for await (const chunk of responseStream) {
+      const chunkText = chunk.text || '';
+      if (chunkText) {
+        extractor.pushChunk(chunkText, (delta) => {
+          onDeltaEmitted?.();
+          options.onTextDelta?.(delta);
+        });
+      }
+    }
+    const text = extractor.getFullRawText() || '{}';
+    const cleaned = extractJsonPayload(text);
+    return {
+      data: JSON.parse(cleaned) as RawSceneData,
+      rawText: text,
+      modelUsed: activeModel,
+    };
   }
 
   /**
@@ -425,35 +478,37 @@ export class GeminiAdapter {
         : this.thinkingBudgetTokens;
     const thinkingConfig = buildGeminiThinkingConfig(activeModel, activeThinkingBudget);
 
+    const keyOrder = this.resolveKeyOrder();
+
     // If onTextDelta is requested and no custom model call is injected, stream directly
-    if (!this.hasCustomModelCall && typeof options.onTextDelta === 'function' && this.client) {
-      try {
-        const responseStream = await (this.client.models as any).generateContentStream({
-          model: activeModel,
-          contents: prompt.userPrompt,
-          config: {
-            systemInstruction: prompt.systemPrompt,
-            responseMimeType: 'application/json',
-            temperature: options.temperature ?? 0.75,
-            ...(thinkingConfig ? { thinkingConfig } : {}),
-          },
-        });
-        const extractor = new StreamingJsonNarrativeExtractor();
-        for await (const chunk of responseStream) {
-          const chunkText = chunk.text || '';
-          if (chunkText) {
-            extractor.pushChunk(chunkText, (delta) => options.onTextDelta?.(delta));
+    if (!this.hasCustomModelCall && typeof options.onTextDelta === 'function' && keyOrder.length > 0) {
+      for (let i = 0; i < keyOrder.length; i++) {
+        let emittedDelta = false;
+        try {
+          const client = this.getSdkClient(keyOrder[i]);
+          return await this.streamSceneWithClient(
+            client,
+            activeModel,
+            prompt,
+            options,
+            thinkingConfig,
+            () => {
+              emittedDelta = true;
+            }
+          );
+        } catch (streamErr) {
+          const message = streamErr instanceof Error ? streamErr.message : String(streamErr);
+          const isAuthOrQuota =
+            !emittedDelta && /\b(429|403)\b|quota|rate.?limit|resource_exhausted/i.test(message);
+          if (isAuthOrQuota && i + 1 < keyOrder.length) {
+            console.warn(
+              `[GeminiAdapter] Direct stream failed with rate/quota error on key #${i + 1}; failing over to next key...`
+            );
+            continue;
           }
+          console.warn('[GeminiAdapter] Direct stream error, falling back:', streamErr);
+          break;
         }
-        const text = extractor.getFullRawText() || '{}';
-        const cleaned = extractJsonPayload(text);
-        return {
-          data: JSON.parse(cleaned) as RawSceneData,
-          rawText: text,
-          modelUsed: activeModel,
-        };
-      } catch (streamErr) {
-        console.warn('[GeminiAdapter] Direct stream error, falling back:', streamErr);
       }
     }
 
@@ -481,36 +536,21 @@ export class GeminiAdapter {
     if (this.hasCustomModelCall) return null;
 
     // Legacy direct-SDK fallback (the cascading queue returned nothing).
-    if (!this.client) return null;
+    const fallbackKey = keyOrder[0];
+    if (!fallbackKey) return null;
+    const fallbackClient = this.getSdkClient(fallbackKey);
     try {
       if (typeof options.onTextDelta === 'function') {
-        const responseStream = await (this.client.models as any).generateContentStream({
-          model: activeModel,
-          contents: prompt.userPrompt,
-          config: {
-            systemInstruction: prompt.systemPrompt,
-            responseMimeType: 'application/json',
-            temperature: options.temperature ?? 0.75,
-            ...(thinkingConfig ? { thinkingConfig } : {}),
-          },
-        });
-        const extractor = new StreamingJsonNarrativeExtractor();
-        for await (const chunk of responseStream) {
-          const chunkText = chunk.text || '';
-          if (chunkText) {
-            extractor.pushChunk(chunkText, (delta) => options.onTextDelta?.(delta));
-          }
-        }
-        const text = extractor.getFullRawText() || '{}';
-        const cleaned = extractJsonPayload(text);
-        return {
-          data: JSON.parse(cleaned) as RawSceneData,
-          rawText: text,
-          modelUsed: activeModel,
-        };
+        return await this.streamSceneWithClient(
+          fallbackClient,
+          activeModel,
+          prompt,
+          options,
+          thinkingConfig
+        );
       }
 
-      const response = await this.client.models.generateContent({
+      const response = await fallbackClient.models.generateContent({
         model: activeModel,
         contents: prompt.userPrompt,
         config: {

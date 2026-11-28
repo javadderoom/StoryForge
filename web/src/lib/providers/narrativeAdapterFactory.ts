@@ -1,7 +1,7 @@
 import { GeminiAdapter } from './GeminiAdapter';
 import type { SceneModelCall, RawSceneData, RawSceneResult } from '../engines/narrative/modelCall';
 import { defaultSceneModelCall } from '../engines/narrative/modelCall';
-import { extractJsonPayload } from '../ai/geminiClient';
+import { extractJsonPayload, getGeminiApiKeys } from '../ai/geminiClient';
 import { StreamingJsonNarrativeExtractor } from '../engines/narrative/streamingExtractor';
 import {
   AIPRIME_ENDPOINT,
@@ -29,6 +29,9 @@ const PROVIDER_API_KEY_ENV: Record<NarratorProvider, string> = {
 
 /** True when the provider's API key is configured in this deployment. */
 export function isProviderConfigured(provider: NarratorProvider): boolean {
+  if (provider === 'gemini') {
+    return getGeminiApiKeys().length > 0;
+  }
   const key = process.env[PROVIDER_API_KEY_ENV[provider]];
   return Boolean(key && key.trim().length > 0);
 }

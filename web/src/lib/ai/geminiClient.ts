@@ -79,8 +79,65 @@ export interface GenerationResult<T = any> {
 /**
  * Builds the appropriate API endpoint URL, injecting the Cloudflare proxy if configured.
  */
-export function getGeminiEndpoint(modelName: string): string {
-  const apiKey = process.env.GEMINI_API_KEY || '';
+let roundRobinKeyIndex = 0;
+
+/**
+ * Collects all configured Gemini API keys in deterministic order.
+ * Supports comma-separated values in `GEMINI_API_KEYS` or `GEMINI_API_KEY`,
+ * as well as numbered vars (`GEMINI_API_KEY`, `GEMINI_API_KEY_2`, `_3`, `_4`).
+ */
+export function getGeminiApiKeys(): string[] {
+  const candidates = [
+    process.env.GEMINI_API_KEYS,
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3,
+    process.env.GEMINI_API_KEY_4,
+  ];
+  const seen = new Set<string>();
+  const keys: string[] = [];
+
+  for (const raw of candidates) {
+    if (!raw) continue;
+    for (const part of raw.split(',')) {
+      const trimmed = part.trim();
+      if (trimmed && !seen.has(trimmed)) {
+        seen.add(trimmed);
+        keys.push(trimmed);
+      }
+    }
+  }
+
+  return keys;
+}
+
+/**
+ * Returns all configured Gemini API keys ordered for the current request,
+ * advancing the module-level round-robin cursor by one so consecutive
+ * requests distribute evenly across keys (and can fail over on 429/403).
+ */
+export function getGeminiKeyAttemptOrder(): string[] {
+  const keys = getGeminiApiKeys();
+  if (keys.length === 0) return [];
+  const start = roundRobinKeyIndex % keys.length;
+  roundRobinKeyIndex = (roundRobinKeyIndex + 1) % keys.length;
+  return [...keys.slice(start), ...keys.slice(0, start)];
+}
+
+/**
+ * Returns the next Gemini API key in round-robin order across all configured keys.
+ */
+export function getNextGeminiApiKey(): string | undefined {
+  return getGeminiKeyAttemptOrder()[0];
+}
+
+/** Resets round-robin index for deterministic unit tests. */
+export function resetGeminiKeyRotationForTests(): void {
+  roundRobinKeyIndex = 0;
+}
+
+export function getGeminiEndpoint(modelName: string, apiKeyOverride?: string): string {
+  const apiKey = apiKeyOverride ?? getNextGeminiApiKey() ?? '';
 
   // In local mode with local HTTPS proxy (port 10808), use the official Gemini endpoint directly via proxy
   if (isLocalEnvironment() && getLocalGeminiProxyUrl()) {
@@ -96,8 +153,8 @@ export function getGeminiEndpoint(modelName: string): string {
   return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 }
 
-export function getGeminiStreamEndpoint(modelName: string): string {
-  return getGeminiEndpoint(modelName).replace(
+export function getGeminiStreamEndpoint(modelName: string, apiKeyOverride?: string): string {
+  return getGeminiEndpoint(modelName, apiKeyOverride).replace(
     ':generateContent?',
     ':streamGenerateContent?alt=sse&'
   );
@@ -159,8 +216,8 @@ export async function generateStructuredJson<T = unknown>(
   systemInstruction?: string,
   options: GenerateOptions = {}
 ): Promise<GenerationResult<T> | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
+  const keyOrder = getGeminiKeyAttemptOrder();
+  if (keyOrder.length === 0) {
     return null;
   }
 
@@ -177,14 +234,20 @@ export async function generateStructuredJson<T = unknown>(
     const maxAttempts = isPinnedPreferred ? 3 : 1;
     const timeoutMs = options.timeoutMs ?? (isGemini4Model(model) ? Math.max(baseTimeoutMs, 45000) : baseTimeoutMs);
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      console.log(`[GeminiClient] Attempting model: ${model} (${options.taskType || 'default'}, attempt ${attempt}/${maxAttempts}, timeout: ${timeoutMs}ms)...`);
+    let keyCursor = 0;
+    let attempt = 1;
+
+    while (keyCursor < keyOrder.length) {
+      const activeKey = keyOrder[keyCursor];
+      console.log(
+        `[GeminiClient] Attempting model: ${model} (${options.taskType || 'default'}, key #${keyCursor + 1}/${keyOrder.length}, attempt ${attempt}/${maxAttempts}, timeout: ${timeoutMs}ms)...`
+      );
 
       try {
         const isStreaming = typeof options.onTextDelta === 'function';
         const endpoint = isStreaming
-          ? getGeminiStreamEndpoint(model)
-          : getGeminiEndpoint(model);
+          ? getGeminiStreamEndpoint(model, activeKey)
+          : getGeminiEndpoint(model, activeKey);
 
         const generationConfig: Record<string, unknown> = {
           responseMimeType: 'application/json',
@@ -222,10 +285,18 @@ export async function generateStructuredJson<T = unknown>(
 
         if (!res.ok) {
           const errorText = await res.text().catch(() => '');
+          if ((res.status === 429 || res.status === 403) && keyCursor + 1 < keyOrder.length) {
+            console.warn(
+              `[GeminiClient] ${model} returned ${res.status} on key #${keyCursor + 1}; failing over to next Gemini API key...`
+            );
+            keyCursor += 1;
+            continue;
+          }
           if (res.status === 503 && attempt < maxAttempts) {
             const waitMs = retryDelayBaseMs * attempt;
             console.warn(`[GeminiClient] ${model} returned 503 (high demand). Retrying preferred model in ${waitMs}ms (attempt ${attempt}/${maxAttempts})...`);
             if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+            attempt += 1;
             continue;
           }
           console.warn(`[GeminiClient] ${model} failed (${res.status}): ${errorText}. Immediately trying next model in queue...`);
@@ -319,8 +390,8 @@ export async function generateChat(
   systemInstruction?: string,
   options: GenerateOptions = {}
 ): Promise<GenerationResult<string> | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
+  const keyOrder = getGeminiKeyAttemptOrder();
+  if (keyOrder.length === 0) {
     return null;
   }
 
@@ -338,66 +409,74 @@ export async function generateChat(
   for (const model of modelQueue) {
     console.log(`[GeminiClient] Attempting chat with model: ${model}...`);
 
-    try {
-      const endpoint = getGeminiEndpoint(model);
+    for (let keyIdx = 0; keyIdx < keyOrder.length; keyIdx++) {
+      try {
+        const endpoint = getGeminiEndpoint(model, keyOrder[keyIdx]);
 
-      const contents = messages.map((m) => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }],
-      }));
+        const contents = messages.map((m) => ({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }],
+        }));
 
-      const generationConfig: Record<string, unknown> = {
-        temperature: options.temperature ?? 0.8,
-      };
-
-      const chatThinkingConfig = buildGeminiThinkingConfig(model, 0);
-      if (chatThinkingConfig) {
-        generationConfig.thinkingConfig = chatThinkingConfig;
-      }
-
-      if (options.maxOutputTokens) {
-        generationConfig.maxOutputTokens = options.maxOutputTokens;
-      }
-
-      const requestBody: any = {
-        contents,
-        generationConfig,
-      };
-
-      if (systemInstruction) {
-        requestBody.systemInstruction = {
-          parts: [{ text: systemInstruction }],
+        const generationConfig: Record<string, unknown> = {
+          temperature: options.temperature ?? 0.8,
         };
-      }
 
-      const dispatcher = getGeminiProxyAgent();
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-        signal: AbortSignal.timeout(timeoutMs),
-        ...(dispatcher ? { dispatcher } : {}),
-      } as any);
+        const chatThinkingConfig = buildGeminiThinkingConfig(model, 0);
+        if (chatThinkingConfig) {
+          generationConfig.thinkingConfig = chatThinkingConfig;
+        }
 
-      if (!res.ok) {
-        const errorText = await res.text().catch(() => '');
-        console.warn(`[GeminiClient] ${model} chat failed (${res.status}): ${errorText}. Trying next model...`);
-        continue;
-      }
+        if (options.maxOutputTokens) {
+          generationConfig.maxOutputTokens = options.maxOutputTokens;
+        }
 
-      const json = await res.json();
-      const rawText = extractCandidateText(json);
-
-      if (rawText) {
-        console.log(`[GeminiClient] Chat response succeeded using model: ${model}`);
-        return {
-          data: rawText,
-          rawText,
-          modelUsed: model,
+        const requestBody: any = {
+          contents,
+          generationConfig,
         };
+
+        if (systemInstruction) {
+          requestBody.systemInstruction = {
+            parts: [{ text: systemInstruction }],
+          };
+        }
+
+        const dispatcher = getGeminiProxyAgent();
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+          signal: AbortSignal.timeout(timeoutMs),
+          ...(dispatcher ? { dispatcher } : {}),
+        } as any);
+
+        if (!res.ok) {
+          const errorText = await res.text().catch(() => '');
+          if ((res.status === 429 || res.status === 403) && keyIdx + 1 < keyOrder.length) {
+            console.warn(`[GeminiClient] ${model} chat returned ${res.status} on key #${keyIdx + 1}; failing over to next Gemini API key...`);
+            continue;
+          }
+          console.warn(`[GeminiClient] ${model} chat failed (${res.status}): ${errorText}. Trying next model...`);
+          break;
+        }
+
+        const json = await res.json();
+        const rawText = extractCandidateText(json);
+
+        if (rawText) {
+          console.log(`[GeminiClient] Chat response succeeded using model: ${model}`);
+          return {
+            data: rawText,
+            rawText,
+            modelUsed: model,
+          };
+        }
+        break;
+      } catch (err) {
+        console.warn(`[GeminiClient] ${model} chat timed out or threw error. Trying next model:`, err);
+        break;
       }
-    } catch (err) {
-      console.warn(`[GeminiClient] ${model} chat timed out or threw error. Trying next model:`, err);
     }
   }
 
@@ -409,8 +488,8 @@ export async function generateText(
   systemInstruction?: string,
   options: GenerateOptions = {}
 ): Promise<GenerationResult<string> | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
+  const keyOrder = getGeminiKeyAttemptOrder();
+  if (keyOrder.length === 0) {
     return null;
   }
 
@@ -424,61 +503,69 @@ export async function generateText(
   for (const model of modelQueue) {
     console.log(`[GeminiClient] Attempting text with model: ${model}...`);
 
-    try {
-      const endpoint = getGeminiEndpoint(model);
+    for (let keyIdx = 0; keyIdx < keyOrder.length; keyIdx++) {
+      try {
+        const endpoint = getGeminiEndpoint(model, keyOrder[keyIdx]);
 
-      const generationConfig: Record<string, unknown> = {
-        temperature: options.temperature ?? 0.7,
-      };
-
-      const chatThinkingConfig = buildGeminiThinkingConfig(model, 0);
-      if (chatThinkingConfig) {
-        generationConfig.thinkingConfig = chatThinkingConfig;
-      }
-
-      if (options.maxOutputTokens) {
-        generationConfig.maxOutputTokens = options.maxOutputTokens;
-      }
-
-      const requestBody: Record<string, unknown> = {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig,
-      };
-
-      if (systemInstruction) {
-        requestBody.systemInstruction = {
-          parts: [{ text: systemInstruction }],
+        const generationConfig: Record<string, unknown> = {
+          temperature: options.temperature ?? 0.7,
         };
-      }
 
-      const dispatcher = getGeminiProxyAgent();
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-        signal: AbortSignal.timeout(timeoutMs),
-        ...(dispatcher ? { dispatcher } : {}),
-      } as any);
+        const chatThinkingConfig = buildGeminiThinkingConfig(model, 0);
+        if (chatThinkingConfig) {
+          generationConfig.thinkingConfig = chatThinkingConfig;
+        }
 
-      if (!res.ok) {
-        const errorText = await res.text().catch(() => '');
-        console.warn(`[GeminiClient] ${model} text failed (${res.status}): ${errorText}. Trying next model...`);
-        continue;
-      }
+        if (options.maxOutputTokens) {
+          generationConfig.maxOutputTokens = options.maxOutputTokens;
+        }
 
-      const json = await res.json();
-      const rawText = extractCandidateText(json);
-
-      if (rawText) {
-        console.log(`[GeminiClient] Text generation succeeded using model: ${model}`);
-        return {
-          data: rawText,
-          rawText,
-          modelUsed: model,
+        const requestBody: Record<string, unknown> = {
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig,
         };
+
+        if (systemInstruction) {
+          requestBody.systemInstruction = {
+            parts: [{ text: systemInstruction }],
+          };
+        }
+
+        const dispatcher = getGeminiProxyAgent();
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+          signal: AbortSignal.timeout(timeoutMs),
+          ...(dispatcher ? { dispatcher } : {}),
+        } as any);
+
+        if (!res.ok) {
+          const errorText = await res.text().catch(() => '');
+          if ((res.status === 429 || res.status === 403) && keyIdx + 1 < keyOrder.length) {
+            console.warn(`[GeminiClient] ${model} text returned ${res.status} on key #${keyIdx + 1}; failing over to next Gemini API key...`);
+            continue;
+          }
+          console.warn(`[GeminiClient] ${model} text failed (${res.status}): ${errorText}. Trying next model...`);
+          break;
+        }
+
+        const json = await res.json();
+        const rawText = extractCandidateText(json);
+
+        if (rawText) {
+          console.log(`[GeminiClient] Text generation succeeded using model: ${model}`);
+          return {
+            data: rawText,
+            rawText,
+            modelUsed: model,
+          };
+        }
+        break;
+      } catch (err) {
+        console.warn(`[GeminiClient] ${model} text timed out or threw error. Trying next model:`, err);
+        break;
       }
-    } catch (err) {
-      console.warn(`[GeminiClient] ${model} text timed out or threw error. Trying next model:`, err);
     }
   }
 
