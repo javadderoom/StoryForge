@@ -18,7 +18,7 @@ class ChoiceOption {
   });
 
   factory ChoiceOption.fromJson(Map<String, dynamic> json) {
-    final rawText = json['text'] as String? ?? '';
+    final rawText = json['text']?.toString() ?? '';
     final cleanedText = rawText
         .replaceAll(
           RegExp(
@@ -41,13 +41,13 @@ class ChoiceOption {
         .trim();
 
     return ChoiceOption(
-      id: json['id'] ?? '',
+      id: json['id']?.toString() ?? '',
       text: cleanedText.isNotEmpty ? cleanedText : rawText,
-      style: json['style'] ?? 'tactical',
-      riskLevel: json['riskLevel'] ?? 'medium',
-      requiredStatId: json['requiredStatId'],
-      targetDC: json['targetDC'],
-      targetSceneId: json['targetSceneId'] ?? json['destinationSceneId'],
+      style: json['style']?.toString() ?? 'tactical',
+      riskLevel: json['riskLevel']?.toString() ?? 'medium',
+      requiredStatId: json['requiredStatId']?.toString(),
+      targetDC: (json['targetDC'] as num?)?.toInt(),
+      targetSceneId: (json['targetSceneId'] ?? json['destinationSceneId'])?.toString(),
     );
   }
 

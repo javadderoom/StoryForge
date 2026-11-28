@@ -27,5 +27,18 @@ void main() {
 
       expect(choice.text, equals(full));
     });
+
+    test('handles numeric targetDC as double and non-string id safely', () {
+      final choice = ChoiceOption.fromJson({
+        'id': 42,
+        'text': 'بررسی قفل دروازه',
+        'targetDC': 13.0,
+        'requiredStatId': 'cunning',
+      });
+
+      expect(choice.id, equals('42'));
+      expect(choice.targetDC, equals(13));
+      expect(choice.requiresRoll, isTrue);
+    });
   });
 }

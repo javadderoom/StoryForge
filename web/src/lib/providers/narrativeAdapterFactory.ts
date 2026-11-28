@@ -42,6 +42,46 @@ export function isProviderConfigured(provider: NarratorProvider): boolean {
  * provider's API key is missing the seam falls back to the default cascading
  * queue — the reader always gets a scene.
  */
+export function extractChoicesArrayFallback(rawText: string): unknown[] | undefined {
+  const match = rawText.match(/"choices"\s*:\s*\[/);
+  if (!match || match.index === undefined) return undefined;
+  const start = rawText.indexOf('[', match.index);
+  if (start === -1) return undefined;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < rawText.length; i++) {
+    const ch = rawText[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === '[') depth++;
+    else if (ch === ']') {
+      depth--;
+      if (depth === 0) {
+        try {
+          const arr = JSON.parse(rawText.slice(start, i + 1));
+          return Array.isArray(arr) ? arr : undefined;
+        } catch {
+          return undefined;
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
 export function createOpenAiCompatibleModelCall(
   provider: NarratorProvider,
   config: NarratorTierConfig
@@ -141,7 +181,11 @@ export function createOpenAiCompatibleModelCall(
             try {
               parsed = JSON.parse(cleaned) as RawSceneData;
             } catch {
-              parsed = { narrative: extractor.getNarrativeText() };
+              const recoveredChoices = extractChoicesArrayFallback(rawText);
+              parsed = {
+                narrative: extractor.getNarrativeText(),
+                ...(recoveredChoices ? { choices: recoveredChoices } : {}),
+              };
             }
             return {
               data: parsed,

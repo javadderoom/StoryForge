@@ -508,7 +508,7 @@ describe('ActionValidator - sanitizeChoices (pre-presentation filter)', () => {
     assert.equal(sanitized.length, 1);
   });
 
-  it('returns an empty array for null / undefined / empty input', () => {
+  it('returns an empty array for null / undefined / empty input when no prose context exists', () => {
     assert.deepEqual(
       ActionValidator.sanitizeChoices(null, playerState, worldBible),
       []
@@ -517,6 +517,18 @@ describe('ActionValidator - sanitizeChoices (pre-presentation filter)', () => {
       ActionValidator.sanitizeChoices([] as any, playerState, worldBible),
       []
     );
+  });
+
+  it('replenishes safe fallback choices when input choices are empty but scene prose exists', () => {
+    const sanitized = ActionValidator.sanitizeChoices(
+      [],
+      playerState,
+      worldBible,
+      undefined,
+      [],
+      'کاروان در میانهٔ گردنه توقف می‌کند و باد سرد از میان صخره‌ها می‌گذرد.'
+    );
+    assert.ok(sanitized.length >= 2);
   });
 
   it('never returns more choices than it was given when no prose context is provided', () => {

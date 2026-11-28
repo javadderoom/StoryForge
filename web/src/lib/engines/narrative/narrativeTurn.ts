@@ -865,6 +865,12 @@ export async function generateValidatedScene(
     }
   }
 
+  // Final guarantee: never leave a validated scene with fewer than 2 choices
+  // when a sanitizer with prose context can replenish safe fallbacks.
+  if (secretSanitizer && (!aiResponse.choices || aiResponse.choices.length < 2)) {
+    aiResponse.choices = secretSanitizer(aiResponse.choices || [], candidate.narrative);
+  }
+
   return {
     status: 'ok',
     aiResponse,

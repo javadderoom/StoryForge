@@ -408,6 +408,24 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
   String? _streamingSceneImageUrl;
   bool _hasStreamingSceneImage = false;
 
+  static List<ChoiceOption> _parseChoices(dynamic rawChoices) {
+    if (rawChoices is! List) return const [];
+    final parsed = <ChoiceOption>[];
+    for (final item in rawChoices) {
+      if (item is Map) {
+        try {
+          final choice = ChoiceOption.fromJson(Map<String, dynamic>.from(item));
+          if (choice.text.trim().isNotEmpty) {
+            parsed.add(choice);
+          }
+        } catch (_) {
+          // Skip malformed choice entry rather than dropping the whole list.
+        }
+      }
+    }
+    return parsed;
+  }
+
   @override
   GameSessionState build() => GameSessionState();
 
@@ -554,6 +572,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         isStreamingNarrative: false,
         errorMessage: null,
         clearLastResolution: true,
+        clearPendingTurn: true,
         currentNarrative: '',
         choices: const [],
         lastActionText: choice.text,
@@ -565,6 +584,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       state = state.copyWith(
         errorMessage: null,
         clearLastResolution: true,
+        clearPendingTurn: true,
         lastActionText: choice.text,
       );
     }
@@ -666,8 +686,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         }
 
         if (eventType == 'choices') {
-          final rawChoices = event['choices'] as List<dynamic>? ?? [];
-          _streamingChoicesBuffer = rawChoices.map((c) => ChoiceOption.fromJson(c)).toList();
+          _streamingChoicesBuffer = _parseChoices(event['choices']);
 
           if (!_isHoldingNarrative) {
             state = state.copyWith(
@@ -747,9 +766,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
               clearSceneImage: sceneImg == null,
               choices: _streamingChoicesBuffer.isNotEmpty
                   ? _streamingChoicesBuffer
-                  : (beatData['presentedChoices'] as List<dynamic>? ?? [])
-                      .map((c) => ChoiceOption.fromJson(c))
-                      .toList(),
+                  : _parseChoices(beatData['presentedChoices'] ?? beatData['choices']),
               playerState: updatedPlayer,
               lastResolution: resolution,
               lastActionText: choice.text,
@@ -832,7 +849,8 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
         state.playerState!.equipment.allEquippedIds.isNotEmpty) {
       updatedPlayer = updatedPlayer.copyWith(equipment: state.playerState!.equipment);
     }
-    final rawChoices = beatData['presentedChoices'] as List<dynamic>? ?? [];
+    final rawChoices = beatData['presentedChoices'] ?? beatData['choices'];
+    final parsedBeatChoices = _parseChoices(rawChoices);
     final sceneImg = beatData['imageUrl'] as String?;
     final discoveredJson = beatData['discoveredCreature'] as Map<String, dynamic>?;
     final discovered = discoveredJson != null ? DiscoveredCreature.fromJson(discoveredJson) : null;
@@ -864,7 +882,7 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
       currentNarrative: _streamingProseBuffer.isNotEmpty ? _streamingProseBuffer : (beatData['narrativeProse'] ?? ''),
       currentSceneImageUrl: sceneImg,
       clearSceneImage: sceneImg == null,
-      choices: _streamingChoicesBuffer.isNotEmpty ? _streamingChoicesBuffer : rawChoices.map((c) => ChoiceOption.fromJson(c)).toList(),
+      choices: _streamingChoicesBuffer.isNotEmpty ? _streamingChoicesBuffer : parsedBeatChoices,
       playerState: updatedPlayer,
       lastXpAward: xpAward,
       lastStatusDelta: statusDelta,
@@ -1036,17 +1054,19 @@ class GameSessionNotifier extends Notifier<GameSessionState> {
   }
 
   /// Resumes an existing playthrough session for the given storyId and optional sessionId
-  Future<bool> resumeStory(String storyId, {String? sessionId}) async {
+  Future<bool> resumeStory(String storyId, {String? sessionId, bool forceReload = false}) async {
     // If a specific sessionId is requested, check if it matches in-memory active session
-    if (sessionId != null && sessionId.isNotEmpty) {
-      if (state.sessionId == sessionId && state.currentNarrative.isNotEmpty && !state.isLoading) {
+    if (!forceReload) {
+      if (sessionId != null && sessionId.isNotEmpty) {
+        if (state.sessionId == sessionId && state.currentNarrative.isNotEmpty && !state.isLoading) {
+          return true;
+        }
+      } else if (state.storyId == storyId && state.currentNarrative.isNotEmpty && !state.isLoading) {
         return true;
       }
-    } else if (state.storyId == storyId && state.currentNarrative.isNotEmpty && !state.isLoading) {
-      return true;
     }
 
-    state = state.copyWith(isLoading: true, storyId: storyId);
+    state = state.copyWith(isLoading: true, storyId: storyId, errorMessage: null);
     try {
       final prefs = await SharedPreferences.getInstance();
       final targetSessionId = (sessionId != null && sessionId.isNotEmpty)

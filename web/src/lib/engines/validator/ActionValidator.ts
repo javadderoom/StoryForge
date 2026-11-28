@@ -261,9 +261,6 @@ export class ActionValidator {
     recentSceneSnippets?: string[] | null,
     currentProse?: string | null
   ): any[] {
-    if (!Array.isArray(choices) || choices.length === 0) return [];
-
-    // Combine recent scene snippets (last 3 scenes) and current scene prose
     const allProseSnippets: string[] = [
       ...(Array.isArray(recentSceneSnippets) ? recentSceneSnippets : []),
       typeof currentProse === 'string' ? currentProse : '',
@@ -271,9 +268,12 @@ export class ActionValidator {
 
     const fullProse = allProseSnippets.join('\n');
     const hasProseContext = fullProse.trim().length > 0;
+    const inputChoices = Array.isArray(choices) ? choices : [];
+    if (inputChoices.length === 0 && !hasProseContext) return [];
+
     const registeredNpcs = worldBible?.npcs ?? [];
 
-    const filtered = choices.filter((c) => {
+    const filtered = inputChoices.filter((c) => {
       const text = typeof c?.text === 'string' ? c.text : '';
       if (!text) return false;
 

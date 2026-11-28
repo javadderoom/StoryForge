@@ -1493,32 +1493,96 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                             ],
 
                             // Choices & Custom Action
-                            if (!session.isLoading && session.choices.isNotEmpty) ...[
-                              Text(
-                                isPersian ? 'چه تصمیمی می‌گیرید؟' : 'WHAT WILL YOU DO?',
-                                style: isPersian
-                                    ? GoogleFonts.vazirmatn(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: const Color(0xFF9CA3AF),
-                                      )
-                                    : GoogleFonts.inter(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: const Color(0xFF71717A),
-                                        letterSpacing: 1.5,
+                            if (!session.isLoading &&
+                                (session.choices.isNotEmpty ||
+                                    (!session.isStreamingNarrative && session.currentNarrative.isNotEmpty))) ...[
+                              if (session.choices.isNotEmpty) ...[
+                                Text(
+                                  isPersian ? 'چه تصمیمی می‌گیرید؟' : 'WHAT WILL YOU DO?',
+                                  style: isPersian
+                                      ? GoogleFonts.vazirmatn(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: const Color(0xFF9CA3AF),
+                                        )
+                                      : GoogleFonts.inter(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: const Color(0xFF71717A),
+                                          letterSpacing: 1.5,
+                                        ),
+                                ),
+                                const SizedBox(height: 14),
+                                for (final choice in session.choices) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: ThreeDChoiceCard(
+                                      choice: choice,
+                                      theme: theme,
+                                      isPersian: isPersian,
+                                      statsConfig: session.rpgStats,
+                                      onTap: () => _handleAction(choice),
+                                    ),
+                                  ),
+                                ],
+                              ] else ...[
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: (session.errorMessage != null
+                                            ? const Color(0xFFEF4444)
+                                            : theme.primaryAccent)
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: (session.errorMessage != null
+                                              ? const Color(0xFFEF4444)
+                                              : theme.primaryAccent)
+                                          .withValues(alpha: 0.35),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        session.errorMessage ??
+                                            (isPersian
+                                                ? 'انتخاب‌های پیشنهادی این صحنه دریافت نشد. می‌توانید وضعیت صحنه را بازخوانی کنید یا اقدام دلخواه خود را بنویسید.'
+                                                : 'Suggested choices could not be loaded. Reload the scene or write a custom action below.'),
+                                        style: GoogleFonts.vazirmatn(
+                                          fontSize: 12.5,
+                                          height: 1.6,
+                                          color: Colors.white.withValues(alpha: 0.9),
+                                        ),
                                       ),
-                              ),
-                              const SizedBox(height: 14),
-                              for (final choice in session.choices) ...[
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: ThreeDChoiceCard(
-                                    choice: choice,
-                                    theme: theme,
-                                    isPersian: isPersian,
-                                    statsConfig: session.rpgStats,
-                                    onTap: () => _handleAction(choice),
+                                      if (session.sessionId.isNotEmpty) ...[
+                                        const SizedBox(height: 10),
+                                        TextButton.icon(
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: theme.primaryAccent,
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                          icon: const Icon(Icons.refresh_rounded, size: 16),
+                                          label: Text(
+                                            isPersian ? 'بازخوانی صحنه و انتخاب‌ها' : 'Reload scene & choices',
+                                            style: GoogleFonts.vazirmatn(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          onPressed: () {
+                                            ref.read(gameSessionProvider.notifier).resumeStory(
+                                              session.storyId,
+                                              sessionId: session.sessionId,
+                                              forceReload: true,
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
                               ],
